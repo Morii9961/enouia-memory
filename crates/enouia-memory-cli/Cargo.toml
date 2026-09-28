@@ -1,0 +1,14 @@
+[package]
+name = "enouia-memory-cli"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+
+[[bin]]
+name = "enouia-memory"
+path = "src/main.rs"
+
+[dependencies]
+enouia-memory-contract = { path = "../enouia-memory-contract" }
+enouia-memory-vault = { path = "../enouia-memory-vault" }
+serde_json.workspace = true

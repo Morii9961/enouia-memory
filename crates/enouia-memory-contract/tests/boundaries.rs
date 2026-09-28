@@ -55,6 +55,23 @@ fn memory_vault_dependencies_are_pinned_and_minimal() {
     assert!(manifest.contains("windows-sys = { version = \"=0.61.2\""));
 }
 
+/// The CLI only composes this repository's crates.
+#[test]
+fn memory_cli_depends_only_on_this_repository() {
+    let manifest =
+        std::fs::read_to_string(repo().join("crates/enouia-memory-cli/Cargo.toml")).unwrap();
+    let mut deps = dependencies(&manifest);
+    deps.sort();
+    assert_eq!(
+        deps,
+        [
+            "enouia-memory-contract",
+            "enouia-memory-vault",
+            "serde_json"
+        ]
+    );
+}
+
 /// The repository builds from its own checkout: no manifest may reference a
 /// path outside the repository or a Git dependency (e.g. the Runtime repo).
 #[test]

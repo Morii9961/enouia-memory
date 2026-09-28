@@ -3,6 +3,15 @@
 version = 4
 
 [[package]]
+name = "enouia-memory-cli"
+version = "0.1.0"
+dependencies = [
+ "enouia-memory-contract",
+ "enouia-memory-vault",
+ "serde_json",
+]
+
+[[package]]
 name = "enouia-memory-contract"
 version = "0.1.0"
 dependencies = [

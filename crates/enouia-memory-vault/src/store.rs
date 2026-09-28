@@ -377,8 +377,21 @@ impl Vault {
         let bytes = managed
             .read(&layout::vault_descriptor())?
             .ok_or_else(|| VaultError::new(MemoryErrorCode::NotFound, Fault::NotInitialized))?;
-        let descriptor: VaultDescriptor =
-            parse_store(&bytes).map_err(|_| VaultError::corrupt("vault descriptor"))?;
+        let descriptor: VaultDescriptor = parse_store(&bytes).map_err(|_| {
+            // A newer layout is read-only for this build, never "corrupt".
+            let newer = serde_json::from_slice::<Value>(&bytes).is_ok_and(|v| {
+                v["schema_version"].as_i64().is_some_and(|s| s > 1)
+                    || v["format_version"].as_u64().is_some_and(|f| f > 1)
+            });
+            if newer {
+                VaultError::new(
+                    MemoryErrorCode::UnsupportedSchema,
+                    Fault::Contract(vec!["unsupported_schema"]),
+                )
+            } else {
+                VaultError::corrupt("vault descriptor")
+            }
+        })?;
         Ok(Self {
             root: managed,
             device_id: device_id.unwrap_or_else(|| descriptor.genesis_device_id.clone()),

@@ -25,6 +25,7 @@ use enouia_memory_contract::ports::{
 use enouia_memory_contract::record::{RecordKind, RecordRef, parse_value};
 use enouia_memory_contract::session::{ClientSurface, SessionRecord};
 use enouia_memory_contract::source::{ConfirmationMethod, SourceRecord};
+use enouia_memory_contract::time::Timestamp;
 use serde_json::{Value, json};
 
 pub const TEXT_MEDIA_TYPE: &str = "text/plain; charset=utf-8";
@@ -67,6 +68,66 @@ fn scope(principal: &ActorRef, kind: OperationKind, key: &[u8]) -> IdempotencySc
         operation_kind: kind,
         key_hash: sha256(key),
     }
+}
+
+/// The genesis default policy (ADR-MEM-31): owner-only, local destinations,
+/// never `provider:send`. Every other grant is a later owner decision.
+pub fn genesis_default_policy(policy_id: &PolicyId, now: &Timestamp) -> Result<StagedRecord> {
+    let value = json!({
+        "schema_version": 1,
+        "policy_id": policy_id,
+        "revision": 1,
+        "status": "active",
+        "origin": "genesis_default",
+        "approval_id": null,
+        "principals": [{"actor_type": "owner", "actor_id": null}],
+        "scopes": ["memory:read", "source:read", "memory:propose", "session:propose",
+                   "context:read", "owner:review", "owner:identity", "operation:read"],
+        "resources": {
+            "all_projects": true,
+            "project_ids": [],
+            "record_kinds": ["source", "attachment", "project", "memory", "candidate", "review",
+                             "identity", "session", "session_event", "checkpoint"],
+            "max_sensitivity": "highly_sensitive",
+        },
+        "purposes": ["answer", "continue_session", "checkpoint", "extraction", "inspection_preview"],
+        "destinations": [
+            {"kind": "local_mock", "provider": null, "model": null},
+            {"kind": "local_model", "provider": null, "model": null},
+        ],
+        "valid_from": now,
+        "valid_until": null,
+        "revoked_at": null,
+        "created_at": now,
+        "updated_at": now,
+    });
+    let (_, bytes): (enouia_memory_contract::policy::PolicyRecord, _) = to_record(&value)?;
+    Ok(StagedRecord {
+        record_kind: RecordKind::Policy,
+        record_id: policy_id.to_string(),
+        revision: Revision::new(1).expect("one"),
+        bytes,
+    })
+}
+
+/// A complete genesis request with fresh IDs and the default policy.
+pub fn new_genesis(
+    ids: &dyn enouia_memory_contract::ports::IdSource,
+    owner: ActorRef,
+    trusted_surface: TrustedSurface,
+    now: &Timestamp,
+) -> Result<crate::store::GenesisRequest> {
+    let policy_id = PolicyId::from_random(ids.random_16());
+    let policy = genesis_default_policy(&policy_id, now)?;
+    Ok(crate::store::GenesisRequest {
+        vault_id: enouia_memory_contract::ids::VaultId::from_random(ids.random_16()),
+        commit_id: CommitId::from_random(ids.random_16()),
+        device_id: enouia_memory_contract::ids::DeviceId::from_random(ids.random_16()),
+        owner,
+        trusted_surface,
+        request_payload_hash: sha256(&policy.bytes),
+        records: vec![policy],
+    })
 }
 
 impl Vault {
