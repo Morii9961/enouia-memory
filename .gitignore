@@ -1,0 +1,39 @@
+# Build output
+/target/
+**/target/
+
+# Local-only material: migration snapshots, private originals, scratch
+/.local/
+/docs/history/private/
+
+# Runtime data must never enter Git: vaults, raw exports, attachments,
+# sessions, databases, keys, backups, recovery material
+/vault/
+/data/
+/runtime-data/
+/raw/
+/exports/
+/attachments/
+/sessions/
+/backups/
+/backup-state/
+/sync-state/
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
+*.db
+*.key
+*.pem
+*.pfx
+*.p12
+*.secret
+**/.env
+**/.env.*
+**/auth.json
+**/credentials.json
+restic-password*
+recovery-key*
+
+# Tool caches
+node_modules/
+__pycache__/
