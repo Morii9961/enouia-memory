@@ -1,0 +1,38 @@
+{
+  "commit_id": "cmt_00000007-0000-4000-8000-000000000007",
+  "created_at": "2026-09-28T09:30:00.000Z",
+  "deletion_epoch": 0,
+  "export_format": 1,
+  "files": [
+    {
+      "path": "vault/commits/cmt_00000001-0000-4000-8000-000000000001.json",
+      "sha256": "396c00555fb67668f7c41d51f3d03277dd3d8084b862af6d35abdd0705c35980",
+      "size_bytes": 1200
+    },
+    {
+      "path": "vault/commits/cmt_00000007-0000-4000-8000-000000000007.json",
+      "sha256": "71dd25781deb6198e71ff5e2ecd42d95f7afe6618c5f7840ab52c975e9e41288",
+      "size_bytes": 4800
+    },
+    {
+      "path": "vault/raw/objects/d7439bee24773bcbfa2d0a97947ee36227b10d1022b1a55847e928965bb6bfde",
+      "sha256": "d7439bee24773bcbfa2d0a97947ee36227b10d1022b1a55847e928965bb6bfde",
+      "size_bytes": 3
+    },
+    {
+      "path": "vault/records/policy/pol_00000001-0000-4000-8000-000000000001/1.json",
+      "sha256": "823412d1eacb67956220e532959f0104603057c88704863ca38e7cd188fda812",
+      "size_bytes": 900
+    },
+    {
+      "path": "vault/vault.json",
+      "sha256": "194b520dc30384b3fc233e123778835e2adc362d91c6e33015ed3db2379d7ea1",
+      "size_bytes": 400
+    }
+  ],
+  "manifest_sha256": "71dd25781deb6198e71ff5e2ecd42d95f7afe6618c5f7840ab52c975e9e41288",
+  "policy_epoch": 1,
+  "schema_version": 1,
+  "sequence": 7,
+  "vault_id": "vlt_00000001-0000-4000-8000-000000000001"
+}

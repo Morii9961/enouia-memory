@@ -156,6 +156,21 @@ def main():
                 failures.append(f"ipc case {case['id']}: independent validator accepted={accepted}, manifest says {case['schema']}")
     counts["ipc_messages"] = sum(len(ipc[k]) for k in ("valid_requests", "valid_responses", "invalid_requests", "invalid_responses"))
 
+    store_dir = ROOT / "tests" / "fixtures" / "store"
+    store = load(store_dir / "store-manifest.json")
+    for entry in store["valid"]:
+        if not valid(entry["schema"], load(store_dir / entry["file"])):
+            err = next(validators[entry["schema"]].iter_errors(load(store_dir / entry["file"])))
+            failures.append(f"valid store document rejected: {entry['file']}: {err.message[:160]}")
+    store_schema_of = {e["file"]: e["schema"] for e in store["valid"]}
+    for case in store["invalid"]:
+        value = load(store_dir / case["base"])
+        apply_ops(value, case["ops"])
+        accepted = valid(store_schema_of[case["base"]], value)
+        if accepted != (case["schema"] == "accept"):
+            failures.append(f"store case {case['id']}: independent validator accepted={accepted}, manifest says {case['schema']}")
+    counts["store_documents"] = len(store["valid"]) + len(store["invalid"])
+
     print(f"python-jsonschema {version}: " + ", ".join(f"{k}={v}" for k, v in counts.items()))
     for failure in failures:
         print("FAIL", failure)

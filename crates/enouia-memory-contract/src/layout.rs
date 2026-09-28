@@ -3,6 +3,7 @@
 //! and hashes only, never titles, user names, or import paths. No Memory path
 //! lies under the independent `activity/` root.
 
+use crate::commit::ObjectKind;
 use crate::hash::Sha256Hex;
 use crate::json::Revision;
 use crate::record::RecordKind;
@@ -73,4 +74,46 @@ pub fn asset_object(hash: &Sha256Hex) -> String {
 
 pub fn staging_dir(transaction_id: &str) -> String {
     format!("{VAULT_DIR}/staging/{transaction_id}")
+}
+
+/// Store bookkeeping (ADR-MEM-36). None of these carries record content.
+pub fn vault_descriptor() -> String {
+    format!("{VAULT_DIR}/vault.json")
+}
+
+pub fn lock_file() -> String {
+    format!("{VAULT_DIR}/LOCK")
+}
+
+pub fn publish_journal() -> String {
+    format!("{VAULT_DIR}/journal/published.jsonl")
+}
+
+pub fn idempotency_entry(scope_hash: &Sha256Hex) -> String {
+    format!("{VAULT_DIR}/idempotency/{scope_hash}.json")
+}
+
+pub fn recovery_receipt(recovery_id: &str) -> String {
+    format!("{VAULT_DIR}/recovery/{recovery_id}.json")
+}
+
+/// Unpublished files found where a new transaction must write are moved here,
+/// never deleted, so a crash leftover cannot be mistaken for a record.
+pub fn orphans_dir() -> String {
+    format!("{VAULT_DIR}/orphans")
+}
+
+pub fn restore_state() -> String {
+    "config/restore-state.json".to_owned()
+}
+
+/// Content-addressed object path. Identity Markdown is stored beside its
+/// revision (`record_path(Identity, ..)`), so it has no content-addressed path.
+pub fn object_path(kind: ObjectKind, hash: &Sha256Hex) -> Option<String> {
+    match kind {
+        ObjectKind::Raw => Some(raw_object(hash)),
+        ObjectKind::Asset => Some(asset_object(hash)),
+        ObjectKind::SessionContent => Some(format!("{VAULT_DIR}/session-content/objects/{hash}")),
+        ObjectKind::IdentityMarkdown => None,
+    }
 }

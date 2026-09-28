@@ -645,4 +645,64 @@ write("provider/capabilities-v1.schema.json", record(
                                         "cancellation": {"const": "unknown"}, "token_counting": {"const": "unknown"},
                                         "context_window_tokens": {"type": "null"}, "max_output_tokens": {"type": "null"}}}}]},
     "capabilities-v1.schema.json"))
+# ---------------- store (MV-1, ADR-MEM-36) ----------------
+SEQ = {"type": "integer", "minimum": 1, "maximum": MAXSAFE}
+OPERATION_KINDS = ["genesis", "import", "candidate_propose", "review_commit", "identity_review",
+                   "session_append", "checkpoint_propose", "logical_delete", "purge",
+                   "policy_change", "migration", "restore_adopt", "owner_approval"]
+SAFE_PATH = {"type": "string", "pattern": "^vault(/[A-Za-z0-9_.-]+)+$",
+             "$comment": "'.' and '..' segments and store bookkeeping paths are rejected by the Rust validator."}
+write("store/descriptor-v1.schema.json", record(
+    "Enouia Vault descriptor v1",
+    "vault/vault.json, written once by the owner-confirmed genesis before the first CURRENT.",
+    {"schema_version": m("schemaVersion"), "vault_id": m("vaultId"), "format_version": {"const": 1},
+     "genesis_commit_id": m("commitId"), "genesis_device_id": m("deviceId"),
+     "created_by": m("ownerRef"), "created_at": m("timestamp")},
+    None, "descriptor-v1.schema.json"))
+write("store/current-v1.schema.json", record(
+    "Enouia Vault CURRENT pointer v1",
+    "vault/CURRENT names one complete commit manifest and pins its SHA-256. Replaced atomically; a reader that cannot verify it reports vault_recovering and never guesses a newer manifest.",
+    {"schema_version": m("schemaVersion"), "vault_id": m("vaultId"), "commit_id": m("commitId"),
+     "sequence": SEQ, "manifest_sha256": m("sha256")},
+    None, "current-v1.schema.json"))
+write("store/publish-record-v1.schema.json", record(
+    "Enouia publish journal line v1",
+    "One line of vault/journal/published.jsonl, appended after CURRENT was replaced: evidence for owner-driven recovery.",
+    {"schema_version": m("schemaVersion"), "vault_id": m("vaultId"), "commit_id": m("commitId"),
+     "sequence": SEQ, "manifest_sha256": m("sha256"), "published_at": m("timestamp")},
+    None, "publish-record-v1.schema.json"))
+write("store/idempotency-v1.schema.json", record(
+    "Enouia idempotency index entry v1",
+    "vault/idempotency/<scope_hash>.json. Trusted only when the named commit is on the published chain.",
+    {"schema_version": m("schemaVersion"), "vault_id": m("vaultId"), "principal_id": m("principalId"),
+     "operation_kind": enum(*[k for k in OPERATION_KINDS if k != "genesis"]),
+     "key_hash": m("sha256"), "request_payload_hash": m("sha256"), "commit_id": m("commitId"),
+     "sequence": {"type": "integer", "minimum": 2, "maximum": MAXSAFE}},
+    None, "idempotency-v1.schema.json"))
+write("store/recovery-receipt-v1.schema.json", record(
+    "Enouia recovery receipt v1",
+    "vault/recovery/<recovery_id>.json: the owner's explicit choice of a recovery point after CURRENT could not be verified.",
+    {"schema_version": m("schemaVersion"), "recovery_id": m("operationId"), "vault_id": m("vaultId"),
+     "adopted_commit_id": m("commitId"), "adopted_sequence": SEQ, "manifest_sha256": m("sha256"),
+     "previous_current_sha256": mn("sha256"),
+     "evidence": enum("publish_journal", "verified_unpublished", "restored_export"),
+     "approved_by": m("ownerRef"), "trusted_surface": m("trustedSurface"), "created_at": m("timestamp")},
+    None, "recovery-receipt-v1.schema.json"))
+write("store/export-manifest-v1.schema.json", record(
+    "Enouia pinned-commit export manifest v1",
+    "export-manifest.json at the root of a plaintext pinned-commit export that an encrypted backup tool stores. Path order, uniqueness, exclusions, and required files are checked by the Rust validator.",
+    {"schema_version": m("schemaVersion"), "export_format": {"const": 1}, "vault_id": m("vaultId"),
+     "commit_id": m("commitId"), "sequence": SEQ, "policy_epoch": COUNT, "deletion_epoch": COUNT,
+     "manifest_sha256": m("sha256"), "created_at": m("timestamp"),
+     "files": arr(obj({"path": SAFE_PATH, "sha256": m("sha256"), "size_bytes": COUNT}), minItems=2)},
+    None, "export-manifest-v1.schema.json"))
+write("store/restore-state-v1.schema.json", record(
+    "Enouia restore state v1",
+    "config/restore-state.json: network, Provider, MCP, and sync stay disabled until the owner reconciles newer deletions and revocations.",
+    {"schema_version": m("schemaVersion"), "vault_id": m("vaultId"), "restored_commit_id": m("commitId"),
+     "export_manifest_sha256": m("sha256"), "restored_at": m("timestamp"),
+     "network_disabled_until_reconciled": BOOL, "reconciled_at": m("timestampOrNull")},
+    {"allOf": [{"if": {"properties": {"reconciled_at": {"type": "null"}}, "required": ["reconciled_at"]},
+                "then": {"properties": {"network_disabled_until_reconciled": {"const": True}}}}]},
+    "restore-state-v1.schema.json"))
 print("ok")

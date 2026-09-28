@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.enouia-memory.invalid/store/descriptor-v1.schema.json",
+  "title": "Enouia Vault descriptor v1",
+  "description": "vault/vault.json, written once by the owner-confirmed genesis before the first CURRENT.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "vault_id",
+    "format_version",
+    "genesis_commit_id",
+    "genesis_device_id",
+    "created_by",
+    "created_at"
+  ],
+  "properties": {
+    "schema_version": {
+      "$ref": "../memory/common-v1.schema.json#/$defs/schemaVersion"
+    },
+    "vault_id": {
+      "$ref": "../memory/common-v1.schema.json#/$defs/vaultId"
+    },
+    "format_version": {
+      "const": 1
+    },
+    "genesis_commit_id": {
+      "$ref": "../memory/common-v1.schema.json#/$defs/commitId"
+    },
+    "genesis_device_id": {
+      "$ref": "../memory/common-v1.schema.json#/$defs/deviceId"
+    },
+    "created_by": {
+      "$ref": "../memory/common-v1.schema.json#/$defs/ownerRef"
+    },
+    "created_at": {
+      "$ref": "../memory/common-v1.schema.json#/$defs/timestamp"
+    }
+  }
+}

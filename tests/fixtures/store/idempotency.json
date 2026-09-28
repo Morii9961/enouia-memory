@@ -1,0 +1,10 @@
+{
+  "commit_id": "cmt_00000007-0000-4000-8000-000000000007",
+  "key_hash": "78ed7d2bf2a8c4af4a3d3652a89fe8b9f46addb8bc8e7cb69106a6467900f5e6",
+  "operation_kind": "review_commit",
+  "principal_id": "prn_00000001-0000-4000-8000-000000000001",
+  "request_payload_hash": "a2a9cf6047dc46b2eea1fafb92dbb2c9d94e4c37ad9b1a9ce4a1429670d11e36",
+  "schema_version": 1,
+  "sequence": 7,
+  "vault_id": "vlt_00000001-0000-4000-8000-000000000001"
+}

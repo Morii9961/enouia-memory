@@ -1,0 +1,69 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.enouia-memory.invalid/store/recovery-receipt-v1.schema.json",
+  "title": "Enouia recovery receipt v1",
+  "description": "vault/recovery/<recovery_id>.json: the owner's explicit choice of a recovery point after CURRENT could not be verified.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "recovery_id",
+    "vault_id",
+    "adopted_commit_id",
+    "adopted_sequence",
+    "manifest_sha256",
+    "previous_current_sha256",
+    "evidence",
+    "approved_by",
+    "trusted_surface",
+    "created_at"
+  ],
+  "properties": {
+    "schema_version": {
+      "$ref": "../memory/common-v1.schema.json#/$defs/schemaVersion"
+    },
+    "recovery_id": {
+      "$ref": "../memory/common-v1.schema.json#/$defs/operationId"
+    },
+    "vault_id": {
+      "$ref": "../memory/common-v1.schema.json#/$defs/vaultId"
+    },
+    "adopted_commit_id": {
+      "$ref": "../memory/common-v1.schema.json#/$defs/commitId"
+    },
+    "adopted_sequence": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 9007199254740991
+    },
+    "manifest_sha256": {
+      "$ref": "../memory/common-v1.schema.json#/$defs/sha256"
+    },
+    "previous_current_sha256": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "../memory/common-v1.schema.json#/$defs/sha256"
+        }
+      ]
+    },
+    "evidence": {
+      "enum": [
+        "publish_journal",
+        "verified_unpublished",
+        "restored_export"
+      ]
+    },
+    "approved_by": {
+      "$ref": "../memory/common-v1.schema.json#/$defs/ownerRef"
+    },
+    "trusted_surface": {
+      "$ref": "../memory/common-v1.schema.json#/$defs/trustedSurface"
+    },
+    "created_at": {
+      "$ref": "../memory/common-v1.schema.json#/$defs/timestamp"
+    }
+  }
+}

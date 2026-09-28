@@ -36,6 +36,7 @@ pub mod scan;
 pub mod session;
 pub mod set;
 pub mod source;
+pub mod store;
 pub mod temporal;
 pub mod time;
 

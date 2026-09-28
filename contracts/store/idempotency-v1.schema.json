@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.enouia-memory.invalid/store/idempotency-v1.schema.json",
+  "title": "Enouia idempotency index entry v1",
+  "description": "vault/idempotency/<scope_hash>.json. Trusted only when the named commit is on the published chain.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "vault_id",
+    "principal_id",
+    "operation_kind",
+    "key_hash",
+    "request_payload_hash",
+    "commit_id",
+    "sequence"
+  ],
+  "properties": {
+    "schema_version": {
+      "$ref": "../memory/common-v1.schema.json#/$defs/schemaVersion"
+    },
+    "vault_id": {
+      "$ref": "../memory/common-v1.schema.json#/$defs/vaultId"
+    },
+    "principal_id": {
+      "$ref": "../memory/common-v1.schema.json#/$defs/principalId"
+    },
+    "operation_kind": {
+      "enum": [
+        "import",
+        "candidate_propose",
+        "review_commit",
+        "identity_review",
+        "session_append",
+        "checkpoint_propose",
+        "logical_delete",
+        "purge",
+        "policy_change",
+        "migration",
+        "restore_adopt",
+        "owner_approval"
+      ]
+    },
+    "key_hash": {
+      "$ref": "../memory/common-v1.schema.json#/$defs/sha256"
+    },
+    "request_payload_hash": {
+      "$ref": "../memory/common-v1.schema.json#/$defs/sha256"
+    },
+    "commit_id": {
+      "$ref": "../memory/common-v1.schema.json#/$defs/commitId"
+    },
+    "sequence": {
+      "type": "integer",
+      "minimum": 2,
+      "maximum": 9007199254740991
+    }
+  }
+}

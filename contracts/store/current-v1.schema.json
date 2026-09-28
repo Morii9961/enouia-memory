@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.enouia-memory.invalid/store/current-v1.schema.json",
+  "title": "Enouia Vault CURRENT pointer v1",
+  "description": "vault/CURRENT names one complete commit manifest and pins its SHA-256. Replaced atomically; a reader that cannot verify it reports vault_recovering and never guesses a newer manifest.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "vault_id",
+    "commit_id",
+    "sequence",
+    "manifest_sha256"
+  ],
+  "properties": {
+    "schema_version": {
+      "$ref": "../memory/common-v1.schema.json#/$defs/schemaVersion"
+    },
+    "vault_id": {
+      "$ref": "../memory/common-v1.schema.json#/$defs/vaultId"
+    },
+    "commit_id": {
+      "$ref": "../memory/common-v1.schema.json#/$defs/commitId"
+    },
+    "sequence": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 9007199254740991
+    },
+    "manifest_sha256": {
+      "$ref": "../memory/common-v1.schema.json#/$defs/sha256"
+    }
+  }
+}

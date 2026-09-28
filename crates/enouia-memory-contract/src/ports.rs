@@ -6,7 +6,7 @@
 //! writer lock. Nothing here performs I/O; no Gateway, sync, or multi-agent
 //! framework is defined at this stage.
 
-use crate::commit::{CommitManifest, OperationKind, OperationReceipt};
+use crate::commit::{CommitManifest, ObjectKind, OperationKind, OperationReceipt};
 use crate::common::ActorRef;
 use crate::context::{Destination, Purpose};
 use crate::error::{MemoryError, MemoryErrorCode};
@@ -66,10 +66,12 @@ pub trait VaultReader {
 }
 
 /// Idempotency is scoped by authenticated principal + canonical operation.
+/// The store scopes by the commit `OperationKind` (ADR-MEM-36): local writes
+/// such as imports have no IPC operation, and each IPC write maps to one kind.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct IdempotencyScope {
     pub principal_id: PrincipalId,
-    pub operation: Operation,
+    pub operation_kind: OperationKind,
     pub key_hash: Sha256Hex,
 }
 
@@ -84,18 +86,23 @@ pub struct StagedRecord {
 
 #[derive(Debug)]
 pub struct StagedObject {
+    pub kind: ObjectKind,
     pub hash: Sha256Hex,
     pub bytes: Vec<u8>,
 }
 
 /// One transaction. All writes become visible together through a single
-/// `CURRENT` publication, or none do.
+/// `CURRENT` publication, or none do. Genesis is not a `CommitRequest`: it is
+/// the separate, owner-confirmed initialization of an empty Vault.
 #[derive(Debug)]
 pub struct CommitRequest {
+    /// `Some`: the head the caller saw; any other head is `RevisionConflict`.
+    /// `None`: only `expected_revisions` guard the write.
     pub expected_commit_id: Option<CommitId>,
     pub principal: ActorRef,
     pub operation_kind: OperationKind,
-    pub idempotency: Option<IdempotencyScope>,
+    /// Required: every non-genesis commit records its idempotency key hash.
+    pub idempotency: IdempotencyScope,
     pub request_payload_hash: Sha256Hex,
     /// Every record this transaction relies on, with the revision the caller saw
     /// (`None` = must not exist yet). Any mismatch fails with `RevisionConflict`.

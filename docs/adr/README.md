@@ -27,7 +27,7 @@ These come from [design/DECISIONS_AND_SOURCES](../design/DECISIONS_AND_SOURCES.m
 | ADR-MEM-17 | Single primary; offline edits become candidates | Deferred (MV-10) |
 | ADR-MEM-18 | Adapters open only after measurement | Adopted |
 
-## ADR-MEM-19 … 35 — implementation decisions (MV-0 / MV-0R)
+## ADR-MEM-19 … 36 — implementation decisions (MV-0 / MV-0R / MV-1)
 
 ADR-MEM-20 to 29 were first drafted with Enouia Runtime's register numbers 020–029 and never committed there. The draft is kept in [history](../history/adr-draft-runtime-numbering.md). Numbering here is this repository's own.
 
@@ -96,6 +96,12 @@ Every JSON integer on the wire or in storage lies within ±(2^53 − 1), as the 
 ### ADR-MEM-35 — Independent schema cross-check (Adopted, MV-0R)
 
 Every schema has a unique absolute `$id` under the reserved host `contracts.enouia-memory.invalid`. Besides the in-repo subset validator used by `cargo test`, a pinned python-jsonschema 4.26.0 (Draft 2020-12) checks every schema against the metaschema and re-verifies every fixture expectation (`tools/schema-check`).
+
+### ADR-MEM-36 — Vault store file contracts (Adopted, MV-1)
+
+The store's own files are versioned contracts under `contracts/store/` with Rust types in `store.rs`: `vault/vault.json` (descriptor, written once by genesis), `vault/CURRENT` (names one commit and pins the SHA-256 of its manifest bytes), `vault/journal/published.jsonl` (one line appended after each publication, used as recovery evidence), `vault/idempotency/<scope>.json` (trusted only when the named commit is on the published chain), `vault/recovery/<id>.json` (the owner's explicit recovery choice; evidence is `publish_journal`, `verified_unpublished`, or `restored_export`, never "newest manifest"), `export-manifest.json` (a pinned-commit export: safe `vault/` paths only, sorted and unique, bookkeeping excluded), and `config/restore-state.json` (network stays disabled until reconciliation).
+
+Port refinements: a `CommitRequest` always carries an idempotency scope, and scopes are keyed by commit `OperationKind` (imports have no IPC operation). A `StagedObject` carries its `ObjectKind`. A manifest's `objects` list, like its catalog, is complete: every object reachable at that commit. Content-addressed objects live under `raw/objects`, `assets/objects`, and `session-content/objects`; Identity Markdown is stored beside its revision.
 
 ## Relation to Enouia Runtime's register
 

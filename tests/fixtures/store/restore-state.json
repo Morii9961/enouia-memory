@@ -1,0 +1,9 @@
+{
+  "export_manifest_sha256": "d46aee08cc49f6d1eb41800c1d6bab4506c960c700cff0efffe490d7cb1de5e3",
+  "network_disabled_until_reconciled": true,
+  "reconciled_at": null,
+  "restored_at": "2026-09-28T09:30:00.000Z",
+  "restored_commit_id": "cmt_00000007-0000-4000-8000-000000000007",
+  "schema_version": 1,
+  "vault_id": "vlt_00000001-0000-4000-8000-000000000001"
+}

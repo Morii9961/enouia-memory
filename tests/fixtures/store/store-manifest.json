@@ -1,0 +1,371 @@
+{
+  "description": "Synthetic Vault store file contracts (ADR-MEM-36). 'schema: accept' marks a constraint JSON Schema cannot express; the Rust validator must still reject it.",
+  "invalid": [
+    {
+      "base": "descriptor.json",
+      "covers": "genesis is owner-confirmed",
+      "id": "descriptor-agent-creator",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/created_by",
+          "value": {
+            "actor_id": "prn_00000005-0000-4000-8000-000000000005",
+            "actor_type": "agent"
+          }
+        }
+      ],
+      "rust_rule": "vault.owner_required",
+      "schema": "reject"
+    },
+    {
+      "base": "descriptor.json",
+      "covers": "unknown vault format",
+      "id": "descriptor-format-2",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/format_version",
+          "value": 2
+        }
+      ],
+      "rust_rule": "shape",
+      "schema": "reject"
+    },
+    {
+      "base": "descriptor.json",
+      "covers": "unknown field",
+      "id": "descriptor-unknown-field",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/owner_name",
+          "value": "x"
+        }
+      ],
+      "rust_rule": "shape",
+      "schema": "reject"
+    },
+    {
+      "base": "current.json",
+      "covers": "sequence minimum",
+      "id": "current-sequence-zero",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/sequence",
+          "value": 0
+        }
+      ],
+      "rust_rule": "current.sequence",
+      "schema": "reject"
+    },
+    {
+      "base": "current.json",
+      "covers": "manifest hash syntax",
+      "id": "current-bad-hash",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/manifest_sha256",
+          "value": "ABC"
+        }
+      ],
+      "rust_rule": "shape",
+      "schema": "reject"
+    },
+    {
+      "base": "current.json",
+      "covers": "unknown major is read-only",
+      "id": "current-schema-2",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/schema_version",
+          "value": 2
+        }
+      ],
+      "rust_rule": "unsupported_schema",
+      "schema": "reject"
+    },
+    {
+      "base": "current.json",
+      "covers": "required field",
+      "id": "current-missing-vault",
+      "ops": [
+        {
+          "op": "remove",
+          "path": "/vault_id"
+        }
+      ],
+      "rust_rule": "shape",
+      "schema": "reject"
+    },
+    {
+      "base": "publish-record.json",
+      "covers": "safe integer range",
+      "id": "publish-sequence-overflow",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/sequence",
+          "value": 9007199254740992
+        }
+      ],
+      "rust_rule": "number.out_of_range",
+      "schema": "reject"
+    },
+    {
+      "base": "idempotency.json",
+      "covers": "genesis has no idempotency key",
+      "id": "idempotency-genesis",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/operation_kind",
+          "value": "genesis"
+        }
+      ],
+      "rust_rule": "idempotency.genesis",
+      "schema": "reject"
+    },
+    {
+      "base": "idempotency.json",
+      "covers": "sequence 1 is genesis",
+      "id": "idempotency-sequence-one",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/sequence",
+          "value": 1
+        }
+      ],
+      "rust_rule": "idempotency.sequence",
+      "schema": "reject"
+    },
+    {
+      "base": "recovery-receipt.json",
+      "covers": "owner-only recovery choice",
+      "id": "recovery-system-approver",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/approved_by",
+          "value": {
+            "actor_id": "prn_00000002-0000-4000-8000-000000000002",
+            "actor_type": "system"
+          }
+        }
+      ],
+      "rust_rule": "recovery.owner_required",
+      "schema": "reject"
+    },
+    {
+      "base": "recovery-receipt.json",
+      "covers": "no 'newest manifest' evidence",
+      "id": "recovery-guessed-newest",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/evidence",
+          "value": "newest_manifest"
+        }
+      ],
+      "rust_rule": "shape",
+      "schema": "reject"
+    },
+    {
+      "base": "recovery-receipt.json",
+      "covers": "explicit null required",
+      "id": "recovery-missing-previous",
+      "ops": [
+        {
+          "op": "remove",
+          "path": "/previous_current_sha256"
+        }
+      ],
+      "rust_rule": "shape",
+      "schema": "reject"
+    },
+    {
+      "base": "export-manifest.json",
+      "covers": "path escape",
+      "id": "export-dot-dot",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/files/2/path",
+          "value": "vault/../raw"
+        }
+      ],
+      "rust_rule": "export.path",
+      "schema": "accept"
+    },
+    {
+      "base": "export-manifest.json",
+      "covers": "live pointer excluded",
+      "id": "export-current",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/files/0/path",
+          "value": "vault/CURRENT"
+        }
+      ],
+      "rust_rule": "export.path",
+      "schema": "accept"
+    },
+    {
+      "base": "export-manifest.json",
+      "covers": "unpublished staging excluded",
+      "id": "export-staging",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/files/2/path",
+          "value": "vault/staging/op_1/x"
+        }
+      ],
+      "rust_rule": "export.path",
+      "schema": "accept"
+    },
+    {
+      "base": "export-manifest.json",
+      "covers": "Windows separator",
+      "id": "export-backslash",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/files/2/path",
+          "value": "vault\\raw"
+        }
+      ],
+      "rust_rule": "export.path",
+      "schema": "reject"
+    },
+    {
+      "base": "export-manifest.json",
+      "covers": "deterministic order",
+      "id": "export-unsorted",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/files/4/path",
+          "value": "vault/aaa.json"
+        }
+      ],
+      "rust_rule": "export.order",
+      "schema": "accept"
+    },
+    {
+      "base": "export-manifest.json",
+      "covers": "unique paths",
+      "id": "export-duplicate",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/files/3/path",
+          "value": "vault/raw/objects/d7439bee24773bcbfa2d0a97947ee36227b10d1022b1a55847e928965bb6bfde"
+        }
+      ],
+      "rust_rule": "export.order",
+      "schema": "accept"
+    },
+    {
+      "base": "export-manifest.json",
+      "covers": "descriptor required",
+      "id": "export-missing-descriptor",
+      "ops": [
+        {
+          "op": "remove",
+          "path": "/files/4"
+        }
+      ],
+      "rust_rule": "export.required_file",
+      "schema": "accept"
+    },
+    {
+      "base": "export-manifest.json",
+      "covers": "head manifest required",
+      "id": "export-missing-head",
+      "ops": [
+        {
+          "op": "remove",
+          "path": "/files/1"
+        }
+      ],
+      "rust_rule": "export.required_file",
+      "schema": "accept"
+    },
+    {
+      "base": "restore-state.json",
+      "covers": "network gate before reconciliation",
+      "id": "restore-network-open",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/network_disabled_until_reconciled",
+          "value": false
+        }
+      ],
+      "rust_rule": "restore.network_gate",
+      "schema": "reject"
+    },
+    {
+      "base": "restore-state.json",
+      "covers": "time order",
+      "id": "restore-reconciled-before-restore",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/reconciled_at",
+          "value": "2026-09-28T08:00:00.000Z"
+        },
+        {
+          "op": "set",
+          "path": "/network_disabled_until_reconciled",
+          "value": false
+        }
+      ],
+      "rust_rule": "restore.reconciled_order",
+      "schema": "accept"
+    }
+  ],
+  "valid": [
+    {
+      "file": "descriptor.json",
+      "schema": "store/descriptor-v1.schema.json",
+      "type": "descriptor"
+    },
+    {
+      "file": "current.json",
+      "schema": "store/current-v1.schema.json",
+      "type": "current"
+    },
+    {
+      "file": "publish-record.json",
+      "schema": "store/publish-record-v1.schema.json",
+      "type": "publish_record"
+    },
+    {
+      "file": "idempotency.json",
+      "schema": "store/idempotency-v1.schema.json",
+      "type": "idempotency"
+    },
+    {
+      "file": "recovery-receipt.json",
+      "schema": "store/recovery-receipt-v1.schema.json",
+      "type": "recovery_receipt"
+    },
+    {
+      "file": "export-manifest.json",
+      "schema": "store/export-manifest-v1.schema.json",
+      "type": "export_manifest"
+    },
+    {
+      "file": "restore-state.json",
+      "schema": "store/restore-state-v1.schema.json",
+      "type": "restore_state"
+    }
+  ]
+}
