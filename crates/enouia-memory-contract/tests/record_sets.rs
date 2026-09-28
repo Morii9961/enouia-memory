@@ -253,6 +253,7 @@ fn commit_catalog_digests_match_canonical_record_bytes() {
         ("tombstone", "tombstones", "delete_id"),
         ("approval", "approvals", "approval_id"),
         ("policy", "policies", "policy_id"),
+        ("import", "imports", "import_id"),
     ];
     let manifest = fixture("sets-manifest.json");
     let mut checked = 0;

@@ -106,6 +106,7 @@ fn set_key(kind: RecordKind) -> (&'static str, &'static str) {
         RecordKind::PurgeReceipt => ("purge_receipts", "receipt_id"),
         RecordKind::Approval => ("approvals", "approval_id"),
         RecordKind::Policy => ("policies", "policy_id"),
+        RecordKind::Import => ("imports", "import_id"),
         other => panic!("not stored: {other:?}"),
     }
 }

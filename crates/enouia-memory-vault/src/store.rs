@@ -177,6 +177,7 @@ fn id_field(kind: RecordKind) -> Option<&'static str> {
         RecordKind::PurgeReceipt => "receipt_id",
         RecordKind::Approval => "approval_id",
         RecordKind::Policy => "policy_id",
+        RecordKind::Import => "import_id",
         _ => return None,
     })
 }
@@ -218,6 +219,7 @@ fn kind_name(kind: RecordKind) -> &'static str {
         RecordKind::ProviderCapabilities => "provider_capabilities",
         RecordKind::Approval => "approval",
         RecordKind::Policy => "policy",
+        RecordKind::Import => "import",
     }
 }
 
@@ -252,6 +254,7 @@ fn push_record(set: &mut RecordSet, record: AnyRecord) {
         AnyRecord::ProviderCapabilities(_) => {}
         AnyRecord::Approval(r) => set.approvals.push(*r),
         AnyRecord::Policy(r) => set.policies.push(*r),
+        AnyRecord::Import(r) => set.imports.push(*r),
     }
 }
 
@@ -1346,6 +1349,22 @@ impl Vault {
             &prepared,
             &request.objects,
         );
+        // An import past `archiving` is only committed together with (or
+        // after) the exact bytes it received (IMPORT_REVIEW §2, I01).
+        for p in &prepared {
+            if let AnyRecord::Import(import) = &p.record
+                && !matches!(
+                    import.status,
+                    enouia_memory_contract::import::ImportStatus::Planned
+                        | enouia_memory_contract::import::ImportStatus::Archiving
+                )
+                && !manifest.objects.iter().any(|o| {
+                    o.object_hash == import.input_object_hash && o.object_kind == ObjectKind::Raw
+                })
+            {
+                return Err(VaultError::invalid(vec!["store.import_raw_missing"]));
+            }
+        }
         self.check_manifest_and_set(&manifest, Some(&head.manifest), &prepared)?;
         self.write_transaction(
             &manifest,

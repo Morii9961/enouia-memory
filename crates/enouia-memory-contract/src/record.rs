@@ -30,6 +30,7 @@ pub enum RecordKind {
     ProviderCapabilities,
     Approval,
     Policy,
+    Import,
 }
 
 impl RecordKind {
@@ -55,6 +56,7 @@ impl RecordKind {
             Self::Dispatch => "dsp",
             Self::Approval => "apv",
             Self::Policy => "pol",
+            Self::Import => "imp",
             Self::ProviderCapabilities => return None,
         })
     }
@@ -72,6 +74,7 @@ impl RecordKind {
                 | Self::Session
                 | Self::Checkpoint
                 | Self::Policy
+                | Self::Import
         )
     }
 }
@@ -142,6 +145,7 @@ impl_record!(crate::context::DispatchRecord, Dispatch);
 impl_record!(crate::provider::ProviderCapabilities, ProviderCapabilities);
 impl_record!(crate::approval::ApprovalRecord, Approval);
 impl_record!(crate::policy::PolicyRecord, Policy);
+impl_record!(crate::import::ImportManifest, Import);
 
 /// Strict parse of a JSON value: supported major version, exact shape, then
 /// semantic rules. Every rejection has a stable rule identifier.
@@ -201,6 +205,7 @@ pub enum AnyRecord {
     ProviderCapabilities(crate::provider::ProviderCapabilities),
     Approval(Box<crate::approval::ApprovalRecord>),
     Policy(Box<crate::policy::PolicyRecord>),
+    Import(Box<crate::import::ImportManifest>),
 }
 
 impl AnyRecord {
@@ -226,6 +231,7 @@ impl AnyRecord {
             Self::ProviderCapabilities(r) => serde_json::to_value(r),
             Self::Approval(r) => serde_json::to_value(r),
             Self::Policy(r) => serde_json::to_value(r),
+            Self::Import(r) => serde_json::to_value(r),
         };
         result.unwrap_or(Value::Null)
     }
@@ -253,5 +259,6 @@ pub fn parse_any(kind: RecordKind, value: &Value) -> Result<AnyRecord, ContractE
         RecordKind::ProviderCapabilities => AnyRecord::ProviderCapabilities(parse_value(value)?),
         RecordKind::Approval => AnyRecord::Approval(Box::new(parse_value(value)?)),
         RecordKind::Policy => AnyRecord::Policy(Box::new(parse_value(value)?)),
+        RecordKind::Import => AnyRecord::Import(Box::new(parse_value(value)?)),
     })
 }

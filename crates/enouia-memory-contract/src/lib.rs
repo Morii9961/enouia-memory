@@ -24,6 +24,7 @@ pub mod foundation;
 pub mod hash;
 pub mod identity;
 pub mod ids;
+pub mod import;
 pub mod ipc;
 pub mod json;
 pub mod layout;

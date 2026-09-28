@@ -15,6 +15,7 @@ use crate::error::{ContractError, Violation};
 use crate::hash::sha256;
 use crate::identity::IdentityMetadata;
 use crate::ids::ProjectId;
+use crate::import::{ImportManifest, ImportStatus};
 use crate::json::Revision;
 use crate::memory::{CanonicalMemory, MemoryBody, MemoryStatus, ProjectEntity, ProvenanceState};
 use crate::policy::{
@@ -52,6 +53,7 @@ pub struct RecordSet {
     pub dispatches: Vec<DispatchRecord>,
     pub approvals: Vec<ApprovalRecord>,
     pub policies: Vec<PolicyRecord>,
+    pub imports: Vec<ImportManifest>,
 }
 
 const SET_KEYS: &[&str] = &[
@@ -75,6 +77,7 @@ const SET_KEYS: &[&str] = &[
     "dispatches",
     "approvals",
     "policies",
+    "imports",
 ];
 
 fn load<T: Record>(value: &Value, key: &str) -> Result<Vec<T>, (String, ContractError)> {
@@ -123,6 +126,7 @@ impl RecordSet {
             dispatches: load(value, "dispatches")?,
             approvals: load(value, "approvals")?,
             policies: load(value, "policies")?,
+            imports: load(value, "imports")?,
         })
     }
 
@@ -282,6 +286,9 @@ impl RecordSet {
         for r in &self.policies {
             add(RecordKind::Policy, r.policy_id.as_str(), r.revision);
         }
+        for r in &self.imports {
+            add(RecordKind::Import, r.import_id.as_str(), r.revision);
+        }
         let one = Revision::new(1).expect("1 is a revision");
         for r in &self.reviews {
             add(RecordKind::Review, r.review_id.as_str(), one);
@@ -306,6 +313,7 @@ impl RecordSet {
 pub fn validate_set(set: &RecordSet) -> Vec<Violation> {
     let mut out = Vec::new();
     check_revisions(set, &mut out);
+    check_imports(set, &mut out);
     check_evidence(set, &mut out);
     check_reviews(set, &mut out);
     check_candidates(set, &mut out);
@@ -343,7 +351,8 @@ fn check_revisions(set: &RecordSet, out: &mut Vec<Violation>) {
         + set.identities.len()
         + set.sessions.len()
         + set.checkpoints.len()
-        + set.policies.len();
+        + set.policies.len()
+        + set.imports.len();
     let distinct: usize = groups.values().map(Vec::len).sum();
     if distinct != total {
         out.push(Violation::new("set.duplicate_revision", "/"));
@@ -446,6 +455,55 @@ fn check_evidence(set: &RecordSet, out: &mut Vec<Violation>) {
                 "sensitivity.downgrade"
             };
             out.push(Violation::new(rule, path));
+        }
+    }
+}
+
+/// Import closure (ADR-MEM-38): an imported source names an import that
+/// exists and cites that import's received bytes; a completed import's
+/// coverage counts exactly the sources that cite it.
+fn check_imports(set: &RecordSet, out: &mut Vec<Violation>) {
+    let latest_import = |id: &str| {
+        set.imports
+            .iter()
+            .filter(|i| i.import_id.as_str() == id)
+            .max_by_key(|i| i.revision)
+    };
+    let mut cited: BTreeMap<&str, BTreeSet<&str>> = BTreeMap::new();
+    for source in &set.sources {
+        let Some(import_id) = &source.import_id else {
+            continue;
+        };
+        let path = source.source_id.to_string();
+        match latest_import(import_id.as_str()) {
+            None => out.push(Violation::new("source.import_unresolved", path)),
+            Some(import) => {
+                if source.raw_object_hash.as_ref() != Some(&import.input_object_hash) {
+                    out.push(Violation::new("source.import_raw_mismatch", path));
+                }
+                cited
+                    .entry(import_id.as_str())
+                    .or_default()
+                    .insert(source.source_id.as_str());
+            }
+        }
+    }
+    let ids: BTreeSet<&str> = set.imports.iter().map(|i| i.import_id.as_str()).collect();
+    for id in ids {
+        let import = latest_import(id).expect("present");
+        if import.status != ImportStatus::Completed {
+            continue;
+        }
+        let covered: u64 = import.coverage.iter().map(|c| c.message_count).sum();
+        let sources = cited.get(id).map_or(0, |s| s.len() as u64);
+        if covered != sources {
+            out.push(Violation::new("import.coverage_mismatch", id.to_owned()));
+        }
+        if let Some(original) = &import.duplicate_of
+            && latest_import(original.as_str())
+                .is_none_or(|o| o.input_object_hash != import.input_object_hash)
+        {
+            out.push(Violation::new("import.duplicate", id.to_owned()));
         }
     }
 }

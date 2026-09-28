@@ -56,6 +56,7 @@ class Vault:
             "project": ("projects", "project_id"), "memory": ("memories", "memory_id"),
             "candidate": ("candidates", "candidate_id"), "review": ("reviews", "review_id"),
             "identity": ("identities", "identity_id"), "session": ("sessions", "session_id"),
+            "import": ("imports", "import_id"),
             "session_event": ("session_events", "event_id"), "checkpoint": ("checkpoints", "checkpoint_id"),
             "tombstone": ("tombstones", "delete_id"), "policy": ("policies", "policy_id"),
             "approval": ("approvals", "approval_id")}
@@ -68,12 +69,25 @@ class Vault:
         self.policy_epoch = 1
         self.deletion_epoch = 0
         self.objects = {}  # (hash, kind order) -> object entry; complete per commit (ADR-MEM-36)
+        self.imports = {}  # import_id -> manifest; added with the first commit citing it (ADR-MEM-38)
 
     def next_commit_id(self):
         return uid("cmt", self.base + len(self.commits) + 1)
 
     def commit(self, kind, principal, docs, created_at, reviews=(), tombstones=(), idem=None):
         cid = self.next_commit_id()
+        docs = list(docs)
+        for k, d in list(docs):
+            imp = d.get("import_id") if k == "source" else None
+            if imp and imp not in self.imports:
+                cited = [x for kk, x in docs if kk == "source" and x.get("import_id") == imp]
+                manifest = import_doc(imp, d["raw_object_hash"], created_at, cited)
+                self.imports[imp] = manifest
+                docs.append(("import", manifest))
+                text = OBJECT_TEXT[d["raw_object_hash"]]
+                self.objects[(d["raw_object_hash"], 0)] = {
+                    "object_hash": d["raw_object_hash"], "size_bytes": len(text.encode("utf-8")),
+                    "object_kind": "raw"}
         seq = len(self.commits) + 1
         for d in docs:
             self.docs.append(d)
@@ -119,9 +133,37 @@ class Vault:
         out.update(self.extra)
         return out
 
+def import_doc(import_id, raw, at, sources):
+    """A completed synthetic import whose coverage counts exactly its sources."""
+    by_conv = {}
+    for s in sources:
+        by_conv.setdefault(s["original_conversation_id"], []).append(s)
+    coverage = []
+    for conv, items in sorted(by_conv.items(), key=lambda kv: kv[0] or ""):
+        times = sorted(s["occurred_at"] for s in items if s["occurred_at"])
+        coverage.append({"original_conversation_id": conv, "message_count": len(items), "branch_count": 1,
+                         "earliest_source_time": times[0] if times else None,
+                         "latest_source_time": times[-1] if times else None,
+                         "unknown_time_count": sum(1 for s in items if not s["occurred_at"]),
+                         "missing_parents": 0, "unparseable": 0})
+    size = len(OBJECT_TEXT[raw].encode("utf-8"))
+    return {"schema_version": 1, "import_id": import_id, "revision": 1, "status": "completed",
+            "input_kind": "chatgpt_conversations_json", "provider": "chatgpt", "account_scope": "acct-main",
+            "input_object_hash": raw, "input_size_bytes": size, "received_at": at, "updated_at": at,
+            "adapter": {"name": "synthetic-export-adapter", "version": "0"},
+            "source_schema_observed": "synthetic-mapping-v0", "members": [],
+            "cursor": {"unit": "conversation", "completed": len(coverage), "total": len(coverage)},
+            "counts": {"sources_created": len(sources), "sources_revised": 0, "sources_unchanged": 0,
+                       "conversations": len(coverage), "branches": len(coverage), "missing_parents": 0,
+                       "unparseable": 0, "attachments_present": 0, "attachments_missing": 0,
+                       "attachments_external": 0, "attachments_quarantined": 0},
+            "coverage": coverage, "warnings": [], "duplicate_of": None, "extensions": {}}
+
 def source(n, kind, text, role, klass, occurred, sensitivity="private", imp=None, pointer=None,
            captured=None, manual=None, agent=None, provider="chatgpt", precision="minute", warnings=()):
     raw = sha(f"raw-object-{imp}") if imp else None
+    if imp:
+        OBJECT_TEXT[raw] = f"raw-object-{imp}"
     locator = {"kind": "json_pointer", "pointer": pointer} if pointer is not None else None
     if kind == "manual_assertion":
         locator = {"kind": "manual_input"}
@@ -808,6 +850,7 @@ records = {
     "review-confirm-delete.json": pick(life, "reviews", "review_id", uid("rvw", 111)),
     "memory-fact-declassified.json": DECL["memory"],
     "dispatch-external.json": pick(ext, "dispatches", "dispatch_id", uid("dsp", 2)),
+    "import-completed.json": life["imports"][0],
 }
 extra_records = {
     "attachment-present.json": {"schema_version": 1, "attachment_id": uid("att", 1), "revision": 1,
@@ -840,6 +883,22 @@ extra_records = {
         "cancellation": "unknown", "token_counting": "unknown", "context_window_tokens": None,
         "max_output_tokens": None, "verified_at": None},
 }
+extra_records["import-unsupported.json"] = {
+    "schema_version": 1, "import_id": uid("imp", 9), "revision": 2, "status": "partial",
+    "input_kind": "unknown_archive", "provider": None, "account_scope": None,
+    "input_object_hash": sha("unknown-archive-bytes"), "input_size_bytes": 4096,
+    "received_at": ts("09-01", "10:00:00"), "updated_at": ts("09-01", "10:00:05"),
+    "adapter": None, "source_schema_observed": None,
+    "members": [{"member_name": "notes/readme.txt", "member_hash": sha("readme"), "size_bytes": 6,
+                 "disposition": "preserved_only", "reason_code": "no_adapter"},
+                {"member_name": "bin/tool.exe", "member_hash": None, "size_bytes": 2048,
+                 "disposition": "quarantined", "reason_code": "executable_member"}],
+    "cursor": {"unit": "file", "completed": 0, "total": None},
+    "counts": {"sources_created": 0, "sources_revised": 0, "sources_unchanged": 0, "conversations": 0,
+               "branches": 0, "missing_parents": 0, "unparseable": 0, "attachments_present": 0,
+               "attachments_missing": 0, "attachments_external": 0, "attachments_quarantined": 0},
+    "coverage": [], "warnings": [{"code": "unsupported_format", "pointer": None}],
+    "duplicate_of": None, "extensions": {}}
 # The agent submission uses a json_pointer locator into nothing: give it a byte range instead.
 extra_records["source-agent-submission.json"]["locator"] = {"kind": "byte_range", "start": 0, "end": 48}
 records.update(extra_records)
@@ -848,7 +907,7 @@ KIND = {"source": "source", "attachment": "attachment", "memory": "memory", "pro
         "session": "session", "checkpoint": "checkpoint", "commit": "commit", "tombstone": "tombstone",
         "purge-receipt": "purge_receipt", "capsule": "capsule", "inspection": "inspection",
         "dispatch": "dispatch", "provider-capabilities": "provider_capabilities", "audit-event": "audit_event",
-        "approval": "approval", "policy": "policy"}
+        "approval": "approval", "policy": "policy", "import": "import"}
 SCHEMA = {"source": "memory/source-v1.schema.json", "attachment": "memory/attachment-v1.schema.json",
           "memory": "memory/memory-v1.schema.json", "project": "memory/project-v1.schema.json",
           "candidate": "memory/candidate-v1.schema.json", "review": "memory/review-v1.schema.json",
@@ -858,7 +917,8 @@ SCHEMA = {"source": "memory/source-v1.schema.json", "attachment": "memory/attach
           "purge_receipt": "memory/purge-receipt-v1.schema.json", "audit_event": "memory/audit-event-v1.schema.json",
           "capsule": "context/capsule-v1.schema.json", "inspection": "context/inspection-v1.schema.json",
           "dispatch": "context/dispatch-v1.schema.json", "provider_capabilities": "provider/capabilities-v1.schema.json",
-          "approval": "memory/approval-v1.schema.json", "policy": "memory/policy-v1.schema.json"}
+          "approval": "memory/approval-v1.schema.json", "policy": "memory/policy-v1.schema.json",
+          "import": "memory/import-v1.schema.json"}
 def kind_of(name):
     for prefix in sorted(KIND, key=len, reverse=True):
         if name.startswith(prefix):
@@ -879,6 +939,15 @@ def case(cid, base, ops, schema, rule, covers):
 S = lambda p, v: {"op": "set", "path": p, "value": v}
 R = lambda p: {"op": "remove", "path": p}
 cases = [
+    case("import-cursor-short", "import-completed.json", [S("/cursor/completed", 0)], "accept", "import.cursor", "completed means every unit committed"),
+    case("import-parsing-without-adapter", "import-completed.json", [S("/status", "parsing"), S("/adapter", None)], "reject", "import.adapter_required", "parsed sources name their adapter"),
+    case("import-member-traversal", "import-unsupported.json", [S("/members/0/member_name", "../evil.txt")], "accept", "import.member_name", "archive member path traversal"),
+    case("import-member-absolute", "import-unsupported.json", [S("/members/0/member_name", "/etc/evil")], "reject", "import.member_name", "absolute member path"),
+    case("import-member-duplicate", "import-unsupported.json", [S("/members/1/member_name", "notes/readme.txt")], "accept", "import.member_name", "duplicate member names"),
+    case("import-duplicate-with-sources", "import-completed.json", [S("/duplicate_of", uid("imp", 8))], "accept", "import.duplicate", "a duplicate import creates nothing"),
+    case("import-time-order", "import-completed.json", [S("/received_at", "2030-01-01T00:00:00.000Z")], "accept", "import.time_order", "received before updated"),
+    case("import-archiving-with-counts", "import-unsupported.json", [S("/status", "archiving"), S("/counts/sources_created", 3)], "accept", "import.premature_parse", "no parse results before archiving completes"),
+    case("import-unknown-status", "import-completed.json", [S("/status", "done")], "reject", "shape", "status enum"),
     case("source-missing-id", "source-export-user.json", [R("/source_id")], "reject", "shape", "required field"),
     case("source-unknown-field", "source-export-user.json", [S("/secret_note", "x")], "reject", "shape", "unknown top-level field"),
     case("source-unknown-kind", "source-export-user.json", [S("/source_kind", "chat_log")], "reject", "shape", "enum"),
@@ -1024,7 +1093,11 @@ late_tomb = {"schema_version": 1, "delete_id": uid("del", 9), "mode": "logical_d
              "targets": [{"record_kind": "memory", "record_id": mB, "revision": None}], "object_hashes": [],
              "requested_by": OWNER, "review_id": uid("rvw", 2), "deletion_epoch": 1, "created_at": ts("07-03", "23:00:00")}
 ext_dest = {"kind": "external_provider", "provider_binding": {"provider": "example-cloud", "model": "example-model", "adapter_version": "0"}}
+limp = next(i for i, s in enumerate(life["sources"]) if s["import_id"])
 set_cases = [
+    sc("source-import-unresolved", "lifecycle.json", [R("/imports/0")], "source.import_unresolved", "imported sources name an existing import"),
+    sc("source-import-raw-mismatch", "lifecycle.json", [S(f"/sources/{limp}/raw_object_hash", sha("other-bytes"))], "source.import_raw_mismatch", "sources cite the received bytes"),
+    sc("import-coverage-mismatch", "lifecycle.json", [S("/imports/0/coverage/0/message_count", 99)], "import.coverage_mismatch", "coverage report counts exactly the imported sources"),
     sc("memory-without-review", "morimeta-confirmed.json", [S(f"/memories/{iB}/review_id", uid("rvw", 99))], "memory.review_missing", "no canonical write without review"),
     sc("memory-from-pending-candidate", "morimeta-confirmed.json", [R(f"/candidates/{cB2}")], "memory.unreviewed_candidate", "unreviewed candidate cannot become memory"),
     sc("evidence-role-confusion", "morimeta-confirmed.json",

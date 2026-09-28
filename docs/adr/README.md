@@ -27,7 +27,7 @@ These come from [design/DECISIONS_AND_SOURCES](../design/DECISIONS_AND_SOURCES.m
 | ADR-MEM-17 | Single primary; offline edits become candidates | Deferred (MV-10) |
 | ADR-MEM-18 | Adapters open only after measurement | Adopted |
 
-## ADR-MEM-19 … 37 — implementation decisions (MV-0 / MV-0R / MV-1)
+## ADR-MEM-19 … 38 — implementation decisions (MV-0 / MV-0R / MV-1 / MV-2)
 
 ADR-MEM-20 to 29 were first drafted with Enouia Runtime's register numbers 020–029 and never committed there. The draft is kept in [history](../history/adr-draft-runtime-numbering.md). Numbering here is this repository's own.
 
@@ -120,6 +120,12 @@ The caller pre-assigns `commit_id` (from its `IdSource`), because a review names
 - **Backup exit.** A pinned-commit export (descriptor, whole chain, every cataloged revision, head objects, sealed audit segments) is verified independently and restored only into an empty verified root, with network use gated until reconciliation. Encryption is restic's job; the adapter passes the password only through a cleared child environment.
 - **Audit and health.** Audit lines are validated `AuditEvent`s in size-rotated JSONL segments; health reads never write.
 - **Measured cost and trigger.** A complete catalog costs about 241 bytes per record in every manifest, so cumulative manifest bytes grow quadratically with single-record commits, and full-history validation grows with the Vault. MV-1 keeps this for simplicity and verifiability. The segmented or incremental catalog (and incremental validation) is required before a head manifest exceeds 1 MiB (about 4,000 records) or commit latency exceeds 1 s on the reference machine, whichever comes first; real history import (MV-2) must be measured against this trigger.
+
+### ADR-MEM-38 — ImportManifest as a revisioned record (Adopted, MV-2)
+
+Each user-selected import is a revisioned `import` record (`imp_…`) stored at `vault/raw/manifests/<id>/<revision>.json`, as the layout specified. A new revision is committed at each step (archived, every parse batch, completion) in the same transaction as the sources that step produced, so the resume cursor, adapter version, counts, and coverage always describe exactly what that commit contains. It records the input kind, the received bytes' hash and size, the adapter and observed source schema, sanitized archive members with their disposition (parsed, preserved only, quarantined, skipped), the cursor, counts, per-conversation coverage (upstream IDs, counts, times; never titles), warnings, and `duplicate_of` for a byte-identical re-import.
+
+Closure rules: an imported source names an existing import and cites that import's received bytes (`source.import_unresolved`, `source.import_raw_mismatch`); a completed import's coverage counts exactly the sources citing it (`import.coverage_mismatch`); an import past `archiving` is committed only with its Raw object present (`store.import_raw_missing`). Raw completeness and parse completeness are separate: an unrecognized format is archived and ends `partial` with no adapter. The synthetic fixtures now carry an import manifest and its raw bytes for every imported source.
 
 ## Relation to Enouia Runtime's register
 

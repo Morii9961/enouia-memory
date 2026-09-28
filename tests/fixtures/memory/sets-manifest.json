@@ -2,6 +2,44 @@
   "description": "Consistent synthetic sets and single-rule mutations. Each mutation must produce at least the named cross-record violation.",
   "invalid": [
     {
+      "base": "sets/lifecycle.json",
+      "covers": "imported sources name an existing import",
+      "id": "source-import-unresolved",
+      "ops": [
+        {
+          "op": "remove",
+          "path": "/imports/0"
+        }
+      ],
+      "rust_rule": "source.import_unresolved"
+    },
+    {
+      "base": "sets/lifecycle.json",
+      "covers": "sources cite the received bytes",
+      "id": "source-import-raw-mismatch",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/sources/2/raw_object_hash",
+          "value": "fbf22ec45a215e0d4711bfe2dde37292707edaf098c15bd5b204cb3ca72e6ca3"
+        }
+      ],
+      "rust_rule": "source.import_raw_mismatch"
+    },
+    {
+      "base": "sets/lifecycle.json",
+      "covers": "coverage report counts exactly the imported sources",
+      "id": "import-coverage-mismatch",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/imports/0/coverage/0/message_count",
+          "value": 99
+        }
+      ],
+      "rust_rule": "import.coverage_mismatch"
+    },
+    {
       "base": "sets/morimeta-confirmed.json",
       "covers": "no canonical write without review",
       "id": "memory-without-review",

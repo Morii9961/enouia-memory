@@ -93,7 +93,7 @@ SET_SCHEMAS = {
     "purge_receipts": "memory/purge-receipt-v1.schema.json", "audit_events": "memory/audit-event-v1.schema.json",
     "capsules": "context/capsule-v1.schema.json", "inspections": "context/inspection-v1.schema.json",
     "dispatches": "context/dispatch-v1.schema.json", "approvals": "memory/approval-v1.schema.json",
-    "policies": "memory/policy-v1.schema.json",
+    "policies": "memory/policy-v1.schema.json", "imports": "memory/import-v1.schema.json",
 }
 
 

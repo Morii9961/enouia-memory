@@ -1510,6 +1510,13 @@
     {
       "catalog": [
         {
+          "changed": true,
+          "content_hash": "42ebfd39784d1398dffb1783f454c8e8484ec056e161f2c6e7914d6dea1f6477",
+          "record_id": "imp_00000003-0000-4000-8000-000000000003",
+          "record_kind": "import",
+          "revision": 1
+        },
+        {
           "changed": false,
           "content_hash": "b43317612e09c9087fc145c94314374143c2bfc558b301cdcbcb3d673e4558f5",
           "record_id": "pol_00000001-0000-4000-8000-000000000001",
@@ -1606,7 +1613,13 @@
       "deletion_epoch": 0,
       "format_version": 1,
       "idempotency_key_hash": "135a65fb9bfb78ffca8cfaa01c27db271991dd5028f6a20dea193d91acbd733a",
-      "objects": [],
+      "objects": [
+        {
+          "object_hash": "1fd075315c5791f8ef6ca8ae96c822120a7566c5a4921b659d68ca6a7f5c82f2",
+          "object_kind": "raw",
+          "size_bytes": 12
+        }
+      ],
       "operation_id": "op_000000ca-0000-4000-8000-0000000000ca",
       "operation_kind": "import",
       "parent_commit_id": "cmt_000000c9-0000-4000-8000-0000000000c9",
@@ -1618,6 +1631,11 @@
       "receipt": {
         "operation_id": "op_000000ca-0000-4000-8000-0000000000ca",
         "records": [
+          {
+            "record_id": "imp_00000003-0000-4000-8000-000000000003",
+            "record_kind": "import",
+            "revision": 1
+          },
           {
             "record_id": "src_00000065-0000-4000-8000-000000000065",
             "record_kind": "source",
@@ -1691,6 +1709,13 @@
     },
     {
       "catalog": [
+        {
+          "changed": false,
+          "content_hash": "42ebfd39784d1398dffb1783f454c8e8484ec056e161f2c6e7914d6dea1f6477",
+          "record_id": "imp_00000003-0000-4000-8000-000000000003",
+          "record_kind": "import",
+          "revision": 1
+        },
         {
           "changed": false,
           "content_hash": "b43317612e09c9087fc145c94314374143c2bfc558b301cdcbcb3d673e4558f5",
@@ -1816,7 +1841,13 @@
       "deletion_epoch": 0,
       "format_version": 1,
       "idempotency_key_hash": "a6f013f45490e6d89a15e831d03de591c6e6c264d44ccc720ca45e4a773d1897",
-      "objects": [],
+      "objects": [
+        {
+          "object_hash": "1fd075315c5791f8ef6ca8ae96c822120a7566c5a4921b659d68ca6a7f5c82f2",
+          "object_kind": "raw",
+          "size_bytes": 12
+        }
+      ],
       "operation_id": "op_000000cb-0000-4000-8000-0000000000cb",
       "operation_kind": "session_append",
       "parent_commit_id": "cmt_000000ca-0000-4000-8000-0000000000ca",
@@ -1866,6 +1897,13 @@
           "content_hash": "ecf13d6c65e8a07d4f15abba4d65c41dd3e45fc6f0c64b888ed328725538ac6b",
           "record_id": "ckp_00000002-0000-4000-8000-000000000002",
           "record_kind": "checkpoint",
+          "revision": 1
+        },
+        {
+          "changed": false,
+          "content_hash": "42ebfd39784d1398dffb1783f454c8e8484ec056e161f2c6e7914d6dea1f6477",
+          "record_id": "imp_00000003-0000-4000-8000-000000000003",
+          "record_kind": "import",
           "revision": 1
         },
         {
@@ -1993,7 +2031,13 @@
       "deletion_epoch": 0,
       "format_version": 1,
       "idempotency_key_hash": "47e5cf97aefe8c6bb4eb9106601bcba35bdbda9a5afb8fc3a10ec672edfaaca1",
-      "objects": [],
+      "objects": [
+        {
+          "object_hash": "1fd075315c5791f8ef6ca8ae96c822120a7566c5a4921b659d68ca6a7f5c82f2",
+          "object_kind": "raw",
+          "size_bytes": 12
+        }
+      ],
       "operation_id": "op_000000cc-0000-4000-8000-0000000000cc",
       "operation_kind": "checkpoint_propose",
       "parent_commit_id": "cmt_000000cb-0000-4000-8000-0000000000cb",
@@ -2098,6 +2142,13 @@
           "content_hash": "ecf13d6c65e8a07d4f15abba4d65c41dd3e45fc6f0c64b888ed328725538ac6b",
           "record_id": "ckp_00000002-0000-4000-8000-000000000002",
           "record_kind": "checkpoint",
+          "revision": 1
+        },
+        {
+          "changed": false,
+          "content_hash": "42ebfd39784d1398dffb1783f454c8e8484ec056e161f2c6e7914d6dea1f6477",
+          "record_id": "imp_00000003-0000-4000-8000-000000000003",
+          "record_kind": "import",
           "revision": 1
         },
         {
@@ -2225,7 +2276,13 @@
       "deletion_epoch": 0,
       "format_version": 1,
       "idempotency_key_hash": "3edc19e0219c7bdd3caa9b1738919e3bdaf9cd73e76b1b6c6d76c5ae2874a2e6",
-      "objects": [],
+      "objects": [
+        {
+          "object_hash": "1fd075315c5791f8ef6ca8ae96c822120a7566c5a4921b659d68ca6a7f5c82f2",
+          "object_kind": "raw",
+          "size_bytes": 12
+        }
+      ],
       "operation_id": "op_000000cd-0000-4000-8000-0000000000cd",
       "operation_kind": "candidate_propose",
       "parent_commit_id": "cmt_000000cc-0000-4000-8000-0000000000cc",
@@ -2378,6 +2435,13 @@
           "revision": 1
         },
         {
+          "changed": false,
+          "content_hash": "42ebfd39784d1398dffb1783f454c8e8484ec056e161f2c6e7914d6dea1f6477",
+          "record_id": "imp_00000003-0000-4000-8000-000000000003",
+          "record_kind": "import",
+          "revision": 1
+        },
+        {
           "changed": true,
           "content_hash": "529f9dcd353760b19c12ff4a092adc1cd9fa4f9ad15af577d16a64d4c37f8c08",
           "record_id": "mem_00000065-0000-4000-8000-000000000065",
@@ -2516,7 +2580,13 @@
       "deletion_epoch": 0,
       "format_version": 1,
       "idempotency_key_hash": "72510afef6c0d98a2c7a9f46b782ddf15388034862446ecbbf67ee8bcbb72713",
-      "objects": [],
+      "objects": [
+        {
+          "object_hash": "1fd075315c5791f8ef6ca8ae96c822120a7566c5a4921b659d68ca6a7f5c82f2",
+          "object_kind": "raw",
+          "size_bytes": 12
+        }
+      ],
       "operation_id": "op_000000ce-0000-4000-8000-0000000000ce",
       "operation_kind": "review_commit",
       "parent_commit_id": "cmt_000000cd-0000-4000-8000-0000000000cd",
@@ -2633,6 +2703,13 @@
           "content_hash": "ecf13d6c65e8a07d4f15abba4d65c41dd3e45fc6f0c64b888ed328725538ac6b",
           "record_id": "ckp_00000002-0000-4000-8000-000000000002",
           "record_kind": "checkpoint",
+          "revision": 1
+        },
+        {
+          "changed": false,
+          "content_hash": "42ebfd39784d1398dffb1783f454c8e8484ec056e161f2c6e7914d6dea1f6477",
+          "record_id": "imp_00000003-0000-4000-8000-000000000003",
+          "record_kind": "import",
           "revision": 1
         },
         {
@@ -2788,7 +2865,13 @@
       "deletion_epoch": 0,
       "format_version": 1,
       "idempotency_key_hash": "39ad72172a8f20f1115ed9634b47b353e447f808ffb6a939fa2516ade7a503e0",
-      "objects": [],
+      "objects": [
+        {
+          "object_hash": "1fd075315c5791f8ef6ca8ae96c822120a7566c5a4921b659d68ca6a7f5c82f2",
+          "object_kind": "raw",
+          "size_bytes": 12
+        }
+      ],
       "operation_id": "op_000000cf-0000-4000-8000-0000000000cf",
       "operation_kind": "review_commit",
       "parent_commit_id": "cmt_000000ce-0000-4000-8000-0000000000ce",
@@ -2905,6 +2988,13 @@
           "content_hash": "ecf13d6c65e8a07d4f15abba4d65c41dd3e45fc6f0c64b888ed328725538ac6b",
           "record_id": "ckp_00000002-0000-4000-8000-000000000002",
           "record_kind": "checkpoint",
+          "revision": 1
+        },
+        {
+          "changed": false,
+          "content_hash": "42ebfd39784d1398dffb1783f454c8e8484ec056e161f2c6e7914d6dea1f6477",
+          "record_id": "imp_00000003-0000-4000-8000-000000000003",
+          "record_kind": "import",
           "revision": 1
         },
         {
@@ -3074,7 +3164,13 @@
       "deletion_epoch": 0,
       "format_version": 1,
       "idempotency_key_hash": "c31d6deb2bca8e95af49979c2826b78d80f2b0050e0bdd8ce756f73d41fdf425",
-      "objects": [],
+      "objects": [
+        {
+          "object_hash": "1fd075315c5791f8ef6ca8ae96c822120a7566c5a4921b659d68ca6a7f5c82f2",
+          "object_kind": "raw",
+          "size_bytes": 12
+        }
+      ],
       "operation_id": "op_000000d0-0000-4000-8000-0000000000d0",
       "operation_kind": "review_commit",
       "parent_commit_id": "cmt_000000cf-0000-4000-8000-0000000000cf",
@@ -3191,6 +3287,13 @@
           "content_hash": "ecf13d6c65e8a07d4f15abba4d65c41dd3e45fc6f0c64b888ed328725538ac6b",
           "record_id": "ckp_00000002-0000-4000-8000-000000000002",
           "record_kind": "checkpoint",
+          "revision": 1
+        },
+        {
+          "changed": false,
+          "content_hash": "42ebfd39784d1398dffb1783f454c8e8484ec056e161f2c6e7914d6dea1f6477",
+          "record_id": "imp_00000003-0000-4000-8000-000000000003",
+          "record_kind": "import",
           "revision": 1
         },
         {
@@ -3374,7 +3477,13 @@
       "deletion_epoch": 0,
       "format_version": 1,
       "idempotency_key_hash": "0611308c825b4c95d6a2e626a14c1e4e66256f23321e65fa64ff7642442e3713",
-      "objects": [],
+      "objects": [
+        {
+          "object_hash": "1fd075315c5791f8ef6ca8ae96c822120a7566c5a4921b659d68ca6a7f5c82f2",
+          "object_kind": "raw",
+          "size_bytes": 12
+        }
+      ],
       "operation_id": "op_000000d1-0000-4000-8000-0000000000d1",
       "operation_kind": "review_commit",
       "parent_commit_id": "cmt_000000d0-0000-4000-8000-0000000000d0",
@@ -3491,6 +3600,13 @@
           "content_hash": "ecf13d6c65e8a07d4f15abba4d65c41dd3e45fc6f0c64b888ed328725538ac6b",
           "record_id": "ckp_00000002-0000-4000-8000-000000000002",
           "record_kind": "checkpoint",
+          "revision": 1
+        },
+        {
+          "changed": false,
+          "content_hash": "42ebfd39784d1398dffb1783f454c8e8484ec056e161f2c6e7914d6dea1f6477",
+          "record_id": "imp_00000003-0000-4000-8000-000000000003",
+          "record_kind": "import",
           "revision": 1
         },
         {
@@ -3688,7 +3804,13 @@
       "deletion_epoch": 0,
       "format_version": 1,
       "idempotency_key_hash": "7bda4dee558fb3394d3a0038775772978f1206f364526c512c79830635ea658e",
-      "objects": [],
+      "objects": [
+        {
+          "object_hash": "1fd075315c5791f8ef6ca8ae96c822120a7566c5a4921b659d68ca6a7f5c82f2",
+          "object_kind": "raw",
+          "size_bytes": 12
+        }
+      ],
       "operation_id": "op_000000d2-0000-4000-8000-0000000000d2",
       "operation_kind": "review_commit",
       "parent_commit_id": "cmt_000000d1-0000-4000-8000-0000000000d1",
@@ -3805,6 +3927,13 @@
           "content_hash": "ecf13d6c65e8a07d4f15abba4d65c41dd3e45fc6f0c64b888ed328725538ac6b",
           "record_id": "ckp_00000002-0000-4000-8000-000000000002",
           "record_kind": "checkpoint",
+          "revision": 1
+        },
+        {
+          "changed": false,
+          "content_hash": "42ebfd39784d1398dffb1783f454c8e8484ec056e161f2c6e7914d6dea1f6477",
+          "record_id": "imp_00000003-0000-4000-8000-000000000003",
+          "record_kind": "import",
           "revision": 1
         },
         {
@@ -4016,7 +4145,13 @@
       "deletion_epoch": 0,
       "format_version": 1,
       "idempotency_key_hash": "923c076e917d619b6919697ac892176acb44b7ffe240a007166f8c3e7c808264",
-      "objects": [],
+      "objects": [
+        {
+          "object_hash": "1fd075315c5791f8ef6ca8ae96c822120a7566c5a4921b659d68ca6a7f5c82f2",
+          "object_kind": "raw",
+          "size_bytes": 12
+        }
+      ],
       "operation_id": "op_000000d3-0000-4000-8000-0000000000d3",
       "operation_kind": "review_commit",
       "parent_commit_id": "cmt_000000d2-0000-4000-8000-0000000000d2",
@@ -4134,6 +4269,13 @@
           "record_id": "ckp_00000002-0000-4000-8000-000000000002",
           "record_kind": "checkpoint",
           "revision": 2
+        },
+        {
+          "changed": false,
+          "content_hash": "42ebfd39784d1398dffb1783f454c8e8484ec056e161f2c6e7914d6dea1f6477",
+          "record_id": "imp_00000003-0000-4000-8000-000000000003",
+          "record_kind": "import",
+          "revision": 1
         },
         {
           "changed": false,
@@ -4358,7 +4500,13 @@
       "deletion_epoch": 0,
       "format_version": 1,
       "idempotency_key_hash": "d1541f988185f2526f00f5761f43f84447b900d9e9f4d13ee9f85a3ab4f2b139",
-      "objects": [],
+      "objects": [
+        {
+          "object_hash": "1fd075315c5791f8ef6ca8ae96c822120a7566c5a4921b659d68ca6a7f5c82f2",
+          "object_kind": "raw",
+          "size_bytes": 12
+        }
+      ],
       "operation_id": "op_000000d4-0000-4000-8000-0000000000d4",
       "operation_kind": "review_commit",
       "parent_commit_id": "cmt_000000d3-0000-4000-8000-0000000000d3",
@@ -4487,6 +4635,13 @@
           "content_hash": "bab9f7bbb82ff4972893369ed54e3774313a3d9d0460239654f12bd0fb316e2c",
           "record_id": "idn_00000001-0000-4000-8000-000000000001",
           "record_kind": "identity",
+          "revision": 1
+        },
+        {
+          "changed": false,
+          "content_hash": "42ebfd39784d1398dffb1783f454c8e8484ec056e161f2c6e7914d6dea1f6477",
+          "record_id": "imp_00000003-0000-4000-8000-000000000003",
+          "record_kind": "import",
           "revision": 1
         },
         {
@@ -4721,6 +4876,11 @@
       "idempotency_key_hash": "5a773518b8a2d97cd689ed9dfcbebb14cce3e0802eb7ae153f1e09bdbe97ae9a",
       "objects": [
         {
+          "object_hash": "1fd075315c5791f8ef6ca8ae96c822120a7566c5a4921b659d68ca6a7f5c82f2",
+          "object_kind": "raw",
+          "size_bytes": 12
+        },
+        {
           "object_hash": "5441797c1da493dc114bb4690e0a8d433f499d544ff9f614bb47d900b067c87f",
           "object_kind": "identity_markdown",
           "size_bytes": 27
@@ -4849,6 +5009,13 @@
           "content_hash": "bab9f7bbb82ff4972893369ed54e3774313a3d9d0460239654f12bd0fb316e2c",
           "record_id": "idn_00000001-0000-4000-8000-000000000001",
           "record_kind": "identity",
+          "revision": 1
+        },
+        {
+          "changed": false,
+          "content_hash": "42ebfd39784d1398dffb1783f454c8e8484ec056e161f2c6e7914d6dea1f6477",
+          "record_id": "imp_00000003-0000-4000-8000-000000000003",
+          "record_kind": "import",
           "revision": 1
         },
         {
@@ -5097,6 +5264,11 @@
       "idempotency_key_hash": "2100dbc80458bb46da0fbc842a5105c8d5f839d95bd6b6c0d7a3a1ca2c4442ac",
       "objects": [
         {
+          "object_hash": "1fd075315c5791f8ef6ca8ae96c822120a7566c5a4921b659d68ca6a7f5c82f2",
+          "object_kind": "raw",
+          "size_bytes": 12
+        },
+        {
           "object_hash": "5441797c1da493dc114bb4690e0a8d433f499d544ff9f614bb47d900b067c87f",
           "object_kind": "identity_markdown",
           "size_bytes": 27
@@ -5232,6 +5404,13 @@
           "content_hash": "bab9f7bbb82ff4972893369ed54e3774313a3d9d0460239654f12bd0fb316e2c",
           "record_id": "idn_00000001-0000-4000-8000-000000000001",
           "record_kind": "identity",
+          "revision": 1
+        },
+        {
+          "changed": false,
+          "content_hash": "42ebfd39784d1398dffb1783f454c8e8484ec056e161f2c6e7914d6dea1f6477",
+          "record_id": "imp_00000003-0000-4000-8000-000000000003",
+          "record_kind": "import",
           "revision": 1
         },
         {
@@ -5494,6 +5673,11 @@
       "idempotency_key_hash": "b7d1966aa46124b87f35e5a9fd15c38cbeed7b96abf9a17ef7079c97d3b6c6ed",
       "objects": [
         {
+          "object_hash": "1fd075315c5791f8ef6ca8ae96c822120a7566c5a4921b659d68ca6a7f5c82f2",
+          "object_kind": "raw",
+          "size_bytes": 12
+        },
+        {
           "object_hash": "5441797c1da493dc114bb4690e0a8d433f499d544ff9f614bb47d900b067c87f",
           "object_kind": "identity_markdown",
           "size_bytes": 27
@@ -5655,6 +5839,13 @@
           "content_hash": "bab9f7bbb82ff4972893369ed54e3774313a3d9d0460239654f12bd0fb316e2c",
           "record_id": "idn_00000001-0000-4000-8000-000000000001",
           "record_kind": "identity",
+          "revision": 1
+        },
+        {
+          "changed": false,
+          "content_hash": "42ebfd39784d1398dffb1783f454c8e8484ec056e161f2c6e7914d6dea1f6477",
+          "record_id": "imp_00000003-0000-4000-8000-000000000003",
+          "record_kind": "import",
           "revision": 1
         },
         {
@@ -5917,6 +6108,11 @@
       "idempotency_key_hash": "c6ce2ba327863a18c172cb1a99e15d8225d4b45aae726eb4626310216cd702d3",
       "objects": [
         {
+          "object_hash": "1fd075315c5791f8ef6ca8ae96c822120a7566c5a4921b659d68ca6a7f5c82f2",
+          "object_kind": "raw",
+          "size_bytes": 12
+        },
+        {
           "object_hash": "5441797c1da493dc114bb4690e0a8d433f499d544ff9f614bb47d900b067c87f",
           "object_kind": "identity_markdown",
           "size_bytes": 27
@@ -6071,6 +6267,13 @@
           "content_hash": "bab9f7bbb82ff4972893369ed54e3774313a3d9d0460239654f12bd0fb316e2c",
           "record_id": "idn_00000001-0000-4000-8000-000000000001",
           "record_kind": "identity",
+          "revision": 1
+        },
+        {
+          "changed": false,
+          "content_hash": "42ebfd39784d1398dffb1783f454c8e8484ec056e161f2c6e7914d6dea1f6477",
+          "record_id": "imp_00000003-0000-4000-8000-000000000003",
+          "record_kind": "import",
           "revision": 1
         },
         {
@@ -6347,6 +6550,11 @@
       "idempotency_key_hash": "9a12c449222199f4443f564390bc11d238be768dc612ed724261c9d5f171ff42",
       "objects": [
         {
+          "object_hash": "1fd075315c5791f8ef6ca8ae96c822120a7566c5a4921b659d68ca6a7f5c82f2",
+          "object_kind": "raw",
+          "size_bytes": 12
+        },
+        {
           "object_hash": "5441797c1da493dc114bb4690e0a8d433f499d544ff9f614bb47d900b067c87f",
           "object_kind": "identity_markdown",
           "size_bytes": 27
@@ -6508,6 +6716,13 @@
           "content_hash": "bab9f7bbb82ff4972893369ed54e3774313a3d9d0460239654f12bd0fb316e2c",
           "record_id": "idn_00000001-0000-4000-8000-000000000001",
           "record_kind": "identity",
+          "revision": 1
+        },
+        {
+          "changed": false,
+          "content_hash": "42ebfd39784d1398dffb1783f454c8e8484ec056e161f2c6e7914d6dea1f6477",
+          "record_id": "imp_00000003-0000-4000-8000-000000000003",
+          "record_kind": "import",
           "revision": 1
         },
         {
@@ -6798,6 +7013,11 @@
       "idempotency_key_hash": "df11cf72ed2b72730128b914c91c2d4ecd5dc096fd88fa34e26861a8d4c87a17",
       "objects": [
         {
+          "object_hash": "1fd075315c5791f8ef6ca8ae96c822120a7566c5a4921b659d68ca6a7f5c82f2",
+          "object_kind": "raw",
+          "size_bytes": 12
+        },
+        {
           "object_hash": "5441797c1da493dc114bb4690e0a8d433f499d544ff9f614bb47d900b067c87f",
           "object_kind": "identity_markdown",
           "size_bytes": 27
@@ -6959,6 +7179,13 @@
           "content_hash": "bab9f7bbb82ff4972893369ed54e3774313a3d9d0460239654f12bd0fb316e2c",
           "record_id": "idn_00000001-0000-4000-8000-000000000001",
           "record_kind": "identity",
+          "revision": 1
+        },
+        {
+          "changed": false,
+          "content_hash": "42ebfd39784d1398dffb1783f454c8e8484ec056e161f2c6e7914d6dea1f6477",
+          "record_id": "imp_00000003-0000-4000-8000-000000000003",
+          "record_kind": "import",
           "revision": 1
         },
         {
@@ -7263,6 +7490,11 @@
       "idempotency_key_hash": "03ba63e3f2fe02cf041bd75743ba779bcf5941d9c6c03e6879bb27f9d93d8b2d",
       "objects": [
         {
+          "object_hash": "1fd075315c5791f8ef6ca8ae96c822120a7566c5a4921b659d68ca6a7f5c82f2",
+          "object_kind": "raw",
+          "size_bytes": 12
+        },
+        {
           "object_hash": "5441797c1da493dc114bb4690e0a8d433f499d544ff9f614bb47d900b067c87f",
           "object_kind": "identity_markdown",
           "size_bytes": 27
@@ -7333,6 +7565,60 @@
       "slug": "core",
       "title": "身份核心（合成）",
       "updated_at": "2026-06-12T09:08:00.500Z"
+    }
+  ],
+  "imports": [
+    {
+      "account_scope": "acct-main",
+      "adapter": {
+        "name": "synthetic-export-adapter",
+        "version": "0"
+      },
+      "counts": {
+        "attachments_external": 0,
+        "attachments_missing": 0,
+        "attachments_present": 0,
+        "attachments_quarantined": 0,
+        "branches": 1,
+        "conversations": 1,
+        "missing_parents": 0,
+        "sources_created": 2,
+        "sources_revised": 0,
+        "sources_unchanged": 0,
+        "unparseable": 0
+      },
+      "coverage": [
+        {
+          "branch_count": 1,
+          "earliest_source_time": "2026-03-01T09:00:00.000Z",
+          "latest_source_time": "2026-05-01T09:00:00.000Z",
+          "message_count": 2,
+          "missing_parents": 0,
+          "original_conversation_id": "conv-synthetic-001",
+          "unknown_time_count": 0,
+          "unparseable": 0
+        }
+      ],
+      "cursor": {
+        "completed": 1,
+        "total": 1,
+        "unit": "conversation"
+      },
+      "duplicate_of": null,
+      "extensions": {},
+      "import_id": "imp_00000003-0000-4000-8000-000000000003",
+      "input_kind": "chatgpt_conversations_json",
+      "input_object_hash": "1fd075315c5791f8ef6ca8ae96c822120a7566c5a4921b659d68ca6a7f5c82f2",
+      "input_size_bytes": 12,
+      "members": [],
+      "provider": "chatgpt",
+      "received_at": "2026-06-01T12:00:00.000Z",
+      "revision": 1,
+      "schema_version": 1,
+      "source_schema_observed": "synthetic-mapping-v0",
+      "status": "completed",
+      "updated_at": "2026-06-01T12:00:00.000Z",
+      "warnings": []
     }
   ],
   "inspections": [

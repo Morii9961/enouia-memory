@@ -520,7 +520,8 @@
         "dispatch",
         "provider_capabilities",
         "approval",
-        "policy"
+        "policy",
+        "import"
       ]
     },
     "recordRef": {

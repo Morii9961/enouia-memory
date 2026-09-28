@@ -26,6 +26,13 @@ pub fn commit_manifest(commit_id: &str) -> String {
 /// Revisioned records: `vault/records/<kind>/<id>/<revision>.<ext>`;
 /// single-revision records: `vault/records/<kind>/<id>.json`.
 pub fn record_path(kind: RecordKind, id: &str, revision: Revision) -> Option<String> {
+    if kind == RecordKind::Import {
+        // IMPORT_REVIEW: the import manifest lives beside the raw objects.
+        return Some(format!(
+            "{VAULT_DIR}/raw/manifests/{id}/{}.json",
+            revision.get()
+        ));
+    }
     let dir = match kind {
         RecordKind::Memory => "memory",
         RecordKind::Identity => "identity",

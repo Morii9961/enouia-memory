@@ -1,0 +1,58 @@
+{
+  "account_scope": null,
+  "adapter": null,
+  "counts": {
+    "attachments_external": 0,
+    "attachments_missing": 0,
+    "attachments_present": 0,
+    "attachments_quarantined": 0,
+    "branches": 0,
+    "conversations": 0,
+    "missing_parents": 0,
+    "sources_created": 0,
+    "sources_revised": 0,
+    "sources_unchanged": 0,
+    "unparseable": 0
+  },
+  "coverage": [],
+  "cursor": {
+    "completed": 0,
+    "total": null,
+    "unit": "file"
+  },
+  "duplicate_of": null,
+  "extensions": {},
+  "import_id": "imp_00000009-0000-4000-8000-000000000009",
+  "input_kind": "unknown_archive",
+  "input_object_hash": "71234c727f989141adca8b36de42714657e6db83e58c75fb89908a5cb9f43017",
+  "input_size_bytes": 4096,
+  "members": [
+    {
+      "disposition": "preserved_only",
+      "member_hash": "711a6108ba2ce6ca93dd47d6817f2361db10d8ab6eec89460b2dfc2c325efabe",
+      "member_name": "notes/readme.txt",
+      "reason_code": "no_adapter",
+      "size_bytes": 6
+    },
+    {
+      "disposition": "quarantined",
+      "member_hash": null,
+      "member_name": "bin/tool.exe",
+      "reason_code": "executable_member",
+      "size_bytes": 2048
+    }
+  ],
+  "provider": null,
+  "received_at": "2026-09-01T10:00:00.000Z",
+  "revision": 2,
+  "schema_version": 1,
+  "source_schema_observed": null,
+  "status": "partial",
+  "updated_at": "2026-09-01T10:00:05.000Z",
+  "warnings": [
+    {
+      "code": "unsupported_format",
+      "pointer": null
+    }
+  ]
+}

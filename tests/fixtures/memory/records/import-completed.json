@@ -1,0 +1,52 @@
+{
+  "account_scope": "acct-main",
+  "adapter": {
+    "name": "synthetic-export-adapter",
+    "version": "0"
+  },
+  "counts": {
+    "attachments_external": 0,
+    "attachments_missing": 0,
+    "attachments_present": 0,
+    "attachments_quarantined": 0,
+    "branches": 1,
+    "conversations": 1,
+    "missing_parents": 0,
+    "sources_created": 2,
+    "sources_revised": 0,
+    "sources_unchanged": 0,
+    "unparseable": 0
+  },
+  "coverage": [
+    {
+      "branch_count": 1,
+      "earliest_source_time": "2026-03-01T09:00:00.000Z",
+      "latest_source_time": "2026-05-01T09:00:00.000Z",
+      "message_count": 2,
+      "missing_parents": 0,
+      "original_conversation_id": "conv-synthetic-001",
+      "unknown_time_count": 0,
+      "unparseable": 0
+    }
+  ],
+  "cursor": {
+    "completed": 1,
+    "total": 1,
+    "unit": "conversation"
+  },
+  "duplicate_of": null,
+  "extensions": {},
+  "import_id": "imp_00000003-0000-4000-8000-000000000003",
+  "input_kind": "chatgpt_conversations_json",
+  "input_object_hash": "1fd075315c5791f8ef6ca8ae96c822120a7566c5a4921b659d68ca6a7f5c82f2",
+  "input_size_bytes": 12,
+  "members": [],
+  "provider": "chatgpt",
+  "received_at": "2026-06-01T12:00:00.000Z",
+  "revision": 1,
+  "schema_version": 1,
+  "source_schema_observed": "synthetic-mapping-v0",
+  "status": "completed",
+  "updated_at": "2026-06-01T12:00:00.000Z",
+  "warnings": []
+}

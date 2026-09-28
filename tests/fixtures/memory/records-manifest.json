@@ -2,6 +2,142 @@
   "description": "Valid synthetic records and minimal invalid mutations. 'schema: accept' marks a constraint JSON Schema cannot express; the Rust validator must still reject it.",
   "invalid": [
     {
+      "base": "records/import-completed.json",
+      "covers": "completed means every unit committed",
+      "id": "import-cursor-short",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/cursor/completed",
+          "value": 0
+        }
+      ],
+      "rust_rule": "import.cursor",
+      "schema": "accept"
+    },
+    {
+      "base": "records/import-completed.json",
+      "covers": "parsed sources name their adapter",
+      "id": "import-parsing-without-adapter",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/status",
+          "value": "parsing"
+        },
+        {
+          "op": "set",
+          "path": "/adapter",
+          "value": null
+        }
+      ],
+      "rust_rule": "import.adapter_required",
+      "schema": "reject"
+    },
+    {
+      "base": "records/import-unsupported.json",
+      "covers": "archive member path traversal",
+      "id": "import-member-traversal",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/members/0/member_name",
+          "value": "../evil.txt"
+        }
+      ],
+      "rust_rule": "import.member_name",
+      "schema": "accept"
+    },
+    {
+      "base": "records/import-unsupported.json",
+      "covers": "absolute member path",
+      "id": "import-member-absolute",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/members/0/member_name",
+          "value": "/etc/evil"
+        }
+      ],
+      "rust_rule": "import.member_name",
+      "schema": "reject"
+    },
+    {
+      "base": "records/import-unsupported.json",
+      "covers": "duplicate member names",
+      "id": "import-member-duplicate",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/members/1/member_name",
+          "value": "notes/readme.txt"
+        }
+      ],
+      "rust_rule": "import.member_name",
+      "schema": "accept"
+    },
+    {
+      "base": "records/import-completed.json",
+      "covers": "a duplicate import creates nothing",
+      "id": "import-duplicate-with-sources",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/duplicate_of",
+          "value": "imp_00000008-0000-4000-8000-000000000008"
+        }
+      ],
+      "rust_rule": "import.duplicate",
+      "schema": "accept"
+    },
+    {
+      "base": "records/import-completed.json",
+      "covers": "received before updated",
+      "id": "import-time-order",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/received_at",
+          "value": "2030-01-01T00:00:00.000Z"
+        }
+      ],
+      "rust_rule": "import.time_order",
+      "schema": "accept"
+    },
+    {
+      "base": "records/import-unsupported.json",
+      "covers": "no parse results before archiving completes",
+      "id": "import-archiving-with-counts",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/status",
+          "value": "archiving"
+        },
+        {
+          "op": "set",
+          "path": "/counts/sources_created",
+          "value": 3
+        }
+      ],
+      "rust_rule": "import.premature_parse",
+      "schema": "accept"
+    },
+    {
+      "base": "records/import-completed.json",
+      "covers": "status enum",
+      "id": "import-unknown-status",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/status",
+          "value": "done"
+        }
+      ],
+      "rust_rule": "shape",
+      "schema": "reject"
+    },
+    {
       "base": "records/source-export-user.json",
       "covers": "required field",
       "id": "source-missing-id",
@@ -1729,6 +1865,16 @@
       "file": "records/identity.json",
       "kind": "identity",
       "schema": "memory/identity-v1.schema.json"
+    },
+    {
+      "file": "records/import-completed.json",
+      "kind": "import",
+      "schema": "memory/import-v1.schema.json"
+    },
+    {
+      "file": "records/import-unsupported.json",
+      "kind": "import",
+      "schema": "memory/import-v1.schema.json"
     },
     {
       "file": "records/inspection.json",

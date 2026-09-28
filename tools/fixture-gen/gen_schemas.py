@@ -110,7 +110,7 @@ defs.update({
     "recordKind": enum("source", "attachment", "project", "memory", "candidate", "review",
                        "identity", "session", "session_event", "checkpoint", "commit",
                        "tombstone", "purge_receipt", "audit_event", "capsule", "inspection",
-                       "dispatch", "provider_capabilities", "approval", "policy"),
+                       "dispatch", "provider_capabilities", "approval", "policy", "import"),
     "recordRef": obj({"record_kind": ref("recordKind"),
                       "record_id": {"type": "string", "pattern": f"^[a-z]+_{UUID}$"},
                       "revision": ref("revision")},
@@ -629,6 +629,34 @@ write("memory/policy-v1.schema.json", record(
                when("status", ["revoked"], {"properties": {"revoked_at": c("timestamp")}}),
                when("status", ["active"], {"properties": {"revoked_at": {"type": "null"}}})]},
     "policy-v1.schema.json"))
+
+# ---------------- import (MV-2, ADR-MEM-38) ----------------
+LABEL = {"type": "string", "pattern": "^[a-z0-9][a-z0-9_.:/-]{0,127}$"}
+write("memory/import-v1.schema.json", record(
+    "Enouia ImportManifest v1",
+    "One user-selected import, a new revision per step (archived, each parse batch, completion) committed with the sources it produced. Raw completeness and parse completeness are separate. Cursor/count consistency, member uniqueness, and coverage closure are checked by the Rust validators.",
+    {"schema_version": c("schemaVersion"), "import_id": c("importId"), "revision": c("revision"),
+     "status": enum("planned", "archiving", "archived", "parsing", "completed", "partial", "failed"),
+     "input_kind": enum("chatgpt_export_zip", "chatgpt_conversations_json", "markdown_file", "markdown_archive_zip",
+                        "runtime_native_session", "unknown_archive", "unknown"),
+     "provider": nul(STR), "account_scope": nul({"type": "string", "pattern": "^[a-z0-9][a-z0-9_-]{0,63}$"}),
+     "input_object_hash": c("sha256"), "input_size_bytes": COUNT,
+     "received_at": c("timestamp"), "updated_at": c("timestamp"),
+     "adapter": nul(obj({"name": LABEL, "version": LABEL})), "source_schema_observed": nul(LABEL),
+     "members": arr(obj({"member_name": {"type": "string", "minLength": 1, "maxLength": 512, "pattern": "^[^/\\\\:][^\\\\:]*$"},
+                         "member_hash": cn("sha256"), "size_bytes": COUNT,
+                         "disposition": enum("parsed", "preserved_only", "quarantined", "skipped"),
+                         "reason_code": nul(c("code"))})),
+     "cursor": obj({"unit": enum("conversation", "file", "event"), "completed": COUNT, "total": nul(COUNT)}),
+     "counts": obj({k: COUNT for k in ["sources_created", "sources_revised", "sources_unchanged", "conversations",
+                                       "branches", "missing_parents", "unparseable", "attachments_present",
+                                       "attachments_missing", "attachments_external", "attachments_quarantined"]}),
+     "coverage": arr(obj({"original_conversation_id": nul(TEXT), "message_count": COUNT, "branch_count": COUNT,
+                          "earliest_source_time": c("timestampOrNull"), "latest_source_time": c("timestampOrNull"),
+                          "unknown_time_count": COUNT, "missing_parents": COUNT, "unparseable": COUNT})),
+     "warnings": arr(c("warning")), "duplicate_of": cn("importId"), "extensions": c("extensions")},
+    {"allOf": [when("status", ["parsing", "completed"], {"properties": {"adapter": {"type": "object"}}})]},
+    "import-v1.schema.json"))
 
 # ---------------- provider ----------------
 cap = enum("supported", "unsupported", "unknown")

@@ -295,7 +295,8 @@ fn a_damaged_object_is_reported_and_refused() {
     let manifest = harness.vault.read_manifest(&pin).unwrap();
     let object = manifest
         .objects
-        .first()
+        .iter()
+        .find(|o| o.object_kind == enouia_memory_contract::commit::ObjectKind::IdentityMarkdown)
         .expect("identity markdown object")
         .clone();
     assert_eq!(
