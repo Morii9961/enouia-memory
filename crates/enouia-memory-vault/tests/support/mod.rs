@@ -304,3 +304,44 @@ impl Harness {
         .expect("open")
     }
 }
+
+/// Child-process helpers: a test binary re-runs one of its own tests with
+/// `ENOUIA_VAULT_CHILD` set, so the child is a separate OS process.
+pub fn child_env(name: &str) -> Option<String> {
+    std::env::var("ENOUIA_VAULT_CHILD").ok()?;
+    std::env::var(name).ok()
+}
+
+pub fn spawn_child(test: &str, envs: &[(&str, String)]) -> std::process::Child {
+    let mut command = std::process::Command::new(std::env::current_exe().unwrap());
+    command
+        .args([test, "--exact", "--nocapture", "--test-threads=1"])
+        .env("ENOUIA_VAULT_CHILD", "1")
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null());
+    for (key, value) in envs {
+        command.env(key, value);
+    }
+    command.spawn().expect("spawn child test process")
+}
+
+pub fn wait_for(path: &Path, seconds: u64) {
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(seconds);
+    while !path.exists() {
+        assert!(
+            std::time::Instant::now() < deadline,
+            "timed out waiting for {path:?}"
+        );
+        std::thread::sleep(std::time::Duration::from_millis(10));
+    }
+}
+
+/// Open an existing Vault from a child process at lifecycle time `index`.
+pub fn open_at(path: &Path, index: usize, faults: Faults, lock_wait_ms: u64) -> (Vault, Lifecycle) {
+    let lifecycle = Lifecycle::load();
+    let clock = Arc::new(FakeClock::new(lifecycle.time(index)));
+    let mut opts = options(faults);
+    opts.lock_wait = std::time::Duration::from_millis(lock_wait_ms);
+    let vault = Vault::open(&verified(path), None, clock, ids(), opts).expect("open");
+    (vault, lifecycle)
+}

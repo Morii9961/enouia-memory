@@ -1201,11 +1201,25 @@ impl Vault {
         if request.records.is_empty() && request.objects.is_empty() {
             return Err(VaultError::invalid(vec!["store.empty_commit"]));
         }
-        if self
-            .root
-            .exists(&layout::commit_manifest(request.commit_id.as_str()))?
-        {
-            return Err(VaultError::invalid(vec!["store.commit_id_reused"]));
+        let manifest_file = layout::commit_manifest(request.commit_id.as_str());
+        if self.root.exists(&manifest_file)? {
+            // Published under this ID: a reuse. Otherwise it is the manifest
+            // of an attempt that crashed before publication: quarantine it.
+            let published = match self.load_manifest(&request.commit_id, None) {
+                Ok((existing, _)) => {
+                    self.on_chain(&head.manifest, &existing.commit_id, existing.sequence)?
+                }
+                Err(_) => false,
+            };
+            if published {
+                return Err(VaultError::invalid(vec!["store.commit_id_reused"]));
+            }
+            self.manifests
+                .lock()
+                .expect("cache")
+                .remove(request.commit_id.as_str());
+            let operation = OperationId::from_random(self.ids.random_16());
+            self.quarantine(&manifest_file, &operation)?;
         }
         let prepared = self.prepare_records(&request.records, Some(&head.manifest))?;
         self.check_objects(&request.objects, &prepared)?;
