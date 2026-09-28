@@ -607,6 +607,21 @@ impl Vault {
         Ok(None)
     }
 
+    /// Managed file name of a stored record revision (for exports).
+    pub fn stored_file(&self, reference: &RecordRef) -> Result<String> {
+        self.file_of(reference)?.ok_or_else(Self::corrupt_record)
+    }
+
+    /// Managed file name of an object listed by `manifest` (for exports).
+    pub fn object_file_for(
+        &self,
+        manifest: &CommitManifest,
+        entry: &ObjectEntry,
+    ) -> Result<String> {
+        self.object_file(manifest, entry)?
+            .ok_or_else(Self::corrupt_record)
+    }
+
     /// Bytes of an object reachable at the pinned commit, verified by hash.
     pub fn read_object(&self, pin: &CommitPin, hash: &Sha256Hex) -> Result<Vec<u8>> {
         let manifest = self.read_manifest(pin)?;

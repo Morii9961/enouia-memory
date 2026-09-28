@@ -7,12 +7,14 @@
 //! service. Durability claims are limited to process crashes (V09).
 
 pub mod audit;
+pub mod backup;
 pub mod error;
 pub mod fault;
 pub mod fs;
 pub mod health;
 pub mod lock;
 pub mod platform;
+pub mod restic;
 pub mod root;
 pub mod service;
 pub mod store;
