@@ -87,6 +87,7 @@ fn memory_cli_depends_only_on_this_repository() {
         deps,
         [
             "enouia-memory-contract",
+            "enouia-memory-import",
             "enouia-memory-vault",
             "serde_json"
         ]

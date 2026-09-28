@@ -10,5 +10,6 @@ path = "src/main.rs"
 
 [dependencies]
 enouia-memory-contract = { path = "../enouia-memory-contract" }
+enouia-memory-import = { path = "../enouia-memory-import" }
 enouia-memory-vault = { path = "../enouia-memory-vault" }
 serde_json.workspace = true

@@ -7,6 +7,7 @@
 //! memories; nothing here extracts, summarizes, calls a model, or fetches a
 //! URL. All tests use synthetic exports.
 
+pub mod audit;
 pub mod chatgpt;
 pub mod detect;
 pub mod locate;
@@ -16,4 +17,5 @@ pub mod pipeline;
 pub mod runtime;
 pub mod zip;
 
+pub use audit::{ImportAudit, audit_import};
 pub use pipeline::{ImportOptions, ImportReport, import_file, resume_import};

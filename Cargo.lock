@@ -28,6 +28,7 @@ name = "enouia-memory-cli"
 version = "0.1.0"
 dependencies = [
  "enouia-memory-contract",
+ "enouia-memory-import",
  "enouia-memory-vault",
  "serde_json",
 ]

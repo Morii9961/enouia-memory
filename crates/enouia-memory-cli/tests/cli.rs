@@ -150,6 +150,49 @@ fn the_installed_binary_runs_the_whole_local_lifecycle_alone() {
     let (_, status) = cli.run(&["status", &root]);
     assert_eq!(status["state"], "healthy");
 
+    // Import a synthetic conversations.json, then reconcile it.
+    let export = serde_json::json!([{
+    "conversation_id": "conv-cli", "current_node": "m2",
+    "mapping": {
+        "m1": {"id": "m1", "parent": null, "children": ["m2"], "message": {"id": "m1", "author": {"role": "user"},
+               "create_time": 1719910000.0, "content": {"content_type": "text", "parts": ["（合成）命令行导入。"]}}},
+        "m2": {"id": "m2", "parent": "m1", "children": [], "message": {"id": "m2", "author": {"role": "assistant"},
+               "create_time": 1719910005.0, "content": {"content_type": "text", "parts": ["（合成）收到。"]}}}
+    }}]);
+    let input = Path::new(&temp.dir("inputs")).join("conversations.json");
+    std::fs::write(&input, serde_json::to_vec(&export).unwrap()).unwrap();
+    let input = input.display().to_string();
+    let (code, _) = cli.run(&["import", &root, &input, "--account", "acct-main"]);
+    assert_eq!(code, 1, "import needs an explicit confirmation");
+    let (code, imported) = cli.run(&[
+        "import",
+        &root,
+        &input,
+        "--account",
+        "acct-main",
+        "--confirm-import",
+    ]);
+    assert_eq!(code, 0, "{imported}");
+    assert_eq!(imported["status"], "completed");
+    assert_eq!(imported["counts"]["sources_created"], 2);
+    assert!(
+        !imported.to_string().contains("命令行导入"),
+        "no text in output"
+    );
+    let id = imported["import_id"].as_str().unwrap().to_owned();
+    let (_, audit) = cli.run(&["import-audit", &root, &id]);
+    assert_eq!(audit["consistent"], true);
+    assert_eq!(audit["sources_citing"], 2);
+    let (_, again) = cli.run(&[
+        "import",
+        &root,
+        &input,
+        "--account",
+        "acct-main",
+        "--confirm-import",
+    ]);
+    assert_eq!(again["duplicate_of"], id.as_str());
+
     let (code, swept) = cli.run(&["sweep", &root, "--confirm-sweep"]);
     assert_eq!(code, 0, "{swept}");
     assert_eq!(swept["quarantined"], 0);

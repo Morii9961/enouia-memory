@@ -10,7 +10,7 @@
 use enouia_memory_contract::common::{
     ActorRef, ActorType, Sensitivity, TimePrecision, TrustedSurface,
 };
-use enouia_memory_contract::ids::{CommitId, PolicyId, PrincipalId};
+use enouia_memory_contract::ids::{CommitId, ImportId, PolicyId, PrincipalId};
 use enouia_memory_contract::ports::IdSource;
 use enouia_memory_contract::record::RecordKind;
 use enouia_memory_contract::source::ConfirmationMethod;
@@ -40,6 +40,9 @@ const USAGE: &str = "usage: enouia-memory <command> ...
   verify-export <export-dir>
   restore <export-dir> <empty-target> --confirm-restore
   sweep <dir> --confirm-sweep
+  import <dir> <file> --account <alias> --confirm-import
+  resume-import <dir> <import_id>
+  import-audit <dir> <import_id>
   acl <dir>
   protect <dir> --confirm-owner-only";
 
@@ -95,6 +98,39 @@ fn state(state: HealthState) -> &'static str {
         HealthState::Unavailable => "unavailable",
         HealthState::Recovering => "recovering",
     }
+}
+
+fn genesis_policy(vault: &Vault) -> Result<PolicyId, Failure> {
+    let pin = vault.pin_current()?;
+    vault
+        .read_manifest(&pin)?
+        .catalog
+        .iter()
+        .find(|e| e.record_kind == RecordKind::Policy)
+        .and_then(|e| PolicyId::parse(&e.record_id).ok())
+        .ok_or_else(|| Failure::Rejected("no policy".into()))
+}
+
+fn import_options(
+    vault: &Vault,
+    account: &str,
+) -> Result<enouia_memory_import::ImportOptions, Failure> {
+    Ok(enouia_memory_import::ImportOptions::new(
+        owner_of(vault),
+        account,
+        genesis_policy(vault)?,
+    ))
+}
+
+/// Counts, cursor, status, and warning codes only: never titles or text.
+fn import_json(m: &enouia_memory_contract::import::ImportManifest) -> Value {
+    json!({
+        "import_id": m.import_id, "status": m.status, "input_kind": m.input_kind,
+        "duplicate_of": m.duplicate_of, "cursor": m.cursor, "counts": m.counts,
+        "conversations_covered": m.coverage.len(),
+        "members_quarantined": m.members.iter().filter(|x| x.disposition == enouia_memory_contract::import::MemberDisposition::Quarantined).count(),
+        "warnings": m.warnings.iter().map(|w| w.code.clone()).collect::<Vec<_>>(),
+    })
 }
 
 fn owner_of(vault: &Vault) -> ActorRef {
@@ -285,6 +321,47 @@ fn run(args: &[String]) -> Outcome {
                 "vault_id": restored.state.vault_id,
                 "restored_commit_id": restored.state.restored_commit_id,
                 "network_disabled_until_reconciled": restored.state.network_disabled_until_reconciled,
+            }))
+        }
+        "import" => {
+            let vault = open(arg(args, 2)?)?;
+            let file = PathBuf::from(arg(args, 3)?);
+            let account = flag(args, "--account")
+                .ok_or_else(|| Failure::Usage("import needs --account <alias>".into()))?;
+            if !has(args, "--confirm-import") {
+                return Err(Failure::Usage("import needs --confirm-import".into()));
+            }
+            let report = enouia_memory_import::import_file(
+                &vault,
+                &file,
+                &import_options(&vault, account)?,
+                &enouia_memory_import::pipeline::NeverCancel,
+            )?;
+            Ok(import_json(&report.manifest))
+        }
+        "resume-import" => {
+            let vault = open(arg(args, 2)?)?;
+            let id = ImportId::parse(arg(args, 3)?)
+                .map_err(|_| Failure::Usage("bad import_id".into()))?;
+            let account = flag(args, "--account").unwrap_or("acct-main");
+            let report = enouia_memory_import::resume_import(
+                &vault,
+                &id,
+                &import_options(&vault, account)?,
+                &enouia_memory_import::pipeline::NeverCancel,
+            )?;
+            Ok(import_json(&report.manifest))
+        }
+        "import-audit" => {
+            let vault = open(arg(args, 2)?)?;
+            let id = ImportId::parse(arg(args, 3)?)
+                .map_err(|_| Failure::Usage("bad import_id".into()))?;
+            let audit = enouia_memory_import::audit_import(&vault, &id)?;
+            Ok(json!({
+                "import_id": audit.import_id, "consistent": audit.is_consistent(),
+                "raw_present": audit.raw_present, "sources_citing": audit.sources_citing,
+                "revisions_checked": audit.revisions_checked, "coverage_total": audit.coverage_total,
+                "mismatched": audit.mismatched.len(), "unresolvable": audit.unresolvable.len(),
             }))
         }
         "sweep" => {
