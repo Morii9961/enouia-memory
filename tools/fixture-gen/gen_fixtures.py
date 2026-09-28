@@ -33,6 +33,9 @@ def dispatch_messages(dispatch_id, destination, texts, refs, tools=(), output=No
 def ts(day, hms, ms=0):
     return f"2026-{day}T{hms}.{ms:03d}Z"
 
+# Synthetic object bytes by SHA-256 (UTF-8 text), written next to each set.
+OBJECT_TEXT = {}
+
 def dump(path, value):
     path = OUT / path
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -64,6 +67,7 @@ class Vault:
         self.extra = {}
         self.policy_epoch = 1
         self.deletion_epoch = 0
+        self.objects = {}  # (hash, kind order) -> object entry; complete per commit (ADR-MEM-36)
 
     def next_commit_id(self):
         return uid("cmt", self.base + len(self.commits) + 1)
@@ -83,6 +87,11 @@ class Vault:
                 latest[(k, rid)] = (rev, d)
         for k, d in docs:
             changed.add((k, d[self.KEYS[k][1]], d.get("revision", 1)))
+            if k == "identity":
+                text = OBJECT_TEXT[d["content_hash"]]
+                self.objects[(d["content_hash"], 3)] = {
+                    "object_hash": d["content_hash"], "size_bytes": len(text.encode("utf-8")),
+                    "object_kind": "identity_markdown"}
         catalog = []
         for (k, rid), (rev, d) in sorted(latest.items()):
             catalog.append({"record_kind": k, "record_id": rid, "revision": rev,
@@ -96,7 +105,7 @@ class Vault:
             "operation_id": op, "operation_kind": kind,
             "idempotency_key_hash": None if kind == "genesis" else sha(idem or f"idem-{self.base}-{seq}"),
             "request_payload_hash": sha(f"payload-{self.base}-{seq}"), "created_at": created_at,
-            "catalog": catalog, "objects": [], "review_ids": list(reviews), "tombstone_ids": list(tombstones),
+            "catalog": catalog, "objects": [o for _, o in sorted(self.objects.items())], "review_ids": list(reviews), "tombstone_ids": list(tombstones),
             "policy_epoch": self.policy_epoch, "deletion_epoch": self.deletion_epoch,
             "receipt": {"operation_id": op, "result": "committed", "records": receipt}})
         return cid
@@ -499,6 +508,7 @@ v_ext, ext, _ = morimeta(True, external=True)
 # preference, episode, reviewed checkpoint memory, identity, delete.
 # =====================================================================
 L = Vault(200)
+IDENTITY_TEXT = "# 身份核心（合成）\n"
 L.commit("genesis", OWNER, [("policy", default_policy(ts("01-01", "00:00:00")))], ts("01-01", "00:00:00"))
 def man(n, text, day, **kw):
     return source(n, "manual_assertion", text, "user", "user_statement", ts(day, "08:00:00"), **kw)
@@ -616,8 +626,9 @@ def ck_docs(r, a, b):
 accept_l(112, c_ck, s_ck, ck_docs)
 identity = {}
 def id_docs(r, a, b):
+    OBJECT_TEXT[sha(IDENTITY_TEXT)] = IDENTITY_TEXT
     d = {"schema_version": 1, "identity_id": uid("idn", 1), "revision": 1, "slug": "core", "title": "身份核心（合成）",
-         "content_hash": sha("# 身份核心（合成）\n"), "content_media_type": "text/markdown; charset=utf-8",
+         "content_hash": sha(IDENTITY_TEXT), "content_media_type": "text/markdown; charset=utf-8",
          "sensitivity": "private", "access_policy_id": POL, "egress_policy_id": None, "previous_revision": None,
          "review_id": r, "approved_by": OWNER, "approved_at": a, "created_at": b, "updated_at": b, "extensions": {}}
     identity["core"] = d
@@ -725,6 +736,10 @@ L.extra = {"capsules": [capsule2], "inspections": [inspection2]}
 life = L.set_doc("Synthetic lifecycle set: future-effective supersession, live and expired facts, a conflict group, "
                  "preference, episode, a reviewed session checkpoint memory, Identity, and a logical delete. Test data only.")
 dump("sets/lifecycle.json", life)
+dump("sets/lifecycle-objects.json", {
+    "description": "Bytes (UTF-8 text) of every object the lifecycle commits list, keyed by SHA-256.",
+    "objects": {h: {"object_kind": o["object_kind"], "text": OBJECT_TEXT[h]}
+                for (h, _), o in sorted(L.objects.items())}})
 
 temporal = {
     "description": "Expected valid-time results for sets/lifecycle.json (latest revisions at the head commit).",

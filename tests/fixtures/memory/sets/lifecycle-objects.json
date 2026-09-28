@@ -1,0 +1,9 @@
+{
+  "description": "Bytes (UTF-8 text) of every object the lifecycle commits list, keyed by SHA-256.",
+  "objects": {
+    "5441797c1da493dc114bb4690e0a8d433f499d544ff9f614bb47d900b067c87f": {
+      "object_kind": "identity_markdown",
+      "text": "# 身份核心（合成）\n"
+    }
+  }
+}

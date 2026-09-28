@@ -4719,7 +4719,13 @@
       "deletion_epoch": 0,
       "format_version": 1,
       "idempotency_key_hash": "5a773518b8a2d97cd689ed9dfcbebb14cce3e0802eb7ae153f1e09bdbe97ae9a",
-      "objects": [],
+      "objects": [
+        {
+          "object_hash": "5441797c1da493dc114bb4690e0a8d433f499d544ff9f614bb47d900b067c87f",
+          "object_kind": "identity_markdown",
+          "size_bytes": 27
+        }
+      ],
       "operation_id": "op_000000d5-0000-4000-8000-0000000000d5",
       "operation_kind": "review_commit",
       "parent_commit_id": "cmt_000000d4-0000-4000-8000-0000000000d4",
@@ -5089,7 +5095,13 @@
       "deletion_epoch": 0,
       "format_version": 1,
       "idempotency_key_hash": "2100dbc80458bb46da0fbc842a5105c8d5f839d95bd6b6c0d7a3a1ca2c4442ac",
-      "objects": [],
+      "objects": [
+        {
+          "object_hash": "5441797c1da493dc114bb4690e0a8d433f499d544ff9f614bb47d900b067c87f",
+          "object_kind": "identity_markdown",
+          "size_bytes": 27
+        }
+      ],
       "operation_id": "op_000000d6-0000-4000-8000-0000000000d6",
       "operation_kind": "review_commit",
       "parent_commit_id": "cmt_000000d5-0000-4000-8000-0000000000d5",
@@ -5480,7 +5492,13 @@
       "deletion_epoch": 0,
       "format_version": 1,
       "idempotency_key_hash": "b7d1966aa46124b87f35e5a9fd15c38cbeed7b96abf9a17ef7079c97d3b6c6ed",
-      "objects": [],
+      "objects": [
+        {
+          "object_hash": "5441797c1da493dc114bb4690e0a8d433f499d544ff9f614bb47d900b067c87f",
+          "object_kind": "identity_markdown",
+          "size_bytes": 27
+        }
+      ],
       "operation_id": "op_000000d7-0000-4000-8000-0000000000d7",
       "operation_kind": "review_commit",
       "parent_commit_id": "cmt_000000d6-0000-4000-8000-0000000000d6",
@@ -5897,7 +5915,13 @@
       "deletion_epoch": 0,
       "format_version": 1,
       "idempotency_key_hash": "c6ce2ba327863a18c172cb1a99e15d8225d4b45aae726eb4626310216cd702d3",
-      "objects": [],
+      "objects": [
+        {
+          "object_hash": "5441797c1da493dc114bb4690e0a8d433f499d544ff9f614bb47d900b067c87f",
+          "object_kind": "identity_markdown",
+          "size_bytes": 27
+        }
+      ],
       "operation_id": "op_000000d8-0000-4000-8000-0000000000d8",
       "operation_kind": "candidate_propose",
       "parent_commit_id": "cmt_000000d7-0000-4000-8000-0000000000d7",
@@ -6321,7 +6345,13 @@
       "deletion_epoch": 0,
       "format_version": 1,
       "idempotency_key_hash": "9a12c449222199f4443f564390bc11d238be768dc612ed724261c9d5f171ff42",
-      "objects": [],
+      "objects": [
+        {
+          "object_hash": "5441797c1da493dc114bb4690e0a8d433f499d544ff9f614bb47d900b067c87f",
+          "object_kind": "identity_markdown",
+          "size_bytes": 27
+        }
+      ],
       "operation_id": "op_000000d9-0000-4000-8000-0000000000d9",
       "operation_kind": "review_commit",
       "parent_commit_id": "cmt_000000d8-0000-4000-8000-0000000000d8",
@@ -6766,7 +6796,13 @@
       "deletion_epoch": 0,
       "format_version": 1,
       "idempotency_key_hash": "df11cf72ed2b72730128b914c91c2d4ecd5dc096fd88fa34e26861a8d4c87a17",
-      "objects": [],
+      "objects": [
+        {
+          "object_hash": "5441797c1da493dc114bb4690e0a8d433f499d544ff9f614bb47d900b067c87f",
+          "object_kind": "identity_markdown",
+          "size_bytes": 27
+        }
+      ],
       "operation_id": "op_000000da-0000-4000-8000-0000000000da",
       "operation_kind": "review_commit",
       "parent_commit_id": "cmt_000000d9-0000-4000-8000-0000000000d9",
@@ -7225,7 +7261,13 @@
       "deletion_epoch": 1,
       "format_version": 1,
       "idempotency_key_hash": "03ba63e3f2fe02cf041bd75743ba779bcf5941d9c6c03e6879bb27f9d93d8b2d",
-      "objects": [],
+      "objects": [
+        {
+          "object_hash": "5441797c1da493dc114bb4690e0a8d433f499d544ff9f614bb47d900b067c87f",
+          "object_kind": "identity_markdown",
+          "size_bytes": 27
+        }
+      ],
       "operation_id": "op_000000db-0000-4000-8000-0000000000db",
       "operation_kind": "logical_delete",
       "parent_commit_id": "cmt_000000da-0000-4000-8000-0000000000da",

@@ -96,6 +96,10 @@ pub struct StagedObject {
 /// the separate, owner-confirmed initialization of an empty Vault.
 #[derive(Debug)]
 pub struct CommitRequest {
+    /// Pre-assigned by the caller (from an `IdSource`) so that records in this
+    /// transaction, such as reviews, can name the commit that applies them.
+    /// The store rejects an ID that already exists.
+    pub commit_id: CommitId,
     /// `Some`: the head the caller saw; any other head is `RevisionConflict`.
     /// `None`: only `expected_revisions` guard the write.
     pub expected_commit_id: Option<CommitId>,

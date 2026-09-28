@@ -103,6 +103,8 @@ The store's own files are versioned contracts under `contracts/store/` with Rust
 
 Port refinements: a `CommitRequest` always carries an idempotency scope, and scopes are keyed by commit `OperationKind` (imports have no IPC operation). A `StagedObject` carries its `ObjectKind`. A manifest's `objects` list, like its catalog, is complete: every object reachable at that commit. Content-addressed objects live under `raw/objects`, `assets/objects`, and `session-content/objects`; Identity Markdown is stored beside its revision.
 
+The caller pre-assigns `commit_id` (from its `IdSource`), because a review names the commit that applies it; the store refuses an existing ID. A commit that catalogs an Identity revision must carry its Markdown object, so the synthetic lifecycle fixture now lists that object (`sets/lifecycle-objects.json` holds its bytes). Catalog entries and receipt records are ordered by record-kind name, then ID. Every commit is checked against every cross-record rule over the complete history before it is published (`VaultOptions::validate_record_set`, on by default).
+
 ## Relation to Enouia Runtime's register
 
 Runtime ADR-001 (local canonical ownership), 002/003 (human-readable Memory, disposable index), 006 (Memory schema and candidate lifecycle), 007 (Mock Provider first), 008/009 (deferred replica and bridge), 010 (encryption decision deferred), 011 (embedded Core), and 012 (independent Activity) remain Runtime's view of the integration boundary. ADR-MEM-03, 05, 07, 10, 11, 13, 15–17, and 22 refine them from the Memory side. A Runtime-side ADR recording the dependency on this repository belongs to Runtime's next integration change; it is not part of this repository.

@@ -36,6 +36,25 @@ fn memory_contract_depends_only_on_serde() {
     assert_eq!(deps, ["serde", "serde_json"]);
 }
 
+/// The store adds only the contract crate and, on Windows, `windows-sys`.
+#[test]
+fn memory_vault_dependencies_are_pinned_and_minimal() {
+    let manifest =
+        std::fs::read_to_string(repo().join("crates/enouia-memory-vault/Cargo.toml")).unwrap();
+    let mut deps = dependencies(&manifest);
+    deps.sort();
+    assert_eq!(
+        deps,
+        [
+            "enouia-memory-contract",
+            "serde",
+            "serde_json",
+            "windows-sys"
+        ]
+    );
+    assert!(manifest.contains("windows-sys = { version = \"=0.61.2\""));
+}
+
 /// The repository builds from its own checkout: no manifest may reference a
 /// path outside the repository or a Git dependency (e.g. the Runtime repo).
 #[test]
