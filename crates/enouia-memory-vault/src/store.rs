@@ -9,8 +9,9 @@
 //! 2. idempotency: a published receipt for the same scope replays, a
 //!    different payload conflicts; then check the expected head/revisions;
 //! 3. validate every staged record and object, then the whole record set;
-//! 4. write records and objects to `staging/<operation>/`, move them to their
-//!    final names, write the commit manifest and the idempotency entry;
+//! 4. write an intent marker in `staging/<operation>/`, then records and
+//!    objects once at their final (still unreferenced) names, then the
+//!    commit manifest and the idempotency entry;
 //! 5. replace `CURRENT` (the only publication step), append the journal;
 //! 6. release the lock. Indexes are not part of the transaction.
 //!
@@ -1016,14 +1017,15 @@ impl Vault {
         self.root.rename(file, &target)
     }
 
-    fn place(&self, staged: &str, file: &str, bytes: &[u8], operation: &OperationId) -> Result<()> {
+    /// Write one immutable file at its final, still unreferenced name.
+    fn place(&self, file: &str, bytes: &[u8], operation: &OperationId) -> Result<()> {
         match self.root.read(file)? {
             Some(existing) if existing == bytes => Ok(()),
             Some(_) => {
                 self.quarantine(file, operation)?;
-                self.root.rename(staged, file)
+                self.root.write_new(file, bytes)
             }
-            None => self.root.rename(staged, file),
+            None => self.root.write_new(file, bytes),
         }
     }
 
@@ -1036,15 +1038,21 @@ impl Vault {
     ) -> Result<()> {
         let faults = &self.options.faults;
         let operation = &manifest.operation_id;
+        // An intent marker makes an interrupted transaction visible to
+        // health until the next writer clears it. Records and objects are
+        // then written once, flushed, directly at their final names: until
+        // CURRENT names a manifest that catalogs them, nothing reads them.
         let staging = layout::staging_dir(operation.as_str());
-        let mut placements = Vec::new();
-        for (index, p) in prepared.iter().enumerate() {
-            let staged = format!("{staging}/r{index}");
-            self.root.write_new(&staged, &p.bytes)?;
-            placements.push((staged, p.file.clone(), p.bytes.as_slice()));
-        }
+        self.root.write_new(
+            &format!("{staging}/intent"),
+            manifest.commit_id.as_str().as_bytes(),
+        )?;
+        let placements: Vec<(String, &[u8])> = prepared
+            .iter()
+            .map(|p| (p.file.clone(), p.bytes.as_slice()))
+            .collect();
         let mut object_placements = Vec::new();
-        for (index, object) in objects.iter().enumerate() {
+        for object in objects {
             let file = match layout::object_path(object.kind, &object.hash) {
                 Some(path) => path,
                 None => prepared
@@ -1057,17 +1065,15 @@ impl Vault {
                     })
                     .ok_or_else(|| VaultError::invalid(vec!["store.identity_markdown_orphan"]))?,
             };
-            let staged = format!("{staging}/o{index}");
-            self.root.write_new(&staged, &object.bytes)?;
-            object_placements.push((staged, file, object.bytes.as_slice()));
+            object_placements.push((file, object.bytes.as_slice()));
         }
         faults.io(FaultPoint::StagingWritten)?;
-        for (staged, file, bytes) in &placements {
-            self.place(staged, file, bytes, operation)?;
+        for (file, bytes) in &placements {
+            self.place(file, bytes, operation)?;
         }
         faults.io(FaultPoint::RecordsPlaced)?;
-        for (staged, file, bytes) in &object_placements {
-            self.place(staged, file, bytes, operation)?;
+        for (file, bytes) in &object_placements {
+            self.place(file, bytes, operation)?;
         }
         faults.io(FaultPoint::ObjectsPlaced)?;
         let bytes = canonical_bytes(manifest).expect("manifest serializes");
