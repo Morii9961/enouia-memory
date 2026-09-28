@@ -38,7 +38,7 @@
         "review_id",
         "approved_by",
         "approved_at",
-        "declassification_review_id",
+        "declassification_approval_id",
         "created_at",
         "updated_at",
         "extensions",
@@ -222,13 +222,13 @@
         "approved_at": {
           "$ref": "common-v1.schema.json#/$defs/timestamp"
         },
-        "declassification_review_id": {
+        "declassification_approval_id": {
           "oneOf": [
             {
               "type": "null"
             },
             {
-              "$ref": "common-v1.schema.json#/$defs/reviewId"
+              "$ref": "common-v1.schema.json#/$defs/approvalId"
             }
           ]
         },
@@ -283,7 +283,7 @@
         "review_id",
         "approved_by",
         "approved_at",
-        "declassification_review_id",
+        "declassification_approval_id",
         "created_at",
         "updated_at",
         "extensions",
@@ -468,13 +468,13 @@
         "approved_at": {
           "$ref": "common-v1.schema.json#/$defs/timestamp"
         },
-        "declassification_review_id": {
+        "declassification_approval_id": {
           "oneOf": [
             {
               "type": "null"
             },
             {
-              "$ref": "common-v1.schema.json#/$defs/reviewId"
+              "$ref": "common-v1.schema.json#/$defs/approvalId"
             }
           ]
         },
@@ -536,7 +536,7 @@
         "review_id",
         "approved_by",
         "approved_at",
-        "declassification_review_id",
+        "declassification_approval_id",
         "created_at",
         "updated_at",
         "extensions",
@@ -723,13 +723,13 @@
         "approved_at": {
           "$ref": "common-v1.schema.json#/$defs/timestamp"
         },
-        "declassification_review_id": {
+        "declassification_approval_id": {
           "oneOf": [
             {
               "type": "null"
             },
             {
-              "$ref": "common-v1.schema.json#/$defs/reviewId"
+              "$ref": "common-v1.schema.json#/$defs/approvalId"
             }
           ]
         },
@@ -800,7 +800,7 @@
         "review_id",
         "approved_by",
         "approved_at",
-        "declassification_review_id",
+        "declassification_approval_id",
         "created_at",
         "updated_at",
         "extensions",
@@ -978,13 +978,13 @@
         "approved_at": {
           "$ref": "common-v1.schema.json#/$defs/timestamp"
         },
-        "declassification_review_id": {
+        "declassification_approval_id": {
           "oneOf": [
             {
               "type": "null"
             },
             {
-              "$ref": "common-v1.schema.json#/$defs/reviewId"
+              "$ref": "common-v1.schema.json#/$defs/approvalId"
             }
           ]
         },
@@ -1140,7 +1140,7 @@
         "review_id",
         "approved_by",
         "approved_at",
-        "declassification_review_id",
+        "declassification_approval_id",
         "created_at",
         "updated_at",
         "extensions",
@@ -1331,13 +1331,13 @@
         "approved_at": {
           "$ref": "common-v1.schema.json#/$defs/timestamp"
         },
-        "declassification_review_id": {
+        "declassification_approval_id": {
           "oneOf": [
             {
               "type": "null"
             },
             {
-              "$ref": "common-v1.schema.json#/$defs/reviewId"
+              "$ref": "common-v1.schema.json#/$defs/approvalId"
             }
           ]
         },

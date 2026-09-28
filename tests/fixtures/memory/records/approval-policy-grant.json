@@ -1,0 +1,19 @@
+{
+  "approval_id": "apv_00000001-0000-4000-8000-000000000001",
+  "approval_nonce": "nonce-approval-0001-abcdefghij",
+  "approved_by": {
+    "actor_id": "prn_00000001-0000-4000-8000-000000000001",
+    "actor_type": "owner"
+  },
+  "approved_diff_hash": "bc32dc0adb143d51587139b8eeb2629cf1b7dc938a805d721a5268ea8e46602f",
+  "binding": {
+    "grant_hash": "2ea8b1d96a73508c83cba95f5aeb7ca63ac8e67a08d5a74f405e0d34ee12e850",
+    "kind": "policy_grant",
+    "policy_id": "pol_00000002-0000-4000-8000-000000000002",
+    "policy_revision": 1
+  },
+  "expires_at": null,
+  "issued_at": "2026-07-01T05:59:00.000Z",
+  "schema_version": 1,
+  "trusted_surface": "trusted_windows_app"
+}

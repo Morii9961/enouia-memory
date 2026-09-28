@@ -230,7 +230,8 @@ pub struct CanonicalMemory {
     pub approved_by: ActorRef,
     pub approved_at: Timestamp,
     #[serde(deserialize_with = "crate::json::nullable")]
-    pub declassification_review_id: Option<ReviewId>,
+    /// Owner approval bound to this exact revision's declassification.
+    pub declassification_approval_id: Option<crate::ids::ApprovalId>,
     pub created_at: Timestamp,
     pub updated_at: Timestamp,
     pub extensions: Extensions,

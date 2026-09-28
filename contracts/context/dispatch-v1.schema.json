@@ -53,7 +53,7 @@
           "role",
           "content_hash",
           "size_bytes",
-          "capsule_memory_refs"
+          "resource_refs"
         ],
         "properties": {
           "role": {
@@ -72,23 +72,10 @@
             "minimum": 0,
             "maximum": 9007199254740991
           },
-          "capsule_memory_refs": {
+          "resource_refs": {
             "type": "array",
             "items": {
-              "type": "object",
-              "additionalProperties": false,
-              "required": [
-                "memory_id",
-                "revision"
-              ],
-              "properties": {
-                "memory_id": {
-                  "$ref": "../memory/common-v1.schema.json#/$defs/memoryId"
-                },
-                "revision": {
-                  "$ref": "../memory/common-v1.schema.json#/$defs/revision"
-                }
-              }
+              "$ref": "../memory/common-v1.schema.json#/$defs/recordRef"
             }
           }
         }
@@ -140,7 +127,7 @@
         "policy_epoch",
         "deletion_epoch",
         "egress_policy_id",
-        "confirmation_review_id",
+        "egress_approval_id",
         "checked_at"
       ],
       "properties": {
@@ -164,13 +151,13 @@
             }
           ]
         },
-        "confirmation_review_id": {
+        "egress_approval_id": {
           "oneOf": [
             {
               "type": "null"
             },
             {
-              "$ref": "../memory/common-v1.schema.json#/$defs/reviewId"
+              "$ref": "../memory/common-v1.schema.json#/$defs/approvalId"
             }
           ]
         },

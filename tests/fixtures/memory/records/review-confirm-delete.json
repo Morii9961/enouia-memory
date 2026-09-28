@@ -1,0 +1,51 @@
+{
+  "action": "confirm_delete",
+  "actor": {
+    "actor_id": "prn_00000001-0000-4000-8000-000000000001",
+    "actor_type": "owner"
+  },
+  "approval_nonce": "nonce-synthetic-0111-abcdefghij",
+  "approved_diff_hash": "237d86cbc4ca5433a63040ebbbfa43097f8f102bc1433d6aec8f4381503bddc9",
+  "candidate_id": "cand_0000006f-0000-4000-8000-00000000006f",
+  "candidate_revision": 1,
+  "commit_id": "cmt_000000db-0000-4000-8000-0000000000db",
+  "created_at": "2026-09-21T10:03:00.000Z",
+  "delete_binding": {
+    "mode": "logical_delete",
+    "scope": "all_revisions",
+    "targets": [
+      {
+        "record_id": "mem_0000006e-0000-4000-8000-00000000006e",
+        "record_kind": "memory",
+        "revision": null
+      }
+    ]
+  },
+  "effective_from": null,
+  "evidence_refs": [
+    {
+      "source_id": "src_0000006f-0000-4000-8000-00000000006f",
+      "source_revision": 1
+    }
+  ],
+  "final_content_hash": "f6583ab1639e40c58a7373a1db48b462db60328031a20305f921da3556b11d19",
+  "merge_target": null,
+  "reason_code": null,
+  "resulting_records": [
+    {
+      "record_id": "del_00000001-0000-4000-8000-000000000001",
+      "record_kind": "tombstone",
+      "revision": 1
+    }
+  ],
+  "review_id": "rvw_0000006f-0000-4000-8000-00000000006f",
+  "schema_version": 1,
+  "target_expected_revisions": [
+    {
+      "record_id": "mem_0000006e-0000-4000-8000-00000000006e",
+      "record_kind": "memory",
+      "revision": 1
+    }
+  ],
+  "trusted_surface": "trusted_windows_app"
+}

@@ -273,3 +273,167 @@ fn f5_effective_time_must_match_the_owner_confirmation() {
         "{rules:?}"
     );
 }
+
+fn set_rules(value: &Value) -> Vec<&'static str> {
+    use enouia_memory_contract::set::{RecordSet, validate_set};
+    let set = RecordSet::from_value(value).unwrap_or_else(|(p, e)| panic!("{p}: {e}"));
+    validate_set(&set).iter().map(|v| v.rule).collect()
+}
+
+fn find_index(value: &Value, key: &str, id_field: &str, id: &str) -> usize {
+    value[key]
+        .as_array()
+        .unwrap()
+        .iter()
+        .position(|r| r[id_field] == id)
+        .unwrap_or_else(|| panic!("{id} not in {key}"))
+}
+
+#[test]
+fn f1_valid_external_egress_set_is_consistent() {
+    assert!(set_rules(&fixture("sets/morimeta-external-egress.json")).is_empty());
+}
+
+#[test]
+fn f1_ordinary_accept_review_is_not_egress_consent() {
+    use enouia_memory_contract::set::RecordSet;
+    let mut value = fixture("sets/morimeta-external-egress.json");
+    let accept_review = value["reviews"][0]["review_id"].clone();
+    assert_eq!(value["reviews"][0]["action"], "accept");
+    let index = find_index(
+        &value,
+        "dispatches",
+        "dispatch_id",
+        "dsp_00000002-0000-4000-8000-000000000002",
+    );
+    value["dispatches"][index]["egress"]["egress_approval_id"] = accept_review;
+    // The field only accepts ApprovalRecord IDs: a review cannot even be named.
+    let error = RecordSet::from_value(&value).unwrap_err().1;
+    assert!(error.rules().contains(&"shape"), "{error}");
+    // And without an approval, private egress is refused.
+    value["dispatches"][index]["egress"]["egress_approval_id"] = Value::Null;
+    assert!(set_rules(&value).contains(&"egress.approval_missing"));
+}
+
+#[test]
+fn f2_ordinary_accept_review_is_not_delete_confirmation() {
+    let mut value = fixture("sets/lifecycle.json");
+    let accept = value["reviews"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|r| r["action"] == "accept")
+        .unwrap()["review_id"]
+        .clone();
+    value["tombstones"][0]["review_id"] = accept;
+    assert!(set_rules(&value).contains(&"tombstone.review_action"));
+}
+
+#[test]
+fn f2_ordinary_accept_review_is_not_declassification() {
+    use enouia_memory_contract::set::RecordSet;
+    let mut value = fixture("sets/lifecycle.json");
+    let index = value["memories"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .position(|m| !m["declassification_approval_id"].is_null())
+        .unwrap();
+    assert_eq!(value["memories"][index]["sensitivity"], "normal");
+    let own_review = value["memories"][index]["review_id"].clone();
+    value["memories"][index]["declassification_approval_id"] = own_review;
+    let error = RecordSet::from_value(&value).unwrap_err().1;
+    assert!(error.rules().contains(&"shape"), "{error}");
+    value["memories"][index]["declassification_approval_id"] = Value::Null;
+    assert!(set_rules(&value).contains(&"sensitivity.downgrade"));
+}
+
+#[test]
+fn f4_same_principal_and_sensitivity_differ_by_project_and_provider() {
+    use enouia_memory_contract::common::{ActorRef, ActorType, Sensitivity};
+    use enouia_memory_contract::context::Purpose;
+    use enouia_memory_contract::ids::{PrincipalId, ProjectId};
+    use enouia_memory_contract::json::Revision;
+    use enouia_memory_contract::policy::{
+        AccessContext, PolicyRecord, ResourceContext, Scope, evaluate,
+    };
+    use enouia_memory_contract::record::RecordRef;
+    use enouia_memory_contract::time::Timestamp;
+
+    let grant: PolicyRecord = serde_json::from_value(fixture("records/policy-grant.json")).unwrap();
+    let default: PolicyRecord =
+        serde_json::from_value(fixture("records/policy-default.json")).unwrap();
+    let policies = [&default, &grant];
+    let owner = ActorRef {
+        actor_id: PrincipalId::parse("prn_00000001-0000-4000-8000-000000000001").unwrap(),
+        actor_type: ActorType::Owner,
+    };
+    let at = Timestamp::parse("2026-07-04T01:00:00.000Z").unwrap();
+    let rev = Revision::new(1).unwrap();
+    let resource = |project: &str| ResourceContext {
+        record: RecordRef::new(
+            RecordKind::Memory,
+            "mem_00000002-0000-4000-8000-000000000002",
+            rev,
+        ),
+        project_id: Some(ProjectId::parse(project).unwrap()),
+        sensitivity: Sensitivity::Private,
+    };
+    let morimeta = resource("prj_00000001-0000-4000-8000-000000000001");
+    let moriium = resource("prj_00000002-0000-4000-8000-000000000002");
+    let granted = Destination {
+        kind: DestinationKind::ExternalProvider,
+        provider_binding: Some(ProviderBinding {
+            provider: "example-cloud".into(),
+            model: "example-model".into(),
+            adapter_version: "0".into(),
+        }),
+    };
+    let mut other_provider = granted.clone();
+    other_provider.provider_binding.as_mut().unwrap().provider = "other-cloud".into();
+    let ask = |resource: &ResourceContext, destination: &Destination| {
+        evaluate(
+            &policies,
+            &AccessContext {
+                principal: &owner,
+                scope: Scope::ProviderSend,
+                purpose: Some(Purpose::Answer),
+                destination: Some(destination),
+                resource,
+            },
+            &at,
+        )
+    };
+    assert!(ask(&morimeta, &granted).is_allow());
+    assert!(
+        !ask(&moriium, &granted).is_allow(),
+        "other project, same principal/sensitivity"
+    );
+    assert!(
+        !ask(&morimeta, &other_provider).is_allow(),
+        "provider switch needs a new grant"
+    );
+    let mut highly = morimeta.clone();
+    highly.sensitivity = Sensitivity::HighlySensitive;
+    assert!(
+        !ask(&highly, &granted).is_allow(),
+        "highly sensitive never leaves automatically"
+    );
+    let mut revoked = grant.clone();
+    revoked.status = enouia_memory_contract::policy::PolicyStatus::Revoked;
+    revoked.revoked_at = Some(Timestamp::parse("2026-07-02T00:00:00.000Z").unwrap());
+    revoked.revision = Revision::new(2).unwrap();
+    let with_revocation = [&default, &grant, &revoked];
+    let decision = evaluate(
+        &with_revocation,
+        &AccessContext {
+            principal: &owner,
+            scope: Scope::ProviderSend,
+            purpose: Some(Purpose::Answer),
+            destination: Some(&granted),
+            resource: &morimeta,
+        },
+        &at,
+    );
+    assert!(!decision.is_allow(), "latest revision (revoked) wins");
+}

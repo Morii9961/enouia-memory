@@ -8,27 +8,28 @@
   "dispatch_id": "dsp_00000001-0000-4000-8000-000000000001",
   "egress": {
     "checked_at": "2026-07-04T00:00:00.100Z",
-    "confirmation_review_id": null,
     "deletion_epoch": 0,
+    "egress_approval_id": null,
     "egress_policy_id": null,
     "policy_epoch": 1
   },
   "inspection_id": "insp_00000001-0000-4000-8000-000000000001",
   "messages": [
     {
-      "capsule_memory_refs": [],
       "content_hash": "33ef984f8ec9f56faaa5525f057efec11a186588785d61014e46f0048168e402",
+      "resource_refs": [],
       "role": "system",
       "size_bytes": 123
     },
     {
-      "capsule_memory_refs": [
+      "content_hash": "66eacb7e18192170bdd80ce5966dc900bcddcf3241c4e3e5ddfaefd6880fb555",
+      "resource_refs": [
         {
-          "memory_id": "mem_00000002-0000-4000-8000-000000000002",
+          "record_id": "mem_00000002-0000-4000-8000-000000000002",
+          "record_kind": "memory",
           "revision": 1
         }
       ],
-      "content_hash": "66eacb7e18192170bdd80ce5966dc900bcddcf3241c4e3e5ddfaefd6880fb555",
       "role": "user",
       "size_bytes": 221
     }

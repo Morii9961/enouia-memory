@@ -2,44 +2,51 @@
   "catalog": [
     {
       "changed": false,
-      "content_hash": "b48d79a23ab356b0e9c4451b43216cb062e0bfebdc1b8c205e318f691b3fce9f",
+      "content_hash": "093585451888c6a6b4bfb97c7c0e39884b1d390868abf553bc0e71e7870f4824",
       "record_id": "cand_00000001-0000-4000-8000-000000000001",
       "record_kind": "candidate",
       "revision": 1
     },
     {
       "changed": true,
-      "content_hash": "bf3b77ca765adb044a549403240e39735b997e7f702c42f008449e41db52ab54",
+      "content_hash": "bd51987e2ca3cb9e5e5df01a028b23e36e4dea78a5bf56cea2f5ce22b49024a6",
       "record_id": "cand_00000002-0000-4000-8000-000000000002",
       "record_kind": "candidate",
       "revision": 2
     },
     {
       "changed": false,
-      "content_hash": "040a5ad8d1c55df386229ff837e8c29a494d918528bad55f775197d8844bc339",
+      "content_hash": "78aa5a1bf9f1c06dfd08320d8326020663852fbc7edbdd314b45ac135c2a531e",
       "record_id": "cand_00000003-0000-4000-8000-000000000003",
       "record_kind": "candidate",
       "revision": 1
     },
     {
       "changed": false,
-      "content_hash": "57e8ba813153f66ce1403b20e6d436288c716199bdcb8f49ca327a8870083e69",
+      "content_hash": "32c14f98165bb555b94201d18434a010229b62b76481f2ef6fa6e0bb054020ff",
       "record_id": "cand_00000004-0000-4000-8000-000000000004",
       "record_kind": "candidate",
       "revision": 1
     },
     {
       "changed": false,
-      "content_hash": "c4e4dfc295dc8d822c1972a5706f2cd644ccc3d289f50defd4dd412a6d62a5f3",
+      "content_hash": "62c54caeb6545240306ec7638daf6ba7236aa107b22760f6d34e6d5c1599b27a",
       "record_id": "cand_00000005-0000-4000-8000-000000000005",
       "record_kind": "candidate",
       "revision": 1
     },
     {
       "changed": true,
-      "content_hash": "7ef0086c78676be77bc527edb2841a9c9f7143c74ebfcf74590273838fbfeff7",
+      "content_hash": "57ba7523a9721b291579c6fab6dfb6a8eaa9e3bbef389e9443e64976e4d23d5b",
       "record_id": "mem_00000002-0000-4000-8000-000000000002",
       "record_kind": "memory",
+      "revision": 1
+    },
+    {
+      "changed": false,
+      "content_hash": "d31f1a2eba9a7675c948acf9bf9f164713b10f0cd5f8786937c7537d1b85de7b",
+      "record_id": "pol_00000001-0000-4000-8000-000000000001",
+      "record_kind": "policy",
       "revision": 1
     },
     {
@@ -51,7 +58,7 @@
     },
     {
       "changed": true,
-      "content_hash": "acc0f2c317639c9d05de09f815a8ce71f2eda415ed9b82f1cada537e47a42dca",
+      "content_hash": "166f420663a4290004875de36a0d6ea1000fdd4512bfd67a7091e91a544b0cd7",
       "record_id": "rvw_00000002-0000-4000-8000-000000000002",
       "record_kind": "review",
       "revision": 1

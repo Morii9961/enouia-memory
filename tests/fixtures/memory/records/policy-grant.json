@@ -1,0 +1,42 @@
+{
+  "approval_id": "apv_00000001-0000-4000-8000-000000000001",
+  "created_at": "2026-07-01T06:00:00.000Z",
+  "destinations": [
+    {
+      "kind": "external_provider",
+      "model": "example-model",
+      "provider": "example-cloud"
+    }
+  ],
+  "origin": "owner_grant",
+  "policy_id": "pol_00000002-0000-4000-8000-000000000002",
+  "principals": [
+    {
+      "actor_id": null,
+      "actor_type": "owner"
+    }
+  ],
+  "purposes": [
+    "answer"
+  ],
+  "resources": {
+    "all_projects": false,
+    "max_sensitivity": "private",
+    "project_ids": [
+      "prj_00000001-0000-4000-8000-000000000001"
+    ],
+    "record_kinds": [
+      "memory"
+    ]
+  },
+  "revision": 1,
+  "revoked_at": null,
+  "schema_version": 1,
+  "scopes": [
+    "provider:send"
+  ],
+  "status": "active",
+  "updated_at": "2026-07-01T06:00:00.000Z",
+  "valid_from": "2026-07-01T06:00:00.000Z",
+  "valid_until": null
+}

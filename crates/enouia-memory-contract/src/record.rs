@@ -28,6 +28,8 @@ pub enum RecordKind {
     Inspection,
     Dispatch,
     ProviderCapabilities,
+    Approval,
+    Policy,
 }
 
 impl RecordKind {
@@ -51,6 +53,8 @@ impl RecordKind {
             Self::Capsule => "cap",
             Self::Inspection => "insp",
             Self::Dispatch => "dsp",
+            Self::Approval => "apv",
+            Self::Policy => "pol",
             Self::ProviderCapabilities => return None,
         })
     }
@@ -67,6 +71,7 @@ impl RecordKind {
                 | Self::Identity
                 | Self::Session
                 | Self::Checkpoint
+                | Self::Policy
         )
     }
 }
@@ -135,6 +140,8 @@ impl_record!(crate::context::ContextCapsule, Capsule);
 impl_record!(crate::context::ContextInspection, Inspection);
 impl_record!(crate::context::DispatchRecord, Dispatch);
 impl_record!(crate::provider::ProviderCapabilities, ProviderCapabilities);
+impl_record!(crate::approval::ApprovalRecord, Approval);
+impl_record!(crate::policy::PolicyRecord, Policy);
 
 /// Strict parse of a JSON value: supported major version, exact shape, then
 /// semantic rules. Every rejection has a stable rule identifier.
@@ -192,6 +199,8 @@ pub enum AnyRecord {
     Inspection(crate::context::ContextInspection),
     Dispatch(crate::context::DispatchRecord),
     ProviderCapabilities(crate::provider::ProviderCapabilities),
+    Approval(Box<crate::approval::ApprovalRecord>),
+    Policy(Box<crate::policy::PolicyRecord>),
 }
 
 impl AnyRecord {
@@ -215,6 +224,8 @@ impl AnyRecord {
             Self::Inspection(r) => serde_json::to_value(r),
             Self::Dispatch(r) => serde_json::to_value(r),
             Self::ProviderCapabilities(r) => serde_json::to_value(r),
+            Self::Approval(r) => serde_json::to_value(r),
+            Self::Policy(r) => serde_json::to_value(r),
         };
         result.unwrap_or(Value::Null)
     }
@@ -240,5 +251,7 @@ pub fn parse_any(kind: RecordKind, value: &Value) -> Result<AnyRecord, ContractE
         RecordKind::Inspection => AnyRecord::Inspection(parse_value(value)?),
         RecordKind::Dispatch => AnyRecord::Dispatch(parse_value(value)?),
         RecordKind::ProviderCapabilities => AnyRecord::ProviderCapabilities(parse_value(value)?),
+        RecordKind::Approval => AnyRecord::Approval(Box::new(parse_value(value)?)),
+        RecordKind::Policy => AnyRecord::Policy(Box::new(parse_value(value)?)),
     })
 }

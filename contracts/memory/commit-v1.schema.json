@@ -77,7 +77,8 @@
         "purge",
         "policy_change",
         "migration",
-        "restore_adopt"
+        "restore_adopt",
+        "owner_approval"
       ]
     },
     "idempotency_key_hash": {

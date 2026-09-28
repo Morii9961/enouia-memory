@@ -1,0 +1,30 @@
+{
+  "approval_id": "apv_00000014-0000-4000-8000-000000000014",
+  "approval_nonce": "nonce-approval-0020-abcdefghij",
+  "approved_by": {
+    "actor_id": "prn_00000001-0000-4000-8000-000000000001",
+    "actor_type": "owner"
+  },
+  "approved_diff_hash": "eea06b54d6093d716cc3169107b17a55734e96beced95624173cc2c8d1bc15a4",
+  "binding": {
+    "final_content_hash": "9c2adafd1c7e1236d7e48d37d0ed222ca54a0dcb65c402b5c31c68ef3010d696",
+    "from_sensitivity": "private",
+    "kind": "declassification",
+    "source_refs": [
+      {
+        "source_id": "src_00000071-0000-4000-8000-000000000071",
+        "source_revision": 1
+      }
+    ],
+    "target": {
+      "record_id": "mem_00000071-0000-4000-8000-000000000071",
+      "record_kind": "memory",
+      "revision": 1
+    },
+    "to_sensitivity": "normal"
+  },
+  "expires_at": null,
+  "issued_at": "2026-06-12T09:10:00.000Z",
+  "schema_version": 1,
+  "trusted_surface": "trusted_windows_app"
+}

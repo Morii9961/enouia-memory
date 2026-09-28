@@ -1105,6 +1105,194 @@
       "schema": "reject"
     },
     {
+      "base": "records/dispatch-external.json",
+      "covers": "F1: a memory review is never egress consent",
+      "id": "dispatch-review-as-egress-approval",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/egress/egress_approval_id",
+          "value": "rvw_00000002-0000-4000-8000-000000000002"
+        }
+      ],
+      "rust_rule": "shape",
+      "schema": "reject"
+    },
+    {
+      "base": "records/memory-fact-declassified.json",
+      "covers": "F2: a memory review is never a declassification",
+      "id": "memory-review-as-declassification",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/declassification_approval_id",
+          "value": "rvw_00000071-0000-4000-8000-000000000071"
+        }
+      ],
+      "rust_rule": "shape",
+      "schema": "reject"
+    },
+    {
+      "base": "records/approval-egress.json",
+      "covers": "F1: egress approvals are short-lived",
+      "id": "approval-egress-ttl-too-long",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/expires_at",
+          "value": "2026-07-04T02:00:00.150Z"
+        }
+      ],
+      "rust_rule": "approval.egress_ttl",
+      "schema": "accept"
+    },
+    {
+      "base": "records/approval-egress.json",
+      "covers": "F1: egress approvals expire",
+      "id": "approval-egress-without-expiry",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/expires_at",
+          "value": null
+        }
+      ],
+      "rust_rule": "approval.egress_ttl",
+      "schema": "reject"
+    },
+    {
+      "base": "records/approval-egress.json",
+      "covers": "F1: only the owner approves",
+      "id": "approval-by-agent",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/approved_by",
+          "value": {
+            "actor_id": "prn_00000004-0000-4000-8000-000000000004",
+            "actor_type": "agent"
+          }
+        }
+      ],
+      "rust_rule": "approval.owner_required",
+      "schema": "reject"
+    },
+    {
+      "base": "records/approval-egress.json",
+      "covers": "F1: egress approval names an external binding",
+      "id": "approval-egress-local-destination",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/binding/destination",
+          "value": {
+            "kind": "local_mock",
+            "provider_binding": null
+          }
+        }
+      ],
+      "rust_rule": "approval.egress_destination",
+      "schema": "accept"
+    },
+    {
+      "base": "records/approval-declassification.json",
+      "covers": "F2: declassification lowers the level",
+      "id": "approval-declassify-upward",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/binding/to_sensitivity",
+          "value": "highly_sensitive"
+        }
+      ],
+      "rust_rule": "approval.declassification_direction",
+      "schema": "accept"
+    },
+    {
+      "base": "records/policy-grant.json",
+      "covers": "F4: grants are owner-approved",
+      "id": "policy-grant-without-approval",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/approval_id",
+          "value": null
+        }
+      ],
+      "rust_rule": "policy.approval",
+      "schema": "reject"
+    },
+    {
+      "base": "records/policy-default.json",
+      "covers": "F4: default policy never sends out",
+      "id": "policy-default-with-provider-send",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/scopes",
+          "value": [
+            "context:read",
+            "provider:send"
+          ]
+        },
+        {
+          "op": "set",
+          "path": "/destinations",
+          "value": [
+            {
+              "kind": "external_provider",
+              "model": null,
+              "provider": null
+            }
+          ]
+        }
+      ],
+      "rust_rule": "policy.default_scope",
+      "schema": "accept"
+    },
+    {
+      "base": "records/policy-grant.json",
+      "covers": "F4: revocation is recorded",
+      "id": "policy-revoked-without-time",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/status",
+          "value": "revoked"
+        }
+      ],
+      "rust_rule": "policy.revocation",
+      "schema": "reject"
+    },
+    {
+      "base": "records/policy-grant.json",
+      "covers": "F4: unambiguous project selector",
+      "id": "policy-all-projects-with-list",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/resources/all_projects",
+          "value": true
+        }
+      ],
+      "rust_rule": "policy.project_selector",
+      "schema": "accept"
+    },
+    {
+      "base": "records/review-confirm-delete.json",
+      "covers": "F2: deletion approval names what is deleted",
+      "id": "review-confirm-delete-without-binding",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/delete_binding",
+          "value": null
+        }
+      ],
+      "rust_rule": "review.delete_binding",
+      "schema": "reject"
+    },
+    {
       "base": "records/identity.json",
       "covers": "identity revision chain",
       "id": "identity-wrong-previous",
@@ -1453,6 +1641,21 @@
   ],
   "valid": [
     {
+      "file": "records/approval-declassification.json",
+      "kind": "approval",
+      "schema": "memory/approval-v1.schema.json"
+    },
+    {
+      "file": "records/approval-egress.json",
+      "kind": "approval",
+      "schema": "memory/approval-v1.schema.json"
+    },
+    {
+      "file": "records/approval-policy-grant.json",
+      "kind": "approval",
+      "schema": "memory/approval-v1.schema.json"
+    },
+    {
       "file": "records/attachment-external.json",
       "kind": "attachment",
       "schema": "memory/attachment-v1.schema.json"
@@ -1513,6 +1716,11 @@
       "schema": "memory/commit-v1.schema.json"
     },
     {
+      "file": "records/dispatch-external.json",
+      "kind": "dispatch",
+      "schema": "context/dispatch-v1.schema.json"
+    },
+    {
       "file": "records/dispatch.json",
       "kind": "dispatch",
       "schema": "context/dispatch-v1.schema.json"
@@ -1534,6 +1742,11 @@
     },
     {
       "file": "records/memory-fact-conflicted.json",
+      "kind": "memory",
+      "schema": "memory/memory-v1.schema.json"
+    },
+    {
+      "file": "records/memory-fact-declassified.json",
       "kind": "memory",
       "schema": "memory/memory-v1.schema.json"
     },
@@ -1583,6 +1796,16 @@
       "schema": "memory/memory-v1.schema.json"
     },
     {
+      "file": "records/policy-default.json",
+      "kind": "policy",
+      "schema": "memory/policy-v1.schema.json"
+    },
+    {
+      "file": "records/policy-grant.json",
+      "kind": "policy",
+      "schema": "memory/policy-v1.schema.json"
+    },
+    {
       "file": "records/project.json",
       "kind": "project",
       "schema": "memory/project-v1.schema.json"
@@ -1604,6 +1827,11 @@
     },
     {
       "file": "records/review-accept.json",
+      "kind": "review",
+      "schema": "memory/review-v1.schema.json"
+    },
+    {
+      "file": "records/review-confirm-delete.json",
       "kind": "review",
       "schema": "memory/review-v1.schema.json"
     },

@@ -1,4 +1,61 @@
 {
+  "approvals": [
+    {
+      "approval_id": "apv_00000001-0000-4000-8000-000000000001",
+      "approval_nonce": "nonce-approval-0001-abcdefghij",
+      "approved_by": {
+        "actor_id": "prn_00000001-0000-4000-8000-000000000001",
+        "actor_type": "owner"
+      },
+      "approved_diff_hash": "bc32dc0adb143d51587139b8eeb2629cf1b7dc938a805d721a5268ea8e46602f",
+      "binding": {
+        "grant_hash": "2ea8b1d96a73508c83cba95f5aeb7ca63ac8e67a08d5a74f405e0d34ee12e850",
+        "kind": "policy_grant",
+        "policy_id": "pol_00000002-0000-4000-8000-000000000002",
+        "policy_revision": 1
+      },
+      "expires_at": null,
+      "issued_at": "2026-07-01T05:59:00.000Z",
+      "schema_version": 1,
+      "trusted_surface": "trusted_windows_app"
+    },
+    {
+      "approval_id": "apv_00000002-0000-4000-8000-000000000002",
+      "approval_nonce": "nonce-approval-0002-abcdefghij",
+      "approved_by": {
+        "actor_id": "prn_00000001-0000-4000-8000-000000000001",
+        "actor_type": "owner"
+      },
+      "approved_diff_hash": "d2a6b44f331c0231228d4b24934bcc430f5acbb140d208ef1291c6c1ec86466b",
+      "binding": {
+        "capsule_id": "cap_00000003-0000-4000-8000-000000000003",
+        "destination": {
+          "kind": "external_provider",
+          "provider_binding": {
+            "adapter_version": "0",
+            "model": "example-model",
+            "provider": "example-cloud"
+          }
+        },
+        "kind": "egress",
+        "payload_hash": "89e7610839f7e3fd6c72c97b15d27048beaba3dd701702e08c80aac2d90344f5",
+        "policy_epoch": 2,
+        "policy_id": "pol_00000002-0000-4000-8000-000000000002",
+        "request_id": "req_00000016-0000-4000-8000-000000000016",
+        "resources": [
+          {
+            "record_id": "mem_00000002-0000-4000-8000-000000000002",
+            "record_kind": "memory",
+            "revision": 1
+          }
+        ]
+      },
+      "expires_at": "2026-07-04T01:10:00.150Z",
+      "issued_at": "2026-07-04T01:00:00.150Z",
+      "schema_version": 1,
+      "trusted_surface": "trusted_windows_app"
+    }
+  ],
   "audit_events": [
     {
       "actor": {
@@ -10,9 +67,15 @@
       "decision": "allow",
       "destination": "local_mock",
       "error_code": null,
-      "object_refs": [],
+      "object_refs": [
+        {
+          "record_id": "mem_00000002-0000-4000-8000-000000000002",
+          "record_kind": "memory",
+          "revision": 1
+        }
+      ],
       "operation": "context_get",
-      "policy_epoch": 1,
+      "policy_epoch": 2,
       "purpose": "answer",
       "request_id": "req_00000014-0000-4000-8000-000000000014",
       "schema_version": 1
@@ -29,7 +92,7 @@
       "error_code": "permission_denied",
       "object_refs": [],
       "operation": "memory_source",
-      "policy_epoch": 1,
+      "policy_epoch": 2,
       "purpose": null,
       "request_id": "req_00000015-0000-4000-8000-000000000015",
       "schema_version": 1
@@ -77,6 +140,52 @@
       "schema_version": 1,
       "sensitivity": "private",
       "source_id": "src_00000001-0000-4000-8000-000000000001",
+      "status": "pending",
+      "target_identity_id": null,
+      "target_memory_id": null,
+      "updated_at": "2026-07-02T12:10:00.000Z"
+    },
+    {
+      "candidate_id": "cand_00000002-0000-4000-8000-000000000002",
+      "confidence": null,
+      "conflicts": [],
+      "created_at": "2026-07-02T12:10:00.000Z",
+      "declassification_approval_id": null,
+      "dedupe_fingerprint": "dca3ae268ca8eb63a8eaf8f816e5beb42918bd637b09c88d125c410a654ebc58",
+      "evidence": [
+        {
+          "evidence_class": "user_statement",
+          "locator": {
+            "kind": "json_pointer",
+            "pointer": "/mapping/b1/message/content"
+          },
+          "object_hash": "1bcb7e22aeceeedc14a62c504fbb3d1e0af52c2cb7e229c4a2c902c8745b7298",
+          "source_id": "src_00000002-0000-4000-8000-000000000002",
+          "source_revision": 1,
+          "supports": "content"
+        }
+      ],
+      "expected_revision": null,
+      "extensions": {},
+      "extraction_run_id": "ext_00000002-0000-4000-8000-000000000002",
+      "merged_into": null,
+      "origin_actor": {
+        "actor_id": "prn_00000002-0000-4000-8000-000000000002",
+        "actor_type": "system"
+      },
+      "origin_kind": "rule_extraction",
+      "proposal_kind": "create",
+      "proposed_content": "MoriMeta 的视觉设计方向确定为 Professional Darkroom。",
+      "proposed_details": null,
+      "proposed_effective_from": null,
+      "proposed_type": "project_state",
+      "reason": "synthetic fixture proposal",
+      "reopens_candidate_id": null,
+      "resolution_review_id": null,
+      "revision": 1,
+      "schema_version": 1,
+      "sensitivity": "private",
+      "source_id": "src_00000002-0000-4000-8000-000000000002",
       "status": "pending",
       "target_identity_id": null,
       "target_memory_id": null,
@@ -219,6 +328,52 @@
       "target_identity_id": null,
       "target_memory_id": null,
       "updated_at": "2026-07-02T12:10:00.000Z"
+    },
+    {
+      "candidate_id": "cand_00000002-0000-4000-8000-000000000002",
+      "confidence": null,
+      "conflicts": [],
+      "created_at": "2026-07-02T12:10:00.000Z",
+      "declassification_approval_id": null,
+      "dedupe_fingerprint": "dca3ae268ca8eb63a8eaf8f816e5beb42918bd637b09c88d125c410a654ebc58",
+      "evidence": [
+        {
+          "evidence_class": "user_statement",
+          "locator": {
+            "kind": "json_pointer",
+            "pointer": "/mapping/b1/message/content"
+          },
+          "object_hash": "1bcb7e22aeceeedc14a62c504fbb3d1e0af52c2cb7e229c4a2c902c8745b7298",
+          "source_id": "src_00000002-0000-4000-8000-000000000002",
+          "source_revision": 1,
+          "supports": "content"
+        }
+      ],
+      "expected_revision": null,
+      "extensions": {},
+      "extraction_run_id": "ext_00000002-0000-4000-8000-000000000002",
+      "merged_into": null,
+      "origin_actor": {
+        "actor_id": "prn_00000002-0000-4000-8000-000000000002",
+        "actor_type": "system"
+      },
+      "origin_kind": "rule_extraction",
+      "proposal_kind": "create",
+      "proposed_content": "MoriMeta 的视觉设计方向确定为 Professional Darkroom。",
+      "proposed_details": null,
+      "proposed_effective_from": null,
+      "proposed_type": "project_state",
+      "reason": "synthetic fixture proposal",
+      "reopens_candidate_id": null,
+      "resolution_review_id": "rvw_00000002-0000-4000-8000-000000000002",
+      "revision": 2,
+      "schema_version": 1,
+      "sensitivity": "private",
+      "source_id": "src_00000002-0000-4000-8000-000000000002",
+      "status": "accepted",
+      "target_identity_id": null,
+      "target_memory_id": null,
+      "updated_at": "2026-07-02T13:00:00.500Z"
     },
     {
       "candidate_id": "cand_00000003-0000-4000-8000-000000000003",
@@ -361,7 +516,26 @@
   ],
   "capsules": [
     {
-      "active_projects": [],
+      "active_projects": [
+        {
+          "conflict_group_id": null,
+          "content": "MoriMeta 的视觉设计方向确定为 Professional Darkroom。",
+          "currency": "current_supported",
+          "evidence": [
+            {
+              "source_id": "src_00000002-0000-4000-8000-000000000002",
+              "source_revision": 1
+            }
+          ],
+          "last_verified_at": null,
+          "memory_id": "mem_00000002-0000-4000-8000-000000000002",
+          "revision": 1,
+          "sensitivity": "private",
+          "type": "project_state",
+          "valid_from": null,
+          "valid_until": null
+        }
+      ],
       "as_of": null,
       "branch_id": "br_00000001-0000-4000-8000-000000000001",
       "budget": {
@@ -375,10 +549,8 @@
       "client_surface": "local_cli",
       "compiler_version": "compiler/0-mv0-fixture",
       "completeness": {
-        "complete": false,
-        "limitations": [
-          "no_supported_memory"
-        ]
+        "complete": true,
+        "limitations": []
       },
       "deletion_epoch": 0,
       "destination": {
@@ -396,8 +568,16 @@
           "provisional": true
         }
       ],
-      "policy_epoch": 1,
-      "provenance": [],
+      "policy_epoch": 2,
+      "provenance": [
+        {
+          "locator_kind": "json_pointer",
+          "occurred_at": "2026-07-02T10:05:00.000Z",
+          "source_id": "src_00000002-0000-4000-8000-000000000002",
+          "source_revision": 1,
+          "time_precision": "minute"
+        }
+      ],
       "purpose": "answer",
       "query": "我们之前 MoriMeta 的设计最后选了什么？",
       "ranking_version": "ranking/0-mv0-fixture",
@@ -421,20 +601,105 @@
       "session_id": "ses_00000001-0000-4000-8000-000000000001",
       "tokenizer_version": "utf8_bytes_v1",
       "user_context": [],
-      "vault_commit_id": "cmt_0000006c-0000-4000-8000-00000000006c",
+      "vault_commit_id": "cmt_00000136-0000-4000-8000-000000000136",
       "verification_needed": [
         {
           "conflict_group_id": null,
-          "item_id": null,
-          "memory_id": null,
-          "reason": "no_supported_evidence"
+          "item_id": "itm_00000001-0000-4000-8000-000000000001",
+          "memory_id": "mem_00000002-0000-4000-8000-000000000002",
+          "reason": "implementation_unverified"
+        }
+      ]
+    },
+    {
+      "active_projects": [
+        {
+          "conflict_group_id": null,
+          "content": "MoriMeta 的视觉设计方向确定为 Professional Darkroom。",
+          "currency": "current_supported",
+          "evidence": [
+            {
+              "source_id": "src_00000002-0000-4000-8000-000000000002",
+              "source_revision": 1
+            }
+          ],
+          "last_verified_at": null,
+          "memory_id": "mem_00000002-0000-4000-8000-000000000002",
+          "revision": 1,
+          "sensitivity": "private",
+          "type": "project_state",
+          "valid_from": null,
+          "valid_until": null
+        }
+      ],
+      "as_of": null,
+      "branch_id": "br_00000001-0000-4000-8000-000000000001",
+      "budget": {
+        "counting_method": "utf8_bytes_v1",
+        "estimated_tokens": 512,
+        "max_tokens": 8192,
+        "memory_budget_tokens": 4096,
+        "safety_margin_tokens": 256
+      },
+      "capsule_id": "cap_00000003-0000-4000-8000-000000000003",
+      "client_surface": "windows_app",
+      "compiler_version": "compiler/0-mv0-fixture",
+      "completeness": {
+        "complete": true,
+        "limitations": []
+      },
+      "deletion_epoch": 0,
+      "destination": {
+        "kind": "external_provider",
+        "provider_binding": {
+          "adapter_version": "0",
+          "model": "example-model",
+          "provider": "example-cloud"
+        }
+      },
+      "generated_at": "2026-07-04T01:00:00.000Z",
+      "identity": [],
+      "open_loops": [],
+      "policy_epoch": 2,
+      "provenance": [
+        {
+          "locator_kind": "json_pointer",
+          "occurred_at": "2026-07-02T10:05:00.000Z",
+          "source_id": "src_00000002-0000-4000-8000-000000000002",
+          "source_revision": 1,
+          "time_precision": "minute"
+        }
+      ],
+      "purpose": "answer",
+      "query": "我们之前 MoriMeta 的设计最后选了什么？",
+      "ranking_version": "ranking/0-mv0-fixture",
+      "recent_session_checkpoints": [],
+      "recent_turns": [],
+      "relationship_context": [],
+      "relevant_memories": [],
+      "request_id": "req_00000016-0000-4000-8000-000000000016",
+      "requested_by": {
+        "actor_id": "prn_00000001-0000-4000-8000-000000000001",
+        "actor_type": "owner"
+      },
+      "schema_version": 1,
+      "session_id": "ses_00000001-0000-4000-8000-000000000001",
+      "tokenizer_version": "utf8_bytes_v1",
+      "user_context": [],
+      "vault_commit_id": "cmt_00000136-0000-4000-8000-000000000136",
+      "verification_needed": [
+        {
+          "conflict_group_id": null,
+          "item_id": "itm_00000001-0000-4000-8000-000000000001",
+          "memory_id": "mem_00000002-0000-4000-8000-000000000002",
+          "reason": "implementation_unverified"
         }
       ]
     }
   ],
   "checkpoints": [
     {
-      "base_vault_commit_id": "cmt_0000006b-0000-4000-8000-00000000006b",
+      "base_vault_commit_id": "cmt_00000135-0000-4000-8000-000000000135",
       "branch_id": "br_00000001-0000-4000-8000-000000000001",
       "checkpoint_id": "ckp_00000001-0000-4000-8000-000000000001",
       "coverage": {
@@ -499,13 +764,13 @@
           "revision": 1
         }
       ],
-      "commit_id": "cmt_00000065-0000-4000-8000-000000000065",
+      "commit_id": "cmt_0000012d-0000-4000-8000-00000000012d",
       "created_at": "2026-07-01T00:00:00.000Z",
       "deletion_epoch": 0,
       "format_version": 1,
       "idempotency_key_hash": null,
       "objects": [],
-      "operation_id": "op_00000065-0000-4000-8000-000000000065",
+      "operation_id": "op_0000012d-0000-4000-8000-00000000012d",
       "operation_kind": "genesis",
       "parent_commit_id": null,
       "policy_epoch": 1,
@@ -514,7 +779,7 @@
         "actor_type": "owner"
       },
       "receipt": {
-        "operation_id": "op_00000065-0000-4000-8000-000000000065",
+        "operation_id": "op_0000012d-0000-4000-8000-00000000012d",
         "records": [
           {
             "record_id": "pol_00000001-0000-4000-8000-000000000001",
@@ -524,7 +789,7 @@
         ],
         "result": "committed"
       },
-      "request_payload_hash": "99591905ae80555fa4f3c9098c2088e6f0101bc01cbc6d2026012deddf7b4250",
+      "request_payload_hash": "29db62c6a8efdab511601bc25f53e33653367e53abc9db162120903634be4e1f",
       "review_ids": [],
       "schema_version": 1,
       "sequence": 1,
@@ -535,6 +800,13 @@
     {
       "catalog": [
         {
+          "changed": true,
+          "content_hash": "b3324a02c1b5b35a2d85370a534ec9b425ef34dc29fecd46fe2b8fcb58c3085d",
+          "record_id": "apv_00000001-0000-4000-8000-000000000001",
+          "record_kind": "approval",
+          "revision": 1
+        },
+        {
           "changed": false,
           "content_hash": "d31f1a2eba9a7675c948acf9bf9f164713b10f0cd5f8786937c7537d1b85de7b",
           "record_id": "pol_00000001-0000-4000-8000-000000000001",
@@ -543,8 +815,84 @@
         },
         {
           "changed": true,
+          "content_hash": "2ea8b1d96a73508c83cba95f5aeb7ca63ac8e67a08d5a74f405e0d34ee12e850",
+          "record_id": "pol_00000002-0000-4000-8000-000000000002",
+          "record_kind": "policy",
+          "revision": 1
+        }
+      ],
+      "commit_id": "cmt_0000012e-0000-4000-8000-00000000012e",
+      "created_at": "2026-07-01T06:00:00.000Z",
+      "deletion_epoch": 0,
+      "format_version": 1,
+      "idempotency_key_hash": "178bf063a30ee227d3b3f4c00629a5d62d1cbb8a1ff7aaf726cf4c21ee516fed",
+      "objects": [],
+      "operation_id": "op_0000012e-0000-4000-8000-00000000012e",
+      "operation_kind": "policy_change",
+      "parent_commit_id": "cmt_0000012d-0000-4000-8000-00000000012d",
+      "policy_epoch": 2,
+      "principal": {
+        "actor_id": "prn_00000001-0000-4000-8000-000000000001",
+        "actor_type": "owner"
+      },
+      "receipt": {
+        "operation_id": "op_0000012e-0000-4000-8000-00000000012e",
+        "records": [
+          {
+            "record_id": "apv_00000001-0000-4000-8000-000000000001",
+            "record_kind": "approval",
+            "revision": 1
+          },
+          {
+            "record_id": "pol_00000002-0000-4000-8000-000000000002",
+            "record_kind": "policy",
+            "revision": 1
+          }
+        ],
+        "result": "committed"
+      },
+      "request_payload_hash": "cf8e2115af44300f1b4efab6c95ff58f535e1501c005aca0b307b6fc9bcf55fd",
+      "review_ids": [],
+      "schema_version": 1,
+      "sequence": 2,
+      "tombstone_ids": [],
+      "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+      "writer_device_id": "dev_00000001-0000-4000-8000-000000000001"
+    },
+    {
+      "catalog": [
+        {
+          "changed": false,
+          "content_hash": "b3324a02c1b5b35a2d85370a534ec9b425ef34dc29fecd46fe2b8fcb58c3085d",
+          "record_id": "apv_00000001-0000-4000-8000-000000000001",
+          "record_kind": "approval",
+          "revision": 1
+        },
+        {
+          "changed": false,
+          "content_hash": "d31f1a2eba9a7675c948acf9bf9f164713b10f0cd5f8786937c7537d1b85de7b",
+          "record_id": "pol_00000001-0000-4000-8000-000000000001",
+          "record_kind": "policy",
+          "revision": 1
+        },
+        {
+          "changed": false,
+          "content_hash": "2ea8b1d96a73508c83cba95f5aeb7ca63ac8e67a08d5a74f405e0d34ee12e850",
+          "record_id": "pol_00000002-0000-4000-8000-000000000002",
+          "record_kind": "policy",
+          "revision": 1
+        },
+        {
+          "changed": true,
           "content_hash": "e2794fda1dd27808a1f14c9fbaa1870fe1899570d8beac08055929db0c1f5605",
           "record_id": "src_00000001-0000-4000-8000-000000000001",
+          "record_kind": "source",
+          "revision": 1
+        },
+        {
+          "changed": true,
+          "content_hash": "1d17b230f49927a78eec290880844b47689c57d0176d401d242ca0367aac95d7",
+          "record_id": "src_00000002-0000-4000-8000-000000000002",
           "record_kind": "source",
           "revision": 1
         },
@@ -570,25 +918,30 @@
           "revision": 1
         }
       ],
-      "commit_id": "cmt_00000066-0000-4000-8000-000000000066",
+      "commit_id": "cmt_0000012f-0000-4000-8000-00000000012f",
       "created_at": "2026-07-02T12:00:00.000Z",
       "deletion_epoch": 0,
       "format_version": 1,
-      "idempotency_key_hash": "5744f3c5dd30b3915c1f4a8ea67d0c79f27dbda4610432b0548bf43feac20e1e",
+      "idempotency_key_hash": "31d17370f6d324b291c30ba3acebe8b0bbe69ee918736aef61e9f9d459ced75e",
       "objects": [],
-      "operation_id": "op_00000066-0000-4000-8000-000000000066",
+      "operation_id": "op_0000012f-0000-4000-8000-00000000012f",
       "operation_kind": "import",
-      "parent_commit_id": "cmt_00000065-0000-4000-8000-000000000065",
-      "policy_epoch": 1,
+      "parent_commit_id": "cmt_0000012e-0000-4000-8000-00000000012e",
+      "policy_epoch": 2,
       "principal": {
         "actor_id": "prn_00000001-0000-4000-8000-000000000001",
         "actor_type": "owner"
       },
       "receipt": {
-        "operation_id": "op_00000066-0000-4000-8000-000000000066",
+        "operation_id": "op_0000012f-0000-4000-8000-00000000012f",
         "records": [
           {
             "record_id": "src_00000001-0000-4000-8000-000000000001",
+            "record_kind": "source",
+            "revision": 1
+          },
+          {
+            "record_id": "src_00000002-0000-4000-8000-000000000002",
             "record_kind": "source",
             "revision": 1
           },
@@ -610,10 +963,10 @@
         ],
         "result": "committed"
       },
-      "request_payload_hash": "942cf0304826b49dd2e7278f06116649714a3b71c461d85732c8453eff932d18",
+      "request_payload_hash": "2d8e421bed3635cacc55f8bcb4031aff42539da17c111cdbcb618f1e7bd4f0b3",
       "review_ids": [],
       "schema_version": 1,
-      "sequence": 2,
+      "sequence": 3,
       "tombstone_ids": [],
       "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
       "writer_device_id": "dev_00000001-0000-4000-8000-000000000001"
@@ -621,9 +974,23 @@
     {
       "catalog": [
         {
+          "changed": false,
+          "content_hash": "b3324a02c1b5b35a2d85370a534ec9b425ef34dc29fecd46fe2b8fcb58c3085d",
+          "record_id": "apv_00000001-0000-4000-8000-000000000001",
+          "record_kind": "approval",
+          "revision": 1
+        },
+        {
           "changed": true,
           "content_hash": "093585451888c6a6b4bfb97c7c0e39884b1d390868abf553bc0e71e7870f4824",
           "record_id": "cand_00000001-0000-4000-8000-000000000001",
+          "record_kind": "candidate",
+          "revision": 1
+        },
+        {
+          "changed": true,
+          "content_hash": "f8fcac739c6a122b0db7d1da603b87110f9a759b91d9ca58f512eeeedf672ab0",
+          "record_id": "cand_00000002-0000-4000-8000-000000000002",
           "record_kind": "candidate",
           "revision": 1
         },
@@ -657,8 +1024,22 @@
         },
         {
           "changed": false,
+          "content_hash": "2ea8b1d96a73508c83cba95f5aeb7ca63ac8e67a08d5a74f405e0d34ee12e850",
+          "record_id": "pol_00000002-0000-4000-8000-000000000002",
+          "record_kind": "policy",
+          "revision": 1
+        },
+        {
+          "changed": false,
           "content_hash": "e2794fda1dd27808a1f14c9fbaa1870fe1899570d8beac08055929db0c1f5605",
           "record_id": "src_00000001-0000-4000-8000-000000000001",
+          "record_kind": "source",
+          "revision": 1
+        },
+        {
+          "changed": false,
+          "content_hash": "1d17b230f49927a78eec290880844b47689c57d0176d401d242ca0367aac95d7",
+          "record_id": "src_00000002-0000-4000-8000-000000000002",
           "record_kind": "source",
           "revision": 1
         },
@@ -684,25 +1065,30 @@
           "revision": 1
         }
       ],
-      "commit_id": "cmt_00000067-0000-4000-8000-000000000067",
+      "commit_id": "cmt_00000130-0000-4000-8000-000000000130",
       "created_at": "2026-07-02T12:10:00.000Z",
       "deletion_epoch": 0,
       "format_version": 1,
-      "idempotency_key_hash": "eb603bdb516269777acda2a2d78659b467d21f99a7e3832057120514c87d39f8",
+      "idempotency_key_hash": "4fc06bdcd233e392b0f37b65a7efc4e33b43fe4224b5e5e4ae531a7c9594a097",
       "objects": [],
-      "operation_id": "op_00000067-0000-4000-8000-000000000067",
+      "operation_id": "op_00000130-0000-4000-8000-000000000130",
       "operation_kind": "candidate_propose",
-      "parent_commit_id": "cmt_00000066-0000-4000-8000-000000000066",
-      "policy_epoch": 1,
+      "parent_commit_id": "cmt_0000012f-0000-4000-8000-00000000012f",
+      "policy_epoch": 2,
       "principal": {
         "actor_id": "prn_00000002-0000-4000-8000-000000000002",
         "actor_type": "system"
       },
       "receipt": {
-        "operation_id": "op_00000067-0000-4000-8000-000000000067",
+        "operation_id": "op_00000130-0000-4000-8000-000000000130",
         "records": [
           {
             "record_id": "cand_00000001-0000-4000-8000-000000000001",
+            "record_kind": "candidate",
+            "revision": 1
+          },
+          {
+            "record_id": "cand_00000002-0000-4000-8000-000000000002",
             "record_kind": "candidate",
             "revision": 1
           },
@@ -724,10 +1110,10 @@
         ],
         "result": "committed"
       },
-      "request_payload_hash": "d915696f18593cb4d88332285a1ced1898c41484b08ea2bc3811b07103ba3a03",
+      "request_payload_hash": "5432fd20ff490b0f3583180e0e3319e56eab09a8a7044b1471334425d4fab8cf",
       "review_ids": [],
       "schema_version": 1,
-      "sequence": 3,
+      "sequence": 4,
       "tombstone_ids": [],
       "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
       "writer_device_id": "dev_00000001-0000-4000-8000-000000000001"
@@ -736,10 +1122,189 @@
       "catalog": [
         {
           "changed": false,
+          "content_hash": "b3324a02c1b5b35a2d85370a534ec9b425ef34dc29fecd46fe2b8fcb58c3085d",
+          "record_id": "apv_00000001-0000-4000-8000-000000000001",
+          "record_kind": "approval",
+          "revision": 1
+        },
+        {
+          "changed": false,
           "content_hash": "093585451888c6a6b4bfb97c7c0e39884b1d390868abf553bc0e71e7870f4824",
           "record_id": "cand_00000001-0000-4000-8000-000000000001",
           "record_kind": "candidate",
           "revision": 1
+        },
+        {
+          "changed": true,
+          "content_hash": "bd51987e2ca3cb9e5e5df01a028b23e36e4dea78a5bf56cea2f5ce22b49024a6",
+          "record_id": "cand_00000002-0000-4000-8000-000000000002",
+          "record_kind": "candidate",
+          "revision": 2
+        },
+        {
+          "changed": false,
+          "content_hash": "78aa5a1bf9f1c06dfd08320d8326020663852fbc7edbdd314b45ac135c2a531e",
+          "record_id": "cand_00000003-0000-4000-8000-000000000003",
+          "record_kind": "candidate",
+          "revision": 1
+        },
+        {
+          "changed": false,
+          "content_hash": "32c14f98165bb555b94201d18434a010229b62b76481f2ef6fa6e0bb054020ff",
+          "record_id": "cand_00000004-0000-4000-8000-000000000004",
+          "record_kind": "candidate",
+          "revision": 1
+        },
+        {
+          "changed": false,
+          "content_hash": "62c54caeb6545240306ec7638daf6ba7236aa107b22760f6d34e6d5c1599b27a",
+          "record_id": "cand_00000005-0000-4000-8000-000000000005",
+          "record_kind": "candidate",
+          "revision": 1
+        },
+        {
+          "changed": true,
+          "content_hash": "899e0f3a933fa50e7f8dac6928d84297b0483c61b62d26d0f46c65f2b5b63c3c",
+          "record_id": "mem_00000002-0000-4000-8000-000000000002",
+          "record_kind": "memory",
+          "revision": 1
+        },
+        {
+          "changed": false,
+          "content_hash": "d31f1a2eba9a7675c948acf9bf9f164713b10f0cd5f8786937c7537d1b85de7b",
+          "record_id": "pol_00000001-0000-4000-8000-000000000001",
+          "record_kind": "policy",
+          "revision": 1
+        },
+        {
+          "changed": false,
+          "content_hash": "2ea8b1d96a73508c83cba95f5aeb7ca63ac8e67a08d5a74f405e0d34ee12e850",
+          "record_id": "pol_00000002-0000-4000-8000-000000000002",
+          "record_kind": "policy",
+          "revision": 1
+        },
+        {
+          "changed": true,
+          "content_hash": "f7924fdb0eccf1d8d34154443d527a4089cd3a8499a50306f12c355f04d0a19d",
+          "record_id": "prj_00000001-0000-4000-8000-000000000001",
+          "record_kind": "project",
+          "revision": 1
+        },
+        {
+          "changed": true,
+          "content_hash": "5d01ff55fb33869b5890e0e0d7e46f2d8c1d39df02f864a907d3641e3ceabeb6",
+          "record_id": "rvw_00000002-0000-4000-8000-000000000002",
+          "record_kind": "review",
+          "revision": 1
+        },
+        {
+          "changed": false,
+          "content_hash": "e2794fda1dd27808a1f14c9fbaa1870fe1899570d8beac08055929db0c1f5605",
+          "record_id": "src_00000001-0000-4000-8000-000000000001",
+          "record_kind": "source",
+          "revision": 1
+        },
+        {
+          "changed": false,
+          "content_hash": "1d17b230f49927a78eec290880844b47689c57d0176d401d242ca0367aac95d7",
+          "record_id": "src_00000002-0000-4000-8000-000000000002",
+          "record_kind": "source",
+          "revision": 1
+        },
+        {
+          "changed": false,
+          "content_hash": "6cf1648a3d9bb7fdde7d4180e9945fa925a720bb16b509ad9da92c6b39c8fb98",
+          "record_id": "src_00000003-0000-4000-8000-000000000003",
+          "record_kind": "source",
+          "revision": 1
+        },
+        {
+          "changed": false,
+          "content_hash": "c8a6536f4bcf6071842bbb2089fd0a3e270051dcf81dbf4bfb31e48f0c6138c9",
+          "record_id": "src_00000004-0000-4000-8000-000000000004",
+          "record_kind": "source",
+          "revision": 1
+        },
+        {
+          "changed": false,
+          "content_hash": "c91a613d7047498301f60113f42f64a61d7dd871b30a394790149a72e34cf90e",
+          "record_id": "src_00000005-0000-4000-8000-000000000005",
+          "record_kind": "source",
+          "revision": 1
+        }
+      ],
+      "commit_id": "cmt_00000131-0000-4000-8000-000000000131",
+      "created_at": "2026-07-02T13:00:00.500Z",
+      "deletion_epoch": 0,
+      "format_version": 1,
+      "idempotency_key_hash": "cc0292237a54742192fa4d146a6f0de83e436aac3adffc48cba4594821413fe5",
+      "objects": [],
+      "operation_id": "op_00000131-0000-4000-8000-000000000131",
+      "operation_kind": "review_commit",
+      "parent_commit_id": "cmt_00000130-0000-4000-8000-000000000130",
+      "policy_epoch": 2,
+      "principal": {
+        "actor_id": "prn_00000001-0000-4000-8000-000000000001",
+        "actor_type": "owner"
+      },
+      "receipt": {
+        "operation_id": "op_00000131-0000-4000-8000-000000000131",
+        "records": [
+          {
+            "record_id": "cand_00000002-0000-4000-8000-000000000002",
+            "record_kind": "candidate",
+            "revision": 2
+          },
+          {
+            "record_id": "mem_00000002-0000-4000-8000-000000000002",
+            "record_kind": "memory",
+            "revision": 1
+          },
+          {
+            "record_id": "prj_00000001-0000-4000-8000-000000000001",
+            "record_kind": "project",
+            "revision": 1
+          },
+          {
+            "record_id": "rvw_00000002-0000-4000-8000-000000000002",
+            "record_kind": "review",
+            "revision": 1
+          }
+        ],
+        "result": "committed"
+      },
+      "request_payload_hash": "a73f193b6dae71335f135813aff8fefa64f0e65028c038d585306a9cd23fac04",
+      "review_ids": [
+        "rvw_00000002-0000-4000-8000-000000000002"
+      ],
+      "schema_version": 1,
+      "sequence": 5,
+      "tombstone_ids": [],
+      "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+      "writer_device_id": "dev_00000001-0000-4000-8000-000000000001"
+    },
+    {
+      "catalog": [
+        {
+          "changed": false,
+          "content_hash": "b3324a02c1b5b35a2d85370a534ec9b425ef34dc29fecd46fe2b8fcb58c3085d",
+          "record_id": "apv_00000001-0000-4000-8000-000000000001",
+          "record_kind": "approval",
+          "revision": 1
+        },
+        {
+          "changed": false,
+          "content_hash": "093585451888c6a6b4bfb97c7c0e39884b1d390868abf553bc0e71e7870f4824",
+          "record_id": "cand_00000001-0000-4000-8000-000000000001",
+          "record_kind": "candidate",
+          "revision": 1
+        },
+        {
+          "changed": false,
+          "content_hash": "bd51987e2ca3cb9e5e5df01a028b23e36e4dea78a5bf56cea2f5ce22b49024a6",
+          "record_id": "cand_00000002-0000-4000-8000-000000000002",
+          "record_kind": "candidate",
+          "revision": 2
         },
         {
           "changed": true,
@@ -763,6 +1328,13 @@
           "revision": 1
         },
         {
+          "changed": false,
+          "content_hash": "899e0f3a933fa50e7f8dac6928d84297b0483c61b62d26d0f46c65f2b5b63c3c",
+          "record_id": "mem_00000002-0000-4000-8000-000000000002",
+          "record_kind": "memory",
+          "revision": 1
+        },
+        {
           "changed": true,
           "content_hash": "f1937550f7e4d6350f1e6785aabe37b3b5735180cb8ab12c3b0f0978946c312a",
           "record_id": "mem_00000003-0000-4000-8000-000000000003",
@@ -777,6 +1349,20 @@
           "revision": 1
         },
         {
+          "changed": false,
+          "content_hash": "2ea8b1d96a73508c83cba95f5aeb7ca63ac8e67a08d5a74f405e0d34ee12e850",
+          "record_id": "pol_00000002-0000-4000-8000-000000000002",
+          "record_kind": "policy",
+          "revision": 1
+        },
+        {
+          "changed": false,
+          "content_hash": "f7924fdb0eccf1d8d34154443d527a4089cd3a8499a50306f12c355f04d0a19d",
+          "record_id": "prj_00000001-0000-4000-8000-000000000001",
+          "record_kind": "project",
+          "revision": 1
+        },
+        {
           "changed": true,
           "content_hash": "16af9a2f92c5e68f067988400d5815bcd53600615f4786546896f6815dbf1781",
           "record_id": "prj_00000002-0000-4000-8000-000000000002",
@@ -784,8 +1370,15 @@
           "revision": 1
         },
         {
+          "changed": false,
+          "content_hash": "5d01ff55fb33869b5890e0e0d7e46f2d8c1d39df02f864a907d3641e3ceabeb6",
+          "record_id": "rvw_00000002-0000-4000-8000-000000000002",
+          "record_kind": "review",
+          "revision": 1
+        },
+        {
           "changed": true,
-          "content_hash": "8613094b7e1a6ccc6c9ea0aaedac97d1b9144894416f375b75ac4924838aaa5b",
+          "content_hash": "abcfb14f2e605e31f3e0d215e9ed2d953432990038b42b8e61464934a66f5f42",
           "record_id": "rvw_00000003-0000-4000-8000-000000000003",
           "record_kind": "review",
           "revision": 1
@@ -794,6 +1387,13 @@
           "changed": false,
           "content_hash": "e2794fda1dd27808a1f14c9fbaa1870fe1899570d8beac08055929db0c1f5605",
           "record_id": "src_00000001-0000-4000-8000-000000000001",
+          "record_kind": "source",
+          "revision": 1
+        },
+        {
+          "changed": false,
+          "content_hash": "1d17b230f49927a78eec290880844b47689c57d0176d401d242ca0367aac95d7",
+          "record_id": "src_00000002-0000-4000-8000-000000000002",
           "record_kind": "source",
           "revision": 1
         },
@@ -819,22 +1419,22 @@
           "revision": 1
         }
       ],
-      "commit_id": "cmt_00000068-0000-4000-8000-000000000068",
+      "commit_id": "cmt_00000132-0000-4000-8000-000000000132",
       "created_at": "2026-07-02T13:05:00.500Z",
       "deletion_epoch": 0,
       "format_version": 1,
-      "idempotency_key_hash": "58ed474031a203578ee99503bb1626502dca052fd7b61f2cf599686806473160",
+      "idempotency_key_hash": "5c5d926a09ef24af9c9b44520df1fc628175b283595be9a619b47fc965bde110",
       "objects": [],
-      "operation_id": "op_00000068-0000-4000-8000-000000000068",
+      "operation_id": "op_00000132-0000-4000-8000-000000000132",
       "operation_kind": "review_commit",
-      "parent_commit_id": "cmt_00000067-0000-4000-8000-000000000067",
-      "policy_epoch": 1,
+      "parent_commit_id": "cmt_00000131-0000-4000-8000-000000000131",
+      "policy_epoch": 2,
       "principal": {
         "actor_id": "prn_00000001-0000-4000-8000-000000000001",
         "actor_type": "owner"
       },
       "receipt": {
-        "operation_id": "op_00000068-0000-4000-8000-000000000068",
+        "operation_id": "op_00000132-0000-4000-8000-000000000132",
         "records": [
           {
             "record_id": "cand_00000003-0000-4000-8000-000000000003",
@@ -859,12 +1459,12 @@
         ],
         "result": "committed"
       },
-      "request_payload_hash": "20194e0c73632942ec33fbb69e9e3875a4bb290545664274b70d161df1401be3",
+      "request_payload_hash": "b0199453e267ceabe9da78747c87698c4f3154c58c056ed2c33d92cbb40d4f1c",
       "review_ids": [
         "rvw_00000003-0000-4000-8000-000000000003"
       ],
       "schema_version": 1,
-      "sequence": 4,
+      "sequence": 6,
       "tombstone_ids": [],
       "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
       "writer_device_id": "dev_00000001-0000-4000-8000-000000000001"
@@ -873,10 +1473,24 @@
       "catalog": [
         {
           "changed": false,
+          "content_hash": "b3324a02c1b5b35a2d85370a534ec9b425ef34dc29fecd46fe2b8fcb58c3085d",
+          "record_id": "apv_00000001-0000-4000-8000-000000000001",
+          "record_kind": "approval",
+          "revision": 1
+        },
+        {
+          "changed": false,
           "content_hash": "093585451888c6a6b4bfb97c7c0e39884b1d390868abf553bc0e71e7870f4824",
           "record_id": "cand_00000001-0000-4000-8000-000000000001",
           "record_kind": "candidate",
           "revision": 1
+        },
+        {
+          "changed": false,
+          "content_hash": "bd51987e2ca3cb9e5e5df01a028b23e36e4dea78a5bf56cea2f5ce22b49024a6",
+          "record_id": "cand_00000002-0000-4000-8000-000000000002",
+          "record_kind": "candidate",
+          "revision": 2
         },
         {
           "changed": false,
@@ -901,6 +1515,13 @@
         },
         {
           "changed": false,
+          "content_hash": "899e0f3a933fa50e7f8dac6928d84297b0483c61b62d26d0f46c65f2b5b63c3c",
+          "record_id": "mem_00000002-0000-4000-8000-000000000002",
+          "record_kind": "memory",
+          "revision": 1
+        },
+        {
+          "changed": false,
           "content_hash": "f1937550f7e4d6350f1e6785aabe37b3b5735180cb8ab12c3b0f0978946c312a",
           "record_id": "mem_00000003-0000-4000-8000-000000000003",
           "record_kind": "memory",
@@ -922,6 +1543,20 @@
         },
         {
           "changed": false,
+          "content_hash": "2ea8b1d96a73508c83cba95f5aeb7ca63ac8e67a08d5a74f405e0d34ee12e850",
+          "record_id": "pol_00000002-0000-4000-8000-000000000002",
+          "record_kind": "policy",
+          "revision": 1
+        },
+        {
+          "changed": false,
+          "content_hash": "f7924fdb0eccf1d8d34154443d527a4089cd3a8499a50306f12c355f04d0a19d",
+          "record_id": "prj_00000001-0000-4000-8000-000000000001",
+          "record_kind": "project",
+          "revision": 1
+        },
+        {
+          "changed": false,
           "content_hash": "16af9a2f92c5e68f067988400d5815bcd53600615f4786546896f6815dbf1781",
           "record_id": "prj_00000002-0000-4000-8000-000000000002",
           "record_kind": "project",
@@ -929,14 +1564,21 @@
         },
         {
           "changed": false,
-          "content_hash": "8613094b7e1a6ccc6c9ea0aaedac97d1b9144894416f375b75ac4924838aaa5b",
+          "content_hash": "5d01ff55fb33869b5890e0e0d7e46f2d8c1d39df02f864a907d3641e3ceabeb6",
+          "record_id": "rvw_00000002-0000-4000-8000-000000000002",
+          "record_kind": "review",
+          "revision": 1
+        },
+        {
+          "changed": false,
+          "content_hash": "abcfb14f2e605e31f3e0d215e9ed2d953432990038b42b8e61464934a66f5f42",
           "record_id": "rvw_00000003-0000-4000-8000-000000000003",
           "record_kind": "review",
           "revision": 1
         },
         {
           "changed": true,
-          "content_hash": "1f7fb0fdb0ff74c879503500f2ef2d249d35de082f8de69cbd8fc8a765aea69a",
+          "content_hash": "1187c5c0f92c0051dc7e22722ea7f6a2b48d7f286ab3b2c50ddfa8db9b26564e",
           "record_id": "rvw_00000004-0000-4000-8000-000000000004",
           "record_kind": "review",
           "revision": 1
@@ -945,6 +1587,13 @@
           "changed": false,
           "content_hash": "e2794fda1dd27808a1f14c9fbaa1870fe1899570d8beac08055929db0c1f5605",
           "record_id": "src_00000001-0000-4000-8000-000000000001",
+          "record_kind": "source",
+          "revision": 1
+        },
+        {
+          "changed": false,
+          "content_hash": "1d17b230f49927a78eec290880844b47689c57d0176d401d242ca0367aac95d7",
+          "record_id": "src_00000002-0000-4000-8000-000000000002",
           "record_kind": "source",
           "revision": 1
         },
@@ -970,22 +1619,22 @@
           "revision": 1
         }
       ],
-      "commit_id": "cmt_00000069-0000-4000-8000-000000000069",
+      "commit_id": "cmt_00000133-0000-4000-8000-000000000133",
       "created_at": "2026-07-02T13:10:00.500Z",
       "deletion_epoch": 0,
       "format_version": 1,
-      "idempotency_key_hash": "d229ac13f8b096d40f6ddf6800665e45a351eab14159fc0af41dff86f1f805c5",
+      "idempotency_key_hash": "a44b25125063594428f0f1c93b6e7973b906c05746b84f98c27e6f1539761e3f",
       "objects": [],
-      "operation_id": "op_00000069-0000-4000-8000-000000000069",
+      "operation_id": "op_00000133-0000-4000-8000-000000000133",
       "operation_kind": "review_commit",
-      "parent_commit_id": "cmt_00000068-0000-4000-8000-000000000068",
-      "policy_epoch": 1,
+      "parent_commit_id": "cmt_00000132-0000-4000-8000-000000000132",
+      "policy_epoch": 2,
       "principal": {
         "actor_id": "prn_00000001-0000-4000-8000-000000000001",
         "actor_type": "owner"
       },
       "receipt": {
-        "operation_id": "op_00000069-0000-4000-8000-000000000069",
+        "operation_id": "op_00000133-0000-4000-8000-000000000133",
         "records": [
           {
             "record_id": "cand_00000004-0000-4000-8000-000000000004",
@@ -1005,12 +1654,12 @@
         ],
         "result": "committed"
       },
-      "request_payload_hash": "d1c19ce8d21714d9de8e30d8d27e97b85d9a0f93baa125197045186b468dea99",
+      "request_payload_hash": "a3c9dedb63a23a87e00195d32c1740d66a36870d64f63fa358abd9774c2d0554",
       "review_ids": [
         "rvw_00000004-0000-4000-8000-000000000004"
       ],
       "schema_version": 1,
-      "sequence": 5,
+      "sequence": 7,
       "tombstone_ids": [],
       "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
       "writer_device_id": "dev_00000001-0000-4000-8000-000000000001"
@@ -1019,10 +1668,24 @@
       "catalog": [
         {
           "changed": false,
+          "content_hash": "b3324a02c1b5b35a2d85370a534ec9b425ef34dc29fecd46fe2b8fcb58c3085d",
+          "record_id": "apv_00000001-0000-4000-8000-000000000001",
+          "record_kind": "approval",
+          "revision": 1
+        },
+        {
+          "changed": false,
           "content_hash": "093585451888c6a6b4bfb97c7c0e39884b1d390868abf553bc0e71e7870f4824",
           "record_id": "cand_00000001-0000-4000-8000-000000000001",
           "record_kind": "candidate",
           "revision": 1
+        },
+        {
+          "changed": false,
+          "content_hash": "bd51987e2ca3cb9e5e5df01a028b23e36e4dea78a5bf56cea2f5ce22b49024a6",
+          "record_id": "cand_00000002-0000-4000-8000-000000000002",
+          "record_kind": "candidate",
+          "revision": 2
         },
         {
           "changed": false,
@@ -1047,6 +1710,13 @@
         },
         {
           "changed": false,
+          "content_hash": "899e0f3a933fa50e7f8dac6928d84297b0483c61b62d26d0f46c65f2b5b63c3c",
+          "record_id": "mem_00000002-0000-4000-8000-000000000002",
+          "record_kind": "memory",
+          "revision": 1
+        },
+        {
+          "changed": false,
           "content_hash": "f1937550f7e4d6350f1e6785aabe37b3b5735180cb8ab12c3b0f0978946c312a",
           "record_id": "mem_00000003-0000-4000-8000-000000000003",
           "record_kind": "memory",
@@ -1068,6 +1738,20 @@
         },
         {
           "changed": false,
+          "content_hash": "2ea8b1d96a73508c83cba95f5aeb7ca63ac8e67a08d5a74f405e0d34ee12e850",
+          "record_id": "pol_00000002-0000-4000-8000-000000000002",
+          "record_kind": "policy",
+          "revision": 1
+        },
+        {
+          "changed": false,
+          "content_hash": "f7924fdb0eccf1d8d34154443d527a4089cd3a8499a50306f12c355f04d0a19d",
+          "record_id": "prj_00000001-0000-4000-8000-000000000001",
+          "record_kind": "project",
+          "revision": 1
+        },
+        {
+          "changed": false,
           "content_hash": "16af9a2f92c5e68f067988400d5815bcd53600615f4786546896f6815dbf1781",
           "record_id": "prj_00000002-0000-4000-8000-000000000002",
           "record_kind": "project",
@@ -1075,21 +1759,28 @@
         },
         {
           "changed": false,
-          "content_hash": "8613094b7e1a6ccc6c9ea0aaedac97d1b9144894416f375b75ac4924838aaa5b",
+          "content_hash": "5d01ff55fb33869b5890e0e0d7e46f2d8c1d39df02f864a907d3641e3ceabeb6",
+          "record_id": "rvw_00000002-0000-4000-8000-000000000002",
+          "record_kind": "review",
+          "revision": 1
+        },
+        {
+          "changed": false,
+          "content_hash": "abcfb14f2e605e31f3e0d215e9ed2d953432990038b42b8e61464934a66f5f42",
           "record_id": "rvw_00000003-0000-4000-8000-000000000003",
           "record_kind": "review",
           "revision": 1
         },
         {
           "changed": false,
-          "content_hash": "1f7fb0fdb0ff74c879503500f2ef2d249d35de082f8de69cbd8fc8a765aea69a",
+          "content_hash": "1187c5c0f92c0051dc7e22722ea7f6a2b48d7f286ab3b2c50ddfa8db9b26564e",
           "record_id": "rvw_00000004-0000-4000-8000-000000000004",
           "record_kind": "review",
           "revision": 1
         },
         {
           "changed": true,
-          "content_hash": "dea7d0b5555c9e645dd2a9f34e4aa91692c168790fe804de64f8e9ca3c5ffdd7",
+          "content_hash": "cd00778d4e9254afc854c68b29d3dd701023594235c7fab18c15e0492c1aca28",
           "record_id": "rvw_00000005-0000-4000-8000-000000000005",
           "record_kind": "review",
           "revision": 1
@@ -1098,6 +1789,13 @@
           "changed": false,
           "content_hash": "e2794fda1dd27808a1f14c9fbaa1870fe1899570d8beac08055929db0c1f5605",
           "record_id": "src_00000001-0000-4000-8000-000000000001",
+          "record_kind": "source",
+          "revision": 1
+        },
+        {
+          "changed": false,
+          "content_hash": "1d17b230f49927a78eec290880844b47689c57d0176d401d242ca0367aac95d7",
+          "record_id": "src_00000002-0000-4000-8000-000000000002",
           "record_kind": "source",
           "revision": 1
         },
@@ -1123,22 +1821,22 @@
           "revision": 1
         }
       ],
-      "commit_id": "cmt_0000006a-0000-4000-8000-00000000006a",
+      "commit_id": "cmt_00000134-0000-4000-8000-000000000134",
       "created_at": "2026-07-02T13:15:00.500Z",
       "deletion_epoch": 0,
       "format_version": 1,
-      "idempotency_key_hash": "31a81ab9db37f2feb4274a94881c031f5d71bc624264296a531b9ce7d10f832c",
+      "idempotency_key_hash": "aaff7c554edbe16a08506ad6a6d54058c243ff50b12a558a6767639bda96320c",
       "objects": [],
-      "operation_id": "op_0000006a-0000-4000-8000-00000000006a",
+      "operation_id": "op_00000134-0000-4000-8000-000000000134",
       "operation_kind": "review_commit",
-      "parent_commit_id": "cmt_00000069-0000-4000-8000-000000000069",
-      "policy_epoch": 1,
+      "parent_commit_id": "cmt_00000133-0000-4000-8000-000000000133",
+      "policy_epoch": 2,
       "principal": {
         "actor_id": "prn_00000001-0000-4000-8000-000000000001",
         "actor_type": "owner"
       },
       "receipt": {
-        "operation_id": "op_0000006a-0000-4000-8000-00000000006a",
+        "operation_id": "op_00000134-0000-4000-8000-000000000134",
         "records": [
           {
             "record_id": "cand_00000005-0000-4000-8000-000000000005",
@@ -1153,12 +1851,12 @@
         ],
         "result": "committed"
       },
-      "request_payload_hash": "dda7dd7e511eece1843fe2c1e120de7c2eeee3218cdaaa879d6d12e01b03a76c",
+      "request_payload_hash": "95547711c6ec8a7baf3e13dfd4d71d7ef7396dabfaf308dad7af7907ab776b82",
       "review_ids": [
         "rvw_00000005-0000-4000-8000-000000000005"
       ],
       "schema_version": 1,
-      "sequence": 6,
+      "sequence": 8,
       "tombstone_ids": [],
       "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
       "writer_device_id": "dev_00000001-0000-4000-8000-000000000001"
@@ -1167,10 +1865,24 @@
       "catalog": [
         {
           "changed": false,
+          "content_hash": "b3324a02c1b5b35a2d85370a534ec9b425ef34dc29fecd46fe2b8fcb58c3085d",
+          "record_id": "apv_00000001-0000-4000-8000-000000000001",
+          "record_kind": "approval",
+          "revision": 1
+        },
+        {
+          "changed": false,
           "content_hash": "093585451888c6a6b4bfb97c7c0e39884b1d390868abf553bc0e71e7870f4824",
           "record_id": "cand_00000001-0000-4000-8000-000000000001",
           "record_kind": "candidate",
           "revision": 1
+        },
+        {
+          "changed": false,
+          "content_hash": "bd51987e2ca3cb9e5e5df01a028b23e36e4dea78a5bf56cea2f5ce22b49024a6",
+          "record_id": "cand_00000002-0000-4000-8000-000000000002",
+          "record_kind": "candidate",
+          "revision": 2
         },
         {
           "changed": false,
@@ -1195,6 +1907,13 @@
         },
         {
           "changed": false,
+          "content_hash": "899e0f3a933fa50e7f8dac6928d84297b0483c61b62d26d0f46c65f2b5b63c3c",
+          "record_id": "mem_00000002-0000-4000-8000-000000000002",
+          "record_kind": "memory",
+          "revision": 1
+        },
+        {
+          "changed": false,
           "content_hash": "f1937550f7e4d6350f1e6785aabe37b3b5735180cb8ab12c3b0f0978946c312a",
           "record_id": "mem_00000003-0000-4000-8000-000000000003",
           "record_kind": "memory",
@@ -1216,6 +1935,20 @@
         },
         {
           "changed": false,
+          "content_hash": "2ea8b1d96a73508c83cba95f5aeb7ca63ac8e67a08d5a74f405e0d34ee12e850",
+          "record_id": "pol_00000002-0000-4000-8000-000000000002",
+          "record_kind": "policy",
+          "revision": 1
+        },
+        {
+          "changed": false,
+          "content_hash": "f7924fdb0eccf1d8d34154443d527a4089cd3a8499a50306f12c355f04d0a19d",
+          "record_id": "prj_00000001-0000-4000-8000-000000000001",
+          "record_kind": "project",
+          "revision": 1
+        },
+        {
+          "changed": false,
           "content_hash": "16af9a2f92c5e68f067988400d5815bcd53600615f4786546896f6815dbf1781",
           "record_id": "prj_00000002-0000-4000-8000-000000000002",
           "record_kind": "project",
@@ -1223,21 +1956,28 @@
         },
         {
           "changed": false,
-          "content_hash": "8613094b7e1a6ccc6c9ea0aaedac97d1b9144894416f375b75ac4924838aaa5b",
+          "content_hash": "5d01ff55fb33869b5890e0e0d7e46f2d8c1d39df02f864a907d3641e3ceabeb6",
+          "record_id": "rvw_00000002-0000-4000-8000-000000000002",
+          "record_kind": "review",
+          "revision": 1
+        },
+        {
+          "changed": false,
+          "content_hash": "abcfb14f2e605e31f3e0d215e9ed2d953432990038b42b8e61464934a66f5f42",
           "record_id": "rvw_00000003-0000-4000-8000-000000000003",
           "record_kind": "review",
           "revision": 1
         },
         {
           "changed": false,
-          "content_hash": "1f7fb0fdb0ff74c879503500f2ef2d249d35de082f8de69cbd8fc8a765aea69a",
+          "content_hash": "1187c5c0f92c0051dc7e22722ea7f6a2b48d7f286ab3b2c50ddfa8db9b26564e",
           "record_id": "rvw_00000004-0000-4000-8000-000000000004",
           "record_kind": "review",
           "revision": 1
         },
         {
           "changed": false,
-          "content_hash": "dea7d0b5555c9e645dd2a9f34e4aa91692c168790fe804de64f8e9ca3c5ffdd7",
+          "content_hash": "cd00778d4e9254afc854c68b29d3dd701023594235c7fab18c15e0492c1aca28",
           "record_id": "rvw_00000005-0000-4000-8000-000000000005",
           "record_kind": "review",
           "revision": 1
@@ -1286,6 +2026,13 @@
         },
         {
           "changed": false,
+          "content_hash": "1d17b230f49927a78eec290880844b47689c57d0176d401d242ca0367aac95d7",
+          "record_id": "src_00000002-0000-4000-8000-000000000002",
+          "record_kind": "source",
+          "revision": 1
+        },
+        {
+          "changed": false,
           "content_hash": "6cf1648a3d9bb7fdde7d4180e9945fa925a720bb16b509ad9da92c6b39c8fb98",
           "record_id": "src_00000003-0000-4000-8000-000000000003",
           "record_kind": "source",
@@ -1306,22 +2053,22 @@
           "revision": 1
         }
       ],
-      "commit_id": "cmt_0000006b-0000-4000-8000-00000000006b",
+      "commit_id": "cmt_00000135-0000-4000-8000-000000000135",
       "created_at": "2026-07-03T09:10:00.000Z",
       "deletion_epoch": 0,
       "format_version": 1,
-      "idempotency_key_hash": "3de2e6948e34d1da975b61db796d3fe109092abd7b933ce10fbca77ab499e1c0",
+      "idempotency_key_hash": "222a0fd99d5433855e94bb6c2043723fc92b544d56906a733eba3abdac1d6112",
       "objects": [],
-      "operation_id": "op_0000006b-0000-4000-8000-00000000006b",
+      "operation_id": "op_00000135-0000-4000-8000-000000000135",
       "operation_kind": "session_append",
-      "parent_commit_id": "cmt_0000006a-0000-4000-8000-00000000006a",
-      "policy_epoch": 1,
+      "parent_commit_id": "cmt_00000134-0000-4000-8000-000000000134",
+      "policy_epoch": 2,
       "principal": {
         "actor_id": "prn_00000001-0000-4000-8000-000000000001",
         "actor_type": "owner"
       },
       "receipt": {
-        "operation_id": "op_0000006b-0000-4000-8000-00000000006b",
+        "operation_id": "op_00000135-0000-4000-8000-000000000135",
         "records": [
           {
             "record_id": "ses_00000001-0000-4000-8000-000000000001",
@@ -1351,10 +2098,10 @@
         ],
         "result": "committed"
       },
-      "request_payload_hash": "5e35bf00f765bf07287a642796d96cba27e2dc6a3e7a4425e859088ee39f403b",
+      "request_payload_hash": "c6ea5ef122f667475000c7c51ebcee44d1559a59942d031416b708aca8cef393",
       "review_ids": [],
       "schema_version": 1,
-      "sequence": 7,
+      "sequence": 9,
       "tombstone_ids": [],
       "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
       "writer_device_id": "dev_00000001-0000-4000-8000-000000000001"
@@ -1363,10 +2110,24 @@
       "catalog": [
         {
           "changed": false,
+          "content_hash": "b3324a02c1b5b35a2d85370a534ec9b425ef34dc29fecd46fe2b8fcb58c3085d",
+          "record_id": "apv_00000001-0000-4000-8000-000000000001",
+          "record_kind": "approval",
+          "revision": 1
+        },
+        {
+          "changed": false,
           "content_hash": "093585451888c6a6b4bfb97c7c0e39884b1d390868abf553bc0e71e7870f4824",
           "record_id": "cand_00000001-0000-4000-8000-000000000001",
           "record_kind": "candidate",
           "revision": 1
+        },
+        {
+          "changed": false,
+          "content_hash": "bd51987e2ca3cb9e5e5df01a028b23e36e4dea78a5bf56cea2f5ce22b49024a6",
+          "record_id": "cand_00000002-0000-4000-8000-000000000002",
+          "record_kind": "candidate",
+          "revision": 2
         },
         {
           "changed": false,
@@ -1391,9 +2152,16 @@
         },
         {
           "changed": true,
-          "content_hash": "8a3b692f2c733062958c43bb8fde5c96417c7e61f151b3d0c0ec2a2f819bfff8",
+          "content_hash": "e00b890d9f4bfe633a1195f677a2a1acb5574d76c63d83fb11ce775447720f5c",
           "record_id": "ckp_00000001-0000-4000-8000-000000000001",
           "record_kind": "checkpoint",
+          "revision": 1
+        },
+        {
+          "changed": false,
+          "content_hash": "899e0f3a933fa50e7f8dac6928d84297b0483c61b62d26d0f46c65f2b5b63c3c",
+          "record_id": "mem_00000002-0000-4000-8000-000000000002",
+          "record_kind": "memory",
           "revision": 1
         },
         {
@@ -1419,6 +2187,20 @@
         },
         {
           "changed": false,
+          "content_hash": "2ea8b1d96a73508c83cba95f5aeb7ca63ac8e67a08d5a74f405e0d34ee12e850",
+          "record_id": "pol_00000002-0000-4000-8000-000000000002",
+          "record_kind": "policy",
+          "revision": 1
+        },
+        {
+          "changed": false,
+          "content_hash": "f7924fdb0eccf1d8d34154443d527a4089cd3a8499a50306f12c355f04d0a19d",
+          "record_id": "prj_00000001-0000-4000-8000-000000000001",
+          "record_kind": "project",
+          "revision": 1
+        },
+        {
+          "changed": false,
           "content_hash": "16af9a2f92c5e68f067988400d5815bcd53600615f4786546896f6815dbf1781",
           "record_id": "prj_00000002-0000-4000-8000-000000000002",
           "record_kind": "project",
@@ -1426,21 +2208,28 @@
         },
         {
           "changed": false,
-          "content_hash": "8613094b7e1a6ccc6c9ea0aaedac97d1b9144894416f375b75ac4924838aaa5b",
+          "content_hash": "5d01ff55fb33869b5890e0e0d7e46f2d8c1d39df02f864a907d3641e3ceabeb6",
+          "record_id": "rvw_00000002-0000-4000-8000-000000000002",
+          "record_kind": "review",
+          "revision": 1
+        },
+        {
+          "changed": false,
+          "content_hash": "abcfb14f2e605e31f3e0d215e9ed2d953432990038b42b8e61464934a66f5f42",
           "record_id": "rvw_00000003-0000-4000-8000-000000000003",
           "record_kind": "review",
           "revision": 1
         },
         {
           "changed": false,
-          "content_hash": "1f7fb0fdb0ff74c879503500f2ef2d249d35de082f8de69cbd8fc8a765aea69a",
+          "content_hash": "1187c5c0f92c0051dc7e22722ea7f6a2b48d7f286ab3b2c50ddfa8db9b26564e",
           "record_id": "rvw_00000004-0000-4000-8000-000000000004",
           "record_kind": "review",
           "revision": 1
         },
         {
           "changed": false,
-          "content_hash": "dea7d0b5555c9e645dd2a9f34e4aa91692c168790fe804de64f8e9ca3c5ffdd7",
+          "content_hash": "cd00778d4e9254afc854c68b29d3dd701023594235c7fab18c15e0492c1aca28",
           "record_id": "rvw_00000005-0000-4000-8000-000000000005",
           "record_kind": "review",
           "revision": 1
@@ -1489,6 +2278,13 @@
         },
         {
           "changed": false,
+          "content_hash": "1d17b230f49927a78eec290880844b47689c57d0176d401d242ca0367aac95d7",
+          "record_id": "src_00000002-0000-4000-8000-000000000002",
+          "record_kind": "source",
+          "revision": 1
+        },
+        {
+          "changed": false,
           "content_hash": "6cf1648a3d9bb7fdde7d4180e9945fa925a720bb16b509ad9da92c6b39c8fb98",
           "record_id": "src_00000003-0000-4000-8000-000000000003",
           "record_kind": "source",
@@ -1509,22 +2305,22 @@
           "revision": 1
         }
       ],
-      "commit_id": "cmt_0000006c-0000-4000-8000-00000000006c",
+      "commit_id": "cmt_00000136-0000-4000-8000-000000000136",
       "created_at": "2026-07-03T09:20:00.000Z",
       "deletion_epoch": 0,
       "format_version": 1,
-      "idempotency_key_hash": "5a0f27cfc3145f1aad251546883f4c8d8f0da8666bc27c4ae8b1c8c1964b208d",
+      "idempotency_key_hash": "9f8570211ea0aab6a98b8940cb7b22b03e6b69e1552ebcd0cdec1ff3f6b041c0",
       "objects": [],
-      "operation_id": "op_0000006c-0000-4000-8000-00000000006c",
+      "operation_id": "op_00000136-0000-4000-8000-000000000136",
       "operation_kind": "checkpoint_propose",
-      "parent_commit_id": "cmt_0000006b-0000-4000-8000-00000000006b",
-      "policy_epoch": 1,
+      "parent_commit_id": "cmt_00000135-0000-4000-8000-000000000135",
+      "policy_epoch": 2,
       "principal": {
         "actor_id": "prn_00000002-0000-4000-8000-000000000002",
         "actor_type": "system"
       },
       "receipt": {
-        "operation_id": "op_0000006c-0000-4000-8000-00000000006c",
+        "operation_id": "op_00000136-0000-4000-8000-000000000136",
         "records": [
           {
             "record_id": "ckp_00000001-0000-4000-8000-000000000001",
@@ -1534,16 +2330,255 @@
         ],
         "result": "committed"
       },
-      "request_payload_hash": "ddc3c5154273308e61434844a09fe13fb5d2a62c2a1b475b0c01204228747aad",
+      "request_payload_hash": "b9bf3ee0682d84b4a9c2b99065fec5d4324c48432fadcdcd2c0f068aa69957ae",
       "review_ids": [],
       "schema_version": 1,
-      "sequence": 8,
+      "sequence": 10,
+      "tombstone_ids": [],
+      "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+      "writer_device_id": "dev_00000001-0000-4000-8000-000000000001"
+    },
+    {
+      "catalog": [
+        {
+          "changed": false,
+          "content_hash": "b3324a02c1b5b35a2d85370a534ec9b425ef34dc29fecd46fe2b8fcb58c3085d",
+          "record_id": "apv_00000001-0000-4000-8000-000000000001",
+          "record_kind": "approval",
+          "revision": 1
+        },
+        {
+          "changed": true,
+          "content_hash": "ab1bfe19a85bed4598eb1b50548f161c75059991b2ba7d825c2fa9b1dfe1923a",
+          "record_id": "apv_00000002-0000-4000-8000-000000000002",
+          "record_kind": "approval",
+          "revision": 1
+        },
+        {
+          "changed": false,
+          "content_hash": "093585451888c6a6b4bfb97c7c0e39884b1d390868abf553bc0e71e7870f4824",
+          "record_id": "cand_00000001-0000-4000-8000-000000000001",
+          "record_kind": "candidate",
+          "revision": 1
+        },
+        {
+          "changed": false,
+          "content_hash": "bd51987e2ca3cb9e5e5df01a028b23e36e4dea78a5bf56cea2f5ce22b49024a6",
+          "record_id": "cand_00000002-0000-4000-8000-000000000002",
+          "record_kind": "candidate",
+          "revision": 2
+        },
+        {
+          "changed": false,
+          "content_hash": "450acd6e17c3c0d99d6fd93ba18b50bbe35d977fe3496abca8578801a6028df2",
+          "record_id": "cand_00000003-0000-4000-8000-000000000003",
+          "record_kind": "candidate",
+          "revision": 2
+        },
+        {
+          "changed": false,
+          "content_hash": "5ded5c61393963cf85b39b9ea4f23d252d5b5eb8d8faf7cea6d7f68e4116d677",
+          "record_id": "cand_00000004-0000-4000-8000-000000000004",
+          "record_kind": "candidate",
+          "revision": 2
+        },
+        {
+          "changed": false,
+          "content_hash": "b0f7b40669c69490cce5b88904f6d823ad3da64d9007fe9af3e04bad0b23ee5b",
+          "record_id": "cand_00000005-0000-4000-8000-000000000005",
+          "record_kind": "candidate",
+          "revision": 2
+        },
+        {
+          "changed": false,
+          "content_hash": "e00b890d9f4bfe633a1195f677a2a1acb5574d76c63d83fb11ce775447720f5c",
+          "record_id": "ckp_00000001-0000-4000-8000-000000000001",
+          "record_kind": "checkpoint",
+          "revision": 1
+        },
+        {
+          "changed": false,
+          "content_hash": "899e0f3a933fa50e7f8dac6928d84297b0483c61b62d26d0f46c65f2b5b63c3c",
+          "record_id": "mem_00000002-0000-4000-8000-000000000002",
+          "record_kind": "memory",
+          "revision": 1
+        },
+        {
+          "changed": false,
+          "content_hash": "f1937550f7e4d6350f1e6785aabe37b3b5735180cb8ab12c3b0f0978946c312a",
+          "record_id": "mem_00000003-0000-4000-8000-000000000003",
+          "record_kind": "memory",
+          "revision": 1
+        },
+        {
+          "changed": false,
+          "content_hash": "912bae82f9ac2d0d6db2c5d24bc2447441de374ac796c7d6031e4463e53afa13",
+          "record_id": "mem_00000004-0000-4000-8000-000000000004",
+          "record_kind": "memory",
+          "revision": 1
+        },
+        {
+          "changed": false,
+          "content_hash": "d31f1a2eba9a7675c948acf9bf9f164713b10f0cd5f8786937c7537d1b85de7b",
+          "record_id": "pol_00000001-0000-4000-8000-000000000001",
+          "record_kind": "policy",
+          "revision": 1
+        },
+        {
+          "changed": false,
+          "content_hash": "2ea8b1d96a73508c83cba95f5aeb7ca63ac8e67a08d5a74f405e0d34ee12e850",
+          "record_id": "pol_00000002-0000-4000-8000-000000000002",
+          "record_kind": "policy",
+          "revision": 1
+        },
+        {
+          "changed": false,
+          "content_hash": "f7924fdb0eccf1d8d34154443d527a4089cd3a8499a50306f12c355f04d0a19d",
+          "record_id": "prj_00000001-0000-4000-8000-000000000001",
+          "record_kind": "project",
+          "revision": 1
+        },
+        {
+          "changed": false,
+          "content_hash": "16af9a2f92c5e68f067988400d5815bcd53600615f4786546896f6815dbf1781",
+          "record_id": "prj_00000002-0000-4000-8000-000000000002",
+          "record_kind": "project",
+          "revision": 1
+        },
+        {
+          "changed": false,
+          "content_hash": "5d01ff55fb33869b5890e0e0d7e46f2d8c1d39df02f864a907d3641e3ceabeb6",
+          "record_id": "rvw_00000002-0000-4000-8000-000000000002",
+          "record_kind": "review",
+          "revision": 1
+        },
+        {
+          "changed": false,
+          "content_hash": "abcfb14f2e605e31f3e0d215e9ed2d953432990038b42b8e61464934a66f5f42",
+          "record_id": "rvw_00000003-0000-4000-8000-000000000003",
+          "record_kind": "review",
+          "revision": 1
+        },
+        {
+          "changed": false,
+          "content_hash": "1187c5c0f92c0051dc7e22722ea7f6a2b48d7f286ab3b2c50ddfa8db9b26564e",
+          "record_id": "rvw_00000004-0000-4000-8000-000000000004",
+          "record_kind": "review",
+          "revision": 1
+        },
+        {
+          "changed": false,
+          "content_hash": "cd00778d4e9254afc854c68b29d3dd701023594235c7fab18c15e0492c1aca28",
+          "record_id": "rvw_00000005-0000-4000-8000-000000000005",
+          "record_kind": "review",
+          "revision": 1
+        },
+        {
+          "changed": false,
+          "content_hash": "8566603bbeabcf998468593dbd660cc0a3fbcee889a54ba5495d8a1013cefe80",
+          "record_id": "ses_00000001-0000-4000-8000-000000000001",
+          "record_kind": "session",
+          "revision": 1
+        },
+        {
+          "changed": false,
+          "content_hash": "fe57078596a2361cab20749d574d74b1492c128585a15a341dc84d1c2e6aa56a",
+          "record_id": "evt_00000001-0000-4000-8000-000000000001",
+          "record_kind": "session_event",
+          "revision": 1
+        },
+        {
+          "changed": false,
+          "content_hash": "454a7a02e491760e4ecacd25b2b43cc7baa0dbfc09c2dc5c827237058616bed4",
+          "record_id": "evt_00000002-0000-4000-8000-000000000002",
+          "record_kind": "session_event",
+          "revision": 1
+        },
+        {
+          "changed": false,
+          "content_hash": "fc0a196faaaf736bcbaf179d17e6b227b30c75eba76faab307e9a9fcf88c1ff3",
+          "record_id": "evt_00000003-0000-4000-8000-000000000003",
+          "record_kind": "session_event",
+          "revision": 1
+        },
+        {
+          "changed": false,
+          "content_hash": "d34ea6762b20672d6ff5968d45db616cfeed3f823cd78d759e1dc22a68f21285",
+          "record_id": "evt_00000004-0000-4000-8000-000000000004",
+          "record_kind": "session_event",
+          "revision": 1
+        },
+        {
+          "changed": false,
+          "content_hash": "e2794fda1dd27808a1f14c9fbaa1870fe1899570d8beac08055929db0c1f5605",
+          "record_id": "src_00000001-0000-4000-8000-000000000001",
+          "record_kind": "source",
+          "revision": 1
+        },
+        {
+          "changed": false,
+          "content_hash": "1d17b230f49927a78eec290880844b47689c57d0176d401d242ca0367aac95d7",
+          "record_id": "src_00000002-0000-4000-8000-000000000002",
+          "record_kind": "source",
+          "revision": 1
+        },
+        {
+          "changed": false,
+          "content_hash": "6cf1648a3d9bb7fdde7d4180e9945fa925a720bb16b509ad9da92c6b39c8fb98",
+          "record_id": "src_00000003-0000-4000-8000-000000000003",
+          "record_kind": "source",
+          "revision": 1
+        },
+        {
+          "changed": false,
+          "content_hash": "c8a6536f4bcf6071842bbb2089fd0a3e270051dcf81dbf4bfb31e48f0c6138c9",
+          "record_id": "src_00000004-0000-4000-8000-000000000004",
+          "record_kind": "source",
+          "revision": 1
+        },
+        {
+          "changed": false,
+          "content_hash": "c91a613d7047498301f60113f42f64a61d7dd871b30a394790149a72e34cf90e",
+          "record_id": "src_00000005-0000-4000-8000-000000000005",
+          "record_kind": "source",
+          "revision": 1
+        }
+      ],
+      "commit_id": "cmt_00000137-0000-4000-8000-000000000137",
+      "created_at": "2026-07-04T01:00:00.180Z",
+      "deletion_epoch": 0,
+      "format_version": 1,
+      "idempotency_key_hash": "adf773e0366789fa44c4eb86e2ebe4c668d9e90d3924dbb9f3b4fb2a195a64a5",
+      "objects": [],
+      "operation_id": "op_00000137-0000-4000-8000-000000000137",
+      "operation_kind": "owner_approval",
+      "parent_commit_id": "cmt_00000136-0000-4000-8000-000000000136",
+      "policy_epoch": 2,
+      "principal": {
+        "actor_id": "prn_00000001-0000-4000-8000-000000000001",
+        "actor_type": "owner"
+      },
+      "receipt": {
+        "operation_id": "op_00000137-0000-4000-8000-000000000137",
+        "records": [
+          {
+            "record_id": "apv_00000002-0000-4000-8000-000000000002",
+            "record_kind": "approval",
+            "revision": 1
+          }
+        ],
+        "result": "committed"
+      },
+      "request_payload_hash": "66f7068b61bc417102b33655bd0e40cb13cfd6c80c1edd33d845b53894007d14",
+      "review_ids": [],
+      "schema_version": 1,
+      "sequence": 11,
       "tombstone_ids": [],
       "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
       "writer_device_id": "dev_00000001-0000-4000-8000-000000000001"
     }
   ],
-  "description": "Synthetic MoriMeta story without any user confirmation: the Vault must not contain a chosen design. Test data only; not a real memory.",
+  "description": "Synthetic MoriMeta story plus an owner egress grant (MoriMeta -> example-cloud/example-model) and an external request carrying the private decision under an exact, single-use egress approval. Test data only; no real Provider or memory.",
   "dispatches": [
     {
       "capsule_id": "cap_00000001-0000-4000-8000-000000000001",
@@ -1552,13 +2587,13 @@
         "kind": "local_mock",
         "provider_binding": null
       },
-      "dispatch_id": "dsp_00000065-0000-4000-8000-000000000065",
+      "dispatch_id": "dsp_00000001-0000-4000-8000-000000000001",
       "egress": {
         "checked_at": "2026-07-04T00:00:00.100Z",
         "deletion_epoch": 0,
         "egress_approval_id": null,
         "egress_policy_id": null,
-        "policy_epoch": 1
+        "policy_epoch": 2
       },
       "inspection_id": "insp_00000001-0000-4000-8000-000000000001",
       "messages": [
@@ -1569,10 +2604,16 @@
           "size_bytes": 123
         },
         {
-          "content_hash": "a9e6cd198607dfa4fa122c71a1248620d722265f54fd089d174bbbd1cf2cafa0",
-          "resource_refs": [],
+          "content_hash": "66eacb7e18192170bdd80ce5966dc900bcddcf3241c4e3e5ddfaefd6880fb555",
+          "resource_refs": [
+            {
+              "record_id": "mem_00000002-0000-4000-8000-000000000002",
+              "record_kind": "memory",
+              "revision": 1
+            }
+          ],
           "role": "user",
-          "size_bytes": 145
+          "size_bytes": 221
         }
       ],
       "output": {
@@ -1580,10 +2621,62 @@
         "streaming": false
       },
       "prepared_at": "2026-07-04T00:00:00.100Z",
-      "request_hash": "ecd871557e1453293549a40d3023f85dc237bfb2afb48e6a400daeb9b8a5bee6",
+      "request_hash": "cfc99fa19be6d4b5bcac720b74fddec4c7370975ed84f23859934dfaaaa64e71",
       "request_id": "req_00000014-0000-4000-8000-000000000014",
       "schema_version": 1,
       "sent_at": "2026-07-04T00:00:00.200Z",
+      "state": "completed",
+      "tools": []
+    },
+    {
+      "capsule_id": "cap_00000003-0000-4000-8000-000000000003",
+      "completed_at": "2026-07-04T01:00:01.000Z",
+      "destination": {
+        "kind": "external_provider",
+        "provider_binding": {
+          "adapter_version": "0",
+          "model": "example-model",
+          "provider": "example-cloud"
+        }
+      },
+      "dispatch_id": "dsp_00000002-0000-4000-8000-000000000002",
+      "egress": {
+        "checked_at": "2026-07-04T01:00:00.190Z",
+        "deletion_epoch": 0,
+        "egress_approval_id": "apv_00000002-0000-4000-8000-000000000002",
+        "egress_policy_id": "pol_00000002-0000-4000-8000-000000000002",
+        "policy_epoch": 2
+      },
+      "inspection_id": "insp_00000003-0000-4000-8000-000000000003",
+      "messages": [
+        {
+          "content_hash": "33ef984f8ec9f56faaa5525f057efec11a186588785d61014e46f0048168e402",
+          "resource_refs": [],
+          "role": "system",
+          "size_bytes": 123
+        },
+        {
+          "content_hash": "66eacb7e18192170bdd80ce5966dc900bcddcf3241c4e3e5ddfaefd6880fb555",
+          "resource_refs": [
+            {
+              "record_id": "mem_00000002-0000-4000-8000-000000000002",
+              "record_kind": "memory",
+              "revision": 1
+            }
+          ],
+          "role": "user",
+          "size_bytes": 221
+        }
+      ],
+      "output": {
+        "max_output_tokens": 1024,
+        "streaming": false
+      },
+      "prepared_at": "2026-07-04T01:00:00.100Z",
+      "request_hash": "89e7610839f7e3fd6c72c97b15d27048beaba3dd701702e08c80aac2d90344f5",
+      "request_id": "req_00000016-0000-4000-8000-000000000016",
+      "schema_version": 1,
+      "sent_at": "2026-07-04T01:00:00.200Z",
       "state": "completed",
       "tools": []
     }
@@ -1592,6 +2685,17 @@
     {
       "capsule_id": "cap_00000001-0000-4000-8000-000000000001",
       "decisions": [
+        {
+          "decision": "included",
+          "rank": 1,
+          "reason": "explicit_entity_match",
+          "record_id": "mem_00000002-0000-4000-8000-000000000002",
+          "record_kind": "memory",
+          "revision": 1,
+          "source_reachable": true,
+          "token_cost": 40,
+          "truncated": false
+        },
         {
           "decision": "excluded",
           "rank": null,
@@ -1640,15 +2744,152 @@
       "deletion_epoch": 0,
       "generated_at": "2026-07-04T00:00:00.050Z",
       "inspection_id": "insp_00000001-0000-4000-8000-000000000001",
-      "policy_epoch": 1,
+      "policy_epoch": 2,
       "ranking_version": "ranking/0-mv0-fixture",
       "request_id": "req_00000014-0000-4000-8000-000000000014",
       "schema_version": 1,
-      "vault_commit_id": "cmt_0000006c-0000-4000-8000-00000000006c",
+      "vault_commit_id": "cmt_00000136-0000-4000-8000-000000000136",
+      "viewer_scope": "owner_full"
+    },
+    {
+      "capsule_id": "cap_00000003-0000-4000-8000-000000000003",
+      "decisions": [
+        {
+          "decision": "included",
+          "rank": 1,
+          "reason": "explicit_entity_match",
+          "record_id": "mem_00000002-0000-4000-8000-000000000002",
+          "record_kind": "memory",
+          "revision": 1,
+          "source_reachable": true,
+          "token_cost": 40,
+          "truncated": false
+        },
+        {
+          "decision": "excluded",
+          "rank": null,
+          "reason": "policy_denied",
+          "record_id": "mem_00000003-0000-4000-8000-000000000003",
+          "record_kind": "memory",
+          "revision": 1,
+          "source_reachable": true,
+          "token_cost": null,
+          "truncated": false
+        },
+        {
+          "decision": "excluded",
+          "rank": null,
+          "reason": "policy_denied",
+          "record_id": "mem_00000004-0000-4000-8000-000000000004",
+          "record_kind": "memory",
+          "revision": 1,
+          "source_reachable": true,
+          "token_cost": null,
+          "truncated": false
+        },
+        {
+          "decision": "excluded",
+          "rank": null,
+          "reason": "pending",
+          "record_id": "cand_00000001-0000-4000-8000-000000000001",
+          "record_kind": "candidate",
+          "revision": 1,
+          "source_reachable": true,
+          "token_cost": null,
+          "truncated": false
+        },
+        {
+          "decision": "excluded",
+          "rank": null,
+          "reason": "rejected",
+          "record_id": "cand_00000005-0000-4000-8000-000000000005",
+          "record_kind": "candidate",
+          "revision": 2,
+          "source_reachable": true,
+          "token_cost": null,
+          "truncated": false
+        }
+      ],
+      "deletion_epoch": 0,
+      "generated_at": "2026-07-04T01:00:00.050Z",
+      "inspection_id": "insp_00000003-0000-4000-8000-000000000003",
+      "policy_epoch": 2,
+      "ranking_version": "ranking/0-mv0-fixture",
+      "request_id": "req_00000016-0000-4000-8000-000000000016",
+      "schema_version": 1,
+      "vault_commit_id": "cmt_00000136-0000-4000-8000-000000000136",
       "viewer_scope": "owner_full"
     }
   ],
   "memories": [
+    {
+      "access_policy_id": "pol_00000001-0000-4000-8000-000000000001",
+      "approved_at": "2026-07-02T13:00:00.000Z",
+      "approved_by": {
+        "actor_id": "prn_00000001-0000-4000-8000-000000000001",
+        "actor_type": "owner"
+      },
+      "category": null,
+      "confidence": null,
+      "conflict_group_id": null,
+      "content": "MoriMeta 的视觉设计方向确定为 Professional Darkroom。",
+      "created_at": "2026-07-02T13:00:00.500Z",
+      "decisions": [
+        {
+          "as_of": "2026-07-02T10:05:00.000Z",
+          "claim": "视觉方向：Professional Darkroom",
+          "evidence_refs": [
+            {
+              "source_id": "src_00000002-0000-4000-8000-000000000002",
+              "source_revision": 1
+            }
+          ],
+          "item_id": "itm_00000001-0000-4000-8000-000000000001",
+          "state_kind": "decided"
+        }
+      ],
+      "declassification_approval_id": null,
+      "egress_policy_id": "pol_00000002-0000-4000-8000-000000000002",
+      "epistemic_status": "asserted",
+      "evidence": [
+        {
+          "evidence_class": "user_statement",
+          "locator": {
+            "kind": "json_pointer",
+            "pointer": "/mapping/b1/message/content"
+          },
+          "object_hash": "1bcb7e22aeceeedc14a62c504fbb3d1e0af52c2cb7e229c4a2c902c8745b7298",
+          "source_id": "src_00000002-0000-4000-8000-000000000002",
+          "source_revision": 1,
+          "supports": "content"
+        }
+      ],
+      "extensions": {},
+      "last_verified_at": null,
+      "memory_id": "mem_00000002-0000-4000-8000-000000000002",
+      "observed_at": "2026-07-02T10:05:00.000Z",
+      "open_loops": [],
+      "priority": "P1",
+      "project_id": "prj_00000001-0000-4000-8000-000000000001",
+      "provenance_state": "intact",
+      "review_after": "2026-07-09T13:00:00.000Z",
+      "review_id": "rvw_00000002-0000-4000-8000-000000000002",
+      "revision": 1,
+      "schema_version": 1,
+      "sensitivity": "private",
+      "source_id": "src_00000002-0000-4000-8000-000000000002",
+      "state": [],
+      "status": "active",
+      "subject_ids": [],
+      "supersedes": [],
+      "tags": [],
+      "title": "MoriMeta 视觉方向",
+      "type": "project_state",
+      "updated_at": "2026-07-02T13:00:00.500Z",
+      "valid_from": null,
+      "valid_until": null,
+      "volatility": "changing"
+    },
     {
       "access_policy_id": "pol_00000001-0000-4000-8000-000000000001",
       "approved_at": "2026-07-02T13:05:00.000Z",
@@ -1838,9 +3079,66 @@
       "updated_at": "2026-07-01T00:00:00.000Z",
       "valid_from": "2026-07-01T00:00:00.000Z",
       "valid_until": null
+    },
+    {
+      "approval_id": "apv_00000001-0000-4000-8000-000000000001",
+      "created_at": "2026-07-01T06:00:00.000Z",
+      "destinations": [
+        {
+          "kind": "external_provider",
+          "model": "example-model",
+          "provider": "example-cloud"
+        }
+      ],
+      "origin": "owner_grant",
+      "policy_id": "pol_00000002-0000-4000-8000-000000000002",
+      "principals": [
+        {
+          "actor_id": null,
+          "actor_type": "owner"
+        }
+      ],
+      "purposes": [
+        "answer"
+      ],
+      "resources": {
+        "all_projects": false,
+        "max_sensitivity": "private",
+        "project_ids": [
+          "prj_00000001-0000-4000-8000-000000000001"
+        ],
+        "record_kinds": [
+          "memory"
+        ]
+      },
+      "revision": 1,
+      "revoked_at": null,
+      "schema_version": 1,
+      "scopes": [
+        "provider:send"
+      ],
+      "status": "active",
+      "updated_at": "2026-07-01T06:00:00.000Z",
+      "valid_from": "2026-07-01T06:00:00.000Z",
+      "valid_until": null
     }
   ],
   "projects": [
+    {
+      "aliases": [
+        "Mori Meta"
+      ],
+      "created_at": "2026-07-02T13:00:00.500Z",
+      "display_name": "MoriMeta",
+      "extensions": {},
+      "project_id": "prj_00000001-0000-4000-8000-000000000001",
+      "review_id": "rvw_00000002-0000-4000-8000-000000000002",
+      "revision": 1,
+      "schema_version": 1,
+      "sensitivity": "private",
+      "status": "active",
+      "updated_at": "2026-07-02T13:00:00.500Z"
+    },
     {
       "aliases": [],
       "created_at": "2026-07-02T13:05:00.500Z",
@@ -1862,11 +3160,51 @@
         "actor_id": "prn_00000001-0000-4000-8000-000000000001",
         "actor_type": "owner"
       },
+      "approval_nonce": "nonce-synthetic-0002-abcdefghij",
+      "approved_diff_hash": "fd22cd952c375659ee285e61d2bcfba89fbb0c0a9933414addf0d75c354b1b6f",
+      "candidate_id": "cand_00000002-0000-4000-8000-000000000002",
+      "candidate_revision": 1,
+      "commit_id": "cmt_00000131-0000-4000-8000-000000000131",
+      "created_at": "2026-07-02T13:00:00.000Z",
+      "delete_binding": null,
+      "effective_from": null,
+      "evidence_refs": [
+        {
+          "source_id": "src_00000002-0000-4000-8000-000000000002",
+          "source_revision": 1
+        }
+      ],
+      "final_content_hash": "544f3cdaa9507349ee4260ea4d1ed6e36aadf642ad1e94cf64b3e8c7786c7aae",
+      "merge_target": null,
+      "reason_code": null,
+      "resulting_records": [
+        {
+          "record_id": "mem_00000002-0000-4000-8000-000000000002",
+          "record_kind": "memory",
+          "revision": 1
+        },
+        {
+          "record_id": "prj_00000001-0000-4000-8000-000000000001",
+          "record_kind": "project",
+          "revision": 1
+        }
+      ],
+      "review_id": "rvw_00000002-0000-4000-8000-000000000002",
+      "schema_version": 1,
+      "target_expected_revisions": [],
+      "trusted_surface": "trusted_windows_app"
+    },
+    {
+      "action": "accept",
+      "actor": {
+        "actor_id": "prn_00000001-0000-4000-8000-000000000001",
+        "actor_type": "owner"
+      },
       "approval_nonce": "nonce-synthetic-0003-abcdefghij",
       "approved_diff_hash": "4110680cae610c925bcd9327c54940da96147d3dd274bccd9960504bc51dd585",
       "candidate_id": "cand_00000003-0000-4000-8000-000000000003",
       "candidate_revision": 1,
-      "commit_id": "cmt_00000068-0000-4000-8000-000000000068",
+      "commit_id": "cmt_00000132-0000-4000-8000-000000000132",
       "created_at": "2026-07-02T13:05:00.000Z",
       "delete_binding": null,
       "effective_from": null,
@@ -1906,7 +3244,7 @@
       "approved_diff_hash": "7060c59649f641024155ca3e5ed8530a56a7ec4b079214963685d3cf0cf9c481",
       "candidate_id": "cand_00000004-0000-4000-8000-000000000004",
       "candidate_revision": 1,
-      "commit_id": "cmt_00000069-0000-4000-8000-000000000069",
+      "commit_id": "cmt_00000133-0000-4000-8000-000000000133",
       "created_at": "2026-07-02T13:10:00.000Z",
       "delete_binding": null,
       "effective_from": null,
@@ -1941,7 +3279,7 @@
       "approved_diff_hash": "f67e22f61995acf94ab276dcdd86543b60121af86feb02c87116823ec4796fae",
       "candidate_id": "cand_00000005-0000-4000-8000-000000000005",
       "candidate_revision": 1,
-      "commit_id": "cmt_0000006a-0000-4000-8000-00000000006a",
+      "commit_id": "cmt_00000134-0000-4000-8000-000000000134",
       "created_at": "2026-07-02T13:15:00.000Z",
       "delete_binding": null,
       "effective_from": null,
@@ -2148,6 +3486,43 @@
       "source_id": "src_00000001-0000-4000-8000-000000000001",
       "source_kind": "export_message",
       "speaker_role": "assistant",
+      "time_precision": "minute"
+    },
+    {
+      "access_policy_id": "pol_00000001-0000-4000-8000-000000000001",
+      "account_scope": "acct-main",
+      "agent_submission": null,
+      "attachment_refs": [],
+      "author_label": null,
+      "branch_id": null,
+      "captured_at": "2026-07-02T10:05:00.000Z",
+      "completeness": "complete",
+      "content_hash": "356d076a72e747324e078223194e47f5cc6a99843c121fdb9197ca5f51c0fd16",
+      "created_at": "2026-07-02T10:05:00.000Z",
+      "evidence_class": "user_statement",
+      "extensions": {},
+      "import_id": "imp_00000001-0000-4000-8000-000000000001",
+      "locator": {
+        "kind": "json_pointer",
+        "pointer": "/mapping/b1/message/content"
+      },
+      "manual_assertion": null,
+      "occurred_at": "2026-07-02T10:05:00.000Z",
+      "original_conversation_id": "conv-synthetic-001",
+      "original_message_id": "msg-synthetic-002",
+      "original_time": "2026-07-02T10:05:00Z",
+      "original_timezone": "UTC",
+      "parent_source_ids": [],
+      "parse_warnings": [],
+      "parser_version": "synthetic-export-adapter/0",
+      "provider": "chatgpt",
+      "raw_object_hash": "1bcb7e22aeceeedc14a62c504fbb3d1e0af52c2cb7e229c4a2c902c8745b7298",
+      "revision": 1,
+      "schema_version": 1,
+      "sensitivity": "private",
+      "source_id": "src_00000002-0000-4000-8000-000000000002",
+      "source_kind": "export_message",
+      "speaker_role": "user",
       "time_precision": "minute"
     },
     {

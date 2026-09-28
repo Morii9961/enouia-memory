@@ -1,0 +1,36 @@
+{
+  "approval_id": "apv_00000002-0000-4000-8000-000000000002",
+  "approval_nonce": "nonce-approval-0002-abcdefghij",
+  "approved_by": {
+    "actor_id": "prn_00000001-0000-4000-8000-000000000001",
+    "actor_type": "owner"
+  },
+  "approved_diff_hash": "d2a6b44f331c0231228d4b24934bcc430f5acbb140d208ef1291c6c1ec86466b",
+  "binding": {
+    "capsule_id": "cap_00000003-0000-4000-8000-000000000003",
+    "destination": {
+      "kind": "external_provider",
+      "provider_binding": {
+        "adapter_version": "0",
+        "model": "example-model",
+        "provider": "example-cloud"
+      }
+    },
+    "kind": "egress",
+    "payload_hash": "89e7610839f7e3fd6c72c97b15d27048beaba3dd701702e08c80aac2d90344f5",
+    "policy_epoch": 2,
+    "policy_id": "pol_00000002-0000-4000-8000-000000000002",
+    "request_id": "req_00000016-0000-4000-8000-000000000016",
+    "resources": [
+      {
+        "record_id": "mem_00000002-0000-4000-8000-000000000002",
+        "record_kind": "memory",
+        "revision": 1
+      }
+    ]
+  },
+  "expires_at": "2026-07-04T01:10:00.150Z",
+  "issued_at": "2026-07-04T01:00:00.150Z",
+  "schema_version": 1,
+  "trusted_surface": "trusted_windows_app"
+}

@@ -21,6 +21,7 @@
     "effective_from",
     "merge_target",
     "resulting_records",
+    "delete_binding",
     "reason_code",
     "created_at",
     "commit_id"
@@ -136,6 +137,69 @@
         "$ref": "common-v1.schema.json#/$defs/recordRef"
       }
     },
+    "delete_binding": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "mode",
+            "scope",
+            "targets"
+          ],
+          "properties": {
+            "mode": {
+              "enum": [
+                "logical_delete",
+                "purge"
+              ]
+            },
+            "scope": {
+              "enum": [
+                "selected_revisions",
+                "all_revisions",
+                "with_dependents"
+              ]
+            },
+            "targets": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "record_kind",
+                  "record_id",
+                  "revision"
+                ],
+                "properties": {
+                  "record_kind": {
+                    "$ref": "common-v1.schema.json#/$defs/recordKind"
+                  },
+                  "record_id": {
+                    "type": "string",
+                    "pattern": "^[a-z]+_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                  },
+                  "revision": {
+                    "oneOf": [
+                      {
+                        "type": "null"
+                      },
+                      {
+                        "$ref": "common-v1.schema.json#/$defs/revision"
+                      }
+                    ]
+                  }
+                }
+              },
+              "minItems": 1
+            }
+          }
+        }
+      ]
+    },
     "reason_code": {
       "oneOf": [
         {
@@ -238,6 +302,48 @@
         "properties": {
           "merge_target": {
             "type": "object"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "action": {
+            "enum": [
+              "confirm_delete"
+            ]
+          }
+        },
+        "required": [
+          "action"
+        ]
+      },
+      "then": {
+        "properties": {
+          "delete_binding": {
+            "type": "object"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "action": {
+            "not": {
+              "const": "confirm_delete"
+            }
+          }
+        },
+        "required": [
+          "action"
+        ]
+      },
+      "then": {
+        "properties": {
+          "delete_binding": {
+            "type": "null"
           }
         }
       }

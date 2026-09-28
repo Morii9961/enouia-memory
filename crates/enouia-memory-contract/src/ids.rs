@@ -40,6 +40,7 @@ pub const ID_PREFIXES: &[(&str, &str)] = &[
     ("extractionRunId", "ext"),
     ("conflictGroupId", "cfl"),
     ("itemId", "itm"),
+    ("approvalId", "apv"),
 ];
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -164,6 +165,7 @@ typed_id!(DispatchId, "dsp");
 typed_id!(ExtractionRunId, "ext");
 typed_id!(ConflictGroupId, "cfl");
 typed_id!(ItemId, "itm");
+typed_id!(ApprovalId, "apv");
 
 #[cfg(test)]
 mod tests {

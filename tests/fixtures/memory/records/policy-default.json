@@ -1,0 +1,65 @@
+{
+  "approval_id": null,
+  "created_at": "2026-07-01T00:00:00.000Z",
+  "destinations": [
+    {
+      "kind": "local_mock",
+      "model": null,
+      "provider": null
+    },
+    {
+      "kind": "local_model",
+      "model": null,
+      "provider": null
+    }
+  ],
+  "origin": "genesis_default",
+  "policy_id": "pol_00000001-0000-4000-8000-000000000001",
+  "principals": [
+    {
+      "actor_id": null,
+      "actor_type": "owner"
+    }
+  ],
+  "purposes": [
+    "answer",
+    "continue_session",
+    "checkpoint",
+    "extraction",
+    "inspection_preview"
+  ],
+  "resources": {
+    "all_projects": true,
+    "max_sensitivity": "highly_sensitive",
+    "project_ids": [],
+    "record_kinds": [
+      "source",
+      "attachment",
+      "project",
+      "memory",
+      "candidate",
+      "review",
+      "identity",
+      "session",
+      "session_event",
+      "checkpoint"
+    ]
+  },
+  "revision": 1,
+  "revoked_at": null,
+  "schema_version": 1,
+  "scopes": [
+    "memory:read",
+    "source:read",
+    "memory:propose",
+    "session:propose",
+    "context:read",
+    "owner:review",
+    "owner:identity",
+    "operation:read"
+  ],
+  "status": "active",
+  "updated_at": "2026-07-01T00:00:00.000Z",
+  "valid_from": "2026-07-01T00:00:00.000Z",
+  "valid_until": null
+}

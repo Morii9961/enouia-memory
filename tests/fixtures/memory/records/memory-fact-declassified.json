@@ -1,16 +1,17 @@
 {
   "access_policy_id": "pol_00000001-0000-4000-8000-000000000001",
-  "approved_at": "2026-06-12T09:05:00.000Z",
+  "approved_at": "2026-06-12T09:10:00.000Z",
   "approved_by": {
     "actor_id": "prn_00000001-0000-4000-8000-000000000001",
     "actor_type": "owner"
   },
   "category": null,
+  "claim_key": "project.public_album",
   "confidence": null,
   "conflict_group_id": null,
-  "content": "回复默认用中文。",
-  "created_at": "2026-06-12T09:05:00.500Z",
-  "declassification_approval_id": null,
+  "content": "正在做一个会公开发布的相册应用。",
+  "created_at": "2026-06-12T09:10:00.500Z",
+  "declassification_approval_id": "apv_00000014-0000-4000-8000-000000000014",
   "egress_policy_id": null,
   "epistemic_status": "asserted",
   "evidence": [
@@ -19,36 +20,34 @@
       "locator": {
         "kind": "manual_input"
       },
-      "object_hash": "992b6a741678e37774735f5dd7578dc9af9c79c7249c0cbddeabf1274599e22a",
-      "source_id": "src_0000006b-0000-4000-8000-00000000006b",
+      "object_hash": "757a6ae67c366b348121f88c27484c4d79ba48c2833a3bdf39cfa8061e79a0a3",
+      "source_id": "src_00000071-0000-4000-8000-000000000071",
       "source_revision": 1,
       "supports": "content"
     }
   ],
   "extensions": {},
   "last_verified_at": null,
-  "memory_id": "mem_0000006b-0000-4000-8000-00000000006b",
-  "observed_at": "2026-02-02T08:00:00.000Z",
+  "memory_id": "mem_00000071-0000-4000-8000-000000000071",
+  "observed_at": "2026-02-04T08:00:00.000Z",
   "priority": "P1",
   "project_id": null,
   "provenance_state": "intact",
   "review_after": null,
-  "review_id": "rvw_0000006b-0000-4000-8000-00000000006b",
+  "review_id": "rvw_00000071-0000-4000-8000-000000000071",
   "revision": 1,
   "schema_version": 1,
-  "scope": "日常对话回复",
-  "sensitivity": "private",
-  "source_id": "src_0000006b-0000-4000-8000-00000000006b",
+  "sensitivity": "normal",
+  "source_id": "src_00000071-0000-4000-8000-000000000071",
   "status": "active",
-  "strength": "explicit",
   "subject_ids": [
     "sub_00000001-0000-4000-8000-000000000001"
   ],
   "supersedes": [],
   "tags": [],
-  "title": "回复语言",
-  "type": "preference",
-  "updated_at": "2026-06-12T09:05:00.500Z",
+  "title": "公开项目",
+  "type": "fact",
+  "updated_at": "2026-06-12T09:10:00.500Z",
   "valid_from": null,
   "valid_until": null,
   "volatility": "stable"

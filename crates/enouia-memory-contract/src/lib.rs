@@ -14,6 +14,7 @@
 //! Passing these validators does not prove transactional durability; that is
 //! MV-1 behavior tested against a real store.
 
+pub mod approval;
 pub mod candidate;
 pub mod commit;
 pub mod common;

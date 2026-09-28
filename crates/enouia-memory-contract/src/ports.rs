@@ -7,15 +7,15 @@
 //! framework is defined at this stage.
 
 use crate::commit::{CommitManifest, OperationKind, OperationReceipt};
-use crate::common::{ActorRef, Sensitivity};
-use crate::context::{DestinationKind, Purpose};
+use crate::common::ActorRef;
+use crate::context::{Destination, Purpose};
 use crate::error::{MemoryError, MemoryErrorCode};
 use crate::foundation::{Cancellation, Clock, ComponentId};
 use crate::hash::Sha256Hex;
 use crate::ids::{CommitId, PrincipalId, RequestId};
 use crate::ipc::Operation;
 use crate::json::Revision;
-use crate::policy::Scope;
+use crate::policy::{PolicyDecision, ResourceContext, Scope};
 use crate::provider::{ProviderCapabilities, ProviderRequest, ProviderResponse};
 use crate::record::{RecordKind, RecordRef};
 use crate::time::Timestamp;
@@ -175,29 +175,25 @@ pub trait AuditSink {
     fn record(&self, event: &crate::commit::AuditEvent) -> Result<(), MemoryError>;
 }
 
+/// One authorization question, fully resolved by the server: the principal
+/// comes from transport authentication, and every target is a pinned record
+/// revision with its project and sensitivity read from the Vault, never from
+/// caller arguments or a hidden table keyed by request ID.
 #[derive(Clone, Debug)]
 pub struct AccessRequest {
-    /// From the transport's authentication context, never from arguments.
     pub principal: ActorRef,
     pub operation: Operation,
     pub scope: Scope,
     pub purpose: Option<Purpose>,
-    pub destination: Option<DestinationKind>,
-    pub target_sensitivity: Option<Sensitivity>,
+    /// Full destination including the exact Provider binding.
+    pub destination: Option<Destination>,
+    pub targets: Vec<ResourceContext>,
     pub request_id: RequestId,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub enum PolicyDecision {
-    Allow {
-        policy_epoch: u64,
-        deletion_epoch: u64,
-    },
-    /// Always rendered to callers as a non-disclosing code.
-    Deny { code: MemoryErrorCode },
-}
-
-/// Current policy/deletion barrier. Unknown principals and destinations deny.
+/// Default deny. `decide` must answer from versioned PolicyRecords at the
+/// current policy epoch (`policy::evaluate` is the reference semantics) and
+/// allow only when every target is allowed.
 pub trait PolicyGate {
     fn decide(&self, request: &AccessRequest) -> PolicyDecision;
     fn current_epochs(&self) -> Result<(u64, u64), MemoryError>;

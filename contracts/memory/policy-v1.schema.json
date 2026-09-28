@@ -1,0 +1,275 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.enouia-memory.invalid/memory/policy-v1.schema.json",
+  "title": "Enouia PolicyRecord v1",
+  "description": "Versioned access/egress policy; default deny. Owner grants reference an approval of this exact revision. Evaluation semantics are policy::evaluate in the Rust crate.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "policy_id",
+    "revision",
+    "status",
+    "origin",
+    "approval_id",
+    "principals",
+    "scopes",
+    "resources",
+    "purposes",
+    "destinations",
+    "valid_from",
+    "valid_until",
+    "revoked_at",
+    "created_at",
+    "updated_at"
+  ],
+  "properties": {
+    "schema_version": {
+      "$ref": "common-v1.schema.json#/$defs/schemaVersion"
+    },
+    "policy_id": {
+      "$ref": "common-v1.schema.json#/$defs/policyId"
+    },
+    "revision": {
+      "$ref": "common-v1.schema.json#/$defs/revision"
+    },
+    "status": {
+      "enum": [
+        "active",
+        "revoked"
+      ]
+    },
+    "origin": {
+      "enum": [
+        "genesis_default",
+        "owner_grant"
+      ]
+    },
+    "approval_id": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "common-v1.schema.json#/$defs/approvalId"
+        }
+      ]
+    },
+    "principals": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "actor_type",
+          "actor_id"
+        ],
+        "properties": {
+          "actor_type": {
+            "$ref": "common-v1.schema.json#/$defs/actorType"
+          },
+          "actor_id": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "common-v1.schema.json#/$defs/principalId"
+              }
+            ]
+          }
+        }
+      },
+      "minItems": 1
+    },
+    "scopes": {
+      "type": "array",
+      "items": {
+        "$ref": "common-v1.schema.json#/$defs/scope"
+      },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "resources": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "all_projects",
+        "project_ids",
+        "record_kinds",
+        "max_sensitivity"
+      ],
+      "properties": {
+        "all_projects": {
+          "type": "boolean"
+        },
+        "project_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "common-v1.schema.json#/$defs/projectId"
+          },
+          "uniqueItems": true
+        },
+        "record_kinds": {
+          "type": "array",
+          "items": {
+            "$ref": "common-v1.schema.json#/$defs/recordKind"
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "max_sensitivity": {
+          "$ref": "common-v1.schema.json#/$defs/sensitivity"
+        }
+      }
+    },
+    "purposes": {
+      "type": "array",
+      "items": {
+        "$ref": "common-v1.schema.json#/$defs/purpose"
+      },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "destinations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "kind",
+          "provider",
+          "model"
+        ],
+        "properties": {
+          "kind": {
+            "$ref": "common-v1.schema.json#/$defs/destinationKind"
+          },
+          "provider": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "type": "string",
+                "minLength": 1
+              }
+            ]
+          },
+          "model": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "type": "string",
+                "minLength": 1
+              }
+            ]
+          }
+        }
+      }
+    },
+    "valid_from": {
+      "$ref": "common-v1.schema.json#/$defs/timestamp"
+    },
+    "valid_until": {
+      "$ref": "common-v1.schema.json#/$defs/timestampOrNull"
+    },
+    "revoked_at": {
+      "$ref": "common-v1.schema.json#/$defs/timestampOrNull"
+    },
+    "created_at": {
+      "$ref": "common-v1.schema.json#/$defs/timestamp"
+    },
+    "updated_at": {
+      "$ref": "common-v1.schema.json#/$defs/timestamp"
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "origin": {
+            "enum": [
+              "owner_grant"
+            ]
+          }
+        },
+        "required": [
+          "origin"
+        ]
+      },
+      "then": {
+        "properties": {
+          "approval_id": {
+            "$ref": "common-v1.schema.json#/$defs/approvalId"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "origin": {
+            "enum": [
+              "genesis_default"
+            ]
+          }
+        },
+        "required": [
+          "origin"
+        ]
+      },
+      "then": {
+        "properties": {
+          "approval_id": {
+            "type": "null"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "enum": [
+              "revoked"
+            ]
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
+      "then": {
+        "properties": {
+          "revoked_at": {
+            "$ref": "common-v1.schema.json#/$defs/timestamp"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "enum": [
+              "active"
+            ]
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
+      "then": {
+        "properties": {
+          "revoked_at": {
+            "type": "null"
+          }
+        }
+      }
+    }
+  ]
+}

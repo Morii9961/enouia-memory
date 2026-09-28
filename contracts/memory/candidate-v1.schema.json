@@ -21,7 +21,7 @@
     "extraction_run_id",
     "confidence",
     "sensitivity",
-    "declassification_review_id",
+    "declassification_approval_id",
     "status",
     "target_memory_id",
     "target_identity_id",
@@ -131,13 +131,13 @@
     "sensitivity": {
       "$ref": "common-v1.schema.json#/$defs/sensitivity"
     },
-    "declassification_review_id": {
+    "declassification_approval_id": {
       "oneOf": [
         {
           "type": "null"
         },
         {
-          "$ref": "common-v1.schema.json#/$defs/reviewId"
+          "$ref": "common-v1.schema.json#/$defs/approvalId"
         }
       ]
     },

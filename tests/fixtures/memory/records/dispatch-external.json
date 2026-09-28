@@ -1,0 +1,52 @@
+{
+  "capsule_id": "cap_00000003-0000-4000-8000-000000000003",
+  "completed_at": "2026-07-04T01:00:01.000Z",
+  "destination": {
+    "kind": "external_provider",
+    "provider_binding": {
+      "adapter_version": "0",
+      "model": "example-model",
+      "provider": "example-cloud"
+    }
+  },
+  "dispatch_id": "dsp_00000002-0000-4000-8000-000000000002",
+  "egress": {
+    "checked_at": "2026-07-04T01:00:00.190Z",
+    "deletion_epoch": 0,
+    "egress_approval_id": "apv_00000002-0000-4000-8000-000000000002",
+    "egress_policy_id": "pol_00000002-0000-4000-8000-000000000002",
+    "policy_epoch": 2
+  },
+  "inspection_id": "insp_00000003-0000-4000-8000-000000000003",
+  "messages": [
+    {
+      "content_hash": "33ef984f8ec9f56faaa5525f057efec11a186588785d61014e46f0048168e402",
+      "resource_refs": [],
+      "role": "system",
+      "size_bytes": 123
+    },
+    {
+      "content_hash": "66eacb7e18192170bdd80ce5966dc900bcddcf3241c4e3e5ddfaefd6880fb555",
+      "resource_refs": [
+        {
+          "record_id": "mem_00000002-0000-4000-8000-000000000002",
+          "record_kind": "memory",
+          "revision": 1
+        }
+      ],
+      "role": "user",
+      "size_bytes": 221
+    }
+  ],
+  "output": {
+    "max_output_tokens": 1024,
+    "streaming": false
+  },
+  "prepared_at": "2026-07-04T01:00:00.100Z",
+  "request_hash": "89e7610839f7e3fd6c72c97b15d27048beaba3dd701702e08c80aac2d90344f5",
+  "request_id": "req_00000016-0000-4000-8000-000000000016",
+  "schema_version": 1,
+  "sent_at": "2026-07-04T01:00:00.200Z",
+  "state": "completed",
+  "tools": []
+}

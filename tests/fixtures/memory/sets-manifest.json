@@ -161,14 +161,32 @@
       "ops": [
         {
           "op": "append",
-          "path": "/dispatches/0/messages/1/capsule_memory_refs",
+          "path": "/dispatches/0/messages/1/resource_refs",
           "value": {
-            "memory_id": "mem_00000003-0000-4000-8000-000000000003",
+            "record_id": "mem_00000003-0000-4000-8000-000000000003",
+            "record_kind": "memory",
             "revision": 1
           }
         }
       ],
-      "rust_rule": "dispatch.hidden_memory"
+      "rust_rule": "dispatch.hidden_resource"
+    },
+    {
+      "base": "sets/morimeta-confirmed.json",
+      "covers": "F1: non-memory payloads are covered too",
+      "id": "dispatch-hidden-attachment",
+      "ops": [
+        {
+          "op": "append",
+          "path": "/dispatches/0/messages/1/resource_refs",
+          "value": {
+            "record_id": "att_00000001-0000-4000-8000-000000000001",
+            "record_kind": "attachment",
+            "revision": 1
+          }
+        }
+      ],
+      "rust_rule": "dispatch.hidden_resource"
     },
     {
       "base": "sets/morimeta-confirmed.json",
@@ -322,7 +340,7 @@
       "ops": [
         {
           "op": "append",
-          "path": "/memories/9/supersedes",
+          "path": "/memories/10/supersedes",
           "value": {
             "effective_from": "unknown",
             "memory_id": "mem_00000066-0000-4000-8000-000000000066",
@@ -340,7 +358,7 @@
       "ops": [
         {
           "op": "set",
-          "path": "/memories/8/claim_key",
+          "path": "/memories/9/claim_key",
           "value": "tool.terminal"
         }
       ],
@@ -551,51 +569,310 @@
       "rust_rule": "dispatch.tombstoned_content"
     },
     {
-      "base": "sets/morimeta-confirmed.json",
-      "covers": "private content needs per-request confirmation",
-      "id": "private-external-unconfirmed",
+      "base": "sets/morimeta-external-egress.json",
+      "covers": "F1: private egress needs approval",
+      "id": "egress-approval-missing",
       "ops": [
         {
           "op": "set",
-          "path": "/capsules/0/destination",
-          "value": {
-            "kind": "external_provider",
-            "provider_binding": {
-              "adapter_version": "0",
-              "model": "example-model",
-              "provider": "example-cloud"
-            }
-          }
-        },
-        {
-          "op": "set",
-          "path": "/dispatches/0/destination",
-          "value": {
-            "kind": "external_provider",
-            "provider_binding": {
-              "adapter_version": "0",
-              "model": "example-model",
-              "provider": "example-cloud"
-            }
-          }
-        },
-        {
-          "op": "set",
-          "path": "/dispatches/0/egress/egress_policy_id",
-          "value": "pol_00000002-0000-4000-8000-000000000002"
-        },
-        {
-          "op": "set",
-          "path": "/memories/0/egress_policy_id",
-          "value": "pol_00000002-0000-4000-8000-000000000002"
-        },
-        {
-          "op": "set",
-          "path": "/dispatches/0/request_hash",
-          "value": "89e7610839f7e3fd6c72c97b15d27048beaba3dd701702e08c80aac2d90344f5"
+          "path": "/dispatches/1/egress/egress_approval_id",
+          "value": null
         }
       ],
-      "rust_rule": "dispatch.private_unconfirmed"
+      "rust_rule": "egress.approval_missing"
+    },
+    {
+      "base": "sets/morimeta-external-egress.json",
+      "covers": "F1: a policy grant is not a per-request approval",
+      "id": "egress-approval-wrong-kind",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/dispatches/1/egress/egress_approval_id",
+          "value": "apv_00000001-0000-4000-8000-000000000001"
+        }
+      ],
+      "rust_rule": "egress.approval_kind"
+    },
+    {
+      "base": "sets/morimeta-external-egress.json",
+      "covers": "F1: bound to the request",
+      "id": "egress-approval-wrong-request",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/approvals/1/binding/request_id",
+          "value": "req_000003e7-0000-4000-8000-0000000003e7"
+        }
+      ],
+      "rust_rule": "egress.approval_request"
+    },
+    {
+      "base": "sets/morimeta-external-egress.json",
+      "covers": "F1: bound to the exact payload digest",
+      "id": "egress-approval-wrong-payload",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/approvals/1/binding/payload_hash",
+          "value": "b3ceccd4312910664adbe08539975ae132d33d41839352288f3c5a4ac2998807"
+        }
+      ],
+      "rust_rule": "egress.approval_payload"
+    },
+    {
+      "base": "sets/morimeta-external-egress.json",
+      "covers": "F1: bound to the exact destination",
+      "id": "egress-approval-wrong-provider",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/approvals/1/binding/destination/provider_binding/model",
+          "value": "other-model"
+        }
+      ],
+      "rust_rule": "egress.approval_destination"
+    },
+    {
+      "base": "sets/morimeta-external-egress.json",
+      "covers": "F1: expired approvals do not count",
+      "id": "egress-approval-expired",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/approvals/1/expires_at",
+          "value": "2026-07-04T01:00:00.160Z"
+        }
+      ],
+      "rust_rule": "egress.approval_expired"
+    },
+    {
+      "base": "sets/morimeta-external-egress.json",
+      "covers": "F1: single use",
+      "id": "egress-approval-replayed",
+      "ops": [
+        {
+          "op": "append",
+          "path": "/dispatches",
+          "then": [
+            {
+              "op": "set",
+              "path": "/dispatch_id",
+              "value": "dsp_0000004d-0000-4000-8000-00000000004d"
+            }
+          ],
+          "value_from": "/dispatches/1"
+        }
+      ],
+      "rust_rule": "egress.approval_replayed"
+    },
+    {
+      "base": "sets/morimeta-external-egress.json",
+      "covers": "F1: bound to the exact resources",
+      "id": "egress-approval-wrong-resources",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/approvals/1/binding/resources",
+          "value": [
+            {
+              "record_id": "mem_00000003-0000-4000-8000-000000000003",
+              "record_kind": "memory",
+              "revision": 1
+            }
+          ]
+        }
+      ],
+      "rust_rule": "egress.approval_resources"
+    },
+    {
+      "base": "sets/morimeta-external-egress.json",
+      "covers": "F1: bound to the policy epoch",
+      "id": "egress-approval-wrong-epoch",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/approvals/1/binding/policy_epoch",
+          "value": 1
+        }
+      ],
+      "rust_rule": "egress.approval_epoch"
+    },
+    {
+      "base": "sets/morimeta-external-egress.json",
+      "covers": "F4: revocation blocks sending",
+      "id": "egress-grant-revoked",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/policies/1/status",
+          "value": "revoked"
+        },
+        {
+          "op": "set",
+          "path": "/policies/1/revoked_at",
+          "value": "2026-07-02T00:00:00.000Z"
+        }
+      ],
+      "rust_rule": "dispatch.policy_denied"
+    },
+    {
+      "base": "sets/morimeta-external-egress.json",
+      "covers": "F4: a grant is bound to its exact contents",
+      "id": "egress-grant-tampered",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/policies/1/resources/max_sensitivity",
+          "value": "highly_sensitive"
+        }
+      ],
+      "rust_rule": "policy.grant_invalid"
+    },
+    {
+      "base": "sets/morimeta-external-egress.json",
+      "covers": "F4: switching Provider requires a new grant",
+      "id": "egress-other-provider",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/capsules/1/destination",
+          "value": {
+            "kind": "external_provider",
+            "provider_binding": {
+              "adapter_version": "0",
+              "model": "example-model",
+              "provider": "other-cloud"
+            }
+          }
+        },
+        {
+          "op": "set",
+          "path": "/dispatches/1/destination",
+          "value": {
+            "kind": "external_provider",
+            "provider_binding": {
+              "adapter_version": "0",
+              "model": "example-model",
+              "provider": "other-cloud"
+            }
+          }
+        },
+        {
+          "op": "set",
+          "path": "/dispatches/1/request_hash",
+          "value": "36b48abdf956e0990aa75c195e5f2a7058faa3234be4f717bfbb4b26834bd3da"
+        }
+      ],
+      "rust_rule": "dispatch.policy_denied"
+    },
+    {
+      "base": "sets/morimeta-external-egress.json",
+      "covers": "F4: grant is project-scoped",
+      "id": "egress-other-project-memory",
+      "ops": [
+        {
+          "op": "append",
+          "path": "/dispatches/1/messages/1/resource_refs",
+          "value": {
+            "record_id": "mem_00000003-0000-4000-8000-000000000003",
+            "record_kind": "memory",
+            "revision": 1
+          }
+        }
+      ],
+      "rust_rule": "dispatch.policy_denied"
+    },
+    {
+      "base": "sets/lifecycle.json",
+      "covers": "F2: an accept review is not a delete confirmation",
+      "id": "tombstone-ordinary-accept-review",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/tombstones/0/review_id",
+          "value": "rvw_00000065-0000-4000-8000-000000000065"
+        }
+      ],
+      "rust_rule": "tombstone.review_action"
+    },
+    {
+      "base": "sets/lifecycle.json",
+      "covers": "F2: mode is bound",
+      "id": "tombstone-binding-mode-mismatch",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/reviews/12/delete_binding/mode",
+          "value": "purge"
+        }
+      ],
+      "rust_rule": "tombstone.review_binding"
+    },
+    {
+      "base": "sets/lifecycle.json",
+      "covers": "F2: target is bound",
+      "id": "tombstone-wrong-target",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/tombstones/0/targets/0/record_id",
+          "value": "mem_00000067-0000-4000-8000-000000000067"
+        }
+      ],
+      "rust_rule": "tombstone.review_binding"
+    },
+    {
+      "base": "sets/lifecycle.json",
+      "covers": "F2: downgrade needs approval",
+      "id": "declassification-missing",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/memories/8/declassification_approval_id",
+          "value": null
+        }
+      ],
+      "rust_rule": "sensitivity.downgrade"
+    },
+    {
+      "base": "sets/lifecycle.json",
+      "covers": "F2: bound to the exact revision",
+      "id": "declassification-wrong-revision",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/approvals/0/binding/target/revision",
+          "value": 2
+        }
+      ],
+      "rust_rule": "sensitivity.declassification_invalid"
+    },
+    {
+      "base": "sets/lifecycle.json",
+      "covers": "F2: bound to both levels",
+      "id": "declassification-wrong-level",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/approvals/0/binding/to_sensitivity",
+          "value": "public"
+        }
+      ],
+      "rust_rule": "sensitivity.declassification_invalid"
+    },
+    {
+      "base": "sets/lifecycle.json",
+      "covers": "F2: bound to the approved content",
+      "id": "declassification-content-changed",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/memories/8/content",
+          "value": "正在做一个会公开发布的相册应用，并且已经上线。"
+        }
+      ],
+      "rust_rule": "sensitivity.declassification_invalid"
     },
     {
       "base": "sets/morimeta-confirmed.json",
@@ -760,7 +1037,7 @@
       "ops": [
         {
           "op": "set",
-          "path": "/memories/8/supersedes/0/revision",
+          "path": "/memories/9/supersedes/0/revision",
           "value": 9
         }
       ],
@@ -786,7 +1063,7 @@
       "ops": [
         {
           "op": "set",
-          "path": "/memories/10/conflict_group_id",
+          "path": "/memories/11/conflict_group_id",
           "value": "cfl_00000009-0000-4000-8000-000000000009"
         }
       ],
@@ -864,6 +1141,7 @@
   "valid": [
     "sets/morimeta-confirmed.json",
     "sets/morimeta-insufficient-evidence.json",
+    "sets/morimeta-external-egress.json",
     "sets/lifecycle.json"
   ]
 }

@@ -26,7 +26,7 @@ def dispatch_messages(dispatch_id, destination, texts, refs, tools=(), output=No
     output = output or {"max_output_tokens": 1024, "streaming": False}
     PAYLOADS[dispatch_id] = {"destination": destination, "messages": [{"role": r, "text": x} for r, x in texts],
                              "tools": [{"name": n, "schema_json": d} for n, d in tools], "output": output}
-    msgs = [{"role": r, "content_hash": sha(x), "size_bytes": len(x.encode("utf-8")), "capsule_memory_refs": list(ref)}
+    msgs = [{"role": r, "content_hash": sha(x), "size_bytes": len(x.encode("utf-8")), "resource_refs": list(ref)}
             for (r, x), ref in zip(texts, refs)]
     return msgs, [{"name": n, "definition_hash": sha(d)} for n, d in tools], output, payload_hash(destination, texts, tools, output)
 
@@ -54,7 +54,8 @@ class Vault:
             "candidate": ("candidates", "candidate_id"), "review": ("reviews", "review_id"),
             "identity": ("identities", "identity_id"), "session": ("sessions", "session_id"),
             "session_event": ("session_events", "event_id"), "checkpoint": ("checkpoints", "checkpoint_id"),
-            "tombstone": ("tombstones", "delete_id")}
+            "tombstone": ("tombstones", "delete_id"), "policy": ("policies", "policy_id"),
+            "approval": ("approvals", "approval_id")}
 
     def __init__(self, base):
         self.base = base
@@ -155,7 +156,7 @@ def candidate(n, rev, src, kind, ptype, content, origin, actor, created, status=
         "evidence": [evidence(src)], "source_id": src["source_id"], "reason": "synthetic fixture proposal",
         "origin_kind": origin, "origin_actor": actor, "extraction_run_id": uid("ext", ext) if ext else None,
         "confidence": 0.62 if origin == "model_extraction" else None, "sensitivity": sensitivity,
-        "declassification_review_id": None, "status": status, "target_memory_id": target,
+        "declassification_approval_id": None, "status": status, "target_memory_id": target,
         "target_identity_id": None, "expected_revision": expected, "proposed_effective_from": effective,
         "conflicts": [], "dedupe_fingerprint": sha(f"dedupe-{n}"), "reopens_candidate_id": None,
         "merged_into": merged, "resolution_review_id": review, "created_at": created,
@@ -169,15 +170,40 @@ def resolve(cand, review_id, at, status="accepted"):
     c["updated_at"] = at
     return c
 
-def review(n, cand, action, at, commit_id, results, evid, targets=(), effective=None, reason=None):
+def review(n, cand, action, at, commit_id, results, evid, targets=(), effective=None, reason=None, delete_binding=None):
     return {"schema_version": 1, "review_id": uid("rvw", n), "actor": OWNER,
             "trusted_surface": "trusted_windows_app", "action": action, "candidate_id": cand["candidate_id"],
             "candidate_revision": cand["revision"], "final_content_hash": sha(cand["proposed_content"]),
             "approved_diff_hash": sha(f"diff-{n}"), "evidence_refs": [sref(e) for e in evid],
             "target_expected_revisions": list(targets),
             "approval_nonce": f"nonce-synthetic-{n:04d}-abcdefghij", "effective_from": effective,
-            "merge_target": None, "resulting_records": results, "reason_code": reason,
+            "merge_target": None, "resulting_records": results, "delete_binding": delete_binding, "reason_code": reason,
             "created_at": at, "commit_id": commit_id}
+
+ALL_KINDS = ["source", "attachment", "project", "memory", "candidate", "review", "identity", "session",
+             "session_event", "checkpoint"]
+
+def default_policy(at):
+    """Genesis default: owner-only, local destinations, never provider:send."""
+    return {"schema_version": 1, "policy_id": POL, "revision": 1, "status": "active", "origin": "genesis_default",
+            "approval_id": None, "principals": [{"actor_type": "owner", "actor_id": None}],
+            "scopes": ["memory:read", "source:read", "memory:propose", "session:propose", "context:read",
+                       "owner:review", "owner:identity", "operation:read"],
+            "resources": {"all_projects": True, "project_ids": [], "record_kinds": ALL_KINDS,
+                          "max_sensitivity": "highly_sensitive"},
+            "purposes": ["answer", "continue_session", "checkpoint", "extraction", "inspection_preview"],
+            "destinations": [{"kind": "local_mock", "provider": None, "model": None},
+                             {"kind": "local_model", "provider": None, "model": None}],
+            "valid_from": at, "valid_until": None, "revoked_at": None, "created_at": at, "updated_at": at}
+
+def approval(n, binding, issued, expires=None):
+    return {"schema_version": 1, "approval_id": uid("apv", n), "approved_by": OWNER,
+            "trusted_surface": "trusted_windows_app", "approval_nonce": f"nonce-approval-{n:04d}-abcdefghij",
+            "approved_diff_hash": sha(f"approval-diff-{n}"), "issued_at": issued, "expires_at": expires,
+            "binding": binding}
+
+EXT_DEST = {"kind": "external_provider",
+            "provider_binding": {"provider": "example-cloud", "model": "example-model", "adapter_version": "0"}}
 
 def rref(kind, rid, rev=1):
     return {"record_kind": kind, "record_id": rid, "revision": rev}
@@ -192,7 +218,7 @@ def memory(n, rev, mtype, title, content, srcs, rev_rec, created, sensitivity="p
          "volatility": "stable", "priority": "P1", "sensitivity": sensitivity, "access_policy_id": POL,
          "egress_policy_id": None, "status": "active", "supersedes": [], "conflict_group_id": None,
          "provenance_state": "intact", "review_id": rev_rec["review_id"], "approved_by": OWNER,
-         "approved_at": rev_rec["created_at"], "declassification_review_id": None,
+         "approved_at": rev_rec["created_at"], "declassification_approval_id": None,
          "created_at": created, "updated_at": created, "extensions": {}}
     m.update(fields)
     if extra:
@@ -202,9 +228,25 @@ def memory(n, rev, mtype, title, content, srcs, rev_rec, created, sensitivity="p
 # =====================================================================
 # MoriMeta story (CONTEXT_MODEL §9)
 # =====================================================================
-def morimeta(confirmed):
-    v = Vault(0 if confirmed else 100)
-    v.commit("genesis", OWNER, [], ts("07-01", "00:00:00"))
+def morimeta(confirmed, external=False):
+    v = Vault(0 if confirmed and not external else (100 if not confirmed else 300))
+    v.commit("genesis", OWNER, [("policy", default_policy(ts("07-01", "00:00:00")))], ts("07-01", "00:00:00"))
+    pol2 = None
+    if external:
+        # Owner grant: MoriMeta memories up to private may go to example-cloud/example-model.
+        pol2 = {"schema_version": 1, "policy_id": uid("pol", 2), "revision": 1, "status": "active",
+                "origin": "owner_grant", "approval_id": uid("apv", 1),
+                "principals": [{"actor_type": "owner", "actor_id": None}], "scopes": ["provider:send"],
+                "resources": {"all_projects": False, "project_ids": [uid("prj", 1)], "record_kinds": ["memory"],
+                              "max_sensitivity": "private"},
+                "purposes": ["answer"],
+                "destinations": [{"kind": "external_provider", "provider": "example-cloud", "model": "example-model"}],
+                "valid_from": ts("07-01", "06:00:00"), "valid_until": None, "revoked_at": None,
+                "created_at": ts("07-01", "06:00:00"), "updated_at": ts("07-01", "06:00:00")}
+        grant = approval(1, {"kind": "policy_grant", "policy_id": pol2["policy_id"], "policy_revision": 1,
+                             "grant_hash": sha(canonical(pol2))}, ts("07-01", "05:59:00"))
+        v.policy_epoch += 1
+        v.commit("policy_change", OWNER, [("approval", grant), ("policy", pol2)], ts("07-01", "06:00:00"))
     sA = source(1, "export_message", "（合成）可以考虑三种视觉方向：Professional Darkroom、Paper Studio、Neon Grid。",
                 "assistant", "model_claim", ts("07-02", "10:00:00"), imp=1, pointer="/mapping/a1/message/content")
     sB = source(2, "export_message", "（合成）就选 Professional Darkroom，作为 MoriMeta 的视觉方向。",
@@ -267,6 +309,7 @@ def morimeta(confirmed):
         mB = memory(2, 1, "project_state", "MoriMeta 视觉方向", "MoriMeta 的视觉设计方向确定为 Professional Darkroom。",
                     [sB], {"review_id": None, "created_at": None}, None, project=prj_meta, subjects=(),
                     volatility="changing", review_after=ts("07-09", "13:00:00"),
+                    egress_policy_id=pol2["policy_id"] if external else None,
                     state=[], decisions=[{"item_id": itm_B, "claim": "视觉方向：Professional Darkroom",
                                           "evidence_refs": [sref(sB)], "state_kind": "decided",
                                           "as_of": ts("07-02", "10:05:00")}], open_loops=[])
@@ -338,8 +381,9 @@ def morimeta(confirmed):
                       "sensitivity": "private"})
     capsule = {
         "schema_version": 1, "capsule_id": cap_id, "generated_at": ts("07-04", "00:00:00"), "request_id": req,
+        "requested_by": OWNER,
         "query": "我们之前 MoriMeta 的设计最后选了什么？", "as_of": None, "vault_commit_id": head,
-        "policy_epoch": 1, "deletion_epoch": 0, "compiler_version": "compiler/0-mv0-fixture",
+        "policy_epoch": v.policy_epoch, "deletion_epoch": 0, "compiler_version": "compiler/0-mv0-fixture",
         "ranking_version": "ranking/0-mv0-fixture", "tokenizer_version": "utf8_bytes_v1",
         "client_surface": "local_cli", "destination": {"kind": "local_mock", "provider_binding": None},
         "purpose": "answer", "session_id": ses, "branch_id": br, "identity": [], "user_context": [],
@@ -373,7 +417,7 @@ def morimeta(confirmed):
         {"record_kind": "candidate", "record_id": cM["candidate_id"], "revision": 2, "decision": "excluded",
          "reason": "rejected", "rank": None, "token_cost": None, "source_reachable": True, "truncated": False}]
     inspection = {"schema_version": 1, "inspection_id": insp_id, "capsule_id": cap_id, "request_id": req,
-                  "generated_at": ts("07-04", "00:00:00", 50), "vault_commit_id": head, "policy_epoch": 1,
+                  "generated_at": ts("07-04", "00:00:00", 50), "vault_commit_id": head, "policy_epoch": v.policy_epoch,
                   "deletion_epoch": 0, "ranking_version": "ranking/0-mv0-fixture", "viewer_scope": "owner_full",
                   "decisions": decisions}
     local = {"kind": "local_mock", "provider_binding": None}
@@ -386,23 +430,57 @@ def morimeta(confirmed):
     dsp_id = uid("dsp", 1 if confirmed else 101)
     msgs, tools_, output_, request_hash_ = dispatch_messages(
         dsp_id, local, [("system", system_text), ("user", user_text)],
-        [[], [{"memory_id": mB["memory_id"], "revision": 1}] if confirmed else []])
+        [[], [rref("memory", mB["memory_id"])] if confirmed else []])
     dispatch = {"schema_version": 1, "dispatch_id": dsp_id, "capsule_id": cap_id, "inspection_id": insp_id,
                 "request_id": req, "destination": local,
                 "request_hash": request_hash_, "messages": msgs,
-                "tools": tools_, "output": output_, "egress": {"policy_epoch": 1, "deletion_epoch": 0, "egress_policy_id": None,
-                                        "confirmation_review_id": None, "checked_at": ts("07-04", "00:00:00", 100)},
+                "tools": tools_, "output": output_, "egress": {"policy_epoch": v.policy_epoch, "deletion_epoch": 0, "egress_policy_id": None,
+                                        "egress_approval_id": None, "checked_at": ts("07-04", "00:00:00", 100)},
                 "state": "completed", "prepared_at": ts("07-04", "00:00:00", 100),
                 "sent_at": ts("07-04", "00:00:00", 200), "completed_at": ts("07-04", "00:00:00", 300)}
     audit = [
         {"schema_version": 1, "audit_id": uid("aud", 1), "actor": OWNER, "operation": "context_get",
          "object_refs": [rref("memory", mB["memory_id"])] if confirmed else [], "purpose": "answer",
-         "destination": "local_mock", "policy_epoch": 1, "decision": "allow", "error_code": None,
+         "destination": "local_mock", "policy_epoch": v.policy_epoch, "decision": "allow", "error_code": None,
          "request_id": req, "created_at": ts("07-04", "00:00:00", 60)},
         {"schema_version": 1, "audit_id": uid("aud", 2), "actor": AGENT, "operation": "memory_source",
-         "object_refs": [], "purpose": None, "destination": None, "policy_epoch": 1, "decision": "deny",
+         "object_refs": [], "purpose": None, "destination": None, "policy_epoch": v.policy_epoch, "decision": "deny",
          "error_code": "permission_denied", "request_id": uid("req", 21), "created_at": ts("07-04", "00:05:00")}]
     v.extra = {"capsules": [capsule], "inspections": [inspection], "dispatches": [dispatch], "audit_events": audit}
+    if external:
+        # Same question sent to an external model: only the granted MoriMeta memory
+        # is carried, and it is private, so an exact egress approval is required.
+        req_x, cap_x, insp_x, dsp_x = uid("req", 22), uid("cap", 3), uid("insp", 3), uid("dsp", 2)
+        capsule_x = copy.deepcopy(capsule)
+        capsule_x.update({"capsule_id": cap_x, "request_id": req_x, "generated_at": ts("07-04", "01:00:00"),
+                          "destination": EXT_DEST, "client_surface": "windows_app",
+                          "recent_session_checkpoints": [], "open_loops": []})
+        inspection_x = copy.deepcopy(inspection)
+        inspection_x.update({"inspection_id": insp_x, "capsule_id": cap_x, "request_id": req_x,
+                             "generated_at": ts("07-04", "01:00:00", 50)})
+        inspection_x["decisions"][1]["reason"] = "policy_denied"  # Moriium: no egress grant
+        msgs_x, tools_x, output_x, hash_x = dispatch_messages(
+            dsp_x, EXT_DEST, [("system", system_text), ("user", user_text)], [[], [rref("memory", mB["memory_id"])]])
+        egress_ok = approval(2, {"kind": "egress", "request_id": req_x, "capsule_id": cap_x, "payload_hash": hash_x,
+                                 "destination": EXT_DEST, "resources": [rref("memory", mB["memory_id"])],
+                                 "policy_id": pol2["policy_id"], "policy_epoch": v.policy_epoch},
+                             ts("07-04", "01:00:00", 150), ts("07-04", "01:10:00", 150))
+        v.commit("owner_approval", OWNER, [("approval", egress_ok)], ts("07-04", "01:00:00", 180))
+        dispatch_x = {"schema_version": 1, "dispatch_id": dsp_x, "capsule_id": cap_x, "inspection_id": insp_x,
+                      "request_id": req_x, "destination": EXT_DEST, "request_hash": hash_x, "messages": msgs_x,
+                      "tools": tools_x, "output": output_x,
+                      "egress": {"policy_epoch": v.policy_epoch, "deletion_epoch": 0,
+                                 "egress_policy_id": pol2["policy_id"], "egress_approval_id": egress_ok["approval_id"],
+                                 "checked_at": ts("07-04", "01:00:00", 190)},
+                      "state": "completed", "prepared_at": ts("07-04", "01:00:00", 100),
+                      "sent_at": ts("07-04", "01:00:00", 200), "completed_at": ts("07-04", "01:00:01")}
+        v.extra = {"capsules": [capsule, capsule_x], "inspections": [inspection, inspection_x],
+                   "dispatches": [dispatch, dispatch_x], "audit_events": audit}
+        doc = v.set_doc("Synthetic MoriMeta story plus an owner egress grant (MoriMeta -> example-cloud/example-model) "
+                        "and an external request carrying the private decision under an exact, single-use egress "
+                        "approval. Test data only; no real Provider or memory.")
+        dump("sets/morimeta-external-egress.json", doc)
+        return v, doc, out
     name = "confirmed" if confirmed else "insufficient-evidence"
     desc = ("Synthetic MoriMeta story F-A..F-D with an explicit user confirmation of Professional Darkroom. "
             "Test data only; not a real memory." if confirmed else
@@ -414,13 +492,14 @@ def morimeta(confirmed):
 
 v_conf, conf, story = morimeta(True)
 v_insuf, insuf, _ = morimeta(False)
+v_ext, ext, _ = morimeta(True, external=True)
 
 # =====================================================================
 # Lifecycle set: supersession (future-effective), live/expired, conflict,
 # preference, episode, reviewed checkpoint memory, identity, delete.
 # =====================================================================
 L = Vault(200)
-L.commit("genesis", OWNER, [], ts("01-01", "00:00:00"))
+L.commit("genesis", OWNER, [("policy", default_policy(ts("01-01", "00:00:00")))], ts("01-01", "00:00:00"))
 def man(n, text, day, **kw):
     return source(n, "manual_assertion", text, "user", "user_statement", ts(day, "08:00:00"), **kw)
 s_old = man(101, "（合成）我主要用 VS Code 写代码。", "01-05")
@@ -450,7 +529,8 @@ for i, text in enumerate(ev_texts):
                 "sensitivity": "private", "extensions": {}})
 s_ck = source(112, "runtime_event", ev_texts[0], "user", "user_statement", ts("06-10", "10:00:00"),
               manual=uid("evt", 21), captured=ts("06-10", "10:00:00", 5), provider=None)
-sources = [s_old, s_new, s_price, s_exp, s_c1, s_c2, s_pref, s_epi, s_id, s_tomb, s_del]
+s_decl = man(113, "（合成）我正在做一个会公开发布的相册应用。", "02-04")
+sources = [s_old, s_new, s_price, s_exp, s_c1, s_c2, s_pref, s_epi, s_id, s_tomb, s_del, s_decl]
 L.commit("import", OWNER, [("source", s) for s in sources], ts("06-01", "12:00:00"))
 session2 = {"schema_version": 1, "session_id": ses2, "revision": 1, "origin_surface": "local_cli",
             "provider_bindings": [{"binding": {"provider": "mock", "model": "deterministic-mock", "adapter_version": "0"}, "from_sequence": 1}],
@@ -484,7 +564,8 @@ c_epi = mk(108, s_epi, "episode", "5 月 3 日去了琉璃光院。")
 c_ck = mk(112, s_ck, "session_checkpoint", "确定周报采用三段式。")
 c_id = mk(109, s_id, "identity", "身份核心说明（合成）。", kind="identity_change")
 c_tomb = mk(110, s_tomb, "fact", "旧的收件地址（合成）。")
-first = [c_old, c_price, c_exp, c_c1, c_pref, c_epi, c_ck, c_id, c_tomb]
+c_decl = mk(113, s_decl, "fact", "正在做一个会公开发布的相册应用。")
+first = [c_old, c_price, c_exp, c_c1, c_pref, c_epi, c_ck, c_id, c_tomb, c_decl]
 L.commit("candidate_propose", OWNER, [("candidate", c) for c in first], t_p)
 
 clock = [9, 0]
@@ -492,12 +573,13 @@ def tick():
     clock[1] += 1
     return ts("06-12", f"{clock[0]:02d}:{clock[1]:02d}:00"), ts("06-12", f"{clock[0]:02d}:{clock[1]:02d}:00", 500)
 
-def accept_l(n, cand, src, docs_fn, action="accept", effective=None, targets=(), op="review_commit"):
+def accept_l(n, cand, src, docs_fn, action="accept", effective=None, targets=(), op="review_commit", delete_binding=None):
     t_rev, t_commit = tick()
     cid = L.next_commit_id()
     docs = docs_fn(uid("rvw", n), t_rev, t_commit)
     results = [rref(k, d[L.KEYS[k][1]], d.get("revision", 1)) for k, d in docs]
-    r = review(n, cand, action, t_rev, cid, results, [src], targets=targets, effective=effective)
+    r = review(n, cand, action, t_rev, cid, results, [src], targets=targets, effective=effective,
+               delete_binding=delete_binding)
     L.commit(op, OWNER, [("review", r), ("candidate", resolve(cand, r["review_id"], t_commit))] + docs, t_commit,
              reviews=[r["review_id"]], tombstones=[d["delete_id"] for k, d in docs if k == "tombstone"])
     return r
@@ -544,6 +626,18 @@ accept_l(109, c_id, s_id, id_docs, action="identity_accept")
 accept_l(110, c_tomb, s_tomb, lambda r, a, b: add("tomb", mem_l(110, "fact", "旧收件地址", s_tomb, "旧的收件地址（合成）。", r, a, b,
          claim_key="address.old")))
 
+DECL = {}
+def decl_docs(r, a, b):
+    # The owner reviews a public-safe restatement and explicitly declassifies it.
+    m = mem_l(113, "fact", "公开项目", s_decl, "正在做一个会公开发布的相册应用。", r, a, b,
+              claim_key="project.public_album", sensitivity="normal", declassification_approval_id=uid("apv", 20))
+    ap = approval(20, {"kind": "declassification", "target": rref("memory", m["memory_id"]),
+                       "from_sensitivity": "private", "to_sensitivity": "normal", "source_refs": [sref(s_decl)],
+                       "final_content_hash": sha(m["content"])}, a)
+    DECL["memory"], DECL["approval"] = m, ap
+    return [("approval", ap), ("memory", m)]
+accept_l(113, c_decl, s_decl, decl_docs)
+
 # Second wave: supersede (future-effective), conflict, delete.
 t_p2 = ts("09-20", "09:00:00")
 c_new = candidate(102, 1, s_new, "supersede", "fact", "从 12 月 1 日起改用 Zed。", "owner_manual", OWNER, t_p2,
@@ -585,6 +679,8 @@ def del_docs(r, a, b):
     M["tombstone"] = t
     return [("tombstone", t)]
 accept_l(111, c_del, s_del, del_docs, action="confirm_delete", targets=[rref("memory", M["tomb"]["memory_id"], 1)],
+         delete_binding={"mode": "logical_delete", "scope": "all_revisions",
+                         "targets": [{"record_kind": "memory", "record_id": M["tomb"]["memory_id"], "revision": None}]},
          op="logical_delete")
 head = L.commits[-1]["commit_id"]
 
@@ -601,7 +697,7 @@ req2, cap2, insp2 = uid("req", 40), uid("cap", 2), uid("insp", 2)
 lc_items = [item(M["old2"], "current_supported"), item(M["price"], "needs_reverification"),
             item(M["c2"], "conflicted"), item(M["c1b"], "conflicted")]
 capsule2 = {
-    "schema_version": 1, "capsule_id": cap2, "generated_at": now, "request_id": req2,
+    "schema_version": 1, "capsule_id": cap2, "generated_at": now, "request_id": req2, "requested_by": OWNER,
     "query": "我现在用什么编辑器？显卡价格和住处呢？", "as_of": None, "vault_commit_id": head,
     "policy_epoch": 1, "deletion_epoch": 1, "compiler_version": "compiler/0-mv0-fixture",
     "ranking_version": "ranking/0-mv0-fixture", "tokenizer_version": "utf8_bytes_v1", "client_surface": "test",
@@ -689,6 +785,14 @@ records = {
     "inspection.json": conf["inspections"][0],
     "dispatch.json": conf["dispatches"][0],
     "audit-event-deny.json": conf["audit_events"][1],
+    "approval-egress.json": pick(ext, "approvals", "approval_id", uid("apv", 2)),
+    "approval-policy-grant.json": pick(ext, "approvals", "approval_id", uid("apv", 1)),
+    "approval-declassification.json": DECL["approval"],
+    "policy-default.json": pick(ext, "policies", "policy_id", uid("pol", 1)),
+    "policy-grant.json": pick(ext, "policies", "policy_id", uid("pol", 2)),
+    "review-confirm-delete.json": pick(life, "reviews", "review_id", uid("rvw", 111)),
+    "memory-fact-declassified.json": DECL["memory"],
+    "dispatch-external.json": pick(ext, "dispatches", "dispatch_id", uid("dsp", 2)),
 }
 extra_records = {
     "attachment-present.json": {"schema_version": 1, "attachment_id": uid("att", 1), "revision": 1,
@@ -728,7 +832,8 @@ KIND = {"source": "source", "attachment": "attachment", "memory": "memory", "pro
         "candidate": "candidate", "review": "review", "identity": "identity", "session-event": "session_event",
         "session": "session", "checkpoint": "checkpoint", "commit": "commit", "tombstone": "tombstone",
         "purge-receipt": "purge_receipt", "capsule": "capsule", "inspection": "inspection",
-        "dispatch": "dispatch", "provider-capabilities": "provider_capabilities", "audit-event": "audit_event"}
+        "dispatch": "dispatch", "provider-capabilities": "provider_capabilities", "audit-event": "audit_event",
+        "approval": "approval", "policy": "policy"}
 SCHEMA = {"source": "memory/source-v1.schema.json", "attachment": "memory/attachment-v1.schema.json",
           "memory": "memory/memory-v1.schema.json", "project": "memory/project-v1.schema.json",
           "candidate": "memory/candidate-v1.schema.json", "review": "memory/review-v1.schema.json",
@@ -737,7 +842,8 @@ SCHEMA = {"source": "memory/source-v1.schema.json", "attachment": "memory/attach
           "commit": "memory/commit-v1.schema.json", "tombstone": "memory/tombstone-v1.schema.json",
           "purge_receipt": "memory/purge-receipt-v1.schema.json", "audit_event": "memory/audit-event-v1.schema.json",
           "capsule": "context/capsule-v1.schema.json", "inspection": "context/inspection-v1.schema.json",
-          "dispatch": "context/dispatch-v1.schema.json", "provider_capabilities": "provider/capabilities-v1.schema.json"}
+          "dispatch": "context/dispatch-v1.schema.json", "provider_capabilities": "provider/capabilities-v1.schema.json",
+          "approval": "memory/approval-v1.schema.json", "policy": "memory/policy-v1.schema.json"}
 def kind_of(name):
     for prefix in sorted(KIND, key=len, reverse=True):
         if name.startswith(prefix):
@@ -832,6 +938,18 @@ cases = [
     case("capabilities-unverified-claim", "provider-capabilities-unverified.json", [S("/streaming", "supported")], "reject", "capabilities.unverified_claim", "no capability guessing"),
     case("audit-query-text", "audit-event-deny.json", [S("/query_text", "MoriMeta 设计")], "reject", "shape", "audit has no content"),
     case("audit-deny-without-code", "audit-event-deny.json", [S("/error_code", None)], "reject", "audit.deny_code", "deny has a code"),
+    case("dispatch-review-as-egress-approval", "dispatch-external.json", [S("/egress/egress_approval_id", uid("rvw", 2))], "reject", "shape", "F1: a memory review is never egress consent"),
+    case("memory-review-as-declassification", "memory-fact-declassified.json", [S("/declassification_approval_id", uid("rvw", 113))], "reject", "shape", "F2: a memory review is never a declassification"),
+    case("approval-egress-ttl-too-long", "approval-egress.json", [S("/expires_at", ts("07-04", "02:00:00", 150))], "accept", "approval.egress_ttl", "F1: egress approvals are short-lived"),
+    case("approval-egress-without-expiry", "approval-egress.json", [S("/expires_at", None)], "reject", "approval.egress_ttl", "F1: egress approvals expire"),
+    case("approval-by-agent", "approval-egress.json", [S("/approved_by", AGENT)], "reject", "approval.owner_required", "F1: only the owner approves"),
+    case("approval-egress-local-destination", "approval-egress.json", [S("/binding/destination", {"kind": "local_mock", "provider_binding": None})], "accept", "approval.egress_destination", "F1: egress approval names an external binding"),
+    case("approval-declassify-upward", "approval-declassification.json", [S("/binding/to_sensitivity", "highly_sensitive")], "accept", "approval.declassification_direction", "F2: declassification lowers the level"),
+    case("policy-grant-without-approval", "policy-grant.json", [S("/approval_id", None)], "reject", "policy.approval", "F4: grants are owner-approved"),
+    case("policy-default-with-provider-send", "policy-default.json", [S("/scopes", ["context:read", "provider:send"]), S("/destinations", [{"kind": "external_provider", "provider": None, "model": None}])], "accept", "policy.default_scope", "F4: default policy never sends out"),
+    case("policy-revoked-without-time", "policy-grant.json", [S("/status", "revoked")], "reject", "policy.revocation", "F4: revocation is recorded"),
+    case("policy-all-projects-with-list", "policy-grant.json", [S("/resources/all_projects", True)], "accept", "policy.project_selector", "F4: unambiguous project selector"),
+    case("review-confirm-delete-without-binding", "review-confirm-delete.json", [S("/delete_binding", None)], "reject", "review.delete_binding", "F2: deletion approval names what is deleted"),
     case("identity-wrong-previous", "identity.json", [S("/previous_revision", 3)], "accept", "identity.previous_revision", "identity revision chain"),
     case("project-alias-duplicate", "project.json", [S("/aliases", ["morimeta"])], "accept", "project.alias_unique", "alias uniqueness"),
     case("capsule-budget-u64-max", "capsule.json", [S("/budget/max_tokens", 18446744073709551615), S("/budget/estimated_tokens", 18446744073709551615), S("/budget/safety_margin_tokens", 1)], "reject", "number.out_of_range", "F6: no panic; same range as the schema"),
@@ -879,6 +997,14 @@ def sc(cid, base, ops, rule, covers):
 lold2 = idx(life, "memories", "memory_id", M["old"]["memory_id"], 2)
 lnew = idx(life, "memories", "memory_id", M["new"]["memory_id"])
 lprice = idx(life, "memories", "memory_id", M["price"]["memory_id"])
+XD = idx(ext, "dispatches", "dispatch_id", uid("dsp", 2))
+XC = idx(ext, "capsules", "capsule_id", uid("cap", 3))
+XA = idx(ext, "approvals", "approval_id", uid("apv", 2))
+XP = idx(ext, "policies", "policy_id", uid("pol", 2))
+RDEL = idx(life, "reviews", "review_id", uid("rvw", 111))
+IDECL = idx(life, "memories", "memory_id", DECL["memory"]["memory_id"])
+ADECL = idx(life, "approvals", "approval_id", DECL["approval"]["approval_id"])
+OTHER_DEST = {"kind": "external_provider", "provider_binding": {"provider": "other-cloud", "model": "example-model", "adapter_version": "0"}}
 late_tomb = {"schema_version": 1, "delete_id": uid("del", 9), "mode": "logical_delete", "scope": "all_revisions",
              "targets": [{"record_kind": "memory", "record_id": mB, "revision": None}], "object_hashes": [],
              "requested_by": OWNER, "review_id": uid("rvw", 2), "deletion_epoch": 1, "created_at": ts("07-03", "23:00:00")}
@@ -900,7 +1026,8 @@ set_cases = [
          "valid_until": None, "last_verified_at": None, "evidence": [{"source_id": uid("src", 4), "source_revision": 1}],
          "conflict_group_id": None, "sensitivity": "highly_sensitive"}}], "capsule.policy_violation", "highly sensitive never auto-sent"),
     sc("capsule-currency-mismatch", "morimeta-confirmed.json", [S("/capsules/0/active_projects/0/currency", "historical_only")], "capsule.currency_mismatch", "currency derived from valid time"),
-    sc("dispatch-hidden-memory", "morimeta-confirmed.json", [{"op": "append", "path": "/dispatches/0/messages/1/capsule_memory_refs", "value": {"memory_id": uid("mem", 3), "revision": 1}}], "dispatch.hidden_memory", "no hidden extra memory"),
+    sc("dispatch-hidden-memory", "morimeta-confirmed.json", [{"op": "append", "path": "/dispatches/0/messages/1/resource_refs", "value": rref("memory", uid("mem", 3))}], "dispatch.hidden_resource", "no hidden extra memory"),
+    sc("dispatch-hidden-attachment", "morimeta-confirmed.json", [{"op": "append", "path": "/dispatches/0/messages/1/resource_refs", "value": rref("attachment", uid("att", 1))}], "dispatch.hidden_resource", "F1: non-memory payloads are covered too"),
     sc("inspection-false-policy-reason", "morimeta-confirmed.json", [S("/inspections/0/decisions/1/reason", "policy_denied")], "inspection.reason_unsupported", "inspector reasons are true"),
     sc("inspection-capsule-mismatch", "morimeta-confirmed.json", [S("/inspections/0/decisions/0/decision", "excluded"), S("/inspections/0/decisions/0/reason", "over_budget")], "inspection.capsule_mismatch", "inspector matches capsule"),
     sc("checkpoint-coverage-beyond-events", "morimeta-confirmed.json", [S("/checkpoints/0/coverage/to_sequence", 9)], "checkpoint.coverage_missing", "checkpoint coverage closure"),
@@ -924,11 +1051,31 @@ set_cases = [
        "dispatch.stale_barrier", "send rechecks the latest deletion barrier"),
     sc("dispatch-after-known-deletion", "morimeta-confirmed.json", [S("/tombstones", [late_tomb]),
        S("/dispatches/0/egress/deletion_epoch", 1)], "dispatch.tombstoned_content", "deleted content is never sent"),
-    sc("private-external-unconfirmed", "morimeta-confirmed.json",
-       [S("/capsules/0/destination", ext_dest), S("/dispatches/0/destination", ext_dest),
-        S("/dispatches/0/egress/egress_policy_id", uid("pol", 2)), S(f"/memories/{iB}/egress_policy_id", uid("pol", 2)),
-        S("/dispatches/0/request_hash", payload_hash(ext_dest, [(m["role"], m["text"]) for m in PAYLOADS[uid("dsp", 1)]["messages"]], [], PAYLOADS[uid("dsp", 1)]["output"]))],
-       "dispatch.private_unconfirmed", "private content needs per-request confirmation"),
+    # --- F1/F4 on the external-egress set (dispatch 1 is external; approvals: 0 grant, 1 egress)
+    sc("egress-approval-missing", "morimeta-external-egress.json", [S(f"/dispatches/{XD}/egress/egress_approval_id", None)], "egress.approval_missing", "F1: private egress needs approval"),
+    sc("egress-approval-wrong-kind", "morimeta-external-egress.json", [S(f"/dispatches/{XD}/egress/egress_approval_id", uid("apv", 1))], "egress.approval_kind", "F1: a policy grant is not a per-request approval"),
+    sc("egress-approval-wrong-request", "morimeta-external-egress.json", [S(f"/approvals/{XA}/binding/request_id", uid("req", 999))], "egress.approval_request", "F1: bound to the request"),
+    sc("egress-approval-wrong-payload", "morimeta-external-egress.json", [S(f"/approvals/{XA}/binding/payload_hash", sha("other payload"))], "egress.approval_payload", "F1: bound to the exact payload digest"),
+    sc("egress-approval-wrong-provider", "morimeta-external-egress.json", [S(f"/approvals/{XA}/binding/destination/provider_binding/model", "other-model")], "egress.approval_destination", "F1: bound to the exact destination"),
+    sc("egress-approval-expired", "morimeta-external-egress.json", [S(f"/approvals/{XA}/expires_at", ts("07-04", "01:00:00", 160))], "egress.approval_expired", "F1: expired approvals do not count"),
+    sc("egress-approval-replayed", "morimeta-external-egress.json", [{"op": "append", "path": "/dispatches", "value_from": f"/dispatches/{XD}", "then": [S("/dispatch_id", uid("dsp", 77))]}], "egress.approval_replayed", "F1: single use"),
+    sc("egress-approval-wrong-resources", "morimeta-external-egress.json", [S(f"/approvals/{XA}/binding/resources", [rref("memory", uid("mem", 3))])], "egress.approval_resources", "F1: bound to the exact resources"),
+    sc("egress-approval-wrong-epoch", "morimeta-external-egress.json", [S(f"/approvals/{XA}/binding/policy_epoch", 1)], "egress.approval_epoch", "F1: bound to the policy epoch"),
+    sc("egress-grant-revoked", "morimeta-external-egress.json", [S(f"/policies/{XP}/status", "revoked"), S(f"/policies/{XP}/revoked_at", ts("07-02", "00:00:00"))], "dispatch.policy_denied", "F4: revocation blocks sending"),
+    sc("egress-grant-tampered", "morimeta-external-egress.json", [S(f"/policies/{XP}/resources/max_sensitivity", "highly_sensitive")], "policy.grant_invalid", "F4: a grant is bound to its exact contents"),
+    sc("egress-other-provider", "morimeta-external-egress.json",
+       [S(f"/capsules/{XC}/destination", OTHER_DEST), S(f"/dispatches/{XD}/destination", OTHER_DEST),
+        S(f"/dispatches/{XD}/request_hash", payload_hash(OTHER_DEST, [(m["role"], m["text"]) for m in PAYLOADS[uid("dsp", 2)]["messages"]], [], PAYLOADS[uid("dsp", 2)]["output"]))],
+       "dispatch.policy_denied", "F4: switching Provider requires a new grant"),
+    sc("egress-other-project-memory", "morimeta-external-egress.json", [{"op": "append", "path": f"/dispatches/{XD}/messages/1/resource_refs", "value": rref("memory", uid("mem", 3))}], "dispatch.policy_denied", "F4: grant is project-scoped"),
+    # --- F2 on the lifecycle set
+    sc("tombstone-ordinary-accept-review", "lifecycle.json", [S("/tombstones/0/review_id", uid("rvw", 101))], "tombstone.review_action", "F2: an accept review is not a delete confirmation"),
+    sc("tombstone-binding-mode-mismatch", "lifecycle.json", [S(f"/reviews/{RDEL}/delete_binding/mode", "purge")], "tombstone.review_binding", "F2: mode is bound"),
+    sc("tombstone-wrong-target", "lifecycle.json", [S("/tombstones/0/targets/0/record_id", M["price"]["memory_id"])], "tombstone.review_binding", "F2: target is bound"),
+    sc("declassification-missing", "lifecycle.json", [S(f"/memories/{IDECL}/declassification_approval_id", None)], "sensitivity.downgrade", "F2: downgrade needs approval"),
+    sc("declassification-wrong-revision", "lifecycle.json", [S(f"/approvals/{ADECL}/binding/target/revision", 2)], "sensitivity.declassification_invalid", "F2: bound to the exact revision"),
+    sc("declassification-wrong-level", "lifecycle.json", [S(f"/approvals/{ADECL}/binding/to_sensitivity", "public")], "sensitivity.declassification_invalid", "F2: bound to both levels"),
+    sc("declassification-content-changed", "lifecycle.json", [S(f"/memories/{IDECL}/content", "正在做一个会公开发布的相册应用，并且已经上线。")], "sensitivity.declassification_invalid", "F2: bound to the approved content"),
     sc("review-stale-candidate-revision", "morimeta-confirmed.json", [S(f"/reviews/{rB}/candidate_revision", 2)], "review.stale_candidate_revision", "review binds the pending revision"),
     sc("commit-chain-broken", "morimeta-confirmed.json", [S("/commits/2/parent_commit_id", conf["commits"][0]["commit_id"])], "commit.chain", "parent chain"),
     sc("commit-epoch-regression", "morimeta-confirmed.json", [S("/commits/5/policy_epoch", 0)], "commit.epoch_regression", "epochs never go back"),
@@ -949,7 +1096,8 @@ set_cases = [
     sc("checkpoint-huge-range", "morimeta-confirmed.json", [S("/checkpoints/0/coverage/to_sequence", 9007199254740991)], "checkpoint.coverage_missing", "F6: hostile range is bounded"),
 ]
 dump("sets-manifest.json", {"description": "Consistent synthetic sets and single-rule mutations. Each mutation must produce at least the named cross-record violation.",
-                            "valid": ["sets/morimeta-confirmed.json", "sets/morimeta-insufficient-evidence.json", "sets/lifecycle.json"],
+                            "valid": ["sets/morimeta-confirmed.json", "sets/morimeta-insufficient-evidence.json",
+                                      "sets/morimeta-external-egress.json", "sets/lifecycle.json"],
                             "invalid": set_cases})
 
 # MoriMeta expectations (behavioural contract for MV-5 compiled answers).

@@ -124,6 +124,10 @@
       "type": "string",
       "pattern": "^itm_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
     },
+    "approvalId": {
+      "type": "string",
+      "pattern": "^apv_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
     "schemaVersion": {
       "const": 1
     },
@@ -514,7 +518,9 @@
         "capsule",
         "inspection",
         "dispatch",
-        "provider_capabilities"
+        "provider_capabilities",
+        "approval",
+        "policy"
       ]
     },
     "recordRef": {
@@ -574,6 +580,19 @@
         "backup",
         "audit",
         "policy"
+      ]
+    },
+    "scope": {
+      "enum": [
+        "memory:read",
+        "source:read",
+        "memory:propose",
+        "session:propose",
+        "context:read",
+        "owner:review",
+        "owner:identity",
+        "operation:read",
+        "provider:send"
       ]
     },
     "memoryType": {

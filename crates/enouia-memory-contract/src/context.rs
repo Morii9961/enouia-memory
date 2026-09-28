@@ -8,7 +8,7 @@ use crate::hash::Sha256Hex;
 use crate::identity::IdentitySlug;
 use crate::ids::{
     BranchId, CapsuleId, CheckpointId, CommitId, ConflictGroupId, DispatchId, EventId, IdentityId,
-    InspectionId, ItemId, MemoryId, PolicyId, RequestId, ReviewId, SessionId,
+    InspectionId, ItemId, MemoryId, PolicyId, RequestId, SessionId,
 };
 use crate::json::{Revision, SchemaVersion};
 use crate::memory::MemoryType;
@@ -219,6 +219,8 @@ pub struct ContextCapsule {
     pub capsule_id: CapsuleId,
     pub generated_at: Timestamp,
     pub request_id: RequestId,
+    /// Authenticated principal the context was compiled for (policy input).
+    pub requested_by: crate::common::ActorRef,
     pub query: String,
     #[serde(deserialize_with = "crate::json::nullable")]
     pub as_of: Option<Timestamp>,
@@ -465,7 +467,9 @@ pub struct DispatchMessage {
     pub role: MessageRole,
     pub content_hash: Sha256Hex,
     pub size_bytes: u64,
-    pub capsule_memory_refs: Vec<MemoryRevisionRef>,
+    /// Every Vault resource rendered into this message: memories, Identity,
+    /// checkpoints, session events, source excerpts, attachments.
+    pub resource_refs: Vec<crate::record::RecordRef>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -532,9 +536,10 @@ pub struct EgressDecision {
     pub deletion_epoch: u64,
     #[serde(deserialize_with = "crate::json::nullable")]
     pub egress_policy_id: Option<PolicyId>,
-    /// Required when private content goes to an external destination.
+    /// Required when private content goes to an external destination: an
+    /// egress ApprovalRecord bound to this request's payload digest.
     #[serde(deserialize_with = "crate::json::nullable")]
-    pub confirmation_review_id: Option<ReviewId>,
+    pub egress_approval_id: Option<crate::ids::ApprovalId>,
     pub checked_at: Timestamp,
 }
 
@@ -574,10 +579,10 @@ pub struct DispatchRecord {
 }
 
 impl DispatchRecord {
-    pub fn memory_refs(&self) -> BTreeSet<&MemoryRevisionRef> {
+    pub fn resource_refs(&self) -> BTreeSet<&crate::record::RecordRef> {
         self.messages
             .iter()
-            .flat_map(|m| &m.capsule_memory_refs)
+            .flat_map(|m| &m.resource_refs)
             .collect()
     }
 
@@ -636,6 +641,23 @@ impl DispatchRecord {
         }
         if self.messages.is_empty() {
             out.push(Violation::new("dispatch.messages", "/messages"));
+        }
+        for (index, reference) in self.resource_refs().into_iter().enumerate() {
+            reference.validate(&format!("/resource_refs/{index}"), &mut out);
+            if !matches!(
+                reference.record_kind,
+                RecordKind::Memory
+                    | RecordKind::Identity
+                    | RecordKind::Checkpoint
+                    | RecordKind::SessionEvent
+                    | RecordKind::Source
+                    | RecordKind::Attachment
+            ) {
+                out.push(Violation::new(
+                    "dispatch.resource_kind",
+                    format!("/resource_refs/{index}"),
+                ));
+            }
         }
         out
     }

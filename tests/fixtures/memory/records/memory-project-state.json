@@ -24,7 +24,7 @@
       "state_kind": "decided"
     }
   ],
-  "declassification_review_id": null,
+  "declassification_approval_id": null,
   "egress_policy_id": null,
   "epistemic_status": "asserted",
   "evidence": [

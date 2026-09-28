@@ -53,6 +53,7 @@ pub enum OperationKind {
     PolicyChange,
     Migration,
     RestoreAdopt,
+    OwnerApproval,
 }
 
 /// One logical record → its current revision in this commit (complete catalog).
@@ -152,6 +153,7 @@ impl CommitManifest {
             let single = matches!(
                 entry.record_kind,
                 RecordKind::Review
+                    | RecordKind::Approval
                     | RecordKind::Tombstone
                     | RecordKind::PurgeReceipt
                     | RecordKind::SessionEvent

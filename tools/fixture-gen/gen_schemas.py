@@ -16,7 +16,7 @@ PREFIXES = [
     ("deviceId", "dev"), ("principalId", "prn"), ("operationId", "op"), ("requestId", "req"),
     ("policyId", "pol"), ("deleteId", "del"), ("purgeReceiptId", "prg"), ("auditId", "aud"),
     ("capsuleId", "cap"), ("inspectionId", "insp"), ("dispatchId", "dsp"),
-    ("extractionRunId", "ext"), ("conflictGroupId", "cfl"), ("itemId", "itm"),
+    ("extractionRunId", "ext"), ("conflictGroupId", "cfl"), ("itemId", "itm"), ("approvalId", "apv"),
 ]
 UUID = "[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}"
 
@@ -110,7 +110,7 @@ defs.update({
     "recordKind": enum("source", "attachment", "project", "memory", "candidate", "review",
                        "identity", "session", "session_event", "checkpoint", "commit",
                        "tombstone", "purge_receipt", "audit_event", "capsule", "inspection",
-                       "dispatch", "provider_capabilities"),
+                       "dispatch", "provider_capabilities", "approval", "policy"),
     "recordRef": obj({"record_kind": ref("recordKind"),
                       "record_id": {"type": "string", "pattern": f"^[a-z]+_{UUID}$"},
                       "revision": ref("revision")},
@@ -118,6 +118,8 @@ defs.update({
     "providerBinding": obj({"provider": STR, "model": STR, "adapter_version": STR}),
     "componentId": enum("core", "vault", "memory_index", "context", "session", "provider",
                          "importer", "backup", "audit", "policy"),
+    "scope": enum("memory:read", "source:read", "memory:propose", "session:propose", "context:read",
+                  "owner:review", "owner:identity", "operation:read", "provider:send"),
     "memoryType": enum("fact", "preference", "episode", "project_state", "session_checkpoint"),
     "destinationKind": enum("local_mock", "local_model", "external_provider"),
     "purpose": enum("answer", "continue_session", "checkpoint", "extraction", "inspection_preview"),
@@ -248,7 +250,7 @@ common_mem = {
                            "effective_from": c("businessTime"), "scope": c("label")})),
     "conflict_group_id": cn("conflictGroupId"), "provenance_state": enum("intact", "broken"),
     "review_id": c("reviewId"), "approved_by": c("ownerRef"), "approved_at": c("timestamp"),
-    "declassification_review_id": cn("reviewId"),
+    "declassification_approval_id": cn("approvalId"),
     "created_at": c("timestamp"), "updated_at": c("timestamp"), "extensions": c("extensions"),
 }
 variants = {
@@ -289,6 +291,9 @@ write("memory/project-v1.schema.json", record(
      "updated_at": c("timestamp"), "extensions": c("extensions")}, None, "project-v1.schema.json"))
 
 # ---------------- candidate / review ----------------
+DELETE_TARGET = obj({"record_kind": c("recordKind"),
+                         "record_id": {"type": "string", "pattern": f"^[a-z]+_{UUID}$"},
+                         "revision": nul(c("revision"))})
 merge_target = {"oneOf": [obj({"kind": {"const": "candidate"}, "candidate_id": c("candidateId")}),
                           obj({"kind": {"const": "memory"}, "memory_id": c("memoryId")})]}
 write("memory/candidate-v1.schema.json", record(
@@ -302,7 +307,7 @@ write("memory/candidate-v1.schema.json", record(
      "origin_kind": enum("owner_manual", "rule_extraction", "model_extraction", "agent_proposal", "external_event"),
      "origin_actor": c("actorRef"), "extraction_run_id": cn("extractionRunId"),
      "confidence": nul({"type": "number", "minimum": 0, "maximum": 1}), "sensitivity": c("sensitivity"),
-     "declassification_review_id": cn("reviewId"),
+     "declassification_approval_id": cn("approvalId"),
      "status": enum("pending", "accepted", "rejected", "merged", "withdrawn"),
      "target_memory_id": cn("memoryId"), "target_identity_id": cn("identityId"),
      "expected_revision": nul(c("revision")), "proposed_effective_from": nul(c("businessTime")),
@@ -336,13 +341,20 @@ write("memory/review-v1.schema.json", record(
      "evidence_refs": arr(c("sourceRevisionRef")), "target_expected_revisions": arr(c("recordRef")),
      "approval_nonce": {"type": "string", "pattern": "^[A-Za-z0-9_-]{22,128}$"},
      "effective_from": nul(c("businessTime")), "merge_target": nul(merge_target),
-     "resulting_records": arr(c("recordRef")), "reason_code": nul(c("code")),
+     "resulting_records": arr(c("recordRef")),
+     "delete_binding": nul(obj({"mode": enum("logical_delete", "purge"),
+                                "scope": enum("selected_revisions", "all_revisions", "with_dependents"),
+                                "targets": arr(DELETE_TARGET, minItems=1)})),
+     "reason_code": nul(c("code")),
      "created_at": c("timestamp"), "commit_id": c("commitId")},
     {"allOf": [
         when("action", ["reject"], {"properties": {"resulting_records": {"maxItems": 0}}}),
         when("action", ["accept", "edit_accept", "supersede", "identity_accept", "confirm_delete"], {"properties": {"resulting_records": {"minItems": 1}}}),
         when("action", ["supersede"], {"properties": {"effective_from": c("businessTime")}}),
         when("action", ["merge"], {"properties": {"merge_target": {"type": "object"}}}),
+        when("action", ["confirm_delete"], {"properties": {"delete_binding": {"type": "object"}}}),
+        {"if": {"properties": {"action": {"not": {"const": "confirm_delete"}}}, "required": ["action"]},
+         "then": {"properties": {"delete_binding": {"type": "null"}}}},
     ]}, "review-v1.schema.json"))
 
 write("memory/identity-v1.schema.json", record(
@@ -426,7 +438,7 @@ write("memory/commit-v1.schema.json", record(
      "operation_id": c("operationId"),
      "operation_kind": enum("genesis", "import", "candidate_propose", "review_commit", "identity_review",
                             "session_append", "checkpoint_propose", "logical_delete", "purge",
-                            "policy_change", "migration", "restore_adopt"),
+                            "policy_change", "migration", "restore_adopt", "owner_approval"),
      "idempotency_key_hash": cn("sha256"), "request_payload_hash": c("sha256"), "created_at": c("timestamp"),
      "catalog": arr(obj({"record_kind": c("recordKind"),
                          "record_id": {"type": "string", "pattern": f"^[a-z]+_{UUID}$"},
@@ -500,7 +512,7 @@ write("context/capsule-v1.schema.json", record(
     "Enouia Context Capsule v1",
     "Logical context for one request. Keeps the Architecture v0.3 capsule fields. Inclusion eligibility (tombstones, policy, valid time, provenance) is checked against the record set by the Rust validator.",
     {"schema_version": m("schemaVersion"), "capsule_id": m("capsuleId"), "generated_at": m("timestamp"),
-     "request_id": m("requestId"), "query": STR, "as_of": m("timestampOrNull"),
+     "request_id": m("requestId"), "requested_by": m("actorRef"), "query": STR, "as_of": m("timestampOrNull"),
      "vault_commit_id": m("commitId"), "policy_epoch": COUNT, "deletion_epoch": COUNT,
      "compiler_version": STR, "ranking_version": STR, "tokenizer_version": STR,
      "client_surface": m("clientSurface"), "destination": ref("destination", CC), "purpose": m("purpose"),
@@ -559,18 +571,64 @@ write("context/dispatch-v1.schema.json", record(
      "request_hash": m("sha256"),
      "messages": arr(obj({"role": enum("system", "user", "assistant", "tool"), "content_hash": m("sha256"),
                           "size_bytes": COUNT,
-                          "capsule_memory_refs": arr(obj({"memory_id": m("memoryId"), "revision": m("revision")}))}),
+                          "resource_refs": arr(m("recordRef"))}),
                      minItems=1),
      "tools": arr(obj({"name": STR, "definition_hash": m("sha256")})),
      "output": obj({"max_output_tokens": {"type": "integer", "minimum": 1, "maximum": MAXSAFE}, "streaming": BOOL}),
      "egress": obj({"policy_epoch": COUNT, "deletion_epoch": COUNT, "egress_policy_id": mn("policyId"),
-                    "confirmation_review_id": mn("reviewId"), "checked_at": m("timestamp")}),
+                    "egress_approval_id": mn("approvalId"), "checked_at": m("timestamp")}),
      "state": enum("prepared", "sent", "completed", "failed", "cancelled", "outcome_unknown"),
      "prepared_at": m("timestamp"), "sent_at": m("timestampOrNull"), "completed_at": m("timestampOrNull")},
     {"allOf": [when("state", ["sent", "completed", "outcome_unknown"], {"properties": {"sent_at": m("timestamp")}}),
                when("state", ["prepared", "cancelled"], {"properties": {"sent_at": {"type": "null"}}}),
                when("state", ["completed"], {"properties": {"completed_at": m("timestamp")}})]},
     "dispatch-v1.schema.json"))
+
+
+# ---------------- approval / policy (MV-0R) ----------------
+DEST = {"$ref": "../context/common-v1.schema.json#/$defs/destination"}
+binding = {"oneOf": [
+    obj({"kind": {"const": "egress"}, "request_id": c("requestId"), "capsule_id": c("capsuleId"),
+         "payload_hash": c("sha256"), "destination": DEST, "resources": arr(c("recordRef"), minItems=1, uniqueItems=True),
+         "policy_id": c("policyId"), "policy_epoch": COUNT}),
+    obj({"kind": {"const": "declassification"}, "target": c("recordRef"), "from_sensitivity": c("sensitivity"),
+         "to_sensitivity": c("sensitivity"), "source_refs": arr(c("sourceRevisionRef"), minItems=1),
+         "final_content_hash": c("sha256")}),
+    obj({"kind": {"const": "policy_grant"}, "policy_id": c("policyId"), "policy_revision": c("revision"),
+         "grant_hash": c("sha256")}),
+]}
+write("memory/approval-v1.schema.json", record(
+    "Enouia ApprovalRecord v1",
+    "Owner approval that is not a memory review: egress of an exact request, declassification of an exact revision, or a policy grant. Egress approvals expire within 15 minutes and are single-use; binding checks are enforced by the Rust set validator.",
+    {"schema_version": c("schemaVersion"), "approval_id": c("approvalId"), "approved_by": c("ownerRef"),
+     "trusted_surface": c("trustedSurface"),
+     "approval_nonce": {"type": "string", "pattern": "^[A-Za-z0-9_-]{22,128}$"},
+     "approved_diff_hash": c("sha256"), "issued_at": c("timestamp"), "expires_at": c("timestampOrNull"),
+     "binding": binding},
+    {"allOf": [{"if": {"properties": {"binding": {"properties": {"kind": {"const": "egress"}}, "required": ["kind"]}},
+                       "required": ["binding"]},
+                "then": {"properties": {"expires_at": c("timestamp")}}}]},
+    "approval-v1.schema.json"))
+write("memory/policy-v1.schema.json", record(
+    "Enouia PolicyRecord v1",
+    "Versioned access/egress policy; default deny. Owner grants reference an approval of this exact revision. Evaluation semantics are policy::evaluate in the Rust crate.",
+    {"schema_version": c("schemaVersion"), "policy_id": c("policyId"), "revision": c("revision"),
+     "status": enum("active", "revoked"), "origin": enum("genesis_default", "owner_grant"),
+     "approval_id": cn("approvalId"),
+     "principals": arr(obj({"actor_type": c("actorType"), "actor_id": cn("principalId")}), minItems=1),
+     "scopes": arr(c("scope"), minItems=1, uniqueItems=True),
+     "resources": obj({"all_projects": BOOL, "project_ids": arr(c("projectId"), uniqueItems=True),
+                       "record_kinds": arr(c("recordKind"), minItems=1, uniqueItems=True),
+                       "max_sensitivity": c("sensitivity")}),
+     "purposes": arr(c("purpose"), minItems=1, uniqueItems=True),
+     "destinations": arr(obj({"kind": c("destinationKind"), "provider": nul(STR), "model": nul(STR)})),
+     "valid_from": c("timestamp"), "valid_until": c("timestampOrNull"), "revoked_at": c("timestampOrNull"),
+     "created_at": c("timestamp"), "updated_at": c("timestamp")},
+    {"allOf": [when("origin", ["owner_grant"], {"properties": {"approval_id": c("approvalId")}}),
+               when("origin", ["genesis_default"], {"properties": {"approval_id": {"type": "null"}}}),
+               when("status", ["revoked"], {"properties": {"revoked_at": c("timestamp")}}),
+               when("status", ["active"], {"properties": {"revoked_at": {"type": "null"}}})]},
+    "policy-v1.schema.json"))
 
 # ---------------- provider ----------------
 cap = enum("supported", "unsupported", "unknown")

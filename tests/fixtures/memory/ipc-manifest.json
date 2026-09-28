@@ -698,6 +698,10 @@
             "relationship_context": [],
             "relevant_memories": [],
             "request_id": "req_00000014-0000-4000-8000-000000000014",
+            "requested_by": {
+              "actor_id": "prn_00000001-0000-4000-8000-000000000001",
+              "actor_type": "owner"
+            },
             "schema_version": 1,
             "session_id": "ses_00000001-0000-4000-8000-000000000001",
             "tokenizer_version": "utf8_bytes_v1",
@@ -781,7 +785,7 @@
                 "state_kind": "decided"
               }
             ],
-            "declassification_review_id": null,
+            "declassification_approval_id": null,
             "egress_policy_id": null,
             "epistemic_status": "asserted",
             "evidence": [

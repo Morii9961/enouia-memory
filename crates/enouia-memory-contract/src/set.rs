@@ -3,6 +3,7 @@
 //! commit (plus request artifacts such as capsules). This is pure validation;
 //! it does not prove that a store publishes or recovers these records safely.
 
+use crate::approval::{ApprovalBinding, ApprovalRecord};
 use crate::candidate::{CandidateRecord, CandidateStatus, MergeTarget, ReviewAction, ReviewRecord};
 use crate::commit::{AuditEvent, CommitManifest, PurgeReceipt, Tombstone};
 use crate::common::{Sensitivity, SourceRevisionRef};
@@ -11,10 +12,15 @@ use crate::context::{
     DestinationKind, DispatchRecord, LoopOrigin, MemoryRevisionRef,
 };
 use crate::error::{ContractError, Violation};
+use crate::hash::sha256;
 use crate::identity::IdentityMetadata;
+use crate::ids::ProjectId;
 use crate::json::Revision;
 use crate::memory::{CanonicalMemory, MemoryBody, MemoryStatus, ProjectEntity, ProvenanceState};
-use crate::policy::{EgressRule, derived_sensitivity_ok, egress_rule};
+use crate::policy::{
+    AccessContext, EgressRule, PolicyOrigin, PolicyRecord, ResourceContext, Scope,
+    derived_sensitivity_ok, egress_rule, evaluate,
+};
 use crate::record::{Record, RecordKind, RecordRef, parse_value};
 use crate::session::{
     CheckpointSourceRef, Coverage, EventKind, SessionCheckpoint, SessionEvent, SessionRecord,
@@ -44,6 +50,8 @@ pub struct RecordSet {
     pub capsules: Vec<ContextCapsule>,
     pub inspections: Vec<ContextInspection>,
     pub dispatches: Vec<DispatchRecord>,
+    pub approvals: Vec<ApprovalRecord>,
+    pub policies: Vec<PolicyRecord>,
 }
 
 const SET_KEYS: &[&str] = &[
@@ -65,6 +73,8 @@ const SET_KEYS: &[&str] = &[
     "capsules",
     "inspections",
     "dispatches",
+    "approvals",
+    "policies",
 ];
 
 fn load<T: Record>(value: &Value, key: &str) -> Result<Vec<T>, (String, ContractError)> {
@@ -111,6 +121,8 @@ impl RecordSet {
             capsules: load(value, "capsules")?,
             inspections: load(value, "inspections")?,
             dispatches: load(value, "dispatches")?,
+            approvals: load(value, "approvals")?,
+            policies: load(value, "policies")?,
         })
     }
 
@@ -162,6 +174,66 @@ impl RecordSet {
         self.reviews.iter().find(|r| r.review_id.as_str() == id)
     }
 
+    fn approval(&self, id: &str) -> Option<&ApprovalRecord> {
+        self.approvals.iter().find(|a| a.approval_id.as_str() == id)
+    }
+
+    /// Every policy revision in the set; `policy::evaluate` uses the latest.
+    pub fn all_policies(&self) -> Vec<&PolicyRecord> {
+        self.policies.iter().collect()
+    }
+
+    /// Policy revisions visible at a commit (authorization as known then).
+    pub fn policies_at(&self, commit: &CommitManifest) -> Vec<&PolicyRecord> {
+        commit
+            .catalog
+            .iter()
+            .filter(|e| e.record_kind == RecordKind::Policy)
+            .filter_map(|e| {
+                self.policies
+                    .iter()
+                    .find(|p| p.policy_id.as_str() == e.record_id && p.revision == e.revision)
+            })
+            .collect()
+    }
+
+    /// Sensitivity and project of any resource a Dispatch may carry.
+    fn resource_info(&self, reference: &RecordRef) -> Option<(Sensitivity, Option<ProjectId>)> {
+        let id = reference.record_id.as_str();
+        let rev = reference.revision;
+        match reference.record_kind {
+            RecordKind::Memory => self
+                .memory_revision(id, rev)
+                .map(|m| (m.sensitivity, m.project_id.clone())),
+            RecordKind::Identity => self
+                .identities
+                .iter()
+                .find(|i| i.identity_id.as_str() == id && i.revision == rev)
+                .map(|i| (i.sensitivity, None)),
+            RecordKind::Checkpoint => self
+                .checkpoints
+                .iter()
+                .find(|c| c.checkpoint_id.as_str() == id && c.revision == rev)
+                .map(|c| (c.sensitivity, None)),
+            RecordKind::SessionEvent => self
+                .session_events
+                .iter()
+                .find(|e| e.event_id.as_str() == id && rev.get() == 1)
+                .map(|e| (e.sensitivity, None)),
+            RecordKind::Source => self
+                .sources
+                .iter()
+                .find(|s| s.source_id.as_str() == id && s.revision == rev)
+                .map(|s| (s.sensitivity, None)),
+            RecordKind::Attachment => self
+                .attachments
+                .iter()
+                .find(|a| a.attachment_id.as_str() == id && a.revision == rev)
+                .map(|a| (a.sensitivity, None)),
+            _ => None,
+        }
+    }
+
     fn commit(&self, id: &str) -> Option<&CommitManifest> {
         self.commits.iter().find(|c| c.commit_id.as_str() == id)
     }
@@ -207,12 +279,18 @@ impl RecordSet {
         for r in &self.checkpoints {
             add(RecordKind::Checkpoint, r.checkpoint_id.as_str(), r.revision);
         }
+        for r in &self.policies {
+            add(RecordKind::Policy, r.policy_id.as_str(), r.revision);
+        }
         let one = Revision::new(1).expect("1 is a revision");
         for r in &self.reviews {
             add(RecordKind::Review, r.review_id.as_str(), one);
         }
         for r in &self.tombstones {
             add(RecordKind::Tombstone, r.delete_id.as_str(), one);
+        }
+        for r in &self.approvals {
+            add(RecordKind::Approval, r.approval_id.as_str(), one);
         }
         for r in &self.purge_receipts {
             add(RecordKind::PurgeReceipt, r.receipt_id.as_str(), one);
@@ -236,6 +314,7 @@ pub fn validate_set(set: &RecordSet) -> Vec<Violation> {
     check_sessions(set, &mut out);
     check_commits(set, &mut out);
     check_deletions(set, &mut out);
+    check_policies(set, &mut out);
     check_context(set, &mut out);
     out
 }
@@ -263,7 +342,8 @@ fn check_revisions(set: &RecordSet, out: &mut Vec<Violation>) {
         + set.candidates.len()
         + set.identities.len()
         + set.sessions.len()
-        + set.checkpoints.len();
+        + set.checkpoints.len()
+        + set.policies.len();
     let distinct: usize = groups.values().map(Vec::len).sum();
     if distinct != total {
         out.push(Violation::new("set.duplicate_revision", "/"));
@@ -276,36 +356,49 @@ fn check_revisions(set: &RecordSet, out: &mut Vec<Violation>) {
 }
 
 fn check_evidence(set: &RecordSet, out: &mut Vec<Violation>) {
-    let evidence_sets = set
+    struct Derived<'a> {
+        target: RecordRef,
+        evidence: &'a [crate::common::EvidenceRef],
+        sensitivity: Sensitivity,
+        content: &'a str,
+        approval: Option<&'a crate::ids::ApprovalId>,
+        broken: bool,
+    }
+    let derived = set
         .memories
         .iter()
-        .map(|m| {
-            (
-                format!("{}@{}", m.memory_id, m.revision.get()),
-                &m.evidence,
-                m.sensitivity,
-                m.declassification_review_id.as_ref(),
-                m.provenance_state == ProvenanceState::Broken,
-            )
+        .map(|m| Derived {
+            target: RecordRef::new(RecordKind::Memory, m.memory_id.as_str(), m.revision),
+            evidence: &m.evidence,
+            sensitivity: m.sensitivity,
+            content: &m.content,
+            approval: m.declassification_approval_id.as_ref(),
+            broken: m.provenance_state == ProvenanceState::Broken,
         })
-        .chain(set.candidates.iter().map(|c| {
-            (
-                format!("{}@{}", c.candidate_id, c.revision.get()),
-                &c.evidence,
-                c.sensitivity,
-                c.declassification_review_id.as_ref(),
-                false,
-            )
+        .chain(set.candidates.iter().map(|c| Derived {
+            target: RecordRef::new(RecordKind::Candidate, c.candidate_id.as_str(), c.revision),
+            evidence: &c.evidence,
+            sensitivity: c.sensitivity,
+            content: &c.proposed_content,
+            approval: c.declassification_approval_id.as_ref(),
+            broken: false,
         }));
-    for (path, evidence, sensitivity, declassified, broken) in evidence_sets {
+    for record in derived {
+        let path = format!(
+            "{}@{}",
+            record.target.record_id,
+            record.target.revision.get()
+        );
         let mut source_levels = Vec::new();
-        for item in evidence {
+        let mut cited = BTreeSet::new();
+        for item in record.evidence {
             let reference = SourceRevisionRef {
                 source_id: item.source_id.clone(),
                 source_revision: item.source_revision,
             };
+            cited.insert(reference.clone());
             let Some(source) = set.source(&reference) else {
-                if !broken {
+                if !record.broken {
                     out.push(Violation::new("evidence.unresolved", path.clone()));
                 }
                 continue;
@@ -321,16 +414,38 @@ fn check_evidence(set: &RecordSet, out: &mut Vec<Violation>) {
                 out.push(Violation::new("evidence.locator_mismatch", path.clone()));
             }
         }
-        if let Some(review) = declassified
-            && set.review(review.as_str()).is_none()
-        {
-            out.push(Violation::new(
-                "sensitivity.declassification_review",
-                path.clone(),
-            ));
+        if derived_sensitivity_ok(record.sensitivity, source_levels.iter().copied(), false) {
+            continue;
         }
-        if !derived_sensitivity_ok(sensitivity, source_levels, declassified.is_some()) {
-            out.push(Violation::new("sensitivity.downgrade", path));
+        // A downgrade needs an owner declassification approval bound to this
+        // exact revision, both levels, its sources, and its content.
+        let strictest = source_levels.iter().copied().max();
+        let valid = record
+            .approval
+            .and_then(|id| set.approval(id.as_str()))
+            .is_some_and(|approval| match &approval.binding {
+                ApprovalBinding::Declassification {
+                    target,
+                    from_sensitivity,
+                    to_sensitivity,
+                    source_refs,
+                    final_content_hash,
+                } => {
+                    target == &record.target
+                        && Some(*from_sensitivity) == strictest
+                        && *to_sensitivity == record.sensitivity
+                        && source_refs.iter().cloned().collect::<BTreeSet<_>>() == cited
+                        && final_content_hash == &sha256(record.content.as_bytes())
+                }
+                _ => false,
+            });
+        if !valid {
+            let rule = if record.approval.is_some() {
+                "sensitivity.declassification_invalid"
+            } else {
+                "sensitivity.downgrade"
+            };
+            out.push(Violation::new(rule, path));
         }
     }
 }
@@ -947,8 +1062,47 @@ fn check_deletions(set: &RecordSet, out: &mut Vec<Violation>) {
                 out.push(Violation::new("tombstone.target_missing", path.clone()));
             }
         }
-        if set.review(tombstone.review_id.as_str()).is_none() {
+        // The tombstone must be the result of an owner confirm_delete review
+        // whose binding names exactly this mode, scope, and target set, and
+        // whose candidate is a delete proposal for one of these targets.
+        let Some(review) = set.review(tombstone.review_id.as_str()) else {
             out.push(Violation::new("tombstone.review_missing", path));
+            continue;
+        };
+        if review.action != ReviewAction::ConfirmDelete {
+            out.push(Violation::new("tombstone.review_action", path.clone()));
+            continue;
+        }
+        let bound = review.delete_binding.as_ref().is_some_and(|binding| {
+            binding.mode == tombstone.mode
+                && binding.scope == tombstone.scope
+                && binding.targets == tombstone.targets
+        });
+        if !bound {
+            out.push(Violation::new("tombstone.review_binding", path.clone()));
+        }
+        let me = RecordRef::new(
+            RecordKind::Tombstone,
+            tombstone.delete_id.as_str(),
+            Revision::new(1).expect("1 is a revision"),
+        );
+        if !review.resulting_records.contains(&me) {
+            out.push(Violation::new("tombstone.review_result", path.clone()));
+        }
+        let proposal_ok = set
+            .candidate_revisions(review.candidate_id.as_str())
+            .into_iter()
+            .find(|c| c.revision == review.candidate_revision)
+            .is_some_and(|c| {
+                c.proposal_kind == crate::candidate::ProposalKind::Delete
+                    && c.target_memory_id.as_ref().is_some_and(|m| {
+                        tombstone.targets.iter().any(|t| {
+                            t.record_kind == RecordKind::Memory && t.record_id == m.as_str()
+                        })
+                    })
+            });
+        if !proposal_ok {
+            out.push(Violation::new("tombstone.candidate_mismatch", path));
         }
     }
     for receipt in &set.purge_receipts {
@@ -964,31 +1118,172 @@ fn check_deletions(set: &RecordSet, out: &mut Vec<Violation>) {
     }
 }
 
+/// Policy references resolve; every owner grant is bound to an approval of
+/// exactly that policy revision (digest of its canonical bytes).
+fn check_policies(set: &RecordSet, out: &mut Vec<Violation>) {
+    let known: BTreeSet<&str> = set.policies.iter().map(|p| p.policy_id.as_str()).collect();
+    let mut references: Vec<(String, &crate::ids::PolicyId)> = Vec::new();
+    for m in &set.memories {
+        references.push((m.memory_id.to_string(), &m.access_policy_id));
+        if let Some(egress) = &m.egress_policy_id {
+            references.push((m.memory_id.to_string(), egress));
+        }
+    }
+    for s in &set.sources {
+        references.push((s.source_id.to_string(), &s.access_policy_id));
+    }
+    for i in &set.identities {
+        references.push((i.identity_id.to_string(), &i.access_policy_id));
+        if let Some(egress) = &i.egress_policy_id {
+            references.push((i.identity_id.to_string(), egress));
+        }
+    }
+    for s in &set.sessions {
+        references.push((s.session_id.to_string(), &s.policy_id));
+    }
+    for d in &set.dispatches {
+        if let Some(egress) = &d.egress.egress_policy_id {
+            references.push((d.dispatch_id.to_string(), egress));
+        }
+    }
+    for (path, policy) in references {
+        if !known.contains(policy.as_str()) {
+            out.push(Violation::new("policy.unresolved", path));
+        }
+    }
+    for policy in &set.policies {
+        if policy.origin != PolicyOrigin::OwnerGrant {
+            continue;
+        }
+        let digest = crate::json::canonical_bytes(policy)
+            .map(|b| sha256(&b))
+            .ok();
+        let valid = policy
+            .approval_id
+            .as_ref()
+            .and_then(|id| set.approval(id.as_str()))
+            .is_some_and(|approval| match &approval.binding {
+                ApprovalBinding::PolicyGrant {
+                    policy_id,
+                    policy_revision,
+                    grant_hash,
+                } => {
+                    policy_id == &policy.policy_id
+                        && *policy_revision == policy.revision
+                        && Some(grant_hash) == digest.as_ref()
+                }
+                _ => false,
+            });
+        if !valid {
+            out.push(Violation::new(
+                "policy.grant_invalid",
+                format!("{}@{}", policy.policy_id, policy.revision.get()),
+            ));
+        }
+    }
+}
+
+fn allowed(
+    policies: &[&PolicyRecord],
+    principal: &crate::common::ActorRef,
+    scope: Scope,
+    purpose: crate::context::Purpose,
+    destination: Option<&crate::context::Destination>,
+    resource: &ResourceContext,
+    at: &Timestamp,
+) -> bool {
+    let context = AccessContext {
+        principal,
+        scope,
+        purpose: Some(purpose),
+        destination,
+        resource,
+    };
+    evaluate(policies, &context, at).is_allow()
+}
+
+/// Policy check for one resource placed into a capsule: the frozen egress
+/// table, the requesting principal's `context:read` access, and, for an
+/// external destination, `provider:send` through the record's egress policy.
+fn resource_policy_ok(
+    capsule: &ContextCapsule,
+    policies: &[&PolicyRecord],
+    resource: &ResourceContext,
+    egress_policy: Option<&crate::ids::PolicyId>,
+) -> bool {
+    let destination = &capsule.destination;
+    if egress_rule(resource.sensitivity, destination.kind) == EgressRule::Denied {
+        return false;
+    }
+    let at = &capsule.generated_at;
+    if !allowed(
+        policies,
+        &capsule.requested_by,
+        Scope::ContextRead,
+        capsule.purpose,
+        None,
+        resource,
+        at,
+    ) {
+        return false;
+    }
+    if destination.kind.is_local() {
+        return true;
+    }
+    let Some(egress_policy) = egress_policy else {
+        return false;
+    };
+    let bound: Vec<&PolicyRecord> = policies
+        .iter()
+        .copied()
+        .filter(|p| &p.policy_id == egress_policy)
+        .collect();
+    allowed(
+        &bound,
+        &capsule.requested_by,
+        Scope::ProviderSend,
+        capsule.purpose,
+        Some(destination),
+        resource,
+        at,
+    )
+}
+
 /// Why a memory revision may not appear in a capsule, independent of relevance.
 pub fn hard_exclusion(
     set: &RecordSet,
     memory: &CanonicalMemory,
     visible: &[&CanonicalMemory],
     as_of: &Timestamp,
-    destination: DestinationKind,
-    deletion_epoch: u64,
+    capsule: &ContextCapsule,
+    policies: &[&PolicyRecord],
 ) -> Option<DecisionReason> {
     if set.tombstoned(
         RecordKind::Memory,
         memory.memory_id.as_str(),
         memory.revision,
-        deletion_epoch,
+        capsule.deletion_epoch,
     ) {
         return Some(DecisionReason::Tombstoned);
     }
     if memory.provenance_state == ProvenanceState::Broken {
         return Some(DecisionReason::BrokenProvenance);
     }
-    let denied = match egress_rule(memory.sensitivity, destination) {
-        EgressRule::Denied => true,
-        _ => !destination.is_local() && memory.egress_policy_id.is_none(),
+    let resource = ResourceContext {
+        record: RecordRef::new(
+            RecordKind::Memory,
+            memory.memory_id.as_str(),
+            memory.revision,
+        ),
+        project_id: memory.project_id.clone(),
+        sensitivity: memory.sensitivity,
     };
-    if denied {
+    if !resource_policy_ok(
+        capsule,
+        policies,
+        &resource,
+        memory.egress_policy_id.as_ref(),
+    ) {
         return Some(DecisionReason::PolicyDenied);
     }
     match effect(memory, visible, as_of) {
@@ -1011,9 +1306,9 @@ fn check_context(set: &RecordSet, out: &mut Vec<Violation>) {
             out.push(Violation::new("capsule.epoch", path.clone()));
         }
         let visible = set.memories_at(commit);
+        let policies = set.policies_at(commit);
         let now = &capsule.generated_at;
         let as_of = capsule.as_of.as_ref().unwrap_or(now);
-        let destination = capsule.destination.kind;
         let mut included = BTreeSet::new();
         for item in capsule.memory_items() {
             included.insert(MemoryRevisionRef {
@@ -1030,14 +1325,7 @@ fn check_context(set: &RecordSet, out: &mut Vec<Violation>) {
                 ));
                 continue;
             };
-            if let Some(reason) = hard_exclusion(
-                set,
-                memory,
-                &visible,
-                as_of,
-                destination,
-                capsule.deletion_epoch,
-            ) {
+            if let Some(reason) = hard_exclusion(set, memory, &visible, as_of, capsule, &policies) {
                 let rule = match reason {
                     DecisionReason::Tombstoned => "capsule.tombstoned_included",
                     DecisionReason::BrokenProvenance => "capsule.broken_provenance_included",
@@ -1147,10 +1435,21 @@ fn check_context(set: &RecordSet, out: &mut Vec<Violation>) {
                 .find(|i| i.identity_id == item.identity_id && i.revision == item.revision);
             match identity {
                 Some(identity) if identity.slug == item.slug => {
-                    let denied = egress_rule(identity.sensitivity, destination)
-                        == EgressRule::Denied
-                        || (!destination.is_local() && identity.egress_policy_id.is_none());
-                    if denied {
+                    let resource = ResourceContext {
+                        record: RecordRef::new(
+                            RecordKind::Identity,
+                            identity.identity_id.as_str(),
+                            identity.revision,
+                        ),
+                        project_id: None,
+                        sensitivity: identity.sensitivity,
+                    };
+                    if !resource_policy_ok(
+                        capsule,
+                        &policies,
+                        &resource,
+                        identity.egress_policy_id.as_ref(),
+                    ) {
                         out.push(Violation::new(
                             "capsule.policy_violation",
                             item.identity_id.to_string(),
@@ -1163,8 +1462,8 @@ fn check_context(set: &RecordSet, out: &mut Vec<Violation>) {
                 )),
             }
         }
-        check_inspection(set, capsule, &visible, &included, out);
-        check_dispatch(set, capsule, &visible, &included, out);
+        check_inspection(set, capsule, &visible, &policies, &included, out);
+        check_dispatch(set, capsule, out);
     }
     for inspection in &set.inspections {
         if !set
@@ -1178,6 +1477,7 @@ fn check_context(set: &RecordSet, out: &mut Vec<Violation>) {
             ));
         }
     }
+    let mut approval_uses: BTreeMap<&str, usize> = BTreeMap::new();
     for dispatch in &set.dispatches {
         if !set
             .capsules
@@ -1189,6 +1489,18 @@ fn check_context(set: &RecordSet, out: &mut Vec<Violation>) {
                 dispatch.dispatch_id.to_string(),
             ));
         }
+        if let Some(approval) = &dispatch.egress.egress_approval_id {
+            *approval_uses.entry(approval.as_str()).or_default() += 1;
+        }
+    }
+    // Egress approvals are single-use: one approval, one dispatched request.
+    for (approval, uses) in approval_uses {
+        if uses > 1 {
+            out.push(Violation::new(
+                "egress.approval_replayed",
+                approval.to_owned(),
+            ));
+        }
     }
 }
 
@@ -1196,6 +1508,7 @@ fn check_inspection(
     set: &RecordSet,
     capsule: &ContextCapsule,
     visible: &[&CanonicalMemory],
+    policies: &[&PolicyRecord],
     included: &BTreeSet<MemoryRevisionRef>,
     out: &mut Vec<Violation>,
 ) {
@@ -1242,14 +1555,7 @@ fn check_inspection(
                         out.push(Violation::new("inspection.unknown_record", path.clone()));
                         continue;
                     };
-                    let hard = hard_exclusion(
-                        set,
-                        memory,
-                        visible,
-                        as_of,
-                        capsule.destination.kind,
-                        capsule.deletion_epoch,
-                    );
+                    let hard = hard_exclusion(set, memory, visible, as_of, capsule, policies);
                     match decision.reason {
                         DecisionReason::Tombstoned
                         | DecisionReason::BrokenProvenance
@@ -1289,13 +1595,50 @@ fn check_inspection(
     }
 }
 
-fn check_dispatch(
-    set: &RecordSet,
-    capsule: &ContextCapsule,
-    visible: &[&CanonicalMemory],
-    included: &BTreeSet<MemoryRevisionRef>,
-    out: &mut Vec<Violation>,
-) {
+/// Every resource a capsule legitimately carries, as exact record revisions.
+fn capsule_resources(capsule: &ContextCapsule) -> BTreeSet<RecordRef> {
+    let one = Revision::new(1).expect("1 is a revision");
+    let mut resources = BTreeSet::new();
+    for item in capsule.memory_items() {
+        resources.insert(RecordRef::new(
+            RecordKind::Memory,
+            item.memory_id.as_str(),
+            item.revision,
+        ));
+    }
+    for item in &capsule.identity {
+        resources.insert(RecordRef::new(
+            RecordKind::Identity,
+            item.identity_id.as_str(),
+            item.revision,
+        ));
+    }
+    for item in &capsule.recent_session_checkpoints {
+        resources.insert(RecordRef::new(
+            RecordKind::Checkpoint,
+            item.checkpoint_id.as_str(),
+            item.revision,
+        ));
+    }
+    for turn in &capsule.recent_turns {
+        resources.insert(RecordRef::new(
+            RecordKind::SessionEvent,
+            turn.event_id.as_str(),
+            one,
+        ));
+    }
+    for source in &capsule.provenance {
+        resources.insert(RecordRef::new(
+            RecordKind::Source,
+            source.source_id.as_str(),
+            source.source_revision,
+        ));
+    }
+    resources
+}
+
+fn check_dispatch(set: &RecordSet, capsule: &ContextCapsule, out: &mut Vec<Violation>) {
+    let carried = capsule_resources(capsule);
     for dispatch in set
         .dispatches
         .iter()
@@ -1319,14 +1662,49 @@ fn check_dispatch(
         {
             out.push(Violation::new("dispatch.epoch_regression", path.clone()));
         }
-        for reference in dispatch.memory_refs() {
-            if !included.contains(reference) {
-                out.push(Violation::new("dispatch.hidden_memory", path.clone()));
+        let external = dispatch.destination.kind == DestinationKind::ExternalProvider;
+        // Egress is decided against the latest policies at send time, so a
+        // revocation after compilation still blocks the send.
+        let policies = set.all_policies();
+        let send_time = dispatch.sent_at.as_ref().unwrap_or(&dispatch.prepared_at);
+        if external {
+            let usable = dispatch
+                .egress
+                .egress_policy_id
+                .as_ref()
+                .and_then(|id| {
+                    set.policies
+                        .iter()
+                        .filter(|p| &p.policy_id == id)
+                        .max_by_key(|p| p.revision)
+                })
+                .is_some_and(|p| {
+                    p.active_at(send_time)
+                        && p.scopes.contains(&Scope::ProviderSend)
+                        && p.destinations
+                            .iter()
+                            .any(|d| d.matches(&dispatch.destination))
+                });
+            if !usable {
+                out.push(Violation::new(
+                    "dispatch.egress_policy_invalid",
+                    path.clone(),
+                ));
             }
+        }
+        let mut private = BTreeSet::new();
+        for reference in dispatch.resource_refs() {
+            if !carried.contains(reference) {
+                out.push(Violation::new("dispatch.hidden_resource", path.clone()));
+            }
+            let Some((sensitivity, project_id)) = set.resource_info(reference) else {
+                out.push(Violation::new("dispatch.hidden_resource", path.clone()));
+                continue;
+            };
             for tombstone in &set.tombstones {
                 let targets = tombstone.targets.iter().any(|t| {
-                    t.record_kind == RecordKind::Memory
-                        && t.record_id == reference.memory_id.as_str()
+                    t.record_kind == reference.record_kind
+                        && t.record_id == reference.record_id
                         && t.revision.is_none_or(|r| r == reference.revision)
                 });
                 if !targets {
@@ -1338,21 +1716,79 @@ fn check_dispatch(
                     out.push(Violation::new("dispatch.stale_barrier", path.clone()));
                 }
             }
-            let private = visible.iter().any(|m| {
-                m.memory_id == reference.memory_id
-                    && m.revision == reference.revision
-                    && m.sensitivity == Sensitivity::Private
-            });
-            if private
-                && dispatch.destination.kind == DestinationKind::ExternalProvider
-                && dispatch
-                    .egress
-                    .confirmation_review_id
-                    .as_ref()
-                    .is_none_or(|r| set.review(r.as_str()).is_none())
-            {
-                out.push(Violation::new("dispatch.private_unconfirmed", path.clone()));
+            if egress_rule(sensitivity, dispatch.destination.kind) == EgressRule::Denied {
+                out.push(Violation::new("dispatch.policy_violation", path.clone()));
+                continue;
             }
+            if !external {
+                continue;
+            }
+            let resource = ResourceContext {
+                record: reference.clone(),
+                project_id,
+                sensitivity,
+            };
+            if !allowed(
+                &policies,
+                &capsule.requested_by,
+                Scope::ProviderSend,
+                capsule.purpose,
+                Some(&dispatch.destination),
+                &resource,
+                send_time,
+            ) {
+                out.push(Violation::new("dispatch.policy_denied", path.clone()));
+            }
+            if sensitivity == Sensitivity::Private {
+                private.insert(reference.clone());
+            }
+        }
+        if private.is_empty() {
+            continue;
+        }
+        // Private content to an external model: an owner egress approval bound
+        // to this exact request, payload digest, destination, resources, and
+        // policy epoch, valid at send time. A memory review never qualifies.
+        let Some(approval) = dispatch
+            .egress
+            .egress_approval_id
+            .as_ref()
+            .and_then(|id| set.approval(id.as_str()))
+        else {
+            out.push(Violation::new("egress.approval_missing", path.clone()));
+            continue;
+        };
+        let ApprovalBinding::Egress {
+            request_id,
+            capsule_id,
+            payload_hash,
+            destination,
+            resources,
+            policy_id: _,
+            policy_epoch,
+        } = &approval.binding
+        else {
+            out.push(Violation::new("egress.approval_kind", path.clone()));
+            continue;
+        };
+        if request_id != &dispatch.request_id || capsule_id != &dispatch.capsule_id {
+            out.push(Violation::new("egress.approval_request", path.clone()));
+        }
+        if payload_hash != &dispatch.request_hash {
+            out.push(Violation::new("egress.approval_payload", path.clone()));
+        }
+        if destination != &dispatch.destination {
+            out.push(Violation::new("egress.approval_destination", path.clone()));
+        }
+        let approved: BTreeSet<&RecordRef> = resources.iter().collect();
+        if private.iter().any(|r| !approved.contains(r)) {
+            out.push(Violation::new("egress.approval_resources", path.clone()));
+        }
+        if *policy_epoch != dispatch.egress.policy_epoch {
+            out.push(Violation::new("egress.approval_epoch", path.clone()));
+        }
+        if !approval.valid_at(send_time) {
+            out.push(Violation::new("egress.approval_expired", path.clone()));
         }
     }
 }

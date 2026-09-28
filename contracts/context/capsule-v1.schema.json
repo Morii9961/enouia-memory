@@ -10,6 +10,7 @@
     "capsule_id",
     "generated_at",
     "request_id",
+    "requested_by",
     "query",
     "as_of",
     "vault_commit_id",
@@ -48,6 +49,9 @@
     },
     "request_id": {
       "$ref": "../memory/common-v1.schema.json#/$defs/requestId"
+    },
+    "requested_by": {
+      "$ref": "../memory/common-v1.schema.json#/$defs/actorRef"
     },
     "query": {
       "type": "string",

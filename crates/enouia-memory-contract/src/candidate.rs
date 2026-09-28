@@ -107,7 +107,8 @@ pub struct CandidateRecord {
     pub confidence: Option<f64>,
     pub sensitivity: Sensitivity,
     #[serde(deserialize_with = "crate::json::nullable")]
-    pub declassification_review_id: Option<ReviewId>,
+    /// Owner approval bound to this exact revision's declassification.
+    pub declassification_approval_id: Option<crate::ids::ApprovalId>,
     pub status: CandidateStatus,
     #[serde(deserialize_with = "crate::json::nullable")]
     pub target_memory_id: Option<MemoryId>,
@@ -263,10 +264,21 @@ pub struct ReviewRecord {
     #[serde(deserialize_with = "crate::json::nullable")]
     pub merge_target: Option<MergeTarget>,
     pub resulting_records: Vec<RecordRef>,
+    /// Required for `confirm_delete`: exactly what the owner agreed to delete.
+    #[serde(deserialize_with = "crate::json::nullable")]
+    pub delete_binding: Option<DeleteBinding>,
     #[serde(deserialize_with = "crate::json::nullable")]
     pub reason_code: Option<String>,
     pub created_at: Timestamp,
     pub commit_id: CommitId,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct DeleteBinding {
+    pub mode: crate::commit::DeleteMode,
+    pub scope: crate::commit::DeleteScope,
+    pub targets: Vec<crate::commit::DeleteTarget>,
 }
 
 pub fn is_nonce(value: &str) -> bool {
@@ -311,6 +323,14 @@ impl ReviewRecord {
                 "review.action_results",
                 "/resulting_records",
             ));
+        }
+        if (self.action == ReviewAction::ConfirmDelete) != self.delete_binding.is_some()
+            || self
+                .delete_binding
+                .as_ref()
+                .is_some_and(|b| b.targets.is_empty())
+        {
+            out.push(Violation::new("review.delete_binding", "/delete_binding"));
         }
         if (self.action == ReviewAction::Merge) != self.merge_target.is_some() {
             out.push(Violation::new("review.merge_target", "/merge_target"));
