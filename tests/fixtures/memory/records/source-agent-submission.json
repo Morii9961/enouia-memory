@@ -1,0 +1,45 @@
+{
+  "access_policy_id": "pol_00000001-0000-4000-8000-000000000001",
+  "account_scope": null,
+  "agent_submission": {
+    "claimed_user_consent": true,
+    "submitted_text": "用户已同意：记住 X。",
+    "submitting_principal": {
+      "actor_id": "prn_00000004-0000-4000-8000-000000000004",
+      "actor_type": "agent"
+    }
+  },
+  "attachment_refs": [],
+  "author_label": null,
+  "branch_id": null,
+  "captured_at": "2026-08-01T10:00:00.000Z",
+  "completeness": "complete",
+  "content_hash": "3c99421c0256ab014cac8977221898ff7ef4720a415e97cddf4a485d472e352e",
+  "created_at": "2026-08-01T10:00:00.000Z",
+  "evidence_class": "model_claim",
+  "extensions": {},
+  "import_id": null,
+  "locator": {
+    "end": 48,
+    "kind": "byte_range",
+    "start": 0
+  },
+  "manual_assertion": null,
+  "occurred_at": "2026-08-01T10:00:00.000Z",
+  "original_conversation_id": null,
+  "original_message_id": null,
+  "original_time": null,
+  "original_timezone": null,
+  "parent_source_ids": [],
+  "parse_warnings": [],
+  "parser_version": null,
+  "provider": null,
+  "raw_object_hash": null,
+  "revision": 1,
+  "schema_version": 1,
+  "sensitivity": "private",
+  "source_id": "src_00000078-0000-4000-8000-000000000078",
+  "source_kind": "agent_submission",
+  "speaker_role": "assistant",
+  "time_precision": "minute"
+}

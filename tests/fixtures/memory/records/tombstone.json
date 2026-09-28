@@ -1,0 +1,21 @@
+{
+  "created_at": "2026-09-21T10:03:00.500Z",
+  "delete_id": "del_00000001-0000-4000-8000-000000000001",
+  "deletion_epoch": 1,
+  "mode": "logical_delete",
+  "object_hashes": [],
+  "requested_by": {
+    "actor_id": "prn_00000001-0000-4000-8000-000000000001",
+    "actor_type": "owner"
+  },
+  "review_id": "rvw_0000006f-0000-4000-8000-00000000006f",
+  "schema_version": 1,
+  "scope": "all_revisions",
+  "targets": [
+    {
+      "record_id": "mem_0000006e-0000-4000-8000-00000000006e",
+      "record_kind": "memory",
+      "revision": null
+    }
+  ]
+}

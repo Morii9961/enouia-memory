@@ -1,0 +1,68 @@
+{
+  "access_policy_id": "pol_00000001-0000-4000-8000-000000000001",
+  "approved_at": "2026-07-02T13:00:00.000Z",
+  "approved_by": {
+    "actor_id": "prn_00000001-0000-4000-8000-000000000001",
+    "actor_type": "owner"
+  },
+  "category": null,
+  "confidence": null,
+  "conflict_group_id": null,
+  "content": "MoriMeta 的视觉设计方向确定为 Professional Darkroom。",
+  "created_at": "2026-07-02T13:00:00.500Z",
+  "decisions": [
+    {
+      "as_of": "2026-07-02T10:05:00.000Z",
+      "claim": "视觉方向：Professional Darkroom",
+      "evidence_refs": [
+        {
+          "source_id": "src_00000002-0000-4000-8000-000000000002",
+          "source_revision": 1
+        }
+      ],
+      "item_id": "itm_00000001-0000-4000-8000-000000000001",
+      "state_kind": "decided"
+    }
+  ],
+  "declassification_review_id": null,
+  "egress_policy_id": null,
+  "epistemic_status": "asserted",
+  "evidence": [
+    {
+      "evidence_class": "user_statement",
+      "locator": {
+        "kind": "json_pointer",
+        "pointer": "/mapping/b1/message/content"
+      },
+      "object_hash": "1bcb7e22aeceeedc14a62c504fbb3d1e0af52c2cb7e229c4a2c902c8745b7298",
+      "source_id": "src_00000002-0000-4000-8000-000000000002",
+      "source_revision": 1,
+      "supports": "content"
+    }
+  ],
+  "extensions": {},
+  "last_verified_at": null,
+  "memory_id": "mem_00000002-0000-4000-8000-000000000002",
+  "observed_at": "2026-07-02T10:05:00.000Z",
+  "open_loops": [],
+  "priority": "P1",
+  "project_id": "prj_00000001-0000-4000-8000-000000000001",
+  "provenance_state": "intact",
+  "review_after": "2026-07-09T13:00:00.000Z",
+  "review_id": "rvw_00000002-0000-4000-8000-000000000002",
+  "revision": 1,
+  "schema_version": 1,
+  "sensitivity": "private",
+  "source_id": "src_00000002-0000-4000-8000-000000000002",
+  "state": [],
+  "status": "active",
+  "subject_ids": [],
+  "supersedes": [],
+  "tags": [],
+  "title": "MoriMeta 视觉方向",
+  "type": "project_state",
+  "updated_at": "2026-07-02T13:00:00.500Z",
+  "valid_from": null,
+  "valid_until": null,
+  "volatility": "changing"
+}

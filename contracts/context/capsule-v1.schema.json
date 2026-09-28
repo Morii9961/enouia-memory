@@ -1,0 +1,423 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "capsule-v1.schema.json",
+  "title": "Enouia Context Capsule v1",
+  "description": "Logical context for one request. Keeps the Architecture v0.3 capsule fields. Inclusion eligibility (tombstones, policy, valid time, provenance) is checked against the record set by the Rust validator.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "capsule_id",
+    "generated_at",
+    "request_id",
+    "query",
+    "as_of",
+    "vault_commit_id",
+    "policy_epoch",
+    "deletion_epoch",
+    "compiler_version",
+    "ranking_version",
+    "tokenizer_version",
+    "client_surface",
+    "destination",
+    "purpose",
+    "session_id",
+    "branch_id",
+    "identity",
+    "user_context",
+    "relationship_context",
+    "active_projects",
+    "relevant_memories",
+    "recent_session_checkpoints",
+    "recent_turns",
+    "open_loops",
+    "provenance",
+    "budget",
+    "verification_needed",
+    "completeness"
+  ],
+  "properties": {
+    "schema_version": {
+      "$ref": "../memory/common-v1.schema.json#/$defs/schemaVersion"
+    },
+    "capsule_id": {
+      "$ref": "../memory/common-v1.schema.json#/$defs/capsuleId"
+    },
+    "generated_at": {
+      "$ref": "../memory/common-v1.schema.json#/$defs/timestamp"
+    },
+    "request_id": {
+      "$ref": "../memory/common-v1.schema.json#/$defs/requestId"
+    },
+    "query": {
+      "type": "string",
+      "minLength": 1
+    },
+    "as_of": {
+      "$ref": "../memory/common-v1.schema.json#/$defs/timestampOrNull"
+    },
+    "vault_commit_id": {
+      "$ref": "../memory/common-v1.schema.json#/$defs/commitId"
+    },
+    "policy_epoch": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+    },
+    "deletion_epoch": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+    },
+    "compiler_version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "ranking_version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "tokenizer_version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "client_surface": {
+      "$ref": "../memory/common-v1.schema.json#/$defs/clientSurface"
+    },
+    "destination": {
+      "$ref": "common-v1.schema.json#/$defs/destination"
+    },
+    "purpose": {
+      "$ref": "../memory/common-v1.schema.json#/$defs/purpose"
+    },
+    "session_id": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "../memory/common-v1.schema.json#/$defs/sessionId"
+        }
+      ]
+    },
+    "branch_id": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "../memory/common-v1.schema.json#/$defs/branchId"
+        }
+      ]
+    },
+    "identity": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "identity_id",
+          "revision",
+          "slug",
+          "text"
+        ],
+        "properties": {
+          "identity_id": {
+            "$ref": "../memory/common-v1.schema.json#/$defs/identityId"
+          },
+          "revision": {
+            "$ref": "../memory/common-v1.schema.json#/$defs/revision"
+          },
+          "slug": {
+            "enum": [
+              "core",
+              "runtime_rules",
+              "style",
+              "relationship",
+              "boundaries"
+            ]
+          },
+          "text": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "user_context": {
+      "type": "array",
+      "items": {
+        "$ref": "common-v1.schema.json#/$defs/memoryItem"
+      }
+    },
+    "relationship_context": {
+      "type": "array",
+      "items": {
+        "$ref": "common-v1.schema.json#/$defs/memoryItem"
+      }
+    },
+    "active_projects": {
+      "type": "array",
+      "items": {
+        "$ref": "common-v1.schema.json#/$defs/memoryItem"
+      }
+    },
+    "relevant_memories": {
+      "type": "array",
+      "items": {
+        "$ref": "common-v1.schema.json#/$defs/memoryItem"
+      }
+    },
+    "recent_session_checkpoints": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "checkpoint_id",
+          "revision",
+          "status",
+          "summary"
+        ],
+        "properties": {
+          "checkpoint_id": {
+            "$ref": "../memory/common-v1.schema.json#/$defs/checkpointId"
+          },
+          "revision": {
+            "$ref": "../memory/common-v1.schema.json#/$defs/revision"
+          },
+          "status": {
+            "enum": [
+              "provisional",
+              "reviewed"
+            ]
+          },
+          "summary": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "recent_turns": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "event_id",
+          "role",
+          "text"
+        ],
+        "properties": {
+          "event_id": {
+            "$ref": "../memory/common-v1.schema.json#/$defs/eventId"
+          },
+          "role": {
+            "enum": [
+              "user",
+              "assistant",
+              "tool"
+            ]
+          },
+          "text": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "open_loops": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "item_id",
+          "description",
+          "origin",
+          "origin_id",
+          "provisional"
+        ],
+        "properties": {
+          "item_id": {
+            "$ref": "../memory/common-v1.schema.json#/$defs/itemId"
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1
+          },
+          "origin": {
+            "enum": [
+              "memory",
+              "checkpoint"
+            ]
+          },
+          "origin_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "provisional": {
+            "type": "boolean"
+          }
+        }
+      }
+    },
+    "provenance": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "source_id",
+          "source_revision",
+          "occurred_at",
+          "time_precision",
+          "locator_kind"
+        ],
+        "properties": {
+          "source_id": {
+            "$ref": "../memory/common-v1.schema.json#/$defs/sourceId"
+          },
+          "source_revision": {
+            "$ref": "../memory/common-v1.schema.json#/$defs/revision"
+          },
+          "occurred_at": {
+            "$ref": "../memory/common-v1.schema.json#/$defs/timestampOrNull"
+          },
+          "time_precision": {
+            "$ref": "../memory/common-v1.schema.json#/$defs/timePrecision"
+          },
+          "locator_kind": {
+            "enum": [
+              "json_pointer",
+              "byte_range",
+              "runtime_event",
+              "manual_input",
+              "archive_member"
+            ]
+          }
+        }
+      }
+    },
+    "budget": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "max_tokens",
+        "memory_budget_tokens",
+        "estimated_tokens",
+        "counting_method",
+        "safety_margin_tokens"
+      ],
+      "properties": {
+        "max_tokens": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "memory_budget_tokens": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "estimated_tokens": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "counting_method": {
+          "enum": [
+            "utf8_bytes_v1",
+            "provider_exact"
+          ]
+        },
+        "safety_margin_tokens": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        }
+      }
+    },
+    "verification_needed": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "memory_id",
+          "item_id",
+          "conflict_group_id",
+          "reason"
+        ],
+        "properties": {
+          "memory_id": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "../memory/common-v1.schema.json#/$defs/memoryId"
+              }
+            ]
+          },
+          "item_id": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "../memory/common-v1.schema.json#/$defs/itemId"
+              }
+            ]
+          },
+          "conflict_group_id": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "../memory/common-v1.schema.json#/$defs/conflictGroupId"
+              }
+            ]
+          },
+          "reason": {
+            "enum": [
+              "implementation_unverified",
+              "live_value",
+              "review_overdue",
+              "conflicted",
+              "no_supported_evidence",
+              "supersession_time_unknown"
+            ]
+          }
+        }
+      }
+    },
+    "completeness": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "complete",
+        "limitations"
+      ],
+      "properties": {
+        "complete": {
+          "type": "boolean"
+        },
+        "limitations": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "over_budget",
+              "policy_limited",
+              "index_not_ready",
+              "no_supported_memory",
+              "broken_provenance_omitted"
+            ]
+          },
+          "uniqueItems": true
+        }
+      }
+    }
+  }
+}

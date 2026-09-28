@@ -1,0 +1,26 @@
+{
+  "actor": {
+    "actor_id": "prn_00000001-0000-4000-8000-000000000001",
+    "actor_type": "owner"
+  },
+  "branch_id": "br_00000001-0000-4000-8000-000000000001",
+  "captured_at": "2026-07-03T09:00:00.010Z",
+  "content_ref": {
+    "media_type": "text/plain; charset=utf-8",
+    "object_hash": "5f89a2cc90d217ce64bf99f0b98639b08bf2f233db689c05df7fdcd42e473bc9",
+    "size_bytes": 42
+  },
+  "delivery_state": "not_applicable",
+  "event_id": "evt_00000001-0000-4000-8000-000000000001",
+  "extensions": {},
+  "kind": "user_message",
+  "occurred_at": "2026-07-03T09:00:00.000Z",
+  "parent_event_id": null,
+  "request_id": "req_0000000a-0000-4000-8000-00000000000a",
+  "schema_version": 1,
+  "sensitivity": "private",
+  "sequence": 1,
+  "session_id": "ses_00000001-0000-4000-8000-000000000001",
+  "source_refs": [],
+  "turn_id": "turn_00000001-0000-4000-8000-000000000001"
+}

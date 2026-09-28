@@ -1,0 +1,489 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "source-v1.schema.json",
+  "title": "Enouia SourceRecord v1",
+  "description": "A stable evidence location. Role is data, not permission. Cross-field rules not expressible here (time precision, locator/kind pairing, created_at >= captured_at) are enforced by the Rust validator.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "source_id",
+    "revision",
+    "source_kind",
+    "provider",
+    "account_scope",
+    "import_id",
+    "raw_object_hash",
+    "content_hash",
+    "original_conversation_id",
+    "original_message_id",
+    "parent_source_ids",
+    "branch_id",
+    "locator",
+    "original_time",
+    "original_timezone",
+    "occurred_at",
+    "captured_at",
+    "time_precision",
+    "speaker_role",
+    "author_label",
+    "evidence_class",
+    "completeness",
+    "sensitivity",
+    "access_policy_id",
+    "attachment_refs",
+    "parser_version",
+    "parse_warnings",
+    "manual_assertion",
+    "agent_submission",
+    "created_at",
+    "extensions"
+  ],
+  "properties": {
+    "schema_version": {
+      "$ref": "common-v1.schema.json#/$defs/schemaVersion"
+    },
+    "source_id": {
+      "$ref": "common-v1.schema.json#/$defs/sourceId"
+    },
+    "revision": {
+      "$ref": "common-v1.schema.json#/$defs/revision"
+    },
+    "source_kind": {
+      "enum": [
+        "export_message",
+        "runtime_event",
+        "imported_document",
+        "manual_assertion",
+        "external_event",
+        "agent_submission"
+      ]
+    },
+    "provider": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "string",
+          "minLength": 1
+        }
+      ]
+    },
+    "account_scope": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9_-]{0,63}$"
+        }
+      ]
+    },
+    "import_id": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "common-v1.schema.json#/$defs/importId"
+        }
+      ]
+    },
+    "raw_object_hash": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "common-v1.schema.json#/$defs/sha256"
+        }
+      ]
+    },
+    "content_hash": {
+      "$ref": "common-v1.schema.json#/$defs/sha256"
+    },
+    "original_conversation_id": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "string"
+        }
+      ]
+    },
+    "original_message_id": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "string"
+        }
+      ]
+    },
+    "parent_source_ids": {
+      "oneOf": [
+        {
+          "const": "unknown"
+        },
+        {
+          "type": "array",
+          "items": {
+            "$ref": "common-v1.schema.json#/$defs/sourceId"
+          }
+        }
+      ]
+    },
+    "branch_id": {
+      "oneOf": [
+        {
+          "const": "unknown"
+        },
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "common-v1.schema.json#/$defs/branchId"
+        }
+      ]
+    },
+    "locator": {
+      "$ref": "common-v1.schema.json#/$defs/locator"
+    },
+    "original_time": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "string"
+        }
+      ]
+    },
+    "original_timezone": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "string"
+        }
+      ]
+    },
+    "occurred_at": {
+      "$ref": "common-v1.schema.json#/$defs/timestampOrNull"
+    },
+    "captured_at": {
+      "$ref": "common-v1.schema.json#/$defs/timestamp"
+    },
+    "time_precision": {
+      "$ref": "common-v1.schema.json#/$defs/timePrecision"
+    },
+    "speaker_role": {
+      "$ref": "common-v1.schema.json#/$defs/speakerRole"
+    },
+    "author_label": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "string"
+        }
+      ]
+    },
+    "evidence_class": {
+      "$ref": "common-v1.schema.json#/$defs/evidenceClass"
+    },
+    "completeness": {
+      "enum": [
+        "complete",
+        "partial",
+        "metadata_only",
+        "unavailable"
+      ]
+    },
+    "sensitivity": {
+      "$ref": "common-v1.schema.json#/$defs/sensitivity"
+    },
+    "access_policy_id": {
+      "$ref": "common-v1.schema.json#/$defs/policyId"
+    },
+    "attachment_refs": {
+      "type": "array",
+      "items": {
+        "$ref": "common-v1.schema.json#/$defs/attachmentId"
+      }
+    },
+    "parser_version": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "string",
+          "minLength": 1
+        }
+      ]
+    },
+    "parse_warnings": {
+      "type": "array",
+      "items": {
+        "$ref": "common-v1.schema.json#/$defs/warning"
+      }
+    },
+    "manual_assertion": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "input_text",
+            "operator",
+            "trusted_surface",
+            "confirmation_method",
+            "confirmed_at"
+          ],
+          "properties": {
+            "input_text": {
+              "type": "string",
+              "minLength": 1
+            },
+            "operator": {
+              "$ref": "common-v1.schema.json#/$defs/ownerRef"
+            },
+            "trusted_surface": {
+              "$ref": "common-v1.schema.json#/$defs/trustedSurface"
+            },
+            "confirmation_method": {
+              "enum": [
+                "exact_text_confirm_dialog",
+                "typed_confirmation"
+              ]
+            },
+            "confirmed_at": {
+              "$ref": "common-v1.schema.json#/$defs/timestamp"
+            }
+          }
+        }
+      ]
+    },
+    "agent_submission": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "submitting_principal",
+            "submitted_text",
+            "claimed_user_consent"
+          ],
+          "properties": {
+            "submitting_principal": {
+              "$ref": "common-v1.schema.json#/$defs/actorRef"
+            },
+            "submitted_text": {
+              "type": "string"
+            },
+            "claimed_user_consent": {
+              "type": "boolean"
+            }
+          }
+        }
+      ]
+    },
+    "created_at": {
+      "$ref": "common-v1.schema.json#/$defs/timestamp"
+    },
+    "extensions": {
+      "$ref": "common-v1.schema.json#/$defs/extensions"
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "source_kind": {
+            "enum": [
+              "manual_assertion"
+            ]
+          }
+        },
+        "required": [
+          "source_kind"
+        ]
+      },
+      "then": {
+        "properties": {
+          "manual_assertion": {
+            "type": "object"
+          },
+          "agent_submission": {
+            "type": "null"
+          },
+          "speaker_role": {
+            "const": "user"
+          },
+          "evidence_class": {
+            "enum": [
+              "user_statement",
+              "user_confirmation"
+            ]
+          },
+          "locator": {
+            "properties": {
+              "kind": {
+                "const": "manual_input"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "source_kind": {
+            "enum": [
+              "agent_submission"
+            ]
+          }
+        },
+        "required": [
+          "source_kind"
+        ]
+      },
+      "then": {
+        "properties": {
+          "agent_submission": {
+            "type": "object"
+          },
+          "manual_assertion": {
+            "type": "null"
+          },
+          "speaker_role": {
+            "enum": [
+              "assistant",
+              "tool",
+              "unknown"
+            ]
+          },
+          "evidence_class": {
+            "enum": [
+              "model_claim",
+              "summary",
+              "unknown"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "source_kind": {
+            "enum": [
+              "export_message",
+              "imported_document"
+            ]
+          }
+        },
+        "required": [
+          "source_kind"
+        ]
+      },
+      "then": {
+        "properties": {
+          "import_id": {
+            "$ref": "common-v1.schema.json#/$defs/importId"
+          },
+          "raw_object_hash": {
+            "$ref": "common-v1.schema.json#/$defs/sha256"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "source_kind": {
+            "enum": [
+              "export_message",
+              "external_event"
+            ]
+          }
+        },
+        "required": [
+          "source_kind"
+        ]
+      },
+      "then": {
+        "properties": {
+          "provider": {
+            "type": "string",
+            "minLength": 1
+          },
+          "account_scope": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "evidence_class": {
+            "enum": [
+              "user_statement",
+              "user_confirmation"
+            ]
+          }
+        },
+        "required": [
+          "evidence_class"
+        ]
+      },
+      "then": {
+        "properties": {
+          "speaker_role": {
+            "const": "user"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "speaker_role": {
+            "enum": [
+              "assistant"
+            ]
+          }
+        },
+        "required": [
+          "speaker_role"
+        ]
+      },
+      "then": {
+        "properties": {
+          "evidence_class": {
+            "enum": [
+              "model_claim",
+              "summary",
+              "unknown"
+            ]
+          }
+        }
+      }
+    }
+  ]
+}

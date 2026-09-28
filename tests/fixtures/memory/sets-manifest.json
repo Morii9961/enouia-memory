@@ -1,0 +1,851 @@
+{
+  "description": "Consistent synthetic sets and single-rule mutations. Each mutation must produce at least the named cross-record violation.",
+  "invalid": [
+    {
+      "base": "sets/morimeta-confirmed.json",
+      "covers": "no canonical write without review",
+      "id": "memory-without-review",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/memories/0/review_id",
+          "value": "rvw_00000063-0000-4000-8000-000000000063"
+        }
+      ],
+      "rust_rule": "memory.review_missing"
+    },
+    {
+      "base": "sets/morimeta-confirmed.json",
+      "covers": "unreviewed candidate cannot become memory",
+      "id": "memory-from-pending-candidate",
+      "ops": [
+        {
+          "op": "remove",
+          "path": "/candidates/5"
+        }
+      ],
+      "rust_rule": "memory.unreviewed_candidate"
+    },
+    {
+      "base": "sets/morimeta-confirmed.json",
+      "covers": "model claim cited as user statement",
+      "id": "evidence-role-confusion",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/memories/0/source_id",
+          "value": "src_00000001-0000-4000-8000-000000000001"
+        },
+        {
+          "op": "set",
+          "path": "/memories/0/evidence/0/source_id",
+          "value": "src_00000001-0000-4000-8000-000000000001"
+        },
+        {
+          "op": "set",
+          "path": "/memories/0/evidence/0/locator/pointer",
+          "value": "/mapping/a1/message/content"
+        },
+        {
+          "op": "set",
+          "path": "/memories/0/decisions/0/evidence_refs/0/source_id",
+          "value": "src_00000001-0000-4000-8000-000000000001"
+        }
+      ],
+      "rust_rule": "evidence.class_mismatch"
+    },
+    {
+      "base": "sets/morimeta-confirmed.json",
+      "covers": "missing source",
+      "id": "evidence-missing-source",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/memories/0/evidence/0/source_revision",
+          "value": 2
+        },
+        {
+          "op": "set",
+          "path": "/memories/0/decisions/0/evidence_refs/0/source_revision",
+          "value": 2
+        }
+      ],
+      "rust_rule": "evidence.unresolved"
+    },
+    {
+      "base": "sets/morimeta-confirmed.json",
+      "covers": "derived data inherits strictest level",
+      "id": "sensitivity-downgrade",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/memories/0/sensitivity",
+          "value": "normal"
+        }
+      ],
+      "rust_rule": "sensitivity.downgrade"
+    },
+    {
+      "base": "sets/morimeta-confirmed.json",
+      "covers": "approval nonce single use",
+      "id": "nonce-reuse",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/reviews/1/approval_nonce",
+          "value": "nonce-synthetic-0002-abcdefghij"
+        }
+      ],
+      "rust_rule": "review.nonce_reuse"
+    },
+    {
+      "base": "sets/morimeta-confirmed.json",
+      "covers": "review bound to its commit",
+      "id": "review-wrong-commit",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/reviews/0/commit_id",
+          "value": "cmt_00000005-0000-4000-8000-000000000005"
+        }
+      ],
+      "rust_rule": "review.commit_ref"
+    },
+    {
+      "base": "sets/morimeta-confirmed.json",
+      "covers": "highly sensitive never auto-sent",
+      "id": "capsule-includes-highly-sensitive",
+      "ops": [
+        {
+          "op": "append",
+          "path": "/capsules/0/relevant_memories",
+          "value": {
+            "conflict_group_id": null,
+            "content": "（合成夹具）定期复查安排在周四上午。",
+            "currency": "current_supported",
+            "evidence": [
+              {
+                "source_id": "src_00000004-0000-4000-8000-000000000004",
+                "source_revision": 1
+              }
+            ],
+            "last_verified_at": null,
+            "memory_id": "mem_00000004-0000-4000-8000-000000000004",
+            "revision": 1,
+            "sensitivity": "highly_sensitive",
+            "type": "fact",
+            "valid_from": null,
+            "valid_until": null
+          }
+        }
+      ],
+      "rust_rule": "capsule.policy_violation"
+    },
+    {
+      "base": "sets/morimeta-confirmed.json",
+      "covers": "currency derived from valid time",
+      "id": "capsule-currency-mismatch",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/capsules/0/active_projects/0/currency",
+          "value": "historical_only"
+        }
+      ],
+      "rust_rule": "capsule.currency_mismatch"
+    },
+    {
+      "base": "sets/morimeta-confirmed.json",
+      "covers": "no hidden extra memory",
+      "id": "dispatch-hidden-memory",
+      "ops": [
+        {
+          "op": "append",
+          "path": "/dispatches/0/messages/1/capsule_memory_refs",
+          "value": {
+            "memory_id": "mem_00000003-0000-4000-8000-000000000003",
+            "revision": 1
+          }
+        }
+      ],
+      "rust_rule": "dispatch.hidden_memory"
+    },
+    {
+      "base": "sets/morimeta-confirmed.json",
+      "covers": "inspector reasons are true",
+      "id": "inspection-false-policy-reason",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/inspections/0/decisions/1/reason",
+          "value": "policy_denied"
+        }
+      ],
+      "rust_rule": "inspection.reason_unsupported"
+    },
+    {
+      "base": "sets/morimeta-confirmed.json",
+      "covers": "inspector matches capsule",
+      "id": "inspection-capsule-mismatch",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/inspections/0/decisions/0/decision",
+          "value": "excluded"
+        },
+        {
+          "op": "set",
+          "path": "/inspections/0/decisions/0/reason",
+          "value": "over_budget"
+        }
+      ],
+      "rust_rule": "inspection.capsule_mismatch"
+    },
+    {
+      "base": "sets/morimeta-confirmed.json",
+      "covers": "checkpoint coverage closure",
+      "id": "checkpoint-coverage-beyond-events",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/checkpoints/0/coverage/to_sequence",
+          "value": 9
+        }
+      ],
+      "rust_rule": "checkpoint.coverage_missing"
+    },
+    {
+      "base": "sets/morimeta-confirmed.json",
+      "covers": "same key, different payload",
+      "id": "idempotency-conflict",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/commits/4/idempotency_key_hash",
+          "value": "e699a2e5b15e827e96ca6bae93834f1d693fd96613af42d34cebe4568322b3f6"
+        }
+      ],
+      "rust_rule": "commit.idempotency_conflict"
+    },
+    {
+      "base": "sets/morimeta-confirmed.json",
+      "covers": "retry must replay, not re-apply",
+      "id": "duplicate-application",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/commits/4/idempotency_key_hash",
+          "value": "e699a2e5b15e827e96ca6bae93834f1d693fd96613af42d34cebe4568322b3f6"
+        },
+        {
+          "op": "set",
+          "path": "/commits/4/request_payload_hash",
+          "value": "845f5b1b2ebbf71c4928a83baece09c85cbab17c2c14c7e18245e2cac68a8851"
+        }
+      ],
+      "rust_rule": "commit.duplicate_application"
+    },
+    {
+      "base": "sets/morimeta-confirmed.json",
+      "covers": "no forged order",
+      "id": "commit-clock-regression",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/commits/4/created_at",
+          "value": "2026-07-01T00:00:00.000Z"
+        }
+      ],
+      "rust_rule": "commit.clock_regression"
+    },
+    {
+      "base": "sets/morimeta-confirmed.json",
+      "covers": "complete catalog",
+      "id": "catalog-mismatch",
+      "ops": [
+        {
+          "op": "remove",
+          "path": "/commits/8/catalog/0"
+        }
+      ],
+      "rust_rule": "commit.catalog_mismatch"
+    },
+    {
+      "base": "sets/morimeta-confirmed.json",
+      "covers": "MoriMeta and Moriium stay distinct",
+      "id": "project-alias-collision",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/projects/1/aliases",
+          "value": [
+            "MoriMeta"
+          ]
+        }
+      ],
+      "rust_rule": "project.alias_collision"
+    },
+    {
+      "base": "sets/morimeta-confirmed.json",
+      "covers": "terminal statuses are final",
+      "id": "candidate-reopened-in-place",
+      "ops": [
+        {
+          "op": "append",
+          "path": "/candidates",
+          "then": [
+            {
+              "op": "set",
+              "path": "/revision",
+              "value": 3
+            },
+            {
+              "op": "set",
+              "path": "/status",
+              "value": "pending"
+            },
+            {
+              "op": "set",
+              "path": "/resolution_review_id",
+              "value": null
+            }
+          ],
+          "value_from": "/candidates/8"
+        }
+      ],
+      "rust_rule": "candidate.status_transition"
+    },
+    {
+      "base": "sets/lifecycle.json",
+      "covers": "no supersession cycles",
+      "id": "supersession-cycle",
+      "ops": [
+        {
+          "op": "append",
+          "path": "/memories/9/supersedes",
+          "value": {
+            "effective_from": "unknown",
+            "memory_id": "mem_00000066-0000-4000-8000-000000000066",
+            "revision": 1,
+            "scope": "tool.editor"
+          }
+        }
+      ],
+      "rust_rule": "supersession.cycle"
+    },
+    {
+      "base": "sets/lifecycle.json",
+      "covers": "scope-limited replacement",
+      "id": "supersession-cross-scope",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/memories/8/claim_key",
+          "value": "tool.terminal"
+        }
+      ],
+      "rust_rule": "supersession.cross_scope"
+    },
+    {
+      "base": "sets/lifecycle.json",
+      "covers": "status has a real replacement",
+      "id": "superseded-without-replacement",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/memories/1/status",
+          "value": "superseded"
+        }
+      ],
+      "rust_rule": "supersession.orphan_status"
+    },
+    {
+      "base": "sets/lifecycle.json",
+      "covers": "deletion barrier",
+      "id": "capsule-includes-tombstoned",
+      "ops": [
+        {
+          "op": "append",
+          "path": "/capsules/0/relevant_memories",
+          "value": {
+            "conflict_group_id": null,
+            "content": "旧的收件地址（合成）。",
+            "currency": "current_supported",
+            "evidence": [
+              {
+                "source_id": "src_0000006e-0000-4000-8000-00000000006e",
+                "source_revision": 1
+              }
+            ],
+            "last_verified_at": null,
+            "memory_id": "mem_0000006e-0000-4000-8000-00000000006e",
+            "revision": 1,
+            "sensitivity": "private",
+            "type": "fact",
+            "valid_from": null,
+            "valid_until": null
+          }
+        },
+        {
+          "op": "append",
+          "path": "/capsules/0/provenance",
+          "value": {
+            "locator_kind": "manual_input",
+            "occurred_at": "2026-02-03T08:00:00.000Z",
+            "source_id": "src_0000006e-0000-4000-8000-00000000006e",
+            "source_revision": 1,
+            "time_precision": "minute"
+          }
+        }
+      ],
+      "rust_rule": "capsule.tombstoned_included"
+    },
+    {
+      "base": "sets/lifecycle.json",
+      "covers": "future replacement not yet current",
+      "id": "capsule-includes-future-fact",
+      "ops": [
+        {
+          "op": "append",
+          "path": "/capsules/0/relevant_memories",
+          "value": {
+            "conflict_group_id": null,
+            "content": "从 12 月 1 日起改用 Zed。",
+            "currency": "current_supported",
+            "evidence": [
+              {
+                "source_id": "src_00000066-0000-4000-8000-000000000066",
+                "source_revision": 1
+              }
+            ],
+            "last_verified_at": null,
+            "memory_id": "mem_00000066-0000-4000-8000-000000000066",
+            "revision": 1,
+            "sensitivity": "private",
+            "type": "fact",
+            "valid_from": "2026-12-01T00:00:00.000Z",
+            "valid_until": null
+          }
+        },
+        {
+          "op": "append",
+          "path": "/capsules/0/provenance",
+          "value": {
+            "locator_kind": "manual_input",
+            "occurred_at": "2026-09-20T08:00:00.000Z",
+            "source_id": "src_00000066-0000-4000-8000-000000000066",
+            "source_revision": 1,
+            "time_precision": "minute"
+          }
+        }
+      ],
+      "rust_rule": "capsule.not_effective_included"
+    },
+    {
+      "base": "sets/lifecycle.json",
+      "covers": "conflicts shown on both sides",
+      "id": "capsule-one-sided-conflict",
+      "ops": [
+        {
+          "op": "remove",
+          "path": "/capsules/0/relevant_memories/3"
+        },
+        {
+          "op": "remove",
+          "path": "/capsules/0/verification_needed/1"
+        }
+      ],
+      "rust_rule": "capsule.conflict_one_sided"
+    },
+    {
+      "base": "sets/lifecycle.json",
+      "covers": "auto checkpoint is not canonical",
+      "id": "checkpoint-memory-from-unreviewed",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/checkpoints/1/status",
+          "value": "stale"
+        },
+        {
+          "op": "set",
+          "path": "/checkpoints/1/review_id",
+          "value": null
+        }
+      ],
+      "rust_rule": "memory.checkpoint_unreviewed"
+    },
+    {
+      "base": "sets/morimeta-confirmed.json",
+      "covers": "send rechecks the latest deletion barrier",
+      "id": "dispatch-stale-deletion-barrier",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/tombstones",
+          "value": [
+            {
+              "created_at": "2026-07-03T23:00:00.000Z",
+              "delete_id": "del_00000009-0000-4000-8000-000000000009",
+              "deletion_epoch": 1,
+              "mode": "logical_delete",
+              "object_hashes": [],
+              "requested_by": {
+                "actor_id": "prn_00000001-0000-4000-8000-000000000001",
+                "actor_type": "owner"
+              },
+              "review_id": "rvw_00000002-0000-4000-8000-000000000002",
+              "schema_version": 1,
+              "scope": "all_revisions",
+              "targets": [
+                {
+                  "record_id": "mem_00000002-0000-4000-8000-000000000002",
+                  "record_kind": "memory",
+                  "revision": null
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "rust_rule": "dispatch.stale_barrier"
+    },
+    {
+      "base": "sets/morimeta-confirmed.json",
+      "covers": "deleted content is never sent",
+      "id": "dispatch-after-known-deletion",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/tombstones",
+          "value": [
+            {
+              "created_at": "2026-07-03T23:00:00.000Z",
+              "delete_id": "del_00000009-0000-4000-8000-000000000009",
+              "deletion_epoch": 1,
+              "mode": "logical_delete",
+              "object_hashes": [],
+              "requested_by": {
+                "actor_id": "prn_00000001-0000-4000-8000-000000000001",
+                "actor_type": "owner"
+              },
+              "review_id": "rvw_00000002-0000-4000-8000-000000000002",
+              "schema_version": 1,
+              "scope": "all_revisions",
+              "targets": [
+                {
+                  "record_id": "mem_00000002-0000-4000-8000-000000000002",
+                  "record_kind": "memory",
+                  "revision": null
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "op": "set",
+          "path": "/dispatches/0/egress/deletion_epoch",
+          "value": 1
+        }
+      ],
+      "rust_rule": "dispatch.tombstoned_content"
+    },
+    {
+      "base": "sets/morimeta-confirmed.json",
+      "covers": "private content needs per-request confirmation",
+      "id": "private-external-unconfirmed",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/capsules/0/destination",
+          "value": {
+            "kind": "external_provider",
+            "provider_binding": {
+              "adapter_version": "0",
+              "model": "example-model",
+              "provider": "example-cloud"
+            }
+          }
+        },
+        {
+          "op": "set",
+          "path": "/dispatches/0/destination",
+          "value": {
+            "kind": "external_provider",
+            "provider_binding": {
+              "adapter_version": "0",
+              "model": "example-model",
+              "provider": "example-cloud"
+            }
+          }
+        },
+        {
+          "op": "set",
+          "path": "/dispatches/0/egress/egress_policy_id",
+          "value": "pol_00000002-0000-4000-8000-000000000002"
+        },
+        {
+          "op": "set",
+          "path": "/memories/0/egress_policy_id",
+          "value": "pol_00000002-0000-4000-8000-000000000002"
+        }
+      ],
+      "rust_rule": "dispatch.private_unconfirmed"
+    },
+    {
+      "base": "sets/morimeta-confirmed.json",
+      "covers": "review binds the pending revision",
+      "id": "review-stale-candidate-revision",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/reviews/0/candidate_revision",
+          "value": 2
+        }
+      ],
+      "rust_rule": "review.stale_candidate_revision"
+    },
+    {
+      "base": "sets/morimeta-confirmed.json",
+      "covers": "parent chain",
+      "id": "commit-chain-broken",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/commits/2/parent_commit_id",
+          "value": "cmt_00000001-0000-4000-8000-000000000001"
+        }
+      ],
+      "rust_rule": "commit.chain"
+    },
+    {
+      "base": "sets/morimeta-confirmed.json",
+      "covers": "epochs never go back",
+      "id": "commit-epoch-regression",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/commits/5/policy_epoch",
+          "value": 0
+        }
+      ],
+      "rust_rule": "commit.epoch_regression"
+    },
+    {
+      "base": "sets/morimeta-confirmed.json",
+      "covers": "event order",
+      "id": "event-sequence-duplicate",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/session_events/1/sequence",
+          "value": 1
+        }
+      ],
+      "rust_rule": "event.sequence_duplicate"
+    },
+    {
+      "base": "sets/morimeta-confirmed.json",
+      "covers": "contiguous revisions",
+      "id": "revision-gap",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/memories/0/revision",
+          "value": 3
+        }
+      ],
+      "rust_rule": "set.revision_sequence"
+    },
+    {
+      "base": "sets/morimeta-confirmed.json",
+      "covers": "evidence names the cited bytes",
+      "id": "evidence-object-mismatch",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/memories/0/evidence/0/object_hash",
+          "value": "d9298a10d1b0735837dc4bd85dac641b0f3cef27a47e5d53a54f2f3f5b2fcffa"
+        }
+      ],
+      "rust_rule": "evidence.object_mismatch"
+    },
+    {
+      "base": "sets/morimeta-confirmed.json",
+      "covers": "evidence locator within source",
+      "id": "evidence-locator-mismatch",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/memories/0/evidence/0/locator/pointer",
+          "value": "/mapping/zz"
+        }
+      ],
+      "rust_rule": "evidence.locator_mismatch"
+    },
+    {
+      "base": "sets/morimeta-confirmed.json",
+      "covers": "approval copied from review",
+      "id": "approval-mismatch",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/memories/0/approved_at",
+          "value": "2026-07-02T12:59:00.000Z"
+        }
+      ],
+      "rust_rule": "memory.approval_mismatch"
+    },
+    {
+      "base": "sets/morimeta-confirmed.json",
+      "covers": "capsule pins exact revisions",
+      "id": "capsule-stale-revision",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/capsules/0/active_projects/0/revision",
+          "value": 2
+        }
+      ],
+      "rust_rule": "capsule.stale_revision"
+    },
+    {
+      "base": "sets/morimeta-confirmed.json",
+      "covers": "broken provenance excluded",
+      "id": "capsule-broken-provenance",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/memories/0/provenance_state",
+          "value": "broken"
+        }
+      ],
+      "rust_rule": "capsule.broken_provenance_included"
+    },
+    {
+      "base": "sets/morimeta-confirmed.json",
+      "covers": "no fake completed turn",
+      "id": "checkpoint-turn-not-completed",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/checkpoints/0/last_completed_turn_id",
+          "value": "turn_00000009-0000-4000-8000-000000000009"
+        }
+      ],
+      "rust_rule": "checkpoint.turn_not_completed"
+    },
+    {
+      "base": "sets/morimeta-confirmed.json",
+      "covers": "project reference closure",
+      "id": "memory-project-missing",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/memories/0/project_id",
+          "value": "prj_00000009-0000-4000-8000-000000000009"
+        }
+      ],
+      "rust_rule": "memory.project_missing"
+    },
+    {
+      "base": "sets/lifecycle.json",
+      "covers": "precise supersession target",
+      "id": "supersession-target-missing",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/memories/8/supersedes/0/revision",
+          "value": 9
+        }
+      ],
+      "rust_rule": "supersession.target_missing"
+    },
+    {
+      "base": "sets/lifecycle.json",
+      "covers": "tombstone closure",
+      "id": "tombstone-target-missing",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/tombstones/0/targets/0/record_id",
+          "value": "mem_000003e7-0000-4000-8000-0000000003e7"
+        }
+      ],
+      "rust_rule": "tombstone.target_missing"
+    },
+    {
+      "base": "sets/lifecycle.json",
+      "covers": "conflict needs two sides",
+      "id": "conflict-singleton",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/memories/10/conflict_group_id",
+          "value": "cfl_00000009-0000-4000-8000-000000000009"
+        }
+      ],
+      "rust_rule": "conflict.singleton"
+    },
+    {
+      "base": "sets/lifecycle.json",
+      "covers": "identity change is reviewed",
+      "id": "identity-review-missing",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/identities/0/review_id",
+          "value": "rvw_000003e7-0000-4000-8000-0000000003e7"
+        }
+      ],
+      "rust_rule": "identity.review_missing"
+    },
+    {
+      "base": "sets/lifecycle.json",
+      "covers": "purge receipt closure",
+      "id": "purge-without-tombstone",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/purge_receipts",
+          "value": [
+            {
+              "created_at": "2026-09-22T10:00:00.000Z",
+              "delete_id": "del_00000002-0000-4000-8000-000000000002",
+              "latest_purge_deadline": "2026-10-06T00:00:00.000Z",
+              "overall_state": "backup_purge_pending",
+              "receipt_id": "prg_00000001-0000-4000-8000-000000000001",
+              "schema_version": 1,
+              "stores": [
+                {
+                  "confirmed_at": "2026-09-22T10:00:00.000Z",
+                  "detail_code": null,
+                  "state": "purged",
+                  "store": "canonical"
+                },
+                {
+                  "confirmed_at": "2026-09-22T10:00:00.000Z",
+                  "detail_code": null,
+                  "state": "purged",
+                  "store": "index"
+                },
+                {
+                  "confirmed_at": null,
+                  "detail_code": "retention_window",
+                  "state": "pending",
+                  "store": "backups"
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "rust_rule": "purge.tombstone"
+    }
+  ],
+  "valid": [
+    "sets/morimeta-confirmed.json",
+    "sets/morimeta-insufficient-evidence.json",
+    "sets/lifecycle.json"
+  ]
+}

@@ -1,0 +1,253 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "inspection-v1.schema.json",
+  "title": "Enouia Context Inspection v1",
+  "description": "Local explanation of one compilation. Never sent to a Provider. Restricted viewers never receive hidden (policy_denied/tombstoned) entries.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "inspection_id",
+    "capsule_id",
+    "request_id",
+    "generated_at",
+    "vault_commit_id",
+    "policy_epoch",
+    "deletion_epoch",
+    "ranking_version",
+    "viewer_scope",
+    "decisions"
+  ],
+  "properties": {
+    "schema_version": {
+      "$ref": "../memory/common-v1.schema.json#/$defs/schemaVersion"
+    },
+    "inspection_id": {
+      "$ref": "../memory/common-v1.schema.json#/$defs/inspectionId"
+    },
+    "capsule_id": {
+      "$ref": "../memory/common-v1.schema.json#/$defs/capsuleId"
+    },
+    "request_id": {
+      "$ref": "../memory/common-v1.schema.json#/$defs/requestId"
+    },
+    "generated_at": {
+      "$ref": "../memory/common-v1.schema.json#/$defs/timestamp"
+    },
+    "vault_commit_id": {
+      "$ref": "../memory/common-v1.schema.json#/$defs/commitId"
+    },
+    "policy_epoch": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+    },
+    "deletion_epoch": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+    },
+    "ranking_version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "viewer_scope": {
+      "enum": [
+        "owner_full",
+        "restricted"
+      ]
+    },
+    "decisions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "record_kind",
+          "record_id",
+          "revision",
+          "decision",
+          "reason",
+          "rank",
+          "token_cost",
+          "source_reachable",
+          "truncated"
+        ],
+        "properties": {
+          "record_kind": {
+            "enum": [
+              "memory",
+              "candidate",
+              "checkpoint",
+              "identity"
+            ]
+          },
+          "record_id": {
+            "type": "string",
+            "pattern": "^[a-z]+_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+          },
+          "revision": {
+            "$ref": "../memory/common-v1.schema.json#/$defs/revision"
+          },
+          "decision": {
+            "enum": [
+              "included",
+              "excluded"
+            ]
+          },
+          "reason": {
+            "enum": [
+              "explicit_entity_match",
+              "direct_support",
+              "current_supported",
+              "historical_match",
+              "identity_required",
+              "session_continuity",
+              "unrelated",
+              "superseded",
+              "expired",
+              "not_yet_effective",
+              "conflicted",
+              "pending",
+              "rejected",
+              "policy_denied",
+              "over_budget",
+              "broken_provenance",
+              "tombstoned",
+              "archived"
+            ]
+          },
+          "rank": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 4294967295
+              }
+            ]
+          },
+          "token_cost": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              }
+            ]
+          },
+          "source_reachable": {
+            "type": "boolean"
+          },
+          "truncated": {
+            "type": "boolean"
+          }
+        },
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "decision": {
+                  "enum": [
+                    "included"
+                  ]
+                }
+              },
+              "required": [
+                "decision"
+              ]
+            },
+            "then": {
+              "properties": {
+                "reason": {
+                  "enum": [
+                    "explicit_entity_match",
+                    "direct_support",
+                    "current_supported",
+                    "historical_match",
+                    "identity_required",
+                    "session_continuity"
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "decision": {
+                  "enum": [
+                    "excluded"
+                  ]
+                }
+              },
+              "required": [
+                "decision"
+              ]
+            },
+            "then": {
+              "properties": {
+                "reason": {
+                  "enum": [
+                    "unrelated",
+                    "superseded",
+                    "expired",
+                    "not_yet_effective",
+                    "conflicted",
+                    "pending",
+                    "rejected",
+                    "policy_denied",
+                    "over_budget",
+                    "broken_provenance",
+                    "tombstoned",
+                    "archived"
+                  ]
+                }
+              }
+            }
+          }
+        ]
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "viewer_scope": {
+            "enum": [
+              "restricted"
+            ]
+          }
+        },
+        "required": [
+          "viewer_scope"
+        ]
+      },
+      "then": {
+        "properties": {
+          "decisions": {
+            "type": "array",
+            "items": {
+              "properties": {
+                "reason": {
+                  "not": {
+                    "enum": [
+                      "policy_denied",
+                      "tombstoned"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}

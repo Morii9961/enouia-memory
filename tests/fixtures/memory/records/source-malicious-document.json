@@ -1,0 +1,42 @@
+{
+  "access_policy_id": "pol_00000001-0000-4000-8000-000000000001",
+  "account_scope": null,
+  "agent_submission": null,
+  "attachment_refs": [],
+  "author_label": null,
+  "branch_id": null,
+  "captured_at": "2026-07-02T11:00:00.000Z",
+  "completeness": "complete",
+  "content_hash": "c0a12f210e59d0f7acc76d9371a32d30885234d2960cc53e087102554211b14f",
+  "created_at": "2026-07-02T11:00:00.000Z",
+  "evidence_class": "unknown",
+  "extensions": {},
+  "import_id": "imp_00000002-0000-4000-8000-000000000002",
+  "locator": {
+    "kind": "json_pointer",
+    "pointer": ""
+  },
+  "manual_assertion": null,
+  "occurred_at": "2026-07-02T11:00:00.000Z",
+  "original_conversation_id": null,
+  "original_message_id": null,
+  "original_time": null,
+  "original_timezone": null,
+  "parent_source_ids": [],
+  "parse_warnings": [
+    {
+      "code": "instruction_like_content",
+      "pointer": ""
+    }
+  ],
+  "parser_version": "synthetic-export-adapter/0",
+  "provider": null,
+  "raw_object_hash": "fc6b54379dca4375ce9f3dd2e205ca1d6632490aca8aba0c6f867b39faf7059b",
+  "revision": 1,
+  "schema_version": 1,
+  "sensitivity": "private",
+  "source_id": "src_00000005-0000-4000-8000-000000000005",
+  "source_kind": "imported_document",
+  "speaker_role": "unknown",
+  "time_precision": "minute"
+}

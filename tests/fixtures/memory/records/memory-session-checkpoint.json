@@ -1,0 +1,66 @@
+{
+  "access_policy_id": "pol_00000001-0000-4000-8000-000000000001",
+  "approved_at": "2026-06-12T09:07:00.000Z",
+  "approved_by": {
+    "actor_id": "prn_00000001-0000-4000-8000-000000000001",
+    "actor_type": "owner"
+  },
+  "branch_id": "br_00000002-0000-4000-8000-000000000002",
+  "category": null,
+  "checkpoint_id": "ckp_00000002-0000-4000-8000-000000000002",
+  "checkpoint_revision": 2,
+  "confidence": null,
+  "conflict_group_id": null,
+  "content": "确定周报采用三段式。",
+  "coverage_hash": "4f3ae680219f1db255210da396b112f4022bf6640b1e6520a629833a1e9d6771",
+  "covered_events": {
+    "from_sequence": 1,
+    "to_sequence": 2
+  },
+  "created_at": "2026-06-12T09:07:00.500Z",
+  "declassification_review_id": null,
+  "egress_policy_id": null,
+  "epistemic_status": "asserted",
+  "evidence": [
+    {
+      "evidence_class": "user_statement",
+      "locator": {
+        "event_id": "evt_00000015-0000-4000-8000-000000000015",
+        "kind": "runtime_event"
+      },
+      "object_hash": "911f9e7564d8480ef4e6ff234626a837d061743998e5a4aeed33cc1f1e28752b",
+      "source_id": "src_00000070-0000-4000-8000-000000000070",
+      "source_revision": 1,
+      "supports": "content"
+    }
+  ],
+  "extensions": {},
+  "last_completed_turn_id": "turn_00000005-0000-4000-8000-000000000005",
+  "last_state": "周报采用三段式",
+  "last_verified_at": null,
+  "memory_id": "mem_00000070-0000-4000-8000-000000000070",
+  "observed_at": "2026-06-10T10:00:00.000Z",
+  "open_loops": [],
+  "priority": "P1",
+  "project_id": null,
+  "provenance_state": "intact",
+  "review_after": null,
+  "review_id": "rvw_00000070-0000-4000-8000-000000000070",
+  "revision": 1,
+  "schema_version": 1,
+  "sensitivity": "private",
+  "session_id": "ses_00000002-0000-4000-8000-000000000002",
+  "source_id": "src_00000070-0000-4000-8000-000000000070",
+  "status": "active",
+  "subject_ids": [
+    "sub_00000001-0000-4000-8000-000000000001"
+  ],
+  "supersedes": [],
+  "tags": [],
+  "title": "周报格式",
+  "type": "session_checkpoint",
+  "updated_at": "2026-06-12T09:07:00.500Z",
+  "valid_from": null,
+  "valid_until": null,
+  "volatility": "stable"
+}

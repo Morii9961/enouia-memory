@@ -1,0 +1,112 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "audit-event-v1.schema.json",
+  "title": "Enouia AuditEvent v1",
+  "description": "IDs, enums, and codes only: no record text, query text, secrets, or paths.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "audit_id",
+    "actor",
+    "operation",
+    "object_refs",
+    "purpose",
+    "destination",
+    "policy_epoch",
+    "decision",
+    "error_code",
+    "request_id",
+    "created_at"
+  ],
+  "properties": {
+    "schema_version": {
+      "$ref": "common-v1.schema.json#/$defs/schemaVersion"
+    },
+    "audit_id": {
+      "$ref": "common-v1.schema.json#/$defs/auditId"
+    },
+    "actor": {
+      "$ref": "common-v1.schema.json#/$defs/actorRef"
+    },
+    "operation": {
+      "$ref": "common-v1.schema.json#/$defs/operation"
+    },
+    "object_refs": {
+      "type": "array",
+      "items": {
+        "$ref": "common-v1.schema.json#/$defs/recordRef"
+      }
+    },
+    "purpose": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "common-v1.schema.json#/$defs/purpose"
+        }
+      ]
+    },
+    "destination": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "common-v1.schema.json#/$defs/destinationKind"
+        }
+      ]
+    },
+    "policy_epoch": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+    },
+    "decision": {
+      "enum": [
+        "allow",
+        "deny"
+      ]
+    },
+    "error_code": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "common-v1.schema.json#/$defs/memoryErrorCode"
+        }
+      ]
+    },
+    "request_id": {
+      "$ref": "common-v1.schema.json#/$defs/requestId"
+    },
+    "created_at": {
+      "$ref": "common-v1.schema.json#/$defs/timestamp"
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "decision": {
+            "enum": [
+              "deny"
+            ]
+          }
+        },
+        "required": [
+          "decision"
+        ]
+      },
+      "then": {
+        "properties": {
+          "error_code": {
+            "$ref": "common-v1.schema.json#/$defs/memoryErrorCode"
+          }
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,340 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "checkpoint-v1.schema.json",
+  "title": "Enouia SessionCheckpoint artifact v1",
+  "description": "Provisional Session artifact. Becomes a canonical session_checkpoint memory only after owner review. Coverage closure is a cross-record rule.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "checkpoint_id",
+    "revision",
+    "session_id",
+    "branch_id",
+    "coverage",
+    "coverage_hash",
+    "base_vault_commit_id",
+    "summary",
+    "decisions",
+    "open_loops",
+    "last_completed_turn_id",
+    "generated_by",
+    "status",
+    "review_id",
+    "sensitivity",
+    "created_at",
+    "extensions"
+  ],
+  "properties": {
+    "schema_version": {
+      "$ref": "common-v1.schema.json#/$defs/schemaVersion"
+    },
+    "checkpoint_id": {
+      "$ref": "common-v1.schema.json#/$defs/checkpointId"
+    },
+    "revision": {
+      "$ref": "common-v1.schema.json#/$defs/revision"
+    },
+    "session_id": {
+      "$ref": "common-v1.schema.json#/$defs/sessionId"
+    },
+    "branch_id": {
+      "$ref": "common-v1.schema.json#/$defs/branchId"
+    },
+    "coverage": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "from_sequence",
+            "to_sequence"
+          ],
+          "properties": {
+            "kind": {
+              "const": "range"
+            },
+            "from_sequence": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            },
+            "to_sequence": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "event_ids"
+          ],
+          "properties": {
+            "kind": {
+              "const": "event_ids"
+            },
+            "event_ids": {
+              "type": "array",
+              "items": {
+                "$ref": "common-v1.schema.json#/$defs/eventId"
+              },
+              "minItems": 1,
+              "uniqueItems": true
+            }
+          }
+        }
+      ]
+    },
+    "coverage_hash": {
+      "$ref": "common-v1.schema.json#/$defs/sha256"
+    },
+    "base_vault_commit_id": {
+      "$ref": "common-v1.schema.json#/$defs/commitId"
+    },
+    "summary": {
+      "type": "string",
+      "minLength": 1
+    },
+    "decisions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "item_id",
+          "claim",
+          "state_kind",
+          "source_refs"
+        ],
+        "properties": {
+          "item_id": {
+            "$ref": "common-v1.schema.json#/$defs/itemId"
+          },
+          "claim": {
+            "type": "string",
+            "minLength": 1
+          },
+          "state_kind": {
+            "$ref": "common-v1.schema.json#/$defs/stateKind"
+          },
+          "source_refs": {
+            "type": "array",
+            "items": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "kind",
+                    "event_id"
+                  ],
+                  "properties": {
+                    "kind": {
+                      "const": "event"
+                    },
+                    "event_id": {
+                      "$ref": "common-v1.schema.json#/$defs/eventId"
+                    }
+                  }
+                },
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "kind",
+                    "source_id",
+                    "source_revision"
+                  ],
+                  "properties": {
+                    "kind": {
+                      "const": "source"
+                    },
+                    "source_id": {
+                      "$ref": "common-v1.schema.json#/$defs/sourceId"
+                    },
+                    "source_revision": {
+                      "$ref": "common-v1.schema.json#/$defs/revision"
+                    }
+                  }
+                }
+              ]
+            },
+            "minItems": 1
+          }
+        }
+      }
+    },
+    "open_loops": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "item_id",
+          "claim",
+          "state_kind",
+          "source_refs"
+        ],
+        "properties": {
+          "item_id": {
+            "$ref": "common-v1.schema.json#/$defs/itemId"
+          },
+          "claim": {
+            "type": "string",
+            "minLength": 1
+          },
+          "state_kind": {
+            "$ref": "common-v1.schema.json#/$defs/stateKind"
+          },
+          "source_refs": {
+            "type": "array",
+            "items": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "kind",
+                    "event_id"
+                  ],
+                  "properties": {
+                    "kind": {
+                      "const": "event"
+                    },
+                    "event_id": {
+                      "$ref": "common-v1.schema.json#/$defs/eventId"
+                    }
+                  }
+                },
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "kind",
+                    "source_id",
+                    "source_revision"
+                  ],
+                  "properties": {
+                    "kind": {
+                      "const": "source"
+                    },
+                    "source_id": {
+                      "$ref": "common-v1.schema.json#/$defs/sourceId"
+                    },
+                    "source_revision": {
+                      "$ref": "common-v1.schema.json#/$defs/revision"
+                    }
+                  }
+                }
+              ]
+            },
+            "minItems": 1
+          }
+        }
+      }
+    },
+    "last_completed_turn_id": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "common-v1.schema.json#/$defs/turnId"
+        }
+      ]
+    },
+    "generated_by": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "actor",
+        "generator_version"
+      ],
+      "properties": {
+        "actor": {
+          "$ref": "common-v1.schema.json#/$defs/actorRef"
+        },
+        "generator_version": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "status": {
+      "enum": [
+        "provisional",
+        "reviewed",
+        "stale"
+      ]
+    },
+    "review_id": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "common-v1.schema.json#/$defs/reviewId"
+        }
+      ]
+    },
+    "sensitivity": {
+      "$ref": "common-v1.schema.json#/$defs/sensitivity"
+    },
+    "created_at": {
+      "$ref": "common-v1.schema.json#/$defs/timestamp"
+    },
+    "extensions": {
+      "$ref": "common-v1.schema.json#/$defs/extensions"
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "enum": [
+              "reviewed"
+            ]
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
+      "then": {
+        "properties": {
+          "review_id": {
+            "$ref": "common-v1.schema.json#/$defs/reviewId"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "enum": [
+              "provisional",
+              "stale"
+            ]
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
+      "then": {
+        "properties": {
+          "review_id": {
+            "type": "null"
+          }
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,28 @@
+{
+  "action": "reject",
+  "actor": {
+    "actor_id": "prn_00000001-0000-4000-8000-000000000001",
+    "actor_type": "owner"
+  },
+  "approval_nonce": "nonce-synthetic-0005-abcdefghij",
+  "approved_diff_hash": "f67e22f61995acf94ab276dcdd86543b60121af86feb02c87116823ec4796fae",
+  "candidate_id": "cand_00000005-0000-4000-8000-000000000005",
+  "candidate_revision": 1,
+  "commit_id": "cmt_00000007-0000-4000-8000-000000000007",
+  "created_at": "2026-07-02T13:15:00.000Z",
+  "effective_from": null,
+  "evidence_refs": [
+    {
+      "source_id": "src_00000005-0000-4000-8000-000000000005",
+      "source_revision": 1
+    }
+  ],
+  "final_content_hash": "ee2b6ae41b8aa83e6ccc3d5aab9e2d1ff7cf734e026aed455d36c39c6b65e8d7",
+  "merge_target": null,
+  "reason_code": "instruction_like_content",
+  "resulting_records": [],
+  "review_id": "rvw_00000005-0000-4000-8000-000000000005",
+  "schema_version": 1,
+  "target_expected_revisions": [],
+  "trusted_surface": "trusted_windows_app"
+}

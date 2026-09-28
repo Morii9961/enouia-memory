@@ -1,0 +1,54 @@
+{
+  "access_policy_id": "pol_00000001-0000-4000-8000-000000000001",
+  "approved_at": "2026-06-12T09:03:00.000Z",
+  "approved_by": {
+    "actor_id": "prn_00000001-0000-4000-8000-000000000001",
+    "actor_type": "owner"
+  },
+  "category": null,
+  "claim_key": "work.internship",
+  "confidence": null,
+  "conflict_group_id": null,
+  "content": "暑期实习到 6 月 1 日结束。",
+  "created_at": "2026-06-12T09:03:00.500Z",
+  "declassification_review_id": null,
+  "egress_policy_id": null,
+  "epistemic_status": "asserted",
+  "evidence": [
+    {
+      "evidence_class": "user_statement",
+      "locator": {
+        "kind": "manual_input"
+      },
+      "object_hash": "fd6b7895cba2b0dfa213760478334ba12adfc0645203b84f9631dc30eeb0b993",
+      "source_id": "src_00000068-0000-4000-8000-000000000068",
+      "source_revision": 1,
+      "supports": "content"
+    }
+  ],
+  "extensions": {},
+  "last_verified_at": null,
+  "memory_id": "mem_00000068-0000-4000-8000-000000000068",
+  "observed_at": "2026-04-10T08:00:00.000Z",
+  "priority": "P1",
+  "project_id": null,
+  "provenance_state": "intact",
+  "review_after": null,
+  "review_id": "rvw_00000068-0000-4000-8000-000000000068",
+  "revision": 1,
+  "schema_version": 1,
+  "sensitivity": "private",
+  "source_id": "src_00000068-0000-4000-8000-000000000068",
+  "status": "active",
+  "subject_ids": [
+    "sub_00000001-0000-4000-8000-000000000001"
+  ],
+  "supersedes": [],
+  "tags": [],
+  "title": "暑期实习",
+  "type": "fact",
+  "updated_at": "2026-06-12T09:03:00.500Z",
+  "valid_from": "2026-03-01T00:00:00.000Z",
+  "valid_until": "2026-06-01T00:00:00.000Z",
+  "volatility": "changing"
+}

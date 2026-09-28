@@ -1,0 +1,20 @@
+{
+  "attachment_id": "att_00000002-0000-4000-8000-000000000002",
+  "availability": "external_reference",
+  "claimed_media_type": "image/jpeg",
+  "created_at": "2026-07-02T12:00:00.000Z",
+  "detected_media_type": null,
+  "extensions": {
+    "org.example.import": {
+      "note": "kept verbatim"
+    }
+  },
+  "external_reference": "https://files.example.invalid/signed?token=REDACTED",
+  "object_hash": null,
+  "original_name": null,
+  "revision": 1,
+  "schema_version": 1,
+  "sensitivity": "private",
+  "size_bytes": null,
+  "source_id": "src_00000002-0000-4000-8000-000000000002"
+}

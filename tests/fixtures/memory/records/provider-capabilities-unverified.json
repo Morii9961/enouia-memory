@@ -1,0 +1,17 @@
+{
+  "binding": {
+    "adapter_version": "0",
+    "model": "unverified-model",
+    "provider": "example-cloud"
+  },
+  "cancellation": "unknown",
+  "context_window_tokens": null,
+  "image_input": "unknown",
+  "max_output_tokens": null,
+  "schema_version": 1,
+  "streaming": "unknown",
+  "text_input": "unknown",
+  "token_counting": "unknown",
+  "tool_calling": "unknown",
+  "verified_at": null
+}

@@ -1,0 +1,657 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "common-v1.schema.json",
+  "title": "Enouia Memory shared definitions v1",
+  "description": "Shared definitions for Memory-domain records. Storage fields are snake_case. Constraints marked in $comment are enforced by enouia-memory-contract, not by this schema.",
+  "$defs": {
+    "memoryId": {
+      "type": "string",
+      "pattern": "^mem_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "sourceId": {
+      "type": "string",
+      "pattern": "^src_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "attachmentId": {
+      "type": "string",
+      "pattern": "^att_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "importId": {
+      "type": "string",
+      "pattern": "^imp_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "projectId": {
+      "type": "string",
+      "pattern": "^prj_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "subjectId": {
+      "type": "string",
+      "pattern": "^sub_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "candidateId": {
+      "type": "string",
+      "pattern": "^cand_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "reviewId": {
+      "type": "string",
+      "pattern": "^rvw_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "identityId": {
+      "type": "string",
+      "pattern": "^idn_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "sessionId": {
+      "type": "string",
+      "pattern": "^ses_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "branchId": {
+      "type": "string",
+      "pattern": "^br_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "eventId": {
+      "type": "string",
+      "pattern": "^evt_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "turnId": {
+      "type": "string",
+      "pattern": "^turn_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "checkpointId": {
+      "type": "string",
+      "pattern": "^ckp_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "commitId": {
+      "type": "string",
+      "pattern": "^cmt_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "vaultId": {
+      "type": "string",
+      "pattern": "^vlt_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "deviceId": {
+      "type": "string",
+      "pattern": "^dev_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "principalId": {
+      "type": "string",
+      "pattern": "^prn_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "operationId": {
+      "type": "string",
+      "pattern": "^op_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "requestId": {
+      "type": "string",
+      "pattern": "^req_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "policyId": {
+      "type": "string",
+      "pattern": "^pol_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "deleteId": {
+      "type": "string",
+      "pattern": "^del_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "purgeReceiptId": {
+      "type": "string",
+      "pattern": "^prg_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "auditId": {
+      "type": "string",
+      "pattern": "^aud_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "capsuleId": {
+      "type": "string",
+      "pattern": "^cap_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "inspectionId": {
+      "type": "string",
+      "pattern": "^insp_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "dispatchId": {
+      "type": "string",
+      "pattern": "^dsp_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "extractionRunId": {
+      "type": "string",
+      "pattern": "^ext_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "conflictGroupId": {
+      "type": "string",
+      "pattern": "^cfl_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "itemId": {
+      "type": "string",
+      "pattern": "^itm_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "schemaVersion": {
+      "const": 1
+    },
+    "timestamp": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\\.[0-9]{3}Z$",
+      "$comment": "UTC with milliseconds. Real calendar dates are checked by the Rust validator."
+    },
+    "timestampOrNull": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "#/$defs/timestamp"
+        }
+      ]
+    },
+    "businessTime": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/timestamp"
+        },
+        {
+          "const": "unknown"
+        }
+      ]
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "revision": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 9007199254740991
+    },
+    "count": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+    },
+    "label": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9_.:-]{0,127}$"
+    },
+    "code": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]{0,63}$"
+    },
+    "sensitivity": {
+      "enum": [
+        "public",
+        "normal",
+        "private",
+        "highly_sensitive"
+      ]
+    },
+    "priority": {
+      "enum": [
+        "P0",
+        "P1",
+        "P2"
+      ]
+    },
+    "volatility": {
+      "enum": [
+        "stable",
+        "changing",
+        "live"
+      ]
+    },
+    "evidenceClass": {
+      "enum": [
+        "user_statement",
+        "user_confirmation",
+        "external_observation",
+        "model_claim",
+        "summary",
+        "unknown"
+      ]
+    },
+    "speakerRole": {
+      "enum": [
+        "user",
+        "assistant",
+        "tool",
+        "system",
+        "unknown"
+      ]
+    },
+    "timePrecision": {
+      "enum": [
+        "millisecond",
+        "second",
+        "minute",
+        "hour",
+        "day",
+        "month",
+        "year",
+        "unknown"
+      ]
+    },
+    "actorType": {
+      "enum": [
+        "owner",
+        "device",
+        "client",
+        "agent",
+        "provider",
+        "system"
+      ]
+    },
+    "actorRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "actor_id",
+        "actor_type"
+      ],
+      "properties": {
+        "actor_id": {
+          "$ref": "#/$defs/principalId"
+        },
+        "actor_type": {
+          "$ref": "#/$defs/actorType"
+        }
+      }
+    },
+    "ownerRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "actor_id",
+        "actor_type"
+      ],
+      "properties": {
+        "actor_id": {
+          "$ref": "#/$defs/principalId"
+        },
+        "actor_type": {
+          "const": "owner"
+        }
+      }
+    },
+    "trustedSurface": {
+      "enum": [
+        "trusted_windows_app",
+        "trusted_local_cli"
+      ]
+    },
+    "stateKind": {
+      "enum": [
+        "planned",
+        "decided",
+        "implemented",
+        "tested",
+        "released",
+        "unknown"
+      ]
+    },
+    "locator": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "pointer"
+          ],
+          "properties": {
+            "kind": {
+              "const": "json_pointer"
+            },
+            "pointer": {
+              "type": "string",
+              "pattern": "^(/.*)?$"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "start",
+            "end"
+          ],
+          "properties": {
+            "kind": {
+              "const": "byte_range"
+            },
+            "start": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "end": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          "$comment": "start < end is checked by the Rust validator."
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "event_id"
+          ],
+          "properties": {
+            "kind": {
+              "const": "runtime_event"
+            },
+            "event_id": {
+              "$ref": "#/$defs/eventId"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind"
+          ],
+          "properties": {
+            "kind": {
+              "const": "manual_input"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "member_name",
+            "member_hash",
+            "inner"
+          ],
+          "properties": {
+            "kind": {
+              "const": "archive_member"
+            },
+            "member_name": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 512,
+              "pattern": "^[^/\\\\:][^\\\\:]*$"
+            },
+            "member_hash": {
+              "$ref": "#/$defs/sha256"
+            },
+            "inner": {
+              "$ref": "#/$defs/locator"
+            }
+          },
+          "$comment": "'.' and '..' segments are rejected by the Rust validator."
+        }
+      ]
+    },
+    "evidenceRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_id",
+        "source_revision",
+        "locator",
+        "object_hash",
+        "evidence_class",
+        "supports"
+      ],
+      "properties": {
+        "source_id": {
+          "$ref": "#/$defs/sourceId"
+        },
+        "source_revision": {
+          "$ref": "#/$defs/revision"
+        },
+        "locator": {
+          "$ref": "#/$defs/locator"
+        },
+        "object_hash": {
+          "$ref": "#/$defs/sha256"
+        },
+        "evidence_class": {
+          "$ref": "#/$defs/evidenceClass"
+        },
+        "supports": {
+          "oneOf": [
+            {
+              "const": "content"
+            },
+            {
+              "$ref": "#/$defs/itemId"
+            }
+          ]
+        }
+      }
+    },
+    "sourceRevisionRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_id",
+        "source_revision"
+      ],
+      "properties": {
+        "source_id": {
+          "$ref": "#/$defs/sourceId"
+        },
+        "source_revision": {
+          "$ref": "#/$defs/revision"
+        }
+      }
+    },
+    "contentRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "object_hash",
+        "size_bytes",
+        "media_type"
+      ],
+      "properties": {
+        "object_hash": {
+          "$ref": "#/$defs/sha256"
+        },
+        "size_bytes": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "media_type": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "warning": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "code",
+        "pointer"
+      ],
+      "properties": {
+        "code": {
+          "$ref": "#/$defs/code"
+        },
+        "pointer": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string"
+            }
+          ]
+        }
+      }
+    },
+    "extensions": {
+      "type": "object",
+      "propertyNames": {
+        "pattern": "^[a-z][a-z0-9-]*(\\.[a-z][a-z0-9-]*)+$"
+      },
+      "$comment": "Namespaced, preserved on round trip, never used for policy. 'enouia.*' is reserved and currently rejected by the Rust validator."
+    },
+    "recordKind": {
+      "enum": [
+        "source",
+        "attachment",
+        "project",
+        "memory",
+        "candidate",
+        "review",
+        "identity",
+        "session",
+        "session_event",
+        "checkpoint",
+        "commit",
+        "tombstone",
+        "purge_receipt",
+        "audit_event",
+        "capsule",
+        "inspection",
+        "dispatch",
+        "provider_capabilities"
+      ]
+    },
+    "recordRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "record_id",
+        "revision"
+      ],
+      "properties": {
+        "record_kind": {
+          "$ref": "#/$defs/recordKind"
+        },
+        "record_id": {
+          "type": "string",
+          "pattern": "^[a-z]+_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "revision": {
+          "$ref": "#/$defs/revision"
+        }
+      },
+      "$comment": "The ID prefix must match record_kind (Rust validator)."
+    },
+    "providerBinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "provider",
+        "model",
+        "adapter_version"
+      ],
+      "properties": {
+        "provider": {
+          "type": "string",
+          "minLength": 1
+        },
+        "model": {
+          "type": "string",
+          "minLength": 1
+        },
+        "adapter_version": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "componentId": {
+      "enum": [
+        "core",
+        "vault",
+        "memory_index",
+        "context",
+        "session",
+        "provider",
+        "importer",
+        "backup",
+        "audit",
+        "policy"
+      ]
+    },
+    "memoryType": {
+      "enum": [
+        "fact",
+        "preference",
+        "episode",
+        "project_state",
+        "session_checkpoint"
+      ]
+    },
+    "destinationKind": {
+      "enum": [
+        "local_mock",
+        "local_model",
+        "external_provider"
+      ]
+    },
+    "purpose": {
+      "enum": [
+        "answer",
+        "continue_session",
+        "checkpoint",
+        "extraction",
+        "inspection_preview"
+      ]
+    },
+    "clientSurface": {
+      "enum": [
+        "windows_app",
+        "local_cli",
+        "mcp_client",
+        "import",
+        "test"
+      ]
+    },
+    "memoryErrorCode": {
+      "enum": [
+        "unauthenticated",
+        "permission_denied",
+        "not_found",
+        "vault_locked",
+        "vault_recovering",
+        "busy",
+        "revision_conflict",
+        "idempotency_conflict",
+        "invalid_request",
+        "invalid_source",
+        "broken_provenance",
+        "unsupported_schema",
+        "index_not_ready",
+        "budget_exceeded",
+        "unsupported_budget",
+        "storage_full",
+        "storage_failed",
+        "audit_unavailable",
+        "provider_unavailable",
+        "offline",
+        "cancelled",
+        "clock_regression",
+        "intentionally_purged"
+      ]
+    },
+    "operation": {
+      "enum": [
+        "context_get",
+        "memory_search",
+        "memory_read",
+        "memory_source",
+        "memory_propose",
+        "memory_update",
+        "session_checkpoint",
+        "candidate_list",
+        "candidate_review",
+        "identity_review",
+        "operation_get",
+        "operation_cancel"
+      ]
+    }
+  }
+}

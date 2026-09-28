@@ -1,0 +1,268 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "session-event-v1.schema.json",
+  "title": "Enouia SessionEvent v1",
+  "description": "Append-only conversation event. No kind exists for hidden model reasoning. Sequence uniqueness and parent order are cross-record rules.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "event_id",
+    "session_id",
+    "branch_id",
+    "sequence",
+    "parent_event_id",
+    "turn_id",
+    "kind",
+    "actor",
+    "occurred_at",
+    "captured_at",
+    "content_ref",
+    "source_refs",
+    "request_id",
+    "delivery_state",
+    "sensitivity",
+    "extensions"
+  ],
+  "properties": {
+    "schema_version": {
+      "$ref": "common-v1.schema.json#/$defs/schemaVersion"
+    },
+    "event_id": {
+      "$ref": "common-v1.schema.json#/$defs/eventId"
+    },
+    "session_id": {
+      "$ref": "common-v1.schema.json#/$defs/sessionId"
+    },
+    "branch_id": {
+      "$ref": "common-v1.schema.json#/$defs/branchId"
+    },
+    "sequence": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 9007199254740991
+    },
+    "parent_event_id": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "common-v1.schema.json#/$defs/eventId"
+        }
+      ]
+    },
+    "turn_id": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "common-v1.schema.json#/$defs/turnId"
+        }
+      ]
+    },
+    "kind": {
+      "enum": [
+        "user_message",
+        "assistant_chunk",
+        "assistant_completed",
+        "tool_request",
+        "tool_result",
+        "turn_cancelled",
+        "turn_failed",
+        "checkpoint_created",
+        "provider_switched"
+      ]
+    },
+    "actor": {
+      "$ref": "common-v1.schema.json#/$defs/actorRef"
+    },
+    "occurred_at": {
+      "$ref": "common-v1.schema.json#/$defs/timestamp"
+    },
+    "captured_at": {
+      "$ref": "common-v1.schema.json#/$defs/timestamp"
+    },
+    "content_ref": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "common-v1.schema.json#/$defs/contentRef"
+        }
+      ]
+    },
+    "source_refs": {
+      "type": "array",
+      "items": {
+        "$ref": "common-v1.schema.json#/$defs/sourceRevisionRef"
+      }
+    },
+    "request_id": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "common-v1.schema.json#/$defs/requestId"
+        }
+      ]
+    },
+    "delivery_state": {
+      "enum": [
+        "not_applicable",
+        "partial",
+        "completed",
+        "interrupted",
+        "failed"
+      ]
+    },
+    "sensitivity": {
+      "$ref": "common-v1.schema.json#/$defs/sensitivity"
+    },
+    "extensions": {
+      "$ref": "common-v1.schema.json#/$defs/extensions"
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "enum": [
+              "assistant_chunk"
+            ]
+          }
+        },
+        "required": [
+          "kind"
+        ]
+      },
+      "then": {
+        "properties": {
+          "delivery_state": {
+            "const": "partial"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "enum": [
+              "assistant_completed"
+            ]
+          }
+        },
+        "required": [
+          "kind"
+        ]
+      },
+      "then": {
+        "properties": {
+          "delivery_state": {
+            "const": "completed"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "enum": [
+              "turn_cancelled"
+            ]
+          }
+        },
+        "required": [
+          "kind"
+        ]
+      },
+      "then": {
+        "properties": {
+          "delivery_state": {
+            "const": "interrupted"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "enum": [
+              "turn_failed"
+            ]
+          }
+        },
+        "required": [
+          "kind"
+        ]
+      },
+      "then": {
+        "properties": {
+          "delivery_state": {
+            "const": "failed"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "enum": [
+              "user_message",
+              "tool_request",
+              "tool_result",
+              "checkpoint_created",
+              "provider_switched"
+            ]
+          }
+        },
+        "required": [
+          "kind"
+        ]
+      },
+      "then": {
+        "properties": {
+          "delivery_state": {
+            "const": "not_applicable"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "enum": [
+              "user_message",
+              "assistant_chunk",
+              "assistant_completed",
+              "tool_request",
+              "tool_result"
+            ]
+          }
+        },
+        "required": [
+          "kind"
+        ]
+      },
+      "then": {
+        "properties": {
+          "content_ref": {
+            "$ref": "common-v1.schema.json#/$defs/contentRef"
+          },
+          "turn_id": {
+            "$ref": "common-v1.schema.json#/$defs/turnId"
+          }
+        }
+      }
+    }
+  ]
+}

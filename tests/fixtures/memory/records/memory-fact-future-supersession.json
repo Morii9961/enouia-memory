@@ -1,0 +1,61 @@
+{
+  "access_policy_id": "pol_00000001-0000-4000-8000-000000000001",
+  "approved_at": "2026-09-21T10:01:00.000Z",
+  "approved_by": {
+    "actor_id": "prn_00000001-0000-4000-8000-000000000001",
+    "actor_type": "owner"
+  },
+  "category": null,
+  "claim_key": "tool.editor",
+  "confidence": null,
+  "conflict_group_id": null,
+  "content": "从 12 月 1 日起改用 Zed。",
+  "created_at": "2026-09-21T10:01:00.500Z",
+  "declassification_review_id": null,
+  "egress_policy_id": null,
+  "epistemic_status": "asserted",
+  "evidence": [
+    {
+      "evidence_class": "user_statement",
+      "locator": {
+        "kind": "manual_input"
+      },
+      "object_hash": "5ac48b3ceaf8c69a466a0a57363b733854715c1990f11c4cd7dc41efb73cd5eb",
+      "source_id": "src_00000066-0000-4000-8000-000000000066",
+      "source_revision": 1,
+      "supports": "content"
+    }
+  ],
+  "extensions": {},
+  "last_verified_at": null,
+  "memory_id": "mem_00000066-0000-4000-8000-000000000066",
+  "observed_at": "2026-09-20T08:00:00.000Z",
+  "priority": "P1",
+  "project_id": null,
+  "provenance_state": "intact",
+  "review_after": null,
+  "review_id": "rvw_00000066-0000-4000-8000-000000000066",
+  "revision": 1,
+  "schema_version": 1,
+  "sensitivity": "private",
+  "source_id": "src_00000066-0000-4000-8000-000000000066",
+  "status": "active",
+  "subject_ids": [
+    "sub_00000001-0000-4000-8000-000000000001"
+  ],
+  "supersedes": [
+    {
+      "effective_from": "2026-12-01T00:00:00.000Z",
+      "memory_id": "mem_00000065-0000-4000-8000-000000000065",
+      "revision": 1,
+      "scope": "tool.editor"
+    }
+  ],
+  "tags": [],
+  "title": "常用编辑器",
+  "type": "fact",
+  "updated_at": "2026-09-21T10:01:00.500Z",
+  "valid_from": "2026-12-01T00:00:00.000Z",
+  "valid_until": null,
+  "volatility": "changing"
+}

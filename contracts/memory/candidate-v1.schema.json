@@ -1,0 +1,506 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "candidate-v1.schema.json",
+  "title": "Enouia CandidateRecord v1",
+  "description": "A proposal. Never canonical by itself; terminal statuses cannot be reopened in place. Status history across revisions is a cross-record rule.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "candidate_id",
+    "revision",
+    "proposal_kind",
+    "proposed_type",
+    "proposed_content",
+    "proposed_details",
+    "evidence",
+    "source_id",
+    "reason",
+    "origin_kind",
+    "origin_actor",
+    "extraction_run_id",
+    "confidence",
+    "sensitivity",
+    "declassification_review_id",
+    "status",
+    "target_memory_id",
+    "target_identity_id",
+    "expected_revision",
+    "proposed_effective_from",
+    "conflicts",
+    "dedupe_fingerprint",
+    "reopens_candidate_id",
+    "merged_into",
+    "resolution_review_id",
+    "created_at",
+    "updated_at",
+    "extensions"
+  ],
+  "properties": {
+    "schema_version": {
+      "$ref": "common-v1.schema.json#/$defs/schemaVersion"
+    },
+    "candidate_id": {
+      "$ref": "common-v1.schema.json#/$defs/candidateId"
+    },
+    "revision": {
+      "$ref": "common-v1.schema.json#/$defs/revision"
+    },
+    "proposal_kind": {
+      "enum": [
+        "create",
+        "revise",
+        "supersede",
+        "archive",
+        "identity_change",
+        "delete"
+      ]
+    },
+    "proposed_type": {
+      "enum": [
+        "fact",
+        "preference",
+        "episode",
+        "project_state",
+        "session_checkpoint",
+        "identity"
+      ]
+    },
+    "proposed_content": {
+      "type": "string",
+      "minLength": 1
+    },
+    "proposed_details": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "object"
+        }
+      ]
+    },
+    "evidence": {
+      "type": "array",
+      "items": {
+        "$ref": "common-v1.schema.json#/$defs/evidenceRef"
+      },
+      "minItems": 1
+    },
+    "source_id": {
+      "$ref": "common-v1.schema.json#/$defs/sourceId"
+    },
+    "reason": {
+      "type": "string",
+      "minLength": 1
+    },
+    "origin_kind": {
+      "enum": [
+        "owner_manual",
+        "rule_extraction",
+        "model_extraction",
+        "agent_proposal",
+        "external_event"
+      ]
+    },
+    "origin_actor": {
+      "$ref": "common-v1.schema.json#/$defs/actorRef"
+    },
+    "extraction_run_id": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "common-v1.schema.json#/$defs/extractionRunId"
+        }
+      ]
+    },
+    "confidence": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
+      ]
+    },
+    "sensitivity": {
+      "$ref": "common-v1.schema.json#/$defs/sensitivity"
+    },
+    "declassification_review_id": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "common-v1.schema.json#/$defs/reviewId"
+        }
+      ]
+    },
+    "status": {
+      "enum": [
+        "pending",
+        "accepted",
+        "rejected",
+        "merged",
+        "withdrawn"
+      ]
+    },
+    "target_memory_id": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "common-v1.schema.json#/$defs/memoryId"
+        }
+      ]
+    },
+    "target_identity_id": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "common-v1.schema.json#/$defs/identityId"
+        }
+      ]
+    },
+    "expected_revision": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "common-v1.schema.json#/$defs/revision"
+        }
+      ]
+    },
+    "proposed_effective_from": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "common-v1.schema.json#/$defs/businessTime"
+        }
+      ]
+    },
+    "conflicts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "memory_id",
+          "revision",
+          "conflict_group_id"
+        ],
+        "properties": {
+          "memory_id": {
+            "$ref": "common-v1.schema.json#/$defs/memoryId"
+          },
+          "revision": {
+            "$ref": "common-v1.schema.json#/$defs/revision"
+          },
+          "conflict_group_id": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "common-v1.schema.json#/$defs/conflictGroupId"
+              }
+            ]
+          }
+        }
+      }
+    },
+    "dedupe_fingerprint": {
+      "$ref": "common-v1.schema.json#/$defs/sha256"
+    },
+    "reopens_candidate_id": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "common-v1.schema.json#/$defs/candidateId"
+        }
+      ]
+    },
+    "merged_into": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "oneOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "candidate_id"
+              ],
+              "properties": {
+                "kind": {
+                  "const": "candidate"
+                },
+                "candidate_id": {
+                  "$ref": "common-v1.schema.json#/$defs/candidateId"
+                }
+              }
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "memory_id"
+              ],
+              "properties": {
+                "kind": {
+                  "const": "memory"
+                },
+                "memory_id": {
+                  "$ref": "common-v1.schema.json#/$defs/memoryId"
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "resolution_review_id": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "common-v1.schema.json#/$defs/reviewId"
+        }
+      ]
+    },
+    "created_at": {
+      "$ref": "common-v1.schema.json#/$defs/timestamp"
+    },
+    "updated_at": {
+      "$ref": "common-v1.schema.json#/$defs/timestamp"
+    },
+    "extensions": {
+      "$ref": "common-v1.schema.json#/$defs/extensions"
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "proposal_kind": {
+            "enum": [
+              "revise",
+              "supersede",
+              "archive",
+              "delete"
+            ]
+          }
+        },
+        "required": [
+          "proposal_kind"
+        ]
+      },
+      "then": {
+        "properties": {
+          "target_memory_id": {
+            "$ref": "common-v1.schema.json#/$defs/memoryId"
+          },
+          "expected_revision": {
+            "$ref": "common-v1.schema.json#/$defs/revision"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "proposal_kind": {
+            "enum": [
+              "create"
+            ]
+          }
+        },
+        "required": [
+          "proposal_kind"
+        ]
+      },
+      "then": {
+        "properties": {
+          "target_memory_id": {
+            "type": "null"
+          },
+          "target_identity_id": {
+            "type": "null"
+          },
+          "expected_revision": {
+            "type": "null"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "proposal_kind": {
+            "enum": [
+              "identity_change"
+            ]
+          }
+        },
+        "required": [
+          "proposal_kind"
+        ]
+      },
+      "then": {
+        "properties": {
+          "proposed_type": {
+            "const": "identity"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "enum": [
+              "merged"
+            ]
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
+      "then": {
+        "properties": {
+          "merged_into": {
+            "type": "object"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "enum": [
+              "accepted",
+              "rejected",
+              "merged"
+            ]
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
+      "then": {
+        "properties": {
+          "resolution_review_id": {
+            "$ref": "common-v1.schema.json#/$defs/reviewId"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "enum": [
+              "pending",
+              "withdrawn"
+            ]
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
+      "then": {
+        "properties": {
+          "resolution_review_id": {
+            "type": "null"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "origin_kind": {
+            "enum": [
+              "rule_extraction",
+              "model_extraction"
+            ]
+          }
+        },
+        "required": [
+          "origin_kind"
+        ]
+      },
+      "then": {
+        "properties": {
+          "extraction_run_id": {
+            "$ref": "common-v1.schema.json#/$defs/extractionRunId"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "origin_kind": {
+            "enum": [
+              "owner_manual"
+            ]
+          }
+        },
+        "required": [
+          "origin_kind"
+        ]
+      },
+      "then": {
+        "properties": {
+          "origin_actor": {
+            "$ref": "common-v1.schema.json#/$defs/ownerRef"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "proposal_kind": {
+            "enum": [
+              "delete"
+            ]
+          }
+        },
+        "required": [
+          "proposal_kind"
+        ]
+      },
+      "then": {
+        "properties": {
+          "origin_kind": {
+            "const": "owner_manual"
+          }
+        }
+      }
+    }
+  ]
+}

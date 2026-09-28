@@ -1,0 +1,17 @@
+{
+  "binding": {
+    "adapter_version": "0",
+    "model": "deterministic-mock",
+    "provider": "mock"
+  },
+  "cancellation": "supported",
+  "context_window_tokens": 32768,
+  "image_input": "unsupported",
+  "max_output_tokens": 2048,
+  "schema_version": 1,
+  "streaming": "unsupported",
+  "text_input": "supported",
+  "token_counting": "estimated",
+  "tool_calling": "unsupported",
+  "verified_at": "2026-09-28T00:00:00.000Z"
+}

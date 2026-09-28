@@ -1,0 +1,98 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "purge-receipt-v1.schema.json",
+  "title": "Enouia PurgeReceipt v1",
+  "description": "Per-store purge status. There is deliberately no globally_erased state; overall-state honesty is checked by the Rust validator.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "receipt_id",
+    "delete_id",
+    "stores",
+    "overall_state",
+    "latest_purge_deadline",
+    "created_at"
+  ],
+  "properties": {
+    "schema_version": {
+      "$ref": "common-v1.schema.json#/$defs/schemaVersion"
+    },
+    "receipt_id": {
+      "$ref": "common-v1.schema.json#/$defs/purgeReceiptId"
+    },
+    "delete_id": {
+      "$ref": "common-v1.schema.json#/$defs/deleteId"
+    },
+    "stores": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "store",
+          "state",
+          "confirmed_at",
+          "detail_code"
+        ],
+        "properties": {
+          "store": {
+            "enum": [
+              "canonical",
+              "raw",
+              "assets",
+              "candidates",
+              "sessions",
+              "checkpoints",
+              "capsules",
+              "index",
+              "embeddings",
+              "staging",
+              "exports",
+              "backups",
+              "device_replicas",
+              "gateway"
+            ]
+          },
+          "state": {
+            "enum": [
+              "purged",
+              "not_present",
+              "pending",
+              "failed",
+              "not_manageable"
+            ]
+          },
+          "confirmed_at": {
+            "$ref": "common-v1.schema.json#/$defs/timestampOrNull"
+          },
+          "detail_code": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "common-v1.schema.json#/$defs/code"
+              }
+            ]
+          }
+        }
+      },
+      "minItems": 1
+    },
+    "overall_state": {
+      "enum": [
+        "live_deleted",
+        "backup_purge_pending",
+        "replica_pending",
+        "locally_purged"
+      ]
+    },
+    "latest_purge_deadline": {
+      "$ref": "common-v1.schema.json#/$defs/timestampOrNull"
+    },
+    "created_at": {
+      "$ref": "common-v1.schema.json#/$defs/timestamp"
+    }
+  }
+}

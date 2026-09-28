@@ -1,0 +1,54 @@
+{
+  "access_policy_id": "pol_00000001-0000-4000-8000-000000000001",
+  "approved_at": "2026-06-12T09:04:00.000Z",
+  "approved_by": {
+    "actor_id": "prn_00000001-0000-4000-8000-000000000001",
+    "actor_type": "owner"
+  },
+  "category": null,
+  "claim_key": "home.city",
+  "confidence": null,
+  "conflict_group_id": null,
+  "content": "住在函馆。",
+  "created_at": "2026-06-12T09:04:00.500Z",
+  "declassification_review_id": null,
+  "egress_policy_id": null,
+  "epistemic_status": "asserted",
+  "evidence": [
+    {
+      "evidence_class": "user_statement",
+      "locator": {
+        "kind": "manual_input"
+      },
+      "object_hash": "36adefc0f9b63b0c50cb4224794ef4e991312b7bea24d6916235d1e754cb4327",
+      "source_id": "src_00000069-0000-4000-8000-000000000069",
+      "source_revision": 1,
+      "supports": "content"
+    }
+  ],
+  "extensions": {},
+  "last_verified_at": null,
+  "memory_id": "mem_00000069-0000-4000-8000-000000000069",
+  "observed_at": "2026-02-01T08:00:00.000Z",
+  "priority": "P1",
+  "project_id": null,
+  "provenance_state": "intact",
+  "review_after": null,
+  "review_id": "rvw_00000069-0000-4000-8000-000000000069",
+  "revision": 1,
+  "schema_version": 1,
+  "sensitivity": "private",
+  "source_id": "src_00000069-0000-4000-8000-000000000069",
+  "status": "active",
+  "subject_ids": [
+    "sub_00000001-0000-4000-8000-000000000001"
+  ],
+  "supersedes": [],
+  "tags": [],
+  "title": "居住城市",
+  "type": "fact",
+  "updated_at": "2026-06-12T09:04:00.500Z",
+  "valid_from": null,
+  "valid_until": null,
+  "volatility": "changing"
+}

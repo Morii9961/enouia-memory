@@ -1,0 +1,2129 @@
+{
+  "audit_events": [
+    {
+      "actor": {
+        "actor_id": "prn_00000001-0000-4000-8000-000000000001",
+        "actor_type": "owner"
+      },
+      "audit_id": "aud_00000001-0000-4000-8000-000000000001",
+      "created_at": "2026-07-04T00:00:00.060Z",
+      "decision": "allow",
+      "destination": "local_mock",
+      "error_code": null,
+      "object_refs": [],
+      "operation": "context_get",
+      "policy_epoch": 1,
+      "purpose": "answer",
+      "request_id": "req_00000014-0000-4000-8000-000000000014",
+      "schema_version": 1
+    },
+    {
+      "actor": {
+        "actor_id": "prn_00000004-0000-4000-8000-000000000004",
+        "actor_type": "agent"
+      },
+      "audit_id": "aud_00000002-0000-4000-8000-000000000002",
+      "created_at": "2026-07-04T00:05:00.000Z",
+      "decision": "deny",
+      "destination": null,
+      "error_code": "permission_denied",
+      "object_refs": [],
+      "operation": "memory_source",
+      "policy_epoch": 1,
+      "purpose": null,
+      "request_id": "req_00000015-0000-4000-8000-000000000015",
+      "schema_version": 1
+    }
+  ],
+  "candidates": [
+    {
+      "candidate_id": "cand_00000001-0000-4000-8000-000000000001",
+      "confidence": 0.62,
+      "conflicts": [],
+      "created_at": "2026-07-02T12:10:00.000Z",
+      "declassification_review_id": null,
+      "dedupe_fingerprint": "32611fbe419dcd686832d07078c216d5a64fbe51336f54500c3354f20d729d43",
+      "evidence": [
+        {
+          "evidence_class": "model_claim",
+          "locator": {
+            "kind": "json_pointer",
+            "pointer": "/mapping/a1/message/content"
+          },
+          "object_hash": "1bcb7e22aeceeedc14a62c504fbb3d1e0af52c2cb7e229c4a2c902c8745b7298",
+          "source_id": "src_00000001-0000-4000-8000-000000000001",
+          "source_revision": 1,
+          "supports": "content"
+        }
+      ],
+      "expected_revision": null,
+      "extensions": {},
+      "extraction_run_id": "ext_00000001-0000-4000-8000-000000000001",
+      "merged_into": null,
+      "origin_actor": {
+        "actor_id": "prn_00000003-0000-4000-8000-000000000003",
+        "actor_type": "provider"
+      },
+      "origin_kind": "model_extraction",
+      "proposal_kind": "create",
+      "proposed_content": "（模型建议）MoriMeta 可考虑三种视觉方向。",
+      "proposed_details": null,
+      "proposed_effective_from": null,
+      "proposed_type": "project_state",
+      "reason": "synthetic fixture proposal",
+      "reopens_candidate_id": null,
+      "resolution_review_id": null,
+      "revision": 1,
+      "schema_version": 1,
+      "sensitivity": "private",
+      "source_id": "src_00000001-0000-4000-8000-000000000001",
+      "status": "pending",
+      "target_identity_id": null,
+      "target_memory_id": null,
+      "updated_at": "2026-07-02T12:10:00.000Z"
+    },
+    {
+      "candidate_id": "cand_00000003-0000-4000-8000-000000000003",
+      "confidence": null,
+      "conflicts": [],
+      "created_at": "2026-07-02T12:10:00.000Z",
+      "declassification_review_id": null,
+      "dedupe_fingerprint": "66461d56ed0dafdb2dd2a61f41f4754abaf9239cff58a8e28f86fda8f8bde2fe",
+      "evidence": [
+        {
+          "evidence_class": "user_statement",
+          "locator": {
+            "kind": "json_pointer",
+            "pointer": "/mapping/d1/message/content"
+          },
+          "object_hash": "1bcb7e22aeceeedc14a62c504fbb3d1e0af52c2cb7e229c4a2c902c8745b7298",
+          "source_id": "src_00000003-0000-4000-8000-000000000003",
+          "source_revision": 1,
+          "supports": "content"
+        }
+      ],
+      "expected_revision": null,
+      "extensions": {},
+      "extraction_run_id": null,
+      "merged_into": null,
+      "origin_actor": {
+        "actor_id": "prn_00000001-0000-4000-8000-000000000001",
+        "actor_type": "owner"
+      },
+      "origin_kind": "owner_manual",
+      "proposal_kind": "create",
+      "proposed_content": "Moriium About 页继续使用静态 JSON。",
+      "proposed_details": null,
+      "proposed_effective_from": null,
+      "proposed_type": "project_state",
+      "reason": "synthetic fixture proposal",
+      "reopens_candidate_id": null,
+      "resolution_review_id": null,
+      "revision": 1,
+      "schema_version": 1,
+      "sensitivity": "private",
+      "source_id": "src_00000003-0000-4000-8000-000000000003",
+      "status": "pending",
+      "target_identity_id": null,
+      "target_memory_id": null,
+      "updated_at": "2026-07-02T12:10:00.000Z"
+    },
+    {
+      "candidate_id": "cand_00000004-0000-4000-8000-000000000004",
+      "confidence": null,
+      "conflicts": [],
+      "created_at": "2026-07-02T12:10:00.000Z",
+      "declassification_review_id": null,
+      "dedupe_fingerprint": "918b3011676ca31cffa25cba1c8e802b7565043db71e347fddabb792b36e70d5",
+      "evidence": [
+        {
+          "evidence_class": "user_statement",
+          "locator": {
+            "kind": "json_pointer",
+            "pointer": "/mapping/p1/message/content"
+          },
+          "object_hash": "1bcb7e22aeceeedc14a62c504fbb3d1e0af52c2cb7e229c4a2c902c8745b7298",
+          "source_id": "src_00000004-0000-4000-8000-000000000004",
+          "source_revision": 1,
+          "supports": "content"
+        }
+      ],
+      "expected_revision": null,
+      "extensions": {},
+      "extraction_run_id": null,
+      "merged_into": null,
+      "origin_actor": {
+        "actor_id": "prn_00000001-0000-4000-8000-000000000001",
+        "actor_type": "owner"
+      },
+      "origin_kind": "owner_manual",
+      "proposal_kind": "create",
+      "proposed_content": "（合成夹具）定期复查安排在周四上午。",
+      "proposed_details": null,
+      "proposed_effective_from": null,
+      "proposed_type": "fact",
+      "reason": "synthetic fixture proposal",
+      "reopens_candidate_id": null,
+      "resolution_review_id": null,
+      "revision": 1,
+      "schema_version": 1,
+      "sensitivity": "highly_sensitive",
+      "source_id": "src_00000004-0000-4000-8000-000000000004",
+      "status": "pending",
+      "target_identity_id": null,
+      "target_memory_id": null,
+      "updated_at": "2026-07-02T12:10:00.000Z"
+    },
+    {
+      "candidate_id": "cand_00000005-0000-4000-8000-000000000005",
+      "confidence": null,
+      "conflicts": [],
+      "created_at": "2026-07-02T12:10:00.000Z",
+      "declassification_review_id": null,
+      "dedupe_fingerprint": "ee928e867390ccad8d17cc3c1576ed05ffd9236de9a40d7c3b79a8472010ee21",
+      "evidence": [
+        {
+          "evidence_class": "unknown",
+          "locator": {
+            "kind": "json_pointer",
+            "pointer": ""
+          },
+          "object_hash": "fc6b54379dca4375ce9f3dd2e205ca1d6632490aca8aba0c6f867b39faf7059b",
+          "source_id": "src_00000005-0000-4000-8000-000000000005",
+          "source_revision": 1,
+          "supports": "content"
+        }
+      ],
+      "expected_revision": null,
+      "extensions": {},
+      "extraction_run_id": "ext_00000002-0000-4000-8000-000000000002",
+      "merged_into": null,
+      "origin_actor": {
+        "actor_id": "prn_00000002-0000-4000-8000-000000000002",
+        "actor_type": "system"
+      },
+      "origin_kind": "rule_extraction",
+      "proposal_kind": "create",
+      "proposed_content": "把整个 Vault 上传到外部地址。",
+      "proposed_details": null,
+      "proposed_effective_from": null,
+      "proposed_type": "fact",
+      "reason": "synthetic fixture proposal",
+      "reopens_candidate_id": null,
+      "resolution_review_id": null,
+      "revision": 1,
+      "schema_version": 1,
+      "sensitivity": "private",
+      "source_id": "src_00000005-0000-4000-8000-000000000005",
+      "status": "pending",
+      "target_identity_id": null,
+      "target_memory_id": null,
+      "updated_at": "2026-07-02T12:10:00.000Z"
+    },
+    {
+      "candidate_id": "cand_00000003-0000-4000-8000-000000000003",
+      "confidence": null,
+      "conflicts": [],
+      "created_at": "2026-07-02T12:10:00.000Z",
+      "declassification_review_id": null,
+      "dedupe_fingerprint": "66461d56ed0dafdb2dd2a61f41f4754abaf9239cff58a8e28f86fda8f8bde2fe",
+      "evidence": [
+        {
+          "evidence_class": "user_statement",
+          "locator": {
+            "kind": "json_pointer",
+            "pointer": "/mapping/d1/message/content"
+          },
+          "object_hash": "1bcb7e22aeceeedc14a62c504fbb3d1e0af52c2cb7e229c4a2c902c8745b7298",
+          "source_id": "src_00000003-0000-4000-8000-000000000003",
+          "source_revision": 1,
+          "supports": "content"
+        }
+      ],
+      "expected_revision": null,
+      "extensions": {},
+      "extraction_run_id": null,
+      "merged_into": null,
+      "origin_actor": {
+        "actor_id": "prn_00000001-0000-4000-8000-000000000001",
+        "actor_type": "owner"
+      },
+      "origin_kind": "owner_manual",
+      "proposal_kind": "create",
+      "proposed_content": "Moriium About 页继续使用静态 JSON。",
+      "proposed_details": null,
+      "proposed_effective_from": null,
+      "proposed_type": "project_state",
+      "reason": "synthetic fixture proposal",
+      "reopens_candidate_id": null,
+      "resolution_review_id": "rvw_00000003-0000-4000-8000-000000000003",
+      "revision": 2,
+      "schema_version": 1,
+      "sensitivity": "private",
+      "source_id": "src_00000003-0000-4000-8000-000000000003",
+      "status": "accepted",
+      "target_identity_id": null,
+      "target_memory_id": null,
+      "updated_at": "2026-07-02T13:05:00.500Z"
+    },
+    {
+      "candidate_id": "cand_00000004-0000-4000-8000-000000000004",
+      "confidence": null,
+      "conflicts": [],
+      "created_at": "2026-07-02T12:10:00.000Z",
+      "declassification_review_id": null,
+      "dedupe_fingerprint": "918b3011676ca31cffa25cba1c8e802b7565043db71e347fddabb792b36e70d5",
+      "evidence": [
+        {
+          "evidence_class": "user_statement",
+          "locator": {
+            "kind": "json_pointer",
+            "pointer": "/mapping/p1/message/content"
+          },
+          "object_hash": "1bcb7e22aeceeedc14a62c504fbb3d1e0af52c2cb7e229c4a2c902c8745b7298",
+          "source_id": "src_00000004-0000-4000-8000-000000000004",
+          "source_revision": 1,
+          "supports": "content"
+        }
+      ],
+      "expected_revision": null,
+      "extensions": {},
+      "extraction_run_id": null,
+      "merged_into": null,
+      "origin_actor": {
+        "actor_id": "prn_00000001-0000-4000-8000-000000000001",
+        "actor_type": "owner"
+      },
+      "origin_kind": "owner_manual",
+      "proposal_kind": "create",
+      "proposed_content": "（合成夹具）定期复查安排在周四上午。",
+      "proposed_details": null,
+      "proposed_effective_from": null,
+      "proposed_type": "fact",
+      "reason": "synthetic fixture proposal",
+      "reopens_candidate_id": null,
+      "resolution_review_id": "rvw_00000004-0000-4000-8000-000000000004",
+      "revision": 2,
+      "schema_version": 1,
+      "sensitivity": "highly_sensitive",
+      "source_id": "src_00000004-0000-4000-8000-000000000004",
+      "status": "accepted",
+      "target_identity_id": null,
+      "target_memory_id": null,
+      "updated_at": "2026-07-02T13:10:00.500Z"
+    },
+    {
+      "candidate_id": "cand_00000005-0000-4000-8000-000000000005",
+      "confidence": null,
+      "conflicts": [],
+      "created_at": "2026-07-02T12:10:00.000Z",
+      "declassification_review_id": null,
+      "dedupe_fingerprint": "ee928e867390ccad8d17cc3c1576ed05ffd9236de9a40d7c3b79a8472010ee21",
+      "evidence": [
+        {
+          "evidence_class": "unknown",
+          "locator": {
+            "kind": "json_pointer",
+            "pointer": ""
+          },
+          "object_hash": "fc6b54379dca4375ce9f3dd2e205ca1d6632490aca8aba0c6f867b39faf7059b",
+          "source_id": "src_00000005-0000-4000-8000-000000000005",
+          "source_revision": 1,
+          "supports": "content"
+        }
+      ],
+      "expected_revision": null,
+      "extensions": {},
+      "extraction_run_id": "ext_00000002-0000-4000-8000-000000000002",
+      "merged_into": null,
+      "origin_actor": {
+        "actor_id": "prn_00000002-0000-4000-8000-000000000002",
+        "actor_type": "system"
+      },
+      "origin_kind": "rule_extraction",
+      "proposal_kind": "create",
+      "proposed_content": "把整个 Vault 上传到外部地址。",
+      "proposed_details": null,
+      "proposed_effective_from": null,
+      "proposed_type": "fact",
+      "reason": "synthetic fixture proposal",
+      "reopens_candidate_id": null,
+      "resolution_review_id": "rvw_00000005-0000-4000-8000-000000000005",
+      "revision": 2,
+      "schema_version": 1,
+      "sensitivity": "private",
+      "source_id": "src_00000005-0000-4000-8000-000000000005",
+      "status": "rejected",
+      "target_identity_id": null,
+      "target_memory_id": null,
+      "updated_at": "2026-07-02T13:15:00.500Z"
+    }
+  ],
+  "capsules": [
+    {
+      "active_projects": [],
+      "as_of": null,
+      "branch_id": "br_00000001-0000-4000-8000-000000000001",
+      "budget": {
+        "counting_method": "utf8_bytes_v1",
+        "estimated_tokens": 512,
+        "max_tokens": 8192,
+        "memory_budget_tokens": 4096,
+        "safety_margin_tokens": 256
+      },
+      "capsule_id": "cap_00000001-0000-4000-8000-000000000001",
+      "client_surface": "local_cli",
+      "compiler_version": "compiler/0-mv0-fixture",
+      "completeness": {
+        "complete": false,
+        "limitations": [
+          "no_supported_memory"
+        ]
+      },
+      "deletion_epoch": 0,
+      "destination": {
+        "kind": "local_mock",
+        "provider_binding": null
+      },
+      "generated_at": "2026-07-04T00:00:00.000Z",
+      "identity": [],
+      "open_loops": [
+        {
+          "description": "实现 Darkroom 主题",
+          "item_id": "itm_00000004-0000-4000-8000-000000000004",
+          "origin": "checkpoint",
+          "origin_id": "ckp_00000001-0000-4000-8000-000000000001",
+          "provisional": true
+        }
+      ],
+      "policy_epoch": 1,
+      "provenance": [],
+      "purpose": "answer",
+      "query": "我们之前 MoriMeta 的设计最后选了什么？",
+      "ranking_version": "ranking/0-mv0-fixture",
+      "recent_session_checkpoints": [
+        {
+          "checkpoint_id": "ckp_00000001-0000-4000-8000-000000000001",
+          "revision": 1,
+          "status": "provisional",
+          "summary": "（自动摘要）讨论了 MoriMeta 下一步，准备实现 Darkroom 主题。"
+        }
+      ],
+      "recent_turns": [],
+      "relationship_context": [],
+      "relevant_memories": [],
+      "request_id": "req_00000014-0000-4000-8000-000000000014",
+      "schema_version": 1,
+      "session_id": "ses_00000001-0000-4000-8000-000000000001",
+      "tokenizer_version": "utf8_bytes_v1",
+      "user_context": [],
+      "vault_commit_id": "cmt_0000006c-0000-4000-8000-00000000006c",
+      "verification_needed": [
+        {
+          "conflict_group_id": null,
+          "item_id": null,
+          "memory_id": null,
+          "reason": "no_supported_evidence"
+        }
+      ]
+    }
+  ],
+  "checkpoints": [
+    {
+      "base_vault_commit_id": "cmt_0000006b-0000-4000-8000-00000000006b",
+      "branch_id": "br_00000001-0000-4000-8000-000000000001",
+      "checkpoint_id": "ckp_00000001-0000-4000-8000-000000000001",
+      "coverage": {
+        "from_sequence": 1,
+        "kind": "range",
+        "to_sequence": 4
+      },
+      "coverage_hash": "45e1316e475eb79c984c254bf6dadadc1b9823f3aa84e4db2e0051b09b3bfca0",
+      "created_at": "2026-07-03T09:20:00.000Z",
+      "decisions": [
+        {
+          "claim": "准备实现 Darkroom 主题",
+          "item_id": "itm_00000003-0000-4000-8000-000000000003",
+          "source_refs": [
+            {
+              "event_id": "evt_00000003-0000-4000-8000-000000000003",
+              "kind": "event"
+            }
+          ],
+          "state_kind": "planned"
+        }
+      ],
+      "extensions": {},
+      "generated_by": {
+        "actor": {
+          "actor_id": "prn_00000002-0000-4000-8000-000000000002",
+          "actor_type": "system"
+        },
+        "generator_version": "checkpoint-summarizer/0"
+      },
+      "last_completed_turn_id": "turn_00000002-0000-4000-8000-000000000002",
+      "open_loops": [
+        {
+          "claim": "实现 Darkroom 主题",
+          "item_id": "itm_00000004-0000-4000-8000-000000000004",
+          "source_refs": [
+            {
+              "event_id": "evt_00000003-0000-4000-8000-000000000003",
+              "kind": "event"
+            }
+          ],
+          "state_kind": "planned"
+        }
+      ],
+      "review_id": null,
+      "revision": 1,
+      "schema_version": 1,
+      "sensitivity": "private",
+      "session_id": "ses_00000001-0000-4000-8000-000000000001",
+      "status": "provisional",
+      "summary": "（自动摘要）讨论了 MoriMeta 下一步，准备实现 Darkroom 主题。"
+    }
+  ],
+  "commits": [
+    {
+      "catalog": [],
+      "commit_id": "cmt_00000065-0000-4000-8000-000000000065",
+      "created_at": "2026-07-01T00:00:00.000Z",
+      "deletion_epoch": 0,
+      "format_version": 1,
+      "idempotency_key_hash": null,
+      "objects": [],
+      "operation_id": "op_00000065-0000-4000-8000-000000000065",
+      "operation_kind": "genesis",
+      "parent_commit_id": null,
+      "policy_epoch": 1,
+      "principal": {
+        "actor_id": "prn_00000001-0000-4000-8000-000000000001",
+        "actor_type": "owner"
+      },
+      "receipt": {
+        "operation_id": "op_00000065-0000-4000-8000-000000000065",
+        "records": [],
+        "result": "committed"
+      },
+      "request_payload_hash": "99591905ae80555fa4f3c9098c2088e6f0101bc01cbc6d2026012deddf7b4250",
+      "review_ids": [],
+      "schema_version": 1,
+      "sequence": 1,
+      "tombstone_ids": [],
+      "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+      "writer_device_id": "dev_00000001-0000-4000-8000-000000000001"
+    },
+    {
+      "catalog": [
+        {
+          "changed": true,
+          "content_hash": "e2794fda1dd27808a1f14c9fbaa1870fe1899570d8beac08055929db0c1f5605",
+          "record_id": "src_00000001-0000-4000-8000-000000000001",
+          "record_kind": "source",
+          "revision": 1
+        },
+        {
+          "changed": true,
+          "content_hash": "6cf1648a3d9bb7fdde7d4180e9945fa925a720bb16b509ad9da92c6b39c8fb98",
+          "record_id": "src_00000003-0000-4000-8000-000000000003",
+          "record_kind": "source",
+          "revision": 1
+        },
+        {
+          "changed": true,
+          "content_hash": "c8a6536f4bcf6071842bbb2089fd0a3e270051dcf81dbf4bfb31e48f0c6138c9",
+          "record_id": "src_00000004-0000-4000-8000-000000000004",
+          "record_kind": "source",
+          "revision": 1
+        },
+        {
+          "changed": true,
+          "content_hash": "c91a613d7047498301f60113f42f64a61d7dd871b30a394790149a72e34cf90e",
+          "record_id": "src_00000005-0000-4000-8000-000000000005",
+          "record_kind": "source",
+          "revision": 1
+        }
+      ],
+      "commit_id": "cmt_00000066-0000-4000-8000-000000000066",
+      "created_at": "2026-07-02T12:00:00.000Z",
+      "deletion_epoch": 0,
+      "format_version": 1,
+      "idempotency_key_hash": "5744f3c5dd30b3915c1f4a8ea67d0c79f27dbda4610432b0548bf43feac20e1e",
+      "objects": [],
+      "operation_id": "op_00000066-0000-4000-8000-000000000066",
+      "operation_kind": "import",
+      "parent_commit_id": "cmt_00000065-0000-4000-8000-000000000065",
+      "policy_epoch": 1,
+      "principal": {
+        "actor_id": "prn_00000001-0000-4000-8000-000000000001",
+        "actor_type": "owner"
+      },
+      "receipt": {
+        "operation_id": "op_00000066-0000-4000-8000-000000000066",
+        "records": [
+          {
+            "record_id": "src_00000001-0000-4000-8000-000000000001",
+            "record_kind": "source",
+            "revision": 1
+          },
+          {
+            "record_id": "src_00000003-0000-4000-8000-000000000003",
+            "record_kind": "source",
+            "revision": 1
+          },
+          {
+            "record_id": "src_00000004-0000-4000-8000-000000000004",
+            "record_kind": "source",
+            "revision": 1
+          },
+          {
+            "record_id": "src_00000005-0000-4000-8000-000000000005",
+            "record_kind": "source",
+            "revision": 1
+          }
+        ],
+        "result": "committed"
+      },
+      "request_payload_hash": "942cf0304826b49dd2e7278f06116649714a3b71c461d85732c8453eff932d18",
+      "review_ids": [],
+      "schema_version": 1,
+      "sequence": 2,
+      "tombstone_ids": [],
+      "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+      "writer_device_id": "dev_00000001-0000-4000-8000-000000000001"
+    },
+    {
+      "catalog": [
+        {
+          "changed": true,
+          "content_hash": "b48d79a23ab356b0e9c4451b43216cb062e0bfebdc1b8c205e318f691b3fce9f",
+          "record_id": "cand_00000001-0000-4000-8000-000000000001",
+          "record_kind": "candidate",
+          "revision": 1
+        },
+        {
+          "changed": true,
+          "content_hash": "040a5ad8d1c55df386229ff837e8c29a494d918528bad55f775197d8844bc339",
+          "record_id": "cand_00000003-0000-4000-8000-000000000003",
+          "record_kind": "candidate",
+          "revision": 1
+        },
+        {
+          "changed": true,
+          "content_hash": "57e8ba813153f66ce1403b20e6d436288c716199bdcb8f49ca327a8870083e69",
+          "record_id": "cand_00000004-0000-4000-8000-000000000004",
+          "record_kind": "candidate",
+          "revision": 1
+        },
+        {
+          "changed": true,
+          "content_hash": "c4e4dfc295dc8d822c1972a5706f2cd644ccc3d289f50defd4dd412a6d62a5f3",
+          "record_id": "cand_00000005-0000-4000-8000-000000000005",
+          "record_kind": "candidate",
+          "revision": 1
+        },
+        {
+          "changed": false,
+          "content_hash": "e2794fda1dd27808a1f14c9fbaa1870fe1899570d8beac08055929db0c1f5605",
+          "record_id": "src_00000001-0000-4000-8000-000000000001",
+          "record_kind": "source",
+          "revision": 1
+        },
+        {
+          "changed": false,
+          "content_hash": "6cf1648a3d9bb7fdde7d4180e9945fa925a720bb16b509ad9da92c6b39c8fb98",
+          "record_id": "src_00000003-0000-4000-8000-000000000003",
+          "record_kind": "source",
+          "revision": 1
+        },
+        {
+          "changed": false,
+          "content_hash": "c8a6536f4bcf6071842bbb2089fd0a3e270051dcf81dbf4bfb31e48f0c6138c9",
+          "record_id": "src_00000004-0000-4000-8000-000000000004",
+          "record_kind": "source",
+          "revision": 1
+        },
+        {
+          "changed": false,
+          "content_hash": "c91a613d7047498301f60113f42f64a61d7dd871b30a394790149a72e34cf90e",
+          "record_id": "src_00000005-0000-4000-8000-000000000005",
+          "record_kind": "source",
+          "revision": 1
+        }
+      ],
+      "commit_id": "cmt_00000067-0000-4000-8000-000000000067",
+      "created_at": "2026-07-02T12:10:00.000Z",
+      "deletion_epoch": 0,
+      "format_version": 1,
+      "idempotency_key_hash": "eb603bdb516269777acda2a2d78659b467d21f99a7e3832057120514c87d39f8",
+      "objects": [],
+      "operation_id": "op_00000067-0000-4000-8000-000000000067",
+      "operation_kind": "candidate_propose",
+      "parent_commit_id": "cmt_00000066-0000-4000-8000-000000000066",
+      "policy_epoch": 1,
+      "principal": {
+        "actor_id": "prn_00000002-0000-4000-8000-000000000002",
+        "actor_type": "system"
+      },
+      "receipt": {
+        "operation_id": "op_00000067-0000-4000-8000-000000000067",
+        "records": [
+          {
+            "record_id": "cand_00000001-0000-4000-8000-000000000001",
+            "record_kind": "candidate",
+            "revision": 1
+          },
+          {
+            "record_id": "cand_00000003-0000-4000-8000-000000000003",
+            "record_kind": "candidate",
+            "revision": 1
+          },
+          {
+            "record_id": "cand_00000004-0000-4000-8000-000000000004",
+            "record_kind": "candidate",
+            "revision": 1
+          },
+          {
+            "record_id": "cand_00000005-0000-4000-8000-000000000005",
+            "record_kind": "candidate",
+            "revision": 1
+          }
+        ],
+        "result": "committed"
+      },
+      "request_payload_hash": "d915696f18593cb4d88332285a1ced1898c41484b08ea2bc3811b07103ba3a03",
+      "review_ids": [],
+      "schema_version": 1,
+      "sequence": 3,
+      "tombstone_ids": [],
+      "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+      "writer_device_id": "dev_00000001-0000-4000-8000-000000000001"
+    },
+    {
+      "catalog": [
+        {
+          "changed": false,
+          "content_hash": "b48d79a23ab356b0e9c4451b43216cb062e0bfebdc1b8c205e318f691b3fce9f",
+          "record_id": "cand_00000001-0000-4000-8000-000000000001",
+          "record_kind": "candidate",
+          "revision": 1
+        },
+        {
+          "changed": true,
+          "content_hash": "1552c9b3e5a2445b8e029450ca92b6feb9bfecb0e08c56151777ff87e267271f",
+          "record_id": "cand_00000003-0000-4000-8000-000000000003",
+          "record_kind": "candidate",
+          "revision": 2
+        },
+        {
+          "changed": false,
+          "content_hash": "57e8ba813153f66ce1403b20e6d436288c716199bdcb8f49ca327a8870083e69",
+          "record_id": "cand_00000004-0000-4000-8000-000000000004",
+          "record_kind": "candidate",
+          "revision": 1
+        },
+        {
+          "changed": false,
+          "content_hash": "c4e4dfc295dc8d822c1972a5706f2cd644ccc3d289f50defd4dd412a6d62a5f3",
+          "record_id": "cand_00000005-0000-4000-8000-000000000005",
+          "record_kind": "candidate",
+          "revision": 1
+        },
+        {
+          "changed": true,
+          "content_hash": "a9205a0ff54ca96cb2bf57d6069d4d3a7d8d2c3beb843ab27a6c27b0cb5d5abb",
+          "record_id": "mem_00000003-0000-4000-8000-000000000003",
+          "record_kind": "memory",
+          "revision": 1
+        },
+        {
+          "changed": true,
+          "content_hash": "16af9a2f92c5e68f067988400d5815bcd53600615f4786546896f6815dbf1781",
+          "record_id": "prj_00000002-0000-4000-8000-000000000002",
+          "record_kind": "project",
+          "revision": 1
+        },
+        {
+          "changed": true,
+          "content_hash": "baedddbcf0fdca46cebe23491c2dfb6ec037b42921735fa5aee1f1e6fc9bf1be",
+          "record_id": "rvw_00000003-0000-4000-8000-000000000003",
+          "record_kind": "review",
+          "revision": 1
+        },
+        {
+          "changed": false,
+          "content_hash": "e2794fda1dd27808a1f14c9fbaa1870fe1899570d8beac08055929db0c1f5605",
+          "record_id": "src_00000001-0000-4000-8000-000000000001",
+          "record_kind": "source",
+          "revision": 1
+        },
+        {
+          "changed": false,
+          "content_hash": "6cf1648a3d9bb7fdde7d4180e9945fa925a720bb16b509ad9da92c6b39c8fb98",
+          "record_id": "src_00000003-0000-4000-8000-000000000003",
+          "record_kind": "source",
+          "revision": 1
+        },
+        {
+          "changed": false,
+          "content_hash": "c8a6536f4bcf6071842bbb2089fd0a3e270051dcf81dbf4bfb31e48f0c6138c9",
+          "record_id": "src_00000004-0000-4000-8000-000000000004",
+          "record_kind": "source",
+          "revision": 1
+        },
+        {
+          "changed": false,
+          "content_hash": "c91a613d7047498301f60113f42f64a61d7dd871b30a394790149a72e34cf90e",
+          "record_id": "src_00000005-0000-4000-8000-000000000005",
+          "record_kind": "source",
+          "revision": 1
+        }
+      ],
+      "commit_id": "cmt_00000068-0000-4000-8000-000000000068",
+      "created_at": "2026-07-02T13:05:00.500Z",
+      "deletion_epoch": 0,
+      "format_version": 1,
+      "idempotency_key_hash": "58ed474031a203578ee99503bb1626502dca052fd7b61f2cf599686806473160",
+      "objects": [],
+      "operation_id": "op_00000068-0000-4000-8000-000000000068",
+      "operation_kind": "review_commit",
+      "parent_commit_id": "cmt_00000067-0000-4000-8000-000000000067",
+      "policy_epoch": 1,
+      "principal": {
+        "actor_id": "prn_00000001-0000-4000-8000-000000000001",
+        "actor_type": "owner"
+      },
+      "receipt": {
+        "operation_id": "op_00000068-0000-4000-8000-000000000068",
+        "records": [
+          {
+            "record_id": "cand_00000003-0000-4000-8000-000000000003",
+            "record_kind": "candidate",
+            "revision": 2
+          },
+          {
+            "record_id": "mem_00000003-0000-4000-8000-000000000003",
+            "record_kind": "memory",
+            "revision": 1
+          },
+          {
+            "record_id": "prj_00000002-0000-4000-8000-000000000002",
+            "record_kind": "project",
+            "revision": 1
+          },
+          {
+            "record_id": "rvw_00000003-0000-4000-8000-000000000003",
+            "record_kind": "review",
+            "revision": 1
+          }
+        ],
+        "result": "committed"
+      },
+      "request_payload_hash": "20194e0c73632942ec33fbb69e9e3875a4bb290545664274b70d161df1401be3",
+      "review_ids": [
+        "rvw_00000003-0000-4000-8000-000000000003"
+      ],
+      "schema_version": 1,
+      "sequence": 4,
+      "tombstone_ids": [],
+      "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+      "writer_device_id": "dev_00000001-0000-4000-8000-000000000001"
+    },
+    {
+      "catalog": [
+        {
+          "changed": false,
+          "content_hash": "b48d79a23ab356b0e9c4451b43216cb062e0bfebdc1b8c205e318f691b3fce9f",
+          "record_id": "cand_00000001-0000-4000-8000-000000000001",
+          "record_kind": "candidate",
+          "revision": 1
+        },
+        {
+          "changed": false,
+          "content_hash": "1552c9b3e5a2445b8e029450ca92b6feb9bfecb0e08c56151777ff87e267271f",
+          "record_id": "cand_00000003-0000-4000-8000-000000000003",
+          "record_kind": "candidate",
+          "revision": 2
+        },
+        {
+          "changed": true,
+          "content_hash": "15c2e036a69160f0ddef99dfbab30f86d15b9624feda9b0021880acba8150079",
+          "record_id": "cand_00000004-0000-4000-8000-000000000004",
+          "record_kind": "candidate",
+          "revision": 2
+        },
+        {
+          "changed": false,
+          "content_hash": "c4e4dfc295dc8d822c1972a5706f2cd644ccc3d289f50defd4dd412a6d62a5f3",
+          "record_id": "cand_00000005-0000-4000-8000-000000000005",
+          "record_kind": "candidate",
+          "revision": 1
+        },
+        {
+          "changed": false,
+          "content_hash": "a9205a0ff54ca96cb2bf57d6069d4d3a7d8d2c3beb843ab27a6c27b0cb5d5abb",
+          "record_id": "mem_00000003-0000-4000-8000-000000000003",
+          "record_kind": "memory",
+          "revision": 1
+        },
+        {
+          "changed": true,
+          "content_hash": "512f20d4ce0a70fac75dc8719cb6b7962df5ddbe4445a4af7a4c456f3b1c49ff",
+          "record_id": "mem_00000004-0000-4000-8000-000000000004",
+          "record_kind": "memory",
+          "revision": 1
+        },
+        {
+          "changed": false,
+          "content_hash": "16af9a2f92c5e68f067988400d5815bcd53600615f4786546896f6815dbf1781",
+          "record_id": "prj_00000002-0000-4000-8000-000000000002",
+          "record_kind": "project",
+          "revision": 1
+        },
+        {
+          "changed": false,
+          "content_hash": "baedddbcf0fdca46cebe23491c2dfb6ec037b42921735fa5aee1f1e6fc9bf1be",
+          "record_id": "rvw_00000003-0000-4000-8000-000000000003",
+          "record_kind": "review",
+          "revision": 1
+        },
+        {
+          "changed": true,
+          "content_hash": "0a9da217f152dc0a3ce146adf44cc48c0b9e8130c8cfe9ff05da37a63e054109",
+          "record_id": "rvw_00000004-0000-4000-8000-000000000004",
+          "record_kind": "review",
+          "revision": 1
+        },
+        {
+          "changed": false,
+          "content_hash": "e2794fda1dd27808a1f14c9fbaa1870fe1899570d8beac08055929db0c1f5605",
+          "record_id": "src_00000001-0000-4000-8000-000000000001",
+          "record_kind": "source",
+          "revision": 1
+        },
+        {
+          "changed": false,
+          "content_hash": "6cf1648a3d9bb7fdde7d4180e9945fa925a720bb16b509ad9da92c6b39c8fb98",
+          "record_id": "src_00000003-0000-4000-8000-000000000003",
+          "record_kind": "source",
+          "revision": 1
+        },
+        {
+          "changed": false,
+          "content_hash": "c8a6536f4bcf6071842bbb2089fd0a3e270051dcf81dbf4bfb31e48f0c6138c9",
+          "record_id": "src_00000004-0000-4000-8000-000000000004",
+          "record_kind": "source",
+          "revision": 1
+        },
+        {
+          "changed": false,
+          "content_hash": "c91a613d7047498301f60113f42f64a61d7dd871b30a394790149a72e34cf90e",
+          "record_id": "src_00000005-0000-4000-8000-000000000005",
+          "record_kind": "source",
+          "revision": 1
+        }
+      ],
+      "commit_id": "cmt_00000069-0000-4000-8000-000000000069",
+      "created_at": "2026-07-02T13:10:00.500Z",
+      "deletion_epoch": 0,
+      "format_version": 1,
+      "idempotency_key_hash": "d229ac13f8b096d40f6ddf6800665e45a351eab14159fc0af41dff86f1f805c5",
+      "objects": [],
+      "operation_id": "op_00000069-0000-4000-8000-000000000069",
+      "operation_kind": "review_commit",
+      "parent_commit_id": "cmt_00000068-0000-4000-8000-000000000068",
+      "policy_epoch": 1,
+      "principal": {
+        "actor_id": "prn_00000001-0000-4000-8000-000000000001",
+        "actor_type": "owner"
+      },
+      "receipt": {
+        "operation_id": "op_00000069-0000-4000-8000-000000000069",
+        "records": [
+          {
+            "record_id": "cand_00000004-0000-4000-8000-000000000004",
+            "record_kind": "candidate",
+            "revision": 2
+          },
+          {
+            "record_id": "mem_00000004-0000-4000-8000-000000000004",
+            "record_kind": "memory",
+            "revision": 1
+          },
+          {
+            "record_id": "rvw_00000004-0000-4000-8000-000000000004",
+            "record_kind": "review",
+            "revision": 1
+          }
+        ],
+        "result": "committed"
+      },
+      "request_payload_hash": "d1c19ce8d21714d9de8e30d8d27e97b85d9a0f93baa125197045186b468dea99",
+      "review_ids": [
+        "rvw_00000004-0000-4000-8000-000000000004"
+      ],
+      "schema_version": 1,
+      "sequence": 5,
+      "tombstone_ids": [],
+      "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+      "writer_device_id": "dev_00000001-0000-4000-8000-000000000001"
+    },
+    {
+      "catalog": [
+        {
+          "changed": false,
+          "content_hash": "b48d79a23ab356b0e9c4451b43216cb062e0bfebdc1b8c205e318f691b3fce9f",
+          "record_id": "cand_00000001-0000-4000-8000-000000000001",
+          "record_kind": "candidate",
+          "revision": 1
+        },
+        {
+          "changed": false,
+          "content_hash": "1552c9b3e5a2445b8e029450ca92b6feb9bfecb0e08c56151777ff87e267271f",
+          "record_id": "cand_00000003-0000-4000-8000-000000000003",
+          "record_kind": "candidate",
+          "revision": 2
+        },
+        {
+          "changed": false,
+          "content_hash": "15c2e036a69160f0ddef99dfbab30f86d15b9624feda9b0021880acba8150079",
+          "record_id": "cand_00000004-0000-4000-8000-000000000004",
+          "record_kind": "candidate",
+          "revision": 2
+        },
+        {
+          "changed": true,
+          "content_hash": "96213d5e8619bc49899b6d3473c86376bf0895b21b4c8c908ae5d6dde621c77b",
+          "record_id": "cand_00000005-0000-4000-8000-000000000005",
+          "record_kind": "candidate",
+          "revision": 2
+        },
+        {
+          "changed": false,
+          "content_hash": "a9205a0ff54ca96cb2bf57d6069d4d3a7d8d2c3beb843ab27a6c27b0cb5d5abb",
+          "record_id": "mem_00000003-0000-4000-8000-000000000003",
+          "record_kind": "memory",
+          "revision": 1
+        },
+        {
+          "changed": false,
+          "content_hash": "512f20d4ce0a70fac75dc8719cb6b7962df5ddbe4445a4af7a4c456f3b1c49ff",
+          "record_id": "mem_00000004-0000-4000-8000-000000000004",
+          "record_kind": "memory",
+          "revision": 1
+        },
+        {
+          "changed": false,
+          "content_hash": "16af9a2f92c5e68f067988400d5815bcd53600615f4786546896f6815dbf1781",
+          "record_id": "prj_00000002-0000-4000-8000-000000000002",
+          "record_kind": "project",
+          "revision": 1
+        },
+        {
+          "changed": false,
+          "content_hash": "baedddbcf0fdca46cebe23491c2dfb6ec037b42921735fa5aee1f1e6fc9bf1be",
+          "record_id": "rvw_00000003-0000-4000-8000-000000000003",
+          "record_kind": "review",
+          "revision": 1
+        },
+        {
+          "changed": false,
+          "content_hash": "0a9da217f152dc0a3ce146adf44cc48c0b9e8130c8cfe9ff05da37a63e054109",
+          "record_id": "rvw_00000004-0000-4000-8000-000000000004",
+          "record_kind": "review",
+          "revision": 1
+        },
+        {
+          "changed": true,
+          "content_hash": "6fad590928c67b306026540eda80bedef5739ace5fce2b3a2c9eb15abdc90faf",
+          "record_id": "rvw_00000005-0000-4000-8000-000000000005",
+          "record_kind": "review",
+          "revision": 1
+        },
+        {
+          "changed": false,
+          "content_hash": "e2794fda1dd27808a1f14c9fbaa1870fe1899570d8beac08055929db0c1f5605",
+          "record_id": "src_00000001-0000-4000-8000-000000000001",
+          "record_kind": "source",
+          "revision": 1
+        },
+        {
+          "changed": false,
+          "content_hash": "6cf1648a3d9bb7fdde7d4180e9945fa925a720bb16b509ad9da92c6b39c8fb98",
+          "record_id": "src_00000003-0000-4000-8000-000000000003",
+          "record_kind": "source",
+          "revision": 1
+        },
+        {
+          "changed": false,
+          "content_hash": "c8a6536f4bcf6071842bbb2089fd0a3e270051dcf81dbf4bfb31e48f0c6138c9",
+          "record_id": "src_00000004-0000-4000-8000-000000000004",
+          "record_kind": "source",
+          "revision": 1
+        },
+        {
+          "changed": false,
+          "content_hash": "c91a613d7047498301f60113f42f64a61d7dd871b30a394790149a72e34cf90e",
+          "record_id": "src_00000005-0000-4000-8000-000000000005",
+          "record_kind": "source",
+          "revision": 1
+        }
+      ],
+      "commit_id": "cmt_0000006a-0000-4000-8000-00000000006a",
+      "created_at": "2026-07-02T13:15:00.500Z",
+      "deletion_epoch": 0,
+      "format_version": 1,
+      "idempotency_key_hash": "31a81ab9db37f2feb4274a94881c031f5d71bc624264296a531b9ce7d10f832c",
+      "objects": [],
+      "operation_id": "op_0000006a-0000-4000-8000-00000000006a",
+      "operation_kind": "review_commit",
+      "parent_commit_id": "cmt_00000069-0000-4000-8000-000000000069",
+      "policy_epoch": 1,
+      "principal": {
+        "actor_id": "prn_00000001-0000-4000-8000-000000000001",
+        "actor_type": "owner"
+      },
+      "receipt": {
+        "operation_id": "op_0000006a-0000-4000-8000-00000000006a",
+        "records": [
+          {
+            "record_id": "cand_00000005-0000-4000-8000-000000000005",
+            "record_kind": "candidate",
+            "revision": 2
+          },
+          {
+            "record_id": "rvw_00000005-0000-4000-8000-000000000005",
+            "record_kind": "review",
+            "revision": 1
+          }
+        ],
+        "result": "committed"
+      },
+      "request_payload_hash": "dda7dd7e511eece1843fe2c1e120de7c2eeee3218cdaaa879d6d12e01b03a76c",
+      "review_ids": [
+        "rvw_00000005-0000-4000-8000-000000000005"
+      ],
+      "schema_version": 1,
+      "sequence": 6,
+      "tombstone_ids": [],
+      "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+      "writer_device_id": "dev_00000001-0000-4000-8000-000000000001"
+    },
+    {
+      "catalog": [
+        {
+          "changed": false,
+          "content_hash": "b48d79a23ab356b0e9c4451b43216cb062e0bfebdc1b8c205e318f691b3fce9f",
+          "record_id": "cand_00000001-0000-4000-8000-000000000001",
+          "record_kind": "candidate",
+          "revision": 1
+        },
+        {
+          "changed": false,
+          "content_hash": "1552c9b3e5a2445b8e029450ca92b6feb9bfecb0e08c56151777ff87e267271f",
+          "record_id": "cand_00000003-0000-4000-8000-000000000003",
+          "record_kind": "candidate",
+          "revision": 2
+        },
+        {
+          "changed": false,
+          "content_hash": "15c2e036a69160f0ddef99dfbab30f86d15b9624feda9b0021880acba8150079",
+          "record_id": "cand_00000004-0000-4000-8000-000000000004",
+          "record_kind": "candidate",
+          "revision": 2
+        },
+        {
+          "changed": false,
+          "content_hash": "96213d5e8619bc49899b6d3473c86376bf0895b21b4c8c908ae5d6dde621c77b",
+          "record_id": "cand_00000005-0000-4000-8000-000000000005",
+          "record_kind": "candidate",
+          "revision": 2
+        },
+        {
+          "changed": false,
+          "content_hash": "a9205a0ff54ca96cb2bf57d6069d4d3a7d8d2c3beb843ab27a6c27b0cb5d5abb",
+          "record_id": "mem_00000003-0000-4000-8000-000000000003",
+          "record_kind": "memory",
+          "revision": 1
+        },
+        {
+          "changed": false,
+          "content_hash": "512f20d4ce0a70fac75dc8719cb6b7962df5ddbe4445a4af7a4c456f3b1c49ff",
+          "record_id": "mem_00000004-0000-4000-8000-000000000004",
+          "record_kind": "memory",
+          "revision": 1
+        },
+        {
+          "changed": false,
+          "content_hash": "16af9a2f92c5e68f067988400d5815bcd53600615f4786546896f6815dbf1781",
+          "record_id": "prj_00000002-0000-4000-8000-000000000002",
+          "record_kind": "project",
+          "revision": 1
+        },
+        {
+          "changed": false,
+          "content_hash": "baedddbcf0fdca46cebe23491c2dfb6ec037b42921735fa5aee1f1e6fc9bf1be",
+          "record_id": "rvw_00000003-0000-4000-8000-000000000003",
+          "record_kind": "review",
+          "revision": 1
+        },
+        {
+          "changed": false,
+          "content_hash": "0a9da217f152dc0a3ce146adf44cc48c0b9e8130c8cfe9ff05da37a63e054109",
+          "record_id": "rvw_00000004-0000-4000-8000-000000000004",
+          "record_kind": "review",
+          "revision": 1
+        },
+        {
+          "changed": false,
+          "content_hash": "6fad590928c67b306026540eda80bedef5739ace5fce2b3a2c9eb15abdc90faf",
+          "record_id": "rvw_00000005-0000-4000-8000-000000000005",
+          "record_kind": "review",
+          "revision": 1
+        },
+        {
+          "changed": true,
+          "content_hash": "8566603bbeabcf998468593dbd660cc0a3fbcee889a54ba5495d8a1013cefe80",
+          "record_id": "ses_00000001-0000-4000-8000-000000000001",
+          "record_kind": "session",
+          "revision": 1
+        },
+        {
+          "changed": true,
+          "content_hash": "fe57078596a2361cab20749d574d74b1492c128585a15a341dc84d1c2e6aa56a",
+          "record_id": "evt_00000001-0000-4000-8000-000000000001",
+          "record_kind": "session_event",
+          "revision": 1
+        },
+        {
+          "changed": true,
+          "content_hash": "454a7a02e491760e4ecacd25b2b43cc7baa0dbfc09c2dc5c827237058616bed4",
+          "record_id": "evt_00000002-0000-4000-8000-000000000002",
+          "record_kind": "session_event",
+          "revision": 1
+        },
+        {
+          "changed": true,
+          "content_hash": "fc0a196faaaf736bcbaf179d17e6b227b30c75eba76faab307e9a9fcf88c1ff3",
+          "record_id": "evt_00000003-0000-4000-8000-000000000003",
+          "record_kind": "session_event",
+          "revision": 1
+        },
+        {
+          "changed": true,
+          "content_hash": "d34ea6762b20672d6ff5968d45db616cfeed3f823cd78d759e1dc22a68f21285",
+          "record_id": "evt_00000004-0000-4000-8000-000000000004",
+          "record_kind": "session_event",
+          "revision": 1
+        },
+        {
+          "changed": false,
+          "content_hash": "e2794fda1dd27808a1f14c9fbaa1870fe1899570d8beac08055929db0c1f5605",
+          "record_id": "src_00000001-0000-4000-8000-000000000001",
+          "record_kind": "source",
+          "revision": 1
+        },
+        {
+          "changed": false,
+          "content_hash": "6cf1648a3d9bb7fdde7d4180e9945fa925a720bb16b509ad9da92c6b39c8fb98",
+          "record_id": "src_00000003-0000-4000-8000-000000000003",
+          "record_kind": "source",
+          "revision": 1
+        },
+        {
+          "changed": false,
+          "content_hash": "c8a6536f4bcf6071842bbb2089fd0a3e270051dcf81dbf4bfb31e48f0c6138c9",
+          "record_id": "src_00000004-0000-4000-8000-000000000004",
+          "record_kind": "source",
+          "revision": 1
+        },
+        {
+          "changed": false,
+          "content_hash": "c91a613d7047498301f60113f42f64a61d7dd871b30a394790149a72e34cf90e",
+          "record_id": "src_00000005-0000-4000-8000-000000000005",
+          "record_kind": "source",
+          "revision": 1
+        }
+      ],
+      "commit_id": "cmt_0000006b-0000-4000-8000-00000000006b",
+      "created_at": "2026-07-03T09:10:00.000Z",
+      "deletion_epoch": 0,
+      "format_version": 1,
+      "idempotency_key_hash": "3de2e6948e34d1da975b61db796d3fe109092abd7b933ce10fbca77ab499e1c0",
+      "objects": [],
+      "operation_id": "op_0000006b-0000-4000-8000-00000000006b",
+      "operation_kind": "session_append",
+      "parent_commit_id": "cmt_0000006a-0000-4000-8000-00000000006a",
+      "policy_epoch": 1,
+      "principal": {
+        "actor_id": "prn_00000001-0000-4000-8000-000000000001",
+        "actor_type": "owner"
+      },
+      "receipt": {
+        "operation_id": "op_0000006b-0000-4000-8000-00000000006b",
+        "records": [
+          {
+            "record_id": "ses_00000001-0000-4000-8000-000000000001",
+            "record_kind": "session",
+            "revision": 1
+          },
+          {
+            "record_id": "evt_00000001-0000-4000-8000-000000000001",
+            "record_kind": "session_event",
+            "revision": 1
+          },
+          {
+            "record_id": "evt_00000002-0000-4000-8000-000000000002",
+            "record_kind": "session_event",
+            "revision": 1
+          },
+          {
+            "record_id": "evt_00000003-0000-4000-8000-000000000003",
+            "record_kind": "session_event",
+            "revision": 1
+          },
+          {
+            "record_id": "evt_00000004-0000-4000-8000-000000000004",
+            "record_kind": "session_event",
+            "revision": 1
+          }
+        ],
+        "result": "committed"
+      },
+      "request_payload_hash": "5e35bf00f765bf07287a642796d96cba27e2dc6a3e7a4425e859088ee39f403b",
+      "review_ids": [],
+      "schema_version": 1,
+      "sequence": 7,
+      "tombstone_ids": [],
+      "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+      "writer_device_id": "dev_00000001-0000-4000-8000-000000000001"
+    },
+    {
+      "catalog": [
+        {
+          "changed": false,
+          "content_hash": "b48d79a23ab356b0e9c4451b43216cb062e0bfebdc1b8c205e318f691b3fce9f",
+          "record_id": "cand_00000001-0000-4000-8000-000000000001",
+          "record_kind": "candidate",
+          "revision": 1
+        },
+        {
+          "changed": false,
+          "content_hash": "1552c9b3e5a2445b8e029450ca92b6feb9bfecb0e08c56151777ff87e267271f",
+          "record_id": "cand_00000003-0000-4000-8000-000000000003",
+          "record_kind": "candidate",
+          "revision": 2
+        },
+        {
+          "changed": false,
+          "content_hash": "15c2e036a69160f0ddef99dfbab30f86d15b9624feda9b0021880acba8150079",
+          "record_id": "cand_00000004-0000-4000-8000-000000000004",
+          "record_kind": "candidate",
+          "revision": 2
+        },
+        {
+          "changed": false,
+          "content_hash": "96213d5e8619bc49899b6d3473c86376bf0895b21b4c8c908ae5d6dde621c77b",
+          "record_id": "cand_00000005-0000-4000-8000-000000000005",
+          "record_kind": "candidate",
+          "revision": 2
+        },
+        {
+          "changed": true,
+          "content_hash": "8a3b692f2c733062958c43bb8fde5c96417c7e61f151b3d0c0ec2a2f819bfff8",
+          "record_id": "ckp_00000001-0000-4000-8000-000000000001",
+          "record_kind": "checkpoint",
+          "revision": 1
+        },
+        {
+          "changed": false,
+          "content_hash": "a9205a0ff54ca96cb2bf57d6069d4d3a7d8d2c3beb843ab27a6c27b0cb5d5abb",
+          "record_id": "mem_00000003-0000-4000-8000-000000000003",
+          "record_kind": "memory",
+          "revision": 1
+        },
+        {
+          "changed": false,
+          "content_hash": "512f20d4ce0a70fac75dc8719cb6b7962df5ddbe4445a4af7a4c456f3b1c49ff",
+          "record_id": "mem_00000004-0000-4000-8000-000000000004",
+          "record_kind": "memory",
+          "revision": 1
+        },
+        {
+          "changed": false,
+          "content_hash": "16af9a2f92c5e68f067988400d5815bcd53600615f4786546896f6815dbf1781",
+          "record_id": "prj_00000002-0000-4000-8000-000000000002",
+          "record_kind": "project",
+          "revision": 1
+        },
+        {
+          "changed": false,
+          "content_hash": "baedddbcf0fdca46cebe23491c2dfb6ec037b42921735fa5aee1f1e6fc9bf1be",
+          "record_id": "rvw_00000003-0000-4000-8000-000000000003",
+          "record_kind": "review",
+          "revision": 1
+        },
+        {
+          "changed": false,
+          "content_hash": "0a9da217f152dc0a3ce146adf44cc48c0b9e8130c8cfe9ff05da37a63e054109",
+          "record_id": "rvw_00000004-0000-4000-8000-000000000004",
+          "record_kind": "review",
+          "revision": 1
+        },
+        {
+          "changed": false,
+          "content_hash": "6fad590928c67b306026540eda80bedef5739ace5fce2b3a2c9eb15abdc90faf",
+          "record_id": "rvw_00000005-0000-4000-8000-000000000005",
+          "record_kind": "review",
+          "revision": 1
+        },
+        {
+          "changed": false,
+          "content_hash": "8566603bbeabcf998468593dbd660cc0a3fbcee889a54ba5495d8a1013cefe80",
+          "record_id": "ses_00000001-0000-4000-8000-000000000001",
+          "record_kind": "session",
+          "revision": 1
+        },
+        {
+          "changed": false,
+          "content_hash": "fe57078596a2361cab20749d574d74b1492c128585a15a341dc84d1c2e6aa56a",
+          "record_id": "evt_00000001-0000-4000-8000-000000000001",
+          "record_kind": "session_event",
+          "revision": 1
+        },
+        {
+          "changed": false,
+          "content_hash": "454a7a02e491760e4ecacd25b2b43cc7baa0dbfc09c2dc5c827237058616bed4",
+          "record_id": "evt_00000002-0000-4000-8000-000000000002",
+          "record_kind": "session_event",
+          "revision": 1
+        },
+        {
+          "changed": false,
+          "content_hash": "fc0a196faaaf736bcbaf179d17e6b227b30c75eba76faab307e9a9fcf88c1ff3",
+          "record_id": "evt_00000003-0000-4000-8000-000000000003",
+          "record_kind": "session_event",
+          "revision": 1
+        },
+        {
+          "changed": false,
+          "content_hash": "d34ea6762b20672d6ff5968d45db616cfeed3f823cd78d759e1dc22a68f21285",
+          "record_id": "evt_00000004-0000-4000-8000-000000000004",
+          "record_kind": "session_event",
+          "revision": 1
+        },
+        {
+          "changed": false,
+          "content_hash": "e2794fda1dd27808a1f14c9fbaa1870fe1899570d8beac08055929db0c1f5605",
+          "record_id": "src_00000001-0000-4000-8000-000000000001",
+          "record_kind": "source",
+          "revision": 1
+        },
+        {
+          "changed": false,
+          "content_hash": "6cf1648a3d9bb7fdde7d4180e9945fa925a720bb16b509ad9da92c6b39c8fb98",
+          "record_id": "src_00000003-0000-4000-8000-000000000003",
+          "record_kind": "source",
+          "revision": 1
+        },
+        {
+          "changed": false,
+          "content_hash": "c8a6536f4bcf6071842bbb2089fd0a3e270051dcf81dbf4bfb31e48f0c6138c9",
+          "record_id": "src_00000004-0000-4000-8000-000000000004",
+          "record_kind": "source",
+          "revision": 1
+        },
+        {
+          "changed": false,
+          "content_hash": "c91a613d7047498301f60113f42f64a61d7dd871b30a394790149a72e34cf90e",
+          "record_id": "src_00000005-0000-4000-8000-000000000005",
+          "record_kind": "source",
+          "revision": 1
+        }
+      ],
+      "commit_id": "cmt_0000006c-0000-4000-8000-00000000006c",
+      "created_at": "2026-07-03T09:20:00.000Z",
+      "deletion_epoch": 0,
+      "format_version": 1,
+      "idempotency_key_hash": "5a0f27cfc3145f1aad251546883f4c8d8f0da8666bc27c4ae8b1c8c1964b208d",
+      "objects": [],
+      "operation_id": "op_0000006c-0000-4000-8000-00000000006c",
+      "operation_kind": "checkpoint_propose",
+      "parent_commit_id": "cmt_0000006b-0000-4000-8000-00000000006b",
+      "policy_epoch": 1,
+      "principal": {
+        "actor_id": "prn_00000002-0000-4000-8000-000000000002",
+        "actor_type": "system"
+      },
+      "receipt": {
+        "operation_id": "op_0000006c-0000-4000-8000-00000000006c",
+        "records": [
+          {
+            "record_id": "ckp_00000001-0000-4000-8000-000000000001",
+            "record_kind": "checkpoint",
+            "revision": 1
+          }
+        ],
+        "result": "committed"
+      },
+      "request_payload_hash": "ddc3c5154273308e61434844a09fe13fb5d2a62c2a1b475b0c01204228747aad",
+      "review_ids": [],
+      "schema_version": 1,
+      "sequence": 8,
+      "tombstone_ids": [],
+      "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+      "writer_device_id": "dev_00000001-0000-4000-8000-000000000001"
+    }
+  ],
+  "description": "Synthetic MoriMeta story without any user confirmation: the Vault must not contain a chosen design. Test data only; not a real memory.",
+  "dispatches": [
+    {
+      "capsule_id": "cap_00000001-0000-4000-8000-000000000001",
+      "completed_at": "2026-07-04T00:00:00.300Z",
+      "destination": {
+        "kind": "local_mock",
+        "provider_binding": null
+      },
+      "dispatch_id": "dsp_00000001-0000-4000-8000-000000000001",
+      "egress": {
+        "checked_at": "2026-07-04T00:00:00.100Z",
+        "confirmation_review_id": null,
+        "deletion_epoch": 0,
+        "egress_policy_id": null,
+        "policy_epoch": 1
+      },
+      "inspection_id": "insp_00000001-0000-4000-8000-000000000001",
+      "messages": [
+        {
+          "capsule_memory_refs": [],
+          "content_hash": "1cbc66ce86e001dbdb66d96249a9e16b2b78eb4fa0b5da99bc47742142be4ae5",
+          "role": "system",
+          "size_bytes": 120
+        },
+        {
+          "capsule_memory_refs": [],
+          "content_hash": "b35f09d9b90efe5f5e207e203695b47b39906e5350aa07578d05ece4f3d86e00",
+          "role": "user",
+          "size_bytes": 480
+        }
+      ],
+      "prepared_at": "2026-07-04T00:00:00.100Z",
+      "request_hash": "3072c098411c8a38ad70d34b454dfc7f32e4b06e0bc6993f9b82f12a93c0a9c4",
+      "request_id": "req_00000014-0000-4000-8000-000000000014",
+      "schema_version": 1,
+      "sent_at": "2026-07-04T00:00:00.200Z",
+      "state": "completed",
+      "tools": []
+    }
+  ],
+  "inspections": [
+    {
+      "capsule_id": "cap_00000001-0000-4000-8000-000000000001",
+      "decisions": [
+        {
+          "decision": "excluded",
+          "rank": null,
+          "reason": "unrelated",
+          "record_id": "mem_00000003-0000-4000-8000-000000000003",
+          "record_kind": "memory",
+          "revision": 1,
+          "source_reachable": true,
+          "token_cost": null,
+          "truncated": false
+        },
+        {
+          "decision": "excluded",
+          "rank": null,
+          "reason": "policy_denied",
+          "record_id": "mem_00000004-0000-4000-8000-000000000004",
+          "record_kind": "memory",
+          "revision": 1,
+          "source_reachable": true,
+          "token_cost": null,
+          "truncated": false
+        },
+        {
+          "decision": "excluded",
+          "rank": null,
+          "reason": "pending",
+          "record_id": "cand_00000001-0000-4000-8000-000000000001",
+          "record_kind": "candidate",
+          "revision": 1,
+          "source_reachable": true,
+          "token_cost": null,
+          "truncated": false
+        },
+        {
+          "decision": "excluded",
+          "rank": null,
+          "reason": "rejected",
+          "record_id": "cand_00000005-0000-4000-8000-000000000005",
+          "record_kind": "candidate",
+          "revision": 2,
+          "source_reachable": true,
+          "token_cost": null,
+          "truncated": false
+        }
+      ],
+      "deletion_epoch": 0,
+      "generated_at": "2026-07-04T00:00:00.050Z",
+      "inspection_id": "insp_00000001-0000-4000-8000-000000000001",
+      "policy_epoch": 1,
+      "ranking_version": "ranking/0-mv0-fixture",
+      "request_id": "req_00000014-0000-4000-8000-000000000014",
+      "schema_version": 1,
+      "vault_commit_id": "cmt_0000006c-0000-4000-8000-00000000006c",
+      "viewer_scope": "owner_full"
+    }
+  ],
+  "memories": [
+    {
+      "access_policy_id": "pol_00000001-0000-4000-8000-000000000001",
+      "approved_at": "2026-07-02T13:05:00.000Z",
+      "approved_by": {
+        "actor_id": "prn_00000001-0000-4000-8000-000000000001",
+        "actor_type": "owner"
+      },
+      "category": null,
+      "confidence": null,
+      "conflict_group_id": null,
+      "content": "Moriium About 页继续使用静态 JSON。",
+      "created_at": "2026-07-02T13:05:00.500Z",
+      "decisions": [
+        {
+          "as_of": "2026-07-02T10:20:00.000Z",
+          "claim": "About 页数据：静态 JSON",
+          "evidence_refs": [
+            {
+              "source_id": "src_00000003-0000-4000-8000-000000000003",
+              "source_revision": 1
+            }
+          ],
+          "item_id": "itm_00000002-0000-4000-8000-000000000002",
+          "state_kind": "decided"
+        }
+      ],
+      "declassification_review_id": null,
+      "egress_policy_id": null,
+      "epistemic_status": "asserted",
+      "evidence": [
+        {
+          "evidence_class": "user_statement",
+          "locator": {
+            "kind": "json_pointer",
+            "pointer": "/mapping/d1/message/content"
+          },
+          "object_hash": "1bcb7e22aeceeedc14a62c504fbb3d1e0af52c2cb7e229c4a2c902c8745b7298",
+          "source_id": "src_00000003-0000-4000-8000-000000000003",
+          "source_revision": 1,
+          "supports": "content"
+        }
+      ],
+      "extensions": {},
+      "last_verified_at": null,
+      "memory_id": "mem_00000003-0000-4000-8000-000000000003",
+      "observed_at": "2026-07-02T10:20:00.000Z",
+      "open_loops": [],
+      "priority": "P1",
+      "project_id": "prj_00000002-0000-4000-8000-000000000002",
+      "provenance_state": "intact",
+      "review_after": null,
+      "review_id": "rvw_00000003-0000-4000-8000-000000000003",
+      "revision": 1,
+      "schema_version": 1,
+      "sensitivity": "private",
+      "source_id": "src_00000003-0000-4000-8000-000000000003",
+      "state": [],
+      "status": "active",
+      "subject_ids": [],
+      "supersedes": [],
+      "tags": [],
+      "title": "Moriium About 数据来源",
+      "type": "project_state",
+      "updated_at": "2026-07-02T13:05:00.500Z",
+      "valid_from": null,
+      "valid_until": null,
+      "volatility": "changing"
+    },
+    {
+      "access_policy_id": "pol_00000001-0000-4000-8000-000000000001",
+      "approved_at": "2026-07-02T13:10:00.000Z",
+      "approved_by": {
+        "actor_id": "prn_00000001-0000-4000-8000-000000000001",
+        "actor_type": "owner"
+      },
+      "category": null,
+      "claim_key": "health.checkup_schedule",
+      "confidence": null,
+      "conflict_group_id": null,
+      "content": "（合成夹具）定期复查安排在周四上午。",
+      "created_at": "2026-07-02T13:10:00.500Z",
+      "declassification_review_id": null,
+      "egress_policy_id": null,
+      "epistemic_status": "asserted",
+      "evidence": [
+        {
+          "evidence_class": "user_statement",
+          "locator": {
+            "kind": "json_pointer",
+            "pointer": "/mapping/p1/message/content"
+          },
+          "object_hash": "1bcb7e22aeceeedc14a62c504fbb3d1e0af52c2cb7e229c4a2c902c8745b7298",
+          "source_id": "src_00000004-0000-4000-8000-000000000004",
+          "source_revision": 1,
+          "supports": "content"
+        }
+      ],
+      "extensions": {},
+      "last_verified_at": null,
+      "memory_id": "mem_00000004-0000-4000-8000-000000000004",
+      "observed_at": "2026-07-02T10:30:00.000Z",
+      "priority": "P0",
+      "project_id": null,
+      "provenance_state": "intact",
+      "review_after": null,
+      "review_id": "rvw_00000004-0000-4000-8000-000000000004",
+      "revision": 1,
+      "schema_version": 1,
+      "sensitivity": "highly_sensitive",
+      "source_id": "src_00000004-0000-4000-8000-000000000004",
+      "status": "active",
+      "subject_ids": [
+        "sub_00000001-0000-4000-8000-000000000001"
+      ],
+      "supersedes": [],
+      "tags": [],
+      "title": "复查安排（合成）",
+      "type": "fact",
+      "updated_at": "2026-07-02T13:10:00.500Z",
+      "valid_from": null,
+      "valid_until": null,
+      "volatility": "stable"
+    }
+  ],
+  "projects": [
+    {
+      "aliases": [],
+      "created_at": "2026-07-02T13:05:00.500Z",
+      "display_name": "Moriium",
+      "extensions": {},
+      "project_id": "prj_00000002-0000-4000-8000-000000000002",
+      "review_id": "rvw_00000003-0000-4000-8000-000000000003",
+      "revision": 1,
+      "schema_version": 1,
+      "sensitivity": "private",
+      "status": "active",
+      "updated_at": "2026-07-02T13:05:00.500Z"
+    }
+  ],
+  "reviews": [
+    {
+      "action": "accept",
+      "actor": {
+        "actor_id": "prn_00000001-0000-4000-8000-000000000001",
+        "actor_type": "owner"
+      },
+      "approval_nonce": "nonce-synthetic-0003-abcdefghij",
+      "approved_diff_hash": "4110680cae610c925bcd9327c54940da96147d3dd274bccd9960504bc51dd585",
+      "candidate_id": "cand_00000003-0000-4000-8000-000000000003",
+      "candidate_revision": 1,
+      "commit_id": "cmt_00000068-0000-4000-8000-000000000068",
+      "created_at": "2026-07-02T13:05:00.000Z",
+      "effective_from": null,
+      "evidence_refs": [
+        {
+          "source_id": "src_00000003-0000-4000-8000-000000000003",
+          "source_revision": 1
+        }
+      ],
+      "final_content_hash": "a1453df4046c2d41ea59dffced5f2a2c16082e34bd4ceca572500df3c9e1fc56",
+      "merge_target": null,
+      "reason_code": null,
+      "resulting_records": [
+        {
+          "record_id": "mem_00000003-0000-4000-8000-000000000003",
+          "record_kind": "memory",
+          "revision": 1
+        },
+        {
+          "record_id": "prj_00000002-0000-4000-8000-000000000002",
+          "record_kind": "project",
+          "revision": 1
+        }
+      ],
+      "review_id": "rvw_00000003-0000-4000-8000-000000000003",
+      "schema_version": 1,
+      "target_expected_revisions": [],
+      "trusted_surface": "trusted_windows_app"
+    },
+    {
+      "action": "accept",
+      "actor": {
+        "actor_id": "prn_00000001-0000-4000-8000-000000000001",
+        "actor_type": "owner"
+      },
+      "approval_nonce": "nonce-synthetic-0004-abcdefghij",
+      "approved_diff_hash": "7060c59649f641024155ca3e5ed8530a56a7ec4b079214963685d3cf0cf9c481",
+      "candidate_id": "cand_00000004-0000-4000-8000-000000000004",
+      "candidate_revision": 1,
+      "commit_id": "cmt_00000069-0000-4000-8000-000000000069",
+      "created_at": "2026-07-02T13:10:00.000Z",
+      "effective_from": null,
+      "evidence_refs": [
+        {
+          "source_id": "src_00000004-0000-4000-8000-000000000004",
+          "source_revision": 1
+        }
+      ],
+      "final_content_hash": "6306aee33c2b1ca5fcf254531f7d03fbe2dafba9c0d576d98f35805046ac5fd8",
+      "merge_target": null,
+      "reason_code": null,
+      "resulting_records": [
+        {
+          "record_id": "mem_00000004-0000-4000-8000-000000000004",
+          "record_kind": "memory",
+          "revision": 1
+        }
+      ],
+      "review_id": "rvw_00000004-0000-4000-8000-000000000004",
+      "schema_version": 1,
+      "target_expected_revisions": [],
+      "trusted_surface": "trusted_windows_app"
+    },
+    {
+      "action": "reject",
+      "actor": {
+        "actor_id": "prn_00000001-0000-4000-8000-000000000001",
+        "actor_type": "owner"
+      },
+      "approval_nonce": "nonce-synthetic-0005-abcdefghij",
+      "approved_diff_hash": "f67e22f61995acf94ab276dcdd86543b60121af86feb02c87116823ec4796fae",
+      "candidate_id": "cand_00000005-0000-4000-8000-000000000005",
+      "candidate_revision": 1,
+      "commit_id": "cmt_0000006a-0000-4000-8000-00000000006a",
+      "created_at": "2026-07-02T13:15:00.000Z",
+      "effective_from": null,
+      "evidence_refs": [
+        {
+          "source_id": "src_00000005-0000-4000-8000-000000000005",
+          "source_revision": 1
+        }
+      ],
+      "final_content_hash": "ee2b6ae41b8aa83e6ccc3d5aab9e2d1ff7cf734e026aed455d36c39c6b65e8d7",
+      "merge_target": null,
+      "reason_code": "instruction_like_content",
+      "resulting_records": [],
+      "review_id": "rvw_00000005-0000-4000-8000-000000000005",
+      "schema_version": 1,
+      "target_expected_revisions": [],
+      "trusted_surface": "trusted_windows_app"
+    }
+  ],
+  "session_events": [
+    {
+      "actor": {
+        "actor_id": "prn_00000001-0000-4000-8000-000000000001",
+        "actor_type": "owner"
+      },
+      "branch_id": "br_00000001-0000-4000-8000-000000000001",
+      "captured_at": "2026-07-03T09:00:00.010Z",
+      "content_ref": {
+        "media_type": "text/plain; charset=utf-8",
+        "object_hash": "5f89a2cc90d217ce64bf99f0b98639b08bf2f233db689c05df7fdcd42e473bc9",
+        "size_bytes": 42
+      },
+      "delivery_state": "not_applicable",
+      "event_id": "evt_00000001-0000-4000-8000-000000000001",
+      "extensions": {},
+      "kind": "user_message",
+      "occurred_at": "2026-07-03T09:00:00.000Z",
+      "parent_event_id": null,
+      "request_id": "req_0000000a-0000-4000-8000-00000000000a",
+      "schema_version": 1,
+      "sensitivity": "private",
+      "sequence": 1,
+      "session_id": "ses_00000001-0000-4000-8000-000000000001",
+      "source_refs": [],
+      "turn_id": "turn_00000001-0000-4000-8000-000000000001"
+    },
+    {
+      "actor": {
+        "actor_id": "prn_00000003-0000-4000-8000-000000000003",
+        "actor_type": "provider"
+      },
+      "branch_id": "br_00000001-0000-4000-8000-000000000001",
+      "captured_at": "2026-07-03T09:01:00.010Z",
+      "content_ref": {
+        "media_type": "text/plain; charset=utf-8",
+        "object_hash": "be8fecc4674ced6d3804cb9ef7880e7561af71c1eefaa6d61f049df80ac60164",
+        "size_bytes": 43
+      },
+      "delivery_state": "completed",
+      "event_id": "evt_00000002-0000-4000-8000-000000000002",
+      "extensions": {},
+      "kind": "assistant_completed",
+      "occurred_at": "2026-07-03T09:01:00.000Z",
+      "parent_event_id": "evt_00000001-0000-4000-8000-000000000001",
+      "request_id": "req_0000000a-0000-4000-8000-00000000000a",
+      "schema_version": 1,
+      "sensitivity": "private",
+      "sequence": 2,
+      "session_id": "ses_00000001-0000-4000-8000-000000000001",
+      "source_refs": [],
+      "turn_id": "turn_00000001-0000-4000-8000-000000000001"
+    },
+    {
+      "actor": {
+        "actor_id": "prn_00000001-0000-4000-8000-000000000001",
+        "actor_type": "owner"
+      },
+      "branch_id": "br_00000001-0000-4000-8000-000000000001",
+      "captured_at": "2026-07-03T09:02:00.010Z",
+      "content_ref": {
+        "media_type": "text/plain; charset=utf-8",
+        "object_hash": "e0ccd425f846449ed93238adf235a914a64d2ba2deb3d8492a95a9956420acf9",
+        "size_bytes": 49
+      },
+      "delivery_state": "not_applicable",
+      "event_id": "evt_00000003-0000-4000-8000-000000000003",
+      "extensions": {},
+      "kind": "user_message",
+      "occurred_at": "2026-07-03T09:02:00.000Z",
+      "parent_event_id": "evt_00000002-0000-4000-8000-000000000002",
+      "request_id": "req_0000000b-0000-4000-8000-00000000000b",
+      "schema_version": 1,
+      "sensitivity": "private",
+      "sequence": 3,
+      "session_id": "ses_00000001-0000-4000-8000-000000000001",
+      "source_refs": [],
+      "turn_id": "turn_00000002-0000-4000-8000-000000000002"
+    },
+    {
+      "actor": {
+        "actor_id": "prn_00000003-0000-4000-8000-000000000003",
+        "actor_type": "provider"
+      },
+      "branch_id": "br_00000001-0000-4000-8000-000000000001",
+      "captured_at": "2026-07-03T09:03:00.010Z",
+      "content_ref": {
+        "media_type": "text/plain; charset=utf-8",
+        "object_hash": "299ae983e06ecf4e23b4ef6ce42016f02b0608ab305b14979fe02f631702aeae",
+        "size_bytes": 42
+      },
+      "delivery_state": "completed",
+      "event_id": "evt_00000004-0000-4000-8000-000000000004",
+      "extensions": {},
+      "kind": "assistant_completed",
+      "occurred_at": "2026-07-03T09:03:00.000Z",
+      "parent_event_id": "evt_00000003-0000-4000-8000-000000000003",
+      "request_id": "req_0000000b-0000-4000-8000-00000000000b",
+      "schema_version": 1,
+      "sensitivity": "private",
+      "sequence": 4,
+      "session_id": "ses_00000001-0000-4000-8000-000000000001",
+      "source_refs": [],
+      "turn_id": "turn_00000002-0000-4000-8000-000000000002"
+    }
+  ],
+  "sessions": [
+    {
+      "branches": [
+        {
+          "branch_id": "br_00000001-0000-4000-8000-000000000001",
+          "forked_from_event_id": null,
+          "last_event_seq": 4,
+          "parent_branch_id": null
+        }
+      ],
+      "created_at": "2026-07-03T09:00:00.000Z",
+      "default_branch_id": "br_00000001-0000-4000-8000-000000000001",
+      "extensions": {},
+      "last_event_seq": 4,
+      "origin_surface": "local_cli",
+      "parent_session_id": null,
+      "participants": [
+        {
+          "actor_id": "prn_00000001-0000-4000-8000-000000000001",
+          "actor_type": "owner"
+        },
+        {
+          "actor_id": "prn_00000003-0000-4000-8000-000000000003",
+          "actor_type": "provider"
+        }
+      ],
+      "policy_id": "pol_00000001-0000-4000-8000-000000000001",
+      "provider_bindings": [
+        {
+          "binding": {
+            "adapter_version": "0",
+            "model": "deterministic-mock",
+            "provider": "mock"
+          },
+          "from_sequence": 1
+        }
+      ],
+      "revision": 1,
+      "schema_version": 1,
+      "sensitivity": "private",
+      "session_id": "ses_00000001-0000-4000-8000-000000000001",
+      "status": "closed",
+      "updated_at": "2026-07-03T09:10:00.000Z"
+    }
+  ],
+  "sources": [
+    {
+      "access_policy_id": "pol_00000001-0000-4000-8000-000000000001",
+      "account_scope": "acct-main",
+      "agent_submission": null,
+      "attachment_refs": [],
+      "author_label": null,
+      "branch_id": null,
+      "captured_at": "2026-07-02T10:00:00.000Z",
+      "completeness": "complete",
+      "content_hash": "ec91d7e8b3e11e4ccee6bac7469532f92c8e5cd68fd8b49b5d073f47ed30d94e",
+      "created_at": "2026-07-02T10:00:00.000Z",
+      "evidence_class": "model_claim",
+      "extensions": {},
+      "import_id": "imp_00000001-0000-4000-8000-000000000001",
+      "locator": {
+        "kind": "json_pointer",
+        "pointer": "/mapping/a1/message/content"
+      },
+      "manual_assertion": null,
+      "occurred_at": "2026-07-02T10:00:00.000Z",
+      "original_conversation_id": "conv-synthetic-001",
+      "original_message_id": "msg-synthetic-001",
+      "original_time": "2026-07-02T10:00:00Z",
+      "original_timezone": "UTC",
+      "parent_source_ids": [],
+      "parse_warnings": [],
+      "parser_version": "synthetic-export-adapter/0",
+      "provider": "chatgpt",
+      "raw_object_hash": "1bcb7e22aeceeedc14a62c504fbb3d1e0af52c2cb7e229c4a2c902c8745b7298",
+      "revision": 1,
+      "schema_version": 1,
+      "sensitivity": "private",
+      "source_id": "src_00000001-0000-4000-8000-000000000001",
+      "source_kind": "export_message",
+      "speaker_role": "assistant",
+      "time_precision": "minute"
+    },
+    {
+      "access_policy_id": "pol_00000001-0000-4000-8000-000000000001",
+      "account_scope": "acct-main",
+      "agent_submission": null,
+      "attachment_refs": [],
+      "author_label": null,
+      "branch_id": null,
+      "captured_at": "2026-07-02T10:20:00.000Z",
+      "completeness": "complete",
+      "content_hash": "bf8537cf6696ffa385cfee739862f93fe25365f6972754a4bf4aac95a4dc4ac5",
+      "created_at": "2026-07-02T10:20:00.000Z",
+      "evidence_class": "user_statement",
+      "extensions": {},
+      "import_id": "imp_00000001-0000-4000-8000-000000000001",
+      "locator": {
+        "kind": "json_pointer",
+        "pointer": "/mapping/d1/message/content"
+      },
+      "manual_assertion": null,
+      "occurred_at": "2026-07-02T10:20:00.000Z",
+      "original_conversation_id": "conv-synthetic-001",
+      "original_message_id": "msg-synthetic-003",
+      "original_time": "2026-07-02T10:20:00Z",
+      "original_timezone": "UTC",
+      "parent_source_ids": [],
+      "parse_warnings": [],
+      "parser_version": "synthetic-export-adapter/0",
+      "provider": "chatgpt",
+      "raw_object_hash": "1bcb7e22aeceeedc14a62c504fbb3d1e0af52c2cb7e229c4a2c902c8745b7298",
+      "revision": 1,
+      "schema_version": 1,
+      "sensitivity": "private",
+      "source_id": "src_00000003-0000-4000-8000-000000000003",
+      "source_kind": "export_message",
+      "speaker_role": "user",
+      "time_precision": "minute"
+    },
+    {
+      "access_policy_id": "pol_00000001-0000-4000-8000-000000000001",
+      "account_scope": "acct-main",
+      "agent_submission": null,
+      "attachment_refs": [],
+      "author_label": null,
+      "branch_id": null,
+      "captured_at": "2026-07-02T10:30:00.000Z",
+      "completeness": "complete",
+      "content_hash": "6306aee33c2b1ca5fcf254531f7d03fbe2dafba9c0d576d98f35805046ac5fd8",
+      "created_at": "2026-07-02T10:30:00.000Z",
+      "evidence_class": "user_statement",
+      "extensions": {},
+      "import_id": "imp_00000001-0000-4000-8000-000000000001",
+      "locator": {
+        "kind": "json_pointer",
+        "pointer": "/mapping/p1/message/content"
+      },
+      "manual_assertion": null,
+      "occurred_at": "2026-07-02T10:30:00.000Z",
+      "original_conversation_id": "conv-synthetic-001",
+      "original_message_id": "msg-synthetic-004",
+      "original_time": "2026-07-02T10:30:00Z",
+      "original_timezone": "UTC",
+      "parent_source_ids": [],
+      "parse_warnings": [],
+      "parser_version": "synthetic-export-adapter/0",
+      "provider": "chatgpt",
+      "raw_object_hash": "1bcb7e22aeceeedc14a62c504fbb3d1e0af52c2cb7e229c4a2c902c8745b7298",
+      "revision": 1,
+      "schema_version": 1,
+      "sensitivity": "highly_sensitive",
+      "source_id": "src_00000004-0000-4000-8000-000000000004",
+      "source_kind": "export_message",
+      "speaker_role": "user",
+      "time_precision": "minute"
+    },
+    {
+      "access_policy_id": "pol_00000001-0000-4000-8000-000000000001",
+      "account_scope": null,
+      "agent_submission": null,
+      "attachment_refs": [],
+      "author_label": null,
+      "branch_id": null,
+      "captured_at": "2026-07-02T11:00:00.000Z",
+      "completeness": "complete",
+      "content_hash": "c0a12f210e59d0f7acc76d9371a32d30885234d2960cc53e087102554211b14f",
+      "created_at": "2026-07-02T11:00:00.000Z",
+      "evidence_class": "unknown",
+      "extensions": {},
+      "import_id": "imp_00000002-0000-4000-8000-000000000002",
+      "locator": {
+        "kind": "json_pointer",
+        "pointer": ""
+      },
+      "manual_assertion": null,
+      "occurred_at": "2026-07-02T11:00:00.000Z",
+      "original_conversation_id": null,
+      "original_message_id": null,
+      "original_time": null,
+      "original_timezone": null,
+      "parent_source_ids": [],
+      "parse_warnings": [
+        {
+          "code": "instruction_like_content",
+          "pointer": ""
+        }
+      ],
+      "parser_version": "synthetic-export-adapter/0",
+      "provider": null,
+      "raw_object_hash": "fc6b54379dca4375ce9f3dd2e205ca1d6632490aca8aba0c6f867b39faf7059b",
+      "revision": 1,
+      "schema_version": 1,
+      "sensitivity": "private",
+      "source_id": "src_00000005-0000-4000-8000-000000000005",
+      "source_kind": "imported_document",
+      "speaker_role": "unknown",
+      "time_precision": "minute"
+    }
+  ]
+}

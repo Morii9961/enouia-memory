@@ -1,0 +1,65 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "project-v1.schema.json",
+  "title": "Enouia ProjectEntity v1",
+  "description": "Stable project identity with aliases. Alias uniqueness (case-folded) across projects is a cross-record rule.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "project_id",
+    "revision",
+    "display_name",
+    "aliases",
+    "status",
+    "sensitivity",
+    "review_id",
+    "created_at",
+    "updated_at",
+    "extensions"
+  ],
+  "properties": {
+    "schema_version": {
+      "$ref": "common-v1.schema.json#/$defs/schemaVersion"
+    },
+    "project_id": {
+      "$ref": "common-v1.schema.json#/$defs/projectId"
+    },
+    "revision": {
+      "$ref": "common-v1.schema.json#/$defs/revision"
+    },
+    "display_name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "aliases": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    },
+    "status": {
+      "enum": [
+        "active",
+        "archived"
+      ]
+    },
+    "sensitivity": {
+      "$ref": "common-v1.schema.json#/$defs/sensitivity"
+    },
+    "review_id": {
+      "$ref": "common-v1.schema.json#/$defs/reviewId"
+    },
+    "created_at": {
+      "$ref": "common-v1.schema.json#/$defs/timestamp"
+    },
+    "updated_at": {
+      "$ref": "common-v1.schema.json#/$defs/timestamp"
+    },
+    "extensions": {
+      "$ref": "common-v1.schema.json#/$defs/extensions"
+    }
+  }
+}

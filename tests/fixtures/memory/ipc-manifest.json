@@ -1,0 +1,972 @@
+{
+  "description": "Synthetic local Memory IPC v1 messages. 'base' indexes valid_requests or valid_responses; responses carry the producing operation.",
+  "invalid_requests": [
+    {
+      "base": 1,
+      "id": "request-major-2",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/schemaVersion",
+          "value": 2
+        }
+      ],
+      "rust_rule": "unsupported_schema",
+      "schema": "reject"
+    },
+    {
+      "base": 1,
+      "id": "request-unknown-operation",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/operation",
+          "value": "memory_delete_all"
+        }
+      ],
+      "rust_rule": "shape",
+      "schema": "reject"
+    },
+    {
+      "base": 1,
+      "id": "request-reserved-operation",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/operation",
+          "value": "delete_commit"
+        }
+      ],
+      "rust_rule": "shape",
+      "schema": "reject"
+    },
+    {
+      "base": 2,
+      "id": "request-path-argument",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/arguments/path",
+          "value": "C:/vault/records"
+        }
+      ],
+      "rust_rule": "shape",
+      "schema": "reject"
+    },
+    {
+      "base": 1,
+      "id": "request-sql-argument",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/arguments/sql",
+          "value": "SELECT * FROM memory"
+        }
+      ],
+      "rust_rule": "shape",
+      "schema": "reject"
+    },
+    {
+      "base": 8,
+      "id": "request-caller-claims-owner",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/arguments/actor",
+          "value": {
+            "actor_type": "owner"
+          }
+        }
+      ],
+      "rust_rule": "shape",
+      "schema": "reject"
+    },
+    {
+      "base": 1,
+      "id": "search-limit-over-max",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/arguments/limit",
+          "value": 101
+        }
+      ],
+      "rust_rule": "ipc.limit",
+      "schema": "reject"
+    },
+    {
+      "base": 1,
+      "id": "search-empty-query",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/arguments/query",
+          "value": ""
+        }
+      ],
+      "rust_rule": "ipc.query_length",
+      "schema": "reject"
+    },
+    {
+      "base": 3,
+      "id": "source-over-8k",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/arguments/maxBytes",
+          "value": 65536
+        }
+      ],
+      "rust_rule": "ipc.source_max_bytes",
+      "schema": "reject"
+    },
+    {
+      "base": 3,
+      "id": "source-inverted-range",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/arguments/range",
+          "value": {
+            "end": 5,
+            "start": 10
+          }
+        }
+      ],
+      "rust_rule": "ipc.source_range",
+      "schema": "accept"
+    },
+    {
+      "base": 4,
+      "id": "write-without-idempotency",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/idempotencyKey",
+          "value": null
+        }
+      ],
+      "rust_rule": "ipc.idempotency_key",
+      "schema": "reject"
+    },
+    {
+      "base": 2,
+      "id": "read-with-idempotency",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/idempotencyKey",
+          "value": "idem-read-00000000001"
+        }
+      ],
+      "rust_rule": "ipc.idempotency_key",
+      "schema": "reject"
+    },
+    {
+      "base": 5,
+      "id": "update-alias-create",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/arguments/proposalKind",
+          "value": "create"
+        }
+      ],
+      "rust_rule": "ipc.update_alias",
+      "schema": "reject"
+    },
+    {
+      "base": 4,
+      "id": "propose-delete",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/arguments/proposalKind",
+          "value": "delete"
+        },
+        {
+          "op": "set",
+          "path": "/arguments/targetMemoryId",
+          "value": "mem_00000002-0000-4000-8000-000000000002"
+        },
+        {
+          "op": "set",
+          "path": "/arguments/expectedRevision",
+          "value": 1
+        }
+      ],
+      "rust_rule": "ipc.delete_not_proposable",
+      "schema": "reject"
+    },
+    {
+      "base": 4,
+      "id": "propose-without-evidence",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/arguments/evidence",
+          "value": []
+        }
+      ],
+      "rust_rule": "ipc.evidence_required",
+      "schema": "reject"
+    },
+    {
+      "base": 5,
+      "id": "revise-without-expected-revision",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/arguments/expectedRevision",
+          "value": null
+        }
+      ],
+      "rust_rule": "ipc.target_revision",
+      "schema": "reject"
+    },
+    {
+      "base": 8,
+      "id": "review-short-nonce",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/arguments/approvalNonce",
+          "value": "x"
+        }
+      ],
+      "rust_rule": "review.nonce_format",
+      "schema": "reject"
+    },
+    {
+      "base": 8,
+      "id": "review-merge-wrong-target",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/arguments/action",
+          "value": "merge"
+        },
+        {
+          "op": "set",
+          "path": "/arguments/mergeTarget",
+          "value": {
+            "id": "cand_00000003-0000-4000-8000-000000000003",
+            "kind": "memory"
+          }
+        }
+      ],
+      "rust_rule": "ref.kind_prefix",
+      "schema": "accept"
+    },
+    {
+      "base": 6,
+      "id": "checkpoint-inverted-range",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/arguments/fromSequence",
+          "value": 5
+        }
+      ],
+      "rust_rule": "ipc.checkpoint_range",
+      "schema": "accept"
+    },
+    {
+      "base": 0,
+      "id": "context-client-asserts-unknown-destination",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/arguments/destination/kind",
+          "value": "trusted_local"
+        }
+      ],
+      "rust_rule": "shape",
+      "schema": "reject"
+    }
+  ],
+  "invalid_responses": [
+    {
+      "base": 5,
+      "id": "update-returns-committed",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/message/kind",
+          "value": "review_committed"
+        }
+      ],
+      "rust_rule": "ipc.kind_for_operation",
+      "schema": "reject"
+    },
+    {
+      "base": 4,
+      "id": "result-and-error",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/message/error",
+          "value": {
+            "code": "busy",
+            "component": "vault",
+            "retryable": true
+          }
+        }
+      ],
+      "rust_rule": "ipc.result_or_error",
+      "schema": "reject"
+    },
+    {
+      "base": 9,
+      "id": "error-with-stack",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/message/error/stack",
+          "value": "at vault.rs:10"
+        }
+      ],
+      "rust_rule": "shape",
+      "schema": "reject"
+    },
+    {
+      "base": 4,
+      "id": "write-without-operation-id",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/message/operationId",
+          "value": null
+        }
+      ],
+      "rust_rule": "ipc.write_operation_id",
+      "schema": "reject"
+    },
+    {
+      "base": 2,
+      "id": "read-without-snapshot",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/message/vaultCommitId",
+          "value": null
+        }
+      ],
+      "rust_rule": "ipc.snapshot_header",
+      "schema": "reject"
+    },
+    {
+      "base": 1,
+      "id": "search-over-100",
+      "ops": [
+        {
+          "count": 101,
+          "op": "repeat",
+          "path": "/message/result/items"
+        }
+      ],
+      "rust_rule": "ipc.limit",
+      "schema": "reject"
+    },
+    {
+      "base": 3,
+      "id": "excerpt-over-8k",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/message/result/excerpt",
+          "value": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+        }
+      ],
+      "rust_rule": "ipc.source_max_bytes",
+      "schema": "reject"
+    },
+    {
+      "base": 7,
+      "id": "review-commit-header-mismatch",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/message/vaultCommitId",
+          "value": "cmt_00000008-0000-4000-8000-000000000008"
+        }
+      ],
+      "rust_rule": "ipc.commit_header",
+      "schema": "accept"
+    },
+    {
+      "base": 6,
+      "id": "checkpoint-proposed-as-reviewed",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/message/result/status",
+          "value": "reviewed"
+        }
+      ],
+      "rust_rule": "shape",
+      "schema": "reject"
+    }
+  ],
+  "valid_requests": [
+    {
+      "arguments": {
+        "branchId": null,
+        "destination": {
+          "kind": "local_mock",
+          "providerBindingName": null
+        },
+        "maxTokens": 8192,
+        "projectHints": [
+          "prj_00000001-0000-4000-8000-000000000001"
+        ],
+        "purpose": "answer",
+        "query": "我们之前 MoriMeta 的设计最后选了什么？",
+        "sessionId": null,
+        "timeMode": {
+          "asOf": null,
+          "knownAtCommitId": null
+        }
+      },
+      "idempotencyKey": null,
+      "operation": "context_get",
+      "requestId": "req_000001f5-0000-4000-8000-0000000001f5",
+      "schemaVersion": 1
+    },
+    {
+      "arguments": {
+        "cursor": null,
+        "includeHistorical": false,
+        "limit": null,
+        "projectIds": [],
+        "query": "函馆",
+        "timeMode": {
+          "asOf": null,
+          "knownAtCommitId": null
+        },
+        "types": [
+          "fact"
+        ]
+      },
+      "idempotencyKey": null,
+      "operation": "memory_search",
+      "requestId": "req_000001f6-0000-4000-8000-0000000001f6",
+      "schemaVersion": 1
+    },
+    {
+      "arguments": {
+        "memoryId": "mem_00000002-0000-4000-8000-000000000002",
+        "revision": null
+      },
+      "idempotencyKey": null,
+      "operation": "memory_read",
+      "requestId": "req_000001f7-0000-4000-8000-0000000001f7",
+      "schemaVersion": 1
+    },
+    {
+      "arguments": {
+        "maxBytes": 8192,
+        "range": {
+          "end": 512,
+          "start": 0
+        },
+        "sourceId": "src_00000002-0000-4000-8000-000000000002",
+        "sourceRevision": 1
+      },
+      "idempotencyKey": null,
+      "operation": "memory_source",
+      "requestId": "req_000001f8-0000-4000-8000-0000000001f8",
+      "schemaVersion": 1
+    },
+    {
+      "arguments": {
+        "evidence": [
+          {
+            "range": null,
+            "sourceId": "src_00000002-0000-4000-8000-000000000002",
+            "sourceRevision": 1,
+            "supports": "content"
+          }
+        ],
+        "expectedRevision": null,
+        "proposalKind": "create",
+        "proposedContent": "（合成）喜欢深色界面。",
+        "proposedDetails": null,
+        "proposedEffectiveFrom": null,
+        "proposedType": "fact",
+        "reason": "agent suggestion",
+        "targetMemoryId": null
+      },
+      "idempotencyKey": "idem-propose-0000000001",
+      "operation": "memory_propose",
+      "requestId": "req_000001f9-0000-4000-8000-0000000001f9",
+      "schemaVersion": 1
+    },
+    {
+      "arguments": {
+        "evidence": [
+          {
+            "range": null,
+            "sourceId": "src_00000002-0000-4000-8000-000000000002",
+            "sourceRevision": 1,
+            "supports": "content"
+          }
+        ],
+        "expectedRevision": 1,
+        "proposalKind": "revise",
+        "proposedContent": "（合成）修订。",
+        "proposedDetails": null,
+        "proposedEffectiveFrom": null,
+        "proposedType": "project_state",
+        "reason": "legacy alias",
+        "targetMemoryId": "mem_00000002-0000-4000-8000-000000000002"
+      },
+      "idempotencyKey": "idem-update-00000000001",
+      "operation": "memory_update",
+      "requestId": "req_000001fa-0000-4000-8000-0000000001fa",
+      "schemaVersion": 1
+    },
+    {
+      "arguments": {
+        "branchId": "br_00000001-0000-4000-8000-000000000001",
+        "decisions": [],
+        "fromSequence": 1,
+        "openLoops": [
+          {
+            "claim": "实现 Darkroom",
+            "eventIds": [
+              "evt_00000003-0000-4000-8000-000000000003"
+            ],
+            "stateKind": "planned"
+          }
+        ],
+        "sessionId": "ses_00000001-0000-4000-8000-000000000001",
+        "summary": "（合成）摘要",
+        "toSequence": 4
+      },
+      "idempotencyKey": "idem-checkpoint-000000001",
+      "operation": "session_checkpoint",
+      "requestId": "req_000001fb-0000-4000-8000-0000000001fb",
+      "schemaVersion": 1
+    },
+    {
+      "arguments": {
+        "cursor": null,
+        "limit": 20,
+        "projectId": null,
+        "status": "pending"
+      },
+      "idempotencyKey": null,
+      "operation": "candidate_list",
+      "requestId": "req_000001fc-0000-4000-8000-0000000001fc",
+      "schemaVersion": 1
+    },
+    {
+      "arguments": {
+        "action": "reject",
+        "approvalNonce": "nonce-ipc-review-0001-abcdef",
+        "approvedDiffHash": "18ac3e7343f016890c510e93f935261169d9e3f565436429830faf0934f4f8e4",
+        "candidateId": "cand_00000001-0000-4000-8000-000000000001",
+        "candidateRevision": 1,
+        "editedContent": null,
+        "effectiveFrom": null,
+        "finalContentHash": "2d711642b726b04401627ca9fbac32f5c8530fb1903cc4db02258717921a4881",
+        "mergeTarget": null,
+        "targetExpectedRevisions": []
+      },
+      "idempotencyKey": "idem-review-00000000001",
+      "operation": "candidate_review",
+      "requestId": "req_000001fd-0000-4000-8000-0000000001fd",
+      "schemaVersion": 1
+    },
+    {
+      "arguments": {
+        "approvalNonce": "nonce-ipc-identity-0001-abc",
+        "approvedDiffHash": "85f39472a79f79734c644135e3095e0fa2b3dd0bd6dd00227f298a393e237282",
+        "contentHash": "a56145270ce6b3bebd1dd012b73948677dd618d496488bc608a3cb43ce3547dd",
+        "expectedRevision": 1,
+        "identityId": "idn_00000001-0000-4000-8000-000000000001"
+      },
+      "idempotencyKey": "idem-identity-000000001",
+      "operation": "identity_review",
+      "requestId": "req_000001fe-0000-4000-8000-0000000001fe",
+      "schemaVersion": 1
+    },
+    {
+      "arguments": {
+        "operationId": "op_00000009-0000-4000-8000-000000000009"
+      },
+      "idempotencyKey": null,
+      "operation": "operation_get",
+      "requestId": "req_000001ff-0000-4000-8000-0000000001ff",
+      "schemaVersion": 1
+    },
+    {
+      "arguments": {
+        "operationId": "op_00000009-0000-4000-8000-000000000009"
+      },
+      "idempotencyKey": null,
+      "operation": "operation_cancel",
+      "requestId": "req_00000200-0000-4000-8000-000000000200",
+      "schemaVersion": 1
+    }
+  ],
+  "valid_responses": [
+    {
+      "message": {
+        "error": null,
+        "kind": "context_capsule",
+        "operationId": null,
+        "policyEpoch": 1,
+        "requestId": "req_000001f5-0000-4000-8000-0000000001f5",
+        "result": {
+          "capsule": {
+            "active_projects": [
+              {
+                "conflict_group_id": null,
+                "content": "MoriMeta 的视觉设计方向确定为 Professional Darkroom。",
+                "currency": "current_supported",
+                "evidence": [
+                  {
+                    "source_id": "src_00000002-0000-4000-8000-000000000002",
+                    "source_revision": 1
+                  }
+                ],
+                "last_verified_at": null,
+                "memory_id": "mem_00000002-0000-4000-8000-000000000002",
+                "revision": 1,
+                "sensitivity": "private",
+                "type": "project_state",
+                "valid_from": null,
+                "valid_until": null
+              }
+            ],
+            "as_of": null,
+            "branch_id": "br_00000001-0000-4000-8000-000000000001",
+            "budget": {
+              "counting_method": "utf8_bytes_v1",
+              "estimated_tokens": 512,
+              "max_tokens": 8192,
+              "memory_budget_tokens": 4096,
+              "safety_margin_tokens": 256
+            },
+            "capsule_id": "cap_00000001-0000-4000-8000-000000000001",
+            "client_surface": "local_cli",
+            "compiler_version": "compiler/0-mv0-fixture",
+            "completeness": {
+              "complete": true,
+              "limitations": []
+            },
+            "deletion_epoch": 0,
+            "destination": {
+              "kind": "local_mock",
+              "provider_binding": null
+            },
+            "generated_at": "2026-07-04T00:00:00.000Z",
+            "identity": [],
+            "open_loops": [
+              {
+                "description": "实现 Darkroom 主题",
+                "item_id": "itm_00000004-0000-4000-8000-000000000004",
+                "origin": "checkpoint",
+                "origin_id": "ckp_00000001-0000-4000-8000-000000000001",
+                "provisional": true
+              }
+            ],
+            "policy_epoch": 1,
+            "provenance": [
+              {
+                "locator_kind": "json_pointer",
+                "occurred_at": "2026-07-02T10:05:00.000Z",
+                "source_id": "src_00000002-0000-4000-8000-000000000002",
+                "source_revision": 1,
+                "time_precision": "minute"
+              }
+            ],
+            "purpose": "answer",
+            "query": "我们之前 MoriMeta 的设计最后选了什么？",
+            "ranking_version": "ranking/0-mv0-fixture",
+            "recent_session_checkpoints": [
+              {
+                "checkpoint_id": "ckp_00000001-0000-4000-8000-000000000001",
+                "revision": 1,
+                "status": "provisional",
+                "summary": "（自动摘要）讨论了 MoriMeta 下一步，准备实现 Darkroom 主题。"
+              }
+            ],
+            "recent_turns": [],
+            "relationship_context": [],
+            "relevant_memories": [],
+            "request_id": "req_00000014-0000-4000-8000-000000000014",
+            "schema_version": 1,
+            "session_id": "ses_00000001-0000-4000-8000-000000000001",
+            "tokenizer_version": "utf8_bytes_v1",
+            "user_context": [],
+            "vault_commit_id": "cmt_00000009-0000-4000-8000-000000000009",
+            "verification_needed": [
+              {
+                "conflict_group_id": null,
+                "item_id": "itm_00000001-0000-4000-8000-000000000001",
+                "memory_id": "mem_00000002-0000-4000-8000-000000000002",
+                "reason": "implementation_unverified"
+              }
+            ]
+          },
+          "inspectionId": "insp_00000001-0000-4000-8000-000000000001"
+        },
+        "schemaVersion": 1,
+        "vaultCommitId": "cmt_00000009-0000-4000-8000-000000000009"
+      },
+      "operation": "context_get"
+    },
+    {
+      "message": {
+        "error": null,
+        "kind": "memory_search_result",
+        "operationId": null,
+        "policyEpoch": 1,
+        "requestId": "req_000001f6-0000-4000-8000-0000000001f6",
+        "result": {
+          "items": [
+            {
+              "currency": "conflicted",
+              "evidenceCount": 1,
+              "memoryId": "mem_00000069-0000-4000-8000-000000000069",
+              "revision": 2,
+              "snippet": "住在函馆。",
+              "type": "fact",
+              "updatedAt": "2026-09-21T10:02:00.500Z"
+            }
+          ],
+          "nextCursor": null,
+          "partial": false,
+          "stale": false
+        },
+        "schemaVersion": 1,
+        "vaultCommitId": "cmt_00000009-0000-4000-8000-000000000009"
+      },
+      "operation": "memory_search"
+    },
+    {
+      "message": {
+        "error": null,
+        "kind": "memory_record",
+        "operationId": null,
+        "policyEpoch": 1,
+        "requestId": "req_000001f7-0000-4000-8000-0000000001f7",
+        "result": {
+          "record": {
+            "access_policy_id": "pol_00000001-0000-4000-8000-000000000001",
+            "approved_at": "2026-07-02T13:00:00.000Z",
+            "approved_by": {
+              "actor_id": "prn_00000001-0000-4000-8000-000000000001",
+              "actor_type": "owner"
+            },
+            "category": null,
+            "confidence": null,
+            "conflict_group_id": null,
+            "content": "MoriMeta 的视觉设计方向确定为 Professional Darkroom。",
+            "created_at": "2026-07-02T13:00:00.500Z",
+            "decisions": [
+              {
+                "as_of": "2026-07-02T10:05:00.000Z",
+                "claim": "视觉方向：Professional Darkroom",
+                "evidence_refs": [
+                  {
+                    "source_id": "src_00000002-0000-4000-8000-000000000002",
+                    "source_revision": 1
+                  }
+                ],
+                "item_id": "itm_00000001-0000-4000-8000-000000000001",
+                "state_kind": "decided"
+              }
+            ],
+            "declassification_review_id": null,
+            "egress_policy_id": null,
+            "epistemic_status": "asserted",
+            "evidence": [
+              {
+                "evidence_class": "user_statement",
+                "locator": {
+                  "kind": "json_pointer",
+                  "pointer": "/mapping/b1/message/content"
+                },
+                "object_hash": "1bcb7e22aeceeedc14a62c504fbb3d1e0af52c2cb7e229c4a2c902c8745b7298",
+                "source_id": "src_00000002-0000-4000-8000-000000000002",
+                "source_revision": 1,
+                "supports": "content"
+              }
+            ],
+            "extensions": {},
+            "last_verified_at": null,
+            "memory_id": "mem_00000002-0000-4000-8000-000000000002",
+            "observed_at": "2026-07-02T10:05:00.000Z",
+            "open_loops": [],
+            "priority": "P1",
+            "project_id": "prj_00000001-0000-4000-8000-000000000001",
+            "provenance_state": "intact",
+            "review_after": "2026-07-09T13:00:00.000Z",
+            "review_id": "rvw_00000002-0000-4000-8000-000000000002",
+            "revision": 1,
+            "schema_version": 1,
+            "sensitivity": "private",
+            "source_id": "src_00000002-0000-4000-8000-000000000002",
+            "state": [],
+            "status": "active",
+            "subject_ids": [],
+            "supersedes": [],
+            "tags": [],
+            "title": "MoriMeta 视觉方向",
+            "type": "project_state",
+            "updated_at": "2026-07-02T13:00:00.500Z",
+            "valid_from": null,
+            "valid_until": null,
+            "volatility": "changing"
+          },
+          "supersededBy": []
+        },
+        "schemaVersion": 1,
+        "vaultCommitId": "cmt_00000009-0000-4000-8000-000000000009"
+      },
+      "operation": "memory_read"
+    },
+    {
+      "message": {
+        "error": null,
+        "kind": "source_excerpt",
+        "operationId": null,
+        "policyEpoch": 1,
+        "requestId": "req_000001f8-0000-4000-8000-0000000001f8",
+        "result": {
+          "attachments": [
+            {
+              "attachmentId": "att_00000001-0000-4000-8000-000000000001",
+              "availability": "present"
+            }
+          ],
+          "byteEnd": 48,
+          "byteStart": 0,
+          "excerpt": "（合成）就选 Professional Darkroom。",
+          "sourceId": "src_00000002-0000-4000-8000-000000000002",
+          "sourceRevision": 1,
+          "truncated": false
+        },
+        "schemaVersion": 1,
+        "vaultCommitId": "cmt_00000009-0000-4000-8000-000000000009"
+      },
+      "operation": "memory_source"
+    },
+    {
+      "message": {
+        "error": null,
+        "kind": "candidate_proposed",
+        "operationId": "op_00000032-0000-4000-8000-000000000032",
+        "policyEpoch": 1,
+        "requestId": "req_000001f9-0000-4000-8000-0000000001f9",
+        "result": {
+          "candidateId": "cand_00000032-0000-4000-8000-000000000032",
+          "revision": 1,
+          "state": "pending"
+        },
+        "schemaVersion": 1,
+        "vaultCommitId": "cmt_00000009-0000-4000-8000-000000000009"
+      },
+      "operation": "memory_propose"
+    },
+    {
+      "message": {
+        "error": null,
+        "kind": "candidate_proposed",
+        "operationId": "op_00000033-0000-4000-8000-000000000033",
+        "policyEpoch": 1,
+        "requestId": "req_000001fa-0000-4000-8000-0000000001fa",
+        "result": {
+          "candidateId": "cand_00000033-0000-4000-8000-000000000033",
+          "revision": 1,
+          "state": "pending"
+        },
+        "schemaVersion": 1,
+        "vaultCommitId": "cmt_00000009-0000-4000-8000-000000000009"
+      },
+      "operation": "memory_update"
+    },
+    {
+      "message": {
+        "error": null,
+        "kind": "checkpoint_proposed",
+        "operationId": "op_00000034-0000-4000-8000-000000000034",
+        "policyEpoch": 1,
+        "requestId": "req_000001fb-0000-4000-8000-0000000001fb",
+        "result": {
+          "checkpointId": "ckp_00000032-0000-4000-8000-000000000032",
+          "revision": 1,
+          "status": "provisional"
+        },
+        "schemaVersion": 1,
+        "vaultCommitId": "cmt_00000009-0000-4000-8000-000000000009"
+      },
+      "operation": "session_checkpoint"
+    },
+    {
+      "message": {
+        "error": null,
+        "kind": "review_committed",
+        "operationId": "op_00000035-0000-4000-8000-000000000035",
+        "policyEpoch": 1,
+        "requestId": "req_000001fd-0000-4000-8000-0000000001fd",
+        "result": {
+          "commitId": "cmt_00000009-0000-4000-8000-000000000009",
+          "records": [
+            {
+              "record_id": "cand_00000001-0000-4000-8000-000000000001",
+              "record_kind": "candidate",
+              "revision": 2
+            }
+          ],
+          "reviewId": "rvw_00000032-0000-4000-8000-000000000032"
+        },
+        "schemaVersion": 1,
+        "vaultCommitId": "cmt_00000009-0000-4000-8000-000000000009"
+      },
+      "operation": "candidate_review"
+    },
+    {
+      "message": {
+        "error": null,
+        "kind": "operation_status",
+        "operationId": null,
+        "policyEpoch": 1,
+        "requestId": "req_000001ff-0000-4000-8000-0000000001ff",
+        "result": {
+          "errorCode": null,
+          "operationId": "op_00000009-0000-4000-8000-000000000009",
+          "progress": {
+            "done": 10,
+            "total": 40
+          },
+          "state": "running"
+        },
+        "schemaVersion": 1,
+        "vaultCommitId": null
+      },
+      "operation": "operation_get"
+    },
+    {
+      "message": {
+        "error": {
+          "code": "permission_denied",
+          "component": "vault",
+          "retryable": false
+        },
+        "kind": "memory_error",
+        "operationId": null,
+        "policyEpoch": 1,
+        "requestId": "req_000001f8-0000-4000-8000-0000000001f8",
+        "result": null,
+        "schemaVersion": 1,
+        "vaultCommitId": null
+      },
+      "operation": "memory_source"
+    }
+  ]
+}

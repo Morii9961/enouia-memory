@@ -1,0 +1,107 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "common-v1.schema.json",
+  "title": "Enouia Context shared definitions v1",
+  "$defs": {
+    "destination": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "provider_binding"
+      ],
+      "properties": {
+        "kind": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/destinationKind"
+        },
+        "provider_binding": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "../memory/common-v1.schema.json#/$defs/providerBinding"
+            }
+          ]
+        }
+      }
+    },
+    "memoryItem": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "memory_id",
+        "revision",
+        "type",
+        "content",
+        "currency",
+        "valid_from",
+        "valid_until",
+        "last_verified_at",
+        "evidence",
+        "conflict_group_id",
+        "sensitivity"
+      ],
+      "properties": {
+        "memory_id": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/memoryId"
+        },
+        "revision": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/revision"
+        },
+        "type": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/memoryType"
+        },
+        "content": {
+          "type": "string",
+          "minLength": 1
+        },
+        "currency": {
+          "enum": [
+            "current_supported",
+            "historical_only",
+            "needs_reverification",
+            "conflicted"
+          ]
+        },
+        "valid_from": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/timestampOrNull"
+        },
+        "valid_until": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/timestampOrNull"
+        },
+        "last_verified_at": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/timestampOrNull"
+        },
+        "evidence": {
+          "type": "array",
+          "items": {
+            "$ref": "../memory/common-v1.schema.json#/$defs/sourceRevisionRef"
+          },
+          "minItems": 1
+        },
+        "conflict_group_id": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "../memory/common-v1.schema.json#/$defs/conflictGroupId"
+            }
+          ]
+        },
+        "sensitivity": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/sensitivity"
+        }
+      }
+    },
+    "currency": {
+      "enum": [
+        "current_supported",
+        "historical_only",
+        "needs_reverification",
+        "conflicted"
+      ]
+    }
+  }
+}

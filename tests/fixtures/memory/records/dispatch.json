@@ -1,0 +1,43 @@
+{
+  "capsule_id": "cap_00000001-0000-4000-8000-000000000001",
+  "completed_at": "2026-07-04T00:00:00.300Z",
+  "destination": {
+    "kind": "local_mock",
+    "provider_binding": null
+  },
+  "dispatch_id": "dsp_00000001-0000-4000-8000-000000000001",
+  "egress": {
+    "checked_at": "2026-07-04T00:00:00.100Z",
+    "confirmation_review_id": null,
+    "deletion_epoch": 0,
+    "egress_policy_id": null,
+    "policy_epoch": 1
+  },
+  "inspection_id": "insp_00000001-0000-4000-8000-000000000001",
+  "messages": [
+    {
+      "capsule_memory_refs": [],
+      "content_hash": "1cbc66ce86e001dbdb66d96249a9e16b2b78eb4fa0b5da99bc47742142be4ae5",
+      "role": "system",
+      "size_bytes": 120
+    },
+    {
+      "capsule_memory_refs": [
+        {
+          "memory_id": "mem_00000002-0000-4000-8000-000000000002",
+          "revision": 1
+        }
+      ],
+      "content_hash": "01d6f861641ebfb07f10154450d45a96000cec3631dbf7039548770a1a3959a3",
+      "role": "user",
+      "size_bytes": 480
+    }
+  ],
+  "prepared_at": "2026-07-04T00:00:00.100Z",
+  "request_hash": "f6513f74351351c8fa8f4a04ed93ea85aa1d386d1cd2d9c027f9838d5e47d3ee",
+  "request_id": "req_00000014-0000-4000-8000-000000000014",
+  "schema_version": 1,
+  "sent_at": "2026-07-04T00:00:00.200Z",
+  "state": "completed",
+  "tools": []
+}

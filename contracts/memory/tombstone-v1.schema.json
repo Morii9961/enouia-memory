@@ -1,0 +1,92 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "tombstone-v1.schema.json",
+  "title": "Enouia Tombstone v1",
+  "description": "Deletion overrides every status and default Raw immutability. Contains no deleted text.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "delete_id",
+    "mode",
+    "scope",
+    "targets",
+    "object_hashes",
+    "requested_by",
+    "review_id",
+    "deletion_epoch",
+    "created_at"
+  ],
+  "properties": {
+    "schema_version": {
+      "$ref": "common-v1.schema.json#/$defs/schemaVersion"
+    },
+    "delete_id": {
+      "$ref": "common-v1.schema.json#/$defs/deleteId"
+    },
+    "mode": {
+      "enum": [
+        "logical_delete",
+        "purge"
+      ]
+    },
+    "scope": {
+      "enum": [
+        "selected_revisions",
+        "all_revisions",
+        "with_dependents"
+      ]
+    },
+    "targets": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "record_kind",
+          "record_id",
+          "revision"
+        ],
+        "properties": {
+          "record_kind": {
+            "$ref": "common-v1.schema.json#/$defs/recordKind"
+          },
+          "record_id": {
+            "type": "string",
+            "pattern": "^[a-z]+_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+          },
+          "revision": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "common-v1.schema.json#/$defs/revision"
+              }
+            ]
+          }
+        }
+      }
+    },
+    "object_hashes": {
+      "type": "array",
+      "items": {
+        "$ref": "common-v1.schema.json#/$defs/sha256"
+      }
+    },
+    "requested_by": {
+      "$ref": "common-v1.schema.json#/$defs/ownerRef"
+    },
+    "review_id": {
+      "$ref": "common-v1.schema.json#/$defs/reviewId"
+    },
+    "deletion_epoch": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 9007199254740991
+    },
+    "created_at": {
+      "$ref": "common-v1.schema.json#/$defs/timestamp"
+    }
+  }
+}

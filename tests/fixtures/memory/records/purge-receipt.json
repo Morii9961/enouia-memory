@@ -1,0 +1,28 @@
+{
+  "created_at": "2026-09-22T10:00:00.000Z",
+  "delete_id": "del_00000002-0000-4000-8000-000000000002",
+  "latest_purge_deadline": "2026-10-06T00:00:00.000Z",
+  "overall_state": "backup_purge_pending",
+  "receipt_id": "prg_00000001-0000-4000-8000-000000000001",
+  "schema_version": 1,
+  "stores": [
+    {
+      "confirmed_at": "2026-09-22T10:00:00.000Z",
+      "detail_code": null,
+      "state": "purged",
+      "store": "canonical"
+    },
+    {
+      "confirmed_at": "2026-09-22T10:00:00.000Z",
+      "detail_code": null,
+      "state": "purged",
+      "store": "index"
+    },
+    {
+      "confirmed_at": null,
+      "detail_code": "retention_window",
+      "state": "pending",
+      "store": "backups"
+    }
+  ]
+}

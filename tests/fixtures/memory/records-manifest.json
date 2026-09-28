@@ -1,0 +1,1567 @@
+{
+  "description": "Valid synthetic records and minimal invalid mutations. 'schema: accept' marks a constraint JSON Schema cannot express; the Rust validator must still reject it.",
+  "invalid": [
+    {
+      "base": "records/source-export-user.json",
+      "covers": "required field",
+      "id": "source-missing-id",
+      "ops": [
+        {
+          "op": "remove",
+          "path": "/source_id"
+        }
+      ],
+      "rust_rule": "shape",
+      "schema": "reject"
+    },
+    {
+      "base": "records/source-export-user.json",
+      "covers": "unknown top-level field",
+      "id": "source-unknown-field",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/secret_note",
+          "value": "x"
+        }
+      ],
+      "rust_rule": "shape",
+      "schema": "reject"
+    },
+    {
+      "base": "records/source-export-user.json",
+      "covers": "enum",
+      "id": "source-unknown-kind",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/source_kind",
+          "value": "chat_log"
+        }
+      ],
+      "rust_rule": "shape",
+      "schema": "reject"
+    },
+    {
+      "base": "records/source-export-user.json",
+      "covers": "unknown sensitivity is not normal",
+      "id": "source-unknown-sensitivity",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/sensitivity",
+          "value": "internal"
+        }
+      ],
+      "rust_rule": "shape",
+      "schema": "reject"
+    },
+    {
+      "base": "records/source-export-user.json",
+      "covers": "unknown major is read-only",
+      "id": "source-major-2",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/schema_version",
+          "value": 2
+        }
+      ],
+      "rust_rule": "unsupported_schema",
+      "schema": "reject"
+    },
+    {
+      "base": "records/source-export-user.json",
+      "covers": "real calendar date",
+      "id": "source-feb-30",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/captured_at",
+          "value": "2026-02-30T00:00:00.000Z"
+        }
+      ],
+      "rust_rule": "shape",
+      "schema": "accept"
+    },
+    {
+      "base": "records/source-export-user.json",
+      "covers": "UTC normalization",
+      "id": "source-offset-time",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/occurred_at",
+          "value": "2026-07-02T18:05:00.000+08:00"
+        }
+      ],
+      "rust_rule": "shape",
+      "schema": "reject"
+    },
+    {
+      "base": "records/source-export-user.json",
+      "covers": "ID namespace",
+      "id": "source-wrong-id-namespace",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/source_id",
+          "value": "mem_00000002-0000-4000-8000-000000000002"
+        }
+      ],
+      "rust_rule": "shape",
+      "schema": "reject"
+    },
+    {
+      "base": "records/source-export-assistant.json",
+      "covers": "source role confusion",
+      "id": "source-assistant-as-user-statement",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/evidence_class",
+          "value": "user_statement"
+        }
+      ],
+      "rust_rule": "source.role_confusion",
+      "schema": "reject"
+    },
+    {
+      "base": "records/source-export-user.json",
+      "covers": "import provenance",
+      "id": "source-import-without-raw",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/raw_object_hash",
+          "value": null
+        }
+      ],
+      "rust_rule": "source.import_fields",
+      "schema": "reject"
+    },
+    {
+      "base": "records/source-export-user.json",
+      "covers": "no login identifiers",
+      "id": "source-account-email",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/account_scope",
+          "value": "someone@example.com"
+        }
+      ],
+      "rust_rule": "source.account_alias",
+      "schema": "reject"
+    },
+    {
+      "base": "records/source-export-user.json",
+      "covers": "unknown time is not fabricated",
+      "id": "source-unknown-time-with-precision",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/occurred_at",
+          "value": null
+        }
+      ],
+      "rust_rule": "source.time_precision",
+      "schema": "accept"
+    },
+    {
+      "base": "records/source-export-user.json",
+      "covers": "system time order",
+      "id": "source-created-before-captured",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/created_at",
+          "value": "2026-07-01T00:00:00.000Z"
+        }
+      ],
+      "rust_rule": "source.time_order",
+      "schema": "accept"
+    },
+    {
+      "base": "records/source-export-user.json",
+      "covers": "archive path safety",
+      "id": "source-archive-traversal",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/locator",
+          "value": {
+            "inner": {
+              "kind": "json_pointer",
+              "pointer": ""
+            },
+            "kind": "archive_member",
+            "member_hash": "62c66a7a5dd70c3146618063c344e531e6d4b59e379808443ce962b3abd63c5a",
+            "member_name": "../../outside.json"
+          }
+        }
+      ],
+      "rust_rule": "locator.member_name",
+      "schema": "accept"
+    },
+    {
+      "base": "records/source-export-user.json",
+      "covers": "extensions cannot carry policy",
+      "id": "source-reserved-extension",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/extensions",
+          "value": {
+            "enouia.policy": {
+              "allow": true
+            }
+          }
+        }
+      ],
+      "rust_rule": "extensions.reserved",
+      "schema": "accept"
+    },
+    {
+      "base": "records/source-export-user.json",
+      "covers": "extension namespace",
+      "id": "source-bad-extension-name",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/extensions",
+          "value": {
+            "Bad Key": 1
+          }
+        }
+      ],
+      "rust_rule": "extensions.namespace",
+      "schema": "reject"
+    },
+    {
+      "base": "records/source-manual-assertion.json",
+      "covers": "manual assertion owner",
+      "id": "manual-operator-agent",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/manual_assertion/operator",
+          "value": {
+            "actor_id": "prn_00000004-0000-4000-8000-000000000004",
+            "actor_type": "agent"
+          }
+        }
+      ],
+      "rust_rule": "source.manual_operator",
+      "schema": "reject"
+    },
+    {
+      "base": "records/source-manual-assertion.json",
+      "covers": "manual assertion content",
+      "id": "manual-missing-assertion",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/manual_assertion",
+          "value": null
+        }
+      ],
+      "rust_rule": "source.kind_fields",
+      "schema": "reject"
+    },
+    {
+      "base": "records/source-agent-submission.json",
+      "covers": "agent cannot be manual assertion",
+      "id": "agent-claims-user-confirmation",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/evidence_class",
+          "value": "user_confirmation"
+        },
+        {
+          "op": "set",
+          "path": "/speaker_role",
+          "value": "user"
+        }
+      ],
+      "rust_rule": "source.role_confusion",
+      "schema": "reject"
+    },
+    {
+      "base": "records/attachment-present.json",
+      "covers": "attachment availability",
+      "id": "attachment-present-without-hash",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/object_hash",
+          "value": null
+        }
+      ],
+      "rust_rule": "attachment.availability_hash",
+      "schema": "reject"
+    },
+    {
+      "base": "records/attachment-external.json",
+      "covers": "no hash without bytes",
+      "id": "attachment-external-with-hash",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/object_hash",
+          "value": "2d711642b726b04401627ca9fbac32f5c8530fb1903cc4db02258717921a4881"
+        },
+        {
+          "op": "set",
+          "path": "/size_bytes",
+          "value": 1
+        }
+      ],
+      "rust_rule": "attachment.availability_hash",
+      "schema": "reject"
+    },
+    {
+      "base": "records/memory-project-state.json",
+      "covers": "M0 required field",
+      "id": "memory-missing-status",
+      "ops": [
+        {
+          "op": "remove",
+          "path": "/status"
+        }
+      ],
+      "rust_rule": "shape",
+      "schema": "reject"
+    },
+    {
+      "base": "records/memory-project-state.json",
+      "covers": "M0 status enum; deletion is a tombstone",
+      "id": "memory-status-deleted",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/status",
+          "value": "deleted"
+        }
+      ],
+      "rust_rule": "shape",
+      "schema": "reject"
+    },
+    {
+      "base": "records/memory-project-state.json",
+      "covers": "explicit null for unknown",
+      "id": "memory-missing-nullable",
+      "ops": [
+        {
+          "op": "remove",
+          "path": "/valid_from"
+        }
+      ],
+      "rust_rule": "shape",
+      "schema": "reject"
+    },
+    {
+      "base": "records/memory-project-state.json",
+      "covers": "confidence range",
+      "id": "memory-confidence-range",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/confidence",
+          "value": 1.5
+        }
+      ],
+      "rust_rule": "memory.confidence_range",
+      "schema": "reject"
+    },
+    {
+      "base": "records/memory-project-state.json",
+      "covers": "missing source",
+      "id": "memory-no-evidence",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/evidence",
+          "value": []
+        }
+      ],
+      "rust_rule": "memory.evidence_required",
+      "schema": "reject"
+    },
+    {
+      "base": "records/memory-project-state.json",
+      "covers": "primary source in evidence",
+      "id": "memory-primary-source-not-cited",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/source_id",
+          "value": "src_00000003-0000-4000-8000-000000000003"
+        }
+      ],
+      "rust_rule": "memory.primary_source",
+      "schema": "accept"
+    },
+    {
+      "base": "records/memory-project-state.json",
+      "covers": "only owner approval",
+      "id": "memory-approved-by-agent",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/approved_by",
+          "value": {
+            "actor_id": "prn_00000004-0000-4000-8000-000000000004",
+            "actor_type": "agent"
+          }
+        }
+      ],
+      "rust_rule": "memory.approval_actor",
+      "schema": "reject"
+    },
+    {
+      "base": "records/memory-project-state.json",
+      "covers": "project_state requires project",
+      "id": "memory-project-without-project",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/project_id",
+          "value": null
+        }
+      ],
+      "rust_rule": "memory.project_required",
+      "schema": "reject"
+    },
+    {
+      "base": "records/memory-project-state.json",
+      "covers": "decision vs implementation",
+      "id": "memory-decision-marked-implemented",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/decisions/0/state_kind",
+          "value": "implemented"
+        }
+      ],
+      "rust_rule": "memory.decision_kind",
+      "schema": "reject"
+    },
+    {
+      "base": "records/memory-fact-expired.json",
+      "covers": "half-open valid interval",
+      "id": "memory-empty-valid-interval",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/valid_until",
+          "value": "2026-03-01T00:00:00.000Z"
+        }
+      ],
+      "rust_rule": "memory.valid_interval",
+      "schema": "accept"
+    },
+    {
+      "base": "records/memory-fact-future-supersession.json",
+      "covers": "no self supersession",
+      "id": "memory-self-supersede",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/supersedes/0/memory_id",
+          "value": "mem_00000066-0000-4000-8000-000000000066"
+        }
+      ],
+      "rust_rule": "memory.self_supersede",
+      "schema": "accept"
+    },
+    {
+      "base": "records/memory-fact-future-supersession.json",
+      "covers": "explicit or unknown effective time",
+      "id": "memory-effective-from-text",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/supersedes/0/effective_from",
+          "value": "soon"
+        }
+      ],
+      "rust_rule": "shape",
+      "schema": "reject"
+    },
+    {
+      "base": "records/memory-fact.json",
+      "covers": "secrets never in memory text",
+      "id": "memory-secret-in-content",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/content",
+          "value": "API key sk-abcdefghijklmnopqrstuvwxyz0123"
+        }
+      ],
+      "rust_rule": "memory.secret_material",
+      "schema": "accept"
+    },
+    {
+      "base": "records/memory-fact.json",
+      "covers": "review is not corroboration",
+      "id": "memory-corroborated-single-source",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/epistemic_status",
+          "value": "corroborated"
+        }
+      ],
+      "rust_rule": "memory.corroborated",
+      "schema": "accept"
+    },
+    {
+      "base": "records/memory-project-state.json",
+      "covers": "item evidence closure",
+      "id": "memory-item-evidence-uncited",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/decisions/0/evidence_refs/0/source_id",
+          "value": "src_00000003-0000-4000-8000-000000000003"
+        }
+      ],
+      "rust_rule": "memory.item_evidence",
+      "schema": "accept"
+    },
+    {
+      "base": "records/memory-project-state.json",
+      "covers": "unknown field on flattened record",
+      "id": "memory-unknown-field",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/ai_verdict",
+          "value": "true"
+        }
+      ],
+      "rust_rule": "shape",
+      "schema": "reject"
+    },
+    {
+      "base": "records/memory-fact.json",
+      "covers": "five types only",
+      "id": "memory-unknown-type",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/type",
+          "value": "note"
+        }
+      ],
+      "rust_rule": "shape",
+      "schema": "reject"
+    },
+    {
+      "base": "records/memory-fact.json",
+      "covers": "fact subject",
+      "id": "memory-fact-without-subject",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/subject_ids",
+          "value": []
+        }
+      ],
+      "rust_rule": "memory.subjects_required",
+      "schema": "reject"
+    },
+    {
+      "base": "records/memory-session-checkpoint.json",
+      "covers": "coverage range",
+      "id": "memory-checkpoint-bad-range",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/covered_events/from_sequence",
+          "value": 3
+        }
+      ],
+      "rust_rule": "memory.checkpoint_range",
+      "schema": "accept"
+    },
+    {
+      "base": "records/candidate-pending.json",
+      "covers": "expected revision",
+      "id": "candidate-revise-without-target",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/proposal_kind",
+          "value": "revise"
+        }
+      ],
+      "rust_rule": "candidate.target_fields",
+      "schema": "reject"
+    },
+    {
+      "base": "records/candidate-pending.json",
+      "covers": "no approval without review",
+      "id": "candidate-accepted-without-review",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/status",
+          "value": "accepted"
+        }
+      ],
+      "rust_rule": "candidate.resolution_review",
+      "schema": "reject"
+    },
+    {
+      "base": "records/candidate-pending.json",
+      "covers": "agent cannot pose as owner",
+      "id": "candidate-owner-origin-by-agent",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/origin_kind",
+          "value": "owner_manual"
+        },
+        {
+          "op": "set",
+          "path": "/extraction_run_id",
+          "value": null
+        },
+        {
+          "op": "set",
+          "path": "/origin_actor",
+          "value": {
+            "actor_id": "prn_00000004-0000-4000-8000-000000000004",
+            "actor_type": "agent"
+          }
+        }
+      ],
+      "rust_rule": "candidate.origin_actor",
+      "schema": "reject"
+    },
+    {
+      "base": "records/candidate-model-extraction.json",
+      "covers": "extraction budget/run",
+      "id": "candidate-extraction-without-run",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/extraction_run_id",
+          "value": null
+        }
+      ],
+      "rust_rule": "candidate.extraction_run",
+      "schema": "reject"
+    },
+    {
+      "base": "records/candidate-pending.json",
+      "covers": "no automatic acceptance status",
+      "id": "candidate-auto-accepted",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/status",
+          "value": "auto_accepted"
+        }
+      ],
+      "rust_rule": "shape",
+      "schema": "reject"
+    },
+    {
+      "base": "records/candidate-delete.json",
+      "covers": "agents cannot request deletion",
+      "id": "candidate-delete-by-agent",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/origin_kind",
+          "value": "agent_proposal"
+        },
+        {
+          "op": "set",
+          "path": "/origin_actor",
+          "value": {
+            "actor_id": "prn_00000004-0000-4000-8000-000000000004",
+            "actor_type": "agent"
+          }
+        }
+      ],
+      "rust_rule": "candidate.delete_owner_only",
+      "schema": "reject"
+    },
+    {
+      "base": "records/review-accept.json",
+      "covers": "forged approval",
+      "id": "review-by-agent",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/actor",
+          "value": {
+            "actor_id": "prn_00000004-0000-4000-8000-000000000004",
+            "actor_type": "agent"
+          }
+        }
+      ],
+      "rust_rule": "review.owner_required",
+      "schema": "reject"
+    },
+    {
+      "base": "records/review-accept.json",
+      "covers": "trusted surface",
+      "id": "review-from-mcp",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/trusted_surface",
+          "value": "mcp"
+        }
+      ],
+      "rust_rule": "shape",
+      "schema": "reject"
+    },
+    {
+      "base": "records/review-reject.json",
+      "covers": "reject writes nothing",
+      "id": "review-reject-with-results",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/resulting_records",
+          "value": [
+            {
+              "record_id": "mem_00000009-0000-4000-8000-000000000009",
+              "record_kind": "memory",
+              "revision": 1
+            }
+          ]
+        }
+      ],
+      "rust_rule": "review.action_results",
+      "schema": "reject"
+    },
+    {
+      "base": "records/review-accept.json",
+      "covers": "approval nonce",
+      "id": "review-short-nonce",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/approval_nonce",
+          "value": "abc"
+        }
+      ],
+      "rust_rule": "review.nonce_format",
+      "schema": "reject"
+    },
+    {
+      "base": "records/commit-genesis.json",
+      "covers": "genesis",
+      "id": "commit-genesis-with-parent",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/parent_commit_id",
+          "value": "cmt_00000009-0000-4000-8000-000000000009"
+        }
+      ],
+      "rust_rule": "commit.genesis",
+      "schema": "reject"
+    },
+    {
+      "base": "records/commit-review.json",
+      "covers": "receipt equals changed records",
+      "id": "commit-receipt-mismatch",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/receipt/records",
+          "value": []
+        }
+      ],
+      "rust_rule": "commit.receipt_records",
+      "schema": "accept"
+    },
+    {
+      "base": "records/commit-review.json",
+      "covers": "one revision per logical record",
+      "id": "commit-catalog-duplicate",
+      "ops": [
+        {
+          "op": "append",
+          "path": "/catalog",
+          "value_from": "/catalog/0"
+        }
+      ],
+      "rust_rule": "commit.catalog_duplicate",
+      "schema": "accept"
+    },
+    {
+      "base": "records/commit-review.json",
+      "covers": "vault format version",
+      "id": "commit-format-2",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/format_version",
+          "value": 2
+        }
+      ],
+      "rust_rule": "shape",
+      "schema": "reject"
+    },
+    {
+      "base": "records/session-event-completed.json",
+      "covers": "completion is explicit",
+      "id": "event-completed-as-partial",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/delivery_state",
+          "value": "partial"
+        }
+      ],
+      "rust_rule": "event.delivery_state",
+      "schema": "reject"
+    },
+    {
+      "base": "records/session-event-completed.json",
+      "covers": "no hidden reasoning events",
+      "id": "event-hidden-reasoning",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/kind",
+          "value": "assistant_reasoning"
+        }
+      ],
+      "rust_rule": "shape",
+      "schema": "reject"
+    },
+    {
+      "base": "records/session-event-completed.json",
+      "covers": "event time order",
+      "id": "event-captured-before-occurred",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/captured_at",
+          "value": "2026-07-03T08:00:00.000Z"
+        }
+      ],
+      "rust_rule": "event.time_order",
+      "schema": "accept"
+    },
+    {
+      "base": "records/checkpoint-provisional.json",
+      "covers": "provisional vs reviewed",
+      "id": "checkpoint-reviewed-without-review",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/status",
+          "value": "reviewed"
+        }
+      ],
+      "rust_rule": "checkpoint.review",
+      "schema": "reject"
+    },
+    {
+      "base": "records/checkpoint-provisional.json",
+      "covers": "coverage range",
+      "id": "checkpoint-bad-range",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/coverage/from_sequence",
+          "value": 5
+        }
+      ],
+      "rust_rule": "checkpoint.coverage",
+      "schema": "accept"
+    },
+    {
+      "base": "records/tombstone.json",
+      "covers": "owner deletion",
+      "id": "tombstone-by-agent",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/requested_by",
+          "value": {
+            "actor_id": "prn_00000004-0000-4000-8000-000000000004",
+            "actor_type": "agent"
+          }
+        }
+      ],
+      "rust_rule": "tombstone.owner_required",
+      "schema": "reject"
+    },
+    {
+      "base": "records/purge-receipt.json",
+      "covers": "no global erase claim",
+      "id": "purge-global-erase",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/overall_state",
+          "value": "globally_erased"
+        }
+      ],
+      "rust_rule": "shape",
+      "schema": "reject"
+    },
+    {
+      "base": "records/purge-receipt.json",
+      "covers": "backup purge pending is visible",
+      "id": "purge-overclaim",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/overall_state",
+          "value": "locally_purged"
+        }
+      ],
+      "rust_rule": "purge.overall_state",
+      "schema": "accept"
+    },
+    {
+      "base": "records/capsule.json",
+      "covers": "no local paths in capsule",
+      "id": "capsule-local-path",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/query",
+          "value": "读取 C:\\Users\\someone\\vault 的内容"
+        }
+      ],
+      "rust_rule": "capsule.local_path",
+      "schema": "accept"
+    },
+    {
+      "base": "records/capsule.json",
+      "covers": "budget",
+      "id": "capsule-over-budget",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/budget/estimated_tokens",
+          "value": 9000
+        }
+      ],
+      "rust_rule": "capsule.budget",
+      "schema": "accept"
+    },
+    {
+      "base": "records/capsule.json",
+      "covers": "completeness honesty",
+      "id": "capsule-complete-with-limitation",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/completeness/limitations",
+          "value": [
+            "over_budget"
+          ]
+        }
+      ],
+      "rust_rule": "capsule.completeness",
+      "schema": "accept"
+    },
+    {
+      "base": "records/capsule.json",
+      "covers": "candidates never in capsule",
+      "id": "capsule-candidate-as-memory",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/active_projects/0/memory_id",
+          "value": "cand_00000001-0000-4000-8000-000000000001"
+        }
+      ],
+      "rust_rule": "shape",
+      "schema": "reject"
+    },
+    {
+      "base": "records/inspection.json",
+      "covers": "no hidden record disclosure",
+      "id": "inspection-restricted-leak",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/viewer_scope",
+          "value": "restricted"
+        }
+      ],
+      "rust_rule": "inspection.hidden_disclosure",
+      "schema": "reject"
+    },
+    {
+      "base": "records/inspection.json",
+      "covers": "reason matches decision",
+      "id": "inspection-included-unrelated",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/decisions/0/reason",
+          "value": "unrelated"
+        }
+      ],
+      "rust_rule": "inspection.reason",
+      "schema": "reject"
+    },
+    {
+      "base": "records/dispatch.json",
+      "covers": "no credentials recorded",
+      "id": "dispatch-auth-header",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/authorization_header",
+          "value": "Bearer abcdefghijklmnopqrstuvwxyz"
+        }
+      ],
+      "rust_rule": "shape",
+      "schema": "reject"
+    },
+    {
+      "base": "records/dispatch.json",
+      "covers": "no credentials recorded",
+      "id": "dispatch-credential-in-tool",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/tools",
+          "value": [
+            {
+              "definition_hash": "e3b98a4da31a127d4bde6e43033f66ba274cab0eb7eb1c70ec41402bf6273dd8",
+              "name": "Bearer abcdefghijklmnopqrstuvwxyz"
+            }
+          ]
+        }
+      ],
+      "rust_rule": "dispatch.credential_material",
+      "schema": "accept"
+    },
+    {
+      "base": "records/dispatch.json",
+      "covers": "sent evidence",
+      "id": "dispatch-sent-without-time",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/sent_at",
+          "value": null
+        }
+      ],
+      "rust_rule": "dispatch.sent_at",
+      "schema": "reject"
+    },
+    {
+      "base": "records/provider-capabilities-unverified.json",
+      "covers": "no capability guessing",
+      "id": "capabilities-unverified-claim",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/streaming",
+          "value": "supported"
+        }
+      ],
+      "rust_rule": "capabilities.unverified_claim",
+      "schema": "reject"
+    },
+    {
+      "base": "records/audit-event-deny.json",
+      "covers": "audit has no content",
+      "id": "audit-query-text",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/query_text",
+          "value": "MoriMeta 设计"
+        }
+      ],
+      "rust_rule": "shape",
+      "schema": "reject"
+    },
+    {
+      "base": "records/audit-event-deny.json",
+      "covers": "deny has a code",
+      "id": "audit-deny-without-code",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/error_code",
+          "value": null
+        }
+      ],
+      "rust_rule": "audit.deny_code",
+      "schema": "reject"
+    },
+    {
+      "base": "records/identity.json",
+      "covers": "identity revision chain",
+      "id": "identity-wrong-previous",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/previous_revision",
+          "value": 3
+        }
+      ],
+      "rust_rule": "identity.previous_revision",
+      "schema": "accept"
+    },
+    {
+      "base": "records/project.json",
+      "covers": "alias uniqueness",
+      "id": "project-alias-duplicate",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/aliases",
+          "value": [
+            "morimeta"
+          ]
+        }
+      ],
+      "rust_rule": "project.alias_unique",
+      "schema": "accept"
+    },
+    {
+      "base": "records/candidate-pending.json",
+      "covers": "secrets never in candidates",
+      "id": "candidate-secret",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/proposed_content",
+          "value": "token ghp_abcdefghijklmnopqrstuvwxyz"
+        }
+      ],
+      "rust_rule": "candidate.secret_material",
+      "schema": "accept"
+    },
+    {
+      "base": "records/candidate-pending.json",
+      "covers": "effective time only for supersede",
+      "id": "candidate-effective-on-create",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/proposed_effective_from",
+          "value": "unknown"
+        }
+      ],
+      "rust_rule": "candidate.effective_from",
+      "schema": "accept"
+    },
+    {
+      "base": "records/attachment-external.json",
+      "covers": "external reference kept as data",
+      "id": "attachment-external-without-reference",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/external_reference",
+          "value": null
+        }
+      ],
+      "rust_rule": "attachment.external_reference",
+      "schema": "reject"
+    },
+    {
+      "base": "records/session-event-user.json",
+      "covers": "user input persisted before model call",
+      "id": "event-user-without-content",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/content_ref",
+          "value": null
+        }
+      ],
+      "rust_rule": "event.content_required",
+      "schema": "reject"
+    },
+    {
+      "base": "records/source-agent-submission.json",
+      "covers": "byte range",
+      "id": "locator-inverted-range",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/locator/start",
+          "value": 48
+        },
+        {
+          "op": "set",
+          "path": "/locator/end",
+          "value": 0
+        }
+      ],
+      "rust_rule": "locator.byte_range",
+      "schema": "accept"
+    },
+    {
+      "base": "records/memory-project-state.json",
+      "covers": "evidence supports a real claim",
+      "id": "memory-supports-unknown-item",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/evidence/0/supports",
+          "value": "itm_0000004d-0000-4000-8000-00000000004d"
+        }
+      ],
+      "rust_rule": "memory.evidence_supports",
+      "schema": "accept"
+    },
+    {
+      "base": "records/memory-episode.json",
+      "covers": "episode interval",
+      "id": "memory-episode-inverted",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/occurred_end",
+          "value": "2026-05-02T00:00:00.000Z"
+        }
+      ],
+      "rust_rule": "memory.episode_interval",
+      "schema": "accept"
+    },
+    {
+      "base": "records/purge-receipt.json",
+      "covers": "purged store has confirmation",
+      "id": "purge-unconfirmed",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/stores/0/confirmed_at",
+          "value": null
+        }
+      ],
+      "rust_rule": "purge.confirmation",
+      "schema": "accept"
+    },
+    {
+      "base": "records/session.json",
+      "covers": "branch closure",
+      "id": "session-default-branch-missing",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/default_branch_id",
+          "value": "br_00000009-0000-4000-8000-000000000009"
+        }
+      ],
+      "rust_rule": "session.branches",
+      "schema": "accept"
+    },
+    {
+      "base": "records/tombstone.json",
+      "covers": "tombstone names its targets",
+      "id": "tombstone-without-targets",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/targets",
+          "value": []
+        }
+      ],
+      "rust_rule": "tombstone.targets",
+      "schema": "accept"
+    },
+    {
+      "base": "records/dispatch.json",
+      "covers": "no local paths sent",
+      "id": "dispatch-local-path",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/tools",
+          "value": [
+            {
+              "definition_hash": "e3b98a4da31a127d4bde6e43033f66ba274cab0eb7eb1c70ec41402bf6273dd8",
+              "name": "D:/tools/run.exe"
+            }
+          ]
+        }
+      ],
+      "rust_rule": "dispatch.local_path",
+      "schema": "accept"
+    },
+    {
+      "base": "records/identity.json",
+      "covers": "identity is owner-approved",
+      "id": "identity-approved-by-agent",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/approved_by",
+          "value": {
+            "actor_id": "prn_00000004-0000-4000-8000-000000000004",
+            "actor_type": "agent"
+          }
+        }
+      ],
+      "rust_rule": "identity.approval_actor",
+      "schema": "reject"
+    },
+    {
+      "base": "records/source-export-user.json",
+      "covers": "external namespace",
+      "id": "source-external-without-provider",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/provider",
+          "value": null
+        }
+      ],
+      "rust_rule": "source.external_fields",
+      "schema": "reject"
+    },
+    {
+      "base": "records/source-manual-assertion.json",
+      "covers": "manual locator",
+      "id": "source-manual-with-pointer",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/locator",
+          "value": {
+            "kind": "json_pointer",
+            "pointer": "/x"
+          }
+        }
+      ],
+      "rust_rule": "source.locator_kind",
+      "schema": "reject"
+    }
+  ],
+  "valid": [
+    {
+      "file": "records/attachment-external.json",
+      "kind": "attachment",
+      "schema": "memory/attachment-v1.schema.json"
+    },
+    {
+      "file": "records/attachment-present.json",
+      "kind": "attachment",
+      "schema": "memory/attachment-v1.schema.json"
+    },
+    {
+      "file": "records/audit-event-deny.json",
+      "kind": "audit_event",
+      "schema": "memory/audit-event-v1.schema.json"
+    },
+    {
+      "file": "records/candidate-accepted.json",
+      "kind": "candidate",
+      "schema": "memory/candidate-v1.schema.json"
+    },
+    {
+      "file": "records/candidate-delete.json",
+      "kind": "candidate",
+      "schema": "memory/candidate-v1.schema.json"
+    },
+    {
+      "file": "records/candidate-model-extraction.json",
+      "kind": "candidate",
+      "schema": "memory/candidate-v1.schema.json"
+    },
+    {
+      "file": "records/candidate-pending.json",
+      "kind": "candidate",
+      "schema": "memory/candidate-v1.schema.json"
+    },
+    {
+      "file": "records/candidate-supersede.json",
+      "kind": "candidate",
+      "schema": "memory/candidate-v1.schema.json"
+    },
+    {
+      "file": "records/capsule.json",
+      "kind": "capsule",
+      "schema": "context/capsule-v1.schema.json"
+    },
+    {
+      "file": "records/checkpoint-provisional.json",
+      "kind": "checkpoint",
+      "schema": "memory/checkpoint-v1.schema.json"
+    },
+    {
+      "file": "records/commit-genesis.json",
+      "kind": "commit",
+      "schema": "memory/commit-v1.schema.json"
+    },
+    {
+      "file": "records/commit-review.json",
+      "kind": "commit",
+      "schema": "memory/commit-v1.schema.json"
+    },
+    {
+      "file": "records/dispatch.json",
+      "kind": "dispatch",
+      "schema": "context/dispatch-v1.schema.json"
+    },
+    {
+      "file": "records/identity.json",
+      "kind": "identity",
+      "schema": "memory/identity-v1.schema.json"
+    },
+    {
+      "file": "records/inspection.json",
+      "kind": "inspection",
+      "schema": "context/inspection-v1.schema.json"
+    },
+    {
+      "file": "records/memory-episode.json",
+      "kind": "memory",
+      "schema": "memory/memory-v1.schema.json"
+    },
+    {
+      "file": "records/memory-fact-conflicted.json",
+      "kind": "memory",
+      "schema": "memory/memory-v1.schema.json"
+    },
+    {
+      "file": "records/memory-fact-expired.json",
+      "kind": "memory",
+      "schema": "memory/memory-v1.schema.json"
+    },
+    {
+      "file": "records/memory-fact-future-supersession.json",
+      "kind": "memory",
+      "schema": "memory/memory-v1.schema.json"
+    },
+    {
+      "file": "records/memory-fact-highly-sensitive.json",
+      "kind": "memory",
+      "schema": "memory/memory-v1.schema.json"
+    },
+    {
+      "file": "records/memory-fact-live.json",
+      "kind": "memory",
+      "schema": "memory/memory-v1.schema.json"
+    },
+    {
+      "file": "records/memory-fact-superseded.json",
+      "kind": "memory",
+      "schema": "memory/memory-v1.schema.json"
+    },
+    {
+      "file": "records/memory-fact.json",
+      "kind": "memory",
+      "schema": "memory/memory-v1.schema.json"
+    },
+    {
+      "file": "records/memory-preference.json",
+      "kind": "memory",
+      "schema": "memory/memory-v1.schema.json"
+    },
+    {
+      "file": "records/memory-project-state.json",
+      "kind": "memory",
+      "schema": "memory/memory-v1.schema.json"
+    },
+    {
+      "file": "records/memory-session-checkpoint.json",
+      "kind": "memory",
+      "schema": "memory/memory-v1.schema.json"
+    },
+    {
+      "file": "records/project.json",
+      "kind": "project",
+      "schema": "memory/project-v1.schema.json"
+    },
+    {
+      "file": "records/provider-capabilities-mock.json",
+      "kind": "provider_capabilities",
+      "schema": "provider/capabilities-v1.schema.json"
+    },
+    {
+      "file": "records/provider-capabilities-unverified.json",
+      "kind": "provider_capabilities",
+      "schema": "provider/capabilities-v1.schema.json"
+    },
+    {
+      "file": "records/purge-receipt.json",
+      "kind": "purge_receipt",
+      "schema": "memory/purge-receipt-v1.schema.json"
+    },
+    {
+      "file": "records/review-accept.json",
+      "kind": "review",
+      "schema": "memory/review-v1.schema.json"
+    },
+    {
+      "file": "records/review-reject.json",
+      "kind": "review",
+      "schema": "memory/review-v1.schema.json"
+    },
+    {
+      "file": "records/session-event-completed.json",
+      "kind": "session_event",
+      "schema": "memory/session-event-v1.schema.json"
+    },
+    {
+      "file": "records/session-event-user.json",
+      "kind": "session_event",
+      "schema": "memory/session-event-v1.schema.json"
+    },
+    {
+      "file": "records/session.json",
+      "kind": "session",
+      "schema": "memory/session-v1.schema.json"
+    },
+    {
+      "file": "records/source-agent-submission.json",
+      "kind": "source",
+      "schema": "memory/source-v1.schema.json"
+    },
+    {
+      "file": "records/source-export-assistant.json",
+      "kind": "source",
+      "schema": "memory/source-v1.schema.json"
+    },
+    {
+      "file": "records/source-export-user.json",
+      "kind": "source",
+      "schema": "memory/source-v1.schema.json"
+    },
+    {
+      "file": "records/source-highly-sensitive.json",
+      "kind": "source",
+      "schema": "memory/source-v1.schema.json"
+    },
+    {
+      "file": "records/source-malicious-document.json",
+      "kind": "source",
+      "schema": "memory/source-v1.schema.json"
+    },
+    {
+      "file": "records/source-manual-assertion.json",
+      "kind": "source",
+      "schema": "memory/source-v1.schema.json"
+    },
+    {
+      "file": "records/source-runtime-event.json",
+      "kind": "source",
+      "schema": "memory/source-v1.schema.json"
+    },
+    {
+      "file": "records/tombstone.json",
+      "kind": "tombstone",
+      "schema": "memory/tombstone-v1.schema.json"
+    }
+  ]
+}

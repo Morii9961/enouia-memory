@@ -1,0 +1,55 @@
+{
+  "access_policy_id": "pol_00000001-0000-4000-8000-000000000001",
+  "approved_at": "2026-06-12T09:02:00.000Z",
+  "approved_by": {
+    "actor_id": "prn_00000001-0000-4000-8000-000000000001",
+    "actor_type": "owner"
+  },
+  "category": null,
+  "claim_key": "price.gpu",
+  "confidence": null,
+  "conflict_group_id": null,
+  "content": "这块显卡报价 3999 元（2026-03-01 观测）。",
+  "created_at": "2026-06-12T09:02:00.500Z",
+  "declassification_review_id": null,
+  "egress_policy_id": null,
+  "epistemic_status": "asserted",
+  "evidence": [
+    {
+      "evidence_class": "user_statement",
+      "locator": {
+        "kind": "json_pointer",
+        "pointer": "/mapping/x1/message/content"
+      },
+      "object_hash": "1fd075315c5791f8ef6ca8ae96c822120a7566c5a4921b659d68ca6a7f5c82f2",
+      "source_id": "src_00000067-0000-4000-8000-000000000067",
+      "source_revision": 1,
+      "supports": "content"
+    }
+  ],
+  "extensions": {},
+  "last_verified_at": null,
+  "memory_id": "mem_00000067-0000-4000-8000-000000000067",
+  "observed_at": "2026-03-01T09:00:00.000Z",
+  "priority": "P1",
+  "project_id": null,
+  "provenance_state": "intact",
+  "review_after": null,
+  "review_id": "rvw_00000067-0000-4000-8000-000000000067",
+  "revision": 1,
+  "schema_version": 1,
+  "sensitivity": "private",
+  "source_id": "src_00000067-0000-4000-8000-000000000067",
+  "status": "active",
+  "subject_ids": [
+    "sub_00000001-0000-4000-8000-000000000001"
+  ],
+  "supersedes": [],
+  "tags": [],
+  "title": "显卡报价",
+  "type": "fact",
+  "updated_at": "2026-06-12T09:02:00.500Z",
+  "valid_from": null,
+  "valid_until": null,
+  "volatility": "live"
+}

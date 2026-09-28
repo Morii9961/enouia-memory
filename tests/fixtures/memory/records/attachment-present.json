@@ -1,0 +1,16 @@
+{
+  "attachment_id": "att_00000001-0000-4000-8000-000000000001",
+  "availability": "present",
+  "claimed_media_type": "image/png",
+  "created_at": "2026-07-02T12:00:00.000Z",
+  "detected_media_type": "image/png",
+  "extensions": {},
+  "external_reference": null,
+  "object_hash": "6b9af93708359b3140cbedbdecb4622d937c5e13be6248a13fc166cbdf5d74a5",
+  "original_name": "darkroom-palette.png",
+  "revision": 1,
+  "schema_version": 1,
+  "sensitivity": "private",
+  "size_bytes": 20480,
+  "source_id": "src_00000002-0000-4000-8000-000000000002"
+}

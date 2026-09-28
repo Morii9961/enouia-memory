@@ -1,0 +1,22 @@
+{
+  "access_policy_id": "pol_00000001-0000-4000-8000-000000000001",
+  "approved_at": "2026-06-12T09:08:00.000Z",
+  "approved_by": {
+    "actor_id": "prn_00000001-0000-4000-8000-000000000001",
+    "actor_type": "owner"
+  },
+  "content_hash": "5441797c1da493dc114bb4690e0a8d433f499d544ff9f614bb47d900b067c87f",
+  "content_media_type": "text/markdown; charset=utf-8",
+  "created_at": "2026-06-12T09:08:00.500Z",
+  "egress_policy_id": null,
+  "extensions": {},
+  "identity_id": "idn_00000001-0000-4000-8000-000000000001",
+  "previous_revision": null,
+  "review_id": "rvw_0000006d-0000-4000-8000-00000000006d",
+  "revision": 1,
+  "schema_version": 1,
+  "sensitivity": "private",
+  "slug": "core",
+  "title": "身份核心（合成）",
+  "updated_at": "2026-06-12T09:08:00.500Z"
+}

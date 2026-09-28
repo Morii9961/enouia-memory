@@ -1,0 +1,140 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "capabilities-v1.schema.json",
+  "title": "Enouia ProviderCapabilities v1",
+  "description": "Verified capability snapshot. Unverified snapshots may only say unknown; nothing is inferred from a model name.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "binding",
+    "text_input",
+    "image_input",
+    "streaming",
+    "tool_calling",
+    "cancellation",
+    "token_counting",
+    "context_window_tokens",
+    "max_output_tokens",
+    "verified_at"
+  ],
+  "properties": {
+    "schema_version": {
+      "$ref": "../memory/common-v1.schema.json#/$defs/schemaVersion"
+    },
+    "binding": {
+      "$ref": "../memory/common-v1.schema.json#/$defs/providerBinding"
+    },
+    "text_input": {
+      "enum": [
+        "supported",
+        "unsupported",
+        "unknown"
+      ]
+    },
+    "image_input": {
+      "enum": [
+        "supported",
+        "unsupported",
+        "unknown"
+      ]
+    },
+    "streaming": {
+      "enum": [
+        "supported",
+        "unsupported",
+        "unknown"
+      ]
+    },
+    "tool_calling": {
+      "enum": [
+        "supported",
+        "unsupported",
+        "unknown"
+      ]
+    },
+    "cancellation": {
+      "enum": [
+        "supported",
+        "unsupported",
+        "unknown"
+      ]
+    },
+    "token_counting": {
+      "enum": [
+        "exact",
+        "estimated",
+        "unknown"
+      ]
+    },
+    "context_window_tokens": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        }
+      ]
+    },
+    "max_output_tokens": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        }
+      ]
+    },
+    "verified_at": {
+      "$ref": "../memory/common-v1.schema.json#/$defs/timestampOrNull"
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "verified_at": {
+            "type": "null"
+          }
+        },
+        "required": [
+          "verified_at"
+        ]
+      },
+      "then": {
+        "properties": {
+          "text_input": {
+            "const": "unknown"
+          },
+          "image_input": {
+            "const": "unknown"
+          },
+          "streaming": {
+            "const": "unknown"
+          },
+          "tool_calling": {
+            "const": "unknown"
+          },
+          "cancellation": {
+            "const": "unknown"
+          },
+          "token_counting": {
+            "const": "unknown"
+          },
+          "context_window_tokens": {
+            "type": "null"
+          },
+          "max_output_tokens": {
+            "type": "null"
+          }
+        }
+      }
+    }
+  ]
+}

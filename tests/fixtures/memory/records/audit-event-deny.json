@@ -1,0 +1,17 @@
+{
+  "actor": {
+    "actor_id": "prn_00000004-0000-4000-8000-000000000004",
+    "actor_type": "agent"
+  },
+  "audit_id": "aud_00000002-0000-4000-8000-000000000002",
+  "created_at": "2026-07-04T00:05:00.000Z",
+  "decision": "deny",
+  "destination": null,
+  "error_code": "permission_denied",
+  "object_refs": [],
+  "operation": "memory_source",
+  "policy_epoch": 1,
+  "purpose": null,
+  "request_id": "req_00000015-0000-4000-8000-000000000015",
+  "schema_version": 1
+}

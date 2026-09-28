@@ -1,0 +1,246 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "review-v1.schema.json",
+  "title": "Enouia ReviewRecord v1",
+  "description": "Owner decision on one exact candidate revision, from a trusted local surface. Nonce single use and candidate/commit binding are cross-record rules.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "review_id",
+    "actor",
+    "trusted_surface",
+    "action",
+    "candidate_id",
+    "candidate_revision",
+    "final_content_hash",
+    "approved_diff_hash",
+    "evidence_refs",
+    "target_expected_revisions",
+    "approval_nonce",
+    "effective_from",
+    "merge_target",
+    "resulting_records",
+    "reason_code",
+    "created_at",
+    "commit_id"
+  ],
+  "properties": {
+    "schema_version": {
+      "$ref": "common-v1.schema.json#/$defs/schemaVersion"
+    },
+    "review_id": {
+      "$ref": "common-v1.schema.json#/$defs/reviewId"
+    },
+    "actor": {
+      "$ref": "common-v1.schema.json#/$defs/ownerRef"
+    },
+    "trusted_surface": {
+      "$ref": "common-v1.schema.json#/$defs/trustedSurface"
+    },
+    "action": {
+      "enum": [
+        "accept",
+        "edit_accept",
+        "reject",
+        "merge",
+        "supersede",
+        "identity_accept",
+        "confirm_delete"
+      ]
+    },
+    "candidate_id": {
+      "$ref": "common-v1.schema.json#/$defs/candidateId"
+    },
+    "candidate_revision": {
+      "$ref": "common-v1.schema.json#/$defs/revision"
+    },
+    "final_content_hash": {
+      "$ref": "common-v1.schema.json#/$defs/sha256"
+    },
+    "approved_diff_hash": {
+      "$ref": "common-v1.schema.json#/$defs/sha256"
+    },
+    "evidence_refs": {
+      "type": "array",
+      "items": {
+        "$ref": "common-v1.schema.json#/$defs/sourceRevisionRef"
+      }
+    },
+    "target_expected_revisions": {
+      "type": "array",
+      "items": {
+        "$ref": "common-v1.schema.json#/$defs/recordRef"
+      }
+    },
+    "approval_nonce": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_-]{22,128}$"
+    },
+    "effective_from": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "common-v1.schema.json#/$defs/businessTime"
+        }
+      ]
+    },
+    "merge_target": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "oneOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "candidate_id"
+              ],
+              "properties": {
+                "kind": {
+                  "const": "candidate"
+                },
+                "candidate_id": {
+                  "$ref": "common-v1.schema.json#/$defs/candidateId"
+                }
+              }
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "memory_id"
+              ],
+              "properties": {
+                "kind": {
+                  "const": "memory"
+                },
+                "memory_id": {
+                  "$ref": "common-v1.schema.json#/$defs/memoryId"
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "resulting_records": {
+      "type": "array",
+      "items": {
+        "$ref": "common-v1.schema.json#/$defs/recordRef"
+      }
+    },
+    "reason_code": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "common-v1.schema.json#/$defs/code"
+        }
+      ]
+    },
+    "created_at": {
+      "$ref": "common-v1.schema.json#/$defs/timestamp"
+    },
+    "commit_id": {
+      "$ref": "common-v1.schema.json#/$defs/commitId"
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "action": {
+            "enum": [
+              "reject"
+            ]
+          }
+        },
+        "required": [
+          "action"
+        ]
+      },
+      "then": {
+        "properties": {
+          "resulting_records": {
+            "maxItems": 0
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "action": {
+            "enum": [
+              "accept",
+              "edit_accept",
+              "supersede",
+              "identity_accept",
+              "confirm_delete"
+            ]
+          }
+        },
+        "required": [
+          "action"
+        ]
+      },
+      "then": {
+        "properties": {
+          "resulting_records": {
+            "minItems": 1
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "action": {
+            "enum": [
+              "supersede"
+            ]
+          }
+        },
+        "required": [
+          "action"
+        ]
+      },
+      "then": {
+        "properties": {
+          "effective_from": {
+            "$ref": "common-v1.schema.json#/$defs/businessTime"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "action": {
+            "enum": [
+              "merge"
+            ]
+          }
+        },
+        "required": [
+          "action"
+        ]
+      },
+      "then": {
+        "properties": {
+          "merge_target": {
+            "type": "object"
+          }
+        }
+      }
+    }
+  ]
+}

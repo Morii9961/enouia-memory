@@ -1,0 +1,55 @@
+{
+  "access_policy_id": "pol_00000001-0000-4000-8000-000000000001",
+  "approved_at": "2026-07-02T13:10:00.000Z",
+  "approved_by": {
+    "actor_id": "prn_00000001-0000-4000-8000-000000000001",
+    "actor_type": "owner"
+  },
+  "category": null,
+  "claim_key": "health.checkup_schedule",
+  "confidence": null,
+  "conflict_group_id": null,
+  "content": "（合成夹具）定期复查安排在周四上午。",
+  "created_at": "2026-07-02T13:10:00.500Z",
+  "declassification_review_id": null,
+  "egress_policy_id": null,
+  "epistemic_status": "asserted",
+  "evidence": [
+    {
+      "evidence_class": "user_statement",
+      "locator": {
+        "kind": "json_pointer",
+        "pointer": "/mapping/p1/message/content"
+      },
+      "object_hash": "1bcb7e22aeceeedc14a62c504fbb3d1e0af52c2cb7e229c4a2c902c8745b7298",
+      "source_id": "src_00000004-0000-4000-8000-000000000004",
+      "source_revision": 1,
+      "supports": "content"
+    }
+  ],
+  "extensions": {},
+  "last_verified_at": null,
+  "memory_id": "mem_00000004-0000-4000-8000-000000000004",
+  "observed_at": "2026-07-02T10:30:00.000Z",
+  "priority": "P0",
+  "project_id": null,
+  "provenance_state": "intact",
+  "review_after": null,
+  "review_id": "rvw_00000004-0000-4000-8000-000000000004",
+  "revision": 1,
+  "schema_version": 1,
+  "sensitivity": "highly_sensitive",
+  "source_id": "src_00000004-0000-4000-8000-000000000004",
+  "status": "active",
+  "subject_ids": [
+    "sub_00000001-0000-4000-8000-000000000001"
+  ],
+  "supersedes": [],
+  "tags": [],
+  "title": "复查安排（合成）",
+  "type": "fact",
+  "updated_at": "2026-07-02T13:10:00.500Z",
+  "valid_from": null,
+  "valid_until": null,
+  "volatility": "stable"
+}

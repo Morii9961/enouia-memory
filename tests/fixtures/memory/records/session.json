@@ -1,0 +1,43 @@
+{
+  "branches": [
+    {
+      "branch_id": "br_00000001-0000-4000-8000-000000000001",
+      "forked_from_event_id": null,
+      "last_event_seq": 4,
+      "parent_branch_id": null
+    }
+  ],
+  "created_at": "2026-07-03T09:00:00.000Z",
+  "default_branch_id": "br_00000001-0000-4000-8000-000000000001",
+  "extensions": {},
+  "last_event_seq": 4,
+  "origin_surface": "local_cli",
+  "parent_session_id": null,
+  "participants": [
+    {
+      "actor_id": "prn_00000001-0000-4000-8000-000000000001",
+      "actor_type": "owner"
+    },
+    {
+      "actor_id": "prn_00000003-0000-4000-8000-000000000003",
+      "actor_type": "provider"
+    }
+  ],
+  "policy_id": "pol_00000001-0000-4000-8000-000000000001",
+  "provider_bindings": [
+    {
+      "binding": {
+        "adapter_version": "0",
+        "model": "deterministic-mock",
+        "provider": "mock"
+      },
+      "from_sequence": 1
+    }
+  ],
+  "revision": 1,
+  "schema_version": 1,
+  "sensitivity": "private",
+  "session_id": "ses_00000001-0000-4000-8000-000000000001",
+  "status": "closed",
+  "updated_at": "2026-07-03T09:10:00.000Z"
+}

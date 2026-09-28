@@ -1,0 +1,144 @@
+{
+  "catalog": [
+    {
+      "changed": false,
+      "content_hash": "b48d79a23ab356b0e9c4451b43216cb062e0bfebdc1b8c205e318f691b3fce9f",
+      "record_id": "cand_00000001-0000-4000-8000-000000000001",
+      "record_kind": "candidate",
+      "revision": 1
+    },
+    {
+      "changed": true,
+      "content_hash": "bf3b77ca765adb044a549403240e39735b997e7f702c42f008449e41db52ab54",
+      "record_id": "cand_00000002-0000-4000-8000-000000000002",
+      "record_kind": "candidate",
+      "revision": 2
+    },
+    {
+      "changed": false,
+      "content_hash": "040a5ad8d1c55df386229ff837e8c29a494d918528bad55f775197d8844bc339",
+      "record_id": "cand_00000003-0000-4000-8000-000000000003",
+      "record_kind": "candidate",
+      "revision": 1
+    },
+    {
+      "changed": false,
+      "content_hash": "57e8ba813153f66ce1403b20e6d436288c716199bdcb8f49ca327a8870083e69",
+      "record_id": "cand_00000004-0000-4000-8000-000000000004",
+      "record_kind": "candidate",
+      "revision": 1
+    },
+    {
+      "changed": false,
+      "content_hash": "c4e4dfc295dc8d822c1972a5706f2cd644ccc3d289f50defd4dd412a6d62a5f3",
+      "record_id": "cand_00000005-0000-4000-8000-000000000005",
+      "record_kind": "candidate",
+      "revision": 1
+    },
+    {
+      "changed": true,
+      "content_hash": "7ef0086c78676be77bc527edb2841a9c9f7143c74ebfcf74590273838fbfeff7",
+      "record_id": "mem_00000002-0000-4000-8000-000000000002",
+      "record_kind": "memory",
+      "revision": 1
+    },
+    {
+      "changed": true,
+      "content_hash": "f7924fdb0eccf1d8d34154443d527a4089cd3a8499a50306f12c355f04d0a19d",
+      "record_id": "prj_00000001-0000-4000-8000-000000000001",
+      "record_kind": "project",
+      "revision": 1
+    },
+    {
+      "changed": true,
+      "content_hash": "acc0f2c317639c9d05de09f815a8ce71f2eda415ed9b82f1cada537e47a42dca",
+      "record_id": "rvw_00000002-0000-4000-8000-000000000002",
+      "record_kind": "review",
+      "revision": 1
+    },
+    {
+      "changed": false,
+      "content_hash": "e2794fda1dd27808a1f14c9fbaa1870fe1899570d8beac08055929db0c1f5605",
+      "record_id": "src_00000001-0000-4000-8000-000000000001",
+      "record_kind": "source",
+      "revision": 1
+    },
+    {
+      "changed": false,
+      "content_hash": "1d17b230f49927a78eec290880844b47689c57d0176d401d242ca0367aac95d7",
+      "record_id": "src_00000002-0000-4000-8000-000000000002",
+      "record_kind": "source",
+      "revision": 1
+    },
+    {
+      "changed": false,
+      "content_hash": "6cf1648a3d9bb7fdde7d4180e9945fa925a720bb16b509ad9da92c6b39c8fb98",
+      "record_id": "src_00000003-0000-4000-8000-000000000003",
+      "record_kind": "source",
+      "revision": 1
+    },
+    {
+      "changed": false,
+      "content_hash": "c8a6536f4bcf6071842bbb2089fd0a3e270051dcf81dbf4bfb31e48f0c6138c9",
+      "record_id": "src_00000004-0000-4000-8000-000000000004",
+      "record_kind": "source",
+      "revision": 1
+    },
+    {
+      "changed": false,
+      "content_hash": "c91a613d7047498301f60113f42f64a61d7dd871b30a394790149a72e34cf90e",
+      "record_id": "src_00000005-0000-4000-8000-000000000005",
+      "record_kind": "source",
+      "revision": 1
+    }
+  ],
+  "commit_id": "cmt_00000004-0000-4000-8000-000000000004",
+  "created_at": "2026-07-02T13:00:00.500Z",
+  "deletion_epoch": 0,
+  "format_version": 1,
+  "idempotency_key_hash": "e699a2e5b15e827e96ca6bae93834f1d693fd96613af42d34cebe4568322b3f6",
+  "objects": [],
+  "operation_id": "op_00000004-0000-4000-8000-000000000004",
+  "operation_kind": "review_commit",
+  "parent_commit_id": "cmt_00000003-0000-4000-8000-000000000003",
+  "policy_epoch": 1,
+  "principal": {
+    "actor_id": "prn_00000001-0000-4000-8000-000000000001",
+    "actor_type": "owner"
+  },
+  "receipt": {
+    "operation_id": "op_00000004-0000-4000-8000-000000000004",
+    "records": [
+      {
+        "record_id": "cand_00000002-0000-4000-8000-000000000002",
+        "record_kind": "candidate",
+        "revision": 2
+      },
+      {
+        "record_id": "mem_00000002-0000-4000-8000-000000000002",
+        "record_kind": "memory",
+        "revision": 1
+      },
+      {
+        "record_id": "prj_00000001-0000-4000-8000-000000000001",
+        "record_kind": "project",
+        "revision": 1
+      },
+      {
+        "record_id": "rvw_00000002-0000-4000-8000-000000000002",
+        "record_kind": "review",
+        "revision": 1
+      }
+    ],
+    "result": "committed"
+  },
+  "request_payload_hash": "845f5b1b2ebbf71c4928a83baece09c85cbab17c2c14c7e18245e2cac68a8851",
+  "review_ids": [
+    "rvw_00000002-0000-4000-8000-000000000002"
+  ],
+  "schema_version": 1,
+  "sequence": 4,
+  "tombstone_ids": [],
+  "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+  "writer_device_id": "dev_00000001-0000-4000-8000-000000000001"
+}

@@ -1,0 +1,46 @@
+{
+  "candidate_id": "cand_00000001-0000-4000-8000-000000000001",
+  "confidence": 0.62,
+  "conflicts": [],
+  "created_at": "2026-07-02T12:10:00.000Z",
+  "declassification_review_id": null,
+  "dedupe_fingerprint": "32611fbe419dcd686832d07078c216d5a64fbe51336f54500c3354f20d729d43",
+  "evidence": [
+    {
+      "evidence_class": "model_claim",
+      "locator": {
+        "kind": "json_pointer",
+        "pointer": "/mapping/a1/message/content"
+      },
+      "object_hash": "1bcb7e22aeceeedc14a62c504fbb3d1e0af52c2cb7e229c4a2c902c8745b7298",
+      "source_id": "src_00000001-0000-4000-8000-000000000001",
+      "source_revision": 1,
+      "supports": "content"
+    }
+  ],
+  "expected_revision": null,
+  "extensions": {},
+  "extraction_run_id": "ext_00000001-0000-4000-8000-000000000001",
+  "merged_into": null,
+  "origin_actor": {
+    "actor_id": "prn_00000003-0000-4000-8000-000000000003",
+    "actor_type": "provider"
+  },
+  "origin_kind": "model_extraction",
+  "proposal_kind": "create",
+  "proposed_content": "（模型建议）MoriMeta 可考虑三种视觉方向。",
+  "proposed_details": null,
+  "proposed_effective_from": null,
+  "proposed_type": "project_state",
+  "reason": "synthetic fixture proposal",
+  "reopens_candidate_id": null,
+  "resolution_review_id": null,
+  "revision": 1,
+  "schema_version": 1,
+  "sensitivity": "private",
+  "source_id": "src_00000001-0000-4000-8000-000000000001",
+  "status": "pending",
+  "target_identity_id": null,
+  "target_memory_id": null,
+  "updated_at": "2026-07-02T12:10:00.000Z"
+}

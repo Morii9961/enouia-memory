@@ -1,0 +1,101 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "identity-v1.schema.json",
+  "title": "Enouia Identity metadata v1",
+  "description": "Sidecar for one Markdown Identity revision (content addressed by content_hash). Identity text never changes ACL, egress, or tool authorization.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "identity_id",
+    "revision",
+    "slug",
+    "title",
+    "content_hash",
+    "content_media_type",
+    "sensitivity",
+    "access_policy_id",
+    "egress_policy_id",
+    "previous_revision",
+    "review_id",
+    "approved_by",
+    "approved_at",
+    "created_at",
+    "updated_at",
+    "extensions"
+  ],
+  "properties": {
+    "schema_version": {
+      "$ref": "common-v1.schema.json#/$defs/schemaVersion"
+    },
+    "identity_id": {
+      "$ref": "common-v1.schema.json#/$defs/identityId"
+    },
+    "revision": {
+      "$ref": "common-v1.schema.json#/$defs/revision"
+    },
+    "slug": {
+      "enum": [
+        "core",
+        "runtime_rules",
+        "style",
+        "relationship",
+        "boundaries"
+      ]
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1
+    },
+    "content_hash": {
+      "$ref": "common-v1.schema.json#/$defs/sha256"
+    },
+    "content_media_type": {
+      "const": "text/markdown; charset=utf-8"
+    },
+    "sensitivity": {
+      "$ref": "common-v1.schema.json#/$defs/sensitivity"
+    },
+    "access_policy_id": {
+      "$ref": "common-v1.schema.json#/$defs/policyId"
+    },
+    "egress_policy_id": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "common-v1.schema.json#/$defs/policyId"
+        }
+      ]
+    },
+    "previous_revision": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "common-v1.schema.json#/$defs/revision"
+        }
+      ]
+    },
+    "review_id": {
+      "$ref": "common-v1.schema.json#/$defs/reviewId"
+    },
+    "approved_by": {
+      "$ref": "common-v1.schema.json#/$defs/ownerRef"
+    },
+    "approved_at": {
+      "$ref": "common-v1.schema.json#/$defs/timestamp"
+    },
+    "created_at": {
+      "$ref": "common-v1.schema.json#/$defs/timestamp"
+    },
+    "updated_at": {
+      "$ref": "common-v1.schema.json#/$defs/timestamp"
+    },
+    "extensions": {
+      "$ref": "common-v1.schema.json#/$defs/extensions"
+    }
+  }
+}

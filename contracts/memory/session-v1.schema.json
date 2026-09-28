@@ -1,0 +1,151 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "session-v1.schema.json",
+  "title": "Enouia SessionRecord v1",
+  "description": "Session header with branch list and provider binding history.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "session_id",
+    "revision",
+    "origin_surface",
+    "provider_bindings",
+    "branches",
+    "default_branch_id",
+    "parent_session_id",
+    "participants",
+    "last_event_seq",
+    "status",
+    "sensitivity",
+    "policy_id",
+    "created_at",
+    "updated_at",
+    "extensions"
+  ],
+  "properties": {
+    "schema_version": {
+      "$ref": "common-v1.schema.json#/$defs/schemaVersion"
+    },
+    "session_id": {
+      "$ref": "common-v1.schema.json#/$defs/sessionId"
+    },
+    "revision": {
+      "$ref": "common-v1.schema.json#/$defs/revision"
+    },
+    "origin_surface": {
+      "$ref": "common-v1.schema.json#/$defs/clientSurface"
+    },
+    "provider_bindings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "binding",
+          "from_sequence"
+        ],
+        "properties": {
+          "binding": {
+            "$ref": "common-v1.schema.json#/$defs/providerBinding"
+          },
+          "from_sequence": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          }
+        }
+      }
+    },
+    "branches": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "branch_id",
+          "parent_branch_id",
+          "forked_from_event_id",
+          "last_event_seq"
+        ],
+        "properties": {
+          "branch_id": {
+            "$ref": "common-v1.schema.json#/$defs/branchId"
+          },
+          "parent_branch_id": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "common-v1.schema.json#/$defs/branchId"
+              }
+            ]
+          },
+          "forked_from_event_id": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "common-v1.schema.json#/$defs/eventId"
+              }
+            ]
+          },
+          "last_event_seq": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          }
+        }
+      },
+      "minItems": 1
+    },
+    "default_branch_id": {
+      "$ref": "common-v1.schema.json#/$defs/branchId"
+    },
+    "parent_session_id": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "common-v1.schema.json#/$defs/sessionId"
+        }
+      ]
+    },
+    "participants": {
+      "type": "array",
+      "items": {
+        "$ref": "common-v1.schema.json#/$defs/actorRef"
+      }
+    },
+    "last_event_seq": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+    },
+    "status": {
+      "enum": [
+        "open",
+        "closed",
+        "interrupted"
+      ]
+    },
+    "sensitivity": {
+      "$ref": "common-v1.schema.json#/$defs/sensitivity"
+    },
+    "policy_id": {
+      "$ref": "common-v1.schema.json#/$defs/policyId"
+    },
+    "created_at": {
+      "$ref": "common-v1.schema.json#/$defs/timestamp"
+    },
+    "updated_at": {
+      "$ref": "common-v1.schema.json#/$defs/timestamp"
+    },
+    "extensions": {
+      "$ref": "common-v1.schema.json#/$defs/extensions"
+    }
+  }
+}

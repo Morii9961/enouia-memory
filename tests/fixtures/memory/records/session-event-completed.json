@@ -1,0 +1,26 @@
+{
+  "actor": {
+    "actor_id": "prn_00000003-0000-4000-8000-000000000003",
+    "actor_type": "provider"
+  },
+  "branch_id": "br_00000001-0000-4000-8000-000000000001",
+  "captured_at": "2026-07-03T09:01:00.010Z",
+  "content_ref": {
+    "media_type": "text/plain; charset=utf-8",
+    "object_hash": "be8fecc4674ced6d3804cb9ef7880e7561af71c1eefaa6d61f049df80ac60164",
+    "size_bytes": 43
+  },
+  "delivery_state": "completed",
+  "event_id": "evt_00000002-0000-4000-8000-000000000002",
+  "extensions": {},
+  "kind": "assistant_completed",
+  "occurred_at": "2026-07-03T09:01:00.000Z",
+  "parent_event_id": "evt_00000001-0000-4000-8000-000000000001",
+  "request_id": "req_0000000a-0000-4000-8000-00000000000a",
+  "schema_version": 1,
+  "sensitivity": "private",
+  "sequence": 2,
+  "session_id": "ses_00000001-0000-4000-8000-000000000001",
+  "source_refs": [],
+  "turn_id": "turn_00000001-0000-4000-8000-000000000001"
+}

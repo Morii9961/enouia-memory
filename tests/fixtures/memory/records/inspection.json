@@ -1,0 +1,69 @@
+{
+  "capsule_id": "cap_00000001-0000-4000-8000-000000000001",
+  "decisions": [
+    {
+      "decision": "included",
+      "rank": 1,
+      "reason": "explicit_entity_match",
+      "record_id": "mem_00000002-0000-4000-8000-000000000002",
+      "record_kind": "memory",
+      "revision": 1,
+      "source_reachable": true,
+      "token_cost": 40,
+      "truncated": false
+    },
+    {
+      "decision": "excluded",
+      "rank": null,
+      "reason": "unrelated",
+      "record_id": "mem_00000003-0000-4000-8000-000000000003",
+      "record_kind": "memory",
+      "revision": 1,
+      "source_reachable": true,
+      "token_cost": null,
+      "truncated": false
+    },
+    {
+      "decision": "excluded",
+      "rank": null,
+      "reason": "policy_denied",
+      "record_id": "mem_00000004-0000-4000-8000-000000000004",
+      "record_kind": "memory",
+      "revision": 1,
+      "source_reachable": true,
+      "token_cost": null,
+      "truncated": false
+    },
+    {
+      "decision": "excluded",
+      "rank": null,
+      "reason": "pending",
+      "record_id": "cand_00000001-0000-4000-8000-000000000001",
+      "record_kind": "candidate",
+      "revision": 1,
+      "source_reachable": true,
+      "token_cost": null,
+      "truncated": false
+    },
+    {
+      "decision": "excluded",
+      "rank": null,
+      "reason": "rejected",
+      "record_id": "cand_00000005-0000-4000-8000-000000000005",
+      "record_kind": "candidate",
+      "revision": 2,
+      "source_reachable": true,
+      "token_cost": null,
+      "truncated": false
+    }
+  ],
+  "deletion_epoch": 0,
+  "generated_at": "2026-07-04T00:00:00.050Z",
+  "inspection_id": "insp_00000001-0000-4000-8000-000000000001",
+  "policy_epoch": 1,
+  "ranking_version": "ranking/0-mv0-fixture",
+  "request_id": "req_00000014-0000-4000-8000-000000000014",
+  "schema_version": 1,
+  "vault_commit_id": "cmt_00000009-0000-4000-8000-000000000009",
+  "viewer_scope": "owner_full"
+}

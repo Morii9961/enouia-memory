@@ -1,0 +1,26 @@
+{
+  "confirmed": {
+    "checkpoint_status": "provisional",
+    "decision_item": "itm_00000001-0000-4000-8000-000000000001",
+    "excluded": {
+      "cand_00000001-0000-4000-8000-000000000001": "pending",
+      "cand_00000005-0000-4000-8000-000000000005": "rejected",
+      "mem_00000003-0000-4000-8000-000000000003": "unrelated",
+      "mem_00000004-0000-4000-8000-000000000004": "policy_denied"
+    },
+    "implementation_status": "unknown",
+    "included_memories": [
+      "mem_00000002-0000-4000-8000-000000000002"
+    ],
+    "query": "我们之前 MoriMeta 的设计最后选了什么？",
+    "set": "sets/morimeta-confirmed.json"
+  },
+  "description": "What a compiled context must support for the MoriMeta story. MV-0 checks these against the fixture capsules; MV-5 must reproduce them from the compiler.",
+  "insufficient_evidence": {
+    "checkpoint_status": "provisional",
+    "included_memories": [],
+    "limitation": "no_supported_memory",
+    "must_abstain": true,
+    "set": "sets/morimeta-insufficient-evidence.json"
+  }
+}

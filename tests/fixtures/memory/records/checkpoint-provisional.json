@@ -1,0 +1,54 @@
+{
+  "base_vault_commit_id": "cmt_00000008-0000-4000-8000-000000000008",
+  "branch_id": "br_00000001-0000-4000-8000-000000000001",
+  "checkpoint_id": "ckp_00000001-0000-4000-8000-000000000001",
+  "coverage": {
+    "from_sequence": 1,
+    "kind": "range",
+    "to_sequence": 4
+  },
+  "coverage_hash": "45e1316e475eb79c984c254bf6dadadc1b9823f3aa84e4db2e0051b09b3bfca0",
+  "created_at": "2026-07-03T09:20:00.000Z",
+  "decisions": [
+    {
+      "claim": "准备实现 Darkroom 主题",
+      "item_id": "itm_00000003-0000-4000-8000-000000000003",
+      "source_refs": [
+        {
+          "event_id": "evt_00000003-0000-4000-8000-000000000003",
+          "kind": "event"
+        }
+      ],
+      "state_kind": "planned"
+    }
+  ],
+  "extensions": {},
+  "generated_by": {
+    "actor": {
+      "actor_id": "prn_00000002-0000-4000-8000-000000000002",
+      "actor_type": "system"
+    },
+    "generator_version": "checkpoint-summarizer/0"
+  },
+  "last_completed_turn_id": "turn_00000002-0000-4000-8000-000000000002",
+  "open_loops": [
+    {
+      "claim": "实现 Darkroom 主题",
+      "item_id": "itm_00000004-0000-4000-8000-000000000004",
+      "source_refs": [
+        {
+          "event_id": "evt_00000003-0000-4000-8000-000000000003",
+          "kind": "event"
+        }
+      ],
+      "state_kind": "planned"
+    }
+  ],
+  "review_id": null,
+  "revision": 1,
+  "schema_version": 1,
+  "sensitivity": "private",
+  "session_id": "ses_00000001-0000-4000-8000-000000000001",
+  "status": "provisional",
+  "summary": "（自动摘要）讨论了 MoriMeta 下一步，准备实现 Darkroom 主题。"
+}

@@ -1,0 +1,92 @@
+{
+  "active_projects": [
+    {
+      "conflict_group_id": null,
+      "content": "MoriMeta 的视觉设计方向确定为 Professional Darkroom。",
+      "currency": "current_supported",
+      "evidence": [
+        {
+          "source_id": "src_00000002-0000-4000-8000-000000000002",
+          "source_revision": 1
+        }
+      ],
+      "last_verified_at": null,
+      "memory_id": "mem_00000002-0000-4000-8000-000000000002",
+      "revision": 1,
+      "sensitivity": "private",
+      "type": "project_state",
+      "valid_from": null,
+      "valid_until": null
+    }
+  ],
+  "as_of": null,
+  "branch_id": "br_00000001-0000-4000-8000-000000000001",
+  "budget": {
+    "counting_method": "utf8_bytes_v1",
+    "estimated_tokens": 512,
+    "max_tokens": 8192,
+    "memory_budget_tokens": 4096,
+    "safety_margin_tokens": 256
+  },
+  "capsule_id": "cap_00000001-0000-4000-8000-000000000001",
+  "client_surface": "local_cli",
+  "compiler_version": "compiler/0-mv0-fixture",
+  "completeness": {
+    "complete": true,
+    "limitations": []
+  },
+  "deletion_epoch": 0,
+  "destination": {
+    "kind": "local_mock",
+    "provider_binding": null
+  },
+  "generated_at": "2026-07-04T00:00:00.000Z",
+  "identity": [],
+  "open_loops": [
+    {
+      "description": "实现 Darkroom 主题",
+      "item_id": "itm_00000004-0000-4000-8000-000000000004",
+      "origin": "checkpoint",
+      "origin_id": "ckp_00000001-0000-4000-8000-000000000001",
+      "provisional": true
+    }
+  ],
+  "policy_epoch": 1,
+  "provenance": [
+    {
+      "locator_kind": "json_pointer",
+      "occurred_at": "2026-07-02T10:05:00.000Z",
+      "source_id": "src_00000002-0000-4000-8000-000000000002",
+      "source_revision": 1,
+      "time_precision": "minute"
+    }
+  ],
+  "purpose": "answer",
+  "query": "我们之前 MoriMeta 的设计最后选了什么？",
+  "ranking_version": "ranking/0-mv0-fixture",
+  "recent_session_checkpoints": [
+    {
+      "checkpoint_id": "ckp_00000001-0000-4000-8000-000000000001",
+      "revision": 1,
+      "status": "provisional",
+      "summary": "（自动摘要）讨论了 MoriMeta 下一步，准备实现 Darkroom 主题。"
+    }
+  ],
+  "recent_turns": [],
+  "relationship_context": [],
+  "relevant_memories": [],
+  "request_id": "req_00000014-0000-4000-8000-000000000014",
+  "schema_version": 1,
+  "session_id": "ses_00000001-0000-4000-8000-000000000001",
+  "tokenizer_version": "utf8_bytes_v1",
+  "user_context": [],
+  "vault_commit_id": "cmt_00000009-0000-4000-8000-000000000009",
+  "verification_needed": [
+    {
+      "conflict_group_id": null,
+      "item_id": "itm_00000001-0000-4000-8000-000000000001",
+      "memory_id": "mem_00000002-0000-4000-8000-000000000002",
+      "reason": "implementation_unverified"
+    }
+  ]
+}

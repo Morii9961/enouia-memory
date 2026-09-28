@@ -1,0 +1,1440 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "memory-v1.schema.json",
+  "title": "Enouia CanonicalMemory v1",
+  "description": "One reviewed memory revision. Keeps the Runtime M0 required fields and status enum; new fields are required with explicit null for unknown. Type-specific fields are top level. Reference closure, supersession graph, time order, and review binding are enforced by the Rust validators.",
+  "oneOf": [
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "memory_id",
+        "revision",
+        "title",
+        "content",
+        "subject_ids",
+        "project_id",
+        "category",
+        "tags",
+        "source_id",
+        "evidence",
+        "epistemic_status",
+        "confidence",
+        "valid_from",
+        "valid_until",
+        "observed_at",
+        "last_verified_at",
+        "review_after",
+        "volatility",
+        "priority",
+        "sensitivity",
+        "access_policy_id",
+        "egress_policy_id",
+        "status",
+        "supersedes",
+        "conflict_group_id",
+        "provenance_state",
+        "review_id",
+        "approved_by",
+        "approved_at",
+        "declassification_review_id",
+        "created_at",
+        "updated_at",
+        "extensions",
+        "type",
+        "claim_key"
+      ],
+      "properties": {
+        "schema_version": {
+          "$ref": "common-v1.schema.json#/$defs/schemaVersion"
+        },
+        "memory_id": {
+          "$ref": "common-v1.schema.json#/$defs/memoryId"
+        },
+        "revision": {
+          "$ref": "common-v1.schema.json#/$defs/revision"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1
+        },
+        "content": {
+          "type": "string",
+          "minLength": 1
+        },
+        "subject_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "common-v1.schema.json#/$defs/subjectId"
+          },
+          "minItems": 1
+        },
+        "project_id": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "common-v1.schema.json#/$defs/projectId"
+            }
+          ]
+        },
+        "category": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "common-v1.schema.json#/$defs/label"
+            }
+          ]
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "$ref": "common-v1.schema.json#/$defs/label"
+          }
+        },
+        "source_id": {
+          "$ref": "common-v1.schema.json#/$defs/sourceId"
+        },
+        "evidence": {
+          "type": "array",
+          "items": {
+            "$ref": "common-v1.schema.json#/$defs/evidenceRef"
+          },
+          "minItems": 1
+        },
+        "epistemic_status": {
+          "enum": [
+            "asserted",
+            "corroborated",
+            "uncertain",
+            "disputed"
+          ]
+        },
+        "confidence": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            }
+          ]
+        },
+        "valid_from": {
+          "$ref": "common-v1.schema.json#/$defs/timestampOrNull"
+        },
+        "valid_until": {
+          "$ref": "common-v1.schema.json#/$defs/timestampOrNull"
+        },
+        "observed_at": {
+          "$ref": "common-v1.schema.json#/$defs/timestampOrNull"
+        },
+        "last_verified_at": {
+          "$ref": "common-v1.schema.json#/$defs/timestampOrNull"
+        },
+        "review_after": {
+          "$ref": "common-v1.schema.json#/$defs/timestampOrNull"
+        },
+        "volatility": {
+          "$ref": "common-v1.schema.json#/$defs/volatility"
+        },
+        "priority": {
+          "$ref": "common-v1.schema.json#/$defs/priority"
+        },
+        "sensitivity": {
+          "$ref": "common-v1.schema.json#/$defs/sensitivity"
+        },
+        "access_policy_id": {
+          "$ref": "common-v1.schema.json#/$defs/policyId"
+        },
+        "egress_policy_id": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "common-v1.schema.json#/$defs/policyId"
+            }
+          ]
+        },
+        "status": {
+          "enum": [
+            "active",
+            "superseded",
+            "archived"
+          ]
+        },
+        "supersedes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "memory_id",
+              "revision",
+              "effective_from",
+              "scope"
+            ],
+            "properties": {
+              "memory_id": {
+                "$ref": "common-v1.schema.json#/$defs/memoryId"
+              },
+              "revision": {
+                "$ref": "common-v1.schema.json#/$defs/revision"
+              },
+              "effective_from": {
+                "$ref": "common-v1.schema.json#/$defs/businessTime"
+              },
+              "scope": {
+                "$ref": "common-v1.schema.json#/$defs/label"
+              }
+            }
+          }
+        },
+        "conflict_group_id": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "common-v1.schema.json#/$defs/conflictGroupId"
+            }
+          ]
+        },
+        "provenance_state": {
+          "enum": [
+            "intact",
+            "broken"
+          ]
+        },
+        "review_id": {
+          "$ref": "common-v1.schema.json#/$defs/reviewId"
+        },
+        "approved_by": {
+          "$ref": "common-v1.schema.json#/$defs/ownerRef"
+        },
+        "approved_at": {
+          "$ref": "common-v1.schema.json#/$defs/timestamp"
+        },
+        "declassification_review_id": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "common-v1.schema.json#/$defs/reviewId"
+            }
+          ]
+        },
+        "created_at": {
+          "$ref": "common-v1.schema.json#/$defs/timestamp"
+        },
+        "updated_at": {
+          "$ref": "common-v1.schema.json#/$defs/timestamp"
+        },
+        "extensions": {
+          "$ref": "common-v1.schema.json#/$defs/extensions"
+        },
+        "type": {
+          "const": "fact"
+        },
+        "claim_key": {
+          "$ref": "common-v1.schema.json#/$defs/label"
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "memory_id",
+        "revision",
+        "title",
+        "content",
+        "subject_ids",
+        "project_id",
+        "category",
+        "tags",
+        "source_id",
+        "evidence",
+        "epistemic_status",
+        "confidence",
+        "valid_from",
+        "valid_until",
+        "observed_at",
+        "last_verified_at",
+        "review_after",
+        "volatility",
+        "priority",
+        "sensitivity",
+        "access_policy_id",
+        "egress_policy_id",
+        "status",
+        "supersedes",
+        "conflict_group_id",
+        "provenance_state",
+        "review_id",
+        "approved_by",
+        "approved_at",
+        "declassification_review_id",
+        "created_at",
+        "updated_at",
+        "extensions",
+        "type",
+        "scope",
+        "strength"
+      ],
+      "properties": {
+        "schema_version": {
+          "$ref": "common-v1.schema.json#/$defs/schemaVersion"
+        },
+        "memory_id": {
+          "$ref": "common-v1.schema.json#/$defs/memoryId"
+        },
+        "revision": {
+          "$ref": "common-v1.schema.json#/$defs/revision"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1
+        },
+        "content": {
+          "type": "string",
+          "minLength": 1
+        },
+        "subject_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "common-v1.schema.json#/$defs/subjectId"
+          },
+          "minItems": 1
+        },
+        "project_id": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "common-v1.schema.json#/$defs/projectId"
+            }
+          ]
+        },
+        "category": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "common-v1.schema.json#/$defs/label"
+            }
+          ]
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "$ref": "common-v1.schema.json#/$defs/label"
+          }
+        },
+        "source_id": {
+          "$ref": "common-v1.schema.json#/$defs/sourceId"
+        },
+        "evidence": {
+          "type": "array",
+          "items": {
+            "$ref": "common-v1.schema.json#/$defs/evidenceRef"
+          },
+          "minItems": 1
+        },
+        "epistemic_status": {
+          "enum": [
+            "asserted",
+            "corroborated",
+            "uncertain",
+            "disputed"
+          ]
+        },
+        "confidence": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            }
+          ]
+        },
+        "valid_from": {
+          "$ref": "common-v1.schema.json#/$defs/timestampOrNull"
+        },
+        "valid_until": {
+          "$ref": "common-v1.schema.json#/$defs/timestampOrNull"
+        },
+        "observed_at": {
+          "$ref": "common-v1.schema.json#/$defs/timestampOrNull"
+        },
+        "last_verified_at": {
+          "$ref": "common-v1.schema.json#/$defs/timestampOrNull"
+        },
+        "review_after": {
+          "$ref": "common-v1.schema.json#/$defs/timestampOrNull"
+        },
+        "volatility": {
+          "$ref": "common-v1.schema.json#/$defs/volatility"
+        },
+        "priority": {
+          "$ref": "common-v1.schema.json#/$defs/priority"
+        },
+        "sensitivity": {
+          "$ref": "common-v1.schema.json#/$defs/sensitivity"
+        },
+        "access_policy_id": {
+          "$ref": "common-v1.schema.json#/$defs/policyId"
+        },
+        "egress_policy_id": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "common-v1.schema.json#/$defs/policyId"
+            }
+          ]
+        },
+        "status": {
+          "enum": [
+            "active",
+            "superseded",
+            "archived"
+          ]
+        },
+        "supersedes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "memory_id",
+              "revision",
+              "effective_from",
+              "scope"
+            ],
+            "properties": {
+              "memory_id": {
+                "$ref": "common-v1.schema.json#/$defs/memoryId"
+              },
+              "revision": {
+                "$ref": "common-v1.schema.json#/$defs/revision"
+              },
+              "effective_from": {
+                "$ref": "common-v1.schema.json#/$defs/businessTime"
+              },
+              "scope": {
+                "$ref": "common-v1.schema.json#/$defs/label"
+              }
+            }
+          }
+        },
+        "conflict_group_id": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "common-v1.schema.json#/$defs/conflictGroupId"
+            }
+          ]
+        },
+        "provenance_state": {
+          "enum": [
+            "intact",
+            "broken"
+          ]
+        },
+        "review_id": {
+          "$ref": "common-v1.schema.json#/$defs/reviewId"
+        },
+        "approved_by": {
+          "$ref": "common-v1.schema.json#/$defs/ownerRef"
+        },
+        "approved_at": {
+          "$ref": "common-v1.schema.json#/$defs/timestamp"
+        },
+        "declassification_review_id": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "common-v1.schema.json#/$defs/reviewId"
+            }
+          ]
+        },
+        "created_at": {
+          "$ref": "common-v1.schema.json#/$defs/timestamp"
+        },
+        "updated_at": {
+          "$ref": "common-v1.schema.json#/$defs/timestamp"
+        },
+        "extensions": {
+          "$ref": "common-v1.schema.json#/$defs/extensions"
+        },
+        "type": {
+          "const": "preference"
+        },
+        "scope": {
+          "type": "string",
+          "minLength": 1
+        },
+        "strength": {
+          "enum": [
+            "explicit",
+            "tentative"
+          ]
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "memory_id",
+        "revision",
+        "title",
+        "content",
+        "subject_ids",
+        "project_id",
+        "category",
+        "tags",
+        "source_id",
+        "evidence",
+        "epistemic_status",
+        "confidence",
+        "valid_from",
+        "valid_until",
+        "observed_at",
+        "last_verified_at",
+        "review_after",
+        "volatility",
+        "priority",
+        "sensitivity",
+        "access_policy_id",
+        "egress_policy_id",
+        "status",
+        "supersedes",
+        "conflict_group_id",
+        "provenance_state",
+        "review_id",
+        "approved_by",
+        "approved_at",
+        "declassification_review_id",
+        "created_at",
+        "updated_at",
+        "extensions",
+        "type",
+        "occurred_start",
+        "occurred_end",
+        "occurred_precision",
+        "participants",
+        "summary"
+      ],
+      "properties": {
+        "schema_version": {
+          "$ref": "common-v1.schema.json#/$defs/schemaVersion"
+        },
+        "memory_id": {
+          "$ref": "common-v1.schema.json#/$defs/memoryId"
+        },
+        "revision": {
+          "$ref": "common-v1.schema.json#/$defs/revision"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1
+        },
+        "content": {
+          "type": "string",
+          "minLength": 1
+        },
+        "subject_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "common-v1.schema.json#/$defs/subjectId"
+          }
+        },
+        "project_id": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "common-v1.schema.json#/$defs/projectId"
+            }
+          ]
+        },
+        "category": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "common-v1.schema.json#/$defs/label"
+            }
+          ]
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "$ref": "common-v1.schema.json#/$defs/label"
+          }
+        },
+        "source_id": {
+          "$ref": "common-v1.schema.json#/$defs/sourceId"
+        },
+        "evidence": {
+          "type": "array",
+          "items": {
+            "$ref": "common-v1.schema.json#/$defs/evidenceRef"
+          },
+          "minItems": 1
+        },
+        "epistemic_status": {
+          "enum": [
+            "asserted",
+            "corroborated",
+            "uncertain",
+            "disputed"
+          ]
+        },
+        "confidence": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            }
+          ]
+        },
+        "valid_from": {
+          "$ref": "common-v1.schema.json#/$defs/timestampOrNull"
+        },
+        "valid_until": {
+          "$ref": "common-v1.schema.json#/$defs/timestampOrNull"
+        },
+        "observed_at": {
+          "$ref": "common-v1.schema.json#/$defs/timestampOrNull"
+        },
+        "last_verified_at": {
+          "$ref": "common-v1.schema.json#/$defs/timestampOrNull"
+        },
+        "review_after": {
+          "$ref": "common-v1.schema.json#/$defs/timestampOrNull"
+        },
+        "volatility": {
+          "$ref": "common-v1.schema.json#/$defs/volatility"
+        },
+        "priority": {
+          "$ref": "common-v1.schema.json#/$defs/priority"
+        },
+        "sensitivity": {
+          "$ref": "common-v1.schema.json#/$defs/sensitivity"
+        },
+        "access_policy_id": {
+          "$ref": "common-v1.schema.json#/$defs/policyId"
+        },
+        "egress_policy_id": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "common-v1.schema.json#/$defs/policyId"
+            }
+          ]
+        },
+        "status": {
+          "enum": [
+            "active",
+            "superseded",
+            "archived"
+          ]
+        },
+        "supersedes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "memory_id",
+              "revision",
+              "effective_from",
+              "scope"
+            ],
+            "properties": {
+              "memory_id": {
+                "$ref": "common-v1.schema.json#/$defs/memoryId"
+              },
+              "revision": {
+                "$ref": "common-v1.schema.json#/$defs/revision"
+              },
+              "effective_from": {
+                "$ref": "common-v1.schema.json#/$defs/businessTime"
+              },
+              "scope": {
+                "$ref": "common-v1.schema.json#/$defs/label"
+              }
+            }
+          }
+        },
+        "conflict_group_id": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "common-v1.schema.json#/$defs/conflictGroupId"
+            }
+          ]
+        },
+        "provenance_state": {
+          "enum": [
+            "intact",
+            "broken"
+          ]
+        },
+        "review_id": {
+          "$ref": "common-v1.schema.json#/$defs/reviewId"
+        },
+        "approved_by": {
+          "$ref": "common-v1.schema.json#/$defs/ownerRef"
+        },
+        "approved_at": {
+          "$ref": "common-v1.schema.json#/$defs/timestamp"
+        },
+        "declassification_review_id": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "common-v1.schema.json#/$defs/reviewId"
+            }
+          ]
+        },
+        "created_at": {
+          "$ref": "common-v1.schema.json#/$defs/timestamp"
+        },
+        "updated_at": {
+          "$ref": "common-v1.schema.json#/$defs/timestamp"
+        },
+        "extensions": {
+          "$ref": "common-v1.schema.json#/$defs/extensions"
+        },
+        "type": {
+          "const": "episode"
+        },
+        "occurred_start": {
+          "$ref": "common-v1.schema.json#/$defs/timestampOrNull"
+        },
+        "occurred_end": {
+          "$ref": "common-v1.schema.json#/$defs/timestampOrNull"
+        },
+        "occurred_precision": {
+          "$ref": "common-v1.schema.json#/$defs/timePrecision"
+        },
+        "participants": {
+          "type": "array",
+          "items": {
+            "$ref": "common-v1.schema.json#/$defs/subjectId"
+          }
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "memory_id",
+        "revision",
+        "title",
+        "content",
+        "subject_ids",
+        "project_id",
+        "category",
+        "tags",
+        "source_id",
+        "evidence",
+        "epistemic_status",
+        "confidence",
+        "valid_from",
+        "valid_until",
+        "observed_at",
+        "last_verified_at",
+        "review_after",
+        "volatility",
+        "priority",
+        "sensitivity",
+        "access_policy_id",
+        "egress_policy_id",
+        "status",
+        "supersedes",
+        "conflict_group_id",
+        "provenance_state",
+        "review_id",
+        "approved_by",
+        "approved_at",
+        "declassification_review_id",
+        "created_at",
+        "updated_at",
+        "extensions",
+        "type",
+        "state",
+        "decisions",
+        "open_loops"
+      ],
+      "properties": {
+        "schema_version": {
+          "$ref": "common-v1.schema.json#/$defs/schemaVersion"
+        },
+        "memory_id": {
+          "$ref": "common-v1.schema.json#/$defs/memoryId"
+        },
+        "revision": {
+          "$ref": "common-v1.schema.json#/$defs/revision"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1
+        },
+        "content": {
+          "type": "string",
+          "minLength": 1
+        },
+        "subject_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "common-v1.schema.json#/$defs/subjectId"
+          }
+        },
+        "project_id": {
+          "$ref": "common-v1.schema.json#/$defs/projectId"
+        },
+        "category": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "common-v1.schema.json#/$defs/label"
+            }
+          ]
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "$ref": "common-v1.schema.json#/$defs/label"
+          }
+        },
+        "source_id": {
+          "$ref": "common-v1.schema.json#/$defs/sourceId"
+        },
+        "evidence": {
+          "type": "array",
+          "items": {
+            "$ref": "common-v1.schema.json#/$defs/evidenceRef"
+          },
+          "minItems": 1
+        },
+        "epistemic_status": {
+          "enum": [
+            "asserted",
+            "corroborated",
+            "uncertain",
+            "disputed"
+          ]
+        },
+        "confidence": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            }
+          ]
+        },
+        "valid_from": {
+          "$ref": "common-v1.schema.json#/$defs/timestampOrNull"
+        },
+        "valid_until": {
+          "$ref": "common-v1.schema.json#/$defs/timestampOrNull"
+        },
+        "observed_at": {
+          "$ref": "common-v1.schema.json#/$defs/timestampOrNull"
+        },
+        "last_verified_at": {
+          "$ref": "common-v1.schema.json#/$defs/timestampOrNull"
+        },
+        "review_after": {
+          "$ref": "common-v1.schema.json#/$defs/timestampOrNull"
+        },
+        "volatility": {
+          "$ref": "common-v1.schema.json#/$defs/volatility"
+        },
+        "priority": {
+          "$ref": "common-v1.schema.json#/$defs/priority"
+        },
+        "sensitivity": {
+          "$ref": "common-v1.schema.json#/$defs/sensitivity"
+        },
+        "access_policy_id": {
+          "$ref": "common-v1.schema.json#/$defs/policyId"
+        },
+        "egress_policy_id": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "common-v1.schema.json#/$defs/policyId"
+            }
+          ]
+        },
+        "status": {
+          "enum": [
+            "active",
+            "superseded",
+            "archived"
+          ]
+        },
+        "supersedes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "memory_id",
+              "revision",
+              "effective_from",
+              "scope"
+            ],
+            "properties": {
+              "memory_id": {
+                "$ref": "common-v1.schema.json#/$defs/memoryId"
+              },
+              "revision": {
+                "$ref": "common-v1.schema.json#/$defs/revision"
+              },
+              "effective_from": {
+                "$ref": "common-v1.schema.json#/$defs/businessTime"
+              },
+              "scope": {
+                "$ref": "common-v1.schema.json#/$defs/label"
+              }
+            }
+          }
+        },
+        "conflict_group_id": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "common-v1.schema.json#/$defs/conflictGroupId"
+            }
+          ]
+        },
+        "provenance_state": {
+          "enum": [
+            "intact",
+            "broken"
+          ]
+        },
+        "review_id": {
+          "$ref": "common-v1.schema.json#/$defs/reviewId"
+        },
+        "approved_by": {
+          "$ref": "common-v1.schema.json#/$defs/ownerRef"
+        },
+        "approved_at": {
+          "$ref": "common-v1.schema.json#/$defs/timestamp"
+        },
+        "declassification_review_id": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "common-v1.schema.json#/$defs/reviewId"
+            }
+          ]
+        },
+        "created_at": {
+          "$ref": "common-v1.schema.json#/$defs/timestamp"
+        },
+        "updated_at": {
+          "$ref": "common-v1.schema.json#/$defs/timestamp"
+        },
+        "extensions": {
+          "$ref": "common-v1.schema.json#/$defs/extensions"
+        },
+        "type": {
+          "const": "project_state"
+        },
+        "state": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "item_id",
+              "claim",
+              "evidence_refs",
+              "state_kind",
+              "as_of"
+            ],
+            "properties": {
+              "item_id": {
+                "$ref": "common-v1.schema.json#/$defs/itemId"
+              },
+              "claim": {
+                "type": "string",
+                "minLength": 1
+              },
+              "evidence_refs": {
+                "type": "array",
+                "items": {
+                  "$ref": "common-v1.schema.json#/$defs/sourceRevisionRef"
+                },
+                "minItems": 1
+              },
+              "state_kind": {
+                "$ref": "common-v1.schema.json#/$defs/stateKind"
+              },
+              "as_of": {
+                "$ref": "common-v1.schema.json#/$defs/timestampOrNull"
+              }
+            }
+          }
+        },
+        "decisions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "item_id",
+              "claim",
+              "evidence_refs",
+              "state_kind",
+              "as_of"
+            ],
+            "properties": {
+              "item_id": {
+                "$ref": "common-v1.schema.json#/$defs/itemId"
+              },
+              "claim": {
+                "type": "string",
+                "minLength": 1
+              },
+              "evidence_refs": {
+                "type": "array",
+                "items": {
+                  "$ref": "common-v1.schema.json#/$defs/sourceRevisionRef"
+                },
+                "minItems": 1
+              },
+              "state_kind": {
+                "const": "decided"
+              },
+              "as_of": {
+                "$ref": "common-v1.schema.json#/$defs/timestampOrNull"
+              }
+            }
+          }
+        },
+        "open_loops": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "item_id",
+              "description",
+              "evidence_refs",
+              "as_of"
+            ],
+            "properties": {
+              "item_id": {
+                "$ref": "common-v1.schema.json#/$defs/itemId"
+              },
+              "description": {
+                "type": "string",
+                "minLength": 1
+              },
+              "evidence_refs": {
+                "type": "array",
+                "items": {
+                  "$ref": "common-v1.schema.json#/$defs/sourceRevisionRef"
+                },
+                "minItems": 1
+              },
+              "as_of": {
+                "$ref": "common-v1.schema.json#/$defs/timestampOrNull"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "memory_id",
+        "revision",
+        "title",
+        "content",
+        "subject_ids",
+        "project_id",
+        "category",
+        "tags",
+        "source_id",
+        "evidence",
+        "epistemic_status",
+        "confidence",
+        "valid_from",
+        "valid_until",
+        "observed_at",
+        "last_verified_at",
+        "review_after",
+        "volatility",
+        "priority",
+        "sensitivity",
+        "access_policy_id",
+        "egress_policy_id",
+        "status",
+        "supersedes",
+        "conflict_group_id",
+        "provenance_state",
+        "review_id",
+        "approved_by",
+        "approved_at",
+        "declassification_review_id",
+        "created_at",
+        "updated_at",
+        "extensions",
+        "type",
+        "checkpoint_id",
+        "checkpoint_revision",
+        "session_id",
+        "branch_id",
+        "covered_events",
+        "coverage_hash",
+        "last_state",
+        "last_completed_turn_id",
+        "open_loops"
+      ],
+      "properties": {
+        "schema_version": {
+          "$ref": "common-v1.schema.json#/$defs/schemaVersion"
+        },
+        "memory_id": {
+          "$ref": "common-v1.schema.json#/$defs/memoryId"
+        },
+        "revision": {
+          "$ref": "common-v1.schema.json#/$defs/revision"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1
+        },
+        "content": {
+          "type": "string",
+          "minLength": 1
+        },
+        "subject_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "common-v1.schema.json#/$defs/subjectId"
+          }
+        },
+        "project_id": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "common-v1.schema.json#/$defs/projectId"
+            }
+          ]
+        },
+        "category": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "common-v1.schema.json#/$defs/label"
+            }
+          ]
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "$ref": "common-v1.schema.json#/$defs/label"
+          }
+        },
+        "source_id": {
+          "$ref": "common-v1.schema.json#/$defs/sourceId"
+        },
+        "evidence": {
+          "type": "array",
+          "items": {
+            "$ref": "common-v1.schema.json#/$defs/evidenceRef"
+          },
+          "minItems": 1
+        },
+        "epistemic_status": {
+          "enum": [
+            "asserted",
+            "corroborated",
+            "uncertain",
+            "disputed"
+          ]
+        },
+        "confidence": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            }
+          ]
+        },
+        "valid_from": {
+          "$ref": "common-v1.schema.json#/$defs/timestampOrNull"
+        },
+        "valid_until": {
+          "$ref": "common-v1.schema.json#/$defs/timestampOrNull"
+        },
+        "observed_at": {
+          "$ref": "common-v1.schema.json#/$defs/timestampOrNull"
+        },
+        "last_verified_at": {
+          "$ref": "common-v1.schema.json#/$defs/timestampOrNull"
+        },
+        "review_after": {
+          "$ref": "common-v1.schema.json#/$defs/timestampOrNull"
+        },
+        "volatility": {
+          "$ref": "common-v1.schema.json#/$defs/volatility"
+        },
+        "priority": {
+          "$ref": "common-v1.schema.json#/$defs/priority"
+        },
+        "sensitivity": {
+          "$ref": "common-v1.schema.json#/$defs/sensitivity"
+        },
+        "access_policy_id": {
+          "$ref": "common-v1.schema.json#/$defs/policyId"
+        },
+        "egress_policy_id": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "common-v1.schema.json#/$defs/policyId"
+            }
+          ]
+        },
+        "status": {
+          "enum": [
+            "active",
+            "superseded",
+            "archived"
+          ]
+        },
+        "supersedes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "memory_id",
+              "revision",
+              "effective_from",
+              "scope"
+            ],
+            "properties": {
+              "memory_id": {
+                "$ref": "common-v1.schema.json#/$defs/memoryId"
+              },
+              "revision": {
+                "$ref": "common-v1.schema.json#/$defs/revision"
+              },
+              "effective_from": {
+                "$ref": "common-v1.schema.json#/$defs/businessTime"
+              },
+              "scope": {
+                "$ref": "common-v1.schema.json#/$defs/label"
+              }
+            }
+          }
+        },
+        "conflict_group_id": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "common-v1.schema.json#/$defs/conflictGroupId"
+            }
+          ]
+        },
+        "provenance_state": {
+          "enum": [
+            "intact",
+            "broken"
+          ]
+        },
+        "review_id": {
+          "$ref": "common-v1.schema.json#/$defs/reviewId"
+        },
+        "approved_by": {
+          "$ref": "common-v1.schema.json#/$defs/ownerRef"
+        },
+        "approved_at": {
+          "$ref": "common-v1.schema.json#/$defs/timestamp"
+        },
+        "declassification_review_id": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "common-v1.schema.json#/$defs/reviewId"
+            }
+          ]
+        },
+        "created_at": {
+          "$ref": "common-v1.schema.json#/$defs/timestamp"
+        },
+        "updated_at": {
+          "$ref": "common-v1.schema.json#/$defs/timestamp"
+        },
+        "extensions": {
+          "$ref": "common-v1.schema.json#/$defs/extensions"
+        },
+        "type": {
+          "const": "session_checkpoint"
+        },
+        "checkpoint_id": {
+          "$ref": "common-v1.schema.json#/$defs/checkpointId"
+        },
+        "checkpoint_revision": {
+          "$ref": "common-v1.schema.json#/$defs/revision"
+        },
+        "session_id": {
+          "$ref": "common-v1.schema.json#/$defs/sessionId"
+        },
+        "branch_id": {
+          "$ref": "common-v1.schema.json#/$defs/branchId"
+        },
+        "covered_events": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "from_sequence",
+            "to_sequence"
+          ],
+          "properties": {
+            "from_sequence": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            },
+            "to_sequence": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            }
+          }
+        },
+        "coverage_hash": {
+          "$ref": "common-v1.schema.json#/$defs/sha256"
+        },
+        "last_state": {
+          "type": "string",
+          "minLength": 1
+        },
+        "last_completed_turn_id": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "common-v1.schema.json#/$defs/turnId"
+            }
+          ]
+        },
+        "open_loops": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "item_id",
+              "description",
+              "evidence_refs",
+              "as_of"
+            ],
+            "properties": {
+              "item_id": {
+                "$ref": "common-v1.schema.json#/$defs/itemId"
+              },
+              "description": {
+                "type": "string",
+                "minLength": 1
+              },
+              "evidence_refs": {
+                "type": "array",
+                "items": {
+                  "$ref": "common-v1.schema.json#/$defs/sourceRevisionRef"
+                },
+                "minItems": 1
+              },
+              "as_of": {
+                "$ref": "common-v1.schema.json#/$defs/timestampOrNull"
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}
