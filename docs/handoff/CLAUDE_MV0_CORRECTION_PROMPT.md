@@ -1,5 +1,7 @@
 # Claude 下一轮：MV-0R 独立仓库迁移与契约修正
 
+> **已执行（2026-09-28）：** 结果见 [MV-0R 报告](../validation/MV-0R.md)。本文保留为该轮任务输入。
+
 Morii 已纠正工程归属：**Enouia Memory 必须在 Memory 仓库（本地 checkout） 独立开发，使用公开 GitHub 仓库 `https://github.com/Morii9961/enouia-memory`。** 此前将 Runtime 指定为实现仓库的提示词已失效；这是 Enouia 原交接的问题，不要求你为按旧提示词执行而重做全部成果。
 
 本轮只完成 **MV-0R：安全迁移现有 MV-0 成果、修复契约问题、独立复验、移除 Runtime 中误放的本次 Memory 改动**。完成后停止，不进入 MV-1，不实现 Vault 存储/模型/UI/MCP/VPS。

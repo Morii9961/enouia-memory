@@ -10,7 +10,7 @@
 //! JSON Schemas under `contracts/{memory,context,provider,ipc}` describe the
 //! same shapes. Constraints a schema cannot express (real dates, time order,
 //! reference closure, supersession cycles, status history, idempotency) are
-//! enforced here and listed in `docs/memory/CONTRACT_CONSTRAINTS_MV0.md`.
+//! enforced here and listed in `docs/contracts/CONSTRAINT_MAP.md`.
 //! Passing these validators does not prove transactional durability; that is
 //! MV-1 behavior tested against a real store.
 

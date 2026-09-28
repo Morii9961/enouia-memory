@@ -233,3 +233,59 @@ fn morimeta_without_confirmation_has_no_chosen_design() {
     assert!(rules.contains(&"memory.review_missing"), "{rules:?}");
     assert!(rules.contains(&"evidence.unresolved"), "{rules:?}");
 }
+
+#[test]
+fn commit_catalog_digests_match_canonical_record_bytes() {
+    use enouia_memory_contract::hash::sha256;
+    use enouia_memory_contract::json::canonical_bytes;
+    use enouia_memory_contract::{RecordKind, parse_any};
+    const KEYS: &[(&str, &str, &str)] = &[
+        ("source", "sources", "source_id"),
+        ("attachment", "attachments", "attachment_id"),
+        ("project", "projects", "project_id"),
+        ("memory", "memories", "memory_id"),
+        ("candidate", "candidates", "candidate_id"),
+        ("review", "reviews", "review_id"),
+        ("identity", "identities", "identity_id"),
+        ("session", "sessions", "session_id"),
+        ("session_event", "session_events", "event_id"),
+        ("checkpoint", "checkpoints", "checkpoint_id"),
+        ("tombstone", "tombstones", "delete_id"),
+        ("approval", "approvals", "approval_id"),
+        ("policy", "policies", "policy_id"),
+    ];
+    let manifest = fixture("sets-manifest.json");
+    let mut checked = 0;
+    for file in manifest["valid"].as_array().unwrap() {
+        let set = fixture(file.as_str().unwrap());
+        for commit in set["commits"].as_array().unwrap() {
+            for entry in commit["catalog"].as_array().unwrap() {
+                let kind = entry["record_kind"].as_str().unwrap();
+                let (_, key, id_field) = KEYS.iter().find(|(k, _, _)| *k == kind).unwrap();
+                let revision = entry["revision"].as_u64().unwrap();
+                let document = set[*key]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .find(|d| {
+                        d[*id_field] == entry["record_id"]
+                            && d.get("revision").map_or(1, |r| r.as_u64().unwrap()) == revision
+                    })
+                    .unwrap();
+                // Parse strictly, re-serialize canonically, hash those bytes.
+                let record_kind: RecordKind =
+                    serde_json::from_value(entry["record_kind"].clone()).unwrap();
+                let record = parse_any(record_kind, document).unwrap();
+                let digest = sha256(&canonical_bytes(&record.to_value()).unwrap());
+                assert_eq!(
+                    digest.as_str(),
+                    entry["content_hash"],
+                    "{file} {kind} {}",
+                    entry["record_id"]
+                );
+                checked += 1;
+            }
+        }
+    }
+    assert!(checked > 300, "{checked}");
+}

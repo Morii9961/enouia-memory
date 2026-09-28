@@ -1,16 +1,18 @@
 # MV-0 validation — Memory contract freeze and repository alignment
 
+> Links that pointed into the Runtime working-tree layout were turned into plain text when this file moved to `docs/history/`.
+
 > **Historical record (MV-0 draft).** This report was written while the MV-0 draft lived in the Enouia Runtime working tree. The independent review ([F1–F6](../reviews/MV0_REVIEW_AND_REPO_CORRECTION.md)) found contract defects, so **MV-0 is not frozen**. The draft was moved into this repository and is re-validated in MV-0R. Paths and ADR numbers below refer to the Runtime draft.
 
-Date: 2026-09-28. Scope: MV-0 only. MV-1 has not started. The work is uncommitted in the working tree on `main`, over `cd14bcf`. The session started at `3ab5c5d`. The five Activity commits between those two points were made by another contributor; see [docs/memory/README](../memory/README.md#baseline-and-drift-check).
+Date: 2026-09-28. Scope: MV-0 only. MV-1 has not started. The work is uncommitted in the working tree on `main`, over `cd14bcf`. The session started at `3ab5c5d`. The five Activity commits between those two points were made by another contributor; see docs/memory/README.
 
 ## Delivered
 
 | Package | Artifacts |
 |---|---|
-| MV-0.1 alignment | `docs/memory/design/` (imported package, three files redacted), [docs/memory/README](../memory/README.md) (baseline, drift, import hashes, milestone mapping), [ADR-020–029 with ADR-MEM mapping](../adr/memory-extension-v1.md), register entries in [docs/adr/README](../adr/README.md), [contract change note](../memory/CONTRACT_CHANGES_MV0.md), pointers in README, IMPLEMENTATION_PLAN_v0.3 and CONTRACT_BOUNDARIES_M0 |
+| MV-0.1 alignment | `docs/memory/design/` (imported package, three files redacted), docs/memory/README (baseline, drift, import hashes, milestone mapping), ADR-020–029 with ADR-MEM mapping, register entries in [docs/adr/README](../adr/README.md), contract change note, pointers in README, IMPLEMENTATION_PLAN_v0.3 and CONTRACT_BOUNDARIES_M0 |
 | MV-0.2 contracts and fixtures | 15 schemas in `contracts/memory`, 4 in `contracts/context`, 1 in `contracts/provider`, `contracts/ipc/memory-v1.schema.json`. Crate `enouia-memory-contract` (22 modules): typed IDs/time/hashes, records, strict parsing, per-record and cross-record validators, temporal and egress rules, IPC types. Fixtures in `tests/fixtures/memory`: 43 valid records (all 18 record kinds, all five memory types), 90 invalid record mutations, 3 consistent sets (MoriMeta confirmed, MoriMeta without sufficient evidence, lifecycle), 46 set mutations, 12 valid requests, 10 valid responses, 29 invalid IPC messages |
-| MV-0.3 ports/errors/dependencies | `ports` module (IdSource, VaultReader/Writer, CommitRequest/Outcome, AuditSink, PolicyGate, ProviderPort, SecretStore, BackupPort; pure `classify_retry`, `commit_time`), `MemoryErrorCode` (23), `layout` (relative Vault paths), [constraint map](../memory/CONTRACT_CONSTRAINTS_MV0.md) |
+| MV-0.3 ports/errors/dependencies | `ports` module (IdSource, VaultReader/Writer, CommitRequest/Outcome, AuditSink, PolicyGate, ProviderPort, SecretStore, BackupPort; pure `classify_retry`, `commit_time`), `MemoryErrorCode` (23), `layout` (relative Vault paths), constraint map |
 | MV-0.4 checks | This report |
 
 ## Commands and results
@@ -43,7 +45,7 @@ One intermediate full run failed two `enouia-windows-process` Cowork discovery t
 - The schema harness is an in-repository subset validator with its own small regex engine, because no JSON Schema crate was in the offline cache. It fails on any unsupported keyword and is covered by self-tests. It has not been cross-checked against an independent implementation such as ajv or python-jsonschema. That cross-check is recommended once a vetted tool is available.
 - Fixture capsules, inspections and dispatches are hand-built. The tests prove they agree with the frozen hard rules (tombstones, policy, provenance, valid time, conflict visibility, currency labels, capsule ⊇ dispatch). They do not prove that a compiler selects them; that is MV-5.
 - Commit-catalog `content_hash` values are computed over canonical bytes by the generator, but no Rust test recomputes them yet (MV-1).
-- 126 of the 219 validator rule IDs have a dedicated negative fixture. The rest are implemented without their own fixture; the [constraint map](../memory/CONTRACT_CONSTRAINTS_MV0.md#rule-coverage-by-negative-fixtures) lists them.
+- 126 of the 219 validator rule IDs have a dedicated negative fixture. The rest are implemented without their own fixture; the constraint map lists them.
 
 ## Not done; left to MV-1 or later
 

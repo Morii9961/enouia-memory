@@ -8,7 +8,9 @@
 
 2026-09-28 只读检查时，Runtime Cargo workspace 包含 common、activity-contract、activity、windows-process、activity-store、activity-delivery；未列出 memory、context、session、provider 或 Windows app。README 报告了 Activity 多项原语进展；本轮没有重新运行这些测试，不把它们当作 Memory 已存在的证据。
 
-对既有设计的新增/收紧列在 [决策表](DECISIONS_AND_SOURCES.md)：历史导入提前、人工批准边界、事务级提交、加密备份门槛、后续常驻进程。Claude 应先把差异登记为 Runtime 后续 ADR，再实现相应阶段；本目录不会自动取代另一个仓库的已生效契约。
+对既有设计的新增/收紧列在 [决策表](DECISIONS_AND_SOURCES.md)：历史导入提前、人工批准边界、事务级提交、加密备份门槛、后续常驻进程。
+
+**v1.1 更正（MV-0R）：** Memory 在独立仓库实现，拥有自己的契约、领域代码与最小宿主端口；Runtime 只通过版本化契约或固定版本发布物接入，并以自身适配器映射健康状态与错误（[ADR-MEM-19](../adr/README.md)）。Runtime 的已生效契约不被本仓库改写；差异记录在本仓库 ADR 与 [契约说明](../contracts/CONTRACT_NOTES.md)。
 
 ## 2. 系统全图
 
@@ -56,7 +58,7 @@ Activity 没有进入这条数据链。Windows 可以在独立 Activity 页面�
 | Gateway / Sync | 接收、持久暂存、租约、去重、游标、回执 | 不做权威记忆合并，不替本地批准 |
 | BackupService | 固定提交点导出、加密备份、检查与恢复演练 | 备份成功不等于恢复已验证 |
 
-逻辑组件不等于立即拆出同名 crate。初期在既有目标 crates 中按模块实现：memory 拥有存储/审核/索引，context 拥有检索与编译，session 拥有会话，provider 拥有适配器，core 组合它们。避免为尚未实现的远程功能搭建空框架。
+逻辑组件不等于立即拆出同名 crate。v1.1：全部在本仓库实现，先有纯契约 crate `enouia-memory-contract`，其后按阶段需要增加 memory（存储/审核/索引）、context（检索与编译）、session（会话）、provider（适配器）等 crate；Windows 客户端组合它们的工作属于 Runtime。避免为尚未实现的远程功能搭建空框架。
 
 ## 4. 谁是权威源
 
@@ -75,12 +77,12 @@ Raw 只证明“来源中有这段内容”；Canonical 表示“Morii 以此范
 
 ## 5. 数据根与可读格式
 
-运行数据默认在 `%LOCALAPPDATA%\EnouiaRuntime`；允许显式更换经过验证的本地绝对路径。不使用本设计目录、源代码库、安装目录、网络共享或 OneDrive 同步目录作为运行 Vault。
+运行数据默认在 `%LOCALAPPDATA%\EnouiaMemory`（v1.1；与 Runtime/Activity 的数据根分开）；允许显式更换经过验证的本地绝对路径。不使用本仓库、其他源代码库、安装目录、网络共享或 OneDrive 同步目录作为运行 Vault。
 
 以下为目标布局，仅是路径规范，没有在本轮创建这些目录：
 
 ```text
-EnouiaRuntime/
+EnouiaMemory/
   vault/
     vault.json                         稳定 vault_id、格式、设备与版本说明
     CURRENT                            指向一个完整提交清单
@@ -93,6 +95,7 @@ EnouiaRuntime/
     records/session/<id>/<revision>.json
     records/checkpoint/<id>/<revision>.json
     records/policy/<id>/<revision>.json
+    records/approval/<id>.json            外发/降级/授权批准（v1.1）
     records/tombstone/<id>.json
     records/receipt/<id>.json
     raw/objects/<sha256>                收到的原始字节，含完整导出包
@@ -106,7 +109,7 @@ EnouiaRuntime/
   config/                              非秘密配置
   backup-state/                        备份回执与恢复演练信息
   sync-state/                          后续阶段的持久同步状态
-  activity/                            既有独立 Activity 域；不被 Vault 操作触碰
+（Activity 数据属于 Runtime 自己的数据根，不在此布局内，Vault 操作从不触碰。）
 ```
 
 每个 memory ID 每次修订一个 JSON，格式 UTF-8、稳定键顺序、两空格缩进、LF；哈希以实际保存字节为准。Markdown Identity 也具有 sidecar 元数据修订并由同一提交引用。不得依赖操作系统文件 mtime 判断业务时序。

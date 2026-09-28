@@ -1,8 +1,10 @@
 # ADR-020 – ADR-029 — Memory extension v1 (MV-0)
 
+> Links that pointed into the Runtime working-tree layout were turned into plain text when this file moved to `docs/history/`.
+
 > **Draft, pending MV-0R renumbering and correction.** These ADRs were drafted under Runtime's ADR register numbers 020–029 and never committed there. MV-0R moves them into this repository's own register.
 
-Recorded 2026-09-28 during MV-0. These decisions register the [Memory design package v1.0](../memory/design/README.md) against Architecture v0.3 and ADR-001–019. "Adopted" means the contract now takes this direction. Behavior that needs a real store, installed product, or external resource stays unimplemented until its stage passes. "Direction recorded" / "Deferred" activates nothing. Activity Track B (B1–B5) is not reordered or extended by any of these.
+Recorded 2026-09-28 during MV-0. These decisions register the Memory design package v1.0 against Architecture v0.3 and ADR-001–019. "Adopted" means the contract now takes this direction. Behavior that needs a real store, installed product, or external resource stays unimplemented until its stage passes. "Direction recorded" / "Deferred" activates nothing. Activity Track B (B1–B5) is not reordered or extended by any of these.
 
 ## ADR-MEM → repository mapping
 
@@ -29,7 +31,7 @@ The design package numbers its decisions ADR-MEM-01…18 locally. They map as fo
 | ADR-MEM-17 Single primary; offline edits become candidates | **ADR-029** | Refines ADR-008 | Deferred (MV-10) |
 | ADR-MEM-18 Adapters opened only after measurement | ADR-020 | Principle | Adopted |
 
-Mapping from the old milestones: MV-0 finishes the "A1 schema" handoff from the [M0 agreement](../CONTRACT_BOUNDARIES_M0.md). MV-1, MV-3 and MV-4 refine the old A1, MV-5 corresponds to A2, and MV-6 to A3. MV-2, history import, moves ahead of the v0.2 "product 0.2" import. Track B milestones and their gates are unchanged.
+Mapping from the old milestones: MV-0 finishes the "A1 schema" handoff from the M0 agreement. MV-1, MV-3 and MV-4 refine the old A1, MV-5 corresponds to A2, and MV-6 to A3. MV-2, history import, moves ahead of the v0.2 "product 0.2" import. Track B milestones and their gates are unchanged.
 
 ## ADR-020 — Memory design package v1.0 and MV milestones (Adopted)
 

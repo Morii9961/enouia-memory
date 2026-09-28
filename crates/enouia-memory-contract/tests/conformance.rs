@@ -109,6 +109,8 @@ fn valid_records_pass_schema_and_rust_and_round_trip_losslessly() {
         "inspection",
         "dispatch",
         "provider_capabilities",
+        "approval",
+        "policy",
     ] {
         assert!(kinds.contains(required), "no valid fixture for {required}");
     }

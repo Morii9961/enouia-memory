@@ -1,6 +1,6 @@
-# Enouia Memory · 架构设计包 v1.0
+# Enouia Memory · 架构设计包 v1.1
 
-> **2026-09-28 仓库归属更正：** Morii 已明确要求将本目录作为 Enouia Memory 的独立工程，GitHub 公开仓库 [Morii9961/enouia-memory](https://github.com/Morii9961/enouia-memory) 已创建。原设计中“把实现放进 Runtime 工作区”的安排已失效；其他文档尚需在修正阶段逐项同步。当前先读 [MV-0 独立审核与纠正方案](../reviews/MV0_REVIEW_AND_REPO_CORRECTION.md) 和 [Claude 下一轮提示词](../handoff/CLAUDE_MV0_CORRECTION_PROMPT.md)，暂不进入 MV-1。下文记录最初设计包范围，不表示后来的 MV-0 代码已迁入本目录。
+> **v1.1 修订（2026-09-28，MV-0R）：** Enouia Memory 在本仓库 [Morii9961/enouia-memory](https://github.com/Morii9961/enouia-memory) 独立开发（ADR-MEM-19）。原设计中“把实现放进 Runtime 工作区”的安排已失效，MV-0 草稿已迁入本仓库并按 [独立审核](../reviews/MV0_REVIEW_AND_REPO_CORRECTION.md) 修正 F1～F6，结果见 [MV-0R 报告](../validation/MV-0R.md) 与 [ADR 登记簿](../adr/README.md)。本版只修改工程归属、数据根与阶段入口；v1.0 原文可在 Git 历史（提交 da0d1e3）中查看。下文“本轮核对范围”记录最初设计包的范围。
 
 设计日期：2026-09-28。设计负责人：Enouia（本轮由 Codex 完成）；后续实现交接对象：用户指定的 Claude Opus 5.5。
 

@@ -90,6 +90,21 @@ Runtime 核对路径为 Runtime 仓库（本地 checkout），HEAD 为 `3ab5c5da
 
 不对当前 OpenAI/Anthropic 模型名称、价格、账户 MCP 资格、平台导出稳定格式作未经验证的结论。真实 Provider 和具体聊天产品接入阶段必须重新查官方接口与实际账户能力。原材料提到的 ACHERNAR 只作为思想来源名，不构成已读过其完整架构或采用其依赖的声明。
 
+## 4a. v1.1 追加决定（2026-09-28，MV-0R）
+
+| ID | 决定 |
+|---|---|
+| ADR-MEM-19 | Memory 独立仓库、自有最小宿主端口；Runtime 经版本化契约接入；默认数据根 `%LOCALAPPDATA%\EnouiaMemory` |
+| ADR-MEM-20～29 | MV-0 草稿中的实现决定，改用本仓库编号（原稿见 `docs/history/`） |
+| ADR-MEM-30 | 外发、降级、授权批准必须绑定所批准的确切对象（修正 F1/F2） |
+| ADR-MEM-31 | 持久 Policy/Grant/撤回记录与默认拒绝评估（修正 F4） |
+| ADR-MEM-32 | 替代生效时间未知时保持未知（修正 F5，取代 MV-0 草稿规则） |
+| ADR-MEM-33 | 请求载荷摘要绑定实际发送内容（修正 F3） |
+| ADR-MEM-34 | 数值范围一致与 checked arithmetic（修正 F6） |
+| ADR-MEM-35 | 固定版本 python-jsonschema 独立交叉校验 |
+
+详见 [ADR 登记簿](../adr/README.md)。上文 §3 是 v1.0 设计时对 Runtime 的只读核对记录，保留为历史。
+
 ## 5. 已确定与留到启用前的事项
 
 | 事项 | 本轮结论 | 必须落定的阶段 |

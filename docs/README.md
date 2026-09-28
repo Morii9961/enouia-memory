@@ -4,10 +4,13 @@ All project documentation lives under `docs/`.
 
 | Folder | Content | Status |
 |---|---|---|
-| [design/](design/README.md) | Memory design package v1.0 (Chinese): vision, architecture, data model, import/review, context, interfaces, privacy/recovery, plan, acceptance, decisions, handoff | Target specification. Sections that assumed "implementation lives in Runtime" are superseded by the repository correction below |
+| [design/](design/README.md) | Memory design package v1.1 (Chinese): vision, architecture, data model, import/review, context, interfaces, privacy/recovery, plan, acceptance, decisions, handoff | Target specification. v1.1 corrects repository ownership, the data root and the MV-0R entry; v1.0 is in Git history (`da0d1e3`) |
 | [reviews/](reviews/MV0_REVIEW_AND_REPO_CORRECTION.md) | Independent MV-0 review: findings F1–F6 and the migration plan R0–R5 | Authoritative for MV-0R |
 | [handoff/](handoff/) | Startup prompts: the original MV-0 prompt (superseded) and the MV-0R correction prompt | Historical or current task inputs, not standing authorization |
-| `adr/`, `contracts/`, `validation/` | Decisions, contract notes, and stage evidence, migrated from the MV-0 draft and corrected in MV-0R | Added during MV-0R |
+| [adr/](adr/README.md) | Decision register: design ADR-MEM-01…18 and implementation ADR-MEM-19…35 | Current |
+| [contracts/](contracts/CONTRACT_NOTES.md) | Contract notes and the [constraint enforcement map](contracts/CONSTRAINT_MAP.md) | Current (MV-0R) |
+| [validation/](validation/MV-0R.md) | Stage evidence: the MV-0R report | Current |
+| [history/](history/) | The MV-0 draft report and ADR draft written in the Runtime working tree, kept as history | Historical |
 | `history/private/` | Original v0.1 working draft. It contains personal examples, so it is kept locally and ignored by Git | Private, not published |
 
 ## Import record (2026-09-28)
