@@ -63,6 +63,8 @@ flowchart LR
 
 ## 5. MV-1 — Vault 与恢复底座
 
+> **v1.1：** MV-1 已在本仓库实现（合成数据、隔离目录），证据、测量与待办见 [MV-1 报告](../validation/MV-1.md)。restic 加密备份、OS 崩溃与断电证据仍为 pending。
+
 1. **MV-1.1 存储安全**：实现数据根校验、NTFS ACL 检测/设置入口、reparse 防逃逸、配额预检、OS 单写者锁；秘密不经日志。
 2. **MV-1.2 提交与恢复**：实现 immutable revisions、完整 catalog manifest、CURRENT 原子可见性、expected revisions、幂等 receipt、只读 pin；测试每个持久化边界。
 3. **MV-1.3 最小会话/来源对象**：先支持确定性合成输入与 manual_assertion，所有关键字段落文件；实现健康状态和受限审计，不提前做智能抽取。

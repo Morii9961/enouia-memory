@@ -1,6 +1,6 @@
-# Contract notes (MV-0R)
+# Contract notes (MV-0R, updated in MV-1)
 
-Status 2026-09-28: these are the corrected MV-0 contracts after the [independent review](../reviews/MV0_REVIEW_AND_REPO_CORRECTION.md). They are kept as a contract freeze candidate for MV-1 to build on. Behavior that needs a real store (atomic commits, recovery, durability) is **not** proven by these contracts; it is MV-1 evidence.
+Status 2026-09-28: these are the corrected MV-0 contracts after the [independent review](../reviews/MV0_REVIEW_AND_REPO_CORRECTION.md). They are kept as a contract freeze candidate for MV-1 to build on. Behavior that needs a real store (atomic commits, recovery, durability) is **not** proven by these contracts; it is MV-1 evidence ([MV-1 report](../validation/MV-1.md)). MV-1 added the store file contracts (`contracts/store/`, ADR-MEM-36) and refined three ports, noted below.
 
 ## 1. Relation to Enouia Runtime M0
 
@@ -37,16 +37,16 @@ Host ports (`foundation`): `Clock`/`FakeClock`, `Cancellation`, `WriterLock` (OS
 
 | Port | Contract |
 |---|---|
-| `IdSource` | 16 random bytes → typed v4 ID. `SequentialIdSource` for tests; the production CSPRNG arrives in MV-1 |
+| `IdSource` | 16 random bytes → typed v4 ID. `SequentialIdSource` for tests; `OsIdSource` (BCryptGenRandom) in `enouia-memory-vault` |
 | `VaultReader` | Pins a commit with its epochs. An unverifiable `CURRENT` gives `vault_recovering`, never a guess |
-| `VaultWriter` | One transaction per call under the writer lock. Checks `expected_commit_id` and per-record expected revisions (`revision_conflict`). Returns `Committed` or `Replayed` |
+| `VaultWriter` | One transaction per call under the writer lock. The caller pre-assigns `commit_id` (reviews name their commit). Checks `expected_commit_id` and per-record expected revisions (`revision_conflict`). The idempotency scope (required) is principal + commit `OperationKind` + key hash. `StagedObject` carries its `ObjectKind`. Returns `Committed` or `Replayed` |
 | `classify_retry` | Same scope + same payload → replay. Different payload → `idempotency_conflict` |
 | `commit_time` | A clock earlier than the parent commit gives `clock_regression` |
 | `AuditSink` | An audit failure closes external reads and dispatch (`audit_unavailable`) |
 | `PolicyGate` | `AccessRequest` = authenticated principal, operation, scope, purpose, full destination, server-resolved targets (record revision, project, sensitivity). Default deny; `policy::evaluate` is the reference |
 | `ProviderPort` | Receives only a `ProviderRequest` that passes `verify_against` for its Dispatch |
 | `SecretStore` / `SecretBytes` | Not serializable, not clonable, redacted Debug |
-| `BackupPort` | Backs up a pinned commit under a lease. A restore plan keeps the network off until tombstones and revocations are reconciled |
+| `BackupPort` | Backs up a pinned commit under a lease. A restore plan keeps the network off until tombstones and revocations are reconciled. MV-1 implements the export/verify/restore functions and a restic command adapter; the trait itself is wired once restic is installed (lease/GC arrive with purge in MV-3) |
 
 `MemoryErrorCode` has 23 codes. `unauthenticated`, `permission_denied` and `not_found` are non-disclosing. IPC errors carry only `{code, component, retryable}`.
 
@@ -55,7 +55,10 @@ Host ports (`foundation`): `Clock`/`FakeClock`, `Cancellation`, `WriterLock` (OS
 ```text
 enouia-memory-contract  (serde, serde_json only)
         ↑
-(future) memory / context / session / provider crates in this repository
+enouia-memory-vault     (+ windows-sys =0.61.2 on Windows)   ← MV-1
+        ↑
+enouia-memory-cli       (local entry point)                   ← MV-1
+(future) context / session / provider crates in this repository
         ↑
 Enouia Runtime adapters (Windows client), via versioned contracts or a pinned release
 ```

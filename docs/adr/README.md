@@ -27,7 +27,7 @@ These come from [design/DECISIONS_AND_SOURCES](../design/DECISIONS_AND_SOURCES.m
 | ADR-MEM-17 | Single primary; offline edits become candidates | Deferred (MV-10) |
 | ADR-MEM-18 | Adapters open only after measurement | Adopted |
 
-## ADR-MEM-19 … 36 — implementation decisions (MV-0 / MV-0R / MV-1)
+## ADR-MEM-19 … 37 — implementation decisions (MV-0 / MV-0R / MV-1)
 
 ADR-MEM-20 to 29 were first drafted with Enouia Runtime's register numbers 020–029 and never committed there. The draft is kept in [history](../history/adr-draft-runtime-numbering.md). Numbering here is this repository's own.
 
@@ -104,6 +104,21 @@ The store's own files are versioned contracts under `contracts/store/` with Rust
 Port refinements: a `CommitRequest` always carries an idempotency scope, and scopes are keyed by commit `OperationKind` (imports have no IPC operation). A `StagedObject` carries its `ObjectKind`. A manifest's `objects` list, like its catalog, is complete: every object reachable at that commit. Content-addressed objects live under `raw/objects`, `assets/objects`, and `session-content/objects`; Identity Markdown is stored beside its revision.
 
 The caller pre-assigns `commit_id` (from its `IdSource`), because a review names the commit that applies it; the store refuses an existing ID. A commit that catalogs an Identity revision must carry its Markdown object, so the synthetic lifecycle fixture now lists that object (`sets/lifecycle-objects.json` holds its bytes). Catalog entries and receipt records are ordered by record-kind name, then ID. Every commit is checked against every cross-record rule over the complete history before it is published (`VaultOptions::validate_record_set`, on by default).
+
+### ADR-MEM-37 — Vault store implementation (Adopted, MV-1)
+
+`enouia-memory-vault` implements the store on Windows/NTFS with these choices:
+
+- **Data root.** Enabled only after `verify_data_root`: absolute, canonical (no 8.3 or `subst` indirection), a local fixed disk, NTFS or ReFS, no reparse point on the path, no cloud-file attributes, not under a sync-client folder (OneDrive environment roots plus known client folder names), a Git working tree, Program Files, or Windows, and a free-space floor. Nothing creates `%LOCALAPPDATA%\EnouiaMemory`; every entry point takes an explicit root.
+- **Managed paths.** Relative names of `[A-Za-z0-9_.-]` under the managed roots only (no `..`, device names, colons). Every existing component between the root and a target is checked for reparse points before each operation. A check-then-use window remains against a same-user attacker; it is documented, not closed.
+- **Writer lock.** An exclusive `LockFileEx` on `vault/LOCK` through `File::try_lock`, held by an open handle and released by the OS when the process ends. Waiting is bounded; the result is `busy`.
+- **Durability primitives.** Files are flushed (`FlushFileBuffers`) before use; replacements go through `MoveFileExW(REPLACE_EXISTING | WRITE_THROUGH)` in the same directory. `CURRENT` is the only publication step. The claim is limited to process crashes (V09).
+- **Transaction.** Staging, then final names, then the manifest, then the idempotency entry, then `CURRENT`, then the journal. Anything written before `CURRENT` is unreferenced; a file found at a name the transaction must write is moved to `vault/orphans/`, never deleted. A manifest left under the caller's commit ID by a crashed attempt is quarantined the same way; only a manifest on the published chain counts as a reused ID.
+- **Validation on commit.** Every staged record is strictly parsed, must be in canonical bytes, and must be the next revision; then `set::validate_set` runs over the complete history plus the new commit before anything is written.
+- **Recovery.** A damaged `CURRENT` makes reads and writes return `vault_recovering`. `recovery_report` lists publish-journal evidence first, then complete but never-published manifests; nothing is chosen automatically. `adopt_recovery_point` needs the owner and a complete candidate and writes a receipt before replacing `CURRENT`.
+- **Backup exit.** A pinned-commit export (descriptor, whole chain, every cataloged revision, head objects, sealed audit segments) is verified independently and restored only into an empty verified root, with network use gated until reconciliation. Encryption is restic's job; the adapter passes the password only through a cleared child environment.
+- **Audit and health.** Audit lines are validated `AuditEvent`s in size-rotated JSONL segments; health reads never write.
+- **Measured cost and trigger.** A complete catalog costs about 241 bytes per record in every manifest, so cumulative manifest bytes grow quadratically with single-record commits, and full-history validation grows with the Vault. MV-1 keeps this for simplicity and verifiability. The segmented or incremental catalog (and incremental validation) is required before a head manifest exceeds 1 MiB (about 4,000 records) or commit latency exceeds 1 s on the reference machine, whichever comes first; real history import (MV-2) must be measured against this trigger.
 
 ## Relation to Enouia Runtime's register
 
