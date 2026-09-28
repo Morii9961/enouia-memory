@@ -6,12 +6,15 @@
 //! data root, reads real memories, or talks to a network, model, or sync
 //! service. Durability claims are limited to process crashes (V09).
 
+pub mod audit;
 pub mod error;
 pub mod fault;
 pub mod fs;
+pub mod health;
 pub mod lock;
 pub mod platform;
 pub mod root;
+pub mod service;
 pub mod store;
 
 pub use error::{Fault, VaultError};

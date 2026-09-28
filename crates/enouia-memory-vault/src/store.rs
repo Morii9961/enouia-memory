@@ -404,6 +404,16 @@ impl Vault {
         &self.root
     }
 
+    /// Current time from the injected clock (UTC milliseconds).
+    pub fn now(&self) -> Result<enouia_memory_contract::time::Timestamp> {
+        Ok(commit_time(self.clock.as_ref(), None, ComponentId::Vault)?)
+    }
+
+    /// Sixteen bytes from the injected ID source, for new typed IDs.
+    pub fn random_id_bytes(&self) -> [u8; 16] {
+        self.ids.random_16()
+    }
+
     // ---------------------------------------------------------------- reads
 
     fn load_manifest(
@@ -788,6 +798,21 @@ impl Vault {
                 && !identity_hashes.contains(&object.hash)
             {
                 return Err(VaultError::invalid(vec!["store.identity_markdown_orphan"]));
+            }
+        }
+        for object in objects
+            .iter()
+            .filter(|o| o.kind == ObjectKind::SessionContent)
+        {
+            let referenced = prepared.iter().any(|p| match &p.record {
+                AnyRecord::SessionEvent(event) => event
+                    .content_ref
+                    .as_ref()
+                    .is_some_and(|c| c.object_hash == object.hash),
+                _ => false,
+            });
+            if !referenced {
+                return Err(VaultError::invalid(vec!["store.session_content_orphan"]));
             }
         }
         for hash in identity_hashes {
