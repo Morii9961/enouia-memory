@@ -18,6 +18,12 @@ cargo test --workspace --locked
 cargo clippy --workspace --all-targets --locked -- -D warnings
 ```
 
+The Rust tests use an in-repository subset JSON Schema validator. Also run the independent cross-check with the pinned python-jsonschema (Python 3.12 virtual environment, `pip install -r tools/schema-check/requirements.txt`):
+
+```powershell
+python tools/schema-check/check_schemas.py
+```
+
 Commit attribution: when Codex materially contributes to a commit, add this trailer after a blank line:
 
 ```text

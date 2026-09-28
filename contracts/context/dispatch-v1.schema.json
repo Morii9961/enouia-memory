@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "dispatch-v1.schema.json",
+  "$id": "https://contracts.enouia-memory.invalid/context/dispatch-v1.schema.json",
   "title": "Enouia Dispatch Record v1",
   "description": "What was actually sent: roles, byte hashes, carried capsule memories, tools, and the egress barrier used. Keys and auth headers are never recorded.",
   "type": "object",

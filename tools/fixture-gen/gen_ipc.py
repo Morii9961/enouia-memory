@@ -119,7 +119,7 @@ err = dict(header); err["kind"] = {"const": "memory_error"}; err["result"] = {"t
 err["error"] = obj({"code": m("memoryErrorCode"), "component": component, "retryable": BOOL})
 defs["response_memory_error"] = obj(err)
 responses.append(r("response_memory_error"))
-schema = {"$schema": D, "$id": "memory-v1.schema.json", "title": "Enouia local Memory IPC v1",
+schema = {"$schema": D, "$id": "https://contracts.enouia-memory.invalid/ipc/memory-v1.schema.json", "title": "Enouia local Memory IPC v1",
           "description": "Typed local requests and responses for Memory/Context/Session operations. camelCase DTO fields; embedded stored records keep snake_case. Logical IDs only: no paths, SQL, shell text, or caller-asserted identity. The request/response pairing per operation and write idempotency rules are also enforced in Rust. import/backup/restore/delete/attachment operations are reserved for MV-1..MV-3.",
           "oneOf": requests + responses, "$defs": defs}
 (ROOT / "memory-v1.schema.json").write_bytes((json.dumps(schema, ensure_ascii=False, indent=2) + "\n").encode("utf-8"))

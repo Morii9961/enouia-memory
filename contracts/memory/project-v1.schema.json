@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "project-v1.schema.json",
+  "$id": "https://contracts.enouia-memory.invalid/memory/project-v1.schema.json",
   "title": "Enouia ProjectEntity v1",
   "description": "Stable project identity with aliases. Alias uniqueness (case-folded) across projects is a cross-record rule.",
   "type": "object",

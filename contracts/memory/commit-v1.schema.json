@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "commit-v1.schema.json",
+  "$id": "https://contracts.enouia-memory.invalid/memory/commit-v1.schema.json",
   "title": "Enouia CommitManifest v1",
   "description": "Complete catalog of logical records at one commit. A commit is published by one CURRENT replacement in MV-1; this schema cannot prove atomicity or durability. Chain, epochs, idempotency, and catalog closure are cross-record rules.",
   "type": "object",

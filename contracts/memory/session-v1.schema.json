@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "session-v1.schema.json",
+  "$id": "https://contracts.enouia-memory.invalid/memory/session-v1.schema.json",
   "title": "Enouia SessionRecord v1",
   "description": "Session header with branch list and provider binding history.",
   "type": "object",

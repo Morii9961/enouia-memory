@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "memory-v1.schema.json",
+  "$id": "https://contracts.enouia-memory.invalid/ipc/memory-v1.schema.json",
   "title": "Enouia local Memory IPC v1",
   "description": "Typed local requests and responses for Memory/Context/Session operations. camelCase DTO fields; embedded stored records keep snake_case. Logical IDs only: no paths, SQL, shell text, or caller-asserted identity. The request/response pairing per operation and write idempotency rules are also enforced in Rust. import/backup/restore/delete/attachment operations are reserved for MV-1..MV-3.",
   "oneOf": [

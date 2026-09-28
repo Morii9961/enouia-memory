@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "audit-event-v1.schema.json",
+  "$id": "https://contracts.enouia-memory.invalid/memory/audit-event-v1.schema.json",
   "title": "Enouia AuditEvent v1",
   "description": "IDs, enums, and codes only: no record text, query text, secrets, or paths.",
   "type": "object",

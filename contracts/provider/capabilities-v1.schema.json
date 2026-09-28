@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "capabilities-v1.schema.json",
+  "$id": "https://contracts.enouia-memory.invalid/provider/capabilities-v1.schema.json",
   "title": "Enouia ProviderCapabilities v1",
   "description": "Verified capability snapshot. Unverified snapshots may only say unknown; nothing is inferred from a model name.",
   "type": "object",

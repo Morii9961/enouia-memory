@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "identity-v1.schema.json",
+  "$id": "https://contracts.enouia-memory.invalid/memory/identity-v1.schema.json",
   "title": "Enouia Identity metadata v1",
   "description": "Sidecar for one Markdown Identity revision (content addressed by content_hash). Identity text never changes ACL, egress, or tool authorization.",
   "type": "object",

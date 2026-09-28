@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "common-v1.schema.json",
+  "$id": "https://contracts.enouia-memory.invalid/context/common-v1.schema.json",
   "title": "Enouia Context shared definitions v1",
   "$defs": {
     "destination": {

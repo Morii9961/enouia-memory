@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "purge-receipt-v1.schema.json",
+  "$id": "https://contracts.enouia-memory.invalid/memory/purge-receipt-v1.schema.json",
   "title": "Enouia PurgeReceipt v1",
   "description": "Per-store purge status. There is deliberately no globally_erased state; overall-state honesty is checked by the Rust validator.",
   "type": "object",

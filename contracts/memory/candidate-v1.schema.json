@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "candidate-v1.schema.json",
+  "$id": "https://contracts.enouia-memory.invalid/memory/candidate-v1.schema.json",
   "title": "Enouia CandidateRecord v1",
   "description": "A proposal. Never canonical by itself; terminal statuses cannot be reopened in place. Status history across revisions is a cross-record rule.",
   "type": "object",

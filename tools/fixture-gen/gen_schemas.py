@@ -6,6 +6,7 @@ ROOT = pathlib.Path(__file__).resolve().parents[2] / "contracts"
 D = "https://json-schema.org/draft/2020-12/schema"
 C = "common-v1.schema.json"  # within contracts/memory
 MAXSAFE = 9007199254740991
+BASE = "https://contracts.enouia-memory.invalid/"  # never resolvable (.invalid); identity only
 
 PREFIXES = [
     ("memoryId", "mem"), ("sourceId", "src"), ("attachmentId", "att"), ("importId", "imp"),
@@ -50,6 +51,8 @@ COUNT = {"type": "integer", "minimum": 0, "maximum": MAXSAFE}
 U32 = {"type": "integer", "minimum": 0, "maximum": 4294967295}
 
 def write(rel, schema):
+    if isinstance(schema.get("$id"), str) and not schema["$id"].startswith("http"):
+        schema["$id"] = BASE + rel
     path = ROOT / rel
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_bytes((json.dumps(schema, ensure_ascii=False, indent=2) + "\n").encode("utf-8"))
@@ -131,7 +134,7 @@ defs.update({
                       "candidate_review", "identity_review", "operation_get", "operation_cancel"),
 })
 write("memory/common-v1.schema.json", {
-    "$schema": D, "$id": "common-v1.schema.json",
+    "$schema": D, "$id": BASE + "memory/common-v1.schema.json",
     "title": "Enouia Memory shared definitions v1",
     "description": "Shared definitions for Memory-domain records. Storage fields are snake_case. Constraints marked in $comment are enforced by enouia-memory-contract, not by this schema.",
     "$defs": defs})
@@ -490,7 +493,7 @@ memory_item = obj({"memory_id": m("memoryId"), "revision": m("revision"), "type"
                    "evidence": arr(m("sourceRevisionRef"), minItems=1), "conflict_group_id": mn("conflictGroupId"),
                    "sensitivity": m("sensitivity")})
 cdefs = {"destination": destination, "memoryItem": memory_item, "currency": currency}
-write("context/common-v1.schema.json", {"$schema": D, "$id": "common-v1.schema.json",
+write("context/common-v1.schema.json", {"$schema": D, "$id": BASE + "context/common-v1.schema.json",
       "title": "Enouia Context shared definitions v1", "$defs": cdefs})
 CC = "common-v1.schema.json"
 write("context/capsule-v1.schema.json", record(

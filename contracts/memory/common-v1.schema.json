@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "common-v1.schema.json",
+  "$id": "https://contracts.enouia-memory.invalid/memory/common-v1.schema.json",
   "title": "Enouia Memory shared definitions v1",
   "description": "Shared definitions for Memory-domain records. Storage fields are snake_case. Constraints marked in $comment are enforced by enouia-memory-contract, not by this schema.",
   "$defs": {

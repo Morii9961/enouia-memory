@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "memory-v1.schema.json",
+  "$id": "https://contracts.enouia-memory.invalid/memory/memory-v1.schema.json",
   "title": "Enouia CanonicalMemory v1",
   "description": "One reviewed memory revision. Keeps the Runtime M0 required fields and status enum; new fields are required with explicit null for unknown. Type-specific fields are top level. Reference closure, supersession graph, time order, and review binding are enforced by the Rust validators.",
   "oneOf": [

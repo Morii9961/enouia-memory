@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "session-event-v1.schema.json",
+  "$id": "https://contracts.enouia-memory.invalid/memory/session-event-v1.schema.json",
   "title": "Enouia SessionEvent v1",
   "description": "Append-only conversation event. No kind exists for hidden model reasoning. Sequence uniqueness and parent order are cross-record rules.",
   "type": "object",

@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "capsule-v1.schema.json",
+  "$id": "https://contracts.enouia-memory.invalid/context/capsule-v1.schema.json",
   "title": "Enouia Context Capsule v1",
   "description": "Logical context for one request. Keeps the Architecture v0.3 capsule fields. Inclusion eligibility (tombstones, policy, valid time, provenance) is checked against the record set by the Rust validator.",
   "type": "object",

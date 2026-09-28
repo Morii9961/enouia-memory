@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "review-v1.schema.json",
+  "$id": "https://contracts.enouia-memory.invalid/memory/review-v1.schema.json",
   "title": "Enouia ReviewRecord v1",
   "description": "Owner decision on one exact candidate revision, from a trusted local surface. Nonce single use and candidate/commit binding are cross-record rules.",
   "type": "object",

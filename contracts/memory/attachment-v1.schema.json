@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "attachment-v1.schema.json",
+  "$id": "https://contracts.enouia-memory.invalid/memory/attachment-v1.schema.json",
   "title": "Enouia AttachmentRecord v1",
   "description": "Only 'present' carries a verified object hash. URLs are inert references, never fetched automatically.",
   "type": "object",

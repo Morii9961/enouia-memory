@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "checkpoint-v1.schema.json",
+  "$id": "https://contracts.enouia-memory.invalid/memory/checkpoint-v1.schema.json",
   "title": "Enouia SessionCheckpoint artifact v1",
   "description": "Provisional Session artifact. Becomes a canonical session_checkpoint memory only after owner review. Coverage closure is a cross-record rule.",
   "type": "object",

@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "inspection-v1.schema.json",
+  "$id": "https://contracts.enouia-memory.invalid/context/inspection-v1.schema.json",
   "title": "Enouia Context Inspection v1",
   "description": "Local explanation of one compilation. Never sent to a Provider. Restricted viewers never receive hidden (policy_denied/tombstoned) entries.",
   "type": "object",
