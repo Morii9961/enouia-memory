@@ -7,6 +7,7 @@
 //! the same commit contains. Raw completeness (the received bytes) and parse
 //! completeness are separate: an unsupported format is still archived.
 
+pub use crate::common::is_safe_member_name;
 use crate::common::{Warning, is_code, validate_warnings};
 use crate::error::Violation;
 use crate::hash::Sha256Hex;
@@ -168,20 +169,6 @@ fn is_label(value: &str) -> bool {
     matches!(chars.next(), Some('a'..='z' | '0'..='9'))
         && value.len() <= 128
         && chars.all(|c| matches!(c, 'a'..='z' | '0'..='9' | '_' | '.' | ':' | '-' | '/'))
-}
-
-/// A sanitized archive member name: relative, `/`-separated, no empty, `.`,
-/// or `..` segment, no drive, colon, or backslash, at most 512 bytes.
-pub fn is_safe_member_name(name: &str) -> bool {
-    !name.is_empty()
-        && name.len() <= 512
-        && !name.starts_with('/')
-        && !name.contains('\\')
-        && !name.contains(':')
-        && !name.chars().any(char::is_control)
-        && name
-            .split('/')
-            .all(|s| !s.is_empty() && s != "." && s != "..")
 }
 
 impl ImportManifest {

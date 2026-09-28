@@ -1,5 +1,10 @@
 [workspace]
-members = ["crates/enouia-memory-cli", "crates/enouia-memory-contract", "crates/enouia-memory-vault"]
+members = [
+    "crates/enouia-memory-cli",
+    "crates/enouia-memory-contract",
+    "crates/enouia-memory-import",
+    "crates/enouia-memory-vault",
+]
 resolver = "3"
 
 [workspace.package]

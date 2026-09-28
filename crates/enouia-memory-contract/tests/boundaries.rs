@@ -55,6 +55,27 @@ fn memory_vault_dependencies_are_pinned_and_minimal() {
     assert!(manifest.contains("windows-sys = { version = \"=0.61.2\""));
 }
 
+/// The importer adds only pinned, pure-Rust inflate and CRC-32 crates.
+#[test]
+fn memory_import_dependencies_are_pinned_and_minimal() {
+    let manifest =
+        std::fs::read_to_string(repo().join("crates/enouia-memory-import/Cargo.toml")).unwrap();
+    let mut deps = dependencies(&manifest);
+    deps.sort();
+    assert_eq!(
+        deps,
+        [
+            "crc32fast",
+            "enouia-memory-contract",
+            "enouia-memory-vault",
+            "miniz_oxide",
+            "serde_json"
+        ]
+    );
+    assert!(manifest.contains("miniz_oxide = { version = \"=0.8.9\""));
+    assert!(manifest.contains("crc32fast = { version = \"=1.5.2\""));
+}
+
 /// The CLI only composes this repository's crates.
 #[test]
 fn memory_cli_depends_only_on_this_repository() {
