@@ -543,6 +543,24 @@ fn check_supersession(set: &RecordSet, out: &mut Vec<Violation>) {
             }
         }
     }
+    // The effective time on each edge is exactly what the owner confirmed in
+    // the supersede review; it cannot be filled in or changed afterwards.
+    for memory in latest.iter().filter(|m| !m.supersedes.is_empty()) {
+        let confirmed = set
+            .review(memory.review_id.as_str())
+            .filter(|r| r.action == ReviewAction::Supersede)
+            .and_then(|r| r.effective_from.as_ref());
+        if memory
+            .supersedes
+            .iter()
+            .any(|edge| confirmed != Some(&edge.effective_from))
+        {
+            out.push(Violation::new(
+                "supersession.effective_mismatch",
+                memory.memory_id.to_string(),
+            ));
+        }
+    }
     for memory in &latest {
         if memory.status == MemoryStatus::Superseded
             && !targeted.contains(memory.memory_id.as_str())

@@ -175,3 +175,101 @@ fn f6_ipc_rejects_out_of_range_integers() {
     let error = enouia_memory_contract::ipc::parse_request(&request).unwrap_err();
     assert!(error.rules().contains(&"number.out_of_range"), "{error}");
 }
+
+fn lifecycle_with_unknown_supersession_start() -> (Value, String, String) {
+    let mut set = fixture("sets/lifecycle.json");
+    let memories = set["memories"].as_array().unwrap().clone();
+    let (index, new) = memories
+        .iter()
+        .enumerate()
+        .find(|(_, m)| !m["supersedes"].as_array().unwrap().is_empty())
+        .unwrap();
+    let old_id = new["supersedes"][0]["memory_id"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+    let new_id = new["memory_id"].as_str().unwrap().to_owned();
+    let review_id = new["review_id"].clone();
+    set["memories"][index]["supersedes"][0]["effective_from"] = json!("unknown");
+    set["memories"][index]["valid_from"] = Value::Null;
+    for review in set["reviews"].as_array_mut().unwrap() {
+        if review["review_id"] == review_id {
+            review["effective_from"] = json!("unknown");
+        }
+    }
+    (set, old_id, new_id)
+}
+
+#[test]
+fn f5_unknown_supersession_start_is_never_replaced_by_approval_time() {
+    use enouia_memory_contract::context::Currency;
+    use enouia_memory_contract::set::{RecordSet, validate_set};
+    use enouia_memory_contract::temporal::{Effect, currency, effect};
+    use enouia_memory_contract::time::Timestamp;
+
+    let (value, old_id, new_id) = lifecycle_with_unknown_supersession_start();
+    let set = RecordSet::from_value(&value).unwrap_or_else(|(p, e)| panic!("{p}: {e}"));
+    let violations = validate_set(&set);
+    assert!(
+        violations
+            .iter()
+            .all(|v| v.rule != "supersession.effective_mismatch"),
+        "{violations:?}"
+    );
+    let latest = set.latest_memories();
+    let old = latest
+        .iter()
+        .find(|m| m.memory_id.as_str() == old_id)
+        .unwrap();
+    let new = latest
+        .iter()
+        .find(|m| m.memory_id.as_str() == new_id)
+        .unwrap();
+    // Approved 2026-09-21; the review's counterexample queried 2026-09-28.
+    assert!(new.approved_at.as_str() < "2026-09-28");
+    let now = Timestamp::parse("2026-09-28T08:00:00.000Z").unwrap();
+    for as_of in [
+        "2026-09-25T00:00:00.000Z",
+        "2026-09-28T08:00:00.000Z",
+        "2030-01-01T00:00:00.000Z",
+    ] {
+        let as_of = Timestamp::parse(as_of).unwrap();
+        assert_eq!(
+            effect(old, &latest, &as_of),
+            Effect::InEffect {
+                supersession_time_unknown: true
+            },
+            "old fact must not be cut off at {as_of}"
+        );
+        assert_eq!(
+            currency(old, &latest, &as_of, &now),
+            Some(Currency::NeedsReverification)
+        );
+        assert_eq!(
+            currency(new, &latest, &as_of, &now),
+            Some(Currency::NeedsReverification),
+            "new fact must not become current_supported at {as_of}"
+        );
+    }
+}
+
+#[test]
+fn f5_effective_time_must_match_the_owner_confirmation() {
+    use enouia_memory_contract::set::{RecordSet, validate_set};
+    let (mut value, _, _) = lifecycle_with_unknown_supersession_start();
+    // Fill in a date the owner never confirmed.
+    for memory in value["memories"].as_array_mut().unwrap() {
+        if let Some(edge) = memory["supersedes"]
+            .as_array_mut()
+            .and_then(|e| e.first_mut())
+        {
+            edge["effective_from"] = json!("2026-09-21T10:01:00.000Z");
+        }
+    }
+    let set = RecordSet::from_value(&value).unwrap();
+    let rules: Vec<&str> = validate_set(&set).iter().map(|v| v.rule).collect();
+    assert!(
+        rules.contains(&"supersession.effective_mismatch"),
+        "{rules:?}"
+    );
+}

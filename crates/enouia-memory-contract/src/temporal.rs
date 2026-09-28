@@ -2,6 +2,11 @@
 //!
 //! `superseded` is a relation, not a global off switch: a replacement that takes
 //! effect in the future never hides a fact that is still in effect now.
+//! Only an explicit `effective_from` (a date the owner confirmed, including
+//! "immediately" recorded as a timestamp) establishes when a replacement
+//! starts. An unknown start stays unknown: neither the replacement's
+//! `valid_from` nor the review/approval time is turned into a business time,
+//! so the old fact is never cut off and both sides need re-verification.
 //! Inputs are the latest revisions visible at one pinned commit (`known_at`).
 
 use crate::common::Volatility;
@@ -12,8 +17,8 @@ use crate::time::{BusinessTime, Timestamp};
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Effect {
     InEffect {
-        /// A replacement exists whose start is unknown and later than `as_of`
-        /// could be; the fact is kept but must be re-verified.
+        /// This fact takes part in a supersession whose start is unknown
+        /// (either side). It is kept, but must be re-verified before use.
         supersession_time_unknown: bool,
     },
     NotYetEffective,
@@ -22,17 +27,6 @@ pub enum Effect {
         by: String,
     },
     Archived,
-}
-
-/// When a supersession edge takes effect. An explicit value wins; an unknown
-/// value falls back to the replacement's own `valid_from`; if both are unknown
-/// the owner's approval time is the latest point by which it certainly applies.
-fn supersession_start(replacement: &CanonicalMemory, edge: &BusinessTime) -> (Timestamp, bool) {
-    match (edge, &replacement.valid_from) {
-        (BusinessTime::Known(at), _) => (at.clone(), false),
-        (BusinessTime::Unknown, Some(from)) => (from.clone(), false),
-        (BusinessTime::Unknown, None) => (replacement.approved_at.clone(), true),
-    }
 }
 
 pub fn effect(memory: &CanonicalMemory, latest: &[&CanonicalMemory], as_of: &Timestamp) -> Effect {
@@ -49,7 +43,11 @@ pub fn effect(memory: &CanonicalMemory, latest: &[&CanonicalMemory], as_of: &Tim
     {
         return Effect::Ended;
     }
-    let mut unknown = false;
+    // A replacement whose own start is unknown cannot be certain yet either.
+    let mut unknown = memory
+        .supersedes
+        .iter()
+        .any(|edge| edge.effective_from == BusinessTime::Unknown);
     for replacement in latest {
         if replacement.memory_id == memory.memory_id || replacement.status == MemoryStatus::Archived
         {
@@ -60,13 +58,15 @@ pub fn effect(memory: &CanonicalMemory, latest: &[&CanonicalMemory], as_of: &Tim
             .iter()
             .filter(|edge| edge.memory_id == memory.memory_id)
         {
-            let (start, inferred) = supersession_start(replacement, &edge.effective_from);
-            if &start <= as_of {
-                return Effect::Superseded {
-                    by: replacement.memory_id.to_string(),
-                };
+            match &edge.effective_from {
+                BusinessTime::Known(start) if start <= as_of => {
+                    return Effect::Superseded {
+                        by: replacement.memory_id.to_string(),
+                    };
+                }
+                BusinessTime::Known(_) => {}
+                BusinessTime::Unknown => unknown = true,
             }
-            unknown |= inferred;
         }
     }
     Effect::InEffect {
@@ -98,10 +98,10 @@ pub fn currency(
             let current_question = as_of >= now;
             if conflicted {
                 Some(Currency::Conflicted)
-            } else if current_question
-                && (memory.volatility == Volatility::Live
-                    || memory.review_after.as_ref().is_some_and(|due| due <= now)
-                    || supersession_time_unknown)
+            } else if supersession_time_unknown
+                || current_question
+                    && (memory.volatility == Volatility::Live
+                        || memory.review_after.as_ref().is_some_and(|due| due <= now))
             {
                 Some(Currency::NeedsReverification)
             } else {
