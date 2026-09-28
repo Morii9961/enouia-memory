@@ -8,10 +8,10 @@ Date: 2026-09-28. Scope: MV-1 only ([plan §5](../design/IMPLEMENTATION_PLAN.md)
 |---|---|---|
 | MV-1.0 store contracts | Vault descriptor, `CURRENT` pointer (pins the manifest SHA-256), publish journal line, idempotency entry, owner recovery receipt, pinned-commit export manifest, restore state. JSON Schemas, Rust types, 7 valid and 23 invalid fixtures, independent Python cross-check (ADR-MEM-36) | `contracts/store/`, `src/store.rs` (contract crate), `tests/fixtures/store/` |
 | MV-1.1 storage safety | Data root verification, managed paths with reparse checks, OS single-writer lock, write-through atomic replace, CSPRNG IDs, owner-only protected DACL entry point and inspection, free-space floor | `enouia-memory-vault`: `root.rs`, `fs.rs`, `lock.rs`, `platform/` |
-| MV-1.2 commit and recovery | Immutable revisions, complete manifest, one `CURRENT` publication, expected head/revisions, idempotent receipts (replay/conflict), pinned verified reads, full-history cross-record validation before publication, integrity report, freshness check before content leaves, owner-driven recovery with evidence, failure injection at every boundary | `store.rs`, `fault.rs` |
+| MV-1.2 commit and recovery | Immutable revisions, complete manifest, one `CURRENT` publication, expected head/revisions, idempotent receipts (replay/conflict), pinned verified reads, full-history cross-record validation before publication, integrity report, freshness check before content leaves, owner-driven recovery with evidence, owner-invoked quarantine of unreferenced leftovers, failure injection at every boundary | `store.rs`, `sweep.rs`, `fault.rs` |
 | MV-1.3 minimal objects | Manual assertion sources; sessions with user messages saved together with their exact text; health (`Healthy/Degraded/Unavailable/Recovering`); restricted, size-rotated audit | `service.rs`, `health.rs`, `audit.rs` |
 | MV-1.4 backup exit | Pinned-commit export, independent export verification, restore into an empty verified root with a network gate, restic command adapter | `backup.rs`, `restic.rs` |
-| Local entry point | `enouia-memory` CLI: check-root, init, status, verify, recovery, adopt, assert, export, verify-export, restore, acl, protect | `enouia-memory-cli` |
+| Local entry point | `enouia-memory` CLI: check-root, init, status, verify, recovery, adopt, assert, export, verify-export, restore, sweep, acl, protect | `enouia-memory-cli` |
 | Measurement | Manifest write amplification and commit latency | `examples/measure.rs` |
 
 Design decisions are recorded in ADR-MEM-36 (file contracts, port refinements) and ADR-MEM-37 (store implementation, measured cost and trigger) in the [ADR register](../adr/README.md).
@@ -57,12 +57,12 @@ Reading: each record costs about 241 bytes in every manifest, so manifests grow 
 | Command (repository root) | Result |
 |---|---|
 | `cargo fmt --all -- --check` | exit 0 |
-| `cargo test --workspace --locked` | exit 0; 109 passed: contract 58 (16 unit, 6 boundaries, 9 conformance, 4 IPC, 7 record sets, 14 regressions, 2 store contracts), vault 49 (4 unit, 6 commit, 6 backup, 5 crash, 7 failures, 3 migration, 5 objects, 5 root, 3 snapshot, 5 writer lock), CLI 2 |
+| `cargo test --workspace --locked` | exit 0; 112 passed: contract 58 (16 unit, 6 boundaries, 9 conformance, 4 IPC, 7 record sets, 14 regressions, 2 store contracts), vault 52 (4 unit, 6 commit, 6 backup, 5 crash, 7 failures, 3 migration, 5 objects, 5 root, 3 snapshot, 3 sweep, 5 writer lock), CLI 2 |
 | `cargo clippy --workspace --all-targets --locked -- -D warnings` | exit 0 |
 | `cargo test --release --locked -p enouia-memory-contract --test regressions` | exit 0 |
 | `python tools/schema-check/check_schemas.py` | exit 0; 30 schemas; 51 valid records, 108 record cases, 4,253 set records, 51 IPC messages, 30 store documents agree |
 
-Isolated build: `5da02eb` was cloned from GitHub into a temporary directory with a fresh `CARGO_TARGET_DIR` and no sibling checkout; fmt, all 109 tests, clippy, release regressions, and the schema cross-check passed. The clone contains no `.local/` and no `docs/history/private/`.
+Isolated build: `5da02eb` (109 tests at that point) was cloned from GitHub into a temporary directory with a fresh `CARGO_TARGET_DIR` and no sibling checkout; fmt, all 109 tests, clippy, release regressions, and the schema cross-check passed. The clone contains no `.local/` and no `docs/history/private/`.
 
 ## 5. Defects found and fixed during MV-1
 
@@ -76,7 +76,7 @@ Isolated build: `5da02eb` was cloned from GitHub into a temporary directory with
 - Power-loss and OS-crash evidence (V09); real disk-full and real sharing-violation reproduction (V05 used injection).
 - restic: installing a pinned, verified version, the owner's choice of backup media and repository, the password kept outside this device, encrypted backup/check/restore, key rotation and loss, and restore on another machine or account (B01, B03). No download was made.
 - Volume encryption detection; applying the ACL to a real data root (B04).
-- Sweeping unreferenced revision files left by crashed attempts (they are never read and are quarantined when a later write needs their name); backup leases and GC arrive with purge (MV-3).
+- Backup leases and GC arrive with purge (MV-3). Leftovers of crashed attempts are never read; the owner-invoked sweep moves them to `vault/orphans/` (never deletes) and is refused while `CURRENT` cannot be verified (`sweep.rs`).
 - The segmented catalog and incremental validation (§3 trigger).
 - `AuditSink` exists and is tested, but reads are not yet audited because there are no read APIs for other principals yet (MV-4/5). `BackupPort` is not wired to restic yet.
 - Cloud-sync detection is attribute- and name-based; a sync client configured on an arbitrarily named folder without cloud-file attributes would not be recognized. Real OneDrive folders were not touched.
@@ -94,7 +94,8 @@ Not activated: no default data root, scheduled task, backup job, model, MCP, VPS
 | `33ba082` | MV-1.4 export, verification, restore, restic adapter |
 | `6e21edd` | CLI; D02 and D03 |
 | `5da02eb` | Measurement example |
-| (this commit) | ADR-MEM-37, documentation, this report |
+| `8e08789` | ADR-MEM-37, documentation, this report |
+| (this commit) | Owner-invoked sweep of unreferenced leftovers; Identity Markdown lookup across the chain; report update |
 
 Every push was preceded by a public-content scan of the staged files. Rollback: each step is a separate commit on `main`; `729edc9` is the MV-0R state.
 

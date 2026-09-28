@@ -39,6 +39,7 @@ const USAGE: &str = "usage: enouia-memory <command> ...
   export <dir> <empty-destination>
   verify-export <export-dir>
   restore <export-dir> <empty-target> --confirm-restore
+  sweep <dir> --confirm-sweep
   acl <dir>
   protect <dir> --confirm-owner-only";
 
@@ -285,6 +286,16 @@ fn run(args: &[String]) -> Outcome {
                 "restored_commit_id": restored.state.restored_commit_id,
                 "network_disabled_until_reconciled": restored.state.network_disabled_until_reconciled,
             }))
+        }
+        "sweep" => {
+            let vault = open(arg(args, 2)?)?;
+            if !has(args, "--confirm-sweep") {
+                return Err(Failure::Usage("sweep needs --confirm-sweep".into()));
+            }
+            let report = vault.sweep_unreferenced()?;
+            Ok(
+                json!({"sweep_id": report.sweep_id, "files_checked": report.files_checked, "quarantined": report.quarantined.len()}),
+            )
         }
         "acl" => {
             let root = verified(arg(args, 2)?)?;

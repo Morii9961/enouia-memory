@@ -598,26 +598,36 @@ impl Vault {
         if let Some(path) = layout::object_path(entry.object_kind, &entry.object_hash) {
             return Ok(Some(path));
         }
-        // Identity Markdown lives beside the identity revision that names it.
-        for catalog in manifest
-            .catalog
-            .iter()
-            .filter(|e| e.record_kind == RecordKind::Identity)
-        {
-            let reference =
-                RecordRef::new(RecordKind::Identity, &catalog.record_id, catalog.revision);
-            let record = self.record_at(&reference, &catalog.content_hash)?;
-            if let AnyRecord::Identity(identity) = record
-                && identity.content_hash == entry.object_hash
+        // Identity Markdown lives beside the identity revision that named it
+        // first; that revision may be older than the pinned catalog's, so
+        // the chain is searched back to genesis (oldest match wins).
+        let mut found = None;
+        let mut current = Arc::new(manifest.clone());
+        loop {
+            for catalog in current
+                .catalog
+                .iter()
+                .filter(|e| e.record_kind == RecordKind::Identity)
             {
-                return Ok(layout::record_path(
-                    RecordKind::Identity,
-                    &catalog.record_id,
-                    catalog.revision,
-                ));
+                let reference =
+                    RecordRef::new(RecordKind::Identity, &catalog.record_id, catalog.revision);
+                let record = self.record_at(&reference, &catalog.content_hash)?;
+                if let AnyRecord::Identity(identity) = record
+                    && identity.content_hash == entry.object_hash
+                {
+                    found = layout::record_path(
+                        RecordKind::Identity,
+                        &catalog.record_id,
+                        catalog.revision,
+                    );
+                }
             }
+            let Some(parent) = current.parent_commit_id.clone() else {
+                break;
+            };
+            current = self.load_manifest(&parent, None)?.0;
         }
-        Ok(None)
+        Ok(found)
     }
 
     /// Managed file name of a stored record revision (for exports).
@@ -1134,6 +1144,11 @@ impl Vault {
             self.root.remove_staging(&format!("vault/staging/{name}"))?;
         }
         Ok(())
+    }
+
+    /// The writer lock, for maintenance operations in this crate.
+    pub(crate) fn writer_guard(&self) -> Result<WriterGuard> {
+        self.lock()
     }
 
     fn lock(&self) -> Result<WriterGuard> {

@@ -18,6 +18,7 @@ pub mod restic;
 pub mod root;
 pub mod service;
 pub mod store;
+pub mod sweep;
 
 pub use error::{Fault, VaultError};
 pub use root::{RootPolicy, RootRejection, VerifiedRoot, verify_data_root};

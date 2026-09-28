@@ -150,6 +150,10 @@ fn the_installed_binary_runs_the_whole_local_lifecycle_alone() {
     let (_, status) = cli.run(&["status", &root]);
     assert_eq!(status["state"], "healthy");
 
+    let (code, swept) = cli.run(&["sweep", &root, "--confirm-sweep"]);
+    assert_eq!(code, 0, "{swept}");
+    assert_eq!(swept["quarantined"], 0);
+
     // Owner-only ACL on the root.
     let (_, protect) = cli.run(&["protect", &root, "--confirm-owner-only"]);
     assert_eq!(protect["owner_only"], true);
