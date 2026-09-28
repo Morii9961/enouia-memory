@@ -1970,9 +1970,9 @@
       "messages": [
         {
           "capsule_memory_refs": [],
-          "content_hash": "1cbc66ce86e001dbdb66d96249a9e16b2b78eb4fa0b5da99bc47742142be4ae5",
+          "content_hash": "33ef984f8ec9f56faaa5525f057efec11a186588785d61014e46f0048168e402",
           "role": "system",
-          "size_bytes": 120
+          "size_bytes": 123
         },
         {
           "capsule_memory_refs": [
@@ -1981,13 +1981,17 @@
               "revision": 1
             }
           ],
-          "content_hash": "01d6f861641ebfb07f10154450d45a96000cec3631dbf7039548770a1a3959a3",
+          "content_hash": "66eacb7e18192170bdd80ce5966dc900bcddcf3241c4e3e5ddfaefd6880fb555",
           "role": "user",
-          "size_bytes": 480
+          "size_bytes": 221
         }
       ],
+      "output": {
+        "max_output_tokens": 1024,
+        "streaming": false
+      },
       "prepared_at": "2026-07-04T00:00:00.100Z",
-      "request_hash": "f6513f74351351c8fa8f4a04ed93ea85aa1d386d1cd2d9c027f9838d5e47d3ee",
+      "request_hash": "cfc99fa19be6d4b5bcac720b74fddec4c7370975ed84f23859934dfaaaa64e71",
       "request_id": "req_00000014-0000-4000-8000-000000000014",
       "schema_version": 1,
       "sent_at": "2026-07-04T00:00:00.200Z",

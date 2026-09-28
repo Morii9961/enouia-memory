@@ -588,6 +588,11 @@
           "op": "set",
           "path": "/memories/0/egress_policy_id",
           "value": "pol_00000002-0000-4000-8000-000000000002"
+        },
+        {
+          "op": "set",
+          "path": "/dispatches/0/request_hash",
+          "value": "89e7610839f7e3fd6c72c97b15d27048beaba3dd701702e08c80aac2d90344f5"
         }
       ],
       "rust_rule": "dispatch.private_unconfirmed"
@@ -841,6 +846,19 @@
         }
       ],
       "rust_rule": "purge.tombstone"
+    },
+    {
+      "base": "sets/morimeta-confirmed.json",
+      "covers": "F6: hostile range is bounded",
+      "id": "checkpoint-huge-range",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/checkpoints/0/coverage/to_sequence",
+          "value": 9007199254740991
+        }
+      ],
+      "rust_rule": "checkpoint.coverage_missing"
     }
   ],
   "valid": [

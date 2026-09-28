@@ -3,8 +3,11 @@
 //! Request/response are private in-memory values (no Serialize), like the
 //! common process types; the capability snapshot is a stored contract.
 
-use crate::context::{DispatchRecord, MessageRole};
+use crate::context::{
+    Destination, DispatchRecord, DispatchTool, MessageRole, OutputConfig, request_payload_hash,
+};
 use crate::error::Violation;
+use crate::hash::{Sha256Hex, sha256};
 use crate::ids::{CapsuleId, DispatchId};
 use crate::json::SchemaVersion;
 use crate::session::ProviderBinding;
@@ -105,23 +108,91 @@ pub struct ToolDefinition {
 pub struct ProviderRequest {
     pub dispatch_id: DispatchId,
     pub capsule_id: CapsuleId,
+    pub destination: Destination,
     pub messages: Vec<ProviderMessage>,
     pub tools: Vec<ToolDefinition>,
-    pub max_output_tokens: u64,
+    pub output: OutputConfig,
 }
 
 impl ProviderRequest {
-    /// Message count and roles must match the dispatch record exactly.
-    pub fn matches_dispatch(&self, dispatch: &DispatchRecord) -> bool {
-        self.dispatch_id == dispatch.dispatch_id
-            && self.capsule_id == dispatch.capsule_id
-            && self.messages.len() == dispatch.messages.len()
-            && self
-                .messages
+    /// SHA-256 of the canonical payload of *this* request (see
+    /// `context::request_payload_hash`), computed from the actual bytes.
+    pub fn payload_hash(&self) -> Sha256Hex {
+        let hashes: Vec<Sha256Hex> = self
+            .messages
+            .iter()
+            .map(|m| sha256(m.text.as_bytes()))
+            .collect();
+        let messages: Vec<(MessageRole, &Sha256Hex, u64)> = self
+            .messages
+            .iter()
+            .zip(&hashes)
+            .map(|(m, h)| (m.role, h, m.text.len() as u64))
+            .collect();
+        let tools: Vec<DispatchTool> = self
+            .tools
+            .iter()
+            .map(|t| DispatchTool {
+                name: t.name.clone(),
+                definition_hash: sha256(t.schema_json.as_bytes()),
+            })
+            .collect();
+        request_payload_hash(&self.destination, &messages, &tools, &self.output)
+    }
+
+    /// The final send gate: the actual request must be exactly what the
+    /// DispatchRecord (and any approval bound to its `request_hash`) describes.
+    /// Every message's content hash, size, role and order, every tool's name and
+    /// definition hash, the output configuration and the destination are
+    /// compared. An empty result means the request may be sent.
+    pub fn verify_against(&self, dispatch: &DispatchRecord) -> Vec<Violation> {
+        let mut out = Vec::new();
+        if self.dispatch_id != dispatch.dispatch_id || self.capsule_id != dispatch.capsule_id {
+            out.push(Violation::new("provider_request.ids", "/dispatch_id"));
+        }
+        if self.destination != dispatch.destination {
+            out.push(Violation::new(
+                "provider_request.destination",
+                "/destination",
+            ));
+        }
+        if self.output != dispatch.output {
+            out.push(Violation::new("provider_request.output", "/output"));
+        }
+        if self.messages.len() != dispatch.messages.len() {
+            out.push(Violation::new("provider_request.messages", "/messages"));
+        }
+        for (index, (actual, recorded)) in self.messages.iter().zip(&dispatch.messages).enumerate()
+        {
+            if actual.role != recorded.role
+                || actual.text.len() as u64 != recorded.size_bytes
+                || sha256(actual.text.as_bytes()) != recorded.content_hash
+            {
+                out.push(Violation::new(
+                    "provider_request.message_content",
+                    format!("/messages/{index}"),
+                ));
+            }
+        }
+        if self.tools.len() != dispatch.tools.len()
+            || self
+                .tools
                 .iter()
-                .zip(&dispatch.messages)
-                .all(|(m, d)| m.role == d.role && m.text.len() as u64 == d.size_bytes)
-            && self.tools.len() == dispatch.tools.len()
+                .zip(&dispatch.tools)
+                .any(|(actual, recorded)| {
+                    actual.name != recorded.name
+                        || sha256(actual.schema_json.as_bytes()) != recorded.definition_hash
+                })
+        {
+            out.push(Violation::new("provider_request.tools", "/tools"));
+        }
+        if self.payload_hash() != dispatch.request_hash {
+            out.push(Violation::new(
+                "provider_request.payload_hash",
+                "/request_hash",
+            ));
+        }
+        out
     }
 }
 

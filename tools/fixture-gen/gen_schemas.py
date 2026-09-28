@@ -553,7 +553,7 @@ write("context/inspection-v1.schema.json", record(
 
 write("context/dispatch-v1.schema.json", record(
     "Enouia Dispatch Record v1",
-    "What was actually sent: roles, byte hashes, carried capsule memories, tools, and the egress barrier used. Keys and auth headers are never recorded.",
+    "What was actually sent: roles, byte hashes, carried capsule memories, tools, output configuration, and the egress barrier used. request_hash is SHA-256 of the canonical payload {payload_version, destination, messages, tools, output}; the Rust validator recomputes it. Keys and auth headers are never recorded.",
     {"schema_version": m("schemaVersion"), "dispatch_id": m("dispatchId"), "capsule_id": m("capsuleId"),
      "inspection_id": m("inspectionId"), "request_id": m("requestId"), "destination": ref("destination", CC),
      "request_hash": m("sha256"),
@@ -562,6 +562,7 @@ write("context/dispatch-v1.schema.json", record(
                           "capsule_memory_refs": arr(obj({"memory_id": m("memoryId"), "revision": m("revision")}))}),
                      minItems=1),
      "tools": arr(obj({"name": STR, "definition_hash": m("sha256")})),
+     "output": obj({"max_output_tokens": {"type": "integer", "minimum": 1, "maximum": MAXSAFE}, "streaming": BOOL}),
      "egress": obj({"policy_epoch": COUNT, "deletion_epoch": COUNT, "egress_policy_id": mn("policyId"),
                     "confirmation_review_id": mn("reviewId"), "checked_at": m("timestamp")}),
      "state": enum("prepared", "sent", "completed", "failed", "cancelled", "outcome_unknown"),

@@ -268,8 +268,12 @@ impl ContextCapsule {
             out.push(Violation::new("capsule.secret_material", "/"));
         }
         let budget = &self.budget;
+        // Checked: a hostile budget must yield a violation, never an overflow.
+        let needed = budget
+            .estimated_tokens
+            .checked_add(budget.safety_margin_tokens);
         if budget.memory_budget_tokens > budget.max_tokens
-            || budget.estimated_tokens + budget.safety_margin_tokens > budget.max_tokens
+            || needed.is_none_or(|needed| needed > budget.max_tokens)
         {
             out.push(Violation::new("capsule.budget", "/budget"));
         }
@@ -471,6 +475,56 @@ pub struct DispatchTool {
     pub definition_hash: Sha256Hex,
 }
 
+/// Output configuration that is part of the approved request.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct OutputConfig {
+    pub max_output_tokens: u64,
+    pub streaming: bool,
+}
+
+pub const REQUEST_PAYLOAD_VERSION: u64 = 1;
+
+#[derive(Serialize)]
+struct PayloadMessage<'a> {
+    role: MessageRole,
+    content_hash: &'a Sha256Hex,
+    size_bytes: u64,
+}
+
+/// The canonical request payload whose digest is `request_hash`. It covers
+/// the destination, every message (role, SHA-256 of its exact UTF-8 bytes,
+/// byte size, in order), every tool (name and SHA-256 of its exact definition
+/// bytes, in order) and the output configuration. Encoding: canonical JSON
+/// bytes (`json::canonical_bytes`) of
+/// `{payload_version, destination, messages, tools, output}`.
+/// Approvals bind to this digest, so any change to content, order, tools,
+/// output, or destination requires a new approval.
+pub fn request_payload_hash(
+    destination: &Destination,
+    messages: &[(MessageRole, &Sha256Hex, u64)],
+    tools: &[DispatchTool],
+    output: &OutputConfig,
+) -> Sha256Hex {
+    let messages: Vec<PayloadMessage<'_>> = messages
+        .iter()
+        .map(|(role, content_hash, size_bytes)| PayloadMessage {
+            role: *role,
+            content_hash,
+            size_bytes: *size_bytes,
+        })
+        .collect();
+    let payload = serde_json::json!({
+        "payload_version": REQUEST_PAYLOAD_VERSION,
+        "destination": destination,
+        "messages": messages,
+        "tools": tools,
+        "output": output,
+    });
+    let bytes = crate::json::canonical_bytes(&payload).unwrap_or_default();
+    crate::hash::sha256(&bytes)
+}
+
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct EgressDecision {
@@ -509,6 +563,7 @@ pub struct DispatchRecord {
     pub request_hash: Sha256Hex,
     pub messages: Vec<DispatchMessage>,
     pub tools: Vec<DispatchTool>,
+    pub output: OutputConfig,
     pub egress: EgressDecision,
     pub state: DispatchState,
     pub prepared_at: Timestamp,
@@ -526,8 +581,25 @@ impl DispatchRecord {
             .collect()
     }
 
+    /// Digest recomputed from this record's own destination, messages, tools,
+    /// and output configuration.
+    pub fn computed_request_hash(&self) -> Sha256Hex {
+        let messages: Vec<(MessageRole, &Sha256Hex, u64)> = self
+            .messages
+            .iter()
+            .map(|m| (m.role, &m.content_hash, m.size_bytes))
+            .collect();
+        request_payload_hash(&self.destination, &messages, &self.tools, &self.output)
+    }
+
     pub fn validate(&self) -> Vec<Violation> {
         let mut out = Vec::new();
+        if self.computed_request_hash() != self.request_hash {
+            out.push(Violation::new("dispatch.request_hash", "/request_hash"));
+        }
+        if self.output.max_output_tokens == 0 {
+            out.push(Violation::new("dispatch.output", "/output"));
+        }
         let value = serde_json::to_value(self).unwrap_or_default();
         if any_string(&value, &contains_secret_material)
             || any_string(&value, &|s| {

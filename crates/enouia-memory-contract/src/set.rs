@@ -709,10 +709,19 @@ fn check_sessions(set: &RecordSet, out: &mut Vec<Violation>) {
                 from_sequence,
                 to_sequence,
             } => {
-                let found: Vec<_> = (*from_sequence..=*to_sequence)
-                    .filter_map(|s| events.and_then(|e| e.get(&s)).copied())
-                    .collect();
-                if found.len() as u64 != to_sequence - from_sequence + 1 {
+                // Iterate existing events, never the declared range: a hostile
+                // range (e.g. 1..=2^53) must not become an unbounded loop.
+                let found: Vec<_> = events
+                    .map(|e| {
+                        e.range(*from_sequence..=*to_sequence)
+                            .map(|(_, v)| *v)
+                            .collect()
+                    })
+                    .unwrap_or_default();
+                let expected = to_sequence
+                    .checked_sub(*from_sequence)
+                    .and_then(|d| d.checked_add(1));
+                if expected != Some(found.len() as u64) {
                     out.push(Violation::new("checkpoint.coverage_missing", path.clone()));
                 }
                 found

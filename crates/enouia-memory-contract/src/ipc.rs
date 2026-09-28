@@ -388,8 +388,12 @@ pub fn parse_request(value: &Value) -> Result<(IpcRequest, Arguments), ContractE
             found: value.get("schemaVersion").and_then(Value::as_i64),
         });
     }
-    let request: IpcRequest = typed(value)?;
     let mut out = Vec::new();
+    crate::json::check_safe_integers(value, "", &mut out);
+    if !out.is_empty() {
+        return Err(ContractError::Invalid(out));
+    }
+    let request: IpcRequest = typed(value)?;
     match (&request.idempotency_key, request.operation.is_write()) {
         (Some(key), true) if is_idempotency_key(key) => {}
         (None, false) => {}
@@ -726,8 +730,12 @@ pub fn validate_response(
     operation: Operation,
     value: &Value,
 ) -> Result<IpcResponse, ContractError> {
-    let response: IpcResponse = typed(value)?;
     let mut out = Vec::new();
+    crate::json::check_safe_integers(value, "", &mut out);
+    if !out.is_empty() {
+        return Err(ContractError::Invalid(out));
+    }
+    let response: IpcResponse = typed(value)?;
     let is_error = response.kind == ResponseKind::MemoryError;
     if is_error != response.error.is_some() || is_error == response.result.is_some() {
         out.push(Violation::new("ipc.result_or_error", "/"));

@@ -1135,6 +1135,110 @@
       "schema": "accept"
     },
     {
+      "base": "records/capsule.json",
+      "covers": "F6: no panic; same range as the schema",
+      "id": "capsule-budget-u64-max",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/budget/max_tokens",
+          "value": 18446744073709551615
+        },
+        {
+          "op": "set",
+          "path": "/budget/estimated_tokens",
+          "value": 18446744073709551615
+        },
+        {
+          "op": "set",
+          "path": "/budget/safety_margin_tokens",
+          "value": 1
+        }
+      ],
+      "rust_rule": "number.out_of_range",
+      "schema": "reject"
+    },
+    {
+      "base": "records/capsule.json",
+      "covers": "F6: checked addition",
+      "id": "capsule-budget-sum-at-safe-limit",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/budget/max_tokens",
+          "value": 9007199254740991
+        },
+        {
+          "op": "set",
+          "path": "/budget/estimated_tokens",
+          "value": 9007199254740991
+        },
+        {
+          "op": "set",
+          "path": "/budget/safety_margin_tokens",
+          "value": 9007199254740991
+        }
+      ],
+      "rust_rule": "capsule.budget",
+      "schema": "accept"
+    },
+    {
+      "base": "records/session-event-user.json",
+      "covers": "F6: integer range",
+      "id": "event-sequence-u64",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/sequence",
+          "value": 18446744073709551615
+        }
+      ],
+      "rust_rule": "number.out_of_range",
+      "schema": "reject"
+    },
+    {
+      "base": "records/dispatch.json",
+      "covers": "F3: request hash covers the payload",
+      "id": "dispatch-request-hash-mismatch",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/request_hash",
+          "value": "116eeef83b8775310aaa02f2434014df875b76ba376d9b888fe93e5bb28c854a"
+        }
+      ],
+      "rust_rule": "dispatch.request_hash",
+      "schema": "accept"
+    },
+    {
+      "base": "records/dispatch.json",
+      "covers": "F3: content change changes the digest",
+      "id": "dispatch-same-length-content-swap",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/messages/1/content_hash",
+          "value": "9e63b527dde136cae42dbc269079d92d1536db6a3891706bdaba6571c0cec6ae"
+        }
+      ],
+      "rust_rule": "dispatch.request_hash",
+      "schema": "accept"
+    },
+    {
+      "base": "records/dispatch.json",
+      "covers": "F3: output configuration is bound",
+      "id": "dispatch-output-changed",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/output/max_output_tokens",
+          "value": 4096
+        }
+      ],
+      "rust_rule": "dispatch.request_hash",
+      "schema": "accept"
+    },
+    {
       "base": "records/candidate-pending.json",
       "covers": "secrets never in candidates",
       "id": "candidate-secret",

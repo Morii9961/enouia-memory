@@ -160,3 +160,33 @@ pub fn canonical_bytes<T: Serialize>(record: &T) -> Result<Vec<u8>, ContractErro
     bytes.push(b'\n');
     Ok(bytes)
 }
+
+/// Every JSON integer must be within ±(2^53 − 1), exactly as the schemas state.
+/// Serde would accept any u64, so this runs before typed parsing; it keeps
+/// Rust and Schema ranges identical and rules out overflow in later arithmetic.
+pub fn check_safe_integers(value: &Value, path: &str, out: &mut Vec<Violation>) {
+    match value {
+        Value::Number(number) => {
+            let safe = MAX_SAFE_INTEGER as i128;
+            let in_range = match (number.as_i64(), number.as_u64()) {
+                (Some(i), _) => (i as i128).abs() <= safe,
+                (None, Some(u)) => (u as i128) <= safe,
+                (None, None) => number.as_f64().is_some_and(f64::is_finite),
+            };
+            if !in_range {
+                out.push(Violation::new("number.out_of_range", path));
+            }
+        }
+        Value::Array(items) => {
+            for (index, item) in items.iter().enumerate() {
+                check_safe_integers(item, &format!("{path}/{index}"), out);
+            }
+        }
+        Value::Object(map) => {
+            for (key, item) in map {
+                check_safe_integers(item, &format!("{path}/{key}"), out);
+            }
+        }
+        _ => {}
+    }
+}

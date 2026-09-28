@@ -143,6 +143,11 @@ pub fn parse_value<T: Record>(value: &Value) -> Result<T, ContractError> {
         return Err(ContractError::Malformed);
     }
     ensure_writable(value)?;
+    let mut ranges = Vec::new();
+    crate::json::check_safe_integers(value, "", &mut ranges);
+    if !ranges.is_empty() {
+        return Err(ContractError::Invalid(ranges));
+    }
     let record: T = serde_json::from_value(value.clone())
         .map_err(|e| ContractError::Shape(shape_message(&e)))?;
     let violations = record.validate();
