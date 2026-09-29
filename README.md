@@ -2,7 +2,7 @@
 
 Enouia Memory is the local-first, model-independent long-term memory system for Enouia. It holds recoverable raw history, reviewed canonical memory, sessions, and explainable context compilation. This repository is its **independent home**: design, machine contracts, domain code, tests, and versioned releases. [Enouia Runtime](https://github.com/Morii9961/enouia-runtime) (the Windows client and Activity) integrates with it through versioned contracts. Runtime does not own Memory code or data.
 
-Status: **MV-1 (Vault and recovery foundation, [report](docs/validation/MV-1.md)) and MV-2 (history import and rescue, [report](docs/validation/MV-2.md)) are complete for synthetic data in isolated roots.** A real export drill (I07), encrypted backup with restic, OS-crash and power-loss evidence, and the segmented catalog needed before large real imports are pending. MV-3 has not started and needs the owner's explicit go-ahead. No index, UI, model call, MCP, or VPS exists, and no real data root has been created. All fixtures are synthetic.
+Status: **MV-1 (Vault and recovery foundation, [report](docs/validation/MV-1.md)), MV-2 (history import and rescue, [report](docs/validation/MV-2.md)), and MV-3 (segmented catalog, candidates, owner review, deletion, [report](docs/validation/MV-3.md)) are complete for synthetic data in isolated roots.** A real export drill (I07), encrypted backup with restic, OS-crash and power-loss evidence, and the P01 gaps named in the MV-3 report are pending. MV-4 has not started and needs the owner's explicit go-ahead. No index, UI, model call, MCP, or VPS exists, and no real data root has been created. All fixtures are synthetic.
 
 ## Layout
 

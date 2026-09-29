@@ -89,6 +89,8 @@ flowchart LR
 
 ## 7. MV-3 — Canonical、候选和治理
 
+> **v1.1：** MV-3 已用合成数据实现，见 [MV-3 报告](../validation/MV-3.md)。先落地了分段清单与差分校验（ADR-MEM-39），再实现候选、计划绑定的主人审核、替代与冲突、Identity 修订、忘记与彻底删除、删除台账对账（ADR-MEM-40、41）。M01～M08、B02（逻辑删除）通过；P01 部分通过（capsule、索引、副本尚不存在，失去证据的记忆只列出未标记，原始包清洗替换未实现）。
+
 1. **MV-3.1 五类记录**：验证类型字段、来源闭合、双时间、命题粒度、Identity 修订。
 2. **MV-3.2 审核**：人工 propose/review/edit/reject/merge、trusted owner 确认、批次 expected revision、禁止 Agent 伪造批准。
 3. **MV-3.3 变更与冲突**：supersedes 无环、范围替代、保留历史、冲突组、撤销错误审核（生成新审计记录）。
