@@ -40,6 +40,31 @@
       "rust_rule": "import.coverage_mismatch"
     },
     {
+      "base": "sets/lifecycle.json",
+      "covers": "import revisions describe the same received bytes",
+      "id": "import-input-changed",
+      "ops": [
+        {
+          "op": "append",
+          "path": "/imports",
+          "then": [
+            {
+              "op": "set",
+              "path": "/revision",
+              "value": 2
+            },
+            {
+              "op": "set",
+              "path": "/input_object_hash",
+              "value": "fbf22ec45a215e0d4711bfe2dde37292707edaf098c15bd5b204cb3ca72e6ca3"
+            }
+          ],
+          "value_from": "/imports/0"
+        }
+      ],
+      "rust_rule": "import.input_changed"
+    },
+    {
       "base": "sets/morimeta-confirmed.json",
       "covers": "no canonical write without review",
       "id": "memory-without-review",

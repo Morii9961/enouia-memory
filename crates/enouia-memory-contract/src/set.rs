@@ -22,7 +22,7 @@ use crate::policy::{
     AccessContext, EgressRule, PolicyOrigin, PolicyRecord, ResourceContext, Scope,
     derived_sensitivity_ok, egress_rule, evaluate,
 };
-use crate::record::{Record, RecordKind, RecordRef, parse_value};
+use crate::record::{AnyRecord, Record, RecordKind, RecordRef, parse_value};
 use crate::session::{
     CheckpointSourceRef, Coverage, EventKind, SessionCheckpoint, SessionEvent, SessionRecord,
 };
@@ -32,7 +32,7 @@ use crate::time::Timestamp;
 use serde_json::Value;
 use std::collections::{BTreeMap, BTreeSet};
 
-#[derive(Debug, Default)]
+#[derive(Clone, Debug, Default)]
 pub struct RecordSet {
     pub sources: Vec<SourceRecord>,
     pub attachments: Vec<AttachmentRecord>,
@@ -95,6 +95,34 @@ fn load<T: Record>(value: &Value, key: &str) -> Result<Vec<T>, (String, Contract
 }
 
 impl RecordSet {
+    /// Add one record to its kind's list. Kinds a set does not hold
+    /// (provider capability snapshots) are ignored.
+    pub fn push(&mut self, record: AnyRecord) {
+        match record {
+            AnyRecord::Source(r) => self.sources.push(r),
+            AnyRecord::Attachment(r) => self.attachments.push(r),
+            AnyRecord::Project(r) => self.projects.push(r),
+            AnyRecord::Memory(r) => self.memories.push(*r),
+            AnyRecord::Candidate(r) => self.candidates.push(*r),
+            AnyRecord::Review(r) => self.reviews.push(r),
+            AnyRecord::Identity(r) => self.identities.push(r),
+            AnyRecord::Session(r) => self.sessions.push(r),
+            AnyRecord::SessionEvent(r) => self.session_events.push(r),
+            AnyRecord::Checkpoint(r) => self.checkpoints.push(r),
+            AnyRecord::Commit(r) => self.commits.push(r),
+            AnyRecord::Tombstone(r) => self.tombstones.push(r),
+            AnyRecord::PurgeReceipt(r) => self.purge_receipts.push(r),
+            AnyRecord::AuditEvent(r) => self.audit_events.push(r),
+            AnyRecord::Capsule(r) => self.capsules.push(*r),
+            AnyRecord::Inspection(r) => self.inspections.push(r),
+            AnyRecord::Dispatch(r) => self.dispatches.push(r),
+            AnyRecord::ProviderCapabilities(_) => {}
+            AnyRecord::Approval(r) => self.approvals.push(*r),
+            AnyRecord::Policy(r) => self.policies.push(*r),
+            AnyRecord::Import(r) => self.imports.push(*r),
+        }
+    }
+
     /// Every record is strictly parsed and individually validated first.
     pub fn from_value(value: &Value) -> Result<Self, (String, ContractError)> {
         let Some(map) = value.as_object() else {
@@ -128,12 +156,6 @@ impl RecordSet {
             policies: load(value, "policies")?,
             imports: load(value, "imports")?,
         })
-    }
-
-    fn source(&self, reference: &SourceRevisionRef) -> Option<&SourceRecord> {
-        self.sources
-            .iter()
-            .find(|s| s.source_id == reference.source_id && s.revision == reference.source_revision)
     }
 
     fn memory_revision(&self, id: &str, revision: Revision) -> Option<&CanonicalMemory> {
@@ -172,10 +194,6 @@ impl RecordSet {
             .collect();
         revisions.sort_by_key(|c| c.revision);
         revisions
-    }
-
-    fn review(&self, id: &str) -> Option<&ReviewRecord> {
-        self.reviews.iter().find(|r| r.review_id.as_str() == id)
     }
 
     fn approval(&self, id: &str) -> Option<&ApprovalRecord> {
@@ -311,20 +329,127 @@ impl RecordSet {
 
 /// Run every cross-record rule. Returns all violations (empty = consistent).
 pub fn validate_set(set: &RecordSet) -> Vec<Violation> {
-    let mut out = Vec::new();
-    check_revisions(set, &mut out);
-    check_imports(set, &mut out);
-    check_evidence(set, &mut out);
-    check_reviews(set, &mut out);
-    check_candidates(set, &mut out);
-    check_supersession(set, &mut out);
-    check_projects(set, &mut out);
-    check_sessions(set, &mut out);
-    check_commits(set, &mut out);
-    check_deletions(set, &mut out);
-    check_policies(set, &mut out);
-    check_context(set, &mut out);
+    let view = View::new(set);
+    let mut out = records(&view);
+    check_commits(&view, &mut out);
     out
+}
+
+/// Every rule except the commit chain and catalog closure (`check_commits`).
+/// A store that builds each manifest from the previous one checks the chain
+/// step itself (`check_commit_step`) and validates records through
+/// `delta::validate_delta` on a scoped set (ADR-MEM-39).
+pub fn validate_records(set: &RecordSet) -> Vec<Violation> {
+    records(&View::new(set))
+}
+
+fn records(view: &View) -> Vec<Violation> {
+    let mut out = Vec::new();
+    check_revisions(view, &mut out);
+    check_imports(view, &mut out);
+    check_evidence(view, &mut out);
+    check_reviews(view, &mut out);
+    check_candidates(view, &mut out);
+    check_supersession(view, &mut out);
+    check_projects(view, &mut out);
+    check_sessions(view, &mut out);
+    check_deletions(view, &mut out);
+    check_policies(view, &mut out);
+    check_context(view, &mut out);
+    out
+}
+
+/// Lookup indexes over one set, built once per validation run. Rules take a
+/// `View`; fields are reached through `Deref`, and these inherent lookups
+/// shadow the linear ones on `RecordSet` (first match wins, as before).
+struct View<'a> {
+    set: &'a RecordSet,
+    source_ix: BTreeMap<(&'a str, u64), &'a SourceRecord>,
+    memory_ix: BTreeMap<(&'a str, u64), &'a CanonicalMemory>,
+    candidate_ix: BTreeMap<&'a str, Vec<&'a CandidateRecord>>,
+    review_ix: BTreeMap<&'a str, &'a ReviewRecord>,
+    approval_ix: BTreeMap<&'a str, &'a ApprovalRecord>,
+    document_ix: BTreeSet<(RecordKind, String, u64)>,
+}
+
+impl std::ops::Deref for View<'_> {
+    type Target = RecordSet;
+    fn deref(&self) -> &RecordSet {
+        self.set
+    }
+}
+
+impl<'a> View<'a> {
+    fn new(set: &'a RecordSet) -> Self {
+        let mut source_ix = BTreeMap::new();
+        for s in &set.sources {
+            source_ix
+                .entry((s.source_id.as_str(), s.revision.get()))
+                .or_insert(s);
+        }
+        let mut memory_ix = BTreeMap::new();
+        for m in &set.memories {
+            memory_ix
+                .entry((m.memory_id.as_str(), m.revision.get()))
+                .or_insert(m);
+        }
+        let mut candidate_ix: BTreeMap<&str, Vec<&CandidateRecord>> = BTreeMap::new();
+        for c in &set.candidates {
+            candidate_ix
+                .entry(c.candidate_id.as_str())
+                .or_default()
+                .push(c);
+        }
+        for revisions in candidate_ix.values_mut() {
+            revisions.sort_by_key(|c| c.revision);
+        }
+        let mut review_ix = BTreeMap::new();
+        for r in &set.reviews {
+            review_ix.entry(r.review_id.as_str()).or_insert(r);
+        }
+        let mut approval_ix = BTreeMap::new();
+        for a in &set.approvals {
+            approval_ix.entry(a.approval_id.as_str()).or_insert(a);
+        }
+        Self {
+            set,
+            source_ix,
+            memory_ix,
+            candidate_ix,
+            review_ix,
+            approval_ix,
+            document_ix: set.cataloged_documents(),
+        }
+    }
+
+    fn source(&self, reference: &SourceRevisionRef) -> Option<&'a SourceRecord> {
+        self.source_ix
+            .get(&(
+                reference.source_id.as_str(),
+                reference.source_revision.get(),
+            ))
+            .copied()
+    }
+
+    fn memory_revision(&self, id: &str, revision: Revision) -> Option<&'a CanonicalMemory> {
+        self.memory_ix.get(&(id, revision.get())).copied()
+    }
+
+    fn candidate_revisions(&self, id: &str) -> Vec<&'a CandidateRecord> {
+        self.candidate_ix.get(id).cloned().unwrap_or_default()
+    }
+
+    fn review(&self, id: &str) -> Option<&'a ReviewRecord> {
+        self.review_ix.get(id).copied()
+    }
+
+    fn approval(&self, id: &str) -> Option<&'a ApprovalRecord> {
+        self.approval_ix.get(id).copied()
+    }
+
+    fn cataloged_documents(&self) -> &BTreeSet<(RecordKind, String, u64)> {
+        &self.document_ix
+    }
 }
 
 fn contiguous(revisions: &mut [u64]) -> bool {
@@ -335,11 +460,11 @@ fn contiguous(revisions: &mut [u64]) -> bool {
         .all(|(i, r)| *r == i as u64 + 1)
 }
 
-fn check_revisions(set: &RecordSet, out: &mut Vec<Violation>) {
+fn check_revisions(set: &View, out: &mut Vec<Violation>) {
     let mut groups: BTreeMap<(RecordKind, String), Vec<u64>> = BTreeMap::new();
     for (kind, id, rev) in set.cataloged_documents() {
         if kind.is_revisioned() {
-            groups.entry((kind, id)).or_default().push(rev);
+            groups.entry((*kind, id.clone())).or_default().push(*rev);
         }
     }
     // Duplicate (kind,id,rev) collapse in the set above; count documents directly.
@@ -364,7 +489,7 @@ fn check_revisions(set: &RecordSet, out: &mut Vec<Violation>) {
     }
 }
 
-fn check_evidence(set: &RecordSet, out: &mut Vec<Violation>) {
+fn check_evidence(set: &View, out: &mut Vec<Violation>) {
     struct Derived<'a> {
         target: RecordRef,
         evidence: &'a [crate::common::EvidenceRef],
@@ -462,7 +587,7 @@ fn check_evidence(set: &RecordSet, out: &mut Vec<Violation>) {
 /// Import closure (ADR-MEM-38): an imported source names an import that
 /// exists and cites that import's received bytes; a completed import's
 /// coverage counts exactly the sources that cite it.
-fn check_imports(set: &RecordSet, out: &mut Vec<Violation>) {
+fn check_imports(set: &View, out: &mut Vec<Violation>) {
     let latest_import = |id: &str| {
         set.imports
             .iter()
@@ -491,6 +616,16 @@ fn check_imports(set: &RecordSet, out: &mut Vec<Violation>) {
     let ids: BTreeSet<&str> = set.imports.iter().map(|i| i.import_id.as_str()).collect();
     for id in ids {
         let import = latest_import(id).expect("present");
+        // Every revision describes the same received bytes. Sources compare
+        // against the latest revision only, so this keeps a later revision
+        // from silently changing what earlier sources cite (ADR-MEM-39).
+        if set.imports.iter().any(|i| {
+            i.import_id.as_str() == id
+                && (i.input_object_hash != import.input_object_hash
+                    || i.input_size_bytes != import.input_size_bytes)
+        }) {
+            out.push(Violation::new("import.input_changed", id.to_owned()));
+        }
         if import.status != ImportStatus::Completed {
             continue;
         }
@@ -508,7 +643,7 @@ fn check_imports(set: &RecordSet, out: &mut Vec<Violation>) {
     }
 }
 
-fn check_reviews(set: &RecordSet, out: &mut Vec<Violation>) {
+fn check_reviews(set: &View, out: &mut Vec<Violation>) {
     let mut nonces = BTreeSet::new();
     for review in &set.reviews {
         let path = review.review_id.to_string();
@@ -622,7 +757,7 @@ fn check_reviews(set: &RecordSet, out: &mut Vec<Violation>) {
     }
 }
 
-fn check_candidates(set: &RecordSet, out: &mut Vec<Violation>) {
+fn check_candidates(set: &View, out: &mut Vec<Violation>) {
     let ids: BTreeSet<&str> = set
         .candidates
         .iter()
@@ -686,7 +821,7 @@ fn same_scope(a: &CanonicalMemory, b: &CanonicalMemory) -> bool {
     }
 }
 
-fn check_supersession(set: &RecordSet, out: &mut Vec<Violation>) {
+fn check_supersession(set: &View, out: &mut Vec<Violation>) {
     let latest = set.latest_memories();
     let by_id: BTreeMap<&str, &CanonicalMemory> =
         latest.iter().map(|m| (m.memory_id.as_str(), *m)).collect();
@@ -792,7 +927,7 @@ fn check_supersession(set: &RecordSet, out: &mut Vec<Violation>) {
     }
 }
 
-fn check_projects(set: &RecordSet, out: &mut Vec<Violation>) {
+fn check_projects(set: &View, out: &mut Vec<Violation>) {
     let mut latest: BTreeMap<&str, &ProjectEntity> = BTreeMap::new();
     for project in &set.projects {
         let entry = latest.entry(project.project_id.as_str()).or_insert(project);
@@ -822,7 +957,7 @@ fn check_projects(set: &RecordSet, out: &mut Vec<Violation>) {
     }
 }
 
-fn check_sessions(set: &RecordSet, out: &mut Vec<Violation>) {
+fn check_sessions(set: &View, out: &mut Vec<Violation>) {
     let latest_session = |id: &str| {
         set.sessions
             .iter()
@@ -853,11 +988,25 @@ fn check_sessions(set: &RecordSet, out: &mut Vec<Violation>) {
             out.push(Violation::new("event.sequence_duplicate", path));
         }
     }
-    let find_event = |id: &str| {
-        set.session_events
-            .iter()
-            .find(|e| e.event_id.as_str() == id)
-    };
+    let mut by_id: BTreeMap<&str, &SessionEvent> = BTreeMap::new();
+    for event in &set.session_events {
+        by_id.entry(event.event_id.as_str()).or_insert(event);
+    }
+    let find_event = |id: &str| by_id.get(id).copied();
+    // Earliest user message per (session, turn).
+    let mut inputs: BTreeMap<(&str, &crate::ids::TurnId), u64> = BTreeMap::new();
+    for e in set
+        .session_events
+        .iter()
+        .filter(|e| e.kind == EventKind::UserMessage)
+    {
+        if let Some(turn) = &e.turn_id {
+            let entry = inputs
+                .entry((e.session_id.as_str(), turn))
+                .or_insert(e.sequence);
+            *entry = (*entry).min(e.sequence);
+        }
+    }
     for event in &set.session_events {
         let path = event.event_id.to_string();
         if let Some(parent) = &event.parent_event_id {
@@ -867,12 +1016,18 @@ fn check_sessions(set: &RecordSet, out: &mut Vec<Violation>) {
             }
         }
         if event.kind == EventKind::AssistantCompleted {
-            let has_input = set.session_events.iter().any(|e| {
-                e.kind == EventKind::UserMessage
-                    && e.turn_id == event.turn_id
-                    && e.session_id == event.session_id
-                    && e.sequence < event.sequence
-            });
+            let has_input = match &event.turn_id {
+                Some(turn) => inputs
+                    .get(&(event.session_id.as_str(), turn))
+                    .is_some_and(|first| *first < event.sequence),
+                // Two absent turn IDs compare equal.
+                None => set.session_events.iter().any(|e| {
+                    e.kind == EventKind::UserMessage
+                        && e.turn_id.is_none()
+                        && e.session_id == event.session_id
+                        && e.sequence < event.sequence
+                }),
+            };
             if !has_input {
                 out.push(Violation::new("event.completed_without_input", path));
             }
@@ -997,7 +1152,7 @@ fn check_sessions(set: &RecordSet, out: &mut Vec<Violation>) {
     }
 }
 
-fn check_commits(set: &RecordSet, out: &mut Vec<Violation>) {
+fn check_commits(set: &View, out: &mut Vec<Violation>) {
     let mut commits: Vec<&CommitManifest> = set.commits.iter().collect();
     commits.sort_by_key(|c| c.sequence);
     for (index, commit) in commits.iter().enumerate() {
@@ -1020,23 +1175,7 @@ fn check_commits(set: &RecordSet, out: &mut Vec<Violation>) {
                 out.push(Violation::new("commit.clock_regression", path.clone()));
             }
         }
-        for review in &commit.review_ids {
-            if set
-                .review(review.as_str())
-                .is_none_or(|r| r.commit_id != commit.commit_id)
-            {
-                out.push(Violation::new("commit.review_ref", path.clone()));
-            }
-        }
-        for delete in &commit.tombstone_ids {
-            let ok = set
-                .tombstones
-                .iter()
-                .any(|t| &t.delete_id == delete && t.deletion_epoch <= commit.deletion_epoch);
-            if !ok {
-                out.push(Violation::new("commit.tombstone_ref", path.clone()));
-            }
-        }
+        commit_refs(set, commit, out);
     }
     let mut scopes: BTreeMap<(String, String, String), (&str, String)> = BTreeMap::new();
     for commit in &commits {
@@ -1082,7 +1221,7 @@ fn check_commits(set: &RecordSet, out: &mut Vec<Violation>) {
     }
     if let Some(head) = commits.last() {
         let mut latest: BTreeMap<(RecordKind, String), u64> = BTreeMap::new();
-        for (kind, id, rev) in &documents {
+        for (kind, id, rev) in documents {
             let entry = latest.entry((*kind, id.clone())).or_insert(*rev);
             *entry = (*entry).max(*rev);
         }
@@ -1102,7 +1241,65 @@ fn check_commits(set: &RecordSet, out: &mut Vec<Violation>) {
     }
 }
 
-fn check_deletions(set: &RecordSet, out: &mut Vec<Violation>) {
+fn commit_refs(set: &View, commit: &CommitManifest, out: &mut Vec<Violation>) {
+    let path = commit.commit_id.to_string();
+    for review in &commit.review_ids {
+        if set
+            .review(review.as_str())
+            .is_none_or(|r| r.commit_id != commit.commit_id)
+        {
+            out.push(Violation::new("commit.review_ref", path.clone()));
+        }
+    }
+    for delete in &commit.tombstone_ids {
+        let ok = set
+            .tombstones
+            .iter()
+            .any(|t| &t.delete_id == delete && t.deletion_epoch <= commit.deletion_epoch);
+        if !ok {
+            out.push(Violation::new("commit.tombstone_ref", path.clone()));
+        }
+    }
+}
+
+/// The chain rules of `check_commits` for one new commit on top of
+/// `previous` (None for genesis), with its review and tombstone references
+/// resolved in `set`. Catalog closure is the store's construction; the
+/// idempotency scope is unique through the store's index.
+pub fn check_commit_step(
+    set: &RecordSet,
+    previous: Option<&CommitManifest>,
+    commit: &CommitManifest,
+) -> Vec<Violation> {
+    let mut out = Vec::new();
+    let path = commit.commit_id.to_string();
+    match previous {
+        None if commit.sequence != 1 || commit.parent_commit_id.is_some() => {
+            out.push(Violation::new("commit.chain", path.clone()));
+        }
+        None => {}
+        Some(previous) => {
+            if commit.sequence != previous.sequence + 1
+                || commit.parent_commit_id.as_ref() != Some(&previous.commit_id)
+                || commit.vault_id != previous.vault_id
+            {
+                out.push(Violation::new("commit.chain", path.clone()));
+            }
+            if commit.policy_epoch < previous.policy_epoch
+                || commit.deletion_epoch < previous.deletion_epoch
+            {
+                out.push(Violation::new("commit.epoch_regression", path.clone()));
+            }
+            if commit.created_at < previous.created_at {
+                out.push(Violation::new("commit.clock_regression", path));
+            }
+        }
+    }
+    commit_refs(&View::new(set), commit, &mut out);
+    out
+}
+
+fn check_deletions(set: &View, out: &mut Vec<Violation>) {
     let documents = set.cataloged_documents();
     let mut epochs = BTreeSet::new();
     for tombstone in &set.tombstones {
@@ -1178,7 +1375,7 @@ fn check_deletions(set: &RecordSet, out: &mut Vec<Violation>) {
 
 /// Policy references resolve; every owner grant is bound to an approval of
 /// exactly that policy revision (digest of its canonical bytes).
-fn check_policies(set: &RecordSet, out: &mut Vec<Violation>) {
+fn check_policies(set: &View, out: &mut Vec<Violation>) {
     let known: BTreeSet<&str> = set.policies.iter().map(|p| p.policy_id.as_str()).collect();
     let mut references: Vec<(String, &crate::ids::PolicyId)> = Vec::new();
     for m in &set.memories {
@@ -1351,7 +1548,7 @@ pub fn hard_exclusion(
     }
 }
 
-fn check_context(set: &RecordSet, out: &mut Vec<Violation>) {
+fn check_context(set: &View, out: &mut Vec<Violation>) {
     for capsule in &set.capsules {
         let path = capsule.capsule_id.to_string();
         let Some(commit) = set.commit(capsule.vault_commit_id.as_str()) else {

@@ -19,6 +19,7 @@ pub mod candidate;
 pub mod commit;
 pub mod common;
 pub mod context;
+pub mod delta;
 pub mod error;
 pub mod foundation;
 pub mod hash;

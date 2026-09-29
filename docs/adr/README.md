@@ -27,7 +27,7 @@ These come from [design/DECISIONS_AND_SOURCES](../design/DECISIONS_AND_SOURCES.m
 | ADR-MEM-17 | Single primary; offline edits become candidates | Deferred (MV-10) |
 | ADR-MEM-18 | Adapters open only after measurement | Adopted |
 
-## ADR-MEM-19 … 38 — implementation decisions (MV-0 / MV-0R / MV-1 / MV-2)
+## ADR-MEM-19 … 39 — implementation decisions (MV-0 / MV-0R / MV-1 / MV-2 / MV-3)
 
 ADR-MEM-20 to 29 were first drafted with Enouia Runtime's register numbers 020–029 and never committed there. The draft is kept in [history](../history/adr-draft-runtime-numbering.md). Numbering here is this repository's own.
 
@@ -126,6 +126,20 @@ The caller pre-assigns `commit_id` (from its `IdSource`), because a review names
 Each user-selected import is a revisioned `import` record (`imp_…`) stored at `vault/raw/manifests/<id>/<revision>.json`, as the layout specified. A new revision is committed at each step (archived, every parse batch, completion) in the same transaction as the sources that step produced, so the resume cursor, adapter version, counts, and coverage always describe exactly what that commit contains. It records the input kind, the received bytes' hash and size, the adapter and observed source schema, sanitized archive members with their disposition (parsed, preserved only, quarantined, skipped), the cursor, counts, per-conversation coverage (upstream IDs, counts, times; never titles), warnings, and `duplicate_of` for a byte-identical re-import.
 
 Closure rules: an imported source names an existing import and cites that import's received bytes (`source.import_unresolved`, `source.import_raw_mismatch`); a completed import's coverage counts exactly the sources citing it (`import.coverage_mismatch`); an import past `archiving` is committed only with its Raw object present (`store.import_raw_missing`). Raw completeness and parse completeness are separate: an unrecognized format is archived and ends `partial` with no adapter. The synthetic fixtures now carry an import manifest and its raw bytes for every imported source.
+
+### ADR-MEM-39 — Segmented catalog and scoped commit validation (Adopted, MV-3.0)
+
+MV-2 crossed the ADR-MEM-37 trigger: 4,000 imported sources made a 1.1 MB head manifest, and one assertion from a fresh process after that import took 0.78 s, growing with the Vault. Two changes replace the complete catalog and the full-history validation. The logical model does not change: `read_manifest` still returns the complete `CommitManifest` v1 view, and `set::validate_set` still defines consistency.
+
+**Stored manifest and segments.** A commit is stored as a format-2 manifest (`contracts/store/stored-commit-v1`): the v1 header, epochs, review and tombstone IDs, and receipt, plus references to catalog segments instead of inline `catalog` and `objects`. Segments (`contracts/store/catalog-segment-v1`, `vault/catalog/<sha256>.json`) are immutable and content-addressed; an unchanged segment is reused by hash, so a commit writes only the segments it changes.
+
+- Record segments are per record kind and partition that kind's IDs by the hex digits after the ID prefix (dashes removed). The partition is a pure function of the ID set and the manifest's `segment_capacity` (512): a prefix is a leaf when it holds at most the capacity and its parent holds more. Object segments partition object hashes the same way.
+- A record entry carries the latest revision's hash and the hashes of every earlier revision, so the head alone names every document ever cataloged (what validation and export need). It also carries the record's group IDs across all revisions: the imports a source cited, the session of an event. Identity Markdown object entries name the identity revision they are stored beside, which replaces the search back through the chain.
+- The descriptor's `format_version` becomes 2. Format 1 was never used for real data; this build refuses a format-1 Vault with `unsupported_schema` instead of carrying two read paths.
+
+**Scoped validation.** Each commit is validated by `delta::validate_delta` on a scoped set: every record of the small kinds (all revisions), and of the bulk kinds (sources, attachments, session events) only what `delta::delta_needs` lists: every revision of each changed record, the documents the delta's rules read, the whole group when a group rule applies (all sources citing an import completed at the head or in the delta; all events of a session the delta touches), and the needs of every small record whose rules read a delta document. The same rules run on the scoped set without and with the delta; a commit is refused if any `(rule, path)` occurs more often with it. A rule instance that reads no delta document cancels out, however incomplete its inputs; one that reads a delta document has all its inputs, so it yields the whole-Vault result. Premises: bulk records are read only by exact revision, by ID, or by group; rules over bulk records that read small ones only get more satisfied when records are added (policy references); and an import revision may not change the received bytes (`import.input_changed`, new). `tests/delta.rs` checks the equivalence for every record, every commit, and every copied or next-revision record of all synthetic sets and mutation cases, and seeding a gap into `delta_needs` makes it fail. The chain step (`set::check_commit_step`) is checked separately; catalog closure is the store's construction.
+
+Cost and trigger: small kinds are still loaded completely per commit (cached in a long-lived process), and a group rule loads its whole group (an import's completion commit reads that import's sources; a session append reads that session's events). If memories, candidates, and reviews together exceed about 20,000 revisions, or a group load exceeds 1 s, the next step is per-group indexes for those kinds.
 
 ## Relation to Enouia Runtime's register
 

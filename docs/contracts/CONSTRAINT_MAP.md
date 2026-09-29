@@ -41,6 +41,8 @@ MV-1 update: rows whose "Later behavior" names MV-1 now have store evidence (com
 | Dispatch digest bound to the actual request (F3) | ✗ | ✔ `dispatch.request_hash`; `ProviderRequest::verify_against` | ✔ approval payload binding | MV-5/7 send path |
 | Deletion/policy barrier rechecked before send | ✗ | – | ✔ | MV-5/7 live recheck |
 | IPC request/response contracts | ✔ | ✔ `ipc.*` | – | MV-6/8 transports |
+| Import closure: sources cite an existing import and its bytes; completed coverage counts its sources; revisions keep the received bytes (`import.input_changed`) | received hash format | ✔ ImportManifest rules | ✔ `check_imports` | MV-2 reconciliation re-derives every cited source |
+| Commit validated on a scoped set equals whole-Vault validation (ADR-MEM-39) | – | – | ✔ `delta::validate_delta`, property test `tests/delta.rs` | MV-3.0 store uses it for every commit |
 | Self-contained build; no Runtime/Activity dependency | – | `tests/boundaries.rs` | – | **MV-1** installed-artifact run (D03/D04 behavior) |
 
 ## Rule coverage

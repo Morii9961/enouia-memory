@@ -1098,6 +1098,7 @@ set_cases = [
     sc("source-import-unresolved", "lifecycle.json", [R("/imports/0")], "source.import_unresolved", "imported sources name an existing import"),
     sc("source-import-raw-mismatch", "lifecycle.json", [S(f"/sources/{limp}/raw_object_hash", sha("other-bytes"))], "source.import_raw_mismatch", "sources cite the received bytes"),
     sc("import-coverage-mismatch", "lifecycle.json", [S("/imports/0/coverage/0/message_count", 99)], "import.coverage_mismatch", "coverage report counts exactly the imported sources"),
+    sc("import-input-changed", "lifecycle.json", [{"op": "append", "path": "/imports", "value_from": "/imports/0", "then": [S("/revision", 2), S("/input_object_hash", sha("other-bytes"))]}], "import.input_changed", "import revisions describe the same received bytes"),
     sc("memory-without-review", "morimeta-confirmed.json", [S(f"/memories/{iB}/review_id", uid("rvw", 99))], "memory.review_missing", "no canonical write without review"),
     sc("memory-from-pending-candidate", "morimeta-confirmed.json", [R(f"/candidates/{cB2}")], "memory.unreviewed_candidate", "unreviewed candidate cannot become memory"),
     sc("evidence-role-confusion", "morimeta-confirmed.json",

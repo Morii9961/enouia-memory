@@ -5,14 +5,17 @@
 //!
 //! Run: `cargo run --release -p enouia-memory-import --example measure_import -- 200 20 50`
 
-use enouia_memory_contract::common::{ActorRef, ActorType, TrustedSurface};
+use enouia_memory_contract::common::{
+    ActorRef, ActorType, Sensitivity, TimePrecision, TrustedSurface,
+};
 use enouia_memory_contract::foundation::FakeClock;
 use enouia_memory_contract::ids::{PolicyId, PrincipalId};
 use enouia_memory_contract::ports::SequentialIdSource;
 use enouia_memory_contract::record::RecordKind;
+use enouia_memory_contract::source::ConfirmationMethod;
 use enouia_memory_import::pipeline::NeverCancel;
 use enouia_memory_import::{ImportOptions, import_file};
-use enouia_memory_vault::service::new_genesis;
+use enouia_memory_vault::service::{ManualAssertionInput, new_genesis};
 use enouia_memory_vault::{RootPolicy, Vault, VaultOptions, verify_data_root};
 use serde_json::{Map, json};
 use std::sync::Arc;
@@ -114,6 +117,49 @@ fn main() {
         report.manifest.status,
         report.commits,
         elapsed / report.commits as f64
+    );
+    drop(vault);
+
+    // A later single-record commit from a fresh process (cold caches): the
+    // cost every CLI command pays after a large import.
+    let clock = Arc::new(FakeClock::new(1_790_000_100_000));
+    let ids = Arc::new(SequentialIdSource::new(900_000));
+    let started = Instant::now();
+    let vault = Vault::open(
+        &root,
+        None,
+        clock,
+        ids,
+        VaultOptions {
+            validate_record_set: validate,
+            ..VaultOptions::default()
+        },
+    )
+    .unwrap();
+    vault
+        .record_manual_assertion(
+            &ManualAssertionInput {
+                text: "（合成）导入之后的一句话。".into(),
+                operator: options.owner.clone(),
+                trusted_surface: TrustedSurface::TrustedLocalCli,
+                confirmation: ConfirmationMethod::TypedConfirmation,
+                sensitivity: Sensitivity::Private,
+                access_policy_id: options.access_policy_id.clone(),
+                time_precision: TimePrecision::Millisecond,
+            },
+            b"measure-after-import",
+        )
+        .unwrap();
+    let pin = vault.pin_current().unwrap();
+    let head = std::fs::metadata(
+        base.join("root/vault/commits")
+            .join(format!("{}.json", pin.commit_id)),
+    )
+    .unwrap()
+    .len();
+    println!(
+        "one assertion after reopening: {:.2} s; head manifest {head} bytes",
+        started.elapsed().as_secs_f64()
     );
     drop(vault);
     let _ = std::fs::remove_dir_all(&base);
