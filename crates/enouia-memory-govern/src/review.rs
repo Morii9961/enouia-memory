@@ -17,14 +17,17 @@ use enouia_memory_contract::candidate::{
     CandidateRecord, CandidateStatus, MergeTarget, ProposalKind, ProposedType, ReviewAction,
     ReviewRecord,
 };
-use enouia_memory_contract::commit::OperationKind;
+use enouia_memory_contract::commit::{ObjectKind, OperationKind};
 use enouia_memory_contract::common::{ActorRef, ActorType, EvidenceRef, TrustedSurface};
 use enouia_memory_contract::hash::{Sha256Hex, sha256};
-use enouia_memory_contract::ids::{CandidateId, CommitId, ConflictGroupId, MemoryId, ReviewId};
+use enouia_memory_contract::identity::IdentityMetadata;
+use enouia_memory_contract::ids::{
+    CandidateId, CommitId, ConflictGroupId, IdentityId, MemoryId, ReviewId,
+};
 use enouia_memory_contract::json::{Revision, canonical_bytes};
 use enouia_memory_contract::memory::{CanonicalMemory, MemoryBody, MemoryStatus};
 use enouia_memory_contract::ports::{
-    CommitOutcome, CommitPin, CommitRequest, IdempotencyScope, StagedRecord,
+    CommitOutcome, CommitPin, CommitRequest, IdempotencyScope, StagedObject, StagedRecord,
 };
 use enouia_memory_contract::record::RecordKind;
 use enouia_memory_contract::source::SourceRecord;
@@ -100,6 +103,8 @@ pub struct PlannedIds {
     pub review_id: ReviewId,
     pub memory_id: MemoryId,
     pub conflict_group_id: ConflictGroupId,
+    /// Used when an identity change creates a new identity.
+    pub identity_id: IdentityId,
 }
 
 /// What the trusted surface shows before the owner confirms.
@@ -155,6 +160,8 @@ fn scope(owner: &ActorRef, nonce: &str) -> IdempotencyScope {
 struct Built {
     records: Vec<(RecordKind, String, Revision, Value)>,
     expected: Vec<(RecordKind, String, Option<Revision>)>,
+    /// Identity Markdown: the owner sees and approves the text itself.
+    objects: Vec<StagedObject>,
 }
 
 impl Built {
@@ -184,12 +191,24 @@ impl Built {
                 json!({"record_kind": kind, "record_id": id, "revision": rev.get(), "value": value})
             })
             .collect();
+        let objects: Vec<Value> = self
+            .objects
+            .iter()
+            .map(|o| {
+                json!({
+                    "object_kind": o.kind,
+                    "object_hash": o.hash,
+                    "text": String::from_utf8_lossy(&o.bytes),
+                })
+            })
+            .collect();
         json!({
             "owner": plan.owner,
             "surface": plan.surface,
             "commit_id": plan.commit_id,
             "nonce": plan.nonce,
             "records": records,
+            "objects": objects,
         })
     }
 }
@@ -553,7 +572,20 @@ fn decide(
                     )?;
                     ReviewAction::Supersede
                 }
-                ProposalKind::IdentityChange | ProposalKind::Delete => {
+                ProposalKind::IdentityChange => {
+                    identity(
+                        ctx,
+                        built,
+                        &candidate,
+                        &content,
+                        &details,
+                        ids,
+                        &mut results,
+                        &mut targets,
+                    )?;
+                    ReviewAction::IdentityAccept
+                }
+                ProposalKind::Delete => {
                     return Err(invalid("govern.not_supported"));
                 }
             };
@@ -754,6 +786,90 @@ fn supersede(
     stage_memory(built, value)
 }
 
+/// Accept an identity change (M08): a new identity revision whose Markdown
+/// the owner saw in the plan. The previous revisions and their Markdown stay
+/// readable; going back is another reviewed change, never an overwrite.
+#[allow(clippy::too_many_arguments)]
+fn identity(
+    ctx: &Context,
+    built: &mut Built,
+    candidate: &CandidateRecord,
+    markdown: &str,
+    details: &Option<Map<String, Value>>,
+    ids: &PlannedIds,
+    results: &mut Vec<Value>,
+    targets: &mut Vec<Value>,
+) -> Result<()> {
+    let field = |key: &str| details.as_ref().and_then(|d| d.get(key)).cloned();
+    let source = ctx.primary_source(candidate)?;
+    let bytes = markdown.as_bytes().to_vec();
+    let hash = sha256(&bytes);
+    let (id, revision, slug, title, created_at, previous) = match &candidate.target_identity_id {
+        Some(target) => {
+            let (current, current_rev): (IdentityMetadata, _) =
+                latest(ctx.vault, &ctx.pin, RecordKind::Identity, target.as_str())?
+                    .ok_or_else(|| invalid("review.target_missing"))?;
+            if Some(current_rev) != candidate.expected_revision {
+                return Err(stale());
+            }
+            built.expect(RecordKind::Identity, target.as_str(), Some(current_rev))?;
+            targets.push(reference(
+                RecordKind::Identity,
+                target.as_str(),
+                current_rev,
+            ));
+            (
+                target.clone(),
+                next(current_rev),
+                field("slug").unwrap_or(json!(current.slug)),
+                field("title").unwrap_or(json!(current.title)),
+                json!(current.created_at),
+                json!(current_rev.get()),
+            )
+        }
+        None => {
+            built.expect(RecordKind::Identity, ids.identity_id.as_str(), None)?;
+            (
+                ids.identity_id.clone(),
+                one(),
+                field("slug").ok_or_else(|| invalid("identity.slug_required"))?,
+                field("title").unwrap_or(json!(markdown.lines().next().unwrap_or("identity"))),
+                json!(ctx.now),
+                Value::Null,
+            )
+        }
+    };
+    let value = json!({
+        "schema_version": 1,
+        "identity_id": id,
+        "revision": revision.get(),
+        "slug": slug,
+        "title": title,
+        "content_hash": hash,
+        "content_media_type": "text/markdown; charset=utf-8",
+        "sensitivity": candidate.sensitivity,
+        "access_policy_id": source.access_policy_id,
+        "egress_policy_id": null,
+        "previous_revision": previous,
+        "review_id": ids.review_id,
+        "approved_by": ctx.header.owner,
+        "approved_at": ctx.now,
+        "created_at": created_at,
+        "updated_at": ctx.now,
+        "extensions": {},
+    });
+    let _: (IdentityMetadata, StagedRecord) =
+        staged(RecordKind::Identity, id.as_str(), revision, &value)?;
+    built.push(RecordKind::Identity, id.as_str(), revision, value);
+    built.objects.push(StagedObject {
+        kind: ObjectKind::IdentityMarkdown,
+        hash,
+        bytes,
+    });
+    results.push(reference(RecordKind::Identity, id.as_str(), revision));
+    Ok(())
+}
+
 fn build(
     vault: &Vault,
     header: PlanHeader,
@@ -775,6 +891,7 @@ fn build(
     let mut built = Built {
         records: Vec::new(),
         expected: Vec::new(),
+        objects: Vec::new(),
     };
     for (index, (decision, ids)) in decisions.iter().zip(ids).enumerate() {
         decide(&ctx, &mut built, decision, ids, index)?;
@@ -811,6 +928,7 @@ pub fn plan(
             review_id: ReviewId::from_random(vault.random_id_bytes()),
             memory_id: MemoryId::from_random(vault.random_id_bytes()),
             conflict_group_id: ConflictGroupId::from_random(vault.random_id_bytes()),
+            identity_id: IdentityId::from_random(vault.random_id_bytes()),
         })
         .collect();
     let commit_id = CommitId::from_random(vault.random_id_bytes());
@@ -906,6 +1024,6 @@ pub fn confirm(
         request_payload_hash: plan.diff_hash.clone(),
         expected_revisions: built.expected,
         records,
-        objects: Vec::new(),
+        objects: built.objects,
     })
 }

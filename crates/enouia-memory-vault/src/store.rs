@@ -165,6 +165,18 @@ pub struct PinnedFile {
 
 type DocKey = (RecordKind, String, u64);
 
+/// Record kinds only the Vault's owner may commit.
+const OWNER_ONLY: &[RecordKind] = &[
+    RecordKind::Memory,
+    RecordKind::Review,
+    RecordKind::Identity,
+    RecordKind::Project,
+    RecordKind::Tombstone,
+    RecordKind::PurgeReceipt,
+    RecordKind::Approval,
+    RecordKind::Policy,
+];
+
 pub struct Vault {
     root: ManagedRoot,
     descriptor: VaultDescriptor,
@@ -1598,6 +1610,14 @@ impl Vault {
             self.quarantine(&manifest_file, &operation)?;
         }
         let prepared = self.prepare_records(&request.records, Some(&head))?;
+        // Canonical and governing records are the owner's decisions: only a
+        // commit by the Vault's owner may carry them (defense in depth under
+        // the review rules; M02, M08).
+        if prepared.iter().any(|p| OWNER_ONLY.contains(&p.kind))
+            && request.principal != self.descriptor.created_by
+        {
+            return Err(VaultError::invalid(vec!["store.owner_only_kind"]));
+        }
         self.check_objects(&request.objects, &prepared)?;
         let tombstone_epochs: BTreeSet<u64> = prepared
             .iter()
