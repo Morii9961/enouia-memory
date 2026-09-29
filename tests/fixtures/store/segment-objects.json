@@ -1,0 +1,25 @@
+{
+  "objects": [
+    {
+      "object_hash": "e8cee86789390a9cbbf5790a505df47e6760dbf14c80605f5045aaf89109531e",
+      "object_kind": "raw",
+      "size_bytes": 10,
+      "stored_with": null
+    },
+    {
+      "object_hash": "f13259a3fc1540008853dbed8a89d9cf9374c547878070e78d8d4405c1e3772d",
+      "object_kind": "identity_markdown",
+      "size_bytes": 17,
+      "stored_with": {
+        "record_id": "idn_00000001-0000-4000-8000-000000000001",
+        "record_kind": "identity",
+        "revision": 1
+      }
+    }
+  ],
+  "prefix": "",
+  "record_kind": null,
+  "records": [],
+  "schema_version": 1,
+  "segment_kind": "objects"
+}

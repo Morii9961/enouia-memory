@@ -1,5 +1,5 @@
 {
-  "description": "Synthetic Vault store file contracts (ADR-MEM-36). 'schema: accept' marks a constraint JSON Schema cannot express; the Rust validator must still reject it.",
+  "description": "Synthetic Vault store file contracts (ADR-MEM-36, ADR-MEM-39). 'schema: accept' marks a constraint JSON Schema cannot express; the Rust validator must still reject it.",
   "invalid": [
     {
       "base": "descriptor.json",
@@ -20,13 +20,27 @@
     },
     {
       "base": "descriptor.json",
-      "covers": "unknown vault format",
-      "id": "descriptor-format-2",
+      "covers": "pre-segmented layout is refused",
+      "id": "descriptor-format-1",
       "ops": [
         {
           "op": "set",
           "path": "/format_version",
-          "value": 2
+          "value": 1
+        }
+      ],
+      "rust_rule": "shape",
+      "schema": "reject"
+    },
+    {
+      "base": "descriptor.json",
+      "covers": "unknown vault format",
+      "id": "descriptor-format-3",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/format_version",
+          "value": 3
         }
       ],
       "rust_rule": "shape",
@@ -329,6 +343,199 @@
       ],
       "rust_rule": "restore.reconciled_order",
       "schema": "accept"
+    },
+    {
+      "base": "segment-records.json",
+      "covers": "deterministic entry order",
+      "id": "segment-unsorted",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/records/0/record_id",
+          "value": "src_00000003-0000-4000-8000-000000000003"
+        }
+      ],
+      "rust_rule": "segment.order",
+      "schema": "accept"
+    },
+    {
+      "base": "segment-records.json",
+      "covers": "entries lie under the prefix",
+      "id": "segment-prefix-mismatch",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/prefix",
+          "value": "1"
+        }
+      ],
+      "rust_rule": "segment.prefix_mismatch",
+      "schema": "accept"
+    },
+    {
+      "base": "segment-records.json",
+      "covers": "hex prefix",
+      "id": "segment-prefix-not-hex",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/prefix",
+          "value": "0g"
+        }
+      ],
+      "rust_rule": "segment.prefix",
+      "schema": "reject"
+    },
+    {
+      "base": "segment-records.json",
+      "covers": "one prior hash per earlier revision",
+      "id": "segment-prior-count",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/records/0/prior_hashes",
+          "value": []
+        }
+      ],
+      "rust_rule": "segment.prior_hashes",
+      "schema": "accept"
+    },
+    {
+      "base": "segment-records.json",
+      "covers": "sources group by import",
+      "id": "segment-group-kind",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/records/0/group_ids",
+          "value": [
+            "ses_00000001-0000-4000-8000-000000000001"
+          ]
+        }
+      ],
+      "rust_rule": "segment.group",
+      "schema": "accept"
+    },
+    {
+      "base": "segment-records.json",
+      "covers": "one entry kind per segment",
+      "id": "segment-mixed-entries",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/objects",
+          "value": [
+            {
+              "object_hash": "2d711642b726b04401627ca9fbac32f5c8530fb1903cc4db02258717921a4881",
+              "object_kind": "raw",
+              "size_bytes": 1,
+              "stored_with": null
+            }
+          ]
+        }
+      ],
+      "rust_rule": "segment.kind_entries",
+      "schema": "reject"
+    },
+    {
+      "base": "segment-objects.json",
+      "covers": "identity Markdown names its revision",
+      "id": "segment-identity-unlocated",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/objects/0/stored_with",
+          "value": null
+        },
+        {
+          "op": "set",
+          "path": "/objects/1/stored_with",
+          "value": null
+        }
+      ],
+      "rust_rule": "segment.object_location",
+      "schema": "accept"
+    },
+    {
+      "base": "stored-commit.json",
+      "covers": "canonical partition",
+      "id": "stored-noncanonical",
+      "ops": [
+        {
+          "op": "append",
+          "path": "/record_segments",
+          "value": {
+            "entry_count": 1,
+            "prefix": "0",
+            "record_kind": "source",
+            "segment_hash": "c8dee78f8c7b466c881847accc196998bad00e2b96c5ef913dfbe454d3807c96",
+            "segment_kind": "records"
+          }
+        }
+      ],
+      "rust_rule": "stored.partition",
+      "schema": "accept"
+    },
+    {
+      "base": "stored-commit.json",
+      "covers": "leaf capacity",
+      "id": "stored-overfull",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/record_segments/1/entry_count",
+          "value": 513
+        }
+      ],
+      "rust_rule": "stored.partition",
+      "schema": "accept"
+    },
+    {
+      "base": "stored-commit.json",
+      "covers": "capacity range",
+      "id": "stored-capacity",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/segment_capacity",
+          "value": 8
+        }
+      ],
+      "rust_rule": "stored.capacity",
+      "schema": "reject"
+    },
+    {
+      "base": "stored-commit.json",
+      "covers": "deterministic segment order",
+      "id": "stored-unsorted",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/record_segments/0/record_kind",
+          "value": "source"
+        },
+        {
+          "op": "set",
+          "path": "/record_segments/1/record_kind",
+          "value": "policy"
+        }
+      ],
+      "rust_rule": "stored.segment_order",
+      "schema": "accept"
+    },
+    {
+      "base": "stored-commit.json",
+      "covers": "stored commits are format 2",
+      "id": "stored-format-1",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/format_version",
+          "value": 1
+        }
+      ],
+      "rust_rule": "shape",
+      "schema": "reject"
     }
   ],
   "valid": [
@@ -366,6 +573,21 @@
       "file": "restore-state.json",
       "schema": "store/restore-state-v1.schema.json",
       "type": "restore_state"
+    },
+    {
+      "file": "segment-records.json",
+      "schema": "store/catalog-segment-v1.schema.json",
+      "type": "catalog_segment"
+    },
+    {
+      "file": "segment-objects.json",
+      "schema": "store/catalog-segment-v1.schema.json",
+      "type": "catalog_segment"
+    },
+    {
+      "file": "stored-commit.json",
+      "schema": "store/stored-commit-v1.schema.json",
+      "type": "stored_commit"
     }
   ]
 }

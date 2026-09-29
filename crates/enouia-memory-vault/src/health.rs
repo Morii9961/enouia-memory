@@ -72,7 +72,7 @@ impl Vault {
                 };
             }
         };
-        let manifest = match self.read_manifest(&pin) {
+        let manifest = match self.stored_commit(&pin) {
             Ok(manifest) => manifest,
             Err(error) => {
                 return VaultHealth::without_head(HealthState::Unavailable, error.code());

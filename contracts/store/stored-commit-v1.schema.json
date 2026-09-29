@@ -1,0 +1,301 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.enouia-memory.invalid/store/stored-commit-v1.schema.json",
+  "title": "Enouia stored commit v1",
+  "description": "vault/commits/<commit_id>.json in a format-2 Vault: the CommitManifest v1 header with segment references in place of the inline catalog and object list. The complete v1 view is materialized from the segments. Segment order and the canonical partition are checked by the Rust validator.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "commit_id",
+    "format_version",
+    "parent_commit_id",
+    "sequence",
+    "vault_id",
+    "writer_device_id",
+    "principal",
+    "operation_id",
+    "operation_kind",
+    "idempotency_key_hash",
+    "request_payload_hash",
+    "created_at",
+    "segment_capacity",
+    "record_segments",
+    "object_segments",
+    "review_ids",
+    "tombstone_ids",
+    "policy_epoch",
+    "deletion_epoch",
+    "receipt"
+  ],
+  "properties": {
+    "schema_version": {
+      "$ref": "../memory/common-v1.schema.json#/$defs/schemaVersion"
+    },
+    "commit_id": {
+      "$ref": "../memory/common-v1.schema.json#/$defs/commitId"
+    },
+    "format_version": {
+      "const": 2
+    },
+    "parent_commit_id": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "../memory/common-v1.schema.json#/$defs/commitId"
+        }
+      ]
+    },
+    "sequence": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 9007199254740991
+    },
+    "vault_id": {
+      "$ref": "../memory/common-v1.schema.json#/$defs/vaultId"
+    },
+    "writer_device_id": {
+      "$ref": "../memory/common-v1.schema.json#/$defs/deviceId"
+    },
+    "principal": {
+      "$ref": "../memory/common-v1.schema.json#/$defs/actorRef"
+    },
+    "operation_id": {
+      "$ref": "../memory/common-v1.schema.json#/$defs/operationId"
+    },
+    "operation_kind": {
+      "enum": [
+        "genesis",
+        "import",
+        "candidate_propose",
+        "review_commit",
+        "identity_review",
+        "session_append",
+        "checkpoint_propose",
+        "logical_delete",
+        "purge",
+        "policy_change",
+        "migration",
+        "restore_adopt",
+        "owner_approval"
+      ]
+    },
+    "idempotency_key_hash": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "../memory/common-v1.schema.json#/$defs/sha256"
+        }
+      ]
+    },
+    "request_payload_hash": {
+      "$ref": "../memory/common-v1.schema.json#/$defs/sha256"
+    },
+    "created_at": {
+      "$ref": "../memory/common-v1.schema.json#/$defs/timestamp"
+    },
+    "segment_capacity": {
+      "type": "integer",
+      "minimum": 16,
+      "maximum": 65536
+    },
+    "record_segments": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "segment_kind",
+          "record_kind",
+          "prefix",
+          "entry_count",
+          "segment_hash"
+        ],
+        "properties": {
+          "segment_kind": {
+            "enum": [
+              "records",
+              "objects"
+            ]
+          },
+          "record_kind": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "../memory/common-v1.schema.json#/$defs/recordKind"
+              }
+            ]
+          },
+          "prefix": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{0,64}$",
+            "$comment": "Hex key prefix: 32 digits at most for record IDs, 64 for object hashes."
+          },
+          "entry_count": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          },
+          "segment_hash": {
+            "$ref": "../memory/common-v1.schema.json#/$defs/sha256"
+          }
+        }
+      }
+    },
+    "object_segments": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "segment_kind",
+          "record_kind",
+          "prefix",
+          "entry_count",
+          "segment_hash"
+        ],
+        "properties": {
+          "segment_kind": {
+            "enum": [
+              "records",
+              "objects"
+            ]
+          },
+          "record_kind": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "../memory/common-v1.schema.json#/$defs/recordKind"
+              }
+            ]
+          },
+          "prefix": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{0,64}$",
+            "$comment": "Hex key prefix: 32 digits at most for record IDs, 64 for object hashes."
+          },
+          "entry_count": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          },
+          "segment_hash": {
+            "$ref": "../memory/common-v1.schema.json#/$defs/sha256"
+          }
+        }
+      }
+    },
+    "review_ids": {
+      "type": "array",
+      "items": {
+        "$ref": "../memory/common-v1.schema.json#/$defs/reviewId"
+      }
+    },
+    "tombstone_ids": {
+      "type": "array",
+      "items": {
+        "$ref": "../memory/common-v1.schema.json#/$defs/deleteId"
+      }
+    },
+    "policy_epoch": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+    },
+    "deletion_epoch": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+    },
+    "receipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "operation_id",
+        "result",
+        "records"
+      ],
+      "properties": {
+        "operation_id": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/operationId"
+        },
+        "result": {
+          "const": "committed"
+        },
+        "records": {
+          "type": "array",
+          "items": {
+            "$ref": "../memory/common-v1.schema.json#/$defs/recordRef"
+          }
+        }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "operation_kind": {
+            "enum": [
+              "genesis"
+            ]
+          }
+        },
+        "required": [
+          "operation_kind"
+        ]
+      },
+      "then": {
+        "properties": {
+          "parent_commit_id": {
+            "type": "null"
+          },
+          "sequence": {
+            "const": 1
+          },
+          "idempotency_key_hash": {
+            "type": "null"
+          },
+          "principal": {
+            "$ref": "../memory/common-v1.schema.json#/$defs/ownerRef"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "operation_kind": {
+            "not": {
+              "const": "genesis"
+            }
+          }
+        },
+        "required": [
+          "operation_kind"
+        ]
+      },
+      "then": {
+        "properties": {
+          "parent_commit_id": {
+            "$ref": "../memory/common-v1.schema.json#/$defs/commitId"
+          },
+          "idempotency_key_hash": {
+            "$ref": "../memory/common-v1.schema.json#/$defs/sha256"
+          },
+          "sequence": {
+            "minimum": 2
+          }
+        }
+      }
+    }
+  ]
+}

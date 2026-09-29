@@ -1,0 +1,28 @@
+{
+  "objects": [],
+  "prefix": "0000000",
+  "record_kind": "source",
+  "records": [
+    {
+      "content_hash": "c2753e501db8970f06097a65cfed6442ea4db0aa667c638273c2adfa0991c4cb",
+      "group_ids": [
+        "imp_00000001-0000-4000-8000-000000000001",
+        "imp_00000002-0000-4000-8000-000000000002"
+      ],
+      "prior_hashes": [
+        "d2aa4e14c631e3bcd00f83c24bb65391bfb5cc2cdcff57c6c0678a414ed2af36"
+      ],
+      "record_id": "src_00000001-0000-4000-8000-000000000001",
+      "revision": 2
+    },
+    {
+      "content_hash": "23ec50db9c420497378a845e714096f0761d95a01716333cf2ed0e225601c9d7",
+      "group_ids": [],
+      "prior_hashes": [],
+      "record_id": "src_00000002-0000-4000-8000-000000000002",
+      "revision": 1
+    }
+  ],
+  "schema_version": 1,
+  "segment_kind": "records"
+}

@@ -1,6 +1,7 @@
-//! The Vault store (MV-1.2): immutable revisions, a complete commit manifest,
-//! one atomically replaced `CURRENT`, idempotent receipts, pinned reads, and
-//! owner-driven recovery.
+//! The Vault store (MV-1.2, segmented in MV-3.0): immutable revisions, a
+//! commit that references immutable catalog segments, one atomically
+//! replaced `CURRENT`, idempotent receipts, pinned reads, and owner-driven
+//! recovery.
 //!
 //! Transaction order (MEMORY_ARCHITECTURE §6), each step flushed:
 //!
@@ -8,10 +9,11 @@
 //!    head named by `CURRENT` (never guess one);
 //! 2. idempotency: a published receipt for the same scope replays, a
 //!    different payload conflicts; then check the expected head/revisions;
-//! 3. validate every staged record and object, then the whole record set;
-//! 4. write an intent marker in `staging/<operation>/`, then records and
-//!    objects once at their final (still unreferenced) names, then the
-//!    commit manifest and the idempotency entry;
+//! 3. validate every staged record and object; build the changed catalog
+//!    segments; validate the delta on a scoped set (ADR-MEM-39);
+//! 4. write an intent marker in `staging/<operation>/`, then records,
+//!    objects, and new segments once at their final (still unreferenced)
+//!    names, then the stored commit and the idempotency entry;
 //! 5. replace `CURRENT` (the only publication step), append the journal;
 //! 6. release the lock. Indexes are not part of the transaction.
 //!
@@ -25,11 +27,15 @@ use crate::fs::ManagedRoot;
 use crate::lock::{self, WriterGuard};
 use crate::root::VerifiedRoot;
 use enouia_memory_contract::MemoryErrorCode;
+use enouia_memory_contract::catalog::{
+    CatalogSegment, LAYOUT_FORMAT_VERSION, LayoutFormat, ObjectItem, RecordEntry, SEGMENT_CAPACITY,
+    SegmentKind, SegmentRef, StoredCommit, leaf_for, object_kind_order, record_key, split,
+};
 use enouia_memory_contract::commit::{
-    CatalogEntry, CommitManifest, FormatVersion, ObjectEntry, ObjectKind, OperationKind,
-    OperationReceipt, ReceiptResult,
+    CommitManifest, FormatVersion, ObjectKind, OperationKind, OperationReceipt, ReceiptResult,
 };
 use enouia_memory_contract::common::{ActorRef, ActorType, TrustedSurface};
+use enouia_memory_contract::delta::{Need, delta_needs, is_bulk, validate_delta};
 use enouia_memory_contract::foundation::{Clock, ComponentId};
 use enouia_memory_contract::hash::{Sha256Hex, sha256};
 use enouia_memory_contract::ids::{CommitId, DeleteId, DeviceId, OperationId, ReviewId, VaultId};
@@ -39,11 +45,11 @@ use enouia_memory_contract::ports::{
     CommitOutcome, CommitPin, CommitRequest, IdSource, IdempotencyScope, StagedObject,
     StagedRecord, commit_time,
 };
-use enouia_memory_contract::record::{AnyRecord, RecordKind, RecordRef, parse_any, parse_record};
-use enouia_memory_contract::set::{RecordSet, validate_set};
+use enouia_memory_contract::record::{AnyRecord, RecordKind, RecordRef, parse_any};
+use enouia_memory_contract::set::{RecordSet, check_commit_step};
 use enouia_memory_contract::store::{
     CurrentPointer, IdempotencyEntry, PublishRecord, RecoveryEvidence, RecoveryReceipt,
-    VaultDescriptor, idempotency_scope_hash, parse_store,
+    StoreDocument, VaultDescriptor, idempotency_scope_hash, parse_store,
 };
 use serde_json::Value;
 use std::collections::{BTreeMap, BTreeSet};
@@ -54,10 +60,11 @@ use std::time::Duration;
 pub struct VaultOptions {
     /// How long a writer waits for the OS lock before returning `busy`.
     pub lock_wait: Duration,
-    /// Run every cross-record rule (`set::validate_set`) over the complete
-    /// history before publishing. Costs a full read of new revisions only;
-    /// earlier ones are cached after their first verified read.
+    /// Validate every commit against the cross-record rules on a scoped set
+    /// (ADR-MEM-39). Off only for measurements.
     pub validate_record_set: bool,
+    /// Leaf capacity of catalog segments for new commits.
+    pub segment_capacity: u64,
     pub faults: Faults,
 }
 
@@ -66,6 +73,7 @@ impl Default for VaultOptions {
         Self {
             lock_wait: Duration::from_secs(2),
             validate_record_set: true,
+            segment_capacity: SEGMENT_CAPACITY,
             faults: Faults::none(),
         }
     }
@@ -100,7 +108,8 @@ pub struct RecoveryCandidate {
     pub sequence: u64,
     pub manifest_sha256: Sha256Hex,
     pub evidence: RecoveryEvidence,
-    /// Every catalog record and object of the commit is present and verified.
+    /// Every segment, record revision, and object of the commit is present
+    /// and verified.
     pub complete: bool,
 }
 
@@ -116,12 +125,16 @@ pub struct RecoveryReport {
 /// Scope of damage found by a full verification of one commit (V06).
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct IntegrityReport {
+    /// Record revisions checked: every revision the commit names.
     pub records_checked: usize,
     pub objects_checked: usize,
     pub missing_records: Vec<RecordRef>,
     pub corrupt_records: Vec<RecordRef>,
     pub missing_objects: Vec<Sha256Hex>,
     pub corrupt_objects: Vec<Sha256Hex>,
+    /// Catalog segments that are missing, altered, or do not match their
+    /// reference; their records and objects could not be listed.
+    pub damaged_segments: Vec<Sha256Hex>,
 }
 
 impl IntegrityReport {
@@ -130,6 +143,7 @@ impl IntegrityReport {
             && self.corrupt_records.is_empty()
             && self.missing_objects.is_empty()
             && self.corrupt_objects.is_empty()
+            && self.damaged_segments.is_empty()
     }
 }
 
@@ -142,13 +156,14 @@ pub struct Freshness {
     pub policy_changed: bool,
 }
 
-struct Head {
-    manifest: Arc<CommitManifest>,
+/// One file of a pinned state and the hash it must have.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct PinnedFile {
+    pub file: String,
+    pub sha256: Sha256Hex,
 }
 
 type DocKey = (RecordKind, String, u64);
-/// The manifests of a chain (head first) and every document they catalog.
-type History = (Vec<Arc<CommitManifest>>, BTreeMap<DocKey, Sha256Hex>);
 
 pub struct Vault {
     root: ManagedRoot,
@@ -157,9 +172,9 @@ pub struct Vault {
     clock: Arc<dyn Clock + Send + Sync>,
     ids: Arc<dyn IdSource + Send + Sync>,
     options: VaultOptions,
-    manifests: Mutex<BTreeMap<String, (Arc<CommitManifest>, Sha256Hex)>>,
+    commits: Mutex<BTreeMap<String, (Arc<StoredCommit>, Sha256Hex)>>,
+    segments: Mutex<BTreeMap<Sha256Hex, Arc<CatalogSegment>>>,
     records: Mutex<BTreeMap<DocKey, AnyRecord>>,
-    event_sessions: Mutex<BTreeMap<String, String>>,
 }
 
 fn id_field(kind: RecordKind) -> Option<&'static str> {
@@ -183,7 +198,8 @@ fn id_field(kind: RecordKind) -> Option<&'static str> {
     })
 }
 
-/// Final file of a stored record revision.
+/// Final file of a stored record revision. A session event's file lives
+/// under its session, which its catalog entry names as its group.
 fn record_file(
     kind: RecordKind,
     id: &str,
@@ -197,65 +213,61 @@ fn record_file(
     }
 }
 
-/// The record kind's wire name (`snake_case`), used for canonical ordering.
-fn kind_name(kind: RecordKind) -> &'static str {
-    match kind {
-        RecordKind::Source => "source",
-        RecordKind::Attachment => "attachment",
-        RecordKind::Project => "project",
-        RecordKind::Memory => "memory",
-        RecordKind::Candidate => "candidate",
-        RecordKind::Review => "review",
-        RecordKind::Identity => "identity",
-        RecordKind::Session => "session",
-        RecordKind::SessionEvent => "session_event",
-        RecordKind::Checkpoint => "checkpoint",
-        RecordKind::Commit => "commit",
-        RecordKind::Tombstone => "tombstone",
-        RecordKind::PurgeReceipt => "purge_receipt",
-        RecordKind::AuditEvent => "audit_event",
-        RecordKind::Capsule => "capsule",
-        RecordKind::Inspection => "inspection",
-        RecordKind::Dispatch => "dispatch",
-        RecordKind::ProviderCapabilities => "provider_capabilities",
-        RecordKind::Approval => "approval",
-        RecordKind::Policy => "policy",
-        RecordKind::Import => "import",
-    }
+pub(crate) fn entry_file(kind: RecordKind, entry: &RecordEntry, revision: u64) -> Option<String> {
+    record_file(
+        kind,
+        &entry.record_id,
+        Revision::new(revision)?,
+        entry.group_ids.first().map(String::as_str),
+    )
 }
 
-fn kind_order(kind: ObjectKind) -> u8 {
-    match kind {
-        ObjectKind::Raw => 0,
-        ObjectKind::Asset => 1,
-        ObjectKind::SessionContent => 2,
-        ObjectKind::IdentityMarkdown => 3,
-    }
-}
-
-fn push_record(set: &mut RecordSet, record: AnyRecord) {
+/// Group IDs a record contributes to its catalog entry (ADR-MEM-39).
+fn groups_of(record: &AnyRecord) -> Vec<String> {
     match record {
-        AnyRecord::Source(r) => set.sources.push(r),
-        AnyRecord::Attachment(r) => set.attachments.push(r),
-        AnyRecord::Project(r) => set.projects.push(r),
-        AnyRecord::Memory(r) => set.memories.push(*r),
-        AnyRecord::Candidate(r) => set.candidates.push(*r),
-        AnyRecord::Review(r) => set.reviews.push(r),
-        AnyRecord::Identity(r) => set.identities.push(r),
-        AnyRecord::Session(r) => set.sessions.push(r),
-        AnyRecord::SessionEvent(r) => set.session_events.push(r),
-        AnyRecord::Checkpoint(r) => set.checkpoints.push(r),
-        AnyRecord::Commit(r) => set.commits.push(r),
-        AnyRecord::Tombstone(r) => set.tombstones.push(r),
-        AnyRecord::PurgeReceipt(r) => set.purge_receipts.push(r),
-        AnyRecord::AuditEvent(r) => set.audit_events.push(r),
-        AnyRecord::Capsule(r) => set.capsules.push(*r),
-        AnyRecord::Inspection(r) => set.inspections.push(r),
-        AnyRecord::Dispatch(r) => set.dispatches.push(r),
-        AnyRecord::ProviderCapabilities(_) => {}
-        AnyRecord::Approval(r) => set.approvals.push(*r),
-        AnyRecord::Policy(r) => set.policies.push(*r),
-        AnyRecord::Import(r) => set.imports.push(*r),
+        AnyRecord::Source(s) => s.import_id.iter().map(|i| i.to_string()).collect(),
+        AnyRecord::SessionEvent(e) => vec![e.session_id.to_string()],
+        _ => Vec::new(),
+    }
+}
+
+pub(crate) fn object_file_of(item: &ObjectItem) -> Option<String> {
+    match (&item.stored_with, item.object_kind) {
+        (Some(r), ObjectKind::IdentityMarkdown) => {
+            layout::record_path(RecordKind::Identity, &r.record_id, r.revision)
+        }
+        (_, kind) => layout::object_path(kind, &item.object_hash),
+    }
+}
+
+/// The commit header as a `CommitManifest` without catalog or objects: what
+/// cross-record rules read about a commit (review and tombstone IDs, epochs).
+fn stub_of(commit: &StoredCommit) -> CommitManifest {
+    CommitManifest {
+        schema_version: SchemaVersion,
+        commit_id: commit.commit_id.clone(),
+        format_version: FormatVersion,
+        parent_commit_id: commit.parent_commit_id.clone(),
+        sequence: commit.sequence,
+        vault_id: commit.vault_id.clone(),
+        writer_device_id: commit.writer_device_id.clone(),
+        principal: commit.principal.clone(),
+        operation_id: commit.operation_id.clone(),
+        operation_kind: commit.operation_kind,
+        idempotency_key_hash: commit.idempotency_key_hash.clone(),
+        request_payload_hash: commit.request_payload_hash.clone(),
+        created_at: commit.created_at.clone(),
+        catalog: Vec::new(),
+        objects: Vec::new(),
+        review_ids: commit.review_ids.clone(),
+        tombstone_ids: commit.tombstone_ids.clone(),
+        policy_epoch: commit.policy_epoch,
+        deletion_epoch: commit.deletion_epoch,
+        receipt: OperationReceipt {
+            operation_id: commit.operation_id.clone(),
+            result: ReceiptResult::Committed,
+            records: Vec::new(),
+        },
     }
 }
 
@@ -267,6 +279,13 @@ struct Prepared {
     file: String,
     bytes: Vec<u8>,
     record: AnyRecord,
+}
+
+/// A new commit before it is written: the stored commit and the segments it
+/// adds (hash, canonical bytes).
+struct Built {
+    commit: StoredCommit,
+    segments: Vec<(Sha256Hex, Vec<u8>)>,
 }
 
 impl Vault {
@@ -303,7 +322,7 @@ impl Vault {
         let descriptor = VaultDescriptor {
             schema_version: SchemaVersion,
             vault_id: request.vault_id.clone(),
-            format_version: FormatVersion,
+            format_version: LayoutFormat,
             genesis_commit_id: request.commit_id.clone(),
             genesis_device_id: request.device_id.clone(),
             created_by: request.owner.clone(),
@@ -316,9 +335,9 @@ impl Vault {
             clock,
             ids,
             options,
-            manifests: Mutex::new(BTreeMap::new()),
+            commits: Mutex::new(BTreeMap::new()),
+            segments: Mutex::new(BTreeMap::new()),
             records: Mutex::new(BTreeMap::new()),
-            event_sessions: Mutex::new(BTreeMap::new()),
         };
         if request.records.is_empty()
             || request
@@ -330,10 +349,10 @@ impl Vault {
         }
         let prepared = vault.prepare_records(&request.records, None)?;
         let operation_id = OperationId::from_random(vault.ids.random_16());
-        let mut manifest = CommitManifest {
+        let header = StoredCommit {
             schema_version: SchemaVersion,
             commit_id: request.commit_id.clone(),
-            format_version: FormatVersion,
+            format_version: LayoutFormat,
             parent_commit_id: None,
             sequence: 1,
             vault_id: request.vault_id.clone(),
@@ -344,8 +363,9 @@ impl Vault {
             idempotency_key_hash: None,
             request_payload_hash: request.request_payload_hash.clone(),
             created_at,
-            catalog: Vec::new(),
-            objects: Vec::new(),
+            segment_capacity: vault.options.segment_capacity,
+            record_segments: Vec::new(),
+            object_segments: Vec::new(),
             review_ids: Vec::new(),
             tombstone_ids: Vec::new(),
             policy_epoch: 1,
@@ -356,14 +376,14 @@ impl Vault {
                 records: Vec::new(),
             },
         };
-        vault.fill_catalog(&mut manifest, None, &prepared, &[]);
-        vault.check_manifest_and_set(&manifest, None, &prepared)?;
-        vault.write_transaction(&manifest, &prepared, &[], None)?;
+        let built = vault.build(header, None, &prepared, &[])?;
+        vault.check_delta(&built.commit, None, &prepared)?;
+        vault.write_transaction(&built, &prepared, &[], None)?;
         vault.root.write_new(
             &layout::vault_descriptor(),
             &canonical_bytes(&vault.descriptor).expect("descriptor"),
         )?;
-        vault.publish(&manifest)?;
+        vault.publish(&built.commit)?;
         Ok(vault)
     }
 
@@ -382,12 +402,15 @@ impl Vault {
             .read(&layout::vault_descriptor())?
             .ok_or_else(|| VaultError::new(MemoryErrorCode::NotFound, Fault::NotInitialized))?;
         let descriptor: VaultDescriptor = parse_store(&bytes).map_err(|_| {
-            // A newer layout is read-only for this build, never "corrupt".
-            let newer = serde_json::from_slice::<Value>(&bytes).is_ok_and(|v| {
+            // Another layout (a newer one, or the pre-segmented format 1)
+            // is not readable by this build, never "corrupt".
+            let other = serde_json::from_slice::<Value>(&bytes).is_ok_and(|v| {
                 v["schema_version"].as_i64().is_some_and(|s| s > 1)
-                    || v["format_version"].as_u64().is_some_and(|f| f > 1)
+                    || v["format_version"]
+                        .as_u64()
+                        .is_some_and(|f| f != LAYOUT_FORMAT_VERSION)
             });
-            if newer {
+            if other {
                 VaultError::new(
                     MemoryErrorCode::UnsupportedSchema,
                     Fault::Contract(vec!["unsupported_schema"]),
@@ -403,9 +426,9 @@ impl Vault {
             clock,
             ids,
             options,
-            manifests: Mutex::new(BTreeMap::new()),
+            commits: Mutex::new(BTreeMap::new()),
+            segments: Mutex::new(BTreeMap::new()),
             records: Mutex::new(BTreeMap::new()),
-            event_sessions: Mutex::new(BTreeMap::new()),
         })
     }
 
@@ -433,21 +456,16 @@ impl Vault {
 
     // ---------------------------------------------------------------- reads
 
-    fn load_manifest(
+    fn load_commit(
         &self,
         commit_id: &CommitId,
         expected: Option<&Sha256Hex>,
-    ) -> Result<(Arc<CommitManifest>, Sha256Hex)> {
-        if let Some((manifest, hash)) = self
-            .manifests
-            .lock()
-            .expect("cache")
-            .get(commit_id.as_str())
-        {
+    ) -> Result<(Arc<StoredCommit>, Sha256Hex)> {
+        if let Some((commit, hash)) = self.commits.lock().expect("cache").get(commit_id.as_str()) {
             if expected.is_some_and(|e| e != hash) {
                 return Err(VaultError::corrupt("manifest hash"));
             }
-            return Ok((manifest.clone(), hash.clone()));
+            return Ok((commit.clone(), hash.clone()));
         }
         let bytes = self
             .root
@@ -457,27 +475,65 @@ impl Vault {
         if expected.is_some_and(|e| e != &hash) {
             return Err(VaultError::corrupt("manifest hash"));
         }
-        let manifest: CommitManifest =
-            parse_record(&bytes).map_err(|_| VaultError::corrupt("manifest unparseable"))?;
-        if &manifest.commit_id != commit_id
-            || manifest.vault_id != self.descriptor.vault_id
-            || canonical_bytes(&manifest).ok().as_deref() != Some(bytes.as_slice())
+        let commit: StoredCommit =
+            parse_store(&bytes).map_err(|_| VaultError::corrupt("manifest unparseable"))?;
+        if &commit.commit_id != commit_id
+            || commit.vault_id != self.descriptor.vault_id
+            || canonical_bytes(&commit).ok().as_deref() != Some(bytes.as_slice())
         {
             return Err(VaultError::corrupt("manifest identity"));
         }
-        let manifest = Arc::new(manifest);
-        self.manifests
+        let commit = Arc::new(commit);
+        self.commits
             .lock()
             .expect("cache")
-            .insert(commit_id.to_string(), (manifest.clone(), hash.clone()));
-        Ok((manifest, hash))
+            .insert(commit_id.to_string(), (commit.clone(), hash.clone()));
+        Ok((commit, hash))
+    }
+
+    /// A catalog segment, verified by its content hash and matched to the
+    /// reference that names it.
+    fn segment(&self, reference: &SegmentRef) -> Result<Arc<CatalogSegment>> {
+        let hash = &reference.segment_hash;
+        let cached = self.segments.lock().expect("cache").get(hash).cloned();
+        let segment = match cached {
+            Some(segment) => segment,
+            None => {
+                let bytes = self
+                    .root
+                    .read(&layout::catalog_segment(hash))?
+                    .ok_or_else(|| VaultError::corrupt("segment missing"))?;
+                if &sha256(&bytes) != hash {
+                    return Err(VaultError::corrupt("segment hash"));
+                }
+                let segment: CatalogSegment =
+                    parse_store(&bytes).map_err(|_| VaultError::corrupt("segment invalid"))?;
+                if canonical_bytes(&segment).ok().as_deref() != Some(bytes.as_slice()) {
+                    return Err(VaultError::corrupt("segment bytes"));
+                }
+                let segment = Arc::new(segment);
+                self.segments
+                    .lock()
+                    .expect("cache")
+                    .insert(hash.clone(), segment.clone());
+                segment
+            }
+        };
+        if segment.segment_kind != reference.segment_kind
+            || segment.record_kind != reference.record_kind
+            || segment.prefix != reference.prefix
+            || segment.len() as u64 != reference.entry_count
+        {
+            return Err(VaultError::corrupt("segment reference"));
+        }
+        Ok(segment)
     }
 
     fn current_bytes(&self) -> Result<Option<Vec<u8>>> {
         self.root.read(&layout::current_pointer())
     }
 
-    fn load_head(&self) -> Result<Head> {
+    fn load_head(&self) -> Result<Arc<StoredCommit>> {
         let bytes = self
             .current_bytes()?
             .ok_or_else(|| VaultError::recovering("CURRENT missing"))?;
@@ -486,82 +542,136 @@ impl Vault {
         if pointer.vault_id != self.descriptor.vault_id {
             return Err(VaultError::recovering("CURRENT names another vault"));
         }
-        let (manifest, _) = self
-            .load_manifest(&pointer.commit_id, Some(&pointer.manifest_sha256))
+        let (commit, _) = self
+            .load_commit(&pointer.commit_id, Some(&pointer.manifest_sha256))
             .map_err(|_| VaultError::recovering("CURRENT manifest unverifiable"))?;
-        if manifest.sequence != pointer.sequence {
+        if commit.sequence != pointer.sequence {
             return Err(VaultError::recovering("CURRENT sequence"));
         }
-        Ok(Head { manifest })
+        Ok(commit)
     }
 
-    fn pin_of(manifest: &CommitManifest) -> CommitPin {
+    fn pin_of(commit: &StoredCommit) -> CommitPin {
         CommitPin {
-            commit_id: manifest.commit_id.clone(),
-            sequence: manifest.sequence,
-            policy_epoch: manifest.policy_epoch,
-            deletion_epoch: manifest.deletion_epoch,
+            commit_id: commit.commit_id.clone(),
+            sequence: commit.sequence,
+            policy_epoch: commit.policy_epoch,
+            deletion_epoch: commit.deletion_epoch,
         }
     }
 
     /// Pin the published head for a whole read.
     pub fn pin_current(&self) -> Result<CommitPin> {
-        Ok(Self::pin_of(&self.load_head()?.manifest))
+        Ok(Self::pin_of(&*self.load_head()?))
     }
 
-    pub fn read_manifest(&self, pin: &CommitPin) -> Result<CommitManifest> {
-        let (manifest, _) = self.load_manifest(&pin.commit_id, None)?;
-        if manifest.sequence != pin.sequence {
+    /// The stored commit a pin names: header, epochs, and segment references.
+    pub fn stored_commit(&self, pin: &CommitPin) -> Result<Arc<StoredCommit>> {
+        let (commit, _) = self.load_commit(&pin.commit_id, None)?;
+        if commit.sequence != pin.sequence {
             return Err(VaultError::corrupt("pin sequence"));
         }
-        Ok((*manifest).clone())
+        Ok(commit)
     }
 
-    fn session_of_event(&self, event_id: &str) -> Result<Option<String>> {
-        if let Some(session) = self.event_sessions.lock().expect("cache").get(event_id) {
-            return Ok(Some(session.clone()));
+    /// The complete `CommitManifest` v1 view of a pinned commit (every
+    /// record's latest revision and every object), read from its segments.
+    pub fn read_manifest(&self, pin: &CommitPin) -> Result<CommitManifest> {
+        let commit = self.stored_commit(pin)?;
+        let mut loaded: BTreeMap<Sha256Hex, Arc<CatalogSegment>> = BTreeMap::new();
+        for reference in commit.record_segments.iter().chain(&commit.object_segments) {
+            loaded.insert(reference.segment_hash.clone(), self.segment(reference)?);
         }
-        for session in self.root.list("vault/session-events")? {
-            if self
-                .root
-                .exists(&layout::session_event(&session, event_id))?
-            {
-                self.event_sessions
-                    .lock()
-                    .expect("cache")
-                    .insert(event_id.to_owned(), session.clone());
-                return Ok(Some(session));
-            }
-        }
-        Ok(None)
+        commit
+            .materialize(|hash| loaded.get(hash).map(Arc::as_ref))
+            .map_err(|_| VaultError::corrupt("manifest segments"))
     }
 
-    fn file_of(&self, reference: &RecordRef) -> Result<Option<String>> {
-        let session = if reference.record_kind == RecordKind::SessionEvent {
-            match self.session_of_event(&reference.record_id)? {
-                Some(session) => Some(session),
-                None => return Ok(None),
-            }
-        } else {
-            None
+    /// The segment of `kind` whose prefix `key` extends, if any.
+    fn record_segment(
+        &self,
+        commit: &StoredCommit,
+        kind: RecordKind,
+        key: &str,
+    ) -> Result<Option<Arc<CatalogSegment>>> {
+        match commit
+            .record_segments
+            .iter()
+            .find(|r| r.record_kind == Some(kind) && key.starts_with(r.prefix.as_str()))
+        {
+            Some(reference) => Ok(Some(self.segment(reference)?)),
+            None => Ok(None),
+        }
+    }
+
+    fn find_record(
+        &self,
+        commit: &StoredCommit,
+        kind: RecordKind,
+        id: &str,
+    ) -> Result<Option<RecordEntry>> {
+        let Some(key) = record_key(kind, id) else {
+            return Ok(None);
         };
-        Ok(record_file(
-            reference.record_kind,
-            &reference.record_id,
-            reference.revision,
-            session.as_deref(),
-        ))
+        let Some(segment) = self.record_segment(commit, kind, &key)? else {
+            return Ok(None);
+        };
+        Ok(segment
+            .records
+            .binary_search_by(|e| e.record_id.as_str().cmp(id))
+            .ok()
+            .map(|i| segment.records[i].clone()))
     }
 
-    fn catalog_entry<'a>(
-        manifest: &'a CommitManifest,
-        reference: &RecordRef,
-    ) -> Option<&'a CatalogEntry> {
-        manifest.catalog.iter().find(|e| {
-            e.record_kind == reference.record_kind
-                && e.record_id == reference.record_id
-                && e.revision == reference.revision
-        })
+    fn entries_of(&self, commit: &StoredCommit, kind: RecordKind) -> Result<Vec<RecordEntry>> {
+        let mut out = Vec::new();
+        for reference in commit
+            .record_segments
+            .iter()
+            .filter(|r| r.record_kind == Some(kind))
+        {
+            out.extend(self.segment(reference)?.records.iter().cloned());
+        }
+        Ok(out)
+    }
+
+    fn find_object(&self, commit: &StoredCommit, hash: &Sha256Hex) -> Result<Option<ObjectItem>> {
+        let Some(reference) = commit
+            .object_segments
+            .iter()
+            .find(|r| hash.as_str().starts_with(r.prefix.as_str()))
+        else {
+            return Ok(None);
+        };
+        Ok(self
+            .segment(reference)?
+            .objects
+            .iter()
+            .find(|o| &o.object_hash == hash)
+            .cloned())
+    }
+
+    fn objects_of(&self, commit: &StoredCommit) -> Result<Vec<ObjectItem>> {
+        let mut out = Vec::new();
+        for reference in &commit.object_segments {
+            out.extend(self.segment(reference)?.objects.iter().cloned());
+        }
+        Ok(out)
+    }
+
+    /// The catalog entry of one record at a pinned commit.
+    pub fn record_entry(
+        &self,
+        pin: &CommitPin,
+        kind: RecordKind,
+        id: &str,
+    ) -> Result<Option<RecordEntry>> {
+        self.find_record(&*self.stored_commit(pin)?, kind, id)
+    }
+
+    /// Every catalog entry of one record kind at a pinned commit.
+    pub fn record_entries(&self, pin: &CommitPin, kind: RecordKind) -> Result<Vec<RecordEntry>> {
+        self.entries_of(&*self.stored_commit(pin)?, kind)
     }
 
     fn not_found() -> VaultError {
@@ -578,109 +688,63 @@ impl Vault {
     }
 
     /// Stored bytes of one record revision in the pinned catalog, verified
-    /// against the catalog hash. Only revisions named by the pin are served.
+    /// against the catalog hash. Only the revision the pin catalogs as the
+    /// record's latest is served.
     pub fn read_record(&self, pin: &CommitPin, reference: &RecordRef) -> Result<Vec<u8>> {
-        let manifest = self.read_manifest(pin)?;
-        let entry = Self::catalog_entry(&manifest, reference).ok_or_else(Self::not_found)?;
-        self.read_verified(reference, &entry.content_hash)
+        let commit = self.stored_commit(pin)?;
+        let entry = self
+            .find_record(&commit, reference.record_kind, &reference.record_id)?
+            .filter(|e| e.revision == reference.revision)
+            .ok_or_else(Self::not_found)?;
+        let file = entry_file(reference.record_kind, &entry, entry.revision.get())
+            .ok_or_else(Self::corrupt_record)?;
+        self.read_verified(&file, &entry.content_hash)
     }
 
-    fn read_verified(&self, reference: &RecordRef, hash: &Sha256Hex) -> Result<Vec<u8>> {
-        let file = self.file_of(reference)?.ok_or_else(Self::corrupt_record)?;
-        let bytes = self.root.read(&file)?.ok_or_else(Self::corrupt_record)?;
+    /// Stored bytes of any revision the pinned catalog names for a record:
+    /// its latest or an earlier one (history views, full re-validation).
+    pub fn read_revision(&self, pin: &CommitPin, reference: &RecordRef) -> Result<Vec<u8>> {
+        let commit = self.stored_commit(pin)?;
+        let entry = self
+            .find_record(&commit, reference.record_kind, &reference.record_id)?
+            .ok_or_else(Self::not_found)?;
+        let revision = reference.revision.get();
+        let hash = entry.hash_of(revision).ok_or_else(Self::not_found)?;
+        let file =
+            entry_file(reference.record_kind, &entry, revision).ok_or_else(Self::corrupt_record)?;
+        self.read_verified(&file, hash)
+    }
+
+    fn read_verified(&self, file: &str, hash: &Sha256Hex) -> Result<Vec<u8>> {
+        let bytes = self.root.read(file)?.ok_or_else(Self::corrupt_record)?;
         if &sha256(&bytes) != hash {
             return Err(Self::corrupt_record());
         }
         Ok(bytes)
-    }
-
-    fn object_file(
-        &self,
-        manifest: &CommitManifest,
-        entry: &ObjectEntry,
-    ) -> Result<Option<String>> {
-        if let Some(path) = layout::object_path(entry.object_kind, &entry.object_hash) {
-            return Ok(Some(path));
-        }
-        // Identity Markdown lives beside the identity revision that named it
-        // first; that revision may be older than the pinned catalog's, so
-        // the chain is searched back to genesis (oldest match wins).
-        let mut found = None;
-        let mut current = Arc::new(manifest.clone());
-        loop {
-            for catalog in current
-                .catalog
-                .iter()
-                .filter(|e| e.record_kind == RecordKind::Identity)
-            {
-                let reference =
-                    RecordRef::new(RecordKind::Identity, &catalog.record_id, catalog.revision);
-                let record = self.record_at(&reference, &catalog.content_hash)?;
-                if let AnyRecord::Identity(identity) = record
-                    && identity.content_hash == entry.object_hash
-                {
-                    found = layout::record_path(
-                        RecordKind::Identity,
-                        &catalog.record_id,
-                        catalog.revision,
-                    );
-                }
-            }
-            let Some(parent) = current.parent_commit_id.clone() else {
-                break;
-            };
-            current = self.load_manifest(&parent, None)?.0;
-        }
-        Ok(found)
-    }
-
-    /// Managed file name of a stored record revision (for exports).
-    pub fn stored_file(&self, reference: &RecordRef) -> Result<String> {
-        self.file_of(reference)?.ok_or_else(Self::corrupt_record)
-    }
-
-    /// Managed file name of an object listed by `manifest` (for exports).
-    pub fn object_file_for(
-        &self,
-        manifest: &CommitManifest,
-        entry: &ObjectEntry,
-    ) -> Result<String> {
-        self.object_file(manifest, entry)?
-            .ok_or_else(Self::corrupt_record)
     }
 
     /// Bytes of an object reachable at the pinned commit, verified by hash.
     pub fn read_object(&self, pin: &CommitPin, hash: &Sha256Hex) -> Result<Vec<u8>> {
-        let manifest = self.read_manifest(pin)?;
-        let entry = manifest
-            .objects
-            .iter()
-            .find(|o| &o.object_hash == hash)
+        let commit = self.stored_commit(pin)?;
+        let item = self
+            .find_object(&commit, hash)?
             .ok_or_else(Self::not_found)?;
-        let file = self
-            .object_file(&manifest, entry)?
-            .ok_or_else(Self::corrupt_record)?;
-        let bytes = self.root.read(&file)?.ok_or_else(Self::corrupt_record)?;
-        if &sha256(&bytes) != hash {
-            return Err(Self::corrupt_record());
-        }
-        Ok(bytes)
+        let file = object_file_of(&item).ok_or_else(Self::corrupt_record)?;
+        self.read_verified(&file, hash)
     }
 
-    fn record_at(&self, reference: &RecordRef, hash: &Sha256Hex) -> Result<AnyRecord> {
-        let key = (
-            reference.record_kind,
-            reference.record_id.clone(),
-            reference.revision.get(),
-        );
+    /// Parse one cataloged revision (cached after its first verified read).
+    fn record_at(&self, kind: RecordKind, entry: &RecordEntry, revision: u64) -> Result<AnyRecord> {
+        let key = (kind, entry.record_id.clone(), revision);
         if let Some(record) = self.records.lock().expect("cache").get(&key) {
             return Ok(record.clone());
         }
-        let bytes = self.read_verified(reference, hash)?;
+        let hash = entry.hash_of(revision).ok_or_else(Self::corrupt_record)?;
+        let file = entry_file(kind, entry, revision).ok_or_else(Self::corrupt_record)?;
+        let bytes = self.read_verified(&file, hash)?;
         let value: Value = serde_json::from_slice(&bytes)
             .map_err(|_| VaultError::corrupt("record unparseable"))?;
-        let record = parse_any(reference.record_kind, &value)
-            .map_err(|_| VaultError::corrupt("record invalid"))?;
+        let record = parse_any(kind, &value).map_err(|_| VaultError::corrupt("record invalid"))?;
         self.records
             .lock()
             .expect("cache")
@@ -688,32 +752,89 @@ impl Vault {
         Ok(record)
     }
 
-    /// Verify every record and object of a commit and report the damage
-    /// range. Reports only; never repairs or deletes (V06).
-    pub fn verify(&self, pin: &CommitPin) -> Result<IntegrityReport> {
-        let manifest = self.read_manifest(pin)?;
-        let mut report = IntegrityReport::default();
-        for entry in &manifest.catalog {
-            report.records_checked += 1;
-            let reference = RecordRef::new(entry.record_kind, &entry.record_id, entry.revision);
-            let file = self.file_of(&reference)?;
-            match file.map(|f| self.root.read(&f)).transpose()?.flatten() {
-                None => report.missing_records.push(reference),
-                Some(bytes) if sha256(&bytes) != entry.content_hash => {
-                    report.corrupt_records.push(reference)
+    /// Every file of a pinned state with the hash it must have: the stored
+    /// commits of the chain and every segment they reference, every revision
+    /// the pinned catalog names, and every object of the pinned commit.
+    pub fn pinned_files(&self, pin: &CommitPin) -> Result<Vec<PinnedFile>> {
+        let head = self.stored_commit(pin)?;
+        let mut files: BTreeMap<String, Sha256Hex> = BTreeMap::new();
+        let mut next = Some(head.commit_id.clone());
+        while let Some(id) = next {
+            let (commit, hash) = self.load_commit(&id, None)?;
+            files.insert(layout::commit_manifest(id.as_str()), hash);
+            for reference in commit.record_segments.iter().chain(&commit.object_segments) {
+                files.insert(
+                    layout::catalog_segment(&reference.segment_hash),
+                    reference.segment_hash.clone(),
+                );
+            }
+            next = commit.parent_commit_id.clone();
+        }
+        for reference in &head.record_segments {
+            let kind = reference.record_kind.expect("record segment");
+            for entry in &self.segment(reference)?.records {
+                for revision in 1..=entry.revision.get() {
+                    let file =
+                        entry_file(kind, entry, revision).ok_or_else(Self::corrupt_record)?;
+                    let hash = entry.hash_of(revision).expect("cataloged revision");
+                    files.insert(file, hash.clone());
                 }
-                Some(_) => {}
             }
         }
-        for entry in &manifest.objects {
-            report.objects_checked += 1;
-            let file = self.object_file(&manifest, entry).unwrap_or_default();
-            match file.map(|f| self.root.read(&f)).transpose()?.flatten() {
-                None => report.missing_objects.push(entry.object_hash.clone()),
-                Some(bytes) if sha256(&bytes) != entry.object_hash => {
-                    report.corrupt_objects.push(entry.object_hash.clone())
+        for item in self.objects_of(&head)? {
+            let file = object_file_of(&item).ok_or_else(Self::corrupt_record)?;
+            files.insert(file, item.object_hash.clone());
+        }
+        Ok(files
+            .into_iter()
+            .map(|(file, sha256)| PinnedFile { file, sha256 })
+            .collect())
+    }
+
+    /// Verify every segment, record revision, and object of a commit and
+    /// report the damage range. Reports only; never repairs or deletes (V06).
+    pub fn verify(&self, pin: &CommitPin) -> Result<IntegrityReport> {
+        let commit = self.stored_commit(pin)?;
+        let mut report = IntegrityReport::default();
+        let check = |file: Option<String>, hash: &Sha256Hex| -> Result<Option<bool>> {
+            let bytes = file.map(|f| self.root.read(&f)).transpose()?.flatten();
+            Ok(bytes.map(|bytes| &sha256(&bytes) == hash))
+        };
+        for reference in &commit.record_segments {
+            let Ok(segment) = self.segment(reference) else {
+                report.damaged_segments.push(reference.segment_hash.clone());
+                continue;
+            };
+            let kind = segment.record_kind.expect("record segment");
+            for entry in &segment.records {
+                for revision in 1..=entry.revision.get() {
+                    report.records_checked += 1;
+                    let hash = entry.hash_of(revision).expect("cataloged revision");
+                    let reference = RecordRef::new(
+                        kind,
+                        &entry.record_id,
+                        Revision::new(revision).expect("revision"),
+                    );
+                    match check(entry_file(kind, entry, revision), hash)? {
+                        None => report.missing_records.push(reference),
+                        Some(false) => report.corrupt_records.push(reference),
+                        Some(true) => {}
+                    }
                 }
-                Some(_) => {}
+            }
+        }
+        for reference in &commit.object_segments {
+            let Ok(segment) = self.segment(reference) else {
+                report.damaged_segments.push(reference.segment_hash.clone());
+                continue;
+            };
+            for item in &segment.objects {
+                report.objects_checked += 1;
+                match check(object_file_of(item), &item.object_hash)? {
+                    None => report.missing_objects.push(item.object_hash.clone()),
+                    Some(false) => report.corrupt_objects.push(item.object_hash.clone()),
+                    Some(true) => {}
+                }
             }
         }
         Ok(report)
@@ -724,20 +845,20 @@ impl Vault {
     /// policy epoch is reported so authorization is decided again (V08).
     pub fn check_fresh(&self, pin: &CommitPin, references: &[RecordRef]) -> Result<Freshness> {
         let head = self.load_head()?;
-        let pinned = self.read_manifest(pin)?;
-        if head.manifest.deletion_epoch > pin.deletion_epoch {
-            let known: BTreeSet<&str> = pinned
-                .catalog
-                .iter()
-                .filter(|e| e.record_kind == RecordKind::Tombstone)
-                .map(|e| e.record_id.as_str())
+        let pinned = self.stored_commit(pin)?;
+        if head.deletion_epoch > pin.deletion_epoch {
+            let known: BTreeSet<String> = self
+                .entries_of(&pinned, RecordKind::Tombstone)?
+                .into_iter()
+                .map(|e| e.record_id)
                 .collect();
-            for entry in head.manifest.catalog.iter().filter(|e| {
-                e.record_kind == RecordKind::Tombstone && !known.contains(e.record_id.as_str())
-            }) {
-                let reference = RecordRef::new(entry.record_kind, &entry.record_id, entry.revision);
+            for entry in self
+                .entries_of(&head, RecordKind::Tombstone)?
+                .into_iter()
+                .filter(|e| !known.contains(&e.record_id))
+            {
                 if let AnyRecord::Tombstone(tombstone) =
-                    self.record_at(&reference, &entry.content_hash)?
+                    self.record_at(RecordKind::Tombstone, &entry, 1)?
                 {
                     let hit = references.iter().any(|r| {
                         tombstone.targets.iter().any(|t| {
@@ -753,8 +874,8 @@ impl Vault {
             }
         }
         Ok(Freshness {
-            policy_changed: head.manifest.policy_epoch != pin.policy_epoch,
-            head: Self::pin_of(&head.manifest),
+            policy_changed: head.policy_epoch != pin.policy_epoch,
+            head: Self::pin_of(&head),
         })
     }
 
@@ -763,7 +884,7 @@ impl Vault {
     fn prepare_records(
         &self,
         staged: &[StagedRecord],
-        head: Option<&CommitManifest>,
+        head: Option<&StoredCommit>,
     ) -> Result<Vec<Prepared>> {
         let mut seen = BTreeSet::new();
         let mut out = Vec::new();
@@ -793,12 +914,11 @@ impl Vault {
             if !seen.insert((record.record_kind, id.clone())) {
                 return Err(VaultError::invalid(vec!["commit.catalog_duplicate"]));
             }
-            let current = head.and_then(|h| {
-                h.catalog
-                    .iter()
-                    .find(|e| e.record_kind == record.record_kind && e.record_id == id)
-            });
-            let expected_revision = match current {
+            let existing = match head {
+                Some(head) => self.find_record(head, record.record_kind, &id)?,
+                None => None,
+            };
+            let expected_revision = match &existing {
                 Some(entry) if record.record_kind.is_revisioned() => entry.revision.get() + 1,
                 Some(_) => 0, // single-revision records are never rewritten
                 None => 1,
@@ -868,133 +988,240 @@ impl Vault {
         Ok(())
     }
 
-    fn fill_catalog(
+    fn encode_segment(segment: CatalogSegment, out: &mut Vec<(Sha256Hex, Vec<u8>)>) -> SegmentRef {
+        let bytes = canonical_bytes(&segment).expect("segment serializes");
+        let hash = sha256(&bytes);
+        let reference = SegmentRef {
+            segment_kind: segment.segment_kind,
+            record_kind: segment.record_kind,
+            prefix: segment.prefix.clone(),
+            entry_count: segment.len() as u64,
+            segment_hash: hash.clone(),
+        };
+        out.push((hash, bytes));
+        reference
+    }
+
+    /// Fill `header` with the catalog of `head` plus `prepared` and
+    /// `objects`: only the leaves they touch are rewritten (and split when
+    /// they outgrow the capacity); every other segment is shared by hash.
+    fn build(
         &self,
-        manifest: &mut CommitManifest,
-        head: Option<&CommitManifest>,
+        mut header: StoredCommit,
+        head: Option<&StoredCommit>,
         prepared: &[Prepared],
         objects: &[StagedObject],
-    ) {
-        // Canonical order: record kind name, then record ID.
-        let mut catalog: BTreeMap<(&'static str, String), CatalogEntry> = BTreeMap::new();
-        if let Some(head) = head {
-            for entry in &head.catalog {
-                let mut entry = entry.clone();
-                entry.changed = false;
-                catalog.insert(
-                    (kind_name(entry.record_kind), entry.record_id.clone()),
-                    entry,
-                );
+    ) -> Result<Built> {
+        let capacity = header.segment_capacity;
+        let mut new_segments = Vec::new();
+        let mut record_refs: BTreeMap<(&'static str, String), SegmentRef> = BTreeMap::new();
+        for reference in head
+            .map(|h| h.record_segments.as_slice())
+            .unwrap_or_default()
+        {
+            let kind = reference.record_kind.expect("record segment");
+            record_refs.insert((kind.name(), reference.prefix.clone()), reference.clone());
+        }
+        let mut by_kind: BTreeMap<&'static str, (RecordKind, Vec<&Prepared>)> = BTreeMap::new();
+        for p in prepared {
+            by_kind
+                .entry(p.kind.name())
+                .or_insert((p.kind, Vec::new()))
+                .1
+                .push(p);
+        }
+        for (name, (kind, changes)) in by_kind {
+            let leaves: BTreeSet<String> = record_refs
+                .keys()
+                .filter(|(k, _)| *k == name)
+                .map(|(_, p)| p.clone())
+                .collect();
+            let mut touched: BTreeMap<String, Vec<&Prepared>> = BTreeMap::new();
+            for p in changes {
+                let key = record_key(kind, &p.id)
+                    .ok_or_else(|| VaultError::invalid(vec!["ref.kind_prefix"]))?;
+                touched.entry(leaf_for(&leaves, &key)).or_default().push(p);
+            }
+            for (leaf, changes) in touched {
+                let mut entries: BTreeMap<String, RecordEntry> = BTreeMap::new();
+                if let Some(old) = record_refs.remove(&(name, leaf.clone())) {
+                    for e in &self.segment(&old)?.records {
+                        entries.insert(e.record_id.clone(), e.clone());
+                    }
+                }
+                for p in changes {
+                    let hash = sha256(&p.bytes);
+                    let mut groups: BTreeSet<String> = groups_of(&p.record).into_iter().collect();
+                    let entry = match entries.remove(&p.id) {
+                        Some(mut old) => {
+                            groups.extend(old.group_ids.drain(..));
+                            old.prior_hashes.push(old.content_hash.clone());
+                            RecordEntry {
+                                record_id: p.id.clone(),
+                                revision: p.revision,
+                                content_hash: hash,
+                                prior_hashes: old.prior_hashes,
+                                group_ids: groups.into_iter().collect(),
+                            }
+                        }
+                        None => RecordEntry {
+                            record_id: p.id.clone(),
+                            revision: p.revision,
+                            content_hash: hash,
+                            prior_hashes: Vec::new(),
+                            group_ids: groups.into_iter().collect(),
+                        },
+                    };
+                    if entry.prior_hashes.len() as u64 != entry.revision.get() - 1 {
+                        return Err(VaultError::new(
+                            MemoryErrorCode::RevisionConflict,
+                            Fault::RevisionMismatch,
+                        ));
+                    }
+                    entries.insert(p.id.clone(), entry);
+                }
+                let list: Vec<RecordEntry> = entries.into_values().collect();
+                let keys: Vec<String> = list
+                    .iter()
+                    .map(|e| record_key(kind, &e.record_id).expect("cataloged id"))
+                    .collect();
+                let key_refs: Vec<&str> = keys.iter().map(String::as_str).collect();
+                for (prefix, range) in split(&leaf, &key_refs, capacity) {
+                    let segment = CatalogSegment {
+                        schema_version: SchemaVersion,
+                        segment_kind: SegmentKind::Records,
+                        record_kind: Some(kind),
+                        prefix: prefix.clone(),
+                        records: list[range].to_vec(),
+                        objects: Vec::new(),
+                    };
+                    let reference = Self::encode_segment(segment, &mut new_segments);
+                    record_refs.insert((name, prefix), reference);
+                }
             }
         }
-        for p in prepared {
-            catalog.insert(
-                (kind_name(p.kind), p.id.clone()),
-                CatalogEntry {
-                    record_kind: p.kind,
-                    record_id: p.id.clone(),
-                    revision: p.revision,
-                    content_hash: sha256(&p.bytes),
-                    changed: true,
-                },
-            );
-        }
-        manifest.catalog = catalog.into_values().collect();
-        let mut all: BTreeMap<(String, u8), ObjectEntry> = BTreeMap::new();
-        for entry in head.map(|h| h.objects.as_slice()).unwrap_or_default() {
-            all.insert(
-                (entry.object_hash.to_string(), kind_order(entry.object_kind)),
-                entry.clone(),
-            );
-        }
+        header.record_segments = record_refs.into_values().collect();
+
+        let mut object_refs: BTreeMap<String, SegmentRef> = head
+            .map(|h| h.object_segments.as_slice())
+            .unwrap_or_default()
+            .iter()
+            .map(|r| (r.prefix.clone(), r.clone()))
+            .collect();
+        let leaves: BTreeSet<String> = object_refs.keys().cloned().collect();
+        let mut touched: BTreeMap<String, Vec<&StagedObject>> = BTreeMap::new();
         for object in objects {
-            all.insert(
-                (object.hash.to_string(), kind_order(object.kind)),
-                ObjectEntry {
-                    object_hash: object.hash.clone(),
-                    size_bytes: object.bytes.len() as u64,
-                    object_kind: object.kind,
-                },
-            );
+            touched
+                .entry(leaf_for(&leaves, object.hash.as_str()))
+                .or_default()
+                .push(object);
         }
-        manifest.objects = all.into_values().collect();
+        for (leaf, added) in touched {
+            let mut items: BTreeMap<(Sha256Hex, u8), ObjectItem> = BTreeMap::new();
+            if let Some(old) = object_refs.remove(&leaf) {
+                for item in &self.segment(&old)?.objects {
+                    items.insert(
+                        (
+                            item.object_hash.clone(),
+                            object_kind_order(item.object_kind),
+                        ),
+                        item.clone(),
+                    );
+                }
+            }
+            for object in added {
+                let stored_with = match object.kind {
+                    ObjectKind::IdentityMarkdown => prepared.iter().find_map(|p| match &p.record {
+                        AnyRecord::Identity(identity) if identity.content_hash == object.hash => {
+                            Some(RecordRef::new(RecordKind::Identity, &p.id, p.revision))
+                        }
+                        _ => None,
+                    }),
+                    _ => None,
+                };
+                items
+                    .entry((object.hash.clone(), object_kind_order(object.kind)))
+                    .or_insert(ObjectItem {
+                        object_hash: object.hash.clone(),
+                        object_kind: object.kind,
+                        size_bytes: object.bytes.len() as u64,
+                        stored_with,
+                    });
+            }
+            let list: Vec<ObjectItem> = items.into_values().collect();
+            // Sorted by hash; two kinds of one hash share a key and a leaf.
+            let keys: Vec<&str> = list.iter().map(|o| o.object_hash.as_str()).collect();
+            for (prefix, range) in split(&leaf, &keys, capacity) {
+                let segment = CatalogSegment {
+                    schema_version: SchemaVersion,
+                    segment_kind: SegmentKind::Objects,
+                    record_kind: None,
+                    prefix: prefix.clone(),
+                    records: Vec::new(),
+                    objects: list[range].to_vec(),
+                };
+                let reference = Self::encode_segment(segment, &mut new_segments);
+                object_refs.insert(prefix, reference);
+            }
+        }
+        header.object_segments = object_refs.into_values().collect();
+
         let mut refs: Vec<RecordRef> = prepared
             .iter()
             .map(|p| RecordRef::new(p.kind, &p.id, p.revision))
             .collect();
         refs.sort_by(|a, b| {
-            (kind_name(a.record_kind), &a.record_id, a.revision).cmp(&(
-                kind_name(b.record_kind),
+            (a.record_kind.name(), &a.record_id, a.revision).cmp(&(
+                b.record_kind.name(),
                 &b.record_id,
                 b.revision,
             ))
         });
-        manifest.receipt.records = refs;
-        manifest.review_ids = prepared
+        header.receipt.records = refs;
+        header.review_ids = prepared
             .iter()
             .filter(|p| p.kind == RecordKind::Review)
             .map(|p| ReviewId::parse(&p.id).expect("parsed review id"))
             .collect();
-        manifest.tombstone_ids = prepared
+        header.tombstone_ids = prepared
             .iter()
             .filter(|p| p.kind == RecordKind::Tombstone)
             .map(|p| DeleteId::parse(&p.id).expect("parsed delete id"))
             .collect();
-    }
-
-    /// Every document ever cataloged on the chain ending at `head`.
-    fn history(&self, head: &CommitManifest) -> Result<History> {
-        let mut chain = Vec::new();
-        let mut docs = BTreeMap::new();
-        let mut next = Some(head.commit_id.clone());
-        while let Some(id) = next {
-            let (manifest, _) = self.load_manifest(&id, None)?;
-            for entry in &manifest.catalog {
-                docs.entry((
-                    entry.record_kind,
-                    entry.record_id.clone(),
-                    entry.revision.get(),
-                ))
-                .or_insert_with(|| entry.content_hash.clone());
-            }
-            next = manifest.parent_commit_id.clone();
-            chain.push(manifest);
-        }
-        Ok((chain, docs))
-    }
-
-    fn check_manifest_and_set(
-        &self,
-        manifest: &CommitManifest,
-        head: Option<&CommitManifest>,
-        prepared: &[Prepared],
-    ) -> Result<()> {
-        let violations = manifest.validate();
+        let violations = header.validate();
         if !violations.is_empty() {
             return Err(VaultError::invalid(
                 violations.iter().map(|v| v.rule).collect(),
             ));
         }
-        if !self.options.validate_record_set {
-            return Ok(());
+        Ok(Built {
+            commit: header,
+            segments: new_segments,
+        })
+    }
+
+    /// Validate the delta on a scoped set (ADR-MEM-39) and the chain step.
+    fn check_delta(
+        &self,
+        commit: &StoredCommit,
+        head: Option<&StoredCommit>,
+        prepared: &[Prepared],
+    ) -> Result<()> {
+        let stub = stub_of(commit);
+        let delta: Vec<AnyRecord> = prepared.iter().map(|p| p.record.clone()).collect();
+        let mut own = RecordSet::default();
+        for record in &delta {
+            own.push(record.clone());
         }
-        let mut set = RecordSet::default();
-        if let Some(head) = head {
-            let (chain, docs) = self.history(head)?;
-            for ((kind, id, rev), hash) in &docs {
-                let reference =
-                    RecordRef::new(*kind, id, Revision::new(*rev).expect("stored revision"));
-                push_record(&mut set, self.record_at(&reference, hash)?);
-            }
-            for manifest in chain {
-                set.commits.push((*manifest).clone());
-            }
+        let head_stub = head.map(stub_of);
+        let mut violations = check_commit_step(&own, head_stub.as_ref(), &stub);
+        if self.options.validate_record_set {
+            let before = match head {
+                Some(head) => self.scoped_set(head, &delta)?,
+                None => RecordSet::default(),
+            };
+            violations.extend(validate_delta(&before, &delta, &[stub]));
         }
-        for p in prepared {
-            push_record(&mut set, p.record.clone());
-        }
-        set.commits.push(manifest.clone());
-        let violations = validate_set(&set);
         if violations.is_empty() {
             Ok(())
         } else {
@@ -1003,6 +1230,83 @@ impl Vault {
             rules.dedup();
             Err(VaultError::invalid(rules))
         }
+    }
+
+    /// Every small-kind revision at `head`, plus the bulk documents and
+    /// commits that `delta_needs` lists for `delta`.
+    fn scoped_set(&self, head: &StoredCommit, delta: &[AnyRecord]) -> Result<RecordSet> {
+        let mut set = RecordSet::default();
+        let mut loaded: BTreeSet<DocKey> = BTreeSet::new();
+        let mut push = |set: &mut RecordSet, kind: RecordKind, entry: &RecordEntry, revision| {
+            if loaded.insert((kind, entry.record_id.clone(), revision)) {
+                set.push(self.record_at(kind, entry, revision)?);
+            }
+            Ok::<(), VaultError>(())
+        };
+        let kinds: BTreeSet<RecordKind> = head
+            .record_segments
+            .iter()
+            .filter_map(|r| r.record_kind)
+            .filter(|k| !is_bulk(*k))
+            .collect();
+        for kind in kinds {
+            for entry in self.entries_of(head, kind)? {
+                for revision in 1..=entry.revision.get() {
+                    push(&mut set, kind, &entry, revision)?;
+                }
+            }
+        }
+        for need in delta_needs(&set, delta) {
+            match need {
+                Need::Revision(kind, id, revision) if is_bulk(kind) => {
+                    if let Some(entry) = self.find_record(head, kind, &id)?
+                        && revision <= entry.revision.get()
+                    {
+                        push(&mut set, kind, &entry, revision)?;
+                    }
+                }
+                Need::AllRevisions(kind, id) if is_bulk(kind) => {
+                    if let Some(entry) = self.find_record(head, kind, &id)? {
+                        for revision in 1..=entry.revision.get() {
+                            push(&mut set, kind, &entry, revision)?;
+                        }
+                    }
+                }
+                Need::ImportSources(import) => {
+                    for entry in self.entries_of(head, RecordKind::Source)? {
+                        if entry.group_ids.contains(&import) {
+                            for revision in 1..=entry.revision.get() {
+                                push(&mut set, RecordKind::Source, &entry, revision)?;
+                            }
+                        }
+                    }
+                }
+                Need::SessionEvents(session) => {
+                    // Event files are grouped by session; the catalog decides
+                    // which of them are published.
+                    for name in self.root.list(&format!("vault/session-events/{session}"))? {
+                        let Some(id) = name.strip_suffix(".json") else {
+                            continue;
+                        };
+                        if let Some(entry) = self.find_record(head, RecordKind::SessionEvent, id)?
+                            && entry.group_ids.first() == Some(&session)
+                        {
+                            push(&mut set, RecordKind::SessionEvent, &entry, 1)?;
+                        }
+                    }
+                }
+                Need::Commit(id) => {
+                    if let Ok(id) = CommitId::parse(&id)
+                        && let Ok((commit, _)) = self.load_commit(&id, None)
+                        && self.on_chain(head, &commit.commit_id, commit.sequence)?
+                    {
+                        set.commits.push(stub_of(&commit));
+                    }
+                }
+                _ => {}
+            }
+        }
+        Ok(set)
     }
 
     /// Move a file found at a name this transaction must write to the
@@ -1031,26 +1335,24 @@ impl Vault {
 
     fn write_transaction(
         &self,
-        manifest: &CommitManifest,
+        built: &Built,
         prepared: &[Prepared],
         objects: &[StagedObject],
         idempotency: Option<(&IdempotencyScope, &Sha256Hex)>,
     ) -> Result<()> {
         let faults = &self.options.faults;
-        let operation = &manifest.operation_id;
+        let commit = &built.commit;
+        let operation = &commit.operation_id;
         // An intent marker makes an interrupted transaction visible to
-        // health until the next writer clears it. Records and objects are
-        // then written once, flushed, directly at their final names: until
-        // CURRENT names a manifest that catalogs them, nothing reads them.
+        // health until the next writer clears it. Records, objects, and
+        // segments are then written once, flushed, directly at their final
+        // names: until CURRENT names a commit that references them, nothing
+        // reads them.
         let staging = layout::staging_dir(operation.as_str());
         self.root.write_new(
             &format!("{staging}/intent"),
-            manifest.commit_id.as_str().as_bytes(),
+            commit.commit_id.as_str().as_bytes(),
         )?;
-        let placements: Vec<(String, &[u8])> = prepared
-            .iter()
-            .map(|p| (p.file.clone(), p.bytes.as_slice()))
-            .collect();
         let mut object_placements = Vec::new();
         for object in objects {
             let file = match layout::object_path(object.kind, &object.hash) {
@@ -1068,19 +1370,21 @@ impl Vault {
             object_placements.push((file, object.bytes.as_slice()));
         }
         faults.io(FaultPoint::StagingWritten)?;
-        for (file, bytes) in &placements {
-            self.place(file, bytes, operation)?;
+        for p in prepared {
+            self.place(&p.file, &p.bytes, operation)?;
         }
         faults.io(FaultPoint::RecordsPlaced)?;
         for (file, bytes) in &object_placements {
             self.place(file, bytes, operation)?;
         }
         faults.io(FaultPoint::ObjectsPlaced)?;
-        let bytes = canonical_bytes(manifest).expect("manifest serializes");
-        self.root.write_new(
-            &layout::commit_manifest(manifest.commit_id.as_str()),
-            &bytes,
-        )?;
+        for (hash, bytes) in &built.segments {
+            self.place(&layout::catalog_segment(hash), bytes, operation)?;
+        }
+        faults.io(FaultPoint::SegmentsPlaced)?;
+        let bytes = canonical_bytes(commit).expect("commit serializes");
+        self.root
+            .write_new(&layout::commit_manifest(commit.commit_id.as_str()), &bytes)?;
         faults.io(FaultPoint::ManifestWritten)?;
         if let Some((scope, payload)) = idempotency {
             let entry = IdempotencyEntry {
@@ -1090,8 +1394,8 @@ impl Vault {
                 operation_kind: scope.operation_kind,
                 key_hash: scope.key_hash.clone(),
                 request_payload_hash: payload.clone(),
-                commit_id: manifest.commit_id.clone(),
-                sequence: manifest.sequence,
+                commit_id: commit.commit_id.clone(),
+                sequence: commit.sequence,
             };
             let file = layout::idempotency_entry(&idempotency_scope_hash(
                 &scope.principal_id,
@@ -1106,14 +1410,14 @@ impl Vault {
     }
 
     /// Replace `CURRENT` (the publication) and append the journal line.
-    fn publish(&self, manifest: &CommitManifest) -> Result<()> {
+    fn publish(&self, commit: &StoredCommit) -> Result<()> {
         let faults = &self.options.faults;
-        let (_, hash) = self.load_manifest(&manifest.commit_id, None)?;
+        let (_, hash) = self.load_commit(&commit.commit_id, None)?;
         let pointer = CurrentPointer {
             schema_version: SchemaVersion,
             vault_id: self.descriptor.vault_id.clone(),
-            commit_id: manifest.commit_id.clone(),
-            sequence: manifest.sequence,
+            commit_id: commit.commit_id.clone(),
+            sequence: commit.sequence,
             manifest_sha256: hash.clone(),
         };
         faults.io(FaultPoint::BeforeCurrent)?;
@@ -1122,25 +1426,25 @@ impl Vault {
             &canonical_bytes(&pointer).expect("pointer"),
         )?;
         faults.io(FaultPoint::AfterCurrent)?;
-        self.append_journal(manifest, &hash);
+        self.append_journal(commit, &hash);
         faults.io(FaultPoint::AfterJournal)?;
         let _ = self
             .root
-            .remove_staging(&layout::staging_dir(manifest.operation_id.as_str()));
+            .remove_staging(&layout::staging_dir(commit.operation_id.as_str()));
         Ok(())
     }
 
     /// The journal is recovery evidence, not the commit: a failed append is
     /// not reported as a failed commit (that would invite a duplicate retry).
-    fn append_journal(&self, manifest: &CommitManifest, hash: &Sha256Hex) {
+    fn append_journal(&self, commit: &StoredCommit, hash: &Sha256Hex) {
         let Ok(published_at) = commit_time(self.clock.as_ref(), None, ComponentId::Vault) else {
             return;
         };
         let record = PublishRecord {
             schema_version: SchemaVersion,
             vault_id: self.descriptor.vault_id.clone(),
-            commit_id: manifest.commit_id.clone(),
-            sequence: manifest.sequence,
+            commit_id: commit.commit_id.clone(),
+            sequence: commit.sequence,
             manifest_sha256: hash.clone(),
             published_at,
         };
@@ -1167,7 +1471,7 @@ impl Vault {
     }
 
     /// Is `commit_id` at `sequence` on the published chain ending at `head`?
-    fn on_chain(&self, head: &CommitManifest, commit_id: &CommitId, sequence: u64) -> Result<bool> {
+    fn on_chain(&self, head: &StoredCommit, commit_id: &CommitId, sequence: u64) -> Result<bool> {
         if sequence > head.sequence {
             return Ok(false);
         }
@@ -1176,14 +1480,14 @@ impl Vault {
             let Some(parent) = current.parent_commit_id.clone() else {
                 return Ok(false);
             };
-            current = self.load_manifest(&parent, None)?.0;
+            current = self.load_commit(&parent, None)?.0;
         }
         Ok(&current.commit_id == commit_id)
     }
 
     fn published_receipt(
         &self,
-        head: &CommitManifest,
+        head: &StoredCommit,
         scope: &IdempotencyScope,
     ) -> Result<Option<(CommitId, Sha256Hex, OperationReceipt)>> {
         let file = layout::idempotency_entry(&idempotency_scope_hash(
@@ -1202,17 +1506,17 @@ impl Vault {
         {
             return Ok(None);
         }
-        let (manifest, _) = self.load_manifest(&entry.commit_id, None)?;
-        if manifest.idempotency_key_hash.as_ref() != Some(&scope.key_hash)
-            || manifest.principal.actor_id != scope.principal_id
-            || manifest.operation_kind != scope.operation_kind
+        let (commit, _) = self.load_commit(&entry.commit_id, None)?;
+        if commit.idempotency_key_hash.as_ref() != Some(&scope.key_hash)
+            || commit.principal.actor_id != scope.principal_id
+            || commit.operation_kind != scope.operation_kind
         {
             return Err(VaultError::corrupt("idempotency entry"));
         }
         Ok(Some((
-            manifest.commit_id.clone(),
-            manifest.request_payload_hash.clone(),
-            manifest.receipt.clone(),
+            commit.commit_id.clone(),
+            commit.request_payload_hash.clone(),
+            commit.receipt.clone(),
         )))
     }
 
@@ -1221,7 +1525,7 @@ impl Vault {
         scope: &IdempotencyScope,
     ) -> Result<Option<(CommitId, Sha256Hex, OperationReceipt)>> {
         let head = self.load_head()?;
-        self.published_receipt(&head.manifest, scope)
+        self.published_receipt(&head, scope)
     }
 
     /// Apply one transaction (see the module documentation for the order).
@@ -1239,7 +1543,7 @@ impl Vault {
         let _guard = self.lock()?;
         self.clear_staging()?;
         let head = self.load_head()?;
-        match self.published_receipt(&head.manifest, &request.idempotency)? {
+        match self.published_receipt(&head, &request.idempotency)? {
             Some((commit_id, payload, receipt)) if payload == request.request_payload_hash => {
                 return Ok(CommitOutcome::Replayed { commit_id, receipt });
             }
@@ -1254,7 +1558,7 @@ impl Vault {
         if request
             .expected_commit_id
             .as_ref()
-            .is_some_and(|expected| expected != &head.manifest.commit_id)
+            .is_some_and(|expected| expected != &head.commit_id)
         {
             return Err(VaultError::new(
                 MemoryErrorCode::RevisionConflict,
@@ -1262,12 +1566,7 @@ impl Vault {
             ));
         }
         for (kind, id, expected) in &request.expected_revisions {
-            let actual = head
-                .manifest
-                .catalog
-                .iter()
-                .find(|e| e.record_kind == *kind && &e.record_id == id)
-                .map(|e| e.revision);
+            let actual = self.find_record(&head, *kind, id)?.map(|e| e.revision);
             if actual != *expected {
                 return Err(VaultError::new(
                     MemoryErrorCode::RevisionConflict,
@@ -1280,25 +1579,25 @@ impl Vault {
         }
         let manifest_file = layout::commit_manifest(request.commit_id.as_str());
         if self.root.exists(&manifest_file)? {
-            // Published under this ID: a reuse. Otherwise it is the manifest
+            // Published under this ID: a reuse. Otherwise it is the commit
             // of an attempt that crashed before publication: quarantine it.
-            let published = match self.load_manifest(&request.commit_id, None) {
+            let published = match self.load_commit(&request.commit_id, None) {
                 Ok((existing, _)) => {
-                    self.on_chain(&head.manifest, &existing.commit_id, existing.sequence)?
+                    self.on_chain(&head, &existing.commit_id, existing.sequence)?
                 }
                 Err(_) => false,
             };
             if published {
                 return Err(VaultError::invalid(vec!["store.commit_id_reused"]));
             }
-            self.manifests
+            self.commits
                 .lock()
                 .expect("cache")
                 .remove(request.commit_id.as_str());
             let operation = OperationId::from_random(self.ids.random_16());
             self.quarantine(&manifest_file, &operation)?;
         }
-        let prepared = self.prepare_records(&request.records, Some(&head.manifest))?;
+        let prepared = self.prepare_records(&request.records, Some(&head))?;
         self.check_objects(&request.objects, &prepared)?;
         let tombstone_epochs: BTreeSet<u64> = prepared
             .iter()
@@ -1308,27 +1607,47 @@ impl Vault {
             })
             .collect();
         let deletion_epoch = match tombstone_epochs.len() {
-            0 => head.manifest.deletion_epoch,
-            1 if tombstone_epochs.contains(&(head.manifest.deletion_epoch + 1)) => {
-                head.manifest.deletion_epoch + 1
-            }
+            0 => head.deletion_epoch,
+            1 if tombstone_epochs.contains(&(head.deletion_epoch + 1)) => head.deletion_epoch + 1,
             _ => return Err(VaultError::invalid(vec!["store.deletion_epoch"])),
         };
-        let policy_epoch = head.manifest.policy_epoch
-            + u64::from(prepared.iter().any(|p| p.kind == RecordKind::Policy));
+        let policy_epoch =
+            head.policy_epoch + u64::from(prepared.iter().any(|p| p.kind == RecordKind::Policy));
         let created_at = commit_time(
             self.clock.as_ref(),
-            Some(&head.manifest.created_at),
+            Some(&head.created_at),
             ComponentId::Vault,
         )
         .map_err(|_| VaultError::new(MemoryErrorCode::ClockRegression, Fault::ClockRegression))?;
+        // An import past `archiving` is only committed together with (or
+        // after) the exact bytes it received (IMPORT_REVIEW §2, I01).
+        for p in &prepared {
+            if let AnyRecord::Import(import) = &p.record
+                && !matches!(
+                    import.status,
+                    enouia_memory_contract::import::ImportStatus::Planned
+                        | enouia_memory_contract::import::ImportStatus::Archiving
+                )
+            {
+                let staged = request
+                    .objects
+                    .iter()
+                    .any(|o| o.hash == import.input_object_hash && o.kind == ObjectKind::Raw);
+                let stored = self
+                    .find_object(&head, &import.input_object_hash)?
+                    .is_some_and(|o| o.object_kind == ObjectKind::Raw);
+                if !staged && !stored {
+                    return Err(VaultError::invalid(vec!["store.import_raw_missing"]));
+                }
+            }
+        }
         let operation_id = OperationId::from_random(self.ids.random_16());
-        let mut manifest = CommitManifest {
+        let header = StoredCommit {
             schema_version: SchemaVersion,
             commit_id: request.commit_id.clone(),
-            format_version: FormatVersion,
-            parent_commit_id: Some(head.manifest.commit_id.clone()),
-            sequence: head.manifest.sequence + 1,
+            format_version: LayoutFormat,
+            parent_commit_id: Some(head.commit_id.clone()),
+            sequence: head.sequence + 1,
             vault_id: self.descriptor.vault_id.clone(),
             writer_device_id: self.device_id.clone(),
             principal: request.principal.clone(),
@@ -1337,8 +1656,9 @@ impl Vault {
             idempotency_key_hash: Some(request.idempotency.key_hash.clone()),
             request_payload_hash: request.request_payload_hash.clone(),
             created_at,
-            catalog: Vec::new(),
-            objects: Vec::new(),
+            segment_capacity: self.options.segment_capacity,
+            record_segments: Vec::new(),
+            object_segments: Vec::new(),
             review_ids: Vec::new(),
             tombstone_ids: Vec::new(),
             policy_epoch,
@@ -1349,39 +1669,18 @@ impl Vault {
                 records: Vec::new(),
             },
         };
-        self.fill_catalog(
-            &mut manifest,
-            Some(&head.manifest),
-            &prepared,
-            &request.objects,
-        );
-        // An import past `archiving` is only committed together with (or
-        // after) the exact bytes it received (IMPORT_REVIEW §2, I01).
-        for p in &prepared {
-            if let AnyRecord::Import(import) = &p.record
-                && !matches!(
-                    import.status,
-                    enouia_memory_contract::import::ImportStatus::Planned
-                        | enouia_memory_contract::import::ImportStatus::Archiving
-                )
-                && !manifest.objects.iter().any(|o| {
-                    o.object_hash == import.input_object_hash && o.object_kind == ObjectKind::Raw
-                })
-            {
-                return Err(VaultError::invalid(vec!["store.import_raw_missing"]));
-            }
-        }
-        self.check_manifest_and_set(&manifest, Some(&head.manifest), &prepared)?;
+        let built = self.build(header, Some(&head), &prepared, &request.objects)?;
+        self.check_delta(&built.commit, Some(&head), &prepared)?;
         self.write_transaction(
-            &manifest,
+            &built,
             &prepared,
             &request.objects,
             Some((&request.idempotency, &request.request_payload_hash)),
         )?;
-        self.publish(&manifest)?;
+        self.publish(&built.commit)?;
         Ok(CommitOutcome::Committed {
-            commit_id: manifest.commit_id.clone(),
-            receipt: manifest.receipt.clone(),
+            commit_id: built.commit.commit_id.clone(),
+            receipt: built.commit.receipt.clone(),
         })
     }
 
@@ -1400,10 +1699,10 @@ impl Vault {
     }
 
     fn complete(&self, commit_id: &CommitId, hash: &Sha256Hex) -> bool {
-        let Ok((manifest, _)) = self.load_manifest(commit_id, Some(hash)) else {
+        let Ok((commit, _)) = self.load_commit(commit_id, Some(hash)) else {
             return false;
         };
-        let pin = Self::pin_of(&manifest);
+        let pin = Self::pin_of(&commit);
         self.verify(&pin).is_ok_and(|r| r.is_clean())
     }
 
@@ -1450,13 +1749,13 @@ impl Vault {
             if seen.contains(id.as_str()) {
                 continue;
             }
-            let Ok((manifest, hash)) = self.load_manifest(&id, None) else {
+            let Ok((commit, hash)) = self.load_commit(&id, None) else {
                 continue;
             };
             if self.complete(&id, &hash) {
                 candidates.push(RecoveryCandidate {
                     commit_id: id,
-                    sequence: manifest.sequence,
+                    sequence: commit.sequence,
                     manifest_sha256: hash,
                     evidence: RecoveryEvidence::VerifiedUnpublished,
                     complete: true,
@@ -1513,8 +1812,8 @@ impl Vault {
             &layout::recovery_receipt(receipt.recovery_id.as_str()),
             &canonical_bytes(&receipt).expect("receipt"),
         )?;
-        let (manifest, _) = self.load_manifest(commit_id, Some(&candidate.manifest_sha256))?;
-        self.publish(&manifest)?;
+        let (commit, _) = self.load_commit(commit_id, Some(&candidate.manifest_sha256))?;
+        self.publish(&commit)?;
         Ok(receipt)
     }
 }

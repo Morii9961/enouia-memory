@@ -294,11 +294,8 @@ impl Vault {
 
     fn latest_session(&self, session_id: &SessionId) -> Result<SessionRecord> {
         let pin = self.pin_current()?;
-        let manifest = self.read_manifest(&pin)?;
-        let entry = manifest
-            .catalog
-            .iter()
-            .find(|e| e.record_kind == RecordKind::Session && e.record_id == session_id.as_str())
+        let entry = self
+            .record_entry(&pin, RecordKind::Session, session_id.as_str())?
             .ok_or_else(|| VaultError::new(MemoryErrorCode::NotFound, crate::Fault::NotFound))?;
         let bytes = self.read_record(
             &pin,

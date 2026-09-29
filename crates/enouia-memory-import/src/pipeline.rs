@@ -117,42 +117,37 @@ struct Existing {
 
 fn load_existing(vault: &Vault) -> Result<Existing> {
     let pin = vault.pin_current()?;
-    let manifest = vault.read_manifest(&pin)?;
     let mut existing = Existing {
         sources: BTreeMap::new(),
         imports: Vec::new(),
     };
-    for entry in &manifest.catalog {
-        let reference = RecordRef::new(entry.record_kind, &entry.record_id, entry.revision);
-        match entry.record_kind {
-            RecordKind::Source => {
-                let bytes = vault.read_record(&pin, &reference)?;
-                let source: SourceRecord =
-                    parse_record(&bytes).map_err(|_| VaultError::corrupt("source"))?;
-                if let (Some(p), Some(a), Some(c), Some(m)) = (
-                    &source.provider,
-                    &source.account_scope,
-                    &source.original_conversation_id,
-                    &source.original_message_id,
-                ) {
-                    existing.sources.insert(
-                        (p.clone(), a.clone(), c.clone(), m.clone()),
-                        (
-                            source.source_id.clone(),
-                            source.revision,
-                            source.content_hash.clone(),
-                        ),
-                    );
-                }
-            }
-            RecordKind::Import => {
-                let bytes = vault.read_record(&pin, &reference)?;
-                existing
-                    .imports
-                    .push(parse_record(&bytes).map_err(|_| VaultError::corrupt("import"))?);
-            }
-            _ => {}
+    for entry in vault.record_entries(&pin, RecordKind::Source)? {
+        let reference = RecordRef::new(RecordKind::Source, &entry.record_id, entry.revision);
+        let bytes = vault.read_record(&pin, &reference)?;
+        let source: SourceRecord =
+            parse_record(&bytes).map_err(|_| VaultError::corrupt("source"))?;
+        if let (Some(p), Some(a), Some(c), Some(m)) = (
+            &source.provider,
+            &source.account_scope,
+            &source.original_conversation_id,
+            &source.original_message_id,
+        ) {
+            existing.sources.insert(
+                (p.clone(), a.clone(), c.clone(), m.clone()),
+                (
+                    source.source_id.clone(),
+                    source.revision,
+                    source.content_hash.clone(),
+                ),
+            );
         }
+    }
+    for entry in vault.record_entries(&pin, RecordKind::Import)? {
+        let reference = RecordRef::new(RecordKind::Import, &entry.record_id, entry.revision);
+        let bytes = vault.read_record(&pin, &reference)?;
+        existing
+            .imports
+            .push(parse_record(&bytes).map_err(|_| VaultError::corrupt("import"))?);
     }
     Ok(existing)
 }

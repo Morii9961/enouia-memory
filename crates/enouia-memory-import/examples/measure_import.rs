@@ -118,6 +118,17 @@ fn main() {
         report.commits,
         elapsed / report.commits as f64
     );
+    let stored = vault.stored_commit(&pin).unwrap();
+    let mut per_kind: std::collections::BTreeMap<String, (usize, u64)> = Default::default();
+    for r in stored.record_segments.iter().chain(&stored.object_segments) {
+        let key = r
+            .record_kind
+            .map_or("objects".to_owned(), |k| k.name().to_owned());
+        let e = per_kind.entry(key).or_default();
+        e.0 += 1;
+        e.1 += r.entry_count;
+    }
+    println!("segments (count, entries) per kind: {per_kind:?}");
     drop(vault);
 
     // A later single-record commit from a fresh process (cold caches): the

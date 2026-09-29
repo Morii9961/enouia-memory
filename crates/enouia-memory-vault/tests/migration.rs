@@ -60,29 +60,33 @@ fn unknown_major_versions_are_never_written_or_opened_for_writing() {
     let error = harness.vault.commit(request).unwrap_err();
     assert_eq!(error.fault, Fault::Contract(vec!["unsupported_schema"]));
 
+    // A newer layout (3) and the pre-segmented layout (1, ADR-MEM-39) are
+    // both refused, and the descriptor is left as found.
     let descriptor = harness.root.path().join("vault/vault.json");
     let text = std::fs::read_to_string(&descriptor).unwrap();
-    std::fs::write(
-        &descriptor,
-        text.replace("\"format_version\": 1", "\"format_version\": 2"),
-    )
-    .unwrap();
-    let error = Vault::open(
-        &verified(harness.root.path()),
-        None,
-        harness.clock.clone(),
-        ids(),
-        options(Faults::none()),
-    )
-    .err()
-    .unwrap();
-    assert_eq!(error.code(), MemoryErrorCode::UnsupportedSchema);
-    assert!(
-        std::fs::read_to_string(&descriptor)
-            .unwrap()
-            .contains("\"format_version\": 2"),
-        "left untouched"
-    );
+    for other in [3, 1] {
+        let changed = text.replace(
+            "\"format_version\": 2",
+            &format!("\"format_version\": {other}"),
+        );
+        assert_ne!(changed, text);
+        std::fs::write(&descriptor, &changed).unwrap();
+        let error = Vault::open(
+            &verified(harness.root.path()),
+            None,
+            harness.clock.clone(),
+            ids(),
+            options(Faults::none()),
+        )
+        .err()
+        .unwrap();
+        assert_eq!(error.code(), MemoryErrorCode::UnsupportedSchema, "{other}");
+        assert_eq!(
+            std::fs::read_to_string(&descriptor).unwrap(),
+            changed,
+            "left untouched"
+        );
+    }
 }
 
 #[test]

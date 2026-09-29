@@ -4,7 +4,7 @@
     "actor_id": "prn_00000001-0000-4000-8000-000000000001",
     "actor_type": "owner"
   },
-  "format_version": 1,
+  "format_version": 2,
   "genesis_commit_id": "cmt_00000001-0000-4000-8000-000000000001",
   "genesis_device_id": "dev_00000001-0000-4000-8000-000000000001",
   "schema_version": 1,

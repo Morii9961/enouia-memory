@@ -210,6 +210,7 @@ fn run(args: &[String]) -> Outcome {
                 "corrupt_records": report.corrupt_records,
                 "missing_objects": report.missing_objects,
                 "corrupt_objects": report.corrupt_objects,
+                "damaged_segments": report.damaged_segments,
             }))
         }
         "recovery" => {

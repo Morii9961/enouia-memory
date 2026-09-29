@@ -16,6 +16,7 @@
 
 pub mod approval;
 pub mod candidate;
+pub mod catalog;
 pub mod commit;
 pub mod common;
 pub mod context;

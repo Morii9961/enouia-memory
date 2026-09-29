@@ -23,6 +23,11 @@ pub fn commit_manifest(commit_id: &str) -> String {
     format!("{VAULT_DIR}/commits/{commit_id}.json")
 }
 
+/// Immutable, content-addressed catalog segment (ADR-MEM-39).
+pub fn catalog_segment(hash: &Sha256Hex) -> String {
+    format!("{VAULT_DIR}/catalog/{hash}.json")
+}
+
 /// Revisioned records: `vault/records/<kind>/<id>/<revision>.<ext>`;
 /// single-revision records: `vault/records/<kind>/<id>.json`.
 pub fn record_path(kind: RecordKind, id: &str, revision: Revision) -> Option<String> {

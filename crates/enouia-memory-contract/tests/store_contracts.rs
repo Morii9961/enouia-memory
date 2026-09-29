@@ -1,4 +1,4 @@
-//! Vault store file contracts (ADR-MEM-36): every valid fixture passes the
+//! Vault store file contracts (ADR-MEM-36, ADR-MEM-39): every valid fixture passes the
 //! schema harness and the Rust parser and round-trips; every invalid mutation
 //! is rejected by Rust with the named rule, and by the schema unless marked
 //! `schema: accept`.
@@ -6,6 +6,7 @@
 mod support;
 
 use enouia_memory_contract::ContractError;
+use enouia_memory_contract::catalog::{CatalogSegment, StoredCommit};
 use enouia_memory_contract::store::{
     CurrentPointer, ExportManifest, IdempotencyEntry, PublishRecord, RecoveryReceipt, RestoreState,
     StoreDocument, VaultDescriptor, parse_store_value,
@@ -31,6 +32,8 @@ fn parse(kind: &str, value: &Value) -> Result<Value, ContractError> {
         "recovery_receipt" => round_trip::<RecoveryReceipt>(value),
         "export_manifest" => round_trip::<ExportManifest>(value),
         "restore_state" => round_trip::<RestoreState>(value),
+        "catalog_segment" => round_trip::<CatalogSegment>(value),
+        "stored_commit" => round_trip::<StoredCommit>(value),
         other => panic!("unknown store type {other}"),
     }
 }
@@ -40,7 +43,7 @@ fn valid_store_documents_pass_schema_and_rust_and_round_trip() {
     let store = SchemaStore::load();
     let manifest = store_fixture("store-manifest.json");
     let valid = manifest["valid"].as_array().unwrap();
-    assert_eq!(valid.len(), 7);
+    assert_eq!(valid.len(), 10);
     for entry in valid {
         let file = entry["file"].as_str().unwrap();
         let value = store_fixture(file);

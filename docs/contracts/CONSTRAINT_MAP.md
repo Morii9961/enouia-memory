@@ -9,7 +9,7 @@ For each constraint family, this map shows which layer enforces it:
 
 **Passing Schema and Rust validation does not prove that a transaction is atomic, durable, or recoverable.**
 
-MV-1 update: rows whose "Later behavior" names MV-1 now have store evidence (commit protocol, crash matrix, D02 migration, CSPRNG, clock regression, digest recomputation on read); see the [MV-1 report](../validation/MV-1.md) §2. Store file contracts are listed separately in `tests/fixtures/store/store-manifest.json` (7 documents, 23 invalid cases).
+MV-1 update: rows whose "Later behavior" names MV-1 now have store evidence (commit protocol, crash matrix, D02 migration, CSPRNG, clock regression, digest recomputation on read); see the [MV-1 report](../validation/MV-1.md) §2. Store file contracts are listed separately in `tests/fixtures/store/store-manifest.json` (10 documents, 36 invalid cases; MV-3.0 added catalog segments and stored commits, ADR-MEM-39).
 
 | Constraint family | Schema | Rust record | Rust set | Later behavior |
 |---|---|---|---|---|

@@ -1,0 +1,59 @@
+{
+  "commit_id": "cmt_00000007-0000-4000-8000-000000000007",
+  "created_at": "2026-09-28T09:30:00.000Z",
+  "deletion_epoch": 0,
+  "format_version": 2,
+  "idempotency_key_hash": "78ed7d2bf2a8c4af4a3d3652a89fe8b9f46addb8bc8e7cb69106a6467900f5e6",
+  "object_segments": [
+    {
+      "entry_count": 2,
+      "prefix": "",
+      "record_kind": null,
+      "segment_hash": "5561e8ab3cbb441b67afff4ca2171d1f3880044a1bea36f12c736e13f47de3a9",
+      "segment_kind": "objects"
+    }
+  ],
+  "operation_id": "op_00000007-0000-4000-8000-000000000007",
+  "operation_kind": "import",
+  "parent_commit_id": "cmt_00000006-0000-4000-8000-000000000006",
+  "policy_epoch": 1,
+  "principal": {
+    "actor_id": "prn_00000001-0000-4000-8000-000000000001",
+    "actor_type": "owner"
+  },
+  "receipt": {
+    "operation_id": "op_00000007-0000-4000-8000-000000000007",
+    "records": [
+      {
+        "record_id": "src_00000002-0000-4000-8000-000000000002",
+        "record_kind": "source",
+        "revision": 1
+      }
+    ],
+    "result": "committed"
+  },
+  "record_segments": [
+    {
+      "entry_count": 1,
+      "prefix": "",
+      "record_kind": "policy",
+      "segment_hash": "4eff3332e387b788637bb0829374a544738947d6c824fbe7d853cbae520edb30",
+      "segment_kind": "records"
+    },
+    {
+      "entry_count": 2,
+      "prefix": "",
+      "record_kind": "source",
+      "segment_hash": "13d50fd064db780ebfe663b94f5e974dcedc0c15ba1356d73468697a97e0ebbd",
+      "segment_kind": "records"
+    }
+  ],
+  "request_payload_hash": "a2a9cf6047dc46b2eea1fafb92dbb2c9d94e4c37ad9b1a9ce4a1429670d11e36",
+  "review_ids": [],
+  "schema_version": 1,
+  "segment_capacity": 512,
+  "sequence": 7,
+  "tombstone_ids": [],
+  "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+  "writer_device_id": "dev_00000001-0000-4000-8000-000000000001"
+}

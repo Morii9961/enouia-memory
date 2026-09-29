@@ -2,7 +2,7 @@
   "commit_id": "cmt_00000007-0000-4000-8000-000000000007",
   "created_at": "2026-09-28T09:30:00.000Z",
   "deletion_epoch": 0,
-  "export_format": 1,
+  "export_format": 2,
   "files": [
     {
       "path": "vault/commits/cmt_00000001-0000-4000-8000-000000000001.json",

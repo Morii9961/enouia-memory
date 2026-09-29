@@ -6,7 +6,7 @@
 //! right order, flushes them, and recovers from a crash between two of them is
 //! store behavior, tested in `enouia-memory-vault`.
 
-use crate::commit::{FormatVersion, OperationKind};
+use crate::commit::OperationKind;
 use crate::common::{ActorRef, ActorType, TrustedSurface};
 use crate::error::{ContractError, Violation};
 use crate::hash::{Sha256Hex, sha256};
@@ -59,7 +59,8 @@ pub fn parse_store<T: StoreDocument>(bytes: &[u8]) -> Result<T, ContractError> {
 pub struct VaultDescriptor {
     pub schema_version: SchemaVersion,
     pub vault_id: VaultId,
-    pub format_version: FormatVersion,
+    /// Storage layout: 2 is the segmented catalog (ADR-MEM-39).
+    pub format_version: crate::catalog::LayoutFormat,
     pub genesis_commit_id: CommitId,
     pub genesis_device_id: DeviceId,
     pub created_by: ActorRef,
@@ -228,7 +229,8 @@ pub struct ExportFile {
 #[serde(deny_unknown_fields)]
 pub struct ExportManifest {
     pub schema_version: SchemaVersion,
-    pub export_format: FormatVersion,
+    /// 2: stored commits and catalog segments (ADR-MEM-39).
+    pub export_format: crate::catalog::LayoutFormat,
     pub vault_id: VaultId,
     pub commit_id: CommitId,
     pub sequence: u64,

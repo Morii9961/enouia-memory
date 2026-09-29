@@ -22,7 +22,8 @@
       "$ref": "../memory/common-v1.schema.json#/$defs/vaultId"
     },
     "format_version": {
-      "const": 1
+      "const": 2,
+      "$comment": "2: segmented catalog (ADR-MEM-39). Format 1 was never used for real data."
     },
     "genesis_commit_id": {
       "$ref": "../memory/common-v1.schema.json#/$defs/commitId"

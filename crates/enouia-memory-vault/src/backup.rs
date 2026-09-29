@@ -3,8 +3,9 @@
 //!
 //! The export is the plaintext tree that an encrypted backup tool stores
 //! (PRIVACY_RECOVERY §4: restic, pinned version, owner-held secret). It holds
-//! the descriptor, every commit manifest on the chain, every record revision
-//! those manifests catalog, every object of the head, and sealed audit
+//! the descriptor, every stored commit on the chain and every catalog
+//! segment they reference, every record revision the head catalogs (with
+//! all earlier revisions), every object of the head, and sealed audit
 //! segments. It never holds `CURRENT`, the lock, staging, orphans, the
 //! journal, idempotency entries (rebuilt on restore), indexes, config, or
 //! credentials. Records are immutable, so a pinned export is consistent
@@ -22,7 +23,7 @@ use crate::fs::ManagedRoot;
 use crate::root::VerifiedRoot;
 use crate::store::{Vault, VaultOptions};
 use enouia_memory_contract::MemoryErrorCode;
-use enouia_memory_contract::commit::{CommitManifest, FormatVersion};
+use enouia_memory_contract::catalog::{CatalogSegment, LayoutFormat, StoredCommit};
 use enouia_memory_contract::common::{ActorRef, ActorType, TrustedSurface};
 use enouia_memory_contract::foundation::Clock;
 use enouia_memory_contract::hash::{Sha256Hex, sha256};
@@ -30,7 +31,6 @@ use enouia_memory_contract::ids::OperationId;
 use enouia_memory_contract::json::{SchemaVersion, canonical_bytes};
 use enouia_memory_contract::layout;
 use enouia_memory_contract::ports::{CommitPin, IdSource};
-use enouia_memory_contract::record::{RecordRef, parse_record};
 use enouia_memory_contract::store::{
     CurrentPointer, EXPORT_MANIFEST_FILE, ExportFile, ExportManifest, IdempotencyEntry,
     PublishRecord, RecoveryEvidence, RecoveryReceipt, RestoreState, StoreDocument, VaultDescriptor,
@@ -65,7 +65,7 @@ pub fn export_pinned(
     if !empty_dir(destination.path())? {
         return Err(VaultError::invalid(vec!["export.destination_not_empty"]));
     }
-    let head = vault.read_manifest(pin)?;
+    let head = vault.stored_commit(pin)?;
     let out = ManagedRoot::new(destination.path(), Faults::none());
     let mut files: BTreeMap<String, ExportFile> = BTreeMap::new();
     let copy =
@@ -86,55 +86,17 @@ pub fn export_pinned(
         .read(&layout::vault_descriptor())?
         .ok_or_else(|| VaultError::corrupt("vault descriptor"))?;
     copy(&mut files, layout::vault_descriptor(), descriptor)?;
-    // The chain, head first, and every revision it ever cataloged.
-    let mut chain: Vec<CommitManifest> = Vec::new();
-    let mut current = head.clone();
-    loop {
-        let parent = current.parent_commit_id.clone();
-        chain.push(current);
-        match parent {
-            Some(id) => {
-                let pin = CommitPin {
-                    commit_id: id,
-                    sequence: chain.last().expect("pushed").sequence - 1,
-                    policy_epoch: 0,
-                    deletion_epoch: 0,
-                };
-                current = vault.read_manifest(&pin)?;
-            }
-            None => break,
+    // The chain and its segments, every revision the head names, and every
+    // object of the head; each verified against its catalog hash first.
+    for pinned in vault.pinned_files(pin)? {
+        let bytes = vault
+            .managed_root()
+            .read(&pinned.file)?
+            .ok_or_else(|| VaultError::corrupt("pinned file missing"))?;
+        if sha256(&bytes) != pinned.sha256 {
+            return Err(VaultError::corrupt("pinned file hash"));
         }
-    }
-    let mut documents = BTreeSet::new();
-    for manifest in &chain {
-        let bytes = canonical_bytes(manifest).expect("manifest serializes");
-        copy(
-            &mut files,
-            layout::commit_manifest(manifest.commit_id.as_str()),
-            bytes,
-        )?;
-        for entry in &manifest.catalog {
-            let reference = RecordRef::new(entry.record_kind, &entry.record_id, entry.revision);
-            if !documents.insert(reference.clone()) {
-                continue;
-            }
-            let at = CommitPin {
-                commit_id: manifest.commit_id.clone(),
-                sequence: manifest.sequence,
-                policy_epoch: manifest.policy_epoch,
-                deletion_epoch: manifest.deletion_epoch,
-            };
-            let bytes = vault.read_record(&at, &reference)?;
-            let file = vault.stored_file(&reference)?;
-            copy(&mut files, file, bytes)?;
-        }
-    }
-    for object in &head.objects {
-        let bytes = vault.read_object(pin, &object.object_hash)?;
-        let file = vault.object_file_for(&head, object)?;
-        if !files.contains_key(&file) {
-            copy(&mut files, file, bytes)?;
-        }
+        copy(&mut files, pinned.file, bytes)?;
     }
     let audit = vault.managed_root().list(AUDIT_DIR)?;
     if audit.len() > 1 {
@@ -151,7 +113,7 @@ pub fn export_pinned(
         .expect("head manifest exported");
     let export = ExportManifest {
         schema_version: SchemaVersion,
-        export_format: FormatVersion,
+        export_format: LayoutFormat,
         vault_id: vault.vault_id().clone(),
         commit_id: head.commit_id.clone(),
         sequence: head.sequence,
@@ -246,35 +208,45 @@ pub fn verify_export(export_dir: &Path) -> Result<ExportManifest> {
     }
     let mut next = Some(manifest.commit_id.clone());
     let mut expected_sequence = manifest.sequence;
-    let mut head_seen = false;
+    let mut chain: Vec<StoredCommit> = Vec::new();
+    let mut segments: BTreeMap<Sha256Hex, CatalogSegment> = BTreeMap::new();
     while let Some(id) = next {
         let bytes = contents
             .get(layout::commit_manifest(id.as_str()).as_str())
             .ok_or_else(|| bad_export("export chain gap"))?;
-        let commit: CommitManifest =
-            parse_record(bytes).map_err(|_| bad_export("export manifest record"))?;
+        let commit: StoredCommit =
+            parse_store(bytes).map_err(|_| bad_export("export stored commit"))?;
         if commit.commit_id != id
             || commit.sequence != expected_sequence
             || commit.vault_id != manifest.vault_id
+            || canonical_bytes(&commit).ok().as_deref() != Some(bytes.as_slice())
         {
             return Err(bad_export("export chain"));
         }
-        if !head_seen {
-            head_seen = true;
-            if commit.policy_epoch != manifest.policy_epoch
-                || commit.deletion_epoch != manifest.deletion_epoch
-            {
-                return Err(bad_export("export epochs"));
-            }
+        if chain.is_empty()
+            && (commit.policy_epoch != manifest.policy_epoch
+                || commit.deletion_epoch != manifest.deletion_epoch)
+        {
+            return Err(bad_export("export epochs"));
         }
-        for entry in &commit.catalog {
-            let reference = RecordRef::new(entry.record_kind, &entry.record_id, entry.revision);
-            let found = manifest.files.iter().any(|f| {
-                f.sha256 == entry.content_hash && f.path.contains(reference.record_id.as_str())
-            });
-            if !found {
-                return Err(bad_export("export record missing"));
+        for reference in commit.record_segments.iter().chain(&commit.object_segments) {
+            if segments.contains_key(&reference.segment_hash) {
+                continue;
             }
+            let bytes = contents
+                .get(layout::catalog_segment(&reference.segment_hash).as_str())
+                .ok_or_else(|| bad_export("export segment missing"))?;
+            let segment: CatalogSegment =
+                parse_store(bytes).map_err(|_| bad_export("export segment"))?;
+            if sha256(bytes) != reference.segment_hash
+                || segment.segment_kind != reference.segment_kind
+                || segment.record_kind != reference.record_kind
+                || segment.prefix != reference.prefix
+                || segment.len() as u64 != reference.entry_count
+            {
+                return Err(bad_export("export segment"));
+            }
+            segments.insert(reference.segment_hash.clone(), segment);
         }
         expected_sequence = expected_sequence.saturating_sub(1);
         next = commit.parent_commit_id.clone();
@@ -283,15 +255,34 @@ pub fn verify_export(export_dir: &Path) -> Result<ExportManifest> {
         {
             return Err(bad_export("export genesis"));
         }
+        chain.push(commit);
     }
-    let head: CommitManifest = parse_record(head_bytes).map_err(|_| bad_export("export head"))?;
-    for object in &head.objects {
-        if !manifest
-            .files
-            .iter()
-            .any(|f| f.sha256 == object.object_hash)
-        {
-            return Err(bad_export("export object missing"));
+    // The head's complete view must be a valid manifest.
+    chain[0]
+        .materialize(|hash| segments.get(hash))
+        .map_err(|_| bad_export("export head catalog"))?;
+    // Every revision and object any exported segment names is present.
+    let has = |file: Option<String>, hash: &Sha256Hex| {
+        file.and_then(|f| contents.get(f.as_str()))
+            .is_some_and(|bytes| &sha256(bytes) == hash)
+    };
+    for segment in segments.values() {
+        if let Some(kind) = segment.record_kind {
+            for entry in &segment.records {
+                for revision in 1..=entry.revision.get() {
+                    let hash = entry.hash_of(revision).expect("cataloged revision");
+                    if !has(crate::store::entry_file(kind, entry, revision), hash) {
+                        return Err(bad_export("export record missing"));
+                    }
+                }
+            }
+        }
+    }
+    for reference in &chain[0].object_segments {
+        for item in &segments[&reference.segment_hash].objects {
+            if !has(crate::store::object_file_of(item), &item.object_hash) {
+                return Err(bad_export("export object missing"));
+            }
         }
     }
     Ok(manifest)
@@ -341,8 +332,7 @@ pub fn restore_export(
         let bytes = out
             .read(&layout::commit_manifest(id.as_str()))?
             .ok_or_else(|| bad_export("restored chain"))?;
-        let commit: CommitManifest =
-            parse_record(&bytes).map_err(|_| bad_export("restored chain"))?;
+        let commit: StoredCommit = parse_store(&bytes).map_err(|_| bad_export("restored chain"))?;
         if let Some(key) = &commit.idempotency_key_hash {
             let entry = IdempotencyEntry {
                 schema_version: SchemaVersion,

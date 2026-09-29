@@ -164,6 +164,7 @@ fn a_crash_before_publication_leaves_the_old_commit_and_retries_once() {
         "StagingWritten",
         "RecordsPlaced",
         "ObjectsPlaced",
+        "SegmentsPlaced",
         "ManifestWritten",
         "IdempotencyWritten",
         "BeforeCurrent",

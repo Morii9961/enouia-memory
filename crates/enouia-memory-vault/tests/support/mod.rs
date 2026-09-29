@@ -252,6 +252,8 @@ pub fn options(faults: Faults) -> VaultOptions {
     VaultOptions {
         lock_wait: std::time::Duration::from_millis(300),
         validate_record_set: true,
+        // The smallest capacity, so ordinary tests split segments too.
+        segment_capacity: 16,
         faults,
     }
 }

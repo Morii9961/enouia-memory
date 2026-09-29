@@ -1,6 +1,7 @@
 """Generates synthetic fixtures for the Vault store file contracts (MV-1,
 ADR-MEM-36): descriptor, CURRENT, publish journal line, idempotency entry,
-recovery receipt, pinned-commit export manifest, and restore state."""
+recovery receipt, pinned-commit export manifest, and restore state; and the
+segmented catalog (MV-3.0, ADR-MEM-39): catalog segments and stored commits."""
 import hashlib, json, pathlib
 
 OUT = pathlib.Path(__file__).resolve().parents[2] / "tests" / "fixtures" / "store"
@@ -33,7 +34,7 @@ T1 = "2026-09-28T09:30:00.000Z"
 
 valid = {
     "descriptor.json": ("store/descriptor-v1.schema.json", "descriptor", {
-        "schema_version": 1, "vault_id": VAULT, "format_version": 1, "genesis_commit_id": GENESIS,
+        "schema_version": 1, "vault_id": VAULT, "format_version": 2, "genesis_commit_id": GENESIS,
         "genesis_device_id": uid("dev", 1), "created_by": OWNER, "created_at": T0}),
     "current.json": ("store/current-v1.schema.json", "current", {
         "schema_version": 1, "vault_id": VAULT, "commit_id": HEAD, "sequence": 7,
@@ -51,7 +52,7 @@ valid = {
         "previous_current_sha256": sha("torn current"), "evidence": "publish_journal",
         "approved_by": OWNER, "trusted_surface": "trusted_local_cli", "created_at": T1}),
     "export-manifest.json": ("store/export-manifest-v1.schema.json", "export_manifest", {
-        "schema_version": 1, "export_format": 1, "vault_id": VAULT, "commit_id": HEAD, "sequence": 7,
+        "schema_version": 1, "export_format": 2, "vault_id": VAULT, "commit_id": HEAD, "sequence": 7,
         "policy_epoch": 1, "deletion_epoch": 0, "manifest_sha256": sha("manifest-7"), "created_at": T1,
         "files": [
             {"path": f"vault/commits/{GENESIS}.json", "sha256": sha("manifest-1"), "size_bytes": 1200},
@@ -64,6 +65,38 @@ valid = {
         "schema_version": 1, "vault_id": VAULT, "restored_commit_id": HEAD,
         "export_manifest_sha256": sha("export"), "restored_at": T1,
         "network_disabled_until_reconciled": True, "reconciled_at": None}),
+    "segment-records.json": ("store/catalog-segment-v1.schema.json", "catalog_segment", {
+        "schema_version": 1, "segment_kind": "records", "record_kind": "source", "prefix": "0000000",
+        "records": [
+            {"record_id": uid("src", 1), "revision": 2, "content_hash": sha("source-1@2"),
+             "prior_hashes": [sha("source-1@1")], "group_ids": [uid("imp", 1), uid("imp", 2)]},
+            {"record_id": uid("src", 2), "revision": 1, "content_hash": sha("source-2@1"),
+             "prior_hashes": [], "group_ids": []}],
+        "objects": []}),
+    "segment-objects.json": ("store/catalog-segment-v1.schema.json", "catalog_segment", {
+        "schema_version": 1, "segment_kind": "objects", "record_kind": None, "prefix": "",
+        "records": [],
+        "objects": sorted([
+            {"object_hash": sha("raw export"), "object_kind": "raw", "size_bytes": 10, "stored_with": None},
+            {"object_hash": sha("identity markdown"), "object_kind": "identity_markdown", "size_bytes": 17,
+             "stored_with": {"record_kind": "identity", "record_id": uid("idn", 1), "revision": 1}}],
+            key=lambda o: o["object_hash"])}),
+    "stored-commit.json": ("store/stored-commit-v1.schema.json", "stored_commit", {
+        "schema_version": 1, "commit_id": HEAD, "format_version": 2, "parent_commit_id": uid("cmt", 6),
+        "sequence": 7, "vault_id": VAULT, "writer_device_id": uid("dev", 1), "principal": OWNER,
+        "operation_id": uid("op", 7), "operation_kind": "import", "idempotency_key_hash": sha("key-7"),
+        "request_payload_hash": sha("payload-7"), "created_at": T1, "segment_capacity": 512,
+        "record_segments": [
+            {"segment_kind": "records", "record_kind": "policy", "prefix": "", "entry_count": 1,
+             "segment_hash": sha("segment policy")},
+            {"segment_kind": "records", "record_kind": "source", "prefix": "", "entry_count": 2,
+             "segment_hash": sha("segment source")}],
+        "object_segments": [
+            {"segment_kind": "objects", "record_kind": None, "prefix": "", "entry_count": 2,
+             "segment_hash": sha("segment objects")}],
+        "review_ids": [], "tombstone_ids": [], "policy_epoch": 1, "deletion_epoch": 0,
+        "receipt": {"operation_id": uid("op", 7), "result": "committed",
+                    "records": [{"record_kind": "source", "record_id": uid("src", 2), "revision": 1}]}}),
 }
 
 
@@ -83,7 +116,8 @@ AGENT = {"actor_id": uid("prn", 5), "actor_type": "agent"}
 invalid = [
     case("descriptor-agent-creator", "descriptor.json", "genesis is owner-confirmed",
          [st("/created_by", AGENT)], "reject", "vault.owner_required"),
-    case("descriptor-format-2", "descriptor.json", "unknown vault format", [st("/format_version", 2)], "reject", "shape"),
+    case("descriptor-format-1", "descriptor.json", "pre-segmented layout is refused", [st("/format_version", 1)], "reject", "shape"),
+    case("descriptor-format-3", "descriptor.json", "unknown vault format", [st("/format_version", 3)], "reject", "shape"),
     case("descriptor-unknown-field", "descriptor.json", "unknown field", [st("/owner_name", "x")], "reject", "shape"),
     case("current-sequence-zero", "current.json", "sequence minimum", [st("/sequence", 0)], "reject", "current.sequence"),
     case("current-bad-hash", "current.json", "manifest hash syntax", [st("/manifest_sha256", "ABC")], "reject", "shape"),
@@ -124,12 +158,40 @@ invalid = [
     case("restore-reconciled-before-restore", "restore-state.json", "time order",
          [st("/reconciled_at", T0), st("/network_disabled_until_reconciled", False)], "accept",
          "restore.reconciled_order"),
+    case("segment-unsorted", "segment-records.json", "deterministic entry order",
+         [st("/records/0/record_id", uid("src", 3))], "accept", "segment.order"),
+    case("segment-prefix-mismatch", "segment-records.json", "entries lie under the prefix",
+         [st("/prefix", "1")], "accept", "segment.prefix_mismatch"),
+    case("segment-prefix-not-hex", "segment-records.json", "hex prefix", [st("/prefix", "0g")], "reject",
+         "segment.prefix"),
+    case("segment-prior-count", "segment-records.json", "one prior hash per earlier revision",
+         [st("/records/0/prior_hashes", [])], "accept", "segment.prior_hashes"),
+    case("segment-group-kind", "segment-records.json", "sources group by import",
+         [st("/records/0/group_ids", [uid("ses", 1)])], "accept", "segment.group"),
+    case("segment-mixed-entries", "segment-records.json", "one entry kind per segment",
+         [st("/objects", [{"object_hash": sha("x"), "object_kind": "raw", "size_bytes": 1, "stored_with": None}])],
+         "reject", "segment.kind_entries"),
+    case("segment-identity-unlocated", "segment-objects.json", "identity Markdown names its revision",
+         [st("/objects/0/stored_with", None), st("/objects/1/stored_with", None)], "accept",
+         "segment.object_location"),
+    case("stored-noncanonical", "stored-commit.json", "canonical partition",
+         [{"op": "append", "path": "/record_segments", "value": {"segment_kind": "records", "record_kind": "source",
+          "prefix": "0", "entry_count": 1, "segment_hash": sha("extra")}}], "accept", "stored.partition"),
+    case("stored-overfull", "stored-commit.json", "leaf capacity",
+         [st("/record_segments/1/entry_count", 513)], "accept", "stored.partition"),
+    case("stored-capacity", "stored-commit.json", "capacity range", [st("/segment_capacity", 8)], "reject",
+         "stored.capacity"),
+    case("stored-unsorted", "stored-commit.json", "deterministic segment order",
+         [st("/record_segments/0/record_kind", "source"), st("/record_segments/1/record_kind", "policy")],
+         "accept", "stored.segment_order"),
+    case("stored-format-1", "stored-commit.json", "stored commits are format 2", [st("/format_version", 1)],
+         "reject", "shape"),
 ]
 
 for name, (_, _, doc) in valid.items():
     dump(name, doc)
 dump("store-manifest.json", {
-    "description": "Synthetic Vault store file contracts (ADR-MEM-36). 'schema: accept' marks a constraint JSON Schema cannot express; the Rust validator must still reject it.",
+    "description": "Synthetic Vault store file contracts (ADR-MEM-36, ADR-MEM-39). 'schema: accept' marks a constraint JSON Schema cannot express; the Rust validator must still reject it.",
     "valid": [{"file": name, "schema": schema, "type": kind} for name, (schema, kind, _) in valid.items()],
     "invalid": invalid,
 })

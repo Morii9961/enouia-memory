@@ -1,0 +1,184 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.enouia-memory.invalid/store/catalog-segment-v1.schema.json",
+  "title": "Enouia catalog segment v1",
+  "description": "vault/catalog/<sha256>.json: one immutable leaf of a record kind's or the objects' key partition. Sort order, prefix membership, prior-hash counts, and group ID kinds are checked by the Rust validator.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "segment_kind",
+    "record_kind",
+    "prefix",
+    "records",
+    "objects"
+  ],
+  "properties": {
+    "schema_version": {
+      "$ref": "../memory/common-v1.schema.json#/$defs/schemaVersion"
+    },
+    "segment_kind": {
+      "enum": [
+        "records",
+        "objects"
+      ]
+    },
+    "record_kind": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "../memory/common-v1.schema.json#/$defs/recordKind"
+        }
+      ]
+    },
+    "prefix": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{0,64}$",
+      "$comment": "Hex key prefix: 32 digits at most for record IDs, 64 for object hashes."
+    },
+    "records": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "record_id",
+          "revision",
+          "content_hash",
+          "prior_hashes",
+          "group_ids"
+        ],
+        "properties": {
+          "record_id": {
+            "type": "string",
+            "pattern": "^[a-z]+_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+          },
+          "revision": {
+            "$ref": "../memory/common-v1.schema.json#/$defs/revision"
+          },
+          "content_hash": {
+            "$ref": "../memory/common-v1.schema.json#/$defs/sha256"
+          },
+          "prior_hashes": {
+            "type": "array",
+            "items": {
+              "$ref": "../memory/common-v1.schema.json#/$defs/sha256"
+            }
+          },
+          "group_ids": {
+            "type": "array",
+            "items": {
+              "oneOf": [
+                {
+                  "$ref": "../memory/common-v1.schema.json#/$defs/importId"
+                },
+                {
+                  "$ref": "../memory/common-v1.schema.json#/$defs/sessionId"
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    "objects": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "object_hash",
+          "object_kind",
+          "size_bytes",
+          "stored_with"
+        ],
+        "properties": {
+          "object_hash": {
+            "$ref": "../memory/common-v1.schema.json#/$defs/sha256"
+          },
+          "object_kind": {
+            "enum": [
+              "raw",
+              "asset",
+              "session_content",
+              "identity_markdown"
+            ]
+          },
+          "size_bytes": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "stored_with": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "../memory/common-v1.schema.json#/$defs/recordRef"
+              }
+            ]
+          }
+        }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "segment_kind": {
+            "enum": [
+              "records"
+            ]
+          }
+        },
+        "required": [
+          "segment_kind"
+        ]
+      },
+      "then": {
+        "properties": {
+          "record_kind": {
+            "$ref": "../memory/common-v1.schema.json#/$defs/recordKind"
+          },
+          "records": {
+            "minItems": 1
+          },
+          "objects": {
+            "maxItems": 0
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "segment_kind": {
+            "enum": [
+              "objects"
+            ]
+          }
+        },
+        "required": [
+          "segment_kind"
+        ]
+      },
+      "then": {
+        "properties": {
+          "record_kind": {
+            "type": "null"
+          },
+          "objects": {
+            "minItems": 1
+          },
+          "records": {
+            "maxItems": 0
+          }
+        }
+      }
+    }
+  ]
+}

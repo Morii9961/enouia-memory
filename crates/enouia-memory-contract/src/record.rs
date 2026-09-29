@@ -61,6 +61,47 @@ impl RecordKind {
         })
     }
 
+    /// Wire name (`snake_case`); catalogs sort by it, then by record ID.
+    pub const fn name(self) -> &'static str {
+        match self {
+            Self::Source => "source",
+            Self::Attachment => "attachment",
+            Self::Project => "project",
+            Self::Memory => "memory",
+            Self::Candidate => "candidate",
+            Self::Review => "review",
+            Self::Identity => "identity",
+            Self::Session => "session",
+            Self::SessionEvent => "session_event",
+            Self::Checkpoint => "checkpoint",
+            Self::Commit => "commit",
+            Self::Tombstone => "tombstone",
+            Self::PurgeReceipt => "purge_receipt",
+            Self::AuditEvent => "audit_event",
+            Self::Capsule => "capsule",
+            Self::Inspection => "inspection",
+            Self::Dispatch => "dispatch",
+            Self::ProviderCapabilities => "provider_capabilities",
+            Self::Approval => "approval",
+            Self::Policy => "policy",
+            Self::Import => "import",
+        }
+    }
+
+    /// Kinds a Vault stores as record files (and catalogs). Commits,
+    /// audit events, and request artifacts are not records in a catalog.
+    pub const fn is_stored(self) -> bool {
+        !matches!(
+            self,
+            Self::Commit
+                | Self::AuditEvent
+                | Self::Capsule
+                | Self::Inspection
+                | Self::Dispatch
+                | Self::ProviderCapabilities
+        )
+    }
+
     /// Kinds stored as revisioned records under `vault/records/<kind>/<id>/`.
     pub const fn is_revisioned(self) -> bool {
         matches!(

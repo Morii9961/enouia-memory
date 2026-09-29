@@ -13,7 +13,6 @@ use crate::error::Result;
 use crate::store::Vault;
 use enouia_memory_contract::ids::OperationId;
 use enouia_memory_contract::layout;
-use enouia_memory_contract::record::RecordRef;
 use enouia_memory_contract::store::{IdempotencyEntry, parse_store};
 use std::collections::BTreeSet;
 
@@ -33,6 +32,7 @@ const SWEPT: &[&str] = &[
     "vault/assets/objects",
     "vault/session-content/objects",
     "vault/commits",
+    "vault/catalog",
     "vault/idempotency",
 ];
 
@@ -54,35 +54,11 @@ impl Vault {
     /// Every managed file the published chain references.
     fn referenced_files(&self) -> Result<BTreeSet<String>> {
         let pin = self.pin_current()?;
-        let head = self.read_manifest(&pin)?;
-        let mut keep = BTreeSet::new();
-        let mut current = head.clone();
-        loop {
-            keep.insert(layout::commit_manifest(current.commit_id.as_str()));
-            for entry in &current.catalog {
-                let reference = RecordRef::new(entry.record_kind, &entry.record_id, entry.revision);
-                keep.insert(self.stored_file(&reference)?);
-                if entry.record_kind == enouia_memory_contract::record::RecordKind::Identity
-                    && let Some(markdown) =
-                        layout::record_path(entry.record_kind, &entry.record_id, entry.revision)
-                {
-                    keep.insert(markdown);
-                }
-            }
-            let Some(parent) = current.parent_commit_id.clone() else {
-                break;
-            };
-            let at = enouia_memory_contract::ports::CommitPin {
-                commit_id: parent,
-                sequence: current.sequence - 1,
-                policy_epoch: 0,
-                deletion_epoch: 0,
-            };
-            current = self.read_manifest(&at)?;
-        }
-        for object in &head.objects {
-            keep.insert(self.object_file_for(&head, object)?);
-        }
+        let mut keep: BTreeSet<String> = self
+            .pinned_files(&pin)?
+            .into_iter()
+            .map(|f| f.file)
+            .collect();
         for name in self.managed_root().list("vault/idempotency")? {
             let rel = format!("vault/idempotency/{name}");
             let Some(bytes) = self.managed_root().read(&rel)? else {

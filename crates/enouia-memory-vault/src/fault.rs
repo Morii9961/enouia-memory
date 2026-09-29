@@ -15,6 +15,7 @@ pub enum FaultPoint {
     StagingWritten,
     RecordsPlaced,
     ObjectsPlaced,
+    SegmentsPlaced,
     ManifestWritten,
     IdempotencyWritten,
     BeforeCurrent,
@@ -24,11 +25,12 @@ pub enum FaultPoint {
 
 impl FaultPoint {
     /// The commit boundaries in the order a transaction reaches them.
-    pub const COMMIT_BOUNDARIES: [Self; 9] = [
+    pub const COMMIT_BOUNDARIES: [Self; 10] = [
         Self::AfterLock,
         Self::StagingWritten,
         Self::RecordsPlaced,
         Self::ObjectsPlaced,
+        Self::SegmentsPlaced,
         Self::ManifestWritten,
         Self::IdempotencyWritten,
         Self::BeforeCurrent,

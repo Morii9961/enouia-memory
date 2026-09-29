@@ -683,7 +683,8 @@ SAFE_PATH = {"type": "string", "pattern": "^vault(/[A-Za-z0-9_.-]+)+$",
 write("store/descriptor-v1.schema.json", record(
     "Enouia Vault descriptor v1",
     "vault/vault.json, written once by the owner-confirmed genesis before the first CURRENT.",
-    {"schema_version": m("schemaVersion"), "vault_id": m("vaultId"), "format_version": {"const": 1},
+    {"schema_version": m("schemaVersion"), "vault_id": m("vaultId"),
+     "format_version": {"const": 2, "$comment": "2: segmented catalog (ADR-MEM-39). Format 1 was never used for real data."},
      "genesis_commit_id": m("commitId"), "genesis_device_id": m("deviceId"),
      "created_by": m("ownerRef"), "created_at": m("timestamp")},
     None, "descriptor-v1.schema.json"))
@@ -719,7 +720,7 @@ write("store/recovery-receipt-v1.schema.json", record(
 write("store/export-manifest-v1.schema.json", record(
     "Enouia pinned-commit export manifest v1",
     "export-manifest.json at the root of a plaintext pinned-commit export that an encrypted backup tool stores. Path order, uniqueness, exclusions, and required files are checked by the Rust validator.",
-    {"schema_version": m("schemaVersion"), "export_format": {"const": 1}, "vault_id": m("vaultId"),
+    {"schema_version": m("schemaVersion"), "export_format": {"const": 2}, "vault_id": m("vaultId"),
      "commit_id": m("commitId"), "sequence": SEQ, "policy_epoch": COUNT, "deletion_epoch": COUNT,
      "manifest_sha256": m("sha256"), "created_at": m("timestamp"),
      "files": arr(obj({"path": SAFE_PATH, "sha256": m("sha256"), "size_bytes": COUNT}), minItems=2)},
@@ -733,4 +734,50 @@ write("store/restore-state-v1.schema.json", record(
     {"allOf": [{"if": {"properties": {"reconciled_at": {"type": "null"}}, "required": ["reconciled_at"]},
                 "then": {"properties": {"network_disabled_until_reconciled": {"const": True}}}}]},
     "restore-state-v1.schema.json"))
+# ---------------- segmented catalog (MV-3.0, ADR-MEM-39) ----------------
+PREFIX = {"type": "string", "pattern": "^[0-9a-f]{0,64}$",
+          "$comment": "Hex key prefix: 32 digits at most for record IDs, 64 for object hashes."}
+RECORD_ID = {"type": "string", "pattern": f"^[a-z]+_{UUID}$"}
+write("store/catalog-segment-v1.schema.json", record(
+    "Enouia catalog segment v1",
+    "vault/catalog/<sha256>.json: one immutable leaf of a record kind's or the objects' key partition. Sort order, prefix membership, prior-hash counts, and group ID kinds are checked by the Rust validator.",
+    {"schema_version": m("schemaVersion"), "segment_kind": enum("records", "objects"),
+     "record_kind": mn("recordKind"), "prefix": PREFIX,
+     "records": arr(obj({"record_id": RECORD_ID, "revision": m("revision"), "content_hash": m("sha256"),
+                         "prior_hashes": arr(m("sha256")),
+                         "group_ids": arr({"oneOf": [m("importId"), m("sessionId")]})})),
+     "objects": arr(obj({"object_hash": m("sha256"),
+                         "object_kind": enum("raw", "asset", "session_content", "identity_markdown"),
+                         "size_bytes": COUNT, "stored_with": nul(m("recordRef"))}))},
+    {"allOf": [
+        when("segment_kind", ["records"], {"properties": {"record_kind": m("recordKind"),
+                                                          "records": {"minItems": 1}, "objects": {"maxItems": 0}}}),
+        when("segment_kind", ["objects"], {"properties": {"record_kind": {"type": "null"},
+                                                          "objects": {"minItems": 1}, "records": {"maxItems": 0}}}),
+    ]}, "catalog-segment-v1.schema.json"))
+SEGMENT_REF = obj({"segment_kind": enum("records", "objects"), "record_kind": mn("recordKind"),
+                   "prefix": PREFIX, "entry_count": {"type": "integer", "minimum": 1, "maximum": MAXSAFE},
+                   "segment_hash": m("sha256")})
+write("store/stored-commit-v1.schema.json", record(
+    "Enouia stored commit v1",
+    "vault/commits/<commit_id>.json in a format-2 Vault: the CommitManifest v1 header with segment references in place of the inline catalog and object list. The complete v1 view is materialized from the segments. Segment order and the canonical partition are checked by the Rust validator.",
+    {"schema_version": m("schemaVersion"), "commit_id": m("commitId"), "format_version": {"const": 2},
+     "parent_commit_id": mn("commitId"), "sequence": SEQ,
+     "vault_id": m("vaultId"), "writer_device_id": m("deviceId"), "principal": m("actorRef"),
+     "operation_id": m("operationId"), "operation_kind": enum(*OPERATION_KINDS),
+     "idempotency_key_hash": mn("sha256"), "request_payload_hash": m("sha256"), "created_at": m("timestamp"),
+     "segment_capacity": {"type": "integer", "minimum": 16, "maximum": 65536},
+     "record_segments": arr(SEGMENT_REF), "object_segments": arr(SEGMENT_REF),
+     "review_ids": arr(m("reviewId")), "tombstone_ids": arr(m("deleteId")),
+     "policy_epoch": COUNT, "deletion_epoch": COUNT,
+     "receipt": obj({"operation_id": m("operationId"), "result": {"const": "committed"},
+                     "records": arr(m("recordRef"))})},
+    {"allOf": [
+        when("operation_kind", ["genesis"], {"properties": {"parent_commit_id": {"type": "null"},
+                                                            "sequence": {"const": 1}, "idempotency_key_hash": {"type": "null"},
+                                                            "principal": m("ownerRef")}}),
+        {"if": {"properties": {"operation_kind": {"not": {"const": "genesis"}}}, "required": ["operation_kind"]},
+         "then": {"properties": {"parent_commit_id": m("commitId"), "idempotency_key_hash": m("sha256"),
+                                 "sequence": {"minimum": 2}}}},
+    ]}, "stored-commit-v1.schema.json"))
 print("ok")

@@ -7,11 +7,13 @@
 
 mod support;
 
+use enouia_memory_contract::MemoryErrorCode;
+use enouia_memory_contract::catalog::StoredCommit;
 use enouia_memory_contract::commit::CommitManifest;
 use enouia_memory_contract::json::canonical_bytes;
 use enouia_memory_contract::ports::{CommitOutcome, CommitPin};
 use enouia_memory_contract::record::RecordRef;
-use enouia_memory_contract::{MemoryErrorCode, parse_record};
+use enouia_memory_contract::store::parse_store;
 use enouia_memory_vault::Fault;
 use serde_json::Value;
 use support::Harness;
@@ -56,7 +58,9 @@ fn lifecycle_replay_reproduces_every_fixture_manifest() {
         );
         let report = harness.vault.verify(&pin).unwrap();
         assert!(report.is_clean(), "commit {}: {report:?}", index + 1);
-        assert_eq!(report.records_checked, stored.catalog.len());
+        // Every revision the commit names, not only the latest ones.
+        let revisions: u64 = stored.catalog.iter().map(|e| e.revision.get()).sum();
+        assert_eq!(report.records_checked as u64, revisions);
     }
     // Every revision ever cataloged reads back byte-identical from the
     // commit that cataloged it, including older revisions after supersession.
@@ -94,7 +98,12 @@ fn a_reopened_handle_sees_the_same_head_and_bytes() {
             .join(format!("vault/commits/{}.json", manifest.commit_id)),
     )
     .unwrap();
-    assert_eq!(parse_record::<CommitManifest>(&on_disk).unwrap(), manifest);
+    // On disk is the stored commit; the complete view is read from segments.
+    let stored: StoredCommit = parse_store(&on_disk).unwrap();
+    assert_eq!(canonical_bytes(&stored).unwrap(), on_disk);
+    assert_eq!(*other.stored_commit(&b).unwrap(), stored);
+    assert_eq!(stored.commit_id, manifest.commit_id);
+    assert_eq!(stored.receipt, manifest.receipt);
 }
 
 #[test]
