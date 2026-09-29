@@ -12,6 +12,7 @@
 //! owner and the trusted-surface enum; which process may speak for the owner
 //! is transport authentication (MV-8), not something a caller asserts.
 
+pub mod delete;
 pub mod evidence;
 pub mod propose;
 pub mod review;

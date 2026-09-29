@@ -241,6 +241,35 @@ impl ManagedRoot {
         }
     }
 
+    /// Delete one file of purged content (MV-3.4). Only record, event, and
+    /// object files and quarantined copies may be deleted, and only by the
+    /// purge of a published purge tombstone. Returns whether a file was there.
+    pub fn remove_purged(&self, rel: &str) -> Result<bool> {
+        const PURGEABLE: &[&str] = &[
+            "vault/records/",
+            "vault/session-events/",
+            "vault/raw/objects/",
+            "vault/assets/objects/",
+            "vault/session-content/objects/",
+            "vault/orphans/",
+        ];
+        if !PURGEABLE.iter().any(|p| rel.starts_with(p)) {
+            return Err(VaultError::unsafe_path("not purgeable"));
+        }
+        let path = self.resolve(rel)?;
+        self.check_components(rel)?;
+        match fs::remove_file(&path) {
+            Ok(()) => {
+                if let Some(parent) = path.parent() {
+                    platform::sync_dir(parent)?;
+                }
+                Ok(true)
+            }
+            Err(e) if e.kind() == io::ErrorKind::NotFound => Ok(false),
+            Err(e) => Err(e.into()),
+        }
+    }
+
     /// Open a managed file for locking (created if absent, never truncated).
     pub fn open_lock_file(&self, rel: &str) -> Result<File> {
         self.ensure_parent(rel)?;

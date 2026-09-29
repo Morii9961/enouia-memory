@@ -135,6 +135,8 @@ pub struct IntegrityReport {
     /// Catalog segments that are missing, altered, or do not match their
     /// reference; their records and objects could not be listed.
     pub damaged_segments: Vec<Sha256Hex>,
+    /// Record revisions and objects intentionally purged (not damage).
+    pub purged: usize,
 }
 
 impl IntegrityReport {
@@ -505,7 +507,7 @@ impl Vault {
 
     /// A catalog segment, verified by its content hash and matched to the
     /// reference that names it.
-    fn segment(&self, reference: &SegmentRef) -> Result<Arc<CatalogSegment>> {
+    pub(crate) fn segment(&self, reference: &SegmentRef) -> Result<Arc<CatalogSegment>> {
         let hash = &reference.segment_hash;
         let cached = self.segments.lock().expect("cache").get(hash).cloned();
         let segment = match cached {
@@ -545,7 +547,7 @@ impl Vault {
         self.root.read(&layout::current_pointer())
     }
 
-    fn load_head(&self) -> Result<Arc<StoredCommit>> {
+    pub(crate) fn load_head(&self) -> Result<Arc<StoredCommit>> {
         let bytes = self
             .current_bytes()?
             .ok_or_else(|| VaultError::recovering("CURRENT missing"))?;
@@ -635,7 +637,11 @@ impl Vault {
             .map(|i| segment.records[i].clone()))
     }
 
-    fn entries_of(&self, commit: &StoredCommit, kind: RecordKind) -> Result<Vec<RecordEntry>> {
+    pub(crate) fn entries_of(
+        &self,
+        commit: &StoredCommit,
+        kind: RecordKind,
+    ) -> Result<Vec<RecordEntry>> {
         let mut out = Vec::new();
         for reference in commit
             .record_segments
@@ -663,7 +669,7 @@ impl Vault {
             .cloned())
     }
 
-    fn objects_of(&self, commit: &StoredCommit) -> Result<Vec<ObjectItem>> {
+    pub(crate) fn objects_of(&self, commit: &StoredCommit) -> Result<Vec<ObjectItem>> {
         let mut out = Vec::new();
         for reference in &commit.object_segments {
             out.extend(self.segment(reference)?.objects.iter().cloned());
@@ -708,6 +714,13 @@ impl Vault {
             .find_record(&commit, reference.record_kind, &reference.record_id)?
             .filter(|e| e.revision == reference.revision)
             .ok_or_else(Self::not_found)?;
+        if self.purged_for(&commit)?.record(
+            reference.record_kind,
+            &reference.record_id,
+            reference.revision.get(),
+        ) {
+            return Err(crate::purge::purged_error());
+        }
         let file = entry_file(reference.record_kind, &entry, entry.revision.get())
             .ok_or_else(Self::corrupt_record)?;
         self.read_verified(&file, &entry.content_hash)
@@ -722,6 +735,12 @@ impl Vault {
             .ok_or_else(Self::not_found)?;
         let revision = reference.revision.get();
         let hash = entry.hash_of(revision).ok_or_else(Self::not_found)?;
+        if self
+            .purged_for(&commit)?
+            .record(reference.record_kind, &reference.record_id, revision)
+        {
+            return Err(crate::purge::purged_error());
+        }
         let file =
             entry_file(reference.record_kind, &entry, revision).ok_or_else(Self::corrupt_record)?;
         self.read_verified(&file, hash)
@@ -741,12 +760,20 @@ impl Vault {
         let item = self
             .find_object(&commit, hash)?
             .ok_or_else(Self::not_found)?;
+        if self.purged_for(&commit)?.object(hash) {
+            return Err(crate::purge::purged_error());
+        }
         let file = object_file_of(&item).ok_or_else(Self::corrupt_record)?;
         self.read_verified(&file, hash)
     }
 
     /// Parse one cataloged revision (cached after its first verified read).
-    fn record_at(&self, kind: RecordKind, entry: &RecordEntry, revision: u64) -> Result<AnyRecord> {
+    pub(crate) fn record_at(
+        &self,
+        kind: RecordKind,
+        entry: &RecordEntry,
+        revision: u64,
+    ) -> Result<AnyRecord> {
         let key = (kind, entry.record_id.clone(), revision);
         if let Some(record) = self.records.lock().expect("cache").get(&key) {
             return Ok(record.clone());
@@ -769,6 +796,7 @@ impl Vault {
     /// the pinned catalog names, and every object of the pinned commit.
     pub fn pinned_files(&self, pin: &CommitPin) -> Result<Vec<PinnedFile>> {
         let head = self.stored_commit(pin)?;
+        let purged = self.purged_for(&head)?;
         let mut files: BTreeMap<String, Sha256Hex> = BTreeMap::new();
         let mut next = Some(head.commit_id.clone());
         while let Some(id) = next {
@@ -786,6 +814,9 @@ impl Vault {
             let kind = reference.record_kind.expect("record segment");
             for entry in &self.segment(reference)?.records {
                 for revision in 1..=entry.revision.get() {
+                    if purged.record(kind, &entry.record_id, revision) {
+                        continue;
+                    }
                     let file =
                         entry_file(kind, entry, revision).ok_or_else(Self::corrupt_record)?;
                     let hash = entry.hash_of(revision).expect("cataloged revision");
@@ -794,6 +825,9 @@ impl Vault {
             }
         }
         for item in self.objects_of(&head)? {
+            if purged.object(&item.object_hash) {
+                continue;
+            }
             let file = object_file_of(&item).ok_or_else(Self::corrupt_record)?;
             files.insert(file, item.object_hash.clone());
         }
@@ -807,6 +841,7 @@ impl Vault {
     /// report the damage range. Reports only; never repairs or deletes (V06).
     pub fn verify(&self, pin: &CommitPin) -> Result<IntegrityReport> {
         let commit = self.stored_commit(pin)?;
+        let purged = self.purged_for(&commit)?;
         let mut report = IntegrityReport::default();
         let check = |file: Option<String>, hash: &Sha256Hex| -> Result<Option<bool>> {
             let bytes = file.map(|f| self.root.read(&f)).transpose()?.flatten();
@@ -820,6 +855,10 @@ impl Vault {
             let kind = segment.record_kind.expect("record segment");
             for entry in &segment.records {
                 for revision in 1..=entry.revision.get() {
+                    if purged.record(kind, &entry.record_id, revision) {
+                        report.purged += 1;
+                        continue;
+                    }
                     report.records_checked += 1;
                     let hash = entry.hash_of(revision).expect("cataloged revision");
                     let reference = RecordRef::new(
@@ -841,6 +880,10 @@ impl Vault {
                 continue;
             };
             for item in &segment.objects {
+                if purged.object(&item.object_hash) {
+                    report.purged += 1;
+                    continue;
+                }
                 report.objects_checked += 1;
                 match check(object_file_of(item), &item.object_hash)? {
                     None => report.missing_objects.push(item.object_hash.clone()),
@@ -1249,7 +1292,13 @@ impl Vault {
     fn scoped_set(&self, head: &StoredCommit, delta: &[AnyRecord]) -> Result<RecordSet> {
         let mut set = RecordSet::default();
         let mut loaded: BTreeSet<DocKey> = BTreeSet::new();
+        // Purged content is absent: rules that would read it cancel out,
+        // and a new record that needs it fails as it should.
+        let purged = self.purged_for(head)?;
         let mut push = |set: &mut RecordSet, kind: RecordKind, entry: &RecordEntry, revision| {
+            if purged.record(kind, &entry.record_id, revision) {
+                return Ok(());
+            }
             if loaded.insert((kind, entry.record_id.clone(), revision)) {
                 set.push(self.record_at(kind, entry, revision)?);
             }

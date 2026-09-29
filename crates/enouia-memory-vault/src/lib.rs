@@ -14,6 +14,7 @@ pub mod fs;
 pub mod health;
 pub mod lock;
 pub mod platform;
+pub mod purge;
 pub mod restic;
 pub mod root;
 pub mod service;

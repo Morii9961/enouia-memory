@@ -261,6 +261,32 @@ pub fn verify_export(export_dir: &Path) -> Result<ExportManifest> {
     chain[0]
         .materialize(|hash| segments.get(hash))
         .map_err(|_| bad_export("export head catalog"))?;
+    // Purge tombstones in the export: what they name is intentionally absent.
+    let mut tombstones = Vec::new();
+    for segment in segments
+        .values()
+        .filter(|s| s.record_kind == Some(enouia_memory_contract::record::RecordKind::Tombstone))
+    {
+        for entry in &segment.records {
+            let file = crate::store::entry_file(
+                enouia_memory_contract::record::RecordKind::Tombstone,
+                entry,
+                1,
+            )
+            .ok_or_else(|| bad_export("export tombstone"))?;
+            let bytes = contents
+                .get(file.as_str())
+                .ok_or_else(|| bad_export("export tombstone"))?;
+            if sha256(bytes) != entry.content_hash {
+                return Err(bad_export("export tombstone"));
+            }
+            let tombstone: enouia_memory_contract::commit::Tombstone =
+                enouia_memory_contract::record::parse_record(bytes)
+                    .map_err(|_| bad_export("export tombstone"))?;
+            tombstones.push(tombstone);
+        }
+    }
+    let purged = crate::purge::Purged::from_tombstones(&tombstones);
     // Every revision and object any exported segment names is present.
     let has = |file: Option<String>, hash: &Sha256Hex| {
         file.and_then(|f| contents.get(f.as_str()))
@@ -270,6 +296,9 @@ pub fn verify_export(export_dir: &Path) -> Result<ExportManifest> {
         if let Some(kind) = segment.record_kind {
             for entry in &segment.records {
                 for revision in 1..=entry.revision.get() {
+                    if purged.record(kind, &entry.record_id, revision) {
+                        continue;
+                    }
                     let hash = entry.hash_of(revision).expect("cataloged revision");
                     if !has(crate::store::entry_file(kind, entry, revision), hash) {
                         return Err(bad_export("export record missing"));
@@ -280,6 +309,9 @@ pub fn verify_export(export_dir: &Path) -> Result<ExportManifest> {
     }
     for reference in &chain[0].object_segments {
         for item in &segments[&reference.segment_hash].objects {
+            if purged.object(&item.object_hash) {
+                continue;
+            }
             if !has(crate::store::object_file_of(item), &item.object_hash) {
                 return Err(bad_export("export object missing"));
             }
@@ -434,6 +466,29 @@ pub fn network_allowed(vault: &Vault) -> Result<bool> {
             Ok(!state.network_disabled_until_reconciled && state.reconciled_at.is_some())
         }
     }
+}
+
+/// Record that the owner reconciled a restored Vault with the deletions and
+/// revocations made after its export (B02); network use may resume. A Vault
+/// that was not restored has nothing to reconcile.
+pub fn mark_reconciled(vault: &Vault) -> Result<()> {
+    let Some(bytes) = vault.managed_root().read(&layout::restore_state())? else {
+        return Ok(());
+    };
+    let mut state: RestoreState =
+        parse_store(&bytes).map_err(|_| VaultError::corrupt("restore state"))?;
+    state.reconciled_at = Some(vault.now()?);
+    state.network_disabled_until_reconciled = false;
+    let violations = state.validate();
+    if !violations.is_empty() {
+        return Err(VaultError::invalid(
+            violations.iter().map(|v| v.rule).collect(),
+        ));
+    }
+    vault.managed_root().write_atomic(
+        &layout::restore_state(),
+        &canonical_bytes(&state).expect("state"),
+    )
 }
 
 /// Hash of an export manifest file, as recorded in a restore state.

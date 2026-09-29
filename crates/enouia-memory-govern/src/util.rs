@@ -13,10 +13,6 @@ pub(crate) fn invalid(rule: &'static str) -> VaultError {
     VaultError::invalid(vec![rule])
 }
 
-pub(crate) fn not_found() -> VaultError {
-    VaultError::new(MemoryErrorCode::NotFound, Fault::NotFound)
-}
-
 pub(crate) fn stale() -> VaultError {
     VaultError::new(MemoryErrorCode::RevisionConflict, Fault::RevisionMismatch)
 }
@@ -33,7 +29,15 @@ pub(crate) fn revision<T: Record>(
         Ok(bytes) => Ok(Some(
             parse_record(&bytes).map_err(|_| VaultError::corrupt("record"))?,
         )),
-        Err(error) if error.code() == MemoryErrorCode::NotFound => Ok(None),
+        // Purged content reads as absent; its tombstone says why.
+        Err(error)
+            if matches!(
+                error.code(),
+                MemoryErrorCode::NotFound | MemoryErrorCode::IntentionallyPurged
+            ) =>
+        {
+            Ok(None)
+        }
         Err(error) => Err(error),
     }
 }
@@ -48,8 +52,7 @@ pub(crate) fn latest<T: Record>(
     let Some(entry) = vault.record_entry(pin, kind, id)? else {
         return Ok(None);
     };
-    let record = revision(vault, pin, kind, id, entry.revision)?.ok_or_else(not_found)?;
-    Ok(Some((record, entry.revision)))
+    Ok(revision(vault, pin, kind, id, entry.revision)?.map(|record| (record, entry.revision)))
 }
 
 /// The latest revision of every record of one kind at the pin.

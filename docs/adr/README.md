@@ -27,7 +27,7 @@ These come from [design/DECISIONS_AND_SOURCES](../design/DECISIONS_AND_SOURCES.m
 | ADR-MEM-17 | Single primary; offline edits become candidates | Deferred (MV-10) |
 | ADR-MEM-18 | Adapters open only after measurement | Adopted |
 
-## ADR-MEM-19 … 40 — implementation decisions (MV-0 / MV-0R / MV-1 / MV-2 / MV-3)
+## ADR-MEM-19 … 41 — implementation decisions (MV-0 / MV-0R / MV-1 / MV-2 / MV-3)
 
 ADR-MEM-20 to 29 were first drafted with Enouia Runtime's register numbers 020–029 and never committed there. The draft is kept in [history](../history/adr-draft-runtime-numbering.md). Numbering here is this repository's own.
 
@@ -153,6 +153,15 @@ Cost and trigger: small kinds are still loaded completely per commit (cached in 
 - **Identity (MV-3.3).** An identity change is a candidate like any other; accepting it writes the next identity revision and its Markdown object, and the plan's diff carries the Markdown text itself, so the owner approves the words. Earlier revisions and their Markdown stay readable (`read_revision`, `read_object`); going back is another reviewed revision.
 - **Store guard (MV-3.3).** `Vault::commit` refuses memory, review, identity, project, tombstone, purge receipt, approval, and policy records unless the commit's principal is the Vault's genesis owner (`store.owner_only_kind`), beneath the review rules.
 - **Boundary.** The in-process check is the Vault owner principal and the trusted-surface enum. Which process may speak for the owner is transport authentication (MV-8); the MCP host will not expose raw commits. Session-checkpoint memories come from reviewed checkpoints in MV-5.
+
+### ADR-MEM-41 — Forget, purge, and deletion reconciliation (Adopted, MV-3.4)
+
+- **One path in.** Deleting starts as an owner-only delete candidate (details: `mode`, `scope`) and an owner review whose plan shows the tombstone with every target. A delete confirmation is committed alone (`review.delete_alone`), as a `logical_delete` or `purge` operation, and moves the deletion epoch: from that commit the canonical view excludes the targets and pinned reads are refused by `check_fresh`.
+- **Forget** (`logical_delete`) targets the memory (one revision or all) and keeps its text, restricted.
+- **Purge** targets are computed, never typed: the memory's revisions, the candidates that proposed or targeted it (not the delete request itself), and with `with_dependents` the cited sources and the raw objects holding them. `purge_preview` lists the same, plus other memories that would lose evidence and how many other sources each raw object holds: a message inside an imported export cannot be removed alone, so the whole object is destroyed or kept. Sanitized replacement objects are not implemented.
+- **After the tombstone.** The Vault treats what purge tombstones name as intentionally purged: reads return `intentionally_purged`, `verify` counts it as purged (not missing), exports and `verify_export` leave it out, sweeps never quarantine it, and commit validation treats it as absent (rules reading it cancel out; a new record citing it fails). `purge_files` deletes the bytes and any quarantined copy under the writer lock and is idempotent. `complete_purge` then commits a purge receipt: local stores purged or not present, exports `not_manageable` (outside the Vault), backups `pending` with a deadline (30 days), overall `backup_purge_pending`. Nothing claims global erasure. Catalog hashes of purged revisions remain, as the design allows.
+- **Deletion ledger (B02).** The ledger is the head's tombstones (IDs, hashes, modes; no text), kept apart from backups. `reconcile_deletions` re-applies each entry to a restored Vault through an owner-confirmed plan (and `complete_purge` for purges), reports what was applied, already covered, or not present, and only then marks the restore reconciled, which opens its network gate.
+- **Not yet.** Other memories that lose evidence are listed, not marked `broken`; capsules, indexes, and replicas do not exist yet and are reported `not_present`.
 
 ## Relation to Enouia Runtime's register
 

@@ -98,9 +98,13 @@ impl Vault {
             files_checked: candidates.len(),
             ..SweepReport::default()
         };
+        // Purged content is the purge's to delete, never to quarantine.
+        let head = self.load_head()?;
+        let purged = self.purged_for(&head)?;
+        let purged_files = self.purged_files(&head, &purged)?;
         let orphans: Vec<String> = candidates
             .into_iter()
-            .filter(|f| !keep.contains(f))
+            .filter(|f| !keep.contains(f) && !purged_files.contains(f))
             .collect();
         if orphans.is_empty() {
             return Ok(report);

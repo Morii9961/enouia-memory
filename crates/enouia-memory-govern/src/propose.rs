@@ -161,9 +161,21 @@ fn fingerprint(
 }
 
 pub(crate) fn check_details(
+    kind: ProposalKind,
     proposed: ProposedType,
     details: &Option<Map<String, Value>>,
 ) -> Result<()> {
+    if kind == ProposalKind::Delete {
+        // A delete proposal carries only how to delete (MV-3.4).
+        return match details
+            .iter()
+            .flat_map(|d| d.keys())
+            .all(|k| k == "mode" || k == "scope")
+        {
+            true => Ok(()),
+            false => Err(invalid("candidate.details_field")),
+        };
+    }
     if proposed == ProposedType::SessionCheckpoint {
         // Session checkpoint memories come from reviewed checkpoints (MV-5).
         return Err(invalid("govern.type_unsupported"));
@@ -344,7 +356,7 @@ pub fn propose(
     if let Some(done) = replayed(vault, &origin.actor, key)? {
         return Ok(Proposed::Stored(done));
     }
-    check_details(proposal.proposed_type, &proposal.details)?;
+    check_details(proposal.kind, proposal.proposed_type, &proposal.details)?;
     let pin = vault.pin_current()?;
     let resolved: Resolved = resolve(vault, &pin, &proposal.evidence)?;
     let sensitivity = proposal.sensitivity.unwrap_or_else(|| resolved.strictest());
@@ -452,7 +464,7 @@ pub fn edit_candidate(
         .clone()
         .unwrap_or(candidate.proposed_content.clone());
     let details = edit.details.clone().or(candidate.proposed_details.clone());
-    check_details(candidate.proposed_type, &details)?;
+    check_details(candidate.proposal_kind, candidate.proposed_type, &details)?;
     if let Some(specs) = &edit.evidence {
         let resolved = resolve(vault, &pin, specs)?;
         if candidate.sensitivity < resolved.strictest() {

@@ -22,7 +22,7 @@ use enouia_memory_contract::common::{ActorRef, ActorType, EvidenceRef, TrustedSu
 use enouia_memory_contract::hash::{Sha256Hex, sha256};
 use enouia_memory_contract::identity::IdentityMetadata;
 use enouia_memory_contract::ids::{
-    CandidateId, CommitId, ConflictGroupId, IdentityId, MemoryId, ReviewId,
+    CandidateId, CommitId, ConflictGroupId, DeleteId, IdentityId, MemoryId, ReviewId,
 };
 use enouia_memory_contract::json::{Revision, canonical_bytes};
 use enouia_memory_contract::memory::{CanonicalMemory, MemoryBody, MemoryStatus};
@@ -105,6 +105,8 @@ pub struct PlannedIds {
     pub conflict_group_id: ConflictGroupId,
     /// Used when an identity change creates a new identity.
     pub identity_id: IdentityId,
+    /// Used when the decision confirms a delete.
+    pub delete_id: DeleteId,
 }
 
 /// What the trusted surface shows before the owner confirms.
@@ -116,6 +118,8 @@ pub struct ReviewPlan {
     pub ids: Vec<PlannedIds>,
     pub commit_id: CommitId,
     pub nonce: String,
+    /// `review_commit`, or `logical_delete` / `purge` for a delete plan.
+    pub operation_kind: OperationKind,
     pub issued_at: Timestamp,
     pub expires_at: Timestamp,
     /// Every record the commit writes, without volatile timestamps.
@@ -148,16 +152,18 @@ fn check_owner(vault: &Vault, owner: &ActorRef) -> Result<()> {
     Ok(())
 }
 
-fn scope(owner: &ActorRef, nonce: &str) -> IdempotencyScope {
+fn scope(owner: &ActorRef, nonce: &str, operation_kind: OperationKind) -> IdempotencyScope {
     IdempotencyScope {
         principal_id: owner.actor_id.clone(),
-        operation_kind: OperationKind::ReviewCommit,
+        operation_kind,
         key_hash: sha256(nonce.as_bytes()),
     }
 }
 
 /// Records and preconditions of one plan, built on one head.
-struct Built {
+pub(crate) struct Built {
+    /// `review_commit` unless the (single) decision confirms a delete.
+    pub(crate) operation: OperationKind,
     records: Vec<(RecordKind, String, Revision, Value)>,
     expected: Vec<(RecordKind, String, Option<Revision>)>,
     /// Identity Markdown: the owner sees and approves the text itself.
@@ -165,11 +171,16 @@ struct Built {
 }
 
 impl Built {
-    fn push(&mut self, kind: RecordKind, id: &str, rev: Revision, value: Value) {
+    pub(crate) fn push(&mut self, kind: RecordKind, id: &str, rev: Revision, value: Value) {
         self.records.push((kind, id.to_owned(), rev, value));
     }
 
-    fn expect(&mut self, kind: RecordKind, id: &str, rev: Option<Revision>) -> Result<()> {
+    pub(crate) fn expect(
+        &mut self,
+        kind: RecordKind,
+        id: &str,
+        rev: Option<Revision>,
+    ) -> Result<()> {
         if self.expected.iter().any(|(k, i, _)| *k == kind && i == id) {
             return Err(invalid("review.duplicate_target"));
         }
@@ -213,24 +224,24 @@ impl Built {
     }
 }
 
-struct PlanHeader<'a> {
-    owner: &'a ActorRef,
+pub(crate) struct PlanHeader<'a> {
+    pub(crate) owner: &'a ActorRef,
     surface: TrustedSurface,
     commit_id: &'a CommitId,
     nonce: &'a str,
 }
 
-struct Context<'a> {
-    vault: &'a Vault,
-    pin: CommitPin,
-    header: PlanHeader<'a>,
-    now: Timestamp,
+pub(crate) struct Context<'a> {
+    pub(crate) vault: &'a Vault,
+    pub(crate) pin: CommitPin,
+    pub(crate) header: PlanHeader<'a>,
+    pub(crate) now: Timestamp,
     diff_hash: Sha256Hex,
-    visible: Vec<CanonicalMemory>,
+    pub(crate) visible: Vec<CanonicalMemory>,
 }
 
 impl Context<'_> {
-    fn memory(&self, id: &MemoryId) -> Result<&CanonicalMemory> {
+    pub(crate) fn memory(&self, id: &MemoryId) -> Result<&CanonicalMemory> {
         self.visible
             .iter()
             .find(|m| &m.memory_id == id)
@@ -272,7 +283,7 @@ fn source_refs(evidence: &[EvidenceRef]) -> Vec<Value> {
         .collect()
 }
 
-fn reference(kind: RecordKind, id: &str, rev: Revision) -> Value {
+pub(crate) fn reference(kind: RecordKind, id: &str, rev: Revision) -> Value {
     json!({"record_kind": kind, "record_id": id, "revision": rev.get()})
 }
 
@@ -410,6 +421,7 @@ fn decide(
     let mut effective_from: Option<BusinessTime> = None;
     let mut merge_target: Option<MergeTarget> = None;
     let mut reason_code: Option<String> = None;
+    let mut delete_binding: Option<Value> = None;
     let (action, status) = match decision {
         Decision::Reject { reason_code: r, .. } => {
             reason_code = r.clone();
@@ -485,7 +497,11 @@ fn decide(
                 Decision::EditAccept {
                     content, details, ..
                 } => {
-                    crate::propose::check_details(candidate.proposed_type, details)?;
+                    crate::propose::check_details(
+                        candidate.proposal_kind,
+                        candidate.proposed_type,
+                        details,
+                    )?;
                     (
                         content.clone(),
                         details.clone().or(candidate.proposed_details.clone()),
@@ -586,7 +602,16 @@ fn decide(
                     ReviewAction::IdentityAccept
                 }
                 ProposalKind::Delete => {
-                    return Err(invalid("govern.not_supported"));
+                    delete_binding = Some(crate::delete::confirm_delete(
+                        ctx,
+                        built,
+                        &candidate,
+                        ids,
+                        &mut results,
+                        &mut targets,
+                    )?);
+                    final_content = candidate.proposed_content.clone();
+                    ReviewAction::ConfirmDelete
                 }
             };
             (action, "accepted")
@@ -627,7 +652,7 @@ fn decide(
         "effective_from": effective_from,
         "merge_target": merge_target,
         "resulting_records": results,
-        "delete_binding": null,
+        "delete_binding": delete_binding,
         "reason_code": reason_code,
         "created_at": ctx.now,
         "commit_id": ctx.header.commit_id,
@@ -889,12 +914,17 @@ fn build(
         visible,
     };
     let mut built = Built {
+        operation: OperationKind::ReviewCommit,
         records: Vec::new(),
         expected: Vec::new(),
         objects: Vec::new(),
     };
     for (index, (decision, ids)) in decisions.iter().zip(ids).enumerate() {
         decide(&ctx, &mut built, decision, ids, index)?;
+    }
+    if decisions.len() > 1 && built.operation != OperationKind::ReviewCommit {
+        // A deletion is confirmed on its own, never inside a batch.
+        return Err(invalid("review.delete_alone"));
     }
     let diff = built.diff(&ctx.header);
     Ok((built, diff))
@@ -929,6 +959,7 @@ pub fn plan(
             memory_id: MemoryId::from_random(vault.random_id_bytes()),
             conflict_group_id: ConflictGroupId::from_random(vault.random_id_bytes()),
             identity_id: IdentityId::from_random(vault.random_id_bytes()),
+            delete_id: DeleteId::from_random(vault.random_id_bytes()),
         })
         .collect();
     let commit_id = CommitId::from_random(vault.random_id_bytes());
@@ -943,7 +974,7 @@ pub fn plan(
         nonce: &nonce,
     };
     let placeholder = sha256(b"");
-    let (_, diff) = build(
+    let (built, diff) = build(
         vault,
         header,
         decisions,
@@ -957,6 +988,7 @@ pub fn plan(
         decisions: decisions.to_vec(),
         ids,
         commit_id: commit_id.clone(),
+        operation_kind: built.operation,
         diff_hash: hash(&diff),
         diff,
         nonce,
@@ -976,7 +1008,7 @@ pub fn confirm(
     if confirmation.owner != plan.owner || confirmation.surface != plan.surface {
         return Err(invalid("review.confirmation_mismatch"));
     }
-    let key = scope(&plan.owner, &plan.nonce);
+    let key = scope(&plan.owner, &plan.nonce, plan.operation_kind);
     if let Some((commit_id, payload, receipt)) = vault.find_receipt(&key)? {
         return if payload == plan.diff_hash {
             Ok(CommitOutcome::Replayed { commit_id, receipt })
@@ -1002,7 +1034,7 @@ pub fn confirm(
         now,
         plan.diff_hash.clone(),
     )?;
-    if hash(&diff) != plan.diff_hash {
+    if hash(&diff) != plan.diff_hash || built.operation != plan.operation_kind {
         return Err(stale());
     }
     let mut records = Vec::new();
@@ -1019,7 +1051,7 @@ pub fn confirm(
         commit_id: plan.commit_id.clone(),
         expected_commit_id: None,
         principal: plan.owner.clone(),
-        operation_kind: OperationKind::ReviewCommit,
+        operation_kind: plan.operation_kind,
         idempotency: key,
         request_payload_hash: plan.diff_hash.clone(),
         expected_revisions: built.expected,
