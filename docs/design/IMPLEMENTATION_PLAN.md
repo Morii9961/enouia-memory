@@ -76,6 +76,8 @@ flowchart LR
 
 ## 6. MV-2 — 历史导入与抢救
 
+> **v1.1：** MV-2 已用合成导出实现（I01～I06 通过，I07 真实导出演练 pending），见 [MV-2 报告](../validation/MV-2.md)。4000 条来源的合成导入已越过 ADR-MEM-37 的清单阈值：导入大规模真实历史之前需要分段清单。
+
 1. **MV-2.1 Import Framework**：preview、原件归档、manifest、可暂停批次、错误分类、重复文件检测。
 2. **MV-2.2 三种输入**：ChatGPT 结构探测 adapter、Markdown byte-span adapter、Runtime native adapter；无样本的字段保守处理。
 3. **MV-2.3 会话图与附件**：保留父子分支、修改版本、未知时间、缺失附件、部分导出；禁止默认外链下载。
