@@ -9,7 +9,7 @@ Status: **MV-1 (Vault and recovery foundation, [report](docs/validation/MV-1.md)
 ```text
 docs/        all documentation: design/, adr/, contracts/, validation/, reviews/, handoff/, history/
 contracts/   JSON Schema 2020-12 machine contracts (memory, context, provider, ipc)
-crates/      Rust workspace: enouia-memory-contract (pure contracts), enouia-memory-vault (store), enouia-memory-import (history import), enouia-memory-cli (local entry point)
+crates/      Rust workspace: enouia-memory-contract (pure contracts), enouia-memory-vault (store), enouia-memory-import (history import), enouia-memory-govern (candidates and review), enouia-memory-cli (local entry point)
 tests/       synthetic fixtures
 ```
 

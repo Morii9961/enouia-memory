@@ -27,7 +27,7 @@ These come from [design/DECISIONS_AND_SOURCES](../design/DECISIONS_AND_SOURCES.m
 | ADR-MEM-17 | Single primary; offline edits become candidates | Deferred (MV-10) |
 | ADR-MEM-18 | Adapters open only after measurement | Adopted |
 
-## ADR-MEM-19 … 39 — implementation decisions (MV-0 / MV-0R / MV-1 / MV-2 / MV-3)
+## ADR-MEM-19 … 40 — implementation decisions (MV-0 / MV-0R / MV-1 / MV-2 / MV-3)
 
 ADR-MEM-20 to 29 were first drafted with Enouia Runtime's register numbers 020–029 and never committed there. The draft is kept in [history](../history/adr-draft-runtime-numbering.md). Numbering here is this repository's own.
 
@@ -142,6 +142,15 @@ MV-2 crossed the ADR-MEM-37 trigger: 4,000 imported sources made a 1.1 MB head m
 Measured (`measure_import`, synthetic, release build, same machine as MV-2): 4,000 imported sources now leave a 6 KB stored commit after one assertion (was 966 KB), and that assertion takes 0.05 s from a fresh process (was 0.71 to 0.78 s). 20,000 sources: 83 source segments, a 22 KB stored commit after one assertion, 0.06 s. Import time is unchanged within the noise of this machine (it is file creation, about 3 ms per source). Receipts still list every record a commit changed, so a large batch has a proportionally large stored commit.
 
 Cost and trigger: small kinds are still loaded completely per commit (cached in a long-lived process), and a group rule loads its whole group (an import's completion commit reads that import's sources; a session append reads that session's events). If memories, candidates, and reviews together exceed about 20,000 revisions, or a group load exceeds 1 s, the next step is per-group indexes for those kinds.
+
+### ADR-MEM-40 — Governance: candidates and plan-bound owner review (Adopted, MV-3.1/3.2)
+
+`enouia-memory-govern` composes the contract and the Vault; it writes only through `Vault::commit`.
+
+- **Candidates.** Any principal with the propose right stores a pending candidate. Evidence is resolved from the cited source revision: the evidence class, anchor object, and default locator come from the source, so a proposer cannot present a model claim as the owner's statement. Sensitivity defaults to, and may not drop below, the strictest cited source. A proposal against a stale target revision is refused. The fingerprint (proposal kind, type, content without whitespace, details, target) finds a pending duplicate instead of storing it twice. Active memories that make a different claim in the same scope (fact: claim key; preference: scope; with shared subjects) are listed as conflicts. Only the proposer or the owner may edit (new pending revision) or withdraw a candidate. Proposed fields are limited to a whitelist; IDs, status, evidence, approval, and policy are decided by the review.
+- **Plan and confirm.** `plan` turns the owner's decisions into every record the commit would write, generates the review, memory, conflict-group and commit IDs and a nonce, and hashes the records without their volatile timestamps (and without the hash field itself). The trusted surface shows that plan. `confirm` requires the Vault's genesis owner on the same trusted surface before `expires_at` (10 minutes), rebuilds the plan on the current head with the same IDs, and commits only if the rebuild hashes the same; the commit also carries every candidate and target revision as an expected revision. A batch is one commit: any stale decision refuses all of it. The idempotency key is the nonce, so a repeated confirmation replays the receipt; each review's `approval_nonce` is the plan nonce plus its index, and `approved_diff_hash` is the plan hash.
+- **Decisions.** Accept or edit-accept by proposal kind (create; revise with evidence union and the stricter sensitivity; archive; supersede with the confirmed effective time and the old record's next revision superseded), reject (optional reason code), merge into a memory (new revision with the union of evidence) or into a pending candidate (new pending revision). Accepting a create that lists live conflicts puts the new memory and those memories in one conflict group; none wins by time or confidence. Undoing a wrong acceptance is an owner archive or revise proposal and its own review; nothing is rewritten in place.
+- **Boundary.** The in-process check is the Vault owner principal and the trusted-surface enum. Which process may speak for the owner is transport authentication (MV-8); the MCP host will not expose raw commits. Session-checkpoint memories come from reviewed checkpoints in MV-5.
 
 ## Relation to Enouia Runtime's register
 

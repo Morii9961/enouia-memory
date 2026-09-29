@@ -94,6 +94,28 @@ fn memory_cli_depends_only_on_this_repository() {
     );
 }
 
+/// Governance composes the contract and the store only (the importer is a
+/// test-only dependency for synthetic sources).
+#[test]
+fn memory_govern_depends_only_on_contract_and_store() {
+    let manifest =
+        std::fs::read_to_string(repo().join("crates/enouia-memory-govern/Cargo.toml")).unwrap();
+    let mut deps = dependencies(&manifest);
+    deps.sort();
+    assert_eq!(
+        deps,
+        [
+            "enouia-memory-contract",
+            "enouia-memory-import",
+            "enouia-memory-vault",
+            "serde_json"
+        ]
+    );
+    let (normal, dev) = manifest.split_once("[dev-dependencies]").unwrap();
+    assert!(!normal.contains("enouia-memory-import"));
+    assert!(dev.contains("enouia-memory-import"));
+}
+
 /// The repository builds from its own checkout: no manifest may reference a
 /// path outside the repository or a Git dependency (e.g. the Runtime repo).
 #[test]

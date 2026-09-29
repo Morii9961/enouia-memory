@@ -42,6 +42,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "enouia-memory-govern"
+version = "0.1.0"
+dependencies = [
+ "enouia-memory-contract",
+ "enouia-memory-import",
+ "enouia-memory-vault",
+ "serde_json",
+]
+
+[[package]]
 name = "enouia-memory-import"
 version = "0.1.0"
 dependencies = [
