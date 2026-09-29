@@ -51,6 +51,8 @@ Nothing accepts a model proposal by itself, uses confidence as approval, or impo
 | `cargo clippy --workspace --all-targets --locked -- -D warnings` | exit 0 |
 | `python tools/schema-check/check_schemas.py` | exit 0; 33 schemas; 53 valid records, 117 record cases, 4,759 set records, 51 IPC messages, 46 store documents agree |
 
+Isolated build: `77d189a` was cloned from GitHub into a temporary directory with a fresh target directory; fmt, 151 tests, clippy, and the schema cross-check passed.
+
 ## 5. Defects found and fixed
 
 - Whole-set validation had quadratic lookups (per-review document sets, linear source and event searches); replaced by per-run indexes.
