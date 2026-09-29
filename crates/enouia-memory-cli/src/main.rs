@@ -6,15 +6,36 @@
 //! Owner-confirmed actions (new Vault, recovery adoption, restore, manual
 //! assertion) require an explicit confirmation argument on this trusted local
 //! surface; nothing here calls a model, the network, or a sync service.
+//!
+//! Review commands (MV-3) print the exact plan (every record they would
+//! write, the text included) with an 8-character code from the plan hash,
+//! then read the typed code from stdin; only an exact match commits. Their
+//! last line is the result.
 
+use enouia_memory_contract::candidate::ProposedType;
+use enouia_memory_contract::commit::{DeleteMode, DeleteScope};
 use enouia_memory_contract::common::{
     ActorRef, ActorType, Sensitivity, TimePrecision, TrustedSurface,
 };
-use enouia_memory_contract::ids::{CommitId, ImportId, PolicyId, PrincipalId};
+use enouia_memory_contract::hash::sha256;
+use enouia_memory_contract::ids::{
+    CandidateId, CommitId, ImportId, MemoryId, PolicyId, PrincipalId,
+};
+use enouia_memory_contract::json::Revision;
+use enouia_memory_contract::memory::CanonicalMemory;
 use enouia_memory_contract::ports::IdSource;
 use enouia_memory_contract::record::RecordKind;
+use enouia_memory_contract::record::RecordRef;
 use enouia_memory_contract::source::ConfirmationMethod;
 use enouia_memory_contract::store::{VaultDescriptor, parse_store};
+use enouia_memory_govern::delete::{
+    complete_purge, delete_proposal, deletion_ledger, ledger_bytes, parse_ledger, purge_preview,
+    reconcile_deletions,
+};
+use enouia_memory_govern::{
+    Canonical, Decision, EvidenceSpec, Origin, OwnerConfirmation, Proposal, Proposed, ReviewPlan,
+    canonical_memories, confirm, pending_candidates, plan, propose,
+};
 use enouia_memory_vault::backup::{export_pinned, network_allowed, restore_export, verify_export};
 use enouia_memory_vault::fault::Faults;
 use enouia_memory_vault::health::HealthState;
@@ -44,10 +65,21 @@ const USAGE: &str = "usage: enouia-memory <command> ...
   resume-import <dir> <import_id>
   import-audit <dir> <import_id>
   acl <dir>
-  protect <dir> --confirm-owner-only";
+  protect <dir> --confirm-owner-only
+  candidates <dir>
+  memories <dir> [--all]
+  remember <dir> --text <text> --claim <claim-key> [--subject <sub_id>]   (plan, then type its code)
+  review <dir> <candidate_id> <revision> accept|reject|edit [--text <text>]
+  forget <dir> <memory_id>                                (plan, then type its code)
+  purge-preview <dir> <memory_id> [--with-dependents]
+  purge <dir> <memory_id> [--with-dependents]             (plan, then type its code)
+  deletion-ledger <dir> <out-file>
+  reconcile <dir> <ledger-file>                           (summary, then type its code)";
 
 enum Failure {
     Usage(String),
+    /// The owner did not type the plan's confirmation code.
+    NotConfirmed,
     Rejected(String),
     Vault(VaultError),
 }
@@ -135,6 +167,98 @@ fn import_json(m: &enouia_memory_contract::import::ImportManifest) -> Value {
 
 fn owner_of(vault: &Vault) -> ActorRef {
     vault.descriptor().created_by.clone()
+}
+
+fn confirmation(vault: &Vault) -> OwnerConfirmation {
+    OwnerConfirmation {
+        owner: owner_of(vault),
+        surface: TrustedSurface::TrustedLocalCli,
+    }
+}
+
+/// Print what would be written with a short code derived from its hash,
+/// then read the typed code from stdin. Only an exact match confirms.
+fn typed_code(shown: Value, code: &str) -> Result<(), Failure> {
+    use std::io::Write;
+    println!("{}", json!({"plan": shown, "confirm_code": code}));
+    let _ = std::io::stdout().flush();
+    let mut line = String::new();
+    std::io::stdin()
+        .read_line(&mut line)
+        .map_err(|e| Failure::Vault(e.into()))?;
+    if line.trim() == code {
+        Ok(())
+    } else {
+        Err(Failure::NotConfirmed)
+    }
+}
+
+fn plan_and_confirm(vault: &Vault, decisions: &[Decision]) -> Result<ReviewPlan, Failure> {
+    let owner = owner_of(vault);
+    let shown = plan(vault, decisions, &owner, TrustedSurface::TrustedLocalCli)?;
+    typed_code(
+        json!({
+            "operation": shown.operation_kind,
+            "expires_at": shown.expires_at,
+            "records": shown.diff["records"],
+            "objects": shown.diff["objects"],
+        }),
+        &shown.diff_hash.as_str()[..8],
+    )?;
+    confirm(vault, &shown, &confirmation(vault))?;
+    Ok(shown)
+}
+
+fn memory_id(text: &str) -> Result<MemoryId, Failure> {
+    MemoryId::parse(text).map_err(|_| Failure::Usage("bad memory id".into()))
+}
+
+/// The latest stored revision of a memory, tombstoned or not.
+fn stored_memory(vault: &Vault, id: &MemoryId) -> Result<CanonicalMemory, Failure> {
+    let pin = vault.pin_current()?;
+    let entry = vault
+        .record_entry(&pin, RecordKind::Memory, id.as_str())?
+        .ok_or_else(|| Failure::Rejected("memory not found".into()))?;
+    let bytes = vault.read_record(
+        &pin,
+        &RecordRef::new(RecordKind::Memory, id.as_str(), entry.revision),
+    )?;
+    enouia_memory_contract::parse_record(&bytes)
+        .map_err(|_| Failure::Rejected("memory unreadable".into()))
+}
+
+fn delete_candidate(
+    vault: &Vault,
+    memory: &CanonicalMemory,
+    mode: DeleteMode,
+    scope: DeleteScope,
+) -> Result<Decision, Failure> {
+    let id = match propose(
+        vault,
+        &delete_proposal(memory, mode, scope),
+        &Origin::owner(owner_of(vault)),
+        &OsIdSource.random_16(),
+    )? {
+        Proposed::Stored(written) => written.id,
+        Proposed::DuplicateOf(id) => id,
+    };
+    let pin = vault.pin_current()?;
+    let revision = vault
+        .record_entry(&pin, RecordKind::Candidate, id.as_str())?
+        .map(|e| e.revision)
+        .ok_or_else(|| Failure::Rejected("candidate missing".into()))?;
+    Ok(Decision::Accept {
+        candidate_id: id,
+        revision,
+    })
+}
+
+fn scope_of(args: &[String]) -> DeleteScope {
+    if has(args, "--with-dependents") {
+        DeleteScope::WithDependents
+    } else {
+        DeleteScope::AllRevisions
+    }
 }
 
 fn run(args: &[String]) -> Outcome {
@@ -391,6 +515,229 @@ fn run(args: &[String]) -> Outcome {
             let report = inspect_acl(root.path()).map_err(|e| Failure::Vault(e.into()))?;
             Ok(json!({"owner_only": report.is_owner_only()}))
         }
+        "candidates" => {
+            let vault = open(arg(args, 2)?)?;
+            let pending = pending_candidates(&vault, &vault.pin_current()?)?;
+            let list: Vec<Value> = pending
+                .iter()
+                .map(|c| {
+                    json!({
+                        "candidate_id": c.candidate_id, "revision": c.revision,
+                        "proposal_kind": c.proposal_kind, "proposed_type": c.proposed_type,
+                        "origin_kind": c.origin_kind, "sensitivity": c.sensitivity,
+                        "conflicts": c.conflicts.len(), "content": c.proposed_content,
+                    })
+                })
+                .collect();
+            Ok(json!({"pending": list}))
+        }
+        "memories" => {
+            let vault = open(arg(args, 2)?)?;
+            let which = if has(args, "--all") {
+                Canonical::AllStatuses
+            } else {
+                Canonical::Active
+            };
+            let list: Vec<Value> = canonical_memories(&vault, &vault.pin_current()?, which)?
+                .iter()
+                .map(|m| {
+                    json!({
+                        "memory_id": m.memory_id, "revision": m.revision, "type": m.memory_type(),
+                        "status": m.status, "conflict_group_id": m.conflict_group_id,
+                        "content": m.content,
+                    })
+                })
+                .collect();
+            Ok(json!({"memories": list}))
+        }
+        "remember" => {
+            // The quick save of the design: the exact words become a manual
+            // assertion, and a memory only after the typed code.
+            let vault = open(arg(args, 2)?)?;
+            let text = flag(args, "--text")
+                .ok_or_else(|| Failure::Usage("remember needs --text".into()))?;
+            let claim = flag(args, "--claim")
+                .ok_or_else(|| Failure::Usage("remember needs --claim".into()))?;
+            let pin = vault.pin_current()?;
+            let policy = vault
+                .record_entries(&pin, RecordKind::Policy)?
+                .first()
+                .and_then(|e| PolicyId::parse(&e.record_id).ok())
+                .ok_or_else(|| Failure::Rejected("no policy".into()))?;
+            let source = vault
+                .record_manual_assertion(
+                    &ManualAssertionInput {
+                        text: text.to_owned(),
+                        operator: owner_of(&vault),
+                        trusted_surface: TrustedSurface::TrustedLocalCli,
+                        confirmation: ConfirmationMethod::TypedConfirmation,
+                        sensitivity: Sensitivity::Private,
+                        access_policy_id: policy,
+                        time_precision: TimePrecision::Millisecond,
+                    },
+                    &OsIdSource.random_16(),
+                )?
+                .id;
+            // The subject defaults to the owner: the owner principal's UUID
+            // under the subject prefix.
+            let subject = match flag(args, "--subject") {
+                Some(s) => s.to_owned(),
+                None => owner_of(&vault)
+                    .actor_id
+                    .as_str()
+                    .replacen("prn_", "sub_", 1),
+            };
+            let subject = enouia_memory_contract::ids::SubjectId::parse(&subject)
+                .map_err(|_| Failure::Usage("bad subject id".into()))?;
+            let mut details = serde_json::Map::new();
+            details.insert("claim_key".into(), json!(claim));
+            details.insert("subject_ids".into(), json!([subject]));
+            let proposal = Proposal::create(
+                ProposedType::Fact,
+                text,
+                details,
+                vec![EvidenceSpec::content(
+                    source,
+                    Revision::new(1).expect("one"),
+                )],
+            );
+            let id = match propose(
+                &vault,
+                &proposal,
+                &Origin::owner(owner_of(&vault)),
+                &OsIdSource.random_16(),
+            )? {
+                Proposed::Stored(written) => written.id,
+                Proposed::DuplicateOf(id) => id,
+            };
+            let shown = plan_and_confirm(
+                &vault,
+                &[Decision::Accept {
+                    candidate_id: id,
+                    revision: Revision::new(1).expect("one"),
+                }],
+            )?;
+            Ok(json!({"memory_id": shown.ids[0].memory_id, "commit_id": shown.commit_id}))
+        }
+        "review" => {
+            let vault = open(arg(args, 2)?)?;
+            let candidate_id = CandidateId::parse(arg(args, 3)?)
+                .map_err(|_| Failure::Usage("bad candidate id".into()))?;
+            let revision = arg(args, 4)?
+                .parse::<u64>()
+                .ok()
+                .and_then(Revision::new)
+                .ok_or_else(|| Failure::Usage("bad revision".into()))?;
+            let decision = match arg(args, 5)? {
+                "accept" => Decision::Accept {
+                    candidate_id,
+                    revision,
+                },
+                "reject" => Decision::Reject {
+                    candidate_id,
+                    revision,
+                    reason_code: None,
+                },
+                "edit" => Decision::EditAccept {
+                    candidate_id,
+                    revision,
+                    content: flag(args, "--text")
+                        .ok_or_else(|| Failure::Usage("edit needs --text".into()))?
+                        .to_owned(),
+                    details: None,
+                },
+                _ => return Err(Failure::Usage(USAGE.to_owned())),
+            };
+            let shown = plan_and_confirm(&vault, &[decision])?;
+            Ok(json!({"commit_id": shown.commit_id, "review_id": shown.ids[0].review_id}))
+        }
+        "forget" => {
+            let vault = open(arg(args, 2)?)?;
+            let memory = stored_memory(&vault, &memory_id(arg(args, 3)?)?)?;
+            let decision = delete_candidate(
+                &vault,
+                &memory,
+                DeleteMode::LogicalDelete,
+                DeleteScope::AllRevisions,
+            )?;
+            let shown = plan_and_confirm(&vault, &[decision])?;
+            Ok(json!({"delete_id": shown.ids[0].delete_id, "commit_id": shown.commit_id}))
+        }
+        "purge-preview" => {
+            let vault = open(arg(args, 2)?)?;
+            let impact = purge_preview(
+                &vault,
+                &memory_id(arg(args, 3)?)?,
+                DeleteMode::Purge,
+                scope_of(args),
+            )?;
+            let targets: Vec<Value> = impact
+                .targets
+                .iter()
+                .map(|(k, i, r)| json!({"record_kind": k, "record_id": i, "revision": r}))
+                .collect();
+            let shared: Vec<Value> = impact
+                .shared_raw
+                .iter()
+                .map(|(h, n)| json!({"object_hash": h, "other_sources": n}))
+                .collect();
+            Ok(json!({
+                "targets": targets,
+                "object_hashes": impact.object_hashes,
+                "losing_provenance": impact.losing_provenance,
+                "shared_raw": shared,
+            }))
+        }
+        "purge" => {
+            let vault = open(arg(args, 2)?)?;
+            // A forgotten memory can still be purged.
+            let memory = stored_memory(&vault, &memory_id(arg(args, 3)?)?)?;
+            let decision = delete_candidate(&vault, &memory, DeleteMode::Purge, scope_of(args))?;
+            let shown = plan_and_confirm(&vault, &[decision])?;
+            let done = complete_purge(
+                &vault,
+                &shown.ids[0].delete_id,
+                &owner_of(&vault),
+                shown.nonce.as_bytes(),
+            )?;
+            Ok(json!({
+                "delete_id": shown.ids[0].delete_id,
+                "receipt_id": done.receipt_id,
+                "files_removed": done.files.removed.len(),
+                "orphans_removed": done.files.orphans_removed.len(),
+                "overall_state": "backup_purge_pending",
+            }))
+        }
+        "deletion-ledger" => {
+            let vault = open(arg(args, 2)?)?;
+            let out = PathBuf::from(arg(args, 3)?);
+            if out.starts_with(vault.managed_root().root()) {
+                return Err(Failure::Usage(
+                    "write the ledger outside the data root".into(),
+                ));
+            }
+            let ledger = deletion_ledger(&vault)?;
+            std::fs::write(&out, ledger_bytes(&ledger)).map_err(|e| Failure::Vault(e.into()))?;
+            Ok(json!({"entries": ledger.len()}))
+        }
+        "reconcile" => {
+            let vault = open(arg(args, 2)?)?;
+            let bytes = std::fs::read(arg(args, 3)?).map_err(|e| Failure::Vault(e.into()))?;
+            let ledger = parse_ledger(&bytes)?;
+            let code = sha256(&bytes).as_str()[..8].to_owned();
+            let ids: Vec<String> = ledger.iter().map(|t| t.delete_id.to_string()).collect();
+            typed_code(
+                json!({"ledger_entries": ledger.len(), "delete_ids": ids}),
+                &code,
+            )?;
+            let done = reconcile_deletions(&vault, &ledger, &confirmation(&vault))?;
+            Ok(json!({
+                "applied": done.applied,
+                "already": done.already,
+                "not_present": done.not_present,
+                "network_allowed": network_allowed(&vault)?,
+            }))
+        }
         _ => Err(Failure::Usage(USAGE.to_owned())),
     }
 }
@@ -405,6 +752,10 @@ fn main() -> ExitCode {
         Err(Failure::Usage(text)) => {
             eprintln!("{text}");
             ExitCode::from(1)
+        }
+        Err(Failure::NotConfirmed) => {
+            println!("{}", json!({"error": "not_confirmed"}));
+            ExitCode::from(3)
         }
         Err(Failure::Rejected(reason)) => {
             println!("{}", json!({"error": "root_rejected", "reason": reason}));

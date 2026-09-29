@@ -225,3 +225,93 @@ fn output_never_echoes_record_text() {
     }
     assert!(!out.to_string().contains("SENTINEL"));
 }
+
+impl Installed {
+    /// Run a review command: read the plan line, answer with `answer(plan)`,
+    /// and return the exit code, the plan, and the last line.
+    fn interact(&self, args: &[&str], answer: impl Fn(&Value) -> String) -> (i32, Value, Value) {
+        use std::io::{BufRead, BufReader, Read, Write};
+        use std::process::Stdio;
+        let mut command = Command::new(&self.exe);
+        command
+            .env_clear()
+            .current_dir(&self.cwd)
+            .args(args)
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped());
+        if let Some(root) = std::env::var_os("SystemRoot") {
+            command.env("SystemRoot", &root);
+            command.env("PATH", Path::new(&root).join("System32"));
+        }
+        let mut child = command.spawn().expect("installed binary starts");
+        let mut stdout = BufReader::new(child.stdout.take().unwrap());
+        let mut first = String::new();
+        stdout.read_line(&mut first).unwrap();
+        let plan: Value = serde_json::from_str(first.trim()).unwrap_or(Value::Null);
+        let mut stdin = child.stdin.take().unwrap();
+        writeln!(stdin, "{}", answer(&plan)).unwrap();
+        drop(stdin);
+        let mut rest = String::new();
+        stdout.read_to_string(&mut rest).unwrap();
+        let status = child.wait().unwrap();
+        let last = serde_json::from_str(rest.trim()).unwrap_or(Value::Null);
+        (status.code().unwrap_or(-1), plan, last)
+    }
+}
+
+#[test]
+fn review_commands_show_the_exact_plan_and_need_its_typed_code() {
+    let temp = Temp::new("review");
+    let install = PathBuf::from(temp.dir("install"));
+    let exe = install.join("enouia-memory.exe");
+    std::fs::copy(env!("CARGO_BIN_EXE_enouia-memory"), &exe).unwrap();
+    let cli = Installed {
+        exe,
+        cwd: install.clone(),
+    };
+    let root = temp.dir("vault-root");
+    let (code, _) = cli.run(&["init", &root, "--confirm-new-vault"]);
+    assert_eq!(code, 0);
+    let text = "（合成）我喜欢在周末读纸质书。";
+    let args = [
+        "remember",
+        &root,
+        "--text",
+        text,
+        "--claim",
+        "reading.habit",
+    ];
+    // A wrong code writes no memory.
+    let (code, plan, last) = cli.interact(&args, |_| "nope".into());
+    assert_eq!(code, 3);
+    assert_eq!(last["error"], "not_confirmed");
+    assert!(
+        plan.to_string().contains(text),
+        "the owner sees the exact words"
+    );
+    let (_, memories) = cli.run(&["memories", &root]);
+    assert_eq!(memories["memories"].as_array().unwrap().len(), 0);
+    let (_, pending) = cli.run(&["candidates", &root]);
+    assert_eq!(pending["pending"].as_array().unwrap().len(), 1);
+    // The typed code confirms; the pending duplicate is reused.
+    let code_of = |plan: &Value| plan["confirm_code"].as_str().unwrap_or_default().to_owned();
+    let (code, _, last) = cli.interact(&args, code_of);
+    assert_eq!(code, 0, "{last}");
+    let (_, memories) = cli.run(&["memories", &root]);
+    let list = memories["memories"].as_array().unwrap();
+    assert_eq!(list.len(), 1);
+    assert_eq!(list[0]["content"], text);
+    let memory = list[0]["memory_id"].as_str().unwrap().to_owned();
+    // Forgetting goes through the same plan and code.
+    let (code, plan, last) = cli.interact(&["forget", &root, &memory], code_of);
+    assert_eq!(code, 0, "{last}");
+    assert_eq!(plan["plan"]["operation"], "logical_delete");
+    let (_, memories) = cli.run(&["memories", &root, "--all"]);
+    assert_eq!(memories["memories"].as_array().unwrap().len(), 0);
+    // The deletion ledger goes outside the data root and holds no text.
+    let ledger = PathBuf::from(temp.dir("ledger")).join("deletions.json");
+    let (code, out) = cli.run(&["deletion-ledger", &root, &ledger.display().to_string()]);
+    assert_eq!(code, 0, "{out}");
+    assert_eq!(out["entries"], 1);
+    assert!(!std::fs::read_to_string(&ledger).unwrap().contains("纸质书"));
+}
