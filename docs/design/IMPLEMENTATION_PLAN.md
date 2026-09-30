@@ -100,6 +100,8 @@ flowchart LR
 
 ## 8. MV-4 — Index 与 Retrieval
 
+> **v1.1：** MV-4 已用合成数据实现，见 [MV-4 报告](../validation/MV-4.md)（ADR-MEM-42）。SQLite/FTS5 投影可删除重建，带提交水位与 known_at 区间；三字以上走 trigram，一两字走有界子串扫描；权限与删除在返回前过滤；排序 rank-1 由黄金集冻结。R01～R06 通过（R04 仅验证了允许/拒绝两种主体）。构建需要 MinGW C 编译器。
+
 1. **MV-4.1 索引投影**：SQLite/FTS 与 record/project/source/time 关系，水位、取消、增量更新、全量重建。
 2. **MV-4.2 中文检索**：实体别名、三字以上子串与一/双字 fallback；测试中英日混合和字面转义。
 3. **MV-4.3 权限与历史**：过滤后召回、as_of/known_at、删除屏障、分页 cursor、防隐藏内容泄漏。
