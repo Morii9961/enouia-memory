@@ -1,4 +1,4 @@
-﻿//! MV-1.2: the synthetic lifecycle (genesis 鈫?import 鈫?sessions 鈫?candidates
+//! MV-1.2: the synthetic lifecycle (genesis 鈫?import 鈫?sessions 鈫?candidates
 //! 鈫?reviews with supersession 鈫?logical delete) replayed as real commits.
 //! Every manifest the store writes must equal the frozen fixture manifest
 //! (except the store-generated operation ID), every record must read back

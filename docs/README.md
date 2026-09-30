@@ -9,7 +9,7 @@ All project documentation lives under `docs/`.
 | [handoff/](handoff/) | Startup prompts: the original MV-0 prompt (superseded) and the MV-0R correction prompt | Historical or current task inputs, not standing authorization |
 | [adr/](adr/README.md) | Decision register: design ADR-MEM-01…18 and implementation ADR-MEM-19…38 | Current |
 | [contracts/](contracts/CONTRACT_NOTES.md) | Contract notes and the [constraint enforcement map](contracts/CONSTRAINT_MAP.md) | Current (MV-0R) |
-| [validation/](validation/MV-4.md) | Stage evidence: the [MV-0R](validation/MV-0R.md), [MV-1](validation/MV-1.md), [MV-2](validation/MV-2.md), [MV-3](validation/MV-3.md), and [MV-4](validation/MV-4.md) reports | Current |
+| [validation/](validation/MV-5.md) | Stage evidence: the [MV-0R](validation/MV-0R.md), [MV-1](validation/MV-1.md), [MV-2](validation/MV-2.md), [MV-3](validation/MV-3.md), [MV-4](validation/MV-4.md), and [MV-5](validation/MV-5.md) reports | Current |
 | [history/](history/) | The MV-0 draft report and ADR draft written in the Runtime working tree, kept as history | Historical |
 | `history/private/` | Original v0.1 working draft. It contains personal examples, so it is kept locally and ignored by Git | Private, not published |
 

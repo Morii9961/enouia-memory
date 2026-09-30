@@ -111,6 +111,8 @@ flowchart LR
 
 ## 9. MV-5 — Context、Session 与 Mock 闭环
 
+> **v1.1：** MV-5 已用合成数据实现，见 [MV-5 报告](../validation/MV-5.md)（ADR-MEM-43）。capsule、inspection、dispatch 作为 catalog 记录保存，Mock 只读已保存 capsule 并按 dispatch hash 复核实际请求；会话先存输入，checkpoint 为 provisional 并带覆盖 hash。C01～C08、S01～S04 通过；预算按 UTF-8 字节计，真实 tokenizer 与外发状态留给 MV-7。
+
 1. **MV-5.1 Compiler**：当前性、来源、敏感/目的地过滤、版本化排序、budget 与溢出、解释原因。
 2. **MV-5.2 Session**：用户输入先保存、流式中断语义、turn 状态、checkpoint 与覆盖、跨窗口/分支恢复。
 3. **MV-5.3 Mock**：读取真实保存 capsule，返回确定性来源，不联网。保存实际检查记录，不隐藏另一套上下文。
