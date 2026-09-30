@@ -42,9 +42,12 @@ pub fn contains_secret_material(text: &str) -> bool {
 /// or IPC detail: drive letters, UNC shares, and common home-directory roots.
 pub fn contains_local_path(text: &str) -> bool {
     let bytes = text.as_bytes();
-    let drive = bytes
-        .windows(3)
-        .any(|w| w[0].is_ascii_alphabetic() && w[1] == b':' && (w[2] == b'\\' || w[2] == b'/'));
+    let drive = bytes.windows(3).enumerate().any(|(i, w)| {
+        w[0].is_ascii_alphabetic()
+            && w[1] == b':'
+            && (w[2] == b'\\' || w[2] == b'/')
+            && (i == 0 || !bytes[i - 1].is_ascii_alphanumeric())
+    });
     drive
         || text.contains("\\\\")
         || text.contains("/Users/")
@@ -88,5 +91,7 @@ mod tests {
         assert!(contains_local_path(r"C:\Users\someone\vault"));
         assert!(contains_local_path(r"\\server\share"));
         assert!(!contains_local_path("json_pointer /mapping/2/message"));
+        assert!(!contains_local_path("https://example.invalid/path"));
+        assert!(contains_local_path("stored at C:/private/vault"));
     }
 }

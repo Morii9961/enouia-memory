@@ -40,6 +40,51 @@ struct Installed {
     cwd: PathBuf,
 }
 
+#[test]
+fn installed_session_context_and_mock_survive_each_process_restart() {
+    let temp = Temp::new("continuity");
+    let install = PathBuf::from(temp.dir("install"));
+    let exe = install.join("enouia-memory.exe");
+    std::fs::copy(env!("CARGO_BIN_EXE_enouia-memory"), &exe).unwrap();
+    let cli = Installed { exe, cwd: install };
+    let root = temp.dir("vault-root");
+    let (code, init) = cli.run(&["init", &root, "--confirm-new-vault"]);
+    assert_eq!(code, 0, "{init}");
+    let (code, started) = cli.run(&["session-new", &root, "--confirm-new-session", "--key", "start"]);
+    assert_eq!(code, 0, "{started}");
+    let sid = started["session_id"].as_str().unwrap();
+    let bid = started["branch_id"].as_str().unwrap();
+    let request = "req_00000001-0000-4000-8000-000000000001";
+    let query = "（合成）MoriMeta 是否实现？";
+    let (code, saved) = cli.run(&["session-input", &root, sid, bid, "--text", query, "--request", request, "--key", "input"]);
+    assert_eq!(code, 0, "{saved}");
+    let eid = saved["event_id"].as_str().unwrap();
+    let (_, pending) = cli.run(&["session-status", &root, sid, bid]);
+    assert_eq!(pending["turns"][0]["state"], "pending");
+    let (code, preview) = cli.run(&["context", &root, query, "--session", sid, "--branch", bid, "--request", request]);
+    assert_eq!(code, 0, "{preview}");
+    let cap = preview["capsule_id"].as_str().unwrap();
+    assert_eq!(preview["state"], "saved_preview");
+    assert_eq!(preview["memory_count"], 0);
+    let (code, answered) = cli.run(&["mock", &root, cap, "--input", eid]);
+    assert_eq!(code, 0, "{answered}");
+    assert_eq!(answered["status"], "no_supported_evidence");
+    let dispatch = answered["dispatch_id"].as_str().unwrap();
+    let (code, inspected) = cli.run(&["mock-inspect", &root, dispatch]);
+    assert_eq!(code, 0, "{inspected}");
+    assert_eq!(inspected["request_hash"], answered["request_hash"]);
+    assert_eq!(inspected["messages"][1]["text"], query);
+    let (_, completed) = cli.run(&["session-status", &root, sid, bid]);
+    assert_eq!(completed["turns"][0]["state"], "completed");
+    let (_, replay) = cli.run(&["mock", &root, cap, "--input", eid]);
+    assert_eq!(answered, replay);
+    let (code, checkpoint) = cli.run(&["session-checkpoint", &root, sid, bid, "--summary", "（合成）尚无实现证据。", "--key", "checkpoint"]);
+    assert_eq!(code, 0, "{checkpoint}");
+    assert_eq!(checkpoint["status"], "provisional");
+    let (_, verify) = cli.run(&["verify", &root]);
+    assert_eq!(verify["clean"], true, "{verify}");
+}
+
 impl Installed {
     fn run(&self, args: &[&str]) -> (i32, Value) {
         let mut command = Command::new(&self.exe);

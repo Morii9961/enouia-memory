@@ -79,14 +79,35 @@ pub fn fill_random(buffer: &mut [u8]) -> io::Result<()> {
 pub fn replace_durable(from: &Path, to: &Path) -> io::Result<()> {
     let from = wide(from.as_os_str());
     let to = wide(to.as_os_str());
-    // SAFETY: both buffers are NUL-terminated UTF-16 strings that outlive the call.
-    check(unsafe {
-        MoveFileExW(
-            from.as_ptr(),
-            to.as_ptr(),
-            MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH,
-        )
+    // A reader (or scanner) can briefly hold the destination in a state where
+    // NTFS refuses replacement with ACCESS_DENIED or SHARING_VIOLATION. Retry
+    // the same rename only; never unlink CURRENT or report a failed publication
+    // as committed. Permanent permission errors still fail within one second.
+    retry_replacement(|| {
+        // SAFETY: both buffers are NUL-terminated UTF-16 strings that outlive the call.
+        check(unsafe {
+            MoveFileExW(
+                from.as_ptr(),
+                to.as_ptr(),
+                MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH,
+            )
+        })
     })
+}
+
+fn retry_replacement(mut replace: impl FnMut() -> io::Result<()>) -> io::Result<()> {
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(1);
+    loop {
+        match replace() {
+            Err(error)
+                if matches!(error.raw_os_error(), Some(5 | 32))
+                    && std::time::Instant::now() < deadline =>
+            {
+                std::thread::sleep(std::time::Duration::from_millis(2));
+            }
+            outcome => return outcome,
+        }
+    }
 }
 
 /// NTFS journals directory metadata, and every rename above is write-through,
@@ -354,4 +375,83 @@ pub fn has_cloud_attributes(metadata: &std::fs::Metadata) -> bool {
 pub fn is_reparse_point(metadata: &std::fs::Metadata) -> bool {
     use std::os::windows::fs::MetadataExt;
     metadata.file_attributes() & 0x0000_0400 != 0
+}
+
+#[cfg(test)]
+mod replacement_tests {
+    use super::*;
+
+    #[test]
+    fn transient_reader_errors_retry_the_same_publication() {
+        let mut attempts = 0;
+        retry_replacement(|| {
+            attempts += 1;
+            match attempts {
+                1 => Err(io::Error::from_raw_os_error(5)),
+                2 => Err(io::Error::from_raw_os_error(32)),
+                _ => Ok(()),
+            }
+        })
+        .unwrap();
+        assert_eq!(attempts, 3);
+    }
+
+    #[test]
+    fn other_errors_are_not_retried() {
+        let mut attempts = 0;
+        let error = retry_replacement(|| {
+            attempts += 1;
+            Err(io::Error::from_raw_os_error(112))
+        })
+        .unwrap_err();
+        assert_eq!(attempts, 1);
+        assert_eq!(error.raw_os_error(), Some(112));
+    }
+
+    #[test]
+    fn an_actual_open_destination_refuses_rename_then_releases_it() {
+        use std::os::windows::fs::OpenOptionsExt;
+        let root = std::env::temp_dir().join(format!(
+            "enouia-memory-rename-{}-{}",
+            std::process::id(),
+            crate::fs::hex(&super::super::random_bytes::<8>().unwrap())
+        ));
+        std::fs::create_dir_all(&root).unwrap();
+        let from = root.join("new");
+        let to = root.join("CURRENT");
+        std::fs::write(&from, b"new").unwrap();
+        std::fs::write(&to, b"old").unwrap();
+        let held = std::fs::OpenOptions::new()
+            .read(true)
+            .share_mode(0)
+            .open(&to)
+            .unwrap();
+        let from_w = wide(from.as_os_str());
+        let to_w = wide(to.as_os_str());
+        // SAFETY: live, NUL-terminated path buffers; isolated test files only.
+        let first = check(unsafe {
+            MoveFileExW(
+                from_w.as_ptr(),
+                to_w.as_ptr(),
+                MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH,
+            )
+        })
+        .unwrap_err();
+        assert!(matches!(first.raw_os_error(), Some(5 | 32)));
+        assert_eq!(std::fs::read(&from).unwrap(), b"new");
+        let writer = std::thread::spawn(move || replace_durable(&from, &to));
+        std::thread::sleep(std::time::Duration::from_millis(10));
+        drop(held);
+        writer.join().unwrap().unwrap();
+        assert_eq!(std::fs::read(root.join("CURRENT")).unwrap(), b"new");
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn persistent_access_denial_is_bounded_and_never_success() {
+        let started = std::time::Instant::now();
+        let error = retry_replacement(|| Err(io::Error::from_raw_os_error(5))).unwrap_err();
+        assert_eq!(error.raw_os_error(), Some(5));
+        assert!(started.elapsed() < std::time::Duration::from_secs(3));
+    }
 }

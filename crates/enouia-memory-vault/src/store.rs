@@ -210,6 +210,9 @@ fn id_field(kind: RecordKind) -> Option<&'static str> {
         RecordKind::Approval => "approval_id",
         RecordKind::Policy => "policy_id",
         RecordKind::Import => "import_id",
+        RecordKind::Capsule => "capsule_id",
+        RecordKind::Inspection => "inspection_id",
+        RecordKind::Dispatch => "dispatch_id",
         _ => return None,
     })
 }
@@ -1047,6 +1050,9 @@ impl Vault {
                     .content_ref
                     .as_ref()
                     .is_some_and(|c| c.object_hash == object.hash),
+                AnyRecord::Dispatch(dispatch) => dispatch.messages.iter().any(|m| {
+                    m.content_hash == object.hash && m.size_bytes == object.bytes.len() as u64
+                }),
                 _ => false,
             });
             if !referenced {
@@ -1382,7 +1388,12 @@ impl Vault {
                         && let Ok((commit, _)) = self.load_commit(&id, None)
                         && self.on_chain(head, &commit.commit_id, commit.sequence)?
                     {
-                        set.commits.push(stub_of(&commit));
+                        let mut manifest = stub_of(&commit);
+                        // Context validation selects exact known_at memory and
+                        // policy revisions from the referenced commit's catalog.
+                        // Headers alone cannot prove a saved capsule's snapshot.
+                        manifest.catalog = self.read_manifest(&Self::pin_of(&commit))?.catalog;
+                        set.commits.push(manifest);
                     }
                 }
                 _ => {}

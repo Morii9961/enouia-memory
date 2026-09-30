@@ -50,6 +50,9 @@ pub fn record_path(kind: RecordKind, id: &str, revision: Revision) -> Option<Str
         RecordKind::Policy => "policy",
         RecordKind::Review => return Some(format!("{VAULT_DIR}/records/review/{id}.json")),
         RecordKind::Approval => return Some(format!("{VAULT_DIR}/records/approval/{id}.json")),
+        RecordKind::Capsule => return Some(format!("{VAULT_DIR}/records/capsule/{id}.json")),
+        RecordKind::Inspection => return Some(format!("{VAULT_DIR}/records/inspection/{id}.json")),
+        RecordKind::Dispatch => return Some(format!("{VAULT_DIR}/records/dispatch/{id}.json")),
         RecordKind::Tombstone => return Some(format!("{VAULT_DIR}/records/tombstone/{id}.json")),
         RecordKind::PurgeReceipt => {
             return Some(format!("{VAULT_DIR}/records/receipt/{id}.json"));

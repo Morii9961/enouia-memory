@@ -89,16 +89,11 @@ impl RecordKind {
     }
 
     /// Kinds a Vault stores as record files (and catalogs). Commits,
-    /// audit events, and request artifacts are not records in a catalog.
+    /// audit events and capability snapshots are not records in a catalog.
     pub const fn is_stored(self) -> bool {
         !matches!(
             self,
-            Self::Commit
-                | Self::AuditEvent
-                | Self::Capsule
-                | Self::Inspection
-                | Self::Dispatch
-                | Self::ProviderCapabilities
+            Self::Commit | Self::AuditEvent | Self::ProviderCapabilities
         )
     }
 

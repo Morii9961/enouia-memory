@@ -43,11 +43,24 @@ dependencies = [
 name = "enouia-memory-cli"
 version = "0.1.0"
 dependencies = [
+ "enouia-memory-context",
  "enouia-memory-contract",
  "enouia-memory-govern",
  "enouia-memory-import",
  "enouia-memory-index",
  "enouia-memory-vault",
+ "serde_json",
+]
+
+[[package]]
+name = "enouia-memory-context"
+version = "0.1.0"
+dependencies = [
+ "enouia-memory-contract",
+ "enouia-memory-govern",
+ "enouia-memory-index",
+ "enouia-memory-vault",
+ "serde",
  "serde_json",
 ]
 

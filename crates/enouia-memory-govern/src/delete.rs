@@ -138,6 +138,9 @@ fn impact(
             id.to_owned(),
             Some(memory.revision.get()),
         ));
+        if mode == DeleteMode::Purge {
+            add_context_dependents(vault, pin, &mut out)?;
+        }
         return Ok(out);
     }
     out.targets.push((RecordKind::Memory, id.to_owned(), None));
@@ -183,6 +186,7 @@ fn impact(
         }
     }
     if scope != DeleteScope::WithDependents {
+        add_context_dependents(vault, pin, &mut out)?;
         return Ok(out);
     }
     let mut purged_sources: BTreeSet<String> = BTreeSet::new();
@@ -238,7 +242,116 @@ fn impact(
             out.losing_provenance.push(other.memory_id.clone());
         }
     }
+    add_context_dependents(vault, pin, &mut out)?;
     Ok(out)
+}
+
+/// Saved context and exact Mock bodies are content stores now (MV-5). Purge
+/// follows their explicit references, including derived assistant events and
+/// checkpoints. It never leaves a capsule containing the purged statement.
+fn add_context_dependents(vault: &Vault, pin: &CommitPin, out: &mut PurgeImpact) -> Result<()> {
+    use enouia_memory_contract::context::{ContextCapsule, ContextInspection, DispatchRecord};
+    use enouia_memory_contract::session::{
+        CheckpointSourceRef, Coverage, EventKind, SessionCheckpoint, SessionEvent,
+    };
+    let capsules: Vec<ContextCapsule> = all_latest(vault, pin, RecordKind::Capsule)?;
+    let inspections: Vec<ContextInspection> = all_latest(vault, pin, RecordKind::Inspection)?;
+    let dispatches: Vec<DispatchRecord> = all_latest(vault, pin, RecordKind::Dispatch)?;
+    let events: Vec<SessionEvent> = all_latest(vault, pin, RecordKind::SessionEvent)?;
+    let checkpoints: Vec<SessionCheckpoint> = all_latest(vault, pin, RecordKind::Checkpoint)?;
+    let mut targets: BTreeSet<(RecordKind, String)> = out
+        .targets
+        .iter()
+        .map(|(k, id, _)| (*k, id.clone()))
+        .collect();
+    let mut hashes: BTreeSet<_> = out.object_hashes.iter().cloned().collect();
+    loop {
+        let previous = targets.len();
+        let has = |kind, id: &str| targets.contains(&(kind, id.to_owned()));
+        let affected: Vec<_> = capsules
+            .iter()
+            .filter(|c| {
+                has(RecordKind::Capsule, c.capsule_id.as_str())
+                    || c.memory_items()
+                        .any(|m| has(RecordKind::Memory, m.memory_id.as_str()))
+                    || c.provenance
+                        .iter()
+                        .any(|s| has(RecordKind::Source, s.source_id.as_str()))
+                    || c.recent_turns
+                        .iter()
+                        .any(|e| has(RecordKind::SessionEvent, e.event_id.as_str()))
+                    || c.recent_session_checkpoints
+                        .iter()
+                        .any(|p| has(RecordKind::Checkpoint, p.checkpoint_id.as_str()))
+            })
+            .collect();
+        for capsule in affected {
+            targets.insert((RecordKind::Capsule, capsule.capsule_id.to_string()));
+            for inspection in inspections
+                .iter()
+                .filter(|i| i.capsule_id == capsule.capsule_id)
+            {
+                targets.insert((RecordKind::Inspection, inspection.inspection_id.to_string()));
+            }
+            for dispatch in dispatches
+                .iter()
+                .filter(|d| d.capsule_id == capsule.capsule_id)
+            {
+                targets.insert((RecordKind::Dispatch, dispatch.dispatch_id.to_string()));
+                hashes.extend(dispatch.messages.iter().map(|m| m.content_hash.clone()));
+            }
+            for event in events.iter().filter(|e| {
+                e.request_id.as_ref() == Some(&capsule.request_id)
+                    && matches!(
+                        e.kind,
+                        EventKind::AssistantCompleted | EventKind::AssistantChunk
+                    )
+            }) {
+                targets.insert((RecordKind::SessionEvent, event.event_id.to_string()));
+                if let Some(content) = &event.content_ref {
+                    hashes.insert(content.object_hash.clone());
+                }
+            }
+        }
+        for checkpoint in &checkpoints {
+            let affected=events.iter().any(|e|targets.contains(&(RecordKind::SessionEvent,e.event_id.to_string())) && e.session_id==checkpoint.session_id && match &checkpoint.coverage {
+                Coverage::EventIds{event_ids}=>event_ids.contains(&e.event_id),Coverage::Range{from_sequence,to_sequence}=>e.sequence>=*from_sequence&&e.sequence<=*to_sequence,
+            }) ||checkpoint.decisions.iter().chain(&checkpoint.open_loops).any(|i|i.source_refs.iter().any(|s|matches!(s,CheckpointSourceRef::Source{source_id,..} if targets.contains(&(RecordKind::Source,source_id.to_string())))));
+            if affected {
+                targets.insert((RecordKind::Checkpoint, checkpoint.checkpoint_id.to_string()));
+            }
+        }
+        // Content addressing means an exact message body can be shared with
+        // another event/dispatch; preview and purge include those references.
+        for event in &events {
+            if event
+                .content_ref
+                .as_ref()
+                .is_some_and(|c| hashes.contains(&c.object_hash))
+            {
+                targets.insert((RecordKind::SessionEvent, event.event_id.to_string()));
+            }
+        }
+        for dispatch in &dispatches {
+            if dispatch
+                .messages
+                .iter()
+                .any(|m| hashes.contains(&m.content_hash))
+            {
+                targets.insert((RecordKind::Dispatch, dispatch.dispatch_id.to_string()));
+            }
+        }
+        if targets.len() == previous {
+            break;
+        }
+    }
+    for (kind, id) in targets {
+        if !out.targets.iter().any(|(k, i, _)| *k == kind && i == &id) {
+            out.targets.push((kind, id, None));
+        }
+    }
+    out.object_hashes = hashes.into_iter().collect();
+    Ok(())
 }
 
 /// What deleting `memory_id` in this way would cover and break.
@@ -381,9 +494,9 @@ pub fn complete_purge(
             store("raw", raw),
             store("assets", false),
             store("candidates", has(RecordKind::Candidate)),
-            store("sessions", false),
-            store("checkpoints", false),
-            store("capsules", false),
+            store("sessions", has(RecordKind::SessionEvent) || has(RecordKind::Dispatch)),
+            store("checkpoints", has(RecordKind::Checkpoint)),
+            store("capsules", has(RecordKind::Capsule)),
             store("index", false),
             store("embeddings", false),
             store("staging", false),
