@@ -10,6 +10,7 @@ path = "src/main.rs"
 
 [dependencies]
 enouia-memory-contract = { path = "../enouia-memory-contract" }
+enouia-memory-context = { path = "../enouia-memory-context" }
 enouia-memory-govern = { path = "../enouia-memory-govern" }
 enouia-memory-import = { path = "../enouia-memory-import" }
 enouia-memory-index = { path = "../enouia-memory-index" }

@@ -19,6 +19,12 @@ use support::Harness;
 
 #[test]
 fn readers_pinned_during_concurrent_commits_always_see_whole_commits() {
+    for _ in 0..16 {
+        concurrent_snapshot_once();
+    }
+}
+
+fn concurrent_snapshot_once() {
     let harness = Arc::new(Harness::with_commits("snapshot-race", 1));
     let done = Arc::new(AtomicBool::new(false));
     let reader = {
@@ -44,7 +50,13 @@ fn readers_pinned_during_concurrent_commits_always_see_whole_commits() {
         })
     };
     for index in 2..harness.lifecycle.commits.len() {
-        harness.apply(index);
+        harness.clock.set(harness.lifecycle.time(index));
+        let result = harness.vault.commit(harness.lifecycle.request(index));
+        if let Err(error) = result {
+            done.store(true, Ordering::SeqCst);
+            reader.join().unwrap();
+            panic!("commit {index}: {error}");
+        }
     }
     done.store(true, Ordering::SeqCst);
     let checks = reader.join().unwrap();
@@ -53,7 +65,11 @@ fn readers_pinned_during_concurrent_commits_always_see_whole_commits() {
 
 #[test]
 fn deletions_after_the_pin_are_enforced_before_content_leaves() {
-    let last = support::Lifecycle::load().commits.len() - 1;
+    let last = support::Lifecycle::load()
+        .commits
+        .iter()
+        .position(|c| !c["tombstone_ids"].as_array().unwrap().is_empty())
+        .expect("the lifecycle has a logical delete");
     let harness = Harness::with_commits("snapshot-delete", last - 1);
     let old = harness.vault.pin_current().unwrap();
     let request = harness.lifecycle.request(last);
@@ -62,7 +78,7 @@ fn deletions_after_the_pin_are_enforced_before_content_leaves() {
             .records
             .iter()
             .find(|r| r.record_kind == RecordKind::Tombstone)
-            .expect("the last lifecycle commit is a logical delete")
+            .expect("the delete commit carries its tombstone")
             .bytes,
     )
     .unwrap();

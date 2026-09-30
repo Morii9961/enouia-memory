@@ -1,7 +1,8 @@
 //! `enouia-memory`: the minimal controlled local entry point for MV-1
 //! (IMPLEMENTATION_PLAN §5). Every command takes an explicit data root; the
 //! CLI never creates or guesses a default location. Output is one JSON
-//! object on stdout with IDs, counts, states, and error codes only.
+//! object on stdout with IDs, counts, states, and error codes; the explicitly
+//! named local inspection commands also show the requested saved content.
 //!
 //! Owner-confirmed actions (new Vault, recovery adoption, restore, manual
 //! assertion) require an explicit confirmation argument on this trusted local
@@ -12,12 +13,15 @@
 //! then read the typed code from stdin; only an exact match commits. Their
 //! last line is the result.
 
+use enouia_memory_context::{CompileInput, answer_saved, compile, session};
 use enouia_memory_contract::candidate::ProposedType;
 use enouia_memory_contract::commit::{DeleteMode, DeleteScope};
 use enouia_memory_contract::common::{
     ActorRef, ActorType, Sensitivity, TimePrecision, TrustedSurface,
 };
+use enouia_memory_contract::context::{ContextCapsule, ContextInspection};
 use enouia_memory_contract::hash::sha256;
+use enouia_memory_contract::ids::{BranchId, CapsuleId, DispatchId, EventId, RequestId, SessionId};
 use enouia_memory_contract::ids::{
     CandidateId, CommitId, ImportId, MemoryId, PolicyId, PrincipalId,
 };
@@ -26,6 +30,7 @@ use enouia_memory_contract::memory::CanonicalMemory;
 use enouia_memory_contract::ports::IdSource;
 use enouia_memory_contract::record::RecordKind;
 use enouia_memory_contract::record::RecordRef;
+use enouia_memory_contract::session::{ClientSurface, EventKind};
 use enouia_memory_contract::source::ConfirmationMethod;
 use enouia_memory_contract::store::{VaultDescriptor, parse_store};
 use enouia_memory_govern::delete::{
@@ -78,7 +83,17 @@ const USAGE: &str = "usage: enouia-memory <command> ...
   reconcile <dir> <ledger-file>                           (summary, then type its code)
   index <dir>
   index-rebuild <dir>
-  search <dir> <query> [--limit <n>] [--cursor <c>] [--historical]";
+  search <dir> <query> [--limit <n>] [--cursor <c>] [--historical]
+  session-new <dir> --confirm-new-session [--key <key>]
+  session-status <dir> <session_id> <branch_id>
+  session-input <dir> <session_id> <branch_id> --text <text> --request <request_id> --key <key>
+  session-output <dir> <input_event_id> partial|completed|cancelled|failed [--text <text>] --key <key>
+  session-fork <dir> <session_id> <terminal_event_id> --key <key>
+  session-checkpoint <dir> <session_id> <branch_id> --summary <text> --key <key>
+  context <dir> <query> [--session <session_id> --branch <branch_id>] [--request <request_id>]
+  context-inspect <dir> <capsule_id>                        (explicit local content view)
+  mock <dir> <capsule_id> [--input <input_event_id>]
+  mock-inspect <dir> <dispatch_id>                         (explicit local request view)";
 
 enum Failure {
     Usage(String),
@@ -268,6 +283,204 @@ fn scope_of(args: &[String]) -> DeleteScope {
 fn run(args: &[String]) -> Outcome {
     let command = arg(args, 1)?;
     match command {
+        "session-new" => {
+            if !has(args, "--confirm-new-session") {
+                return Err(Failure::Usage(
+                    "session-new needs --confirm-new-session".into(),
+                ));
+            }
+            let vault = open(arg(args, 2)?)?;
+            let owner = owner_of(&vault);
+            let key = flag(args, "--key")
+                .map(str::to_owned)
+                .unwrap_or_else(|| RequestId::from_random(vault.random_id_bytes()).to_string());
+            let written = session::start(
+                &vault,
+                &enouia_memory_vault::service::SessionStart {
+                    owner,
+                    surface: ClientSurface::LocalCli,
+                    sensitivity: Sensitivity::Private,
+                    policy_id: genesis_policy(&vault)?,
+                },
+                key.as_bytes(),
+            )?;
+            Ok(json!({"session_id":written.id.0,"branch_id":written.id.1,"saved":true}))
+        }
+        "session-status" => {
+            let vault = open(arg(args, 2)?)?;
+            let sid = SessionId::parse(arg(args, 3)?)
+                .map_err(|_| Failure::Usage("bad session_id".into()))?;
+            let bid = BranchId::parse(arg(args, 4)?)
+                .map_err(|_| Failure::Usage("bad branch_id".into()))?;
+            Ok(json!({"turns":session::turns(&vault,&owner_of(&vault),&sid,&bid)?}))
+        }
+        "session-input" => {
+            let vault = open(arg(args, 2)?)?;
+            let sid = SessionId::parse(arg(args, 3)?)
+                .map_err(|_| Failure::Usage("bad session_id".into()))?;
+            let bid = BranchId::parse(arg(args, 4)?)
+                .map_err(|_| Failure::Usage("bad branch_id".into()))?;
+            let text = flag(args, "--text").ok_or_else(|| Failure::Usage("need --text".into()))?;
+            let key = flag(args, "--key").ok_or_else(|| Failure::Usage("need --key".into()))?;
+            let request = RequestId::parse(
+                flag(args, "--request").ok_or_else(|| Failure::Usage("need --request".into()))?,
+            )
+            .map_err(|_| Failure::Usage("bad request_id".into()))?;
+            let written = session::save_input(
+                &vault,
+                &owner_of(&vault),
+                &sid,
+                &bid,
+                text,
+                &request,
+                key.as_bytes(),
+            )?;
+            Ok(json!({"event_id":written.id,"request_id":request,"saved":true}))
+        }
+        "session-output" => {
+            let vault = open(arg(args, 2)?)?;
+            let input =
+                EventId::parse(arg(args, 3)?).map_err(|_| Failure::Usage("bad event_id".into()))?;
+            let kind = match arg(args, 4)? {
+                "partial" => EventKind::AssistantChunk,
+                "completed" => EventKind::AssistantCompleted,
+                "cancelled" => EventKind::TurnCancelled,
+                "failed" => EventKind::TurnFailed,
+                _ => return Err(Failure::Usage("bad output state".into())),
+            };
+            let key = flag(args, "--key").ok_or_else(|| Failure::Usage("need --key".into()))?;
+            let written = session::append_output(
+                &vault,
+                &owner_of(&vault),
+                &input,
+                kind,
+                flag(args, "--text"),
+                key.as_bytes(),
+            )?;
+            Ok(json!({"event_id":written.id,"delivery_state":kind.delivery_state(),"saved":true}))
+        }
+        "session-fork" => {
+            let vault = open(arg(args, 2)?)?;
+            let sid = SessionId::parse(arg(args, 3)?)
+                .map_err(|_| Failure::Usage("bad session_id".into()))?;
+            let event =
+                EventId::parse(arg(args, 4)?).map_err(|_| Failure::Usage("bad event_id".into()))?;
+            let key = flag(args, "--key").ok_or_else(|| Failure::Usage("need --key".into()))?;
+            let written = session::fork(&vault, &owner_of(&vault), &sid, &event, key.as_bytes())?;
+            Ok(json!({"branch_id":written.id,"saved":true}))
+        }
+        "session-checkpoint" => {
+            let vault = open(arg(args, 2)?)?;
+            let sid = SessionId::parse(arg(args, 3)?)
+                .map_err(|_| Failure::Usage("bad session_id".into()))?;
+            let bid = BranchId::parse(arg(args, 4)?)
+                .map_err(|_| Failure::Usage("bad branch_id".into()))?;
+            let key = flag(args, "--key").ok_or_else(|| Failure::Usage("need --key".into()))?;
+            let summary =
+                flag(args, "--summary").ok_or_else(|| Failure::Usage("need --summary".into()))?;
+            let written = session::checkpoint(
+                &vault,
+                &owner_of(&vault),
+                &sid,
+                &bid,
+                &session::CheckpointInput {
+                    summary: summary.into(),
+                    decisions: vec![],
+                    open_loops: vec![],
+                },
+                key.as_bytes(),
+            )?;
+            Ok(json!({"checkpoint_id":written.id,"status":"provisional","saved":true}))
+        }
+        "context" => {
+            let vault = open(arg(args, 2)?)?;
+            let mut index = Index::open(&vault)?;
+            index.update(&vault, &|| false)?;
+            let request = match flag(args, "--request") {
+                Some(id) => {
+                    RequestId::parse(id).map_err(|_| Failure::Usage("bad request_id".into()))?
+                }
+                None => RequestId::from_random(vault.random_id_bytes()),
+            };
+            let mut input = CompileInput::local(arg(args, 3)?, owner_of(&vault), request);
+            input.output_tokens = 4096;
+            input.session_id = flag(args, "--session")
+                .map(SessionId::parse)
+                .transpose()
+                .map_err(|_| Failure::Usage("bad session_id".into()))?;
+            input.branch_id = flag(args, "--branch")
+                .map(BranchId::parse)
+                .transpose()
+                .map_err(|_| Failure::Usage("bad branch_id".into()))?;
+            let compiled = compile(&vault, &index, &input)?;
+            Ok(
+                json!({"capsule_id":compiled.capsule.capsule_id,"inspection_id":compiled.inspection.inspection_id,"request_id":compiled.capsule.request_id,"memory_count":compiled.capsule.memory_items().count(),"budget":compiled.capsule.budget,"completeness":compiled.capsule.completeness,"state":"saved_preview"}),
+            )
+        }
+        "context-inspect" => {
+            let vault = open(arg(args, 2)?)?;
+            let id = CapsuleId::parse(arg(args, 3)?)
+                .map_err(|_| Failure::Usage("bad capsule_id".into()))?;
+            let pin = vault.pin_current()?;
+            let capsule: ContextCapsule =
+                enouia_memory_contract::parse_record(&vault.read_record(
+                    &pin,
+                    &RecordRef::new(
+                        RecordKind::Capsule,
+                        id.as_str(),
+                        Revision::new(1).expect("one"),
+                    ),
+                )?)
+                .map_err(|_| Failure::Rejected("invalid capsule".into()))?;
+            // Use the same current deletion/policy gate as actual dispatch.
+            enouia_memory_context::compiler::validate_saved(&vault, &owner_of(&vault), &capsule)?;
+            let entry = vault
+                .record_entries(&pin, RecordKind::Inspection)?
+                .into_iter()
+                .find(|e| {
+                    vault
+                        .read_record(
+                            &pin,
+                            &RecordRef::new(RecordKind::Inspection, &e.record_id, e.revision),
+                        )
+                        .ok()
+                        .and_then(|b| {
+                            enouia_memory_contract::parse_record::<ContextInspection>(&b).ok()
+                        })
+                        .is_some_and(|i| i.capsule_id == id)
+                })
+                .ok_or_else(|| Failure::Rejected("inspection missing".into()))?;
+            let inspection: ContextInspection =
+                enouia_memory_contract::parse_record(&vault.read_record(
+                    &pin,
+                    &RecordRef::new(RecordKind::Inspection, &entry.record_id, entry.revision),
+                )?)
+                .map_err(|_| Failure::Rejected("invalid inspection".into()))?;
+            Ok(json!({"capsule":capsule,"inspection":inspection,"state":"saved_preview"}))
+        }
+        "mock" => {
+            let vault = open(arg(args, 2)?)?;
+            let id = CapsuleId::parse(arg(args, 3)?)
+                .map_err(|_| Failure::Usage("bad capsule_id".into()))?;
+            let input = flag(args, "--input")
+                .map(EventId::parse)
+                .transpose()
+                .map_err(|_| Failure::Usage("bad event_id".into()))?;
+            let answer = answer_saved(&vault, &owner_of(&vault), &id, 4096, input.as_ref())?;
+            Ok(
+                json!({"dispatch_id":answer.dispatch_id,"status":answer.status,"memories":answer.memories,"sources":answer.sources,"request_hash":answer.request_hash,"state":"completed_offline_mock"}),
+            )
+        }
+        "mock-inspect" => {
+            let vault = open(arg(args, 2)?)?;
+            let id = DispatchId::parse(arg(args, 3)?)
+                .map_err(|_| Failure::Usage("bad dispatch_id".into()))?;
+            let request =
+                enouia_memory_context::mock::inspect_request(&vault, &owner_of(&vault), &id)?;
+            Ok(
+                json!({"dispatch_id":id,"capsule_id":request.capsule_id,"destination":request.destination,"messages":request.messages.iter().map(|m|json!({"role":m.role,"text":m.text})).collect::<Vec<_>>(),"output":request.output,"request_hash":request.payload_hash()}),
+            )
+        }
         "check-root" => {
             let root = verified(arg(args, 2)?)?;
             Ok(

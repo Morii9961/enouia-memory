@@ -59,7 +59,8 @@ class Vault:
             "import": ("imports", "import_id"),
             "session_event": ("session_events", "event_id"), "checkpoint": ("checkpoints", "checkpoint_id"),
             "tombstone": ("tombstones", "delete_id"), "policy": ("policies", "policy_id"),
-            "approval": ("approvals", "approval_id")}
+            "approval": ("approvals", "approval_id"), "capsule": ("capsules", "capsule_id"),
+            "inspection": ("inspections", "inspection_id"), "dispatch": ("dispatches", "dispatch_id")}
 
     def __init__(self, base):
         self.base = base
@@ -497,7 +498,11 @@ def morimeta(confirmed, external=False):
         {"schema_version": 1, "audit_id": uid("aud", 2), "actor": AGENT, "operation": "memory_source",
          "object_refs": [], "purpose": None, "destination": None, "policy_epoch": v.policy_epoch, "decision": "deny",
          "error_code": "permission_denied", "request_id": uid("req", 21), "created_at": ts("07-04", "00:05:00")}]
-    v.extra = {"capsules": [capsule], "inspections": [inspection], "dispatches": [dispatch], "audit_events": audit}
+    # Context artifacts are cataloged records: the compile commit stores the
+    # capsule with its inspection, and the Mock commit stores the dispatch.
+    v.commit("session_append", OWNER, [("capsule", capsule), ("inspection", inspection)], ts("07-04", "00:00:00", 50))
+    v.commit("session_append", OWNER, [("dispatch", dispatch)], ts("07-04", "00:00:00", 300))
+    v.extra = {"audit_events": audit}
     if external:
         # Same question sent to an external model: only the granted MoriMeta memory
         # is carried, and it is private, so an exact egress approval is required.
@@ -516,6 +521,7 @@ def morimeta(confirmed, external=False):
                                  "destination": EXT_DEST, "resources": [rref("memory", mB["memory_id"])],
                                  "policy_id": pol2["policy_id"], "policy_epoch": v.policy_epoch},
                              ts("07-04", "01:00:00", 150), ts("07-04", "01:10:00", 150))
+        v.commit("session_append", OWNER, [("capsule", capsule_x), ("inspection", inspection_x)], ts("07-04", "01:00:00", 50))
         v.commit("owner_approval", OWNER, [("approval", egress_ok)], ts("07-04", "01:00:00", 180))
         dispatch_x = {"schema_version": 1, "dispatch_id": dsp_x, "capsule_id": cap_x, "inspection_id": insp_x,
                       "request_id": req_x, "destination": EXT_DEST, "request_hash": hash_x, "messages": msgs_x,
@@ -525,8 +531,7 @@ def morimeta(confirmed, external=False):
                                  "checked_at": ts("07-04", "01:00:00", 190)},
                       "state": "completed", "prepared_at": ts("07-04", "01:00:00", 100),
                       "sent_at": ts("07-04", "01:00:00", 200), "completed_at": ts("07-04", "01:00:01")}
-        v.extra = {"capsules": [capsule, capsule_x], "inspections": [inspection, inspection_x],
-                   "dispatches": [dispatch, dispatch_x], "audit_events": audit}
+        v.commit("session_append", OWNER, [("dispatch", dispatch_x)], ts("07-04", "01:00:01", 10))
         doc = v.set_doc("Synthetic MoriMeta story plus an owner egress grant (MoriMeta -> example-cloud/example-model) "
                         "and an external request carrying the private decision under an exact, single-use egress "
                         "approval. Test data only; no real Provider or memory.")
@@ -774,7 +779,7 @@ inspection2 = {"schema_version": 1, "inspection_id": insp2, "capsule_id": cap2, 
                              dec(M["c2"], "included", "direct_support", 3), dec(M["c1b"], "included", "direct_support", 4),
                              dec(M["new"], "excluded", "not_yet_effective"), dec(M["expired"], "excluded", "expired"),
                              dec(M["tomb"], "excluded", "tombstoned"), dec(M["pref"], "excluded", "unrelated")]}
-L.extra = {"capsules": [capsule2], "inspections": [inspection2]}
+L.commit("session_append", OWNER, [("capsule", capsule2), ("inspection", inspection2)], ts("09-28", "08:00:00", 30))
 life = L.set_doc("Synthetic lifecycle set: future-effective supersession, live and expired facts, a conflict group, "
                  "preference, episode, a reviewed session checkpoint memory, Identity, and a logical delete. Test data only.")
 dump("sets/lifecycle.json", life)

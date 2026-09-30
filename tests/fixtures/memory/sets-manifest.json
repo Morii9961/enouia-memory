@@ -346,7 +346,7 @@
       "ops": [
         {
           "op": "remove",
-          "path": "/commits/8/catalog/0"
+          "path": "/commits/10/catalog/0"
         }
       ],
       "rust_rule": "commit.catalog_mismatch"

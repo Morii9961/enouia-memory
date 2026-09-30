@@ -157,6 +157,9 @@ impl CommitManifest {
                     | RecordKind::Tombstone
                     | RecordKind::PurgeReceipt
                     | RecordKind::SessionEvent
+                    | RecordKind::Capsule
+                    | RecordKind::Inspection
+                    | RecordKind::Dispatch
             );
             if !(entry.record_kind.is_revisioned() || single && entry.revision.get() == 1) {
                 out.push(Violation::new(

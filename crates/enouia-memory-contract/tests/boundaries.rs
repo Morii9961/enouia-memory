@@ -86,6 +86,7 @@ fn memory_cli_depends_only_on_this_repository() {
     assert_eq!(
         deps,
         [
+            "enouia-memory-context",
             "enouia-memory-contract",
             "enouia-memory-govern",
             "enouia-memory-import",
@@ -94,6 +95,26 @@ fn memory_cli_depends_only_on_this_repository() {
             "serde_json"
         ]
     );
+}
+
+#[test]
+fn memory_context_has_only_local_dependencies() {
+    let manifest =
+        std::fs::read_to_string(repo().join("crates/enouia-memory-context/Cargo.toml")).unwrap();
+    let mut deps = dependencies(&manifest);
+    deps.sort();
+    assert_eq!(
+        deps,
+        [
+            "enouia-memory-contract",
+            "enouia-memory-govern",
+            "enouia-memory-index",
+            "enouia-memory-vault",
+            "serde",
+            "serde_json"
+        ]
+    );
+    assert!(!manifest.contains("reqwest") && !manifest.contains("tokio"));
 }
 
 /// The index adds only the pinned SQLite binding (bundled source, no
@@ -246,10 +267,16 @@ fn vault_layout_stays_inside_memory_roots_and_away_from_activity() {
         RecordKind::Review,
         RecordKind::Tombstone,
         RecordKind::PurgeReceipt,
+        RecordKind::Capsule,
+        RecordKind::Inspection,
+        RecordKind::Dispatch,
     ] {
         paths.push(layout::record_path(kind, id, rev).expect("stored kind"));
     }
-    assert_eq!(layout::record_path(RecordKind::Capsule, id, rev), None);
+    assert_eq!(
+        layout::record_path(RecordKind::ProviderCapabilities, id, rev),
+        None
+    );
     for path in paths {
         let root = path.split('/').next().unwrap();
         assert!(MANAGED_ROOTS.contains(&root), "{path}");

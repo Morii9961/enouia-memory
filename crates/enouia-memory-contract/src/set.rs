@@ -323,6 +323,15 @@ impl RecordSet {
         for r in &self.session_events {
             add(RecordKind::SessionEvent, r.event_id.as_str(), one);
         }
+        for r in &self.capsules {
+            add(RecordKind::Capsule, r.capsule_id.as_str(), one);
+        }
+        for r in &self.inspections {
+            add(RecordKind::Inspection, r.inspection_id.as_str(), one);
+        }
+        for r in &self.dispatches {
+            add(RecordKind::Dispatch, r.dispatch_id.as_str(), one);
+        }
         all
     }
 }
@@ -1967,7 +1976,10 @@ fn check_dispatch(set: &RecordSet, capsule: &ContextCapsule, out: &mut Vec<Viola
                 }
                 if tombstone.deletion_epoch <= dispatch.egress.deletion_epoch {
                     out.push(Violation::new("dispatch.tombstoned_content", path.clone()));
-                } else if tombstone.created_at <= dispatch.egress.checked_at {
+                // Millisecond timestamps can tie across successive commits.
+                // A later deletion epoch with an equal time does not prove
+                // the deletion preceded this already recorded dispatch.
+                } else if tombstone.created_at < dispatch.egress.checked_at {
                     out.push(Violation::new("dispatch.stale_barrier", path.clone()));
                 }
             }

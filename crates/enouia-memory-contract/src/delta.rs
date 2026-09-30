@@ -115,12 +115,12 @@ pub fn record_key(record: &AnyRecord) -> Option<(RecordKind, String, u64)> {
             r.import_id.to_string(),
             r.revision.get(),
         ),
-        AnyRecord::Commit(_)
-        | AnyRecord::AuditEvent(_)
-        | AnyRecord::Capsule(_)
-        | AnyRecord::Inspection(_)
-        | AnyRecord::Dispatch(_)
-        | AnyRecord::ProviderCapabilities(_) => return None,
+        AnyRecord::Capsule(r) => (RecordKind::Capsule, r.capsule_id.to_string(), 1),
+        AnyRecord::Inspection(r) => (RecordKind::Inspection, r.inspection_id.to_string(), 1),
+        AnyRecord::Dispatch(r) => (RecordKind::Dispatch, r.dispatch_id.to_string(), 1),
+        AnyRecord::Commit(_) | AnyRecord::AuditEvent(_) | AnyRecord::ProviderCapabilities(_) => {
+            return None;
+        }
     })
 }
 
@@ -206,8 +206,24 @@ pub fn record_needs(record: &AnyRecord) -> Vec<Need> {
         AnyRecord::Tombstone(tombstone) => tombstone_needs(tombstone),
         AnyRecord::Session(session) => vec![Need::SessionEvents(session.session_id.to_string())],
         AnyRecord::SessionEvent(event) => vec![Need::SessionEvents(event.session_id.to_string())],
+        AnyRecord::Capsule(capsule) => capsule_needs(capsule),
         _ => Vec::new(),
     }
+}
+
+fn capsule_needs(capsule: &crate::context::ContextCapsule) -> Vec<Need> {
+    let mut needs = vec![Need::Commit(capsule.vault_commit_id.to_string())];
+    needs.extend(capsule.provenance.iter().map(|s| {
+        Need::Revision(
+            RecordKind::Source,
+            s.source_id.to_string(),
+            s.source_revision.get(),
+        )
+    }));
+    if let Some(session) = &capsule.session_id {
+        needs.push(Need::SessionEvents(session.to_string()));
+    }
+    needs
 }
 
 /// Everything a scoped set must hold, beyond every small-kind record of the
@@ -299,6 +315,11 @@ pub fn delta_needs(head: &RecordSet, delta: &[AnyRecord]) -> BTreeSet<Need> {
     head.sessions
         .iter()
         .for_each(|s| extend(vec![Need::SessionEvents(s.session_id.to_string())]));
+    // Saved context records remain small-kind documents. Their pinned commit
+    // and bulk citations must be present when checking later dispatches too.
+    for capsule in &head.capsules {
+        needs.extend(capsule_needs(capsule));
+    }
     needs
 }
 
