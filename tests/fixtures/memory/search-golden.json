@@ -1,0 +1,36 @@
+{
+  "description": "Synthetic search golden set (MV-4, ranking rank-1, folding fold-1). Every text is invented. Memories are accepted in order; 'expect' is the exact ordered list of labels, 'expect_set' an unordered one, 'projects' the project names reported (exact or ambiguous).",
+  "memories": [
+    {"label": "g01", "claim": "morimeta.plan.local", "text": "MoriMeta 的记忆模块先做本地版本。", "new_project": {"display_name": "MoriMeta", "aliases": ["森元", "mori-meta"]}},
+    {"label": "g02", "claim": "moriium.scope", "text": "Moriium 是另一个项目，与 MoriMeta 无关。", "new_project": {"display_name": "Moriium", "aliases": ["森锂"]}},
+    {"label": "g03", "claim": "travel.hakodate", "text": "去函馆看夜景是 2024 年的旅行。"},
+    {"label": "g04", "claim": "travel.rurikoin", "text": "京都的琉璃光院秋天很美。"},
+    {"label": "g05", "claim": "memory.rule", "text": "长期记忆要有来源和审核。"},
+    {"label": "g06", "claim": "drink.tea", "text": "喜欢喝乌龙茶，不加糖。"},
+    {"label": "g07", "claim": "context.budget", "text": "AI agent 的上下文要控制预算。"},
+    {"label": "g08", "claim": "notebook.word", "text": "记事本里写着“记忆”两个字。"},
+    {"label": "g09", "claim": "index.rebuild", "text": "The memory index rebuilds from the vault."},
+    {"label": "g10", "claim": "travel.hakodate.market", "text": "函館の朝市で海鮮丼を食べた。"},
+    {"label": "g11", "claim": "morimeta.release", "text": "森元项目的发布计划还没确定。", "project": "MoriMeta"},
+    {"label": "g12", "claim": "drink.morning", "text": "早上喝一杯红茶。"}
+  ],
+  "queries": [
+    {"query": "记忆", "expect": ["g01", "g05", "g08"], "covers": "two-character CJK term: bounded substring scan, project rows first"},
+    {"query": "函馆", "expect": ["g03"], "covers": "simplified form; no variant conversion"},
+    {"query": "函館", "expect": ["g10"], "covers": "Japanese form stays distinct"},
+    {"query": "琉璃光院", "expect": ["g04"], "covers": "trigram path"},
+    {"query": "MoriMeta", "expect": ["g01", "g11", "g02"], "projects": ["MoriMeta"], "covers": "exact project name recalls its memories first; a mention in another project follows"},
+    {"query": "ＭｏｒｉＭｅｔａ", "expect": ["g01", "g11", "g02"], "projects": ["MoriMeta"], "covers": "full-width folding"},
+    {"query": "森元", "expect": ["g11", "g01"], "projects": ["MoriMeta"], "covers": "alias recall; a text match ranks above entity-only"},
+    {"query": "mori", "expect_set": ["g01", "g02"], "projects": ["MoriMeta", "Moriium"], "covers": "ambiguous prefix: both projects reported, nothing merged"},
+    {"query": "茶", "expect": ["g06", "g12"], "covers": "single character"},
+    {"query": "memory", "expect": ["g09"], "covers": "English word"},
+    {"query": "index rebuilds", "expect": ["g09"], "covers": "all terms must match"},
+    {"query": "agent 预算", "expect": ["g07"], "covers": "mixed English and Chinese terms"},
+    {"query": "“记忆”", "expect": ["g08"], "covers": "Chinese quotation marks are literal"},
+    {"query": "\"记忆\"", "expect": [], "covers": "ASCII quotes are literal, not phrase syntax"},
+    {"query": "mem*", "expect": [], "covers": "no wildcard"},
+    {"query": "') OR 1=1 --", "expect": [], "covers": "SQL-looking input is text"},
+    {"query": "NEAR(记忆 审核)", "expect": [], "covers": "FTS operators are text"}
+  ]
+}

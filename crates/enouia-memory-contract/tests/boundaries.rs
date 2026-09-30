@@ -89,10 +89,36 @@ fn memory_cli_depends_only_on_this_repository() {
             "enouia-memory-contract",
             "enouia-memory-govern",
             "enouia-memory-import",
+            "enouia-memory-index",
             "enouia-memory-vault",
             "serde_json"
         ]
     );
+}
+
+/// The index adds only the pinned SQLite binding (bundled source, no
+/// default features); governance is a test-only dependency.
+#[test]
+fn memory_index_dependencies_are_pinned_and_minimal() {
+    let manifest =
+        std::fs::read_to_string(repo().join("crates/enouia-memory-index/Cargo.toml")).unwrap();
+    let mut deps = dependencies(&manifest);
+    deps.sort();
+    assert_eq!(
+        deps,
+        [
+            "enouia-memory-contract",
+            "enouia-memory-govern",
+            "enouia-memory-vault",
+            "rusqlite",
+            "serde_json"
+        ]
+    );
+    assert!(manifest.contains(
+        "rusqlite = { version = \"=0.40.2\", default-features = false, features = [\"bundled\"] }"
+    ));
+    let (normal, dev) = manifest.split_once("[dev-dependencies]").unwrap();
+    assert!(!normal.contains("enouia-memory-govern") && dev.contains("enouia-memory-govern"));
 }
 
 /// Governance composes the contract and the store only (the importer is a

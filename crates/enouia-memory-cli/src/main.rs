@@ -36,6 +36,7 @@ use enouia_memory_govern::{
     Canonical, Decision, EvidenceSpec, Origin, OwnerConfirmation, Proposal, Proposed, ReviewPlan,
     canonical_memories, confirm, pending_candidates, plan, propose,
 };
+use enouia_memory_index::{Index, SearchRequest, search};
 use enouia_memory_vault::backup::{export_pinned, network_allowed, restore_export, verify_export};
 use enouia_memory_vault::fault::Faults;
 use enouia_memory_vault::health::HealthState;
@@ -74,7 +75,10 @@ const USAGE: &str = "usage: enouia-memory <command> ...
   purge-preview <dir> <memory_id> [--with-dependents]
   purge <dir> <memory_id> [--with-dependents]             (plan, then type its code)
   deletion-ledger <dir> <out-file>
-  reconcile <dir> <ledger-file>                           (summary, then type its code)";
+  reconcile <dir> <ledger-file>                           (summary, then type its code)
+  index <dir>
+  index-rebuild <dir>
+  search <dir> <query> [--limit <n>] [--cursor <c>] [--historical]";
 
 enum Failure {
     Usage(String),
@@ -736,6 +740,71 @@ fn run(args: &[String]) -> Outcome {
                 "already": done.already,
                 "not_present": done.not_present,
                 "network_allowed": network_allowed(&vault)?,
+            }))
+        }
+        "index" => {
+            let vault = open(arg(args, 2)?)?;
+            let mut index = Index::open(&vault)?;
+            let report = index.update(&vault, &|| false)?;
+            Ok(json!({
+                "commits_applied": report.commits_applied,
+                "revisions_indexed": report.revisions_indexed,
+                "rows_purged": report.rows_purged,
+                "sequence": index.watermark()?.map(|w| w.sequence),
+            }))
+        }
+        "index-rebuild" => {
+            let vault = open(arg(args, 2)?)?;
+            let (index, report) = Index::rebuild(&vault)?;
+            Ok(json!({
+                "revisions_indexed": report.revisions_indexed,
+                "sequence": index.watermark()?.map(|w| w.sequence),
+            }))
+        }
+        "search" => {
+            // The owner's own search on the trusted surface: the index is
+            // brought to the head first (a lagging index is never mixed).
+            let vault = open(arg(args, 2)?)?;
+            let query = arg(args, 3)?;
+            let mut index = Index::open(&vault)?;
+            index.update(&vault, &|| false)?;
+            let limit = match flag(args, "--limit") {
+                Some(n) => Some(
+                    n.parse::<u32>()
+                        .map_err(|_| Failure::Usage("bad --limit".into()))?,
+                ),
+                None => None,
+            };
+            let request = SearchRequest {
+                query: query.to_owned(),
+                include_historical: has(args, "--historical"),
+                cursor: flag(args, "--cursor").map(str::to_owned),
+                limit,
+                ..SearchRequest::default()
+            };
+            let page = search(&index, &vault, &owner_of(&vault), &request)?;
+            let items: Vec<Value> = page
+                .items
+                .iter()
+                .map(|h| {
+                    json!({
+                        "memory_id": h.memory_id, "revision": h.revision, "type": h.memory_type,
+                        "project_id": h.project_id, "currency": h.currency, "snippet": h.snippet,
+                        "evidence_count": h.evidence_count,
+                    })
+                })
+                .collect();
+            let projects: Vec<Value> = page
+                .projects
+                .iter()
+                .map(|p| json!({"project_id": p.project_id, "name": p.display_name, "exact": p.exact}))
+                .collect();
+            Ok(json!({
+                "items": items,
+                "projects": projects,
+                "next_cursor": page.next_cursor,
+                "partial": page.partial,
+                "ranking": enouia_memory_index::RANKING_VERSION,
             }))
         }
         _ => Err(Failure::Usage(USAGE.to_owned())),

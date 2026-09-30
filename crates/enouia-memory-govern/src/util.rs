@@ -3,7 +3,7 @@
 use enouia_memory_contract::MemoryErrorCode;
 use enouia_memory_contract::json::{Revision, canonical_bytes};
 use enouia_memory_contract::ports::{CommitPin, StagedRecord};
-use enouia_memory_contract::record::{Record, RecordKind, RecordRef, parse_record, parse_value};
+use enouia_memory_contract::record::{Record, RecordKind, RecordRef, parse_value};
 use enouia_memory_vault::{Fault, Vault, VaultError};
 use serde_json::Value;
 
@@ -25,9 +25,9 @@ pub(crate) fn revision<T: Record>(
     id: &str,
     revision: Revision,
 ) -> Result<Option<T>> {
-    match vault.read_revision(pin, &RecordRef::new(kind, id, revision)) {
-        Ok(bytes) => Ok(Some(
-            parse_record(&bytes).map_err(|_| VaultError::corrupt("record"))?,
+    match vault.read_parsed(pin, &RecordRef::new(kind, id, revision)) {
+        Ok(record) => Ok(Some(
+            parse_value(&record.to_value()).map_err(|_| VaultError::corrupt("record"))?,
         )),
         // Purged content reads as absent; its tombstone says why.
         Err(error)

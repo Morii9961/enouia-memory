@@ -22,10 +22,10 @@ use enouia_memory_contract::common::{ActorRef, ActorType, EvidenceRef, TrustedSu
 use enouia_memory_contract::hash::{Sha256Hex, sha256};
 use enouia_memory_contract::identity::IdentityMetadata;
 use enouia_memory_contract::ids::{
-    CandidateId, CommitId, ConflictGroupId, DeleteId, IdentityId, MemoryId, ReviewId,
+    CandidateId, CommitId, ConflictGroupId, DeleteId, IdentityId, MemoryId, ProjectId, ReviewId,
 };
 use enouia_memory_contract::json::{Revision, canonical_bytes};
-use enouia_memory_contract::memory::{CanonicalMemory, MemoryBody, MemoryStatus};
+use enouia_memory_contract::memory::{CanonicalMemory, MemoryBody, MemoryStatus, ProjectEntity};
 use enouia_memory_contract::ports::{
     CommitOutcome, CommitPin, CommitRequest, IdempotencyScope, StagedObject, StagedRecord,
 };
@@ -107,6 +107,8 @@ pub struct PlannedIds {
     pub identity_id: IdentityId,
     /// Used when the decision confirms a delete.
     pub delete_id: DeleteId,
+    /// Used when the decision creates a project.
+    pub project_id: ProjectId,
 }
 
 /// What the trusted surface shows before the owner confirms.
@@ -514,6 +516,7 @@ fn decide(
                     false,
                 ),
             };
+            let details = new_project(ctx, built, &candidate, details, ids, &mut results)?;
             final_content = content.clone();
             let plain = if edited {
                 ReviewAction::EditAccept
@@ -662,6 +665,50 @@ fn decide(
     built.expect(RecordKind::Review, review_id.as_str(), None)?;
     built.push(RecordKind::Review, review_id.as_str(), one(), review);
     Ok(())
+}
+
+/// A `new_project` in the approved fields becomes a project entity written
+/// by this review; the memory then refers to it. Names that collide with
+/// another project are refused at commit (`project.alias_collision`):
+/// similarly named projects are never merged (R03).
+fn new_project(
+    ctx: &Context,
+    built: &mut Built,
+    candidate: &CandidateRecord,
+    details: Option<Map<String, Value>>,
+    ids: &PlannedIds,
+    results: &mut Vec<Value>,
+) -> Result<Option<Map<String, Value>>> {
+    let Some(mut details) = details else {
+        return Ok(None);
+    };
+    let Some(spec) = details.remove("new_project") else {
+        return Ok(Some(details));
+    };
+    let value = json!({
+        "schema_version": 1,
+        "project_id": ids.project_id,
+        "revision": 1,
+        "display_name": spec.get("display_name").cloned().unwrap_or(Value::Null),
+        "aliases": spec.get("aliases").cloned().unwrap_or(json!([])),
+        "status": "active",
+        "sensitivity": candidate.sensitivity,
+        "review_id": ids.review_id,
+        "created_at": ctx.now,
+        "updated_at": ctx.now,
+        "extensions": {},
+    });
+    let _: (ProjectEntity, StagedRecord) =
+        staged(RecordKind::Project, ids.project_id.as_str(), one(), &value)?;
+    built.expect(RecordKind::Project, ids.project_id.as_str(), None)?;
+    built.push(RecordKind::Project, ids.project_id.as_str(), one(), value);
+    results.push(reference(
+        RecordKind::Project,
+        ids.project_id.as_str(),
+        one(),
+    ));
+    details.insert("project_id".into(), json!(ids.project_id));
+    Ok(Some(details))
 }
 
 /// Accept a create: a new memory. If the candidate listed contradicting
@@ -960,6 +1007,7 @@ pub fn plan(
             conflict_group_id: ConflictGroupId::from_random(vault.random_id_bytes()),
             identity_id: IdentityId::from_random(vault.random_id_bytes()),
             delete_id: DeleteId::from_random(vault.random_id_bytes()),
+            project_id: ProjectId::from_random(vault.random_id_bytes()),
         })
         .collect();
     let commit_id = CommitId::from_random(vault.random_id_bytes());

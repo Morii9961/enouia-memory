@@ -1,0 +1,15 @@
+[package]
+name = "enouia-memory-index"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+enouia-memory-contract = { path = "../enouia-memory-contract" }
+enouia-memory-vault = { path = "../enouia-memory-vault" }
+# SQLite is compiled from the bundled source (needs a MinGW C compiler).
+rusqlite = { version = "=0.40.2", default-features = false, features = ["bundled"] }
+serde_json.workspace = true
+
+[dev-dependencies]
+enouia-memory-govern = { path = "../enouia-memory-govern" }

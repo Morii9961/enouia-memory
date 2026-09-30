@@ -27,7 +27,7 @@ These come from [design/DECISIONS_AND_SOURCES](../design/DECISIONS_AND_SOURCES.m
 | ADR-MEM-17 | Single primary; offline edits become candidates | Deferred (MV-10) |
 | ADR-MEM-18 | Adapters open only after measurement | Adopted |
 
-## ADR-MEM-19 … 41 — implementation decisions (MV-0 / MV-0R / MV-1 / MV-2 / MV-3)
+## ADR-MEM-19 … 42 — implementation decisions (MV-0 / MV-0R / MV-1 / MV-2 / MV-3 / MV-4)
 
 ADR-MEM-20 to 29 were first drafted with Enouia Runtime's register numbers 020–029 and never committed there. The draft is kept in [history](../history/adr-draft-runtime-numbering.md). Numbering here is this repository's own.
 
@@ -162,6 +162,18 @@ Cost and trigger: small kinds are still loaded completely per commit (cached in 
 - **After the tombstone.** The Vault treats what purge tombstones name as intentionally purged: reads return `intentionally_purged`, `verify` counts it as purged (not missing), exports and `verify_export` leave it out, sweeps never quarantine it, and commit validation treats it as absent (rules reading it cancel out; a new record citing it fails). `purge_files` deletes the bytes and any quarantined copy under the writer lock and is idempotent. `complete_purge` then commits a purge receipt: local stores purged or not present, exports `not_manageable` (outside the Vault), backups `pending` with a deadline (30 days), overall `backup_purge_pending`. Nothing claims global erasure. Catalog hashes of purged revisions remain, as the design allows.
 - **Deletion ledger (B02).** The ledger is the head's tombstones (IDs, hashes, modes; no text), kept apart from backups. `reconcile_deletions` re-applies each entry to a restored Vault through an owner-confirmed plan (and `complete_purge` for purges), reports what was applied, already covered, or not present, and only then marks the restore reconciled, which opens its network gate.
 - **Not yet.** Other memories that lose evidence are listed, not marked `broken`; capsules, indexes, and replicas do not exist yet and are reported `not_present`.
+
+### ADR-MEM-42 — Local index and literal search (Adopted, MV-4)
+
+`enouia-memory-index` keeps a disposable SQLite projection at `indexes/memory.sqlite` and answers `memory_search`.
+
+- **Dependency.** `rusqlite =0.40.2` without default features, with `bundled` (SQLite 3.53.2 compiled from source). Building now needs a MinGW C compiler; with MSYS2 the compiler's own `bin` directory must come before the Rust toolchain's in `PATH`, otherwise `cc1` loads the toolchain's older `libgcc_s_seh-1.dll`. The installed binary needs no extra DLL (tested with only System32 on `PATH`).
+- **Projection.** One row per memory revision with the commit sequences between which it was the record's latest revision, plus projects (folded names) and tombstones. The watermark advances with the commits of each transaction (up to 256, cancellation checked between), so a crash or cancellation leaves an older, consistent index; an index of another Vault, format, or folding version, one ahead of the Vault or on another chain, or one that fails `quick_check` is refused and rebuilt. Journal mode `DELETE`, `secure_delete` on; a purge removes the rows and their FTS entries, merges the FTS segments, and vacuums, and a rebuild never reads purged content.
+- **Folding `fold-1`.** Full-width ASCII to ASCII, ideographic space to space, lowercase. No NFKC (no tables offline) and no simplified/traditional or Japanese variant conversion: 函馆 and 函館 stay distinct. Indexed text is what the owner reads (title, content, tags, category, descriptive fields); internal keys such as claim keys are not full text.
+- **Recall.** The query is literal: folded, split on whitespace, at most 16 terms. Terms of three or more characters go to an FTS5 `trigram` table, each as a quoted phrase with quotes doubled; shorter terms are a bounded `instr` scan (projects first); all terms must match. ASCII words are also looked up in a `unicode61` table. A term equal to a project's name or alias recalls that project's memories; projects that only contain a term are reported as ambiguous and nothing is merged. Each path takes at most 500 candidates; beyond that the page is `partial`.
+- **Filters, before anything is returned.** Requested types and projects, every current tombstone (for any snapshot), broken provenance, the principal's `memory:read` decision against the current policies (projects the principal cannot read are not even named), and time: `currency` at `as_of`, historical-only facts only on request, archived and not-yet-effective ones never.
+- **Ranking `rank-1`.** Ascending key: named-project hit first, then currency (current, needs reverification, conflicted, historical), whole-word hit, text-path position (bm25 or scan order), priority, business date (valid from, observed, created; newest first), memory ID, revision. No raw scores are added. The golden set in `tests/fixtures/memory/search-golden.json` freezes it; any change needs a new version and new expectations.
+- **Consistency.** A search needs the index at the Vault's head (`index_not_ready` otherwise; the caller updates or offers the source browser). The returned page is re-read from the Vault and must equal the indexed revision. A cursor binds the snapshot sequence, both epochs, the principal, the filters, and the ranking version; a later commit does not move its pages, a deletion or policy change invalidates it. `known_at` selects the rows known at an earlier commit, still under the current tombstones and policies.
 
 ## Relation to Enouia Runtime's register
 

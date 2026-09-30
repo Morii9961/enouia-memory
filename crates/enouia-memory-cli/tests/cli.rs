@@ -302,12 +302,25 @@ fn review_commands_show_the_exact_plan_and_need_its_typed_code() {
     assert_eq!(list.len(), 1);
     assert_eq!(list[0]["content"], text);
     let memory = list[0]["memory_id"].as_str().unwrap().to_owned();
+    // The installed binary builds its SQLite index and finds it.
+    let (code, found) = cli.run(&["search", &root, "纸质书"]);
+    assert_eq!(code, 0, "{found}");
+    assert_eq!(found["items"].as_array().unwrap().len(), 1);
+    assert!(
+        found["items"][0]["snippet"]
+            .as_str()
+            .unwrap()
+            .contains("纸质书")
+    );
     // Forgetting goes through the same plan and code.
     let (code, plan, last) = cli.interact(&["forget", &root, &memory], code_of);
     assert_eq!(code, 0, "{last}");
     assert_eq!(plan["plan"]["operation"], "logical_delete");
     let (_, memories) = cli.run(&["memories", &root, "--all"]);
     assert_eq!(memories["memories"].as_array().unwrap().len(), 0);
+    let (code, found) = cli.run(&["search", &root, "纸质书"]);
+    assert_eq!(code, 0, "{found}");
+    assert!(found["items"].as_array().unwrap().is_empty());
     // The deletion ledger goes outside the data root and holds no text.
     let ledger = PathBuf::from(temp.dir("ledger")).join("deletions.json");
     let (code, out) = cli.run(&["deletion-ledger", &root, &ledger.display().to_string()]);

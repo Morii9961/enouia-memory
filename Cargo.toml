@@ -4,6 +4,7 @@ members = [
     "crates/enouia-memory-contract",
     "crates/enouia-memory-govern",
     "crates/enouia-memory-import",
+    "crates/enouia-memory-index",
     "crates/enouia-memory-vault",
 ]
 resolver = "3"

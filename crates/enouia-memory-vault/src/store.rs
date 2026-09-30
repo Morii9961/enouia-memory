@@ -189,6 +189,8 @@ pub struct Vault {
     commits: Mutex<BTreeMap<String, (Arc<StoredCommit>, Sha256Hex)>>,
     segments: Mutex<BTreeMap<Sha256Hex, Arc<CatalogSegment>>>,
     records: Mutex<BTreeMap<DocKey, AnyRecord>>,
+    /// Purge coverage of each commit's tombstones (immutable per commit).
+    pub(crate) purges: Mutex<BTreeMap<String, Arc<crate::purge::Purged>>>,
 }
 
 fn id_field(kind: RecordKind) -> Option<&'static str> {
@@ -352,6 +354,7 @@ impl Vault {
             commits: Mutex::new(BTreeMap::new()),
             segments: Mutex::new(BTreeMap::new()),
             records: Mutex::new(BTreeMap::new()),
+            purges: Mutex::new(BTreeMap::new()),
         };
         if request.records.is_empty()
             || request
@@ -443,6 +446,7 @@ impl Vault {
             commits: Mutex::new(BTreeMap::new()),
             segments: Mutex::new(BTreeMap::new()),
             records: Mutex::new(BTreeMap::new()),
+            purges: Mutex::new(BTreeMap::new()),
         })
     }
 
@@ -744,6 +748,23 @@ impl Vault {
         let file =
             entry_file(reference.record_kind, &entry, revision).ok_or_else(Self::corrupt_record)?;
         self.read_verified(&file, hash)
+    }
+
+    /// Like `read_revision`, parsed, from the verified-record cache.
+    pub fn read_parsed(&self, pin: &CommitPin, reference: &RecordRef) -> Result<AnyRecord> {
+        let commit = self.stored_commit(pin)?;
+        let entry = self
+            .find_record(&commit, reference.record_kind, &reference.record_id)?
+            .ok_or_else(Self::not_found)?;
+        let revision = reference.revision.get();
+        entry.hash_of(revision).ok_or_else(Self::not_found)?;
+        if self
+            .purged_for(&commit)?
+            .record(reference.record_kind, &reference.record_id, revision)
+        {
+            return Err(crate::purge::purged_error());
+        }
+        self.record_at(reference.record_kind, &entry, revision)
     }
 
     fn read_verified(&self, file: &str, hash: &Sha256Hex) -> Result<Vec<u8>> {

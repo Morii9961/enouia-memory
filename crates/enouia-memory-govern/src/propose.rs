@@ -41,6 +41,9 @@ pub const MEMORY_FIELDS: &[&str] = &[
     "review_after",
     "volatility",
     "priority",
+    // `{display_name, aliases}`: a new project entity, created by the
+    // accepting review and set as the memory's project.
+    "new_project",
 ];
 
 /// Type-specific fields, by proposed type.

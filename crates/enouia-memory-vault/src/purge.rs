@@ -118,17 +118,33 @@ impl Vault {
     /// Everything purged as of `commit` or of the head (a purge reaches back
     /// into every earlier commit's view).
     pub fn purged_for(&self, commit: &StoredCommit) -> Result<Purged> {
+        let mut purged = (*self.purged_at(commit)?).clone();
+        if let Ok(head) = self.load_head()
+            && head.commit_id != commit.commit_id
+        {
+            let at_head = self.purged_at(&head)?;
+            purged.whole.extend(at_head.whole.iter().cloned());
+            purged.revisions.extend(at_head.revisions.iter().cloned());
+            purged.objects.extend(at_head.objects.iter().cloned());
+        }
+        Ok(purged)
+    }
+
+    /// Purge coverage of one commit's tombstones, cached per commit.
+    fn purged_at(&self, commit: &StoredCommit) -> Result<std::sync::Arc<Purged>> {
+        let key = commit.commit_id.to_string();
+        if let Some(found) = self.purges.lock().expect("cache").get(&key) {
+            return Ok(found.clone());
+        }
         let mut purged = Purged::default();
         for tombstone in self.purge_tombstones(commit)? {
             purged.add(&tombstone);
         }
-        if let Ok(head) = self.load_head()
-            && head.commit_id != commit.commit_id
-        {
-            for tombstone in self.purge_tombstones(&head)? {
-                purged.add(&tombstone);
-            }
-        }
+        let purged = std::sync::Arc::new(purged);
+        self.purges
+            .lock()
+            .expect("cache")
+            .insert(key, purged.clone());
         Ok(purged)
     }
 
