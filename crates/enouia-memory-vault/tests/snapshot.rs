@@ -65,7 +65,11 @@ fn concurrent_snapshot_once() {
 
 #[test]
 fn deletions_after_the_pin_are_enforced_before_content_leaves() {
-    let last = support::Lifecycle::load().commits.len() - 1;
+    let last = support::Lifecycle::load()
+        .commits
+        .iter()
+        .position(|c| !c["tombstone_ids"].as_array().unwrap().is_empty())
+        .expect("the lifecycle has a logical delete");
     let harness = Harness::with_commits("snapshot-delete", last - 1);
     let old = harness.vault.pin_current().unwrap();
     let request = harness.lifecycle.request(last);
@@ -74,7 +78,7 @@ fn deletions_after_the_pin_are_enforced_before_content_leaves() {
             .records
             .iter()
             .find(|r| r.record_kind == RecordKind::Tombstone)
-            .expect("the last lifecycle commit is a logical delete")
+            .expect("the delete commit carries its tombstone")
             .bytes,
     )
     .unwrap();

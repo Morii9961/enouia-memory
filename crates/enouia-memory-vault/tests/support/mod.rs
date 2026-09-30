@@ -107,11 +107,15 @@ fn set_key(kind: RecordKind) -> (&'static str, &'static str) {
         RecordKind::Approval => ("approvals", "approval_id"),
         RecordKind::Policy => ("policies", "policy_id"),
         RecordKind::Import => ("imports", "import_id"),
+        RecordKind::Capsule => ("capsules", "capsule_id"),
+        RecordKind::Inspection => ("inspections", "inspection_id"),
+        RecordKind::Dispatch => ("dispatches", "dispatch_id"),
         other => panic!("not stored: {other:?}"),
     }
 }
 
-/// The synthetic lifecycle set: 19 commits from genesis to a logical delete.
+/// The synthetic lifecycle set: 20 commits from genesis to a logical delete
+/// and a stored context capsule.
 pub struct Lifecycle {
     pub set: Value,
     pub commits: Vec<Value>,

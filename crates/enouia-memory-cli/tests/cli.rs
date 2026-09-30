@@ -50,18 +50,45 @@ fn installed_session_context_and_mock_survive_each_process_restart() {
     let root = temp.dir("vault-root");
     let (code, init) = cli.run(&["init", &root, "--confirm-new-vault"]);
     assert_eq!(code, 0, "{init}");
-    let (code, started) = cli.run(&["session-new", &root, "--confirm-new-session", "--key", "start"]);
+    let (code, started) = cli.run(&[
+        "session-new",
+        &root,
+        "--confirm-new-session",
+        "--key",
+        "start",
+    ]);
     assert_eq!(code, 0, "{started}");
     let sid = started["session_id"].as_str().unwrap();
     let bid = started["branch_id"].as_str().unwrap();
     let request = "req_00000001-0000-4000-8000-000000000001";
     let query = "（合成）MoriMeta 是否实现？";
-    let (code, saved) = cli.run(&["session-input", &root, sid, bid, "--text", query, "--request", request, "--key", "input"]);
+    let (code, saved) = cli.run(&[
+        "session-input",
+        &root,
+        sid,
+        bid,
+        "--text",
+        query,
+        "--request",
+        request,
+        "--key",
+        "input",
+    ]);
     assert_eq!(code, 0, "{saved}");
     let eid = saved["event_id"].as_str().unwrap();
     let (_, pending) = cli.run(&["session-status", &root, sid, bid]);
     assert_eq!(pending["turns"][0]["state"], "pending");
-    let (code, preview) = cli.run(&["context", &root, query, "--session", sid, "--branch", bid, "--request", request]);
+    let (code, preview) = cli.run(&[
+        "context",
+        &root,
+        query,
+        "--session",
+        sid,
+        "--branch",
+        bid,
+        "--request",
+        request,
+    ]);
     assert_eq!(code, 0, "{preview}");
     let cap = preview["capsule_id"].as_str().unwrap();
     assert_eq!(preview["state"], "saved_preview");
@@ -78,7 +105,16 @@ fn installed_session_context_and_mock_survive_each_process_restart() {
     assert_eq!(completed["turns"][0]["state"], "completed");
     let (_, replay) = cli.run(&["mock", &root, cap, "--input", eid]);
     assert_eq!(answered, replay);
-    let (code, checkpoint) = cli.run(&["session-checkpoint", &root, sid, bid, "--summary", "（合成）尚无实现证据。", "--key", "checkpoint"]);
+    let (code, checkpoint) = cli.run(&[
+        "session-checkpoint",
+        &root,
+        sid,
+        bid,
+        "--summary",
+        "（合成）尚无实现证据。",
+        "--key",
+        "checkpoint",
+    ]);
     assert_eq!(code, 0, "{checkpoint}");
     assert_eq!(checkpoint["status"], "provisional");
     let (_, verify) = cli.run(&["verify", &root]);

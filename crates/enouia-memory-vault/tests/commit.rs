@@ -1,5 +1,5 @@
-//! MV-1.2: the synthetic lifecycle (genesis → import → sessions → candidates
-//! → reviews with supersession → logical delete) replayed as real commits.
+﻿//! MV-1.2: the synthetic lifecycle (genesis 鈫?import 鈫?sessions 鈫?candidates
+//! 鈫?reviews with supersession 鈫?logical delete) replayed as real commits.
 //! Every manifest the store writes must equal the frozen fixture manifest
 //! (except the store-generated operation ID), every record must read back
 //! byte-identical from its pinned commit, and the whole record set must pass
@@ -41,7 +41,7 @@ fn pin_of(manifest: &CommitManifest) -> CommitPin {
 fn lifecycle_replay_reproduces_every_fixture_manifest() {
     let harness = Harness::with_commits("replay", 0);
     let total = harness.lifecycle.commits.len();
-    assert_eq!(total, 19);
+    assert_eq!(total, 20);
     for index in 0..total {
         if index > 0 {
             harness.apply(index);
