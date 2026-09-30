@@ -49,6 +49,8 @@ Query time is dominated by parsing every visible memory row for currency (supers
 | `cargo clippy --workspace --all-targets --locked -- -D warnings` | exit 0 |
 | `python tools/schema-check/check_schemas.py` | exit 0; unchanged contracts |
 
+Isolated build: `198f725` was cloned from GitHub into a temporary directory with a fresh target directory (SQLite compiled from source there); fmt, 161 tests, clippy, and the schema cross-check passed.
+
 ## 5. Defects found and fixed
 
 - Internal claim keys were indexed as full text, so "mori" or "memory" matched words the owner never wrote; only readable fields are indexed now.
