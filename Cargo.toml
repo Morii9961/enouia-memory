@@ -7,6 +7,7 @@ members = [
     "crates/enouia-memory-import",
     "crates/enouia-memory-index",
     "crates/enouia-memory-vault",
+    "crates/enouia-memory-workspace",
 ]
 resolver = "3"
 

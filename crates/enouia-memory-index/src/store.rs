@@ -168,6 +168,12 @@ impl Index {
 
     /// Delete the index file and build it again from the Vault's history.
     pub fn rebuild(vault: &Vault) -> Result<(Self, UpdateReport)> {
+        Self::rebuild_with(vault, &|| false)
+    }
+
+    /// `rebuild` with `cancel` checked between commits. A cancelled rebuild
+    /// leaves a consistent index behind the Vault; `update` continues it.
+    pub fn rebuild_with(vault: &Vault, cancel: &dyn Fn() -> bool) -> Result<(Self, UpdateReport)> {
         let path = index_path(vault)?;
         for suffix in ["", "-journal", "-wal", "-shm"] {
             let file = PathBuf::from(format!("{}{suffix}", path.display()));
@@ -178,7 +184,7 @@ impl Index {
             }
         }
         let mut index = Self::open(vault)?;
-        let report = index.update(vault, &|| false)?;
+        let report = index.update(vault, cancel)?;
         Ok((index, report))
     }
 

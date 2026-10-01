@@ -115,6 +115,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "enouia-memory-workspace"
+version = "0.1.0"
+dependencies = [
+ "enouia-memory-context",
+ "enouia-memory-contract",
+ "enouia-memory-govern",
+ "enouia-memory-import",
+ "enouia-memory-index",
+ "enouia-memory-vault",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "fallible-iterator"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
