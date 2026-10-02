@@ -2,8 +2,8 @@
 //
 // Starts the built workspace shell with WebView2 remote debugging on a
 // loopback port, drives the real page over the Chrome DevTools Protocol
-// (real Tauri IPC, real Core), types the import path into the native file
-// dialog with WScript.Shell, and saves screenshots plus a JSON report.
+// (real Tauri IPC, real Core), fills the native Open dialog of that process
+// through UI Automation, and saves screenshots plus a JSON report.
 //
 // node apps/workspace/e2e/smoke.mjs <exe> <vault-root> <import-file> <out-dir> [hotkey-letter]
 //
@@ -22,20 +22,20 @@ const check = (id, ok, detail = "") => {
   console.log(`${ok ? "PASS" : "FAIL"} ${id} ${detail}`);
 };
 
-function launch(port, args) {
+function launch(port, args, extraEnv = {}) {
   const child = spawn(exe, args, {
-    env: { ...process.env, WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS: `--remote-debugging-port=${port} --remote-debugging-address=127.0.0.1` },
+    env: { ...process.env, ...extraEnv, WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS: `--remote-debugging-port=${port} --remote-debugging-address=127.0.0.1` },
     stdio: "ignore",
   });
   return child;
 }
 
-async function connect(port, wantOverlay = false) {
+async function connect(port, wantOverlay = false, exclude = null) {
   for (let i = 0; i < 120; i++) {
     try {
       const targets = await (await fetch(`http://127.0.0.1:${port}/json`)).json();
-      const page = targets.find((t) => t.type === "page" && t.url.startsWith("http://tauri.localhost/") && t.url.includes("overlay") === wantOverlay);
-      if (page) return session(page.webSocketDebuggerUrl);
+      const page = targets.find((t) => t.type === "page" && t.url.startsWith("http://tauri.localhost/") && t.url.includes("overlay") === wantOverlay && t.id !== exclude);
+      if (page) return { ...session(page.webSocketDebuggerUrl), id: page.id };
     } catch {
       /* not up yet */
     }
@@ -110,7 +110,8 @@ const all = (...texts) => texts.map(has).join(" && ");
 const any = (...texts) => `(${texts.map(has).join(" || ")})`;
 
 // Fill the native Open dialog of `pid` through UI Automation: the file name
-// box (AutomationId 1148) gets the path, then its Open button (1) is invoked. Nothing is typed anywhere if the dialog is not found.
+// edit (control 1148) gets the path by WM_SETTEXT, then its Open button
+// (control 1) gets BM_CLICK. Only windows of this process are touched. Nothing is typed anywhere if the dialog is not found.
 function fillOpenDialog(pid, path) {
   const script = `Add-Type -AssemblyName UIAutomationClient, UIAutomationTypes
 $A = [System.Windows.Automation.AutomationElement]
@@ -123,15 +124,13 @@ for ($i = 0; $i -lt 80 -and -not $dialog; $i++) {
   if (-not $dialog) { Start-Sleep -Milliseconds 250 }
 }
 if (-not $dialog) { throw 'no dialog' }
-$combo = $dialog.FindFirst([System.Windows.Automation.TreeScope]::Descendants, (New-Object $C($A::AutomationIdProperty, '1148')))
-$edit = $combo.FindFirst([System.Windows.Automation.TreeScope]::Children, (New-Object $C($A::ControlTypeProperty, [System.Windows.Automation.ControlType]::Edit)))
-if (-not $edit) { $edit = $combo }
-$edit.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).SetValue('${path.replace(/'/g, "''")}')
-$buttons = $dialog.FindAll([System.Windows.Automation.TreeScope]::Descendants, (New-Object $C($A::ControlTypeProperty, [System.Windows.Automation.ControlType]::Button)))
-$open = $null
-foreach ($b in $buttons) { if ($b.Current.AutomationId -eq '1') { $open = $b } }
-if (-not $open) { throw 'no open button' }
-$open.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()`;
+Add-Type -Namespace E2E -Name User32 -MemberDefinition '[DllImport("user32.dll", CharSet = CharSet.Unicode)] public static extern System.IntPtr SendMessage(System.IntPtr h, uint m, System.IntPtr w, string l);'
+$all = $dialog.FindAll([System.Windows.Automation.TreeScope]::Descendants, [System.Windows.Automation.Condition]::TrueCondition)
+$edit = $all | Where-Object { $_.Current.ClassName -eq 'Edit' -and $_.Current.AutomationId -eq '1148' } | Select-Object -First 1
+$open = $all | Where-Object { $_.Current.ClassName -eq 'Button' -and $_.Current.AutomationId -eq '1' } | Select-Object -First 1
+if (-not $edit -or -not $open) { throw 'dialog controls not found' }
+[E2E.User32]::SendMessage([System.IntPtr]$edit.Current.NativeWindowHandle, 0x000C, [System.IntPtr]::Zero, '${path.replace(/'/g, "''")}') | Out-Null
+[E2E.User32]::SendMessage([System.IntPtr]$open.Current.NativeWindowHandle, 0x00F5, [System.IntPtr]::Zero, $null) | Out-Null`;
   execFileSync("powershell", ["-NoProfile", "-NonInteractive", "-EncodedCommand", Buffer.from(script, "utf16le").toString("base64")], { stdio: ["ignore", "ignore", "pipe"] });
 }
 
@@ -275,7 +274,8 @@ async function main() {
   await waitFor(s, has("Vault：open"), "unlocked");
 
   // W05 hotkey conflict: a second instance cannot take Ctrl+Alt+M.
-  const second = launch(9334, ["--hotkey-key", HOTKEY]);
+  // A second process with its own WebView2 profile and debugging port.
+  const second = launch(9334, ["--hotkey-key", HOTKEY], { WEBVIEW2_USER_DATA_FOLDER: join(out, "webview2-second") });
   const s2 = await connect(9334);
   await waitFor(s2, "document.body.innerText.includes('Ctrl+Alt+')", "second status");
   check("W05.hotkey_conflict_reported", await s2.evaluate("document.body.innerText.includes('被占用')"));
@@ -291,10 +291,20 @@ async function main() {
   check("W03.close_hides_core_keeps_running", app.exitCode === null && alive === "open", alive);
 
   // W03 exit, then restart: everything is still there (W01 resume).
-  await s.evaluate("window.__TAURI_INTERNALS__.invoke('exit_app').catch(() => 0)").catch(() => 0);
+  // The page dies with the process, so its reply never comes.
+  void s.evaluate("window.__TAURI_INTERNALS__.invoke('exit_app').catch(() => 0)").catch(() => 0);
+  await sleep(500); // let the request leave before the socket closes
   s.close();
-  await new Promise((r) => (app.exitCode !== null ? r() : app.on("exit", r)));
-  check("W03.exit_ends_process", app.exitCode !== null, `exit ${app.exitCode}`);
+  const running = (pid) => {
+    try {
+      process.kill(pid, 0);
+      return true;
+    } catch {
+      return false;
+    }
+  };
+  for (let i = 0; i < 60 && running(app.pid); i++) await sleep(250);
+  check("W03.exit_ends_process", !running(app.pid));
   app = launch(9333, ["--vault", vault]);
   s = await connect(9333);
   await s.evaluate(HELPERS);
@@ -305,7 +315,9 @@ async function main() {
   await waitFor(s, has("assistant_completed"), "transcript after restart");
   check("W01.resume_after_restart", await s.evaluate(has("MoriMeta 设计决定")));
   await shot(s, "10-resumed");
-  await s.evaluate("window.__TAURI_INTERNALS__.invoke('exit_app').catch(() => 0)").catch(() => 0);
+  // The page dies with the process, so its reply never comes.
+  void s.evaluate("window.__TAURI_INTERNALS__.invoke('exit_app').catch(() => 0)").catch(() => 0);
+  await sleep(500); // let the request leave before the socket closes
   s.close();
   await sleep(500);
   app.kill();

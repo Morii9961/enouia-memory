@@ -365,7 +365,7 @@ function Sessions({ inspect }: { inspect: (capsuleId: string) => void }) {
   return (
     <div className="split">
       <section aria-label="会话列表">
-        <button type="button" onClick={() => void action.run(async () => { const s = await call("session_new"); list(); open(s); })}>新会话</button>
+        <button type="button" onClick={() => void action.run(async () => { const s = await call("session_new"); list(); open({ sessionId: s.sessionId, branchId: s.branchId }); })}>新会话</button>
         <ul className="list">
           {sessions.map((s) => s.branches.map((b: J) => (
             <li key={b.branchId}>

@@ -27,7 +27,7 @@ These come from [design/DECISIONS_AND_SOURCES](../design/DECISIONS_AND_SOURCES.m
 | ADR-MEM-17 | Single primary; offline edits become candidates | Deferred (MV-10) |
 | ADR-MEM-18 | Adapters open only after measurement | Adopted |
 
-## ADR-MEM-19 … 42 — implementation decisions (MV-0 / MV-0R / MV-1 / MV-2 / MV-3 / MV-4)
+## ADR-MEM-19 … 44 — implementation decisions (MV-0 / MV-0R / MV-1 … MV-6)
 
 ADR-MEM-20 to 29 were first drafted with Enouia Runtime's register numbers 020–029 and never committed there. The draft is kept in [history](../history/adr-draft-runtime-numbering.md). Numbering here is this repository's own.
 
@@ -194,8 +194,9 @@ The Windows workspace is two layers: `enouia-memory-workspace` (the embedded Cor
 - **Long work off the UI thread.** Import, resume, index rebuild, Vault verification, and backup export run on worker threads and return an `operationId`; `operation_get` reports `queued/running/succeeded/failed/cancelled` and progress (commits applied or batches committed; `total` is null when unknown). Cancellation is checked between commits or batches, so a cancelled import is resumable and a cancelled rebuild leaves a consistent, older index. While the index is busy, searches return `index_not_ready` immediately instead of waiting, and the status shows `memory_index: recovering` with the Vault still healthy. Index rebuild gained a cancellable variant (`Index::rebuild_with`).
 - **Four different stops.** Closing the window hides it (operations continue, tray stays). Lock Vault cancels and joins operations, then drops the Vault and index handles; every Vault command answers `vault_locked` until unlocked. Exit does the same and ends the process. Sync does not exist before MV-9, so "pause sync" is shown as not available. Activity is shown as independent and is never started, stopped, or read.
 - **Data root.** Only an explicitly chosen root (`--vault <dir>` or the folder picker) is opened; a new Vault needs the owner to type the confirmation phrase. There is no default location.
-- **Companion shell.** A tray icon (show, lock, exit), a global hotkey (Ctrl+Alt+M by default) registered with `RegisterHotKey` on its own thread, reported as `registered` or `conflict` instead of silently failing, and a small always-on-top quick-search window with the same read-only search command.
+- **Companion shell.** A tray icon (show, lock, exit), a global hotkey (Ctrl+Alt+M by default, another letter with `--hotkey-key`) registered with `RegisterHotKey` on its own thread, reported as `registered` or `conflict` instead of silently failing, and a small always-on-top quick-search window with the same read-only search command.
 - **Rendering.** Source and memory text are rendered as plain text nodes. No Markdown/HTML rendering, no `dangerouslySetInnerHTML`, no link navigation out of the app.
+- **Real-app check.** `apps/workspace/e2e/smoke.mjs` drives the release binary over WebView2 remote debugging on loopback (enabled only by that test's environment) and fills the native dialog of that process only; see the [MV-6 report](../validation/MV-6.md).
 
 ## Relation to Enouia Runtime's register
 
