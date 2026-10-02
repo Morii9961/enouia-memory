@@ -1,0 +1,729 @@
+{
+  "description": "Workspace IPC v1 (ADR-MEM-44): one valid request per command, responses, and negative cases. schema = what JSON Schema decides; rust_rule = the rule the Rust parser reports.",
+  "valid_requests": [
+    {
+      "schemaVersion": 1,
+      "requestId": "req_00000000-0000-4000-8000-00000000000c",
+      "command": "workspace_status",
+      "idempotencyKey": null,
+      "arguments": {}
+    },
+    {
+      "schemaVersion": 1,
+      "requestId": "req_00000000-0000-4000-8000-00000000000c",
+      "command": "vault_open",
+      "idempotencyKey": null,
+      "arguments": {
+        "rootToken": "tok_0123456789abcdef0123456789abcdef"
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "requestId": "req_00000000-0000-4000-8000-00000000000c",
+      "command": "vault_create",
+      "idempotencyKey": null,
+      "arguments": {
+        "rootToken": "tok_0123456789abcdef0123456789abcdef",
+        "confirmPhrase": "create new vault"
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "requestId": "req_00000000-0000-4000-8000-00000000000c",
+      "command": "vault_lock",
+      "idempotencyKey": null,
+      "arguments": {}
+    },
+    {
+      "schemaVersion": 1,
+      "requestId": "req_00000000-0000-4000-8000-00000000000c",
+      "command": "vault_unlock",
+      "idempotencyKey": null,
+      "arguments": {}
+    },
+    {
+      "schemaVersion": 1,
+      "requestId": "req_00000000-0000-4000-8000-00000000000c",
+      "command": "memory_list",
+      "idempotencyKey": null,
+      "arguments": {
+        "includeInactive": false,
+        "cursor": null,
+        "limit": 20
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "requestId": "req_00000000-0000-4000-8000-00000000000c",
+      "command": "memory_search",
+      "idempotencyKey": null,
+      "arguments": {
+        "query": "函馆 MoriMeta",
+        "includeHistorical": false,
+        "cursor": null,
+        "limit": null
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "requestId": "req_00000000-0000-4000-8000-00000000000c",
+      "command": "memory_read",
+      "idempotencyKey": null,
+      "arguments": {
+        "memoryId": "mem_00000000-0000-4000-8000-000000000001"
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "requestId": "req_00000000-0000-4000-8000-00000000000c",
+      "command": "source_excerpt",
+      "idempotencyKey": null,
+      "arguments": {
+        "sourceId": "src_00000000-0000-4000-8000-000000000002",
+        "sourceRevision": 1,
+        "startByte": null,
+        "maxBytes": 4096
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "requestId": "req_00000000-0000-4000-8000-00000000000c",
+      "command": "candidate_list",
+      "idempotencyKey": null,
+      "arguments": {
+        "cursor": null,
+        "limit": 50
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "requestId": "req_00000000-0000-4000-8000-00000000000c",
+      "command": "review_plan",
+      "idempotencyKey": null,
+      "arguments": {
+        "decisions": [
+          {
+            "candidateId": "cand_00000000-0000-4000-8000-000000000003",
+            "revision": 1,
+            "action": "accept",
+            "editedContent": null,
+            "mergeTarget": null
+          },
+          {
+            "candidateId": "cand_00000000-0000-4000-8000-000000000004",
+            "revision": 2,
+            "action": "edit_accept",
+            "editedContent": "改写后的文字",
+            "mergeTarget": null
+          },
+          {
+            "candidateId": "cand_00000000-0000-4000-8000-000000000005",
+            "revision": 1,
+            "action": "merge",
+            "editedContent": null,
+            "mergeTarget": {
+              "kind": "memory",
+              "id": "mem_00000000-0000-4000-8000-000000000001"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "requestId": "req_00000000-0000-4000-8000-00000000000c",
+      "command": "review_discard",
+      "idempotencyKey": null,
+      "arguments": {
+        "planId": "pln_fedcba9876543210fedcba9876543210"
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "requestId": "req_00000000-0000-4000-8000-00000000000c",
+      "command": "review_confirm",
+      "idempotencyKey": "ui-key-0000000000000001",
+      "arguments": {
+        "planId": "pln_fedcba9876543210fedcba9876543210",
+        "diffHash": "abababababababababababababababababababababababababababababababab"
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "requestId": "req_00000000-0000-4000-8000-00000000000c",
+      "command": "forget_plan",
+      "idempotencyKey": "ui-key-0000000000000001",
+      "arguments": {
+        "memoryId": "mem_00000000-0000-4000-8000-000000000001",
+        "mode": "forget",
+        "withDependents": false
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "requestId": "req_00000000-0000-4000-8000-00000000000c",
+      "command": "delete_preview",
+      "idempotencyKey": null,
+      "arguments": {
+        "memoryId": "mem_00000000-0000-4000-8000-000000000001",
+        "withDependents": true
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "requestId": "req_00000000-0000-4000-8000-00000000000c",
+      "command": "remember",
+      "idempotencyKey": "ui-key-0000000000000001",
+      "arguments": {
+        "text": "我更喜欢在晚上整理照片。",
+        "claimKey": "preference.photo_time"
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "requestId": "req_00000000-0000-4000-8000-00000000000c",
+      "command": "correction_propose",
+      "idempotencyKey": "ui-key-0000000000000001",
+      "arguments": {
+        "memoryId": "mem_00000000-0000-4000-8000-000000000001",
+        "revision": 1,
+        "text": "更正后的事实。"
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "requestId": "req_00000000-0000-4000-8000-00000000000c",
+      "command": "import_preview",
+      "idempotencyKey": null,
+      "arguments": {
+        "importToken": "tok_0123456789abcdef0123456789abcdef"
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "requestId": "req_00000000-0000-4000-8000-00000000000c",
+      "command": "import_start",
+      "idempotencyKey": "ui-key-0000000000000001",
+      "arguments": {
+        "importToken": "tok_0123456789abcdef0123456789abcdef",
+        "accountAlias": "acct-main"
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "requestId": "req_00000000-0000-4000-8000-00000000000c",
+      "command": "import_resume",
+      "idempotencyKey": "ui-key-0000000000000001",
+      "arguments": {
+        "importId": "imp_00000000-0000-4000-8000-000000000006",
+        "accountAlias": "acct-main"
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "requestId": "req_00000000-0000-4000-8000-00000000000c",
+      "command": "import_list",
+      "idempotencyKey": null,
+      "arguments": {}
+    },
+    {
+      "schemaVersion": 1,
+      "requestId": "req_00000000-0000-4000-8000-00000000000c",
+      "command": "session_list",
+      "idempotencyKey": null,
+      "arguments": {}
+    },
+    {
+      "schemaVersion": 1,
+      "requestId": "req_00000000-0000-4000-8000-00000000000c",
+      "command": "session_detail",
+      "idempotencyKey": null,
+      "arguments": {
+        "sessionId": "ses_00000000-0000-4000-8000-000000000007",
+        "branchId": "br_00000000-0000-4000-8000-000000000008"
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "requestId": "req_00000000-0000-4000-8000-00000000000c",
+      "command": "session_new",
+      "idempotencyKey": "ui-key-0000000000000001",
+      "arguments": {}
+    },
+    {
+      "schemaVersion": 1,
+      "requestId": "req_00000000-0000-4000-8000-00000000000c",
+      "command": "session_ask",
+      "idempotencyKey": "ui-key-0000000000000001",
+      "arguments": {
+        "sessionId": "ses_00000000-0000-4000-8000-000000000007",
+        "branchId": "br_00000000-0000-4000-8000-000000000008",
+        "text": "MoriMeta 的设计决定是什么？"
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "requestId": "req_00000000-0000-4000-8000-00000000000c",
+      "command": "session_checkpoint",
+      "idempotencyKey": "ui-key-0000000000000001",
+      "arguments": {
+        "sessionId": "ses_00000000-0000-4000-8000-000000000007",
+        "branchId": "br_00000000-0000-4000-8000-000000000008",
+        "summary": "讨论了 MoriMeta。"
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "requestId": "req_00000000-0000-4000-8000-00000000000c",
+      "command": "context_preview",
+      "idempotencyKey": "ui-key-0000000000000001",
+      "arguments": {
+        "query": "MoriMeta",
+        "sessionId": null,
+        "branchId": null
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "requestId": "req_00000000-0000-4000-8000-00000000000c",
+      "command": "context_inspect",
+      "idempotencyKey": null,
+      "arguments": {
+        "capsuleId": "cap_00000000-0000-4000-8000-000000000009"
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "requestId": "req_00000000-0000-4000-8000-00000000000c",
+      "command": "dispatch_inspect",
+      "idempotencyKey": null,
+      "arguments": {
+        "dispatchId": "dsp_00000000-0000-4000-8000-00000000000a"
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "requestId": "req_00000000-0000-4000-8000-00000000000c",
+      "command": "index_rebuild",
+      "idempotencyKey": null,
+      "arguments": {}
+    },
+    {
+      "schemaVersion": 1,
+      "requestId": "req_00000000-0000-4000-8000-00000000000c",
+      "command": "vault_verify",
+      "idempotencyKey": null,
+      "arguments": {}
+    },
+    {
+      "schemaVersion": 1,
+      "requestId": "req_00000000-0000-4000-8000-00000000000c",
+      "command": "backup_export",
+      "idempotencyKey": null,
+      "arguments": {
+        "destinationToken": "tok_0123456789abcdef0123456789abcdef"
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "requestId": "req_00000000-0000-4000-8000-00000000000c",
+      "command": "restore_preview",
+      "idempotencyKey": null,
+      "arguments": {
+        "exportToken": "tok_0123456789abcdef0123456789abcdef"
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "requestId": "req_00000000-0000-4000-8000-00000000000c",
+      "command": "operation_get",
+      "idempotencyKey": null,
+      "arguments": {
+        "operationId": "op_00000000-0000-4000-8000-00000000000b"
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "requestId": "req_00000000-0000-4000-8000-00000000000c",
+      "command": "operation_cancel",
+      "idempotencyKey": null,
+      "arguments": {
+        "operationId": "op_00000000-0000-4000-8000-00000000000b"
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "requestId": "req_00000000-0000-4000-8000-00000000000c",
+      "command": "operation_list",
+      "idempotencyKey": null,
+      "arguments": {}
+    }
+  ],
+  "invalid_requests": [
+    {
+      "id": "unknown-command",
+      "base": 0,
+      "ops": [
+        {
+          "op": "set",
+          "path": "/command",
+          "value": "run_shell"
+        }
+      ],
+      "schema": "reject",
+      "rust_rule": "workspace.unknown_command"
+    },
+    {
+      "id": "path-argument",
+      "base": 17,
+      "ops": [
+        {
+          "op": "set",
+          "path": "/arguments/importToken",
+          "value": "C:/Users/x/export.zip"
+        }
+      ],
+      "schema": "reject",
+      "rust_rule": "workspace.token"
+    },
+    {
+      "id": "extra-path-field",
+      "base": 1,
+      "ops": [
+        {
+          "op": "set",
+          "path": "/arguments/path",
+          "value": "D:/vault"
+        }
+      ],
+      "schema": "reject",
+      "rust_rule": "shape"
+    },
+    {
+      "id": "write-without-key",
+      "base": 15,
+      "ops": [
+        {
+          "op": "set",
+          "path": "/idempotencyKey",
+          "value": null
+        }
+      ],
+      "schema": "reject",
+      "rust_rule": "ipc.idempotency_key"
+    },
+    {
+      "id": "read-with-key",
+      "base": 7,
+      "ops": [
+        {
+          "op": "set",
+          "path": "/idempotencyKey",
+          "value": "ui-key-0000000000000001"
+        }
+      ],
+      "schema": "reject",
+      "rust_rule": "ipc.idempotency_key"
+    },
+    {
+      "id": "schema-version-2",
+      "base": 0,
+      "ops": [
+        {
+          "op": "set",
+          "path": "/schemaVersion",
+          "value": 2
+        }
+      ],
+      "schema": "reject",
+      "rust_rule": "unsupported_schema"
+    },
+    {
+      "id": "limit-too-large",
+      "base": 5,
+      "ops": [
+        {
+          "op": "set",
+          "path": "/arguments/limit",
+          "value": 101
+        }
+      ],
+      "schema": "reject",
+      "rust_rule": "workspace.limit"
+    },
+    {
+      "id": "empty-query",
+      "base": 6,
+      "ops": [
+        {
+          "op": "set",
+          "path": "/arguments/query",
+          "value": ""
+        }
+      ],
+      "schema": "reject",
+      "rust_rule": "workspace.text_length"
+    },
+    {
+      "id": "excerpt-too-large",
+      "base": 8,
+      "ops": [
+        {
+          "op": "set",
+          "path": "/arguments/maxBytes",
+          "value": 8193
+        }
+      ],
+      "schema": "reject",
+      "rust_rule": "ipc.source_max_bytes"
+    },
+    {
+      "id": "edit-without-text",
+      "base": 10,
+      "ops": [
+        {
+          "op": "set",
+          "path": "/arguments/decisions/1/editedContent",
+          "value": null
+        }
+      ],
+      "schema": "accept",
+      "rust_rule": "ipc.edited_content"
+    },
+    {
+      "id": "merge-wrong-prefix",
+      "base": 10,
+      "ops": [
+        {
+          "op": "set",
+          "path": "/arguments/decisions/2/mergeTarget/id",
+          "value": "src_00000000-0000-4000-8000-000000000001"
+        }
+      ],
+      "schema": "accept",
+      "rust_rule": "ref.kind_prefix"
+    },
+    {
+      "id": "no-decisions",
+      "base": 10,
+      "ops": [
+        {
+          "op": "set",
+          "path": "/arguments/decisions",
+          "value": []
+        }
+      ],
+      "schema": "reject",
+      "rust_rule": "workspace.decision_count"
+    },
+    {
+      "id": "bad-plan-id",
+      "base": 12,
+      "ops": [
+        {
+          "op": "set",
+          "path": "/arguments/planId",
+          "value": "pln_1"
+        }
+      ],
+      "schema": "reject",
+      "rust_rule": "workspace.plan_id"
+    },
+    {
+      "id": "bad-diff-hash",
+      "base": 12,
+      "ops": [
+        {
+          "op": "set",
+          "path": "/arguments/diffHash",
+          "value": "AB"
+        }
+      ],
+      "schema": "reject",
+      "rust_rule": "shape"
+    },
+    {
+      "id": "wrong-create-phrase",
+      "base": 2,
+      "ops": [
+        {
+          "op": "set",
+          "path": "/arguments/confirmPhrase",
+          "value": "yes"
+        }
+      ],
+      "schema": "reject",
+      "rust_rule": "workspace.confirm_phrase"
+    },
+    {
+      "id": "bad-claim-key",
+      "base": 15,
+      "ops": [
+        {
+          "op": "set",
+          "path": "/arguments/claimKey",
+          "value": "Bad Key"
+        }
+      ],
+      "schema": "reject",
+      "rust_rule": "workspace.claim_key"
+    },
+    {
+      "id": "bad-alias",
+      "base": 18,
+      "ops": [
+        {
+          "op": "set",
+          "path": "/arguments/accountAlias",
+          "value": "me@example.invalid"
+        }
+      ],
+      "schema": "reject",
+      "rust_rule": "source.account_alias"
+    },
+    {
+      "id": "half-session",
+      "base": 26,
+      "ops": [
+        {
+          "op": "set",
+          "path": "/arguments/sessionId",
+          "value": "ses_00000000-0000-4000-8000-000000000007"
+        }
+      ],
+      "schema": "accept",
+      "rust_rule": "workspace.session_pair"
+    },
+    {
+      "id": "sql-in-memory-id",
+      "base": 7,
+      "ops": [
+        {
+          "op": "set",
+          "path": "/arguments/memoryId",
+          "value": "mem_1' OR 1=1 --"
+        }
+      ],
+      "schema": "reject",
+      "rust_rule": "shape"
+    }
+  ],
+  "valid_responses": [
+    {
+      "command": "workspace_status",
+      "message": {
+        "schemaVersion": 1,
+        "requestId": "req_00000000-0000-4000-8000-00000000000c",
+        "kind": "workspace_status",
+        "vaultCommitId": null,
+        "operationId": null,
+        "result": {
+          "vault": {
+            "state": "open"
+          }
+        },
+        "error": null
+      }
+    },
+    {
+      "command": "index_rebuild",
+      "message": {
+        "schemaVersion": 1,
+        "requestId": "req_00000000-0000-4000-8000-00000000000c",
+        "kind": "operation_started",
+        "vaultCommitId": null,
+        "operationId": "op_00000000-0000-4000-8000-00000000000b",
+        "result": {
+          "operationId": "op_00000000-0000-4000-8000-00000000000b"
+        },
+        "error": null
+      }
+    },
+    {
+      "command": "review_confirm",
+      "message": {
+        "schemaVersion": 1,
+        "requestId": "req_00000000-0000-4000-8000-00000000000c",
+        "kind": "review_committed",
+        "vaultCommitId": "cmt_00000000-0000-4000-8000-00000000000d",
+        "operationId": null,
+        "result": {
+          "commitId": "cmt_00000000-0000-4000-8000-00000000000d"
+        },
+        "error": null
+      }
+    },
+    {
+      "command": "memory_search",
+      "message": {
+        "schemaVersion": 1,
+        "requestId": "req_00000000-0000-4000-8000-00000000000c",
+        "kind": "memory_error",
+        "vaultCommitId": null,
+        "operationId": null,
+        "result": null,
+        "error": {
+          "code": "index_not_ready",
+          "retryable": true,
+          "rules": [
+            "index.busy"
+          ]
+        }
+      }
+    }
+  ],
+  "invalid_responses": [
+    {
+      "id": "wrong-kind",
+      "base": 0,
+      "ops": [
+        {
+          "op": "set",
+          "path": "/message/kind",
+          "value": "memory_page"
+        }
+      ],
+      "schema": "accept",
+      "rust_rule": "ipc.kind_for_operation"
+    },
+    {
+      "id": "result-and-error",
+      "base": 3,
+      "ops": [
+        {
+          "op": "set",
+          "path": "/message/result",
+          "value": {}
+        }
+      ],
+      "schema": "reject",
+      "rust_rule": "ipc.result_or_error"
+    },
+    {
+      "id": "long-without-operation",
+      "base": 1,
+      "ops": [
+        {
+          "op": "set",
+          "path": "/message/operationId",
+          "value": null
+        }
+      ],
+      "schema": "accept",
+      "rust_rule": "workspace.operation_id"
+    },
+    {
+      "id": "error-with-path",
+      "base": 3,
+      "ops": [
+        {
+          "op": "set",
+          "path": "/message/error/rules/0",
+          "value": "C:\\Users\\x"
+        }
+      ],
+      "schema": "reject",
+      "rust_rule": "workspace.error_rules"
+    }
+  ]
+}

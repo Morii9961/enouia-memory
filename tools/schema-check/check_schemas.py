@@ -156,6 +156,24 @@ def main():
                 failures.append(f"ipc case {case['id']}: independent validator accepted={accepted}, manifest says {case['schema']}")
     counts["ipc_messages"] = sum(len(ipc[k]) for k in ("valid_requests", "valid_responses", "invalid_requests", "invalid_responses"))
 
+    ws = load(FIXTURES / "workspace-manifest.json")
+    schema = "ipc/workspace-v1.schema.json"
+    for request in ws["valid_requests"]:
+        if not valid(schema, request):
+            failures.append(f"valid workspace request rejected: {request['command']}")
+    for response in ws["valid_responses"]:
+        if not valid(schema, response["message"]):
+            failures.append(f"valid workspace response rejected: {response['message']['kind']}")
+    for group, base_key, pick in (("invalid_requests", "valid_requests", lambda v: v),
+                                  ("invalid_responses", "valid_responses", lambda v: v["message"])):
+        for case in ws[group]:
+            value = copy.deepcopy(ws[base_key][case["base"]])
+            apply_ops(value, case["ops"])
+            accepted = valid(schema, pick(value))
+            if accepted != (case["schema"] == "accept"):
+                failures.append(f"workspace case {case['id']}: independent validator accepted={accepted}, manifest says {case['schema']}")
+    counts["workspace_messages"] = sum(len(ws[k]) for k in ("valid_requests", "valid_responses", "invalid_requests", "invalid_responses"))
+
     store_dir = ROOT / "tests" / "fixtures" / "store"
     store = load(store_dir / "store-manifest.json")
     for entry in store["valid"]:

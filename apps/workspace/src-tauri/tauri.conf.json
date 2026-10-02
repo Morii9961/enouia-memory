@@ -1,0 +1,44 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Enouia Memory Workspace",
+  "version": "0.1.0",
+  "identifier": "dev.enouia.memory.workspace",
+  "build": {
+    "frontendDist": "../dist",
+    "devUrl": "http://localhost:1420"
+  },
+  "app": {
+    "withGlobalTauri": false,
+    "windows": [
+      {
+        "label": "main",
+        "title": "Enouia Memory",
+        "width": 1180,
+        "height": 780,
+        "minWidth": 720,
+        "minHeight": 520,
+        "url": "index.html"
+      },
+      {
+        "label": "overlay",
+        "title": "Enouia Memory · 快速搜索",
+        "url": "index.html?view=overlay",
+        "width": 560,
+        "height": 380,
+        "visible": false,
+        "alwaysOnTop": true,
+        "resizable": false,
+        "skipTaskbar": true,
+        "center": true
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src ipc: http://ipc.localhost; object-src 'none'; frame-src 'none'; form-action 'none'; base-uri 'none'",
+      "freezePrototype": true
+    }
+  },
+  "bundle": {
+    "active": false,
+    "icon": ["icons/icon.ico"]
+  }
+}

@@ -42,6 +42,7 @@ pub mod source;
 pub mod store;
 pub mod temporal;
 pub mod time;
+pub mod workspace;
 
 pub use error::{ContractError, MemoryError, MemoryErrorCode, Violation};
 pub use record::{AnyRecord, RecordKind, parse_any, parse_record};

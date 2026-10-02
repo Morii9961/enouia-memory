@@ -1,0 +1,30 @@
+[package]
+name = "enouia-memory-workspace-app"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+description = "Windows Memory Workspace shell (MV-6): forwards the page to the embedded Core"
+
+[[bin]]
+name = "enouia-memory-workspace"
+path = "src/main.rs"
+
+[build-dependencies]
+tauri-build = { version = "=2.7.0", features = [] }
+
+[dependencies]
+enouia-memory-workspace = { path = "../../../crates/enouia-memory-workspace" }
+rfd = { version = "=0.17.2", default-features = false }
+serde_json.workspace = true
+tauri = { version = "=2.12.0", features = ["tray-icon"] }
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "=0.61.2", features = [
+    "Win32_Foundation",
+    "Win32_UI_Input_KeyboardAndMouse",
+    "Win32_UI_WindowsAndMessaging",
+] }
+
+[features]
+# Embed the built frontend (`npm run build`) instead of the dev server.
+custom-protocol = ["tauri/custom-protocol"]

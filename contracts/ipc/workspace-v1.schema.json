@@ -1,0 +1,1857 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.enouia-memory.invalid/ipc/workspace-v1.schema.json",
+  "title": "Enouia Memory Windows workspace IPC v1",
+  "description": "Typed envelopes between the Windows workspace frontend and the embedded Core (ADR-MEM-44). camelCase fields; logical IDs and single-use picker tokens only: no paths, SQL, shell text, or caller-asserted identity. Commands that can commit to the Vault carry an idempotency key; the others carry null. A response carries a result object or an error, never both; the result shape per kind and the command-to-kind pairing are enforced in Rust (enouia-memory-contract::workspace).",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/request_workspace_status"
+    },
+    {
+      "$ref": "#/$defs/request_vault_open"
+    },
+    {
+      "$ref": "#/$defs/request_vault_create"
+    },
+    {
+      "$ref": "#/$defs/request_vault_lock"
+    },
+    {
+      "$ref": "#/$defs/request_vault_unlock"
+    },
+    {
+      "$ref": "#/$defs/request_memory_list"
+    },
+    {
+      "$ref": "#/$defs/request_memory_search"
+    },
+    {
+      "$ref": "#/$defs/request_memory_read"
+    },
+    {
+      "$ref": "#/$defs/request_source_excerpt"
+    },
+    {
+      "$ref": "#/$defs/request_candidate_list"
+    },
+    {
+      "$ref": "#/$defs/request_review_plan"
+    },
+    {
+      "$ref": "#/$defs/request_review_discard"
+    },
+    {
+      "$ref": "#/$defs/request_review_confirm"
+    },
+    {
+      "$ref": "#/$defs/request_forget_plan"
+    },
+    {
+      "$ref": "#/$defs/request_delete_preview"
+    },
+    {
+      "$ref": "#/$defs/request_remember"
+    },
+    {
+      "$ref": "#/$defs/request_correction_propose"
+    },
+    {
+      "$ref": "#/$defs/request_import_preview"
+    },
+    {
+      "$ref": "#/$defs/request_import_start"
+    },
+    {
+      "$ref": "#/$defs/request_import_resume"
+    },
+    {
+      "$ref": "#/$defs/request_import_list"
+    },
+    {
+      "$ref": "#/$defs/request_session_list"
+    },
+    {
+      "$ref": "#/$defs/request_session_detail"
+    },
+    {
+      "$ref": "#/$defs/request_session_new"
+    },
+    {
+      "$ref": "#/$defs/request_session_ask"
+    },
+    {
+      "$ref": "#/$defs/request_session_checkpoint"
+    },
+    {
+      "$ref": "#/$defs/request_context_preview"
+    },
+    {
+      "$ref": "#/$defs/request_context_inspect"
+    },
+    {
+      "$ref": "#/$defs/request_dispatch_inspect"
+    },
+    {
+      "$ref": "#/$defs/request_index_rebuild"
+    },
+    {
+      "$ref": "#/$defs/request_vault_verify"
+    },
+    {
+      "$ref": "#/$defs/request_backup_export"
+    },
+    {
+      "$ref": "#/$defs/request_restore_preview"
+    },
+    {
+      "$ref": "#/$defs/request_operation_get"
+    },
+    {
+      "$ref": "#/$defs/request_operation_cancel"
+    },
+    {
+      "$ref": "#/$defs/request_operation_list"
+    },
+    {
+      "$ref": "#/$defs/response"
+    }
+  ],
+  "$defs": {
+    "request_workspace_status": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "requestId",
+        "command",
+        "idempotencyKey",
+        "arguments"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": 1
+        },
+        "requestId": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/requestId"
+        },
+        "command": {
+          "const": "workspace_status"
+        },
+        "idempotencyKey": {
+          "type": "null"
+        },
+        "arguments": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [],
+          "properties": {}
+        }
+      }
+    },
+    "request_vault_open": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "requestId",
+        "command",
+        "idempotencyKey",
+        "arguments"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": 1
+        },
+        "requestId": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/requestId"
+        },
+        "command": {
+          "const": "vault_open"
+        },
+        "idempotencyKey": {
+          "type": "null"
+        },
+        "arguments": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "rootToken"
+          ],
+          "properties": {
+            "rootToken": {
+              "type": "string",
+              "pattern": "^tok_[0-9a-f]{32}$"
+            }
+          }
+        }
+      }
+    },
+    "request_vault_create": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "requestId",
+        "command",
+        "idempotencyKey",
+        "arguments"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": 1
+        },
+        "requestId": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/requestId"
+        },
+        "command": {
+          "const": "vault_create"
+        },
+        "idempotencyKey": {
+          "type": "null"
+        },
+        "arguments": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "rootToken",
+            "confirmPhrase"
+          ],
+          "properties": {
+            "rootToken": {
+              "type": "string",
+              "pattern": "^tok_[0-9a-f]{32}$"
+            },
+            "confirmPhrase": {
+              "const": "create new vault"
+            }
+          }
+        }
+      }
+    },
+    "request_vault_lock": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "requestId",
+        "command",
+        "idempotencyKey",
+        "arguments"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": 1
+        },
+        "requestId": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/requestId"
+        },
+        "command": {
+          "const": "vault_lock"
+        },
+        "idempotencyKey": {
+          "type": "null"
+        },
+        "arguments": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [],
+          "properties": {}
+        }
+      }
+    },
+    "request_vault_unlock": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "requestId",
+        "command",
+        "idempotencyKey",
+        "arguments"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": 1
+        },
+        "requestId": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/requestId"
+        },
+        "command": {
+          "const": "vault_unlock"
+        },
+        "idempotencyKey": {
+          "type": "null"
+        },
+        "arguments": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [],
+          "properties": {}
+        }
+      }
+    },
+    "request_memory_list": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "requestId",
+        "command",
+        "idempotencyKey",
+        "arguments"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": 1
+        },
+        "requestId": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/requestId"
+        },
+        "command": {
+          "const": "memory_list"
+        },
+        "idempotencyKey": {
+          "type": "null"
+        },
+        "arguments": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "includeInactive",
+            "cursor",
+            "limit"
+          ],
+          "properties": {
+            "includeInactive": {
+              "type": "boolean"
+            },
+            "cursor": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 512
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "limit": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 100
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    "request_memory_search": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "requestId",
+        "command",
+        "idempotencyKey",
+        "arguments"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": 1
+        },
+        "requestId": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/requestId"
+        },
+        "command": {
+          "const": "memory_search"
+        },
+        "idempotencyKey": {
+          "type": "null"
+        },
+        "arguments": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "query",
+            "includeHistorical",
+            "cursor",
+            "limit"
+          ],
+          "properties": {
+            "query": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2000
+            },
+            "includeHistorical": {
+              "type": "boolean"
+            },
+            "cursor": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 512
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "limit": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 100
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    "request_memory_read": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "requestId",
+        "command",
+        "idempotencyKey",
+        "arguments"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": 1
+        },
+        "requestId": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/requestId"
+        },
+        "command": {
+          "const": "memory_read"
+        },
+        "idempotencyKey": {
+          "type": "null"
+        },
+        "arguments": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "memoryId"
+          ],
+          "properties": {
+            "memoryId": {
+              "$ref": "../memory/common-v1.schema.json#/$defs/memoryId"
+            }
+          }
+        }
+      }
+    },
+    "request_source_excerpt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "requestId",
+        "command",
+        "idempotencyKey",
+        "arguments"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": 1
+        },
+        "requestId": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/requestId"
+        },
+        "command": {
+          "const": "source_excerpt"
+        },
+        "idempotencyKey": {
+          "type": "null"
+        },
+        "arguments": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "sourceId",
+            "sourceRevision",
+            "startByte",
+            "maxBytes"
+          ],
+          "properties": {
+            "sourceId": {
+              "$ref": "../memory/common-v1.schema.json#/$defs/sourceId"
+            },
+            "sourceRevision": {
+              "$ref": "../memory/common-v1.schema.json#/$defs/revision"
+            },
+            "startByte": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "maxBytes": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 8192
+            }
+          }
+        }
+      }
+    },
+    "request_candidate_list": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "requestId",
+        "command",
+        "idempotencyKey",
+        "arguments"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": 1
+        },
+        "requestId": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/requestId"
+        },
+        "command": {
+          "const": "candidate_list"
+        },
+        "idempotencyKey": {
+          "type": "null"
+        },
+        "arguments": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "cursor",
+            "limit"
+          ],
+          "properties": {
+            "cursor": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 512
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "limit": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 100
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    "request_review_plan": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "requestId",
+        "command",
+        "idempotencyKey",
+        "arguments"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": 1
+        },
+        "requestId": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/requestId"
+        },
+        "command": {
+          "const": "review_plan"
+        },
+        "idempotencyKey": {
+          "type": "null"
+        },
+        "arguments": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "decisions"
+          ],
+          "properties": {
+            "decisions": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 20,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "candidateId",
+                  "revision",
+                  "action",
+                  "editedContent",
+                  "mergeTarget"
+                ],
+                "properties": {
+                  "candidateId": {
+                    "$ref": "../memory/common-v1.schema.json#/$defs/candidateId"
+                  },
+                  "revision": {
+                    "$ref": "../memory/common-v1.schema.json#/$defs/revision"
+                  },
+                  "action": {
+                    "enum": [
+                      "accept",
+                      "edit_accept",
+                      "reject",
+                      "merge"
+                    ]
+                  },
+                  "editedContent": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 20000
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "mergeTarget": {
+                    "anyOf": [
+                      {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "required": [
+                          "kind",
+                          "id"
+                        ],
+                        "properties": {
+                          "kind": {
+                            "enum": [
+                              "candidate",
+                              "memory"
+                            ]
+                          },
+                          "id": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 64
+                          }
+                        }
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "request_review_discard": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "requestId",
+        "command",
+        "idempotencyKey",
+        "arguments"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": 1
+        },
+        "requestId": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/requestId"
+        },
+        "command": {
+          "const": "review_discard"
+        },
+        "idempotencyKey": {
+          "type": "null"
+        },
+        "arguments": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "planId"
+          ],
+          "properties": {
+            "planId": {
+              "type": "string",
+              "pattern": "^pln_[0-9a-f]{32}$"
+            }
+          }
+        }
+      }
+    },
+    "request_review_confirm": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "requestId",
+        "command",
+        "idempotencyKey",
+        "arguments"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": 1
+        },
+        "requestId": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/requestId"
+        },
+        "command": {
+          "const": "review_confirm"
+        },
+        "idempotencyKey": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{16,128}$"
+        },
+        "arguments": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "planId",
+            "diffHash"
+          ],
+          "properties": {
+            "planId": {
+              "type": "string",
+              "pattern": "^pln_[0-9a-f]{32}$"
+            },
+            "diffHash": {
+              "$ref": "../memory/common-v1.schema.json#/$defs/sha256"
+            }
+          }
+        }
+      }
+    },
+    "request_forget_plan": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "requestId",
+        "command",
+        "idempotencyKey",
+        "arguments"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": 1
+        },
+        "requestId": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/requestId"
+        },
+        "command": {
+          "const": "forget_plan"
+        },
+        "idempotencyKey": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{16,128}$"
+        },
+        "arguments": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "memoryId",
+            "mode",
+            "withDependents"
+          ],
+          "properties": {
+            "memoryId": {
+              "$ref": "../memory/common-v1.schema.json#/$defs/memoryId"
+            },
+            "mode": {
+              "enum": [
+                "forget",
+                "purge"
+              ]
+            },
+            "withDependents": {
+              "type": "boolean"
+            }
+          }
+        }
+      }
+    },
+    "request_delete_preview": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "requestId",
+        "command",
+        "idempotencyKey",
+        "arguments"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": 1
+        },
+        "requestId": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/requestId"
+        },
+        "command": {
+          "const": "delete_preview"
+        },
+        "idempotencyKey": {
+          "type": "null"
+        },
+        "arguments": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "memoryId",
+            "withDependents"
+          ],
+          "properties": {
+            "memoryId": {
+              "$ref": "../memory/common-v1.schema.json#/$defs/memoryId"
+            },
+            "withDependents": {
+              "type": "boolean"
+            }
+          }
+        }
+      }
+    },
+    "request_remember": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "requestId",
+        "command",
+        "idempotencyKey",
+        "arguments"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": 1
+        },
+        "requestId": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/requestId"
+        },
+        "command": {
+          "const": "remember"
+        },
+        "idempotencyKey": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{16,128}$"
+        },
+        "arguments": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "text",
+            "claimKey"
+          ],
+          "properties": {
+            "text": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 20000
+            },
+            "claimKey": {
+              "type": "string",
+              "pattern": "^[a-z0-9][a-z0-9_.:-]{0,127}$"
+            }
+          }
+        }
+      }
+    },
+    "request_correction_propose": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "requestId",
+        "command",
+        "idempotencyKey",
+        "arguments"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": 1
+        },
+        "requestId": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/requestId"
+        },
+        "command": {
+          "const": "correction_propose"
+        },
+        "idempotencyKey": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{16,128}$"
+        },
+        "arguments": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "memoryId",
+            "revision",
+            "text"
+          ],
+          "properties": {
+            "memoryId": {
+              "$ref": "../memory/common-v1.schema.json#/$defs/memoryId"
+            },
+            "revision": {
+              "$ref": "../memory/common-v1.schema.json#/$defs/revision"
+            },
+            "text": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 20000
+            }
+          }
+        }
+      }
+    },
+    "request_import_preview": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "requestId",
+        "command",
+        "idempotencyKey",
+        "arguments"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": 1
+        },
+        "requestId": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/requestId"
+        },
+        "command": {
+          "const": "import_preview"
+        },
+        "idempotencyKey": {
+          "type": "null"
+        },
+        "arguments": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "importToken"
+          ],
+          "properties": {
+            "importToken": {
+              "type": "string",
+              "pattern": "^tok_[0-9a-f]{32}$"
+            }
+          }
+        }
+      }
+    },
+    "request_import_start": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "requestId",
+        "command",
+        "idempotencyKey",
+        "arguments"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": 1
+        },
+        "requestId": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/requestId"
+        },
+        "command": {
+          "const": "import_start"
+        },
+        "idempotencyKey": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{16,128}$"
+        },
+        "arguments": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "importToken",
+            "accountAlias"
+          ],
+          "properties": {
+            "importToken": {
+              "type": "string",
+              "pattern": "^tok_[0-9a-f]{32}$"
+            },
+            "accountAlias": {
+              "type": "string",
+              "pattern": "^[a-z0-9][a-z0-9_-]{0,63}$"
+            }
+          }
+        }
+      }
+    },
+    "request_import_resume": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "requestId",
+        "command",
+        "idempotencyKey",
+        "arguments"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": 1
+        },
+        "requestId": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/requestId"
+        },
+        "command": {
+          "const": "import_resume"
+        },
+        "idempotencyKey": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{16,128}$"
+        },
+        "arguments": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "importId",
+            "accountAlias"
+          ],
+          "properties": {
+            "importId": {
+              "$ref": "../memory/common-v1.schema.json#/$defs/importId"
+            },
+            "accountAlias": {
+              "type": "string",
+              "pattern": "^[a-z0-9][a-z0-9_-]{0,63}$"
+            }
+          }
+        }
+      }
+    },
+    "request_import_list": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "requestId",
+        "command",
+        "idempotencyKey",
+        "arguments"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": 1
+        },
+        "requestId": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/requestId"
+        },
+        "command": {
+          "const": "import_list"
+        },
+        "idempotencyKey": {
+          "type": "null"
+        },
+        "arguments": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [],
+          "properties": {}
+        }
+      }
+    },
+    "request_session_list": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "requestId",
+        "command",
+        "idempotencyKey",
+        "arguments"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": 1
+        },
+        "requestId": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/requestId"
+        },
+        "command": {
+          "const": "session_list"
+        },
+        "idempotencyKey": {
+          "type": "null"
+        },
+        "arguments": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [],
+          "properties": {}
+        }
+      }
+    },
+    "request_session_detail": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "requestId",
+        "command",
+        "idempotencyKey",
+        "arguments"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": 1
+        },
+        "requestId": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/requestId"
+        },
+        "command": {
+          "const": "session_detail"
+        },
+        "idempotencyKey": {
+          "type": "null"
+        },
+        "arguments": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "sessionId",
+            "branchId"
+          ],
+          "properties": {
+            "sessionId": {
+              "$ref": "../memory/common-v1.schema.json#/$defs/sessionId"
+            },
+            "branchId": {
+              "$ref": "../memory/common-v1.schema.json#/$defs/branchId"
+            }
+          }
+        }
+      }
+    },
+    "request_session_new": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "requestId",
+        "command",
+        "idempotencyKey",
+        "arguments"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": 1
+        },
+        "requestId": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/requestId"
+        },
+        "command": {
+          "const": "session_new"
+        },
+        "idempotencyKey": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{16,128}$"
+        },
+        "arguments": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [],
+          "properties": {}
+        }
+      }
+    },
+    "request_session_ask": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "requestId",
+        "command",
+        "idempotencyKey",
+        "arguments"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": 1
+        },
+        "requestId": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/requestId"
+        },
+        "command": {
+          "const": "session_ask"
+        },
+        "idempotencyKey": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{16,128}$"
+        },
+        "arguments": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "sessionId",
+            "branchId",
+            "text"
+          ],
+          "properties": {
+            "sessionId": {
+              "$ref": "../memory/common-v1.schema.json#/$defs/sessionId"
+            },
+            "branchId": {
+              "$ref": "../memory/common-v1.schema.json#/$defs/branchId"
+            },
+            "text": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 20000
+            }
+          }
+        }
+      }
+    },
+    "request_session_checkpoint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "requestId",
+        "command",
+        "idempotencyKey",
+        "arguments"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": 1
+        },
+        "requestId": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/requestId"
+        },
+        "command": {
+          "const": "session_checkpoint"
+        },
+        "idempotencyKey": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{16,128}$"
+        },
+        "arguments": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "sessionId",
+            "branchId",
+            "summary"
+          ],
+          "properties": {
+            "sessionId": {
+              "$ref": "../memory/common-v1.schema.json#/$defs/sessionId"
+            },
+            "branchId": {
+              "$ref": "../memory/common-v1.schema.json#/$defs/branchId"
+            },
+            "summary": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 20000
+            }
+          }
+        }
+      }
+    },
+    "request_context_preview": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "requestId",
+        "command",
+        "idempotencyKey",
+        "arguments"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": 1
+        },
+        "requestId": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/requestId"
+        },
+        "command": {
+          "const": "context_preview"
+        },
+        "idempotencyKey": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{16,128}$"
+        },
+        "arguments": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "query",
+            "sessionId",
+            "branchId"
+          ],
+          "properties": {
+            "query": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2000
+            },
+            "sessionId": {
+              "anyOf": [
+                {
+                  "$ref": "../memory/common-v1.schema.json#/$defs/sessionId"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "branchId": {
+              "anyOf": [
+                {
+                  "$ref": "../memory/common-v1.schema.json#/$defs/branchId"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    "request_context_inspect": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "requestId",
+        "command",
+        "idempotencyKey",
+        "arguments"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": 1
+        },
+        "requestId": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/requestId"
+        },
+        "command": {
+          "const": "context_inspect"
+        },
+        "idempotencyKey": {
+          "type": "null"
+        },
+        "arguments": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "capsuleId"
+          ],
+          "properties": {
+            "capsuleId": {
+              "$ref": "../memory/common-v1.schema.json#/$defs/capsuleId"
+            }
+          }
+        }
+      }
+    },
+    "request_dispatch_inspect": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "requestId",
+        "command",
+        "idempotencyKey",
+        "arguments"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": 1
+        },
+        "requestId": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/requestId"
+        },
+        "command": {
+          "const": "dispatch_inspect"
+        },
+        "idempotencyKey": {
+          "type": "null"
+        },
+        "arguments": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "dispatchId"
+          ],
+          "properties": {
+            "dispatchId": {
+              "$ref": "../memory/common-v1.schema.json#/$defs/dispatchId"
+            }
+          }
+        }
+      }
+    },
+    "request_index_rebuild": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "requestId",
+        "command",
+        "idempotencyKey",
+        "arguments"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": 1
+        },
+        "requestId": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/requestId"
+        },
+        "command": {
+          "const": "index_rebuild"
+        },
+        "idempotencyKey": {
+          "type": "null"
+        },
+        "arguments": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [],
+          "properties": {}
+        }
+      }
+    },
+    "request_vault_verify": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "requestId",
+        "command",
+        "idempotencyKey",
+        "arguments"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": 1
+        },
+        "requestId": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/requestId"
+        },
+        "command": {
+          "const": "vault_verify"
+        },
+        "idempotencyKey": {
+          "type": "null"
+        },
+        "arguments": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [],
+          "properties": {}
+        }
+      }
+    },
+    "request_backup_export": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "requestId",
+        "command",
+        "idempotencyKey",
+        "arguments"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": 1
+        },
+        "requestId": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/requestId"
+        },
+        "command": {
+          "const": "backup_export"
+        },
+        "idempotencyKey": {
+          "type": "null"
+        },
+        "arguments": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "destinationToken"
+          ],
+          "properties": {
+            "destinationToken": {
+              "type": "string",
+              "pattern": "^tok_[0-9a-f]{32}$"
+            }
+          }
+        }
+      }
+    },
+    "request_restore_preview": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "requestId",
+        "command",
+        "idempotencyKey",
+        "arguments"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": 1
+        },
+        "requestId": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/requestId"
+        },
+        "command": {
+          "const": "restore_preview"
+        },
+        "idempotencyKey": {
+          "type": "null"
+        },
+        "arguments": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "exportToken"
+          ],
+          "properties": {
+            "exportToken": {
+              "type": "string",
+              "pattern": "^tok_[0-9a-f]{32}$"
+            }
+          }
+        }
+      }
+    },
+    "request_operation_get": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "requestId",
+        "command",
+        "idempotencyKey",
+        "arguments"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": 1
+        },
+        "requestId": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/requestId"
+        },
+        "command": {
+          "const": "operation_get"
+        },
+        "idempotencyKey": {
+          "type": "null"
+        },
+        "arguments": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "operationId"
+          ],
+          "properties": {
+            "operationId": {
+              "$ref": "../memory/common-v1.schema.json#/$defs/operationId"
+            }
+          }
+        }
+      }
+    },
+    "request_operation_cancel": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "requestId",
+        "command",
+        "idempotencyKey",
+        "arguments"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": 1
+        },
+        "requestId": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/requestId"
+        },
+        "command": {
+          "const": "operation_cancel"
+        },
+        "idempotencyKey": {
+          "type": "null"
+        },
+        "arguments": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "operationId"
+          ],
+          "properties": {
+            "operationId": {
+              "$ref": "../memory/common-v1.schema.json#/$defs/operationId"
+            }
+          }
+        }
+      }
+    },
+    "request_operation_list": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "requestId",
+        "command",
+        "idempotencyKey",
+        "arguments"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": 1
+        },
+        "requestId": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/requestId"
+        },
+        "command": {
+          "const": "operation_list"
+        },
+        "idempotencyKey": {
+          "type": "null"
+        },
+        "arguments": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [],
+          "properties": {}
+        }
+      }
+    },
+    "error": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "code",
+        "retryable",
+        "rules"
+      ],
+      "properties": {
+        "code": {
+          "enum": [
+            "unauthenticated",
+            "permission_denied",
+            "not_found",
+            "vault_locked",
+            "vault_recovering",
+            "busy",
+            "revision_conflict",
+            "idempotency_conflict",
+            "invalid_request",
+            "invalid_source",
+            "broken_provenance",
+            "unsupported_schema",
+            "index_not_ready",
+            "budget_exceeded",
+            "unsupported_budget",
+            "storage_full",
+            "storage_failed",
+            "audit_unavailable",
+            "provider_unavailable",
+            "offline",
+            "cancelled",
+            "clock_regression",
+            "intentionally_purged"
+          ]
+        },
+        "retryable": {
+          "type": "boolean"
+        },
+        "rules": {
+          "type": "array",
+          "maxItems": 16,
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z0-9_.]{1,64}$"
+          }
+        }
+      }
+    },
+    "response": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "requestId",
+        "kind",
+        "vaultCommitId",
+        "operationId",
+        "result",
+        "error"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": 1
+        },
+        "requestId": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/requestId"
+        },
+        "kind": {
+          "enum": [
+            "workspace_status",
+            "memory_page",
+            "memory_search_result",
+            "memory_detail",
+            "source_excerpt",
+            "candidate_page",
+            "review_plan",
+            "review_committed",
+            "candidate_proposed",
+            "delete_impact",
+            "import_preview",
+            "import_list",
+            "session_list",
+            "session_detail",
+            "session_created",
+            "session_turn",
+            "checkpoint_proposed",
+            "context_preview",
+            "context_inspection",
+            "dispatch_inspection",
+            "restore_preview",
+            "operation_started",
+            "operation_status",
+            "operation_list",
+            "ack",
+            "memory_error"
+          ]
+        },
+        "vaultCommitId": {
+          "anyOf": [
+            {
+              "$ref": "../memory/common-v1.schema.json#/$defs/commitId"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "operationId": {
+          "anyOf": [
+            {
+              "$ref": "../memory/common-v1.schema.json#/$defs/operationId"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "result": {
+          "anyOf": [
+            {
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "error": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/error"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "oneOf": [
+        {
+          "properties": {
+            "kind": {
+              "const": "memory_error"
+            },
+            "result": {
+              "type": "null"
+            },
+            "error": {
+              "$ref": "#/$defs/error"
+            }
+          }
+        },
+        {
+          "properties": {
+            "kind": {
+              "not": {
+                "const": "memory_error"
+              }
+            },
+            "result": {
+              "type": "object"
+            },
+            "error": {
+              "type": "null"
+            }
+          }
+        }
+      ]
+    }
+  }
+}

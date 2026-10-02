@@ -27,7 +27,7 @@ These come from [design/DECISIONS_AND_SOURCES](../design/DECISIONS_AND_SOURCES.m
 | ADR-MEM-17 | Single primary; offline edits become candidates | Deferred (MV-10) |
 | ADR-MEM-18 | Adapters open only after measurement | Adopted |
 
-## ADR-MEM-19 … 42 — implementation decisions (MV-0 / MV-0R / MV-1 / MV-2 / MV-3 / MV-4)
+## ADR-MEM-19 … 44 — implementation decisions (MV-0 / MV-0R / MV-1 … MV-6)
 
 ADR-MEM-20 to 29 were first drafted with Enouia Runtime's register numbers 020–029 and never committed there. The draft is kept in [history](../history/adr-draft-runtime-numbering.md). Numbering here is this repository's own.
 
@@ -183,6 +183,20 @@ Cost and trigger: small kinds are still loaded completely per commit (cached in 
 - **Compiler `context-1`, ranking `context-rank-1`.** Recall through the index at the Vault's head (`index_not_ready` otherwise, never a hidden scan); hard exclusions first (tombstones, `memory:read`, `highly_sensitive`); currency at request time; whole items only, never truncated; the budget is the rendered request's UTF-8 bytes plus a fixed wrapper (`mock-utf8-1`) until MV-7 fixes real tokenizers. A decided project state without implementation evidence is flagged `implementation_unverified`. The commit is made only if epochs are unchanged since the pin.
 - **Sessions.** User input is committed before compile or answer; output is chunk events ending in completed, cancelled, or failed; a checkpoint is provisional and covers an ordered list of event IDs with a `coverage-1` hash (SHA-256 of the canonical `[{event_id, sequence, kind, content_hash}]`). Every write is idempotent under its request key.
 - **Mock.** No network, tools, or model. Deterministic statements with source references, or abstention (`no_supported_evidence`, `implementation_unverified`, conflict). Source text is data under fixed system rules.
+
+### ADR-MEM-44 — Windows Memory Workspace: embedded Core, typed workspace IPC, Tauri shell (Adopted, MV-6)
+
+The Windows workspace is two layers: `enouia-memory-workspace` (the embedded Core: commands, long operations, review plans, picked-file tokens) and `apps/workspace` (a Tauri 2 shell with a React/TypeScript frontend built by Vite). The shell only forwards; every rule lives in the Core crate, which is tested without a window.
+
+- **One typed channel.** The frontend calls one Tauri command, `workspace_call`, with a [workspace IPC v1](../../contracts/ipc/workspace-v1.schema.json) envelope (`schemaVersion: 1`, `requestId`, `command`, `idempotencyKey`, `arguments`) and gets `{schemaVersion, requestId, kind, vaultCommitId, operationId, result, error}`. Errors are `{code, retryable, rules}`: contract codes and rule identifiers only, never paths, OS messages, or record text. Write commands need an idempotency key; a cancelled or failed operation never reports `succeeded`.
+- **No paths from the page.** Files and folders are chosen in native dialogs opened by the shell (`rfd`); the Core turns the choice into a single-use token (`imp_…`/`dst_…`/`exp_…`, 10 minutes) that names only the file's base name and size to the page. The frontend has no `fs`, `shell`, `http`, or dialog plugin, a strict CSP (`default-src 'self'`, no remote images, no inline script), and only the app's own commands in its capability.
+- **Owner on a trusted surface.** As with the CLI, the owner is the principal that created the Vault and the surface is `trusted_windows_app`; MV-8's Host will authenticate it. A review is `review_plan` (the exact records the commit writes and their diff hash, kept by the Core for `PLAN_TTL`) then `review_confirm` with the plan ID and the shown diff hash; any other hash, an expired plan, or a moved head writes nothing. Forget is the same plan path with a delete candidate. Remember and correction create a manual-assertion source and a pending candidate, never a memory.
+- **Long work off the UI thread.** Import, resume, index rebuild, Vault verification, and backup export run on worker threads and return an `operationId`; `operation_get` reports `queued/running/succeeded/failed/cancelled` and progress (commits applied or batches committed; `total` is null when unknown). Cancellation is checked between commits or batches, so a cancelled import is resumable and a cancelled rebuild leaves a consistent, older index. While the index is busy, searches return `index_not_ready` immediately instead of waiting, and the status shows `memory_index: recovering` with the Vault still healthy. Index rebuild gained a cancellable variant (`Index::rebuild_with`).
+- **Four different stops.** Closing the window hides it (operations continue, tray stays). Lock Vault cancels and joins operations, then drops the Vault and index handles; every Vault command answers `vault_locked` until unlocked. Exit does the same and ends the process. Sync does not exist before MV-9, so "pause sync" is shown as not available. Activity is shown as independent and is never started, stopped, or read.
+- **Data root.** Only an explicitly chosen root (`--vault <dir>` or the folder picker) is opened; a new Vault needs the owner to type the confirmation phrase. There is no default location.
+- **Companion shell.** A tray icon (show, lock, exit), a global hotkey (Ctrl+Alt+M by default, another letter with `--hotkey-key`) registered with `RegisterHotKey` on its own thread, reported as `registered` or `conflict` instead of silently failing, and a small always-on-top quick-search window with the same read-only search command.
+- **Rendering.** Source and memory text are rendered as plain text nodes. No Markdown/HTML rendering, no `dangerouslySetInnerHTML`, no link navigation out of the app.
+- **Real-app check.** `apps/workspace/e2e/smoke.mjs` drives the release binary over WebView2 remote debugging on loopback (enabled only by that test's environment) and fills the native dialog of that process only; see the [MV-6 report](../validation/MV-6.md).
 
 ## Relation to Enouia Runtime's register
 

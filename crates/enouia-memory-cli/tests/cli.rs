@@ -409,3 +409,43 @@ fn review_commands_show_the_exact_plan_and_need_its_typed_code() {
     assert_eq!(out["entries"], 1);
     assert!(!std::fs::read_to_string(&ledger).unwrap().contains("纸质书"));
 }
+
+#[test]
+fn purge_confirms_its_plan_then_purges_the_files() {
+    // Regression: the file purge reused the plan nonce under the scope the
+    // confirm commit had just used, so every CLI purge ended in
+    // `idempotency_conflict` after the tombstone was written.
+    let temp = Temp::new("purge");
+    let install = PathBuf::from(temp.dir("install"));
+    let exe = install.join("enouia-memory.exe");
+    std::fs::copy(env!("CARGO_BIN_EXE_enouia-memory"), &exe).unwrap();
+    let cli = Installed {
+        exe,
+        cwd: install.clone(),
+    };
+    let root = temp.dir("vault-root");
+    assert_eq!(cli.run(&["init", &root, "--confirm-new-vault"]).0, 0);
+    let code_of = |plan: &Value| plan["confirm_code"].as_str().unwrap_or_default().to_owned();
+    let args = [
+        "remember",
+        &root,
+        "--text",
+        "（合成）要彻底删除。",
+        "--claim",
+        "purge.me",
+    ];
+    assert_eq!(cli.interact(&args, code_of).0, 0);
+    let (_, memories) = cli.run(&["memories", &root]);
+    let memory = memories["memories"][0]["memory_id"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+    let (code, plan, last) = cli.interact(&["purge", &root, &memory], code_of);
+    assert_eq!(code, 0, "{last}");
+    assert_eq!(plan["plan"]["operation"], "purge");
+    assert_eq!(last["overall_state"], "backup_purge_pending");
+    assert!(last["receipt_id"].as_str().unwrap().starts_with("prg_"));
+    let (code, verified) = cli.run(&["verify", &root]);
+    assert_eq!(code, 0);
+    assert_eq!(verified["clean"], true, "{verified}");
+}

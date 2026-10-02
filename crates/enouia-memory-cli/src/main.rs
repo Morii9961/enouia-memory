@@ -915,7 +915,13 @@ fn run(args: &[String]) -> Outcome {
                 &vault,
                 &shown.ids[0].delete_id,
                 &owner_of(&vault),
-                shown.nonce.as_bytes(),
+                // The confirm commit used the nonce under the purge scope.
+                format!(
+                    "complete-purge
+{}",
+                    shown.nonce
+                )
+                .as_bytes(),
             )?;
             Ok(json!({
                 "delete_id": shown.ids[0].delete_id,
