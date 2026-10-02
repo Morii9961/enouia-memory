@@ -1,0 +1,13 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "workspace",
+  "description": "The workspace page and the quick-search overlay may call only the app's own commands. No fs, shell, http, dialog, or opener permission exists.",
+  "windows": ["main", "overlay"],
+  "permissions": [
+    "allow-workspace-call",
+    "allow-pick",
+    "allow-show-main",
+    "allow-hide-window",
+    "allow-exit-app"
+  ]
+}
