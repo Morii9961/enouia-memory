@@ -95,12 +95,21 @@ function Operation({ id, onDone }: { id: string; onDone?: (status: J) => void })
 }
 
 /** Shows the exact records a confirm will write; only its hash confirms. */
-function PlanDialog({ plan, onClose }: { plan: J; onClose: (committed: J | null) => void }) {
+function PlanDialog({ plan, returnFocus, onClose }: { plan: J; returnFocus?: HTMLElement | null; onClose: (committed: J | null) => void }) {
   const ref = useRef<HTMLDialogElement>(null);
   const key = useRef(newKey());
   const action = useAction();
   useEffect(() => {
-    ref.current?.showModal();
+    // The initiating button may become disabled during plan preparation;
+    // retain its identity before that asynchronous work can blur it.
+    const trigger = returnFocus ?? document.activeElement;
+    const dialog = ref.current;
+    dialog?.showModal();
+    dialog?.querySelector<HTMLHeadingElement>("h2")?.focus();
+    return () => {
+      dialog?.close();
+      if (trigger instanceof HTMLElement && trigger.isConnected) trigger.focus();
+    };
   }, []);
   const cancel = () => {
     void call("review_discard", { planId: plan.planId }).catch(() => undefined);
@@ -112,15 +121,25 @@ function PlanDialog({ plan, onClose }: { plan: J; onClose: (committed: J | null)
       onClose(done);
     });
   return (
-    <dialog ref={ref} aria-labelledby="plan-title" onCancel={(e) => { e.preventDefault(); cancel(); }}>
-      <h2 id="plan-title">确认写入：{plan.operationKind}{plan.purge ? "（彻底删除）" : ""}</h2>
-      <p>
+    <dialog ref={ref} aria-labelledby="plan-title" aria-describedby="plan-description" onCancel={(e) => { e.preventDefault(); if (!action.busy) cancel(); }} onKeyDown={(e) => {
+      if (e.key !== "Tab") return;
+      const dialog = e.currentTarget;
+      const controls = Array.from(dialog.querySelectorAll<HTMLElement>("button:not([disabled]), input:not([disabled]), textarea:not([disabled]), a[href], [tabindex='0']"));
+      const first = controls[0];
+      const last = controls[controls.length - 1];
+      const active = document.activeElement;
+      if (!first) { e.preventDefault(); dialog.querySelector<HTMLHeadingElement>("h2")?.focus(); }
+      else if (e.shiftKey && (active === first || !controls.includes(active as HTMLElement))) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && active === last) { e.preventDefault(); first.focus(); }
+    }}>
+      <h2 id="plan-title" tabIndex={-1}>确认写入：{plan.operationKind}{plan.purge ? "（彻底删除）" : ""}</h2>
+      <p id="plan-description">
         下面是这次提交会写入的全部记录。确认码 <code>{plan.confirmCode}</code>，有效期至 {plan.expiresAt}。
       </p>
       <pre className="diff" tabIndex={0}>{JSON.stringify(plan.records, null, 2)}</pre>
       <ErrorBox error={action.error} />
       <div className="actions">
-        <button type="button" onClick={cancel}>取消</button>
+        <button type="button" onClick={cancel} disabled={action.busy}>取消</button>
         <button type="button" className="primary" onClick={confirm} disabled={action.busy}>
           确认（{plan.confirmCode}）
         </button>
@@ -160,10 +179,15 @@ function MemoryDetail({ id, onChanged }: { id: string; onChanged: () => void }) 
   const [correction, setCorrection] = useState("");
   const [impact, setImpact] = useState<J>(null);
   const [plan, setPlan] = useState<J>(null);
+  const planTrigger = useRef<HTMLElement | null>(null);
   const [note, setNote] = useState("");
   const action = useAction();
   const load = useCallback(() => void action.run(async () => setDetail(await call("memory_read", { memoryId: id }))), [id]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(load, [load]);
+  const forget = (mode: "forget" | "purge") => {
+    planTrigger.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    void action.run(async (key) => setPlan(await call("forget_plan", { memoryId: id, mode, withDependents: false }, key)));
+  };
   if (!detail) return <ErrorBox error={action.error} />;
   const r = detail.record;
   const s = detail.summary;
@@ -192,8 +216,8 @@ function MemoryDetail({ id, onChanged }: { id: string; onChanged: () => void }) 
           setNote("已提交纠正候选，请到“候选审核”确认。");
         })}>提交纠正候选</button>
         <button type="button" onClick={() => void action.run(async () => setImpact(await call("delete_preview", { memoryId: id, withDependents: false })))}>删除影响预览</button>
-        <button type="button" disabled={action.busy} onClick={() => void action.run(async (key) => setPlan(await call("forget_plan", { memoryId: id, mode: "forget", withDependents: false }, key)))}>忘记…</button>
-        <button type="button" className="danger" disabled={action.busy} onClick={() => void action.run(async (key) => setPlan(await call("forget_plan", { memoryId: id, mode: "purge", withDependents: false }, key)))}>彻底删除…</button>
+        <button type="button" disabled={action.busy} onClick={() => forget("forget")}>忘记…</button>
+        <button type="button" className="danger" disabled={action.busy} onClick={() => forget("purge")}>彻底删除…</button>
       </div>
       {note && <p role="status">{note}</p>}
       <ErrorBox error={action.error} />
@@ -202,7 +226,7 @@ function MemoryDetail({ id, onChanged }: { id: string; onChanged: () => void }) 
           <p>彻底删除会移除 {impact.targets.length} 条记录、{impact.objectCount} 个对象；{impact.losingProvenance.length} 条记忆会失去证据。</p>
         </div>
       )}
-      {plan && <PlanDialog plan={plan} onClose={(done) => { setPlan(null); if (done) onChanged(); }} />}
+      {plan && <PlanDialog plan={plan} returnFocus={planTrigger.current} onClose={(done) => { setPlan(null); if (done) onChanged(); }} />}
     </section>
   );
 }
@@ -320,6 +344,8 @@ function Review() {
   const [edits, setEdits] = useState<Record<string, string>>({});
   const [text, setText] = useState("");
   const [claim, setClaim] = useState("");
+  const focusAfterCommit = useRef(false);
+  const planTrigger = useRef<HTMLElement | null>(null);
   const action = useAction();
   const load = useCallback(() => void action.run(async () => {
     const page = await call("candidate_list", { cursor: null, limit: 50 });
@@ -327,13 +353,21 @@ function Review() {
     setTotal(page.total);
   }), []); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(load, [load]);
-  const decide = (c: J, act: string) =>
+  useEffect(() => {
+    if (focusAfterCommit.current) {
+      focusAfterCommit.current = false;
+      document.querySelector<HTMLHeadingElement>("main h2")?.focus();
+    }
+  }, [items]);
+  const decide = (c: J, act: string) => {
+    planTrigger.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     void action.run(async () =>
       setPlan(await call("review_plan", { decisions: [{
         candidateId: c.candidateId, revision: c.revision, action: act,
         editedContent: act === "edit_accept" ? edits[c.candidateId] ?? c.content : null, mergeTarget: null,
       }] })),
     );
+  };
   return (
     <div>
       <form className="card" onSubmit={(e) => { e.preventDefault(); void action.run(async (key) => { await call("remember", { text, claimKey: claim }, key); setText(""); setClaim(""); load(); }); }}>
@@ -353,12 +387,15 @@ function Review() {
           <textarea id={`e-${c.candidateId}`} value={edits[c.candidateId] ?? c.content} onChange={(e) => setEdits({ ...edits, [c.candidateId]: e.target.value })} />
           <p className="muted">证据：{c.evidence.map((e: J) => `${e.sourceId} r${e.sourceRevision}`).join("，")}{c.conflicts.length > 0 && <span className="warn"> · {c.conflicts.length} 处冲突</span>}</p>
           <div className="actions">
-            <button type="button" className="primary" onClick={() => decide(c, (edits[c.candidateId] ?? c.content) !== c.content ? "edit_accept" : "accept")}>接受…</button>
-            <button type="button" onClick={() => decide(c, "reject")}>拒绝…</button>
+            <button type="button" className="primary" disabled={action.busy} onClick={() => decide(c, (edits[c.candidateId] ?? c.content) !== c.content ? "edit_accept" : "accept")}>接受…</button>
+            <button type="button" disabled={action.busy} onClick={() => decide(c, "reject")}>拒绝…</button>
           </div>
         </article>
       ))}
-      {plan && <PlanDialog plan={plan} onClose={() => { setPlan(null); load(); }} />}
+      {plan && <PlanDialog plan={plan} returnFocus={planTrigger.current} onClose={(committed) => {
+        setPlan(null);
+        if (committed !== null) { focusAfterCommit.current = true; load(); }
+      }} />}
     </div>
   );
 }
@@ -609,7 +646,7 @@ export default function App() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const n = Number(e.key);
-      if (e.altKey && n >= 1 && n <= PAGES.length) {
+      if (e.altKey && !e.ctrlKey && !e.metaKey && !document.querySelector("dialog[open]") && n >= 1 && n <= PAGES.length) {
         e.preventDefault();
         go(PAGES[n - 1][0]);
       }
@@ -624,13 +661,13 @@ export default function App() {
       <nav aria-label="页面">
         <p className="brand">Enouia Memory</p>
         {PAGES.map(([id, label], i) => (
-          <button key={id} type="button" aria-current={page === id ? "page" : undefined} onClick={() => go(id)} title={`Alt+${i + 1}`}>
+          <button key={id} type="button" aria-current={page === id ? "page" : undefined} aria-keyshortcuts={`Alt+${i + 1}`} onClick={() => go(id)} title={`Alt+${i + 1}`}>
             {label}{id === "review" && status?.pendingCandidates ? ` (${status.pendingCandidates})` : ""}
           </button>
         ))}
         <p className="muted vault-state">Vault：{status?.vault?.state ?? "…"}</p>
       </nav>
-      <main>
+      <main id="main-content">
         <h2 ref={heading} tabIndex={-1}>{PAGES.find(([id]) => id === page)?.[1]}</h2>
         {needsVault ? (
           <p>请先在“Vault 与恢复”中打开或解锁 Vault。<button type="button" onClick={() => go("vault")}>前往</button></p>

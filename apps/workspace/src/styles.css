@@ -11,6 +11,8 @@
   --focus: #1d5fd1;
   font-family: "Segoe UI", "Microsoft YaHei UI", system-ui, sans-serif;
   font-size: 14px;
+  line-height: 1.5;
+  color-scheme: light dark;
   color: var(--ink);
   background: var(--bg);
 }
@@ -40,7 +42,7 @@ nav button[aria-current="page"] { background: var(--accent); color: var(--accent
 nav .vault-state { margin-top: auto; padding: 0 8px; }
 main { padding: 16px 24px; overflow: auto; }
 h2 { margin-top: 0; }
-h2:focus { outline: none; }
+h2:focus-visible { outline: 2px solid var(--focus); outline-offset: 4px; }
 button { font: inherit; padding: 5px 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); color: var(--ink); cursor: pointer; }
 button:disabled { opacity: 0.5; cursor: default; }
 button.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
@@ -86,3 +88,19 @@ tr.excluded td { color: var(--muted); }
 .overlay input { width: 100%; font-size: 16px; }
 .results { list-style: none; padding: 0; }
 .results li { padding: 6px 0; border-bottom: 1px solid var(--line); }
+
+@media (max-width: 900px) {
+  .app { grid-template-columns: 150px minmax(0, 1fr); }
+  main { padding: 16px; min-width: 0; }
+  .split { grid-template-columns: minmax(0, 1fr); }
+  .facts { grid-template-columns: minmax(0, 1fr); }
+  .facts dd { margin-bottom: 8px; overflow-wrap: anywhere; }
+}
+@media (forced-colors: active) {
+  :root { --bg: Canvas; --panel: Canvas; --ink: CanvasText; --muted: CanvasText; --line: CanvasText; --accent: Highlight; --accent-ink: HighlightText; --warn: CanvasText; --danger: CanvasText; --focus: Highlight; }
+  button, input, textarea, dialog, pre { border: 1px solid ButtonText; }
+  button:disabled { opacity: 1; color: GrayText; border-color: GrayText; }
+  nav button[aria-current="page"] { forced-color-adjust: none; background: Highlight; color: HighlightText; }
+  .list button[aria-current="true"] { outline: 2px solid Highlight; }
+  .transcript li { border-color: CanvasText; }
+}

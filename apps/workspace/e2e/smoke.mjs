@@ -56,8 +56,10 @@ function session(url) {
   const ws = new WebSocket(url);
   let id = 0;
   const pending = new Map();
+  const events = [];
   ws.onmessage = (m) => {
     const msg = JSON.parse(m.data);
+    if (msg.method) events.push(msg.method);
     if (msg.id && pending.has(msg.id)) {
       pending.get(msg.id)(msg);
       pending.delete(msg.id);
@@ -75,7 +77,7 @@ function session(url) {
     if (r.result?.exceptionDetails) throw new Error(r.result.exceptionDetails.exception?.description ?? "eval failed");
     return r.result?.result?.value;
   };
-  const s = { send, evaluate, close: () => { ws.close(); sessions.delete(s); } };
+  const s = { send, evaluate, events, close: () => { ws.close(); sessions.delete(s); } };
   sessions.add(s);
   return s;
 }
@@ -125,6 +127,10 @@ const nav = (s, label) => s.evaluate(`__t.click('nav button', ${JSON.stringify(l
 const has = (text) => `document.body.innerText.includes(${JSON.stringify(text)})`;
 const all = (...texts) => texts.map(has).join(" && ");
 const any = (...texts) => `(${texts.map(has).join(" || ")})`;
+async function press(s, key, code, windowsVirtualKeyCode, modifiers = 0) {
+  await s.send("Input.dispatchKeyEvent", {type:"keyDown",key,code,windowsVirtualKeyCode,modifiers,...(key === "Enter" ? {text:"\r",unmodifiedText:"\r"} : {})});
+  await s.send("Input.dispatchKeyEvent", {type:"keyUp",key,code,windowsVirtualKeyCode,modifiers});
+}
 
 // Fill the native Open dialog of `pid` through UI Automation: the file name
 // edit (control 1148) gets the path by WM_SETTEXT, then its Open button
@@ -197,16 +203,33 @@ async function main() {
   await s.evaluate("__t.set('input[placeholder^=\"例如\"]', 'project.morimeta.design')");
   await s.evaluate("__t.click('button', '保存为候选')");
   await waitFor(s, has("待审核（1）"), "candidate listed");
-  await s.evaluate("__t.click('button', '接受')");
+  await s.evaluate("window.__planTrigger = __t.byText('button', '接受'); window.__planTrigger.focus()");
+  await press(s, "Enter", "Enter", 13);
   await waitFor(s, "!!document.querySelector('dialog[open]')", "plan dialog");
   const dialogText = await s.evaluate("document.querySelector('dialog[open]').innerText");
   check("W05.plan_initial_focus", await s.evaluate("document.activeElement.id === 'plan-title'"));
   const ax = await s.send("Accessibility.getFullAXTree");
   check("W05.dialog_accessible_name", ax.result.nodes.some((n) => n.role?.value === "dialog" && n.name?.value?.includes("确认写入")));
+  check("W05.dialog_accessible_description", ax.result.nodes.some((n) => n.role?.value === "dialog" && n.description?.value?.includes("全部记录")));
   check("W01.plan_shows_exact_text", dialogText.includes("Professional Darkroom") && /确认码 [0-9a-f]{8}/.test(dialogText));
   await shot(s, "03-plan");
-  await s.evaluate("__t.click('dialog[open] button', '确认')");
+  let contained = true;
+  for (let i = 0; i < 7; i++) {
+    await press(s, "Tab", "Tab", 9, i % 2 === 0 ? 0 : 8);
+    contained &&= await s.evaluate("document.querySelector('dialog[open]').contains(document.activeElement)");
+  }
+  check("W05.dialog_keeps_keyboard_focus", contained);
+  await press(s, "1", "Digit1", 49, 1);
+  check("W05.modal_blocks_page_shortcut", await s.evaluate("!!document.querySelector('dialog[open]') && document.querySelector('nav button[aria-current=page]').textContent.includes('候选审核')"));
+  await press(s, "Escape", "Escape", 27);
+  await waitFor(s, "!document.querySelector('dialog[open]')", "escape cancelled plan");
+  check("W05.cancel_restores_trigger_focus", await s.evaluate("document.activeElement === window.__planTrigger"));
+  await press(s, "Enter", "Enter", 13);
+  await waitFor(s, "!!document.querySelector('dialog[open]')", "reopened plan");
+  await s.evaluate("__t.byText('dialog[open] button', '确认').focus()");
+  await press(s, "Enter", "Enter", 13);
   await waitFor(s, has("待审核（0）"), "candidate accepted");
+  check("W05.accept_moves_focus_to_review_heading", await s.evaluate("document.activeElement === document.querySelector('main h2')"));
 
   // W01 explorer: open the memory and its source.
   await nav(s, "记忆浏览");
@@ -217,6 +240,10 @@ async function main() {
   await waitFor(s, "!!document.querySelector('pre.source')", "source excerpt");
   check("W01.source_visible", await s.evaluate("document.querySelector('pre.source').textContent.includes('Professional Darkroom')"));
   await shot(s, "04-source");
+  await s.send("Emulation.setDeviceMetricsOverride", {width:720,height:740,deviceScaleFactor:1,mobile:false});
+  check("W05.narrow_viewport_no_horizontal_overflow", await s.evaluate("document.documentElement.scrollWidth <= window.innerWidth"));
+  await shot(s, "narrow-viewport");
+  await s.send("Emulation.clearDeviceMetricsOverride");
 
   // W01 correct: proposal -> review -> new revision.
   await s.evaluate("__t.set('#fix', 'MoriMeta 的设计决定是 Darkroom 2。')");
@@ -308,7 +335,8 @@ async function main() {
   // MainWindowHandle may refer to an invisible tray helper. Probe only the
   // native window with our exact main title, owned by this test process.
   const mainWindowState = (pid) => {
-    const script = `Add-Type -TypeDefinition @'
+    const script = `$ProgressPreference = 'SilentlyContinue'
+Add-Type -TypeDefinition @'
 using System;
 using System.Text;
 using System.Runtime.InteropServices;
@@ -327,7 +355,7 @@ if(title.ToString()=="Enouia Memory") result=IsWindowVisible(h)?"visible":"hidde
 }}
 '@
 [WindowProbe]::Probe(${pid})`;
-    return execFileSync("powershell", ["-NoProfile", "-EncodedCommand", Buffer.from(script,"utf16le").toString("base64")], {encoding:"utf8"}).trim();
+    return execFileSync("powershell", ["-NoProfile", "-EncodedCommand", Buffer.from(script,"utf16le").toString("base64")], {encoding:"utf8",stdio:["ignore","pipe","pipe"]}).trim();
   };
   check("W05.autostart_initially_hidden", mainWindowState(second.pid) === "hidden");
   const backgroundStatus = await s2.evaluate("window.__TAURI_INTERNALS__.invoke('workspace_call', {request:{schemaVersion:1,requestId:'req_00000000-0000-4000-8000-000000000b01',command:'workspace_status',idempotencyKey:null,arguments:{}}}).then((r) => r.result.vault.state)");
