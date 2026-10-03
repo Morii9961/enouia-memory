@@ -9,10 +9,10 @@
 //
 // Synthetic data only. The debug port exists only for this test process.
 import { spawn, execFileSync } from "node:child_process";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
-const [exe, vault, importFile, out, HOTKEY = "K"] = process.argv.slice(2);
+const [exe, vault, importFile, out, HOTKEY = "K", retryFixture] = process.argv.slice(2);
 if (!out) throw new Error("usage: smoke.mjs <exe> <vault-root> <import-file> <out-dir>");
 mkdirSync(out, { recursive: true });
 const report = { checks: [], screenshots: [] };
@@ -377,6 +377,28 @@ if(title.ToString()=="Enouia Memory") result=IsWindowVisible(h)?"visible":"hidde
   await waitFor(s, has("assistant_completed"), "transcript after restart");
   check("W01.resume_after_restart", await s.evaluate(has("MoriMeta 设计决定")));
   await shot(s, "10-resumed");
+  if (retryFixture) {
+    // This separately built fixture imports the production hook, ErrorBox,
+    // and IPC client. It injects a lost response after a real Core write.
+    // Production invoke stays immutable; no fault entry point is shipped.
+    await s.evaluate(readFileSync(retryFixture, "utf8"));
+    const pending = () => s.evaluate("window.__TAURI_INTERNALS__.invoke('workspace_call',{request:{schemaVersion:1,requestId:'req_00000000-0000-4000-8000-000000000c01',command:'workspace_status',idempotencyKey:null,arguments:{}}}).then((r) => r.result.pendingCandidates)");
+    const before = await pending();
+    await s.evaluate("window.__unmountRetry = MV6RetryTest.mount()");
+    await waitFor(s, "!!document.querySelector('#retry-fixture')", "retry fixture mounted");
+    await s.evaluate("__t.click('#retry-fixture button', 'Commit synthetic candidate')");
+    await waitFor(s, has("synthetic.lost_response"), "deliberate lost response");
+    check("W01.lost_response_committed_once", await pending() === before + 1);
+    await s.evaluate("__t.click('#retry-fixture button', '重试')");
+    await waitFor(s, has("Completed actions: 1"), "retry completed");
+    const evidence = await s.evaluate("MV6RetryTest.evidence()");
+    check("W01.retry_reuses_key_and_candidate", evidence.keys.length === 2 && evidence.keys[0] === evidence.keys[1] && typeof evidence.candidates[0] === "string" && evidence.candidates[0] === evidence.candidates[1] && await pending() === before + 1);
+    await s.evaluate("__t.click('#retry-fixture button', 'Commit synthetic candidate')");
+    await waitFor(s, has("Completed actions: 2"), "new submission completed");
+    const next = await s.evaluate("MV6RetryTest.evidence()");
+    check("W01.new_submission_new_key", next.keys.length === 3 && next.keys[2] !== next.keys[0] && next.candidates[2] !== next.candidates[0] && await pending() === before + 2);
+    await s.evaluate("window.__unmountRetry()");
+  }
   // The page dies with the process, so its reply never comes.
   void s.evaluate("window.__TAURI_INTERNALS__.invoke('exit_app').catch(() => 0)").catch(() => 0);
   await sleep(500); // let the request leave before the socket closes

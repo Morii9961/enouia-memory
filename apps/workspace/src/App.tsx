@@ -15,25 +15,29 @@ const PAGES = [
 type Page = (typeof PAGES)[number][0];
 
 /** Run an async action with a visible busy state, error and retry. */
-function useAction() {
+export function useAction() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<{ text: string; retry?: () => void } | null>(null);
-  const run = useCallback(async <T,>(action: () => Promise<T>): Promise<T | undefined> => {
-    setBusy(true);
-    setError(null);
-    try {
-      return await action();
-    } catch (err) {
-      setError({ text: describe(err), retry: retryable(err) ? () => void run(action) : undefined });
-      return undefined;
-    } finally {
-      setBusy(false);
-    }
+  const run = useCallback(async <T,>(action: (key: string) => Promise<T>): Promise<T | undefined> => {
+    const key = newKey();
+    const execute = async (): Promise<T | undefined> => {
+      setBusy(true);
+      setError(null);
+      try {
+        return await action(key);
+      } catch (err) {
+        setError({ text: describe(err), retry: retryable(err) ? () => void execute() : undefined });
+        return undefined;
+      } finally {
+        setBusy(false);
+      }
+    };
+    return execute();
   }, []);
   return { busy, error, run, clear: () => setError(null) };
 }
 
-function ErrorBox({ error }: { error: { text: string; retry?: () => void } | null }) {
+export function ErrorBox({ error }: { error: { text: string; retry?: () => void } | null }) {
   if (!error) return null;
   return (
     <div role="alert" className="error">
@@ -46,36 +50,46 @@ function ErrorBox({ error }: { error: { text: string; retry?: () => void } | nul
 /** Poll a long operation until it ends; progress is not completion. */
 function Operation({ id, onDone }: { id: string; onDone?: (status: J) => void }) {
   const [status, setStatus] = useState<J>(null);
-  const done = useRef(false);
+  const [error, setError] = useState<string | null>(null);
+  const [retry, setRetry] = useState(0);
+  const onDoneRef = useRef(onDone);
+  onDoneRef.current = onDone;
+  const cancel = useAction();
   useEffect(() => {
-    done.current = false;
-    const timer = setInterval(async () => {
+    let stopped = false;
+    let timer: ReturnType<typeof setTimeout>;
+    setError(null);
+    const poll = async () => {
       try {
         const s = await call("operation_get", { operationId: id });
+        if (stopped) return;
         setStatus(s);
-        if (!["queued", "running"].includes(s.state) && !done.current) {
-          done.current = true;
-          clearInterval(timer);
-          onDone?.(s);
+        if (!["queued", "running"].includes(s.state)) {
+          onDoneRef.current?.(s);
+        } else {
+          timer = setTimeout(poll, 400);
         }
-      } catch {
-        clearInterval(timer);
+      } catch (err) {
+        if (!stopped) setError(describe(err));
       }
-    }, 400);
-    return () => clearInterval(timer);
-  }, [id, onDone]);
-  if (!status) return <p className="muted">操作已排队…</p>;
+    };
+    void poll();
+    return () => { stopped = true; clearTimeout(timer); };
+  }, [id, retry]);
+  if (error) return <ErrorBox error={{ text: `无法读取操作状态：${error}`, retry: () => setRetry((n) => n + 1) }} />;
+  if (!status) return <p role="status" className="muted">操作已排队…</p>;
   const { done: n, total } = status.progress;
   return (
-    <div className="operation" aria-live="polite">
+    <div className="operation" role="status" aria-live="polite" aria-atomic="true">
       <strong>{status.kind}</strong>：<span className={`state ${status.state}`}>{status.state}</span>
       {" "}进度 {n}{total != null ? ` / ${total}` : ""}
       {status.state === "running" && (
-        <button type="button" onClick={() => void call("operation_cancel", { operationId: id })} disabled={status.cancelRequested}>
+        <button type="button" onClick={() => void cancel.run(() => call("operation_cancel", { operationId: id }))} disabled={status.cancelRequested || cancel.busy}>
           {status.cancelRequested ? "正在取消…" : "取消"}
         </button>
       )}
       {status.error && <span className="error-inline">{status.error.code}</span>}
+      <ErrorBox error={cancel.error} />
     </div>
   );
 }
@@ -172,14 +186,14 @@ function MemoryDetail({ id, onChanged }: { id: string; onChanged: () => void }) 
       <label htmlFor="fix" className="sr-only">纠正后的内容</label>
       <textarea id="fix" value={correction} onChange={(e) => setCorrection(e.target.value)} placeholder="写下正确的内容；提交后进入候选审核，不会直接改写记忆。" />
       <div className="actions">
-        <button type="button" disabled={!correction.trim() || action.busy} onClick={() => void action.run(async () => {
-          await call("correction_propose", { memoryId: id, revision: r.revision, text: correction });
+        <button type="button" disabled={!correction.trim() || action.busy} onClick={() => void action.run(async (key) => {
+          await call("correction_propose", { memoryId: id, revision: r.revision, text: correction }, key);
           setCorrection("");
           setNote("已提交纠正候选，请到“候选审核”确认。");
         })}>提交纠正候选</button>
         <button type="button" onClick={() => void action.run(async () => setImpact(await call("delete_preview", { memoryId: id, withDependents: false })))}>删除影响预览</button>
-        <button type="button" onClick={() => void action.run(async () => setPlan(await call("forget_plan", { memoryId: id, mode: "forget", withDependents: false })))}>忘记…</button>
-        <button type="button" className="danger" onClick={() => void action.run(async () => setPlan(await call("forget_plan", { memoryId: id, mode: "purge", withDependents: false })))}>彻底删除…</button>
+        <button type="button" disabled={action.busy} onClick={() => void action.run(async (key) => setPlan(await call("forget_plan", { memoryId: id, mode: "forget", withDependents: false }, key)))}>忘记…</button>
+        <button type="button" className="danger" disabled={action.busy} onClick={() => void action.run(async (key) => setPlan(await call("forget_plan", { memoryId: id, mode: "purge", withDependents: false }, key)))}>彻底删除…</button>
       </div>
       {note && <p role="status">{note}</p>}
       <ErrorBox error={action.error} />
@@ -270,8 +284,8 @@ function Import() {
           {preview.duplicateOf && <p className="warn">与已有导入 {preview.duplicateOf} 相同，将记为重复。</p>}
           {preview.warnings.length > 0 && <p className="muted">警告：{preview.warnings.join(", ")}</p>}
           <label>账户别名 <input value={alias} onChange={(e) => setAlias(e.target.value)} pattern="[a-z0-9][a-z0-9_-]*" /></label>
-          <button type="button" className="primary" disabled={!picked} onClick={() => void action.run(async () => {
-            const started = await call("import_start", { importToken: picked.token, accountAlias: alias });
+          <button type="button" className="primary" disabled={!picked || action.busy} onClick={() => void action.run(async (key) => {
+            const started = await call("import_start", { importToken: picked.token, accountAlias: alias }, key);
             setOp(started.operationId);
             setPicked(null);
             setPreview(null);
@@ -290,7 +304,7 @@ function Import() {
               <td>{m.counts.sources_created}</td>
               <td>{m.counts.attachments_missing}</td>
               <td>{m.warnings.join(", ")}</td>
-              <td>{m.status === "parsing" && <button type="button" onClick={() => void action.run(async () => setOp((await call("import_resume", { importId: m.importId, accountAlias: m.accountScope ?? alias })).operationId))}>继续</button>}</td>
+              <td>{m.status === "parsing" && <button type="button" disabled={action.busy} onClick={() => void action.run(async (key) => setOp((await call("import_resume", { importId: m.importId, accountAlias: m.accountScope ?? alias }, key)).operationId))}>继续</button>}</td>
             </tr>
           ))}
         </tbody>
@@ -322,12 +336,12 @@ function Review() {
     );
   return (
     <div>
-      <form className="card" onSubmit={(e) => { e.preventDefault(); void action.run(async () => { await call("remember", { text, claimKey: claim }); setText(""); setClaim(""); load(); }); }}>
+      <form className="card" onSubmit={(e) => { e.preventDefault(); void action.run(async (key) => { await call("remember", { text, claimKey: claim }, key); setText(""); setClaim(""); load(); }); }}>
         <h3>记住一件事</h3>
         <label htmlFor="rt">原话（保存为来源，再生成待审核候选）</label>
         <textarea id="rt" value={text} onChange={(e) => setText(e.target.value)} />
         <label>主题键 <input value={claim} onChange={(e) => setClaim(e.target.value)} placeholder="例如 preference.reading" /></label>
-        <button type="submit" disabled={!text.trim() || !claim.trim()}>保存为候选</button>
+        <button type="submit" disabled={!text.trim() || !claim.trim() || action.busy}>保存为候选</button>
       </form>
       <ErrorBox error={action.error} />
       <h3>待审核（{total}）</h3>
@@ -356,7 +370,6 @@ function Sessions({ inspect }: { inspect: (capsuleId: string) => void }) {
   const [text, setText] = useState("");
   const [answer, setAnswer] = useState<J>(null);
   const [summary, setSummary] = useState("");
-  const askKey = useRef(newKey());
   const action = useAction();
   const list = useCallback(() => void action.run(async () => setSessions((await call("session_list")).items)), []); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(list, [list]);
@@ -365,7 +378,7 @@ function Sessions({ inspect }: { inspect: (capsuleId: string) => void }) {
   return (
     <div className="split">
       <section aria-label="会话列表">
-        <button type="button" onClick={() => void action.run(async () => { const s = await call("session_new"); list(); open({ sessionId: s.sessionId, branchId: s.branchId }); })}>新会话</button>
+        <button type="button" disabled={action.busy} onClick={() => void action.run(async (key) => { const s = await call("session_new", {}, key); list(); open({ sessionId: s.sessionId, branchId: s.branchId }); })}>新会话</button>
         <ul className="list">
           {sessions.map((s) => s.branches.map((b: J) => (
             <li key={b.branchId}>
@@ -394,9 +407,8 @@ function Sessions({ inspect }: { inspect: (capsuleId: string) => void }) {
             ))}
             <h4>检查点（暂定，未经审核）</h4>
             <ul>{detail.checkpoints.map((c: J) => <li key={c.checkpoint_id}>{c.status} · {typeof c.summary === "string" ? c.summary : c.checkpoint_id}</li>)}</ul>
-            <form onSubmit={(e) => { e.preventDefault(); void action.run(async () => {
-              setAnswer(await call("session_ask", { ...current, text }, askKey.current));
-              askKey.current = newKey();
+            <form onSubmit={(e) => { e.preventDefault(); void action.run(async (key) => {
+              setAnswer(await call("session_ask", { ...current, text }, key));
               setText("");
               setDetail(await call("session_detail", current));
             }); }}>
@@ -412,10 +424,10 @@ function Sessions({ inspect }: { inspect: (capsuleId: string) => void }) {
                 <button type="button" onClick={() => inspect(answer.capsuleId)}>查看依据（上下文检查）</button>
               </div>
             )}
-            <form onSubmit={(e) => { e.preventDefault(); void action.run(async () => { await call("session_checkpoint", { ...current, summary }); setSummary(""); setDetail(await call("session_detail", current)); }); }}>
+            <form onSubmit={(e) => { e.preventDefault(); void action.run(async (key) => { await call("session_checkpoint", { ...current, summary }, key); setSummary(""); setDetail(await call("session_detail", current)); }); }}>
               <label htmlFor="cp">检查点摘要</label>
               <input id="cp" value={summary} onChange={(e) => setSummary(e.target.value)} />
-              <button type="submit" disabled={!summary.trim()}>保存检查点</button>
+              <button type="submit" disabled={!summary.trim() || action.busy}>保存检查点</button>
             </form>
           </>
         )}
@@ -440,10 +452,10 @@ function Context({ capsuleId }: { capsuleId: string | null }) {
   };
   return (
     <div>
-      <form onSubmit={(e) => { e.preventDefault(); void action.run(async () => setId((await call("context_preview", { query, sessionId: null, branchId: null })).capsuleId)); }}>
+      <form onSubmit={(e) => { e.preventDefault(); void action.run(async (key) => setId((await call("context_preview", { query, sessionId: null, branchId: null }, key)).capsuleId)); }}>
         <label htmlFor="cq">编译预览</label>
         <input id="cq" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="输入问题，查看会带上哪些记忆" />
-        <button type="submit" disabled={!query.trim()}>预览</button>
+        <button type="submit" disabled={!query.trim() || action.busy}>预览</button>
       </form>
       <ErrorBox error={action.error} />
       {view && (

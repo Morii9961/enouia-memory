@@ -8,6 +8,7 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "typecheck": "tsc --noEmit",
+    "test:fixtures": "tsc --project e2e/tsconfig.json --noEmit && vite build --config e2e/vite.retry.config.ts",
     "tauri": "tauri",
     "bundle": "tauri build --bundles nsis"
   },
