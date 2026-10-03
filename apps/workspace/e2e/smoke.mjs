@@ -16,6 +16,8 @@ const [exe, vault, importFile, out, HOTKEY = "K"] = process.argv.slice(2);
 if (!out) throw new Error("usage: smoke.mjs <exe> <vault-root> <import-file> <out-dir>");
 mkdirSync(out, { recursive: true });
 const report = { checks: [], screenshots: [] };
+const children = new Set();
+const sessions = new Set();
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const check = (id, ok, detail = "") => {
   report.checks.push({ id, ok: Boolean(ok), detail });
@@ -27,6 +29,8 @@ function launch(port, args, extraEnv = {}) {
     env: { ...process.env, ...extraEnv, WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS: `--remote-debugging-port=${port} --remote-debugging-address=127.0.0.1` },
     stdio: "ignore",
   });
+  children.add(child);
+  child.once("exit", () => children.delete(child));
   return child;
 }
 
@@ -35,7 +39,11 @@ async function connect(port, wantOverlay = false, exclude = null) {
     try {
       const targets = await (await fetch(`http://127.0.0.1:${port}/json`)).json();
       const page = targets.find((t) => t.type === "page" && t.url.startsWith("http://tauri.localhost/") && t.url.includes("overlay") === wantOverlay && t.id !== exclude);
-      if (page) return { ...session(page.webSocketDebuggerUrl), id: page.id };
+      if (page) {
+        const s = { ...session(page.webSocketDebuggerUrl), id: page.id };
+        await waitFor(s, "document.readyState === 'complete' && !!document.querySelector('#root > *')", "page initialized");
+        return s;
+      }
     } catch {
       /* not up yet */
     }
@@ -67,13 +75,22 @@ function session(url) {
     if (r.result?.exceptionDetails) throw new Error(r.result.exceptionDetails.exception?.description ?? "eval failed");
     return r.result?.result?.value;
   };
-  return { send, evaluate, close: () => ws.close() };
+  const s = { send, evaluate, close: () => { ws.close(); sessions.delete(s); } };
+  sessions.add(s);
+  return s;
 }
 
 const HELPERS = `
 window.__t = {
   byText(sel, text) { return [...document.querySelectorAll(sel)].find((e) => e.textContent.includes(text)); },
-  click(sel, text) { const e = this.byText(sel, text); if (!e) throw new Error('missing ' + text); e.click(); return true; },
+  async click(sel, text) {
+    for (let i = 0; i < 100; i++) {
+      const e = this.byText(sel, text);
+      if (e && !e.disabled) { e.click(); return true; }
+      await new Promise((r) => setTimeout(r, 100));
+    }
+    throw new Error('missing or disabled ' + text);
+  },
   set(sel, value) {
     const e = document.querySelector(sel); if (!e) throw new Error('missing ' + sel);
     const proto = e.tagName === 'TEXTAREA' ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
@@ -183,6 +200,9 @@ async function main() {
   await s.evaluate("__t.click('button', '接受')");
   await waitFor(s, "!!document.querySelector('dialog[open]')", "plan dialog");
   const dialogText = await s.evaluate("document.querySelector('dialog[open]').innerText");
+  check("W05.plan_initial_focus", await s.evaluate("document.activeElement.id === 'plan-title'"));
+  const ax = await s.send("Accessibility.getFullAXTree");
+  check("W05.dialog_accessible_name", ax.result.nodes.some((n) => n.role?.value === "dialog" && n.name?.value?.includes("确认写入")));
   check("W01.plan_shows_exact_text", dialogText.includes("Professional Darkroom") && /确认码 [0-9a-f]{8}/.test(dialogText));
   await shot(s, "03-plan");
   await s.evaluate("__t.click('dialog[open] button', '确认')");
@@ -209,6 +229,12 @@ async function main() {
   await s.evaluate("__t.click('dialog[open] button', '确认')");
   await waitFor(s, has("待审核（0）"), "correction accepted");
   check("W01.correct", true);
+
+  await s.send("Emulation.setEmulatedMedia", {features:[{name:"forced-colors",value:"active"}]});
+  await nav(s, "记忆浏览");
+  check("W05.forced_colors_selected_page", await s.evaluate("matchMedia('(forced-colors: active)').matches && getComputedStyle(document.querySelector('nav button[aria-current=page]')).forcedColorAdjust === 'none'"));
+  await shot(s, "forced-colors");
+  await s.send("Emulation.setEmulatedMedia", {features:[]});
 
   // W01 ask and inspect.
   await nav(s, "会话");
@@ -329,6 +355,8 @@ main()
     process.exitCode = 1;
   })
   .finally(() => {
+    for (const s of sessions) s.close();
+    for (const child of children) child.kill();
     writeFileSync(join(out, "report.json"), JSON.stringify(report, null, 2));
     const failed = report.checks.filter((c) => !c.ok).length;
     console.log(`${report.checks.length - failed}/${report.checks.length} checks passed`);
