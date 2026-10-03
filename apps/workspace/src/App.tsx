@@ -529,6 +529,28 @@ function Vault({ status, refresh }: { status: J; refresh: () => void }) {
   );
 }
 
+function StartupSettings() {
+  const [startup, setStartup] = useState<J>(null);
+  const [note, setNote] = useState("");
+  const action = useAction();
+  useEffect(() => { void action.run(async () => setStartup(await shell.startupStatus())); }, [action.run]);
+  return <section className="card" aria-labelledby="startup-title">
+    <h3 id="startup-title">登录后启动</h3>
+    <p id="startup-description">开启后，登录 Windows 时只启动托盘；不会自动打开 Vault。默认关闭。</p>
+    <label>
+      <input type="checkbox" checked={startup?.enabled ?? false} disabled={!startup?.supported || action.busy || startup?.state === "different_installation"}
+        aria-describedby="startup-description" onChange={(e) => {
+          const enabled = e.target.checked;
+          void action.run(async () => { setStartup(await shell.startupSet(enabled)); setNote(enabled ? "已开启登录后启动。" : "已关闭登录后启动。"); });
+        }} /> 登录 Windows 后启动 Enouia Memory
+    </label>
+    {startup?.state === "different_installation" && <p className="warn">另一个安装位置已有启动项。请在该版本中关闭，再在这里开启。</p>}
+    {startup?.state === "unsupported" && <p>此系统不支持自启动设置。</p>}
+    <p role="status" aria-atomic="true">{note}</p>
+    <ErrorBox error={action.error} />
+  </section>;
+}
+
 function Status({ status }: { status: J }) {
   if (!status) return <p className="muted">读取状态…</p>;
   const hotkey = status.companion?.hotkey;
@@ -551,6 +573,7 @@ function Status({ status }: { status: J }) {
         <li><strong>暂停同步</strong>：MV-9 之前没有同步，此项不可用。</li>
       </ul>
       <p className="muted">Activity 属于 Runtime，本应用不会启动、停止或读取它。</p>
+      <StartupSettings />
       <button type="button" className="danger" onClick={() => void shell.exit()}>退出 Enouia Memory</button>
     </div>
   );

@@ -50,6 +50,8 @@ export const shell = {
   showMain: () => invoke("show_main"),
   hideWindow: () => invoke("hide_window"),
   exit: () => invoke("exit_app"),
+  startupStatus: () => invoke<J>("startup_status"),
+  startupSet: (enabled: boolean) => invoke<J>("startup_set", { enabled }),
 };
 
 const CODES: Record<string, string> = {

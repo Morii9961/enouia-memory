@@ -301,10 +301,46 @@ async function main() {
 
   // W05 hotkey conflict: a second instance cannot take Ctrl+Alt+M.
   // A second process with its own WebView2 profile and debugging port.
-  const second = launch(9334, ["--hotkey-key", HOTKEY], { WEBVIEW2_USER_DATA_FOLDER: join(out, "webview2-second") });
+  const second = launch(9334, ["--autostart", "--hotkey-key", HOTKEY], { WEBVIEW2_USER_DATA_FOLDER: join(out, "webview2-second") });
   const s2 = await connect(9334);
   await waitFor(s2, "document.body.innerText.includes('Ctrl+Alt+')", "second status");
   check("W05.hotkey_conflict_reported", await s2.evaluate("document.body.innerText.includes('被占用')"));
+  // MainWindowHandle may refer to an invisible tray helper. Probe only the
+  // native window with our exact main title, owned by this test process.
+  const mainWindowState = (pid) => {
+    const script = `Add-Type -TypeDefinition @'
+using System;
+using System.Text;
+using System.Runtime.InteropServices;
+public static class WindowProbe {
+public delegate bool EnumProc(IntPtr h, IntPtr p);
+[DllImport("user32.dll")] public static extern bool EnumWindows(EnumProc e, IntPtr p);
+[DllImport("user32.dll")] public static extern bool IsWindowVisible(IntPtr h);
+[DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr h, out uint p);
+[DllImport("user32.dll", CharSet=CharSet.Unicode)] public static extern int GetWindowText(IntPtr h, StringBuilder s, int n);
+public static string Probe(uint pid) {
+var result="missing";
+EnumWindows((h,p)=> { uint id; GetWindowThreadProcessId(h,out id); if(id==pid) {
+var title=new StringBuilder(512); GetWindowText(h,title,512);
+if(title.ToString()=="Enouia Memory") result=IsWindowVisible(h)?"visible":"hidden";
+} return true; },IntPtr.Zero); return result;
+}}
+'@
+[WindowProbe]::Probe(${pid})`;
+    return execFileSync("powershell", ["-NoProfile", "-EncodedCommand", Buffer.from(script,"utf16le").toString("base64")], {encoding:"utf8"}).trim();
+  };
+  check("W05.autostart_initially_hidden", mainWindowState(second.pid) === "hidden");
+  const backgroundStatus = await s2.evaluate("window.__TAURI_INTERNALS__.invoke('workspace_call', {request:{schemaVersion:1,requestId:'req_00000000-0000-4000-8000-000000000b01',command:'workspace_status',idempotencyKey:null,arguments:{}}}).then((r) => r.result.vault.state)");
+  check("W05.autostart_no_vault", backgroundStatus === "none", backgroundStatus);
+  const startup = await s2.evaluate("window.__TAURI_INTERNALS__.invoke('startup_status')");
+  check("W05.startup_status_main_only", startup.supported && startup.state === "disabled" && !startup.enabled);
+  const overlay = await connect(9334, true);
+  const startupDenied = await overlay.evaluate("window.__TAURI_INTERNALS__.invoke('startup_set',{enabled:true}).then(() => 'allowed',(e) => String(e))");
+  check("W04.overlay_cannot_enable_startup", startupDenied.includes("not allowed"), startupDenied);
+  overlay.close();
+  await s2.evaluate("window.__TAURI_INTERNALS__.invoke('show_main')");
+  await sleep(300);
+  check("W05.autostart_can_show", mainWindowState(second.pid) === "visible");
   await s2.send("Page.captureScreenshot", { format: "png" }).then((r) => writeFileSync(join(out, "09-hotkey-conflict.png"), Buffer.from(r.result.data, "base64")));
   report.screenshots.push(join(out, "09-hotkey-conflict.png"));
   s2.close();
