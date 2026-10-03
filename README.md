@@ -2,14 +2,17 @@
 
 Enouia Memory is the local-first, model-independent long-term memory system for Enouia. It holds recoverable raw history, reviewed canonical memory, sessions, and explainable context compilation. This repository is its **independent home**: design, machine contracts, domain code, tests, and versioned releases. [Enouia Runtime](https://github.com/Morii9961/enouia-runtime) (the Windows client and Activity) integrates with it through versioned contracts. Runtime does not own Memory code or data.
 
-Status: **MV-1 (Vault and recovery foundation, [report](docs/validation/MV-1.md)), MV-2 (history import and rescue, [report](docs/validation/MV-2.md)), MV-3 (segmented catalog, candidates, owner review, deletion, [report](docs/validation/MV-3.md)), MV-4 (SQLite/FTS5 index and literal search, [report](docs/validation/MV-4.md)), and MV-5 (context capsules, durable sessions, offline Mock, [report](docs/validation/MV-5.md)) are complete for synthetic data in isolated roots.** A real export drill (I07), encrypted backup with restic, OS-crash and power-loss evidence, and the gaps named in the MV-3 to MV-5 reports are pending. MV-6 has not started and needs the owner's explicit go-ahead. No UI, real model call, embedding, MCP, or VPS exists, and no real data root has been created. All fixtures are synthetic.
+Status (2026-10-03): **MV-1 through MV-5 provide the local Memory foundation, verified with synthetic data in isolated roots. MV-6's Windows Memory Workspace baseline is implemented and merged ([report](docs/validation/MV-6.md)).** It includes memory browsing, import, candidate review, sessions, context inspection, recovery/status pages, tray, hotkey, and quick search. This branch's [MV-6 follow-up](docs/validation/MV-6-followup.md) adds a Windows installer, opt-in startup, safe write retries and keyboard/accessibility improvements: **43/43 synthetic real-app checks, 196 Rust tests and 8/8 installer checks pass.** Actual login startup, Narrator, a real Windows contrast theme, interactive installation/upgrade and signing remain pending.
+
+A real export drill (I07), encrypted backup with restic, OS-crash and power-loss evidence, and the gaps in the stage reports remain pending. **MV-7 has not started.** Responses still use the offline Mock; real model calls, embedding, MCP, and VPS integration are not implemented. All committed fixtures are synthetic. See the [implementation plan](docs/design/IMPLEMENTATION_PLAN.md) and [stage reports](docs/README.md).
 
 ## Layout
 
 ```text
 docs/        all documentation: design/, adr/, contracts/, validation/, reviews/, handoff/, history/
 contracts/   JSON Schema 2020-12 machine contracts (memory, context, provider, ipc)
-crates/      Rust workspace: enouia-memory-contract (pure contracts), enouia-memory-vault (store), enouia-memory-import (history import), enouia-memory-govern (candidates and review), enouia-memory-index (SQLite/FTS5 search), enouia-memory-cli (local entry point)
+crates/      Rust workspace: contract, vault, import, govern, index, context, workspace Core, and CLI
+apps/workspace/  React frontend and Tauri Windows shell
 tests/       synthetic fixtures
 ```
 
@@ -21,7 +24,7 @@ Rust 1.98.1 (`stable-x86_64-pc-windows-gnu`), offline (`CARGO_NET_OFFLINE=true`)
 
 ## Data boundaries
 
-Real Memory data never lives in this repository. The default runtime data root is `%LOCALAPPDATA%\EnouiaMemory`; an explicit, verified local path can replace it. Raw exports, attachments, sessions, databases, keys, backups, and recovery material are excluded by `.gitignore` and must never be committed.
+Real Memory data never lives in this repository. The CLI requires an explicit data root; the Windows app takes one through its native folder picker or `--vault`. It does not automatically create a default root or remember the last location. Raw exports, attachments, sessions, databases, keys, backups, and recovery material are excluded by `.gitignore` and must never be committed.
 
 ## License
 

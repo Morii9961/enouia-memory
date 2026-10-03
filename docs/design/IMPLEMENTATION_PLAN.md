@@ -122,7 +122,7 @@ flowchart LR
 
 ## 10. MV-6 — Windows Memory Workspace
 
-> **v1.1：** MV-6 已用合成数据实现，见 [MV-6 报告](../validation/MV-6.md)（ADR-MEM-44）。嵌入式 Core（`enouia-memory-workspace`）+ Tauri 2 外壳 + React 页面，经 workspace IPC v1 单一通道；文件只经原生对话框换令牌。真实应用端到端 22/22 通过；安装包、自启动和读屏检查仍 pending。
+> **v1.1：** MV-6 基线已用合成数据实现并合并，见 [MV-6 报告](../validation/MV-6.md)（ADR-MEM-44）。嵌入式 Core（`enouia-memory-workspace`）+ Tauri 2 外壳 + React 页面，经 workspace IPC v1 单一通道；文件只经原生对话框换令牌。[后续功能分支](../validation/MV-6-followup.md)补充安装包、自启动、重试与键盘无障碍改进，真实应用合成回归 43/43、安装卸载 8/8 通过；实际登录启动、Narrator、系统对比主题、交互安装/升级及签名仍待验收。MV-7 尚未开始。
 
 1. **MV-6.1 薄 UI**：Memory Explorer、Import Center、Candidate Review、Sessions，typed IPC 与取消/分页。
 2. **MV-6.2 Context Inspector**：区分 compile preview / 实际 dispatched、来源和排除理由，权限不泄漏。
