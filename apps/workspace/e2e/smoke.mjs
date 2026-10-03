@@ -5,14 +5,14 @@
 // (real Tauri IPC, real Core), fills the native Open dialog of that process
 // through UI Automation, and saves screenshots plus a JSON report.
 //
-// node apps/workspace/e2e/smoke.mjs <exe> <vault-root> <import-file> <out-dir> [hotkey-letter]
+// node apps/workspace/e2e/smoke.mjs <exe> <vault-root> <import-file> <out-dir> [hotkey-letter] [retry-fixture] [--crash]
 //
 // Synthetic data only. The debug port exists only for this test process.
 import { spawn, execFileSync } from "node:child_process";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
-const [exe, vault, importFile, out, HOTKEY = "K", retryFixture] = process.argv.slice(2);
+const [exe, vault, importFile, out, HOTKEY = "K", retryFixture, crashMode] = process.argv.slice(2);
 if (!out) throw new Error("usage: smoke.mjs <exe> <vault-root> <import-file> <out-dir>");
 mkdirSync(out, { recursive: true });
 const report = { checks: [], screenshots: [] };
@@ -426,6 +426,38 @@ if(title.ToString()=="Enouia Memory") result=IsWindowVisible(h)?"visible":"hidde
     const next = await s.evaluate("MV6RetryTest.evidence()");
     check("W01.new_submission_new_key", next.keys.length === 3 && next.keys[2] !== next.keys[0] && next.candidates[2] !== next.candidates[0] && await pending() === before + 2);
     await s.evaluate("window.__unmountRetry()");
+  }
+  if (crashMode === "--crash") {
+    // Explicitly opt in only for a synthetic Vault. First crash the actual
+    // renderer and observe the debugger event, then force-stop this owned
+    // app process. All tested writes have already been acknowledged.
+    const status = () => s.evaluate("window.__TAURI_INTERNALS__.invoke('workspace_call',{request:{schemaVersion:1,requestId:'req_00000000-0000-4000-8000-000000000d01',command:'workspace_status',idempotencyKey:null,arguments:{}}}).then((r) => r.result)");
+    const before = await status();
+    await s.send("Inspector.enable");
+    void s.send("Page.crash").catch(() => undefined);
+    for (let i = 0; i < 60 && !s.events.includes("Inspector.targetCrashed"); i++) await sleep(100);
+    check("W01.renderer_crash_observed", s.events.includes("Inspector.targetCrashed"));
+    s.close();
+    app.kill();
+    await sleep(1500);
+    app = launch(9333, ["--vault", vault]);
+    s = await connect(9333);
+    await s.evaluate(HELPERS);
+    await waitFor(s, has("Vault：open"), "reopened after renderer crash and forced exit");
+    const after = await status();
+    check("W01.crash_preserves_pending_candidates", after.pendingCandidates === before.pendingCandidates);
+    await nav(s, "会话");
+    await waitFor(s, "!!document.querySelector('.list button')", "session after crash");
+    await s.evaluate("document.querySelector('.list button').click()");
+    await waitFor(s, all("assistant_completed", "MoriMeta 设计决定"), "transcript after crash");
+    await nav(s, "记忆浏览");
+    await waitFor(s, has("Darkroom 2"), "approved memory after crash");
+    check("W01.crash_preserves_transcript_and_memory", true);
+    await nav(s, "Vault 与恢复");
+    await s.evaluate("__t.click('button', '校验 Vault')");
+    await waitFor(s, all("vault_verify", "succeeded"), "vault verified after crash", 60000);
+    check("W01.vault_verified_after_renderer_crash", true);
+    await shot(s, "11-after-crash");
   }
   // The page dies with the process, so its reply never comes.
   void s.evaluate("window.__TAURI_INTERNALS__.invoke('exit_app').catch(() => 0)").catch(() => 0);
