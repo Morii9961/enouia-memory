@@ -185,19 +185,28 @@ function PlanDialog({ plan, returnFocus, onClose }: { plan: J; returnFocus?: HTM
   );
 }
 
-function Source({ evidence }: { evidence: J }) {
-  const [excerpt, setExcerpt] = useState<J>(null);
-  const action = useAction();
-  const load = (start: number | null) =>
-    void action.run(async () =>
-      setExcerpt(await call("source_excerpt", { sourceId: evidence.sourceId, sourceRevision: evidence.sourceRevision, startByte: start, maxBytes: 4096 })),
-    );
+export function Source({ evidence, readPage = call }: { evidence: J; readPage?: typeof call }) {
+  const [loaded, setLoaded] = useState<{ sourceId: string; revision: number; page: J } | null>(null);
+  const action = useLatestRead();
+  const excerpt = evidence.available && loaded && loaded.sourceId === evidence.sourceId && loaded.revision === evidence.sourceRevision ? loaded.page : null;
+  useEffect(() => {
+    action.clear(); setLoaded(null);
+  }, [evidence.sourceId, evidence.sourceRevision, evidence.available, action.clear]);
+  const load = (start: number | null) => {
+    if (!evidence.available) return;
+    const sourceId = evidence.sourceId;
+    const revision = evidence.sourceRevision;
+    setLoaded(null);
+    void action.run(() => readPage("source_excerpt", { sourceId, sourceRevision: revision, startByte: start, maxBytes: 4096 }),
+      (page) => setLoaded({ sourceId, revision, page }));
+  };
   return (
-    <li>
+    <li aria-busy={action.busy}>
       <code>{evidence.sourceId}</code> r{evidence.sourceRevision} · 支持 {evidence.supports} ·{" "}
       {evidence.available ? "来源可用" : <span className="warn">来源缺失</span>}{" "}
       {evidence.available && <button type="button" onClick={() => load(null)}>查看来源</button>}
       <ErrorBox error={action.error} />
+      {action.busy && <p role="status" className="muted">正在读取来源…</p>}
       {excerpt && (
         <figure>
           <figcaption className="muted">
