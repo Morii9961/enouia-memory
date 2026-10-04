@@ -1,7 +1,7 @@
 // Synthetic deferred read responses; no native fault command or real data.
 // The production Explorer is mounted unchanged with a test-only read client.
 import { createRoot } from "react-dom/client";
-import { ErrorBox, Memories, Sessions, useWorkspaceStatus } from "../src/App";
+import { Context, ErrorBox, Memories, Sessions, useWorkspaceStatus } from "../src/App";
 import { CallError } from "../src/api";
 import Overlay from "../src/Overlay";
 
@@ -74,4 +74,22 @@ export function mountStatus() {
   const root = createRoot(host);
   root.render(<StatusFixture />);
   return () => { root.unmount(); host.remove(); };
+}
+
+export function mountContext() {
+  pending.length = 0;
+  const host = document.createElement("section");
+  host.id = "context-fixture";
+  document.body.append(host);
+  const root = createRoot(host);
+  root.render(<Context capsuleId="synthetic-original" readPage={(command, args = {}, key) => new Promise((resolve, reject) => {
+    pending.push({ command, args, key, resolve, reject });
+  })} />);
+  return () => { root.unmount(); host.remove(); };
+}
+export function respondContext(index: number, preview = false) {
+  pending[index].resolve({ delivery: preview ? "preview_not_sent" : "dispatched", capsule:{destination:{kind:"mock"},budget:{}}, inspection:{decisions:[]}, dispatches:preview ? [] : ["synthetic-dispatch-a", "synthetic-dispatch-b"].map(dispatchId=>({dispatchId,state:"completed",preparedAt:"synthetic-time"})) });
+}
+export function respondDispatch(index: number, text: string) {
+  pending[index].resolve({ verified:true,tools:0,destination:{kind:"mock"},messages:[{role:"user",text}] });
 }

@@ -33,6 +33,8 @@ The [quick-search correction](MV-6-overlay.md) closes a reproduced native write 
 
 The [status polling correction](MV-6-status-polling.md) prevents an older open-state response from overwriting a newer lock, serializes automatic reads, and withdraws content while the current status cannot be confirmed. The independent fixture passed 45/45, including nine status checks; the rebuilt actual app passed 52/52 and its final installer passed 8/8. Rust/contracts are unchanged from the 201-test validation above.
 
+The [context display correction](MV-6-context-binding.md) binds capsule inspections and actual request displays to their selected objects, invalidates old responses on a new preview, and clears stale contents on loading/failure. The fixture passed 54/54, including nine context cases. The rebuilt actual app passed 52/52 and its final installer passed 8/8, with unchanged Rust/contracts.
+
 ## Historical 2026-10-02 snapshot — superseded by the result above
 
 Date: 2026-10-02. Base: merged `3523ca8`; branch `codex/mv6-install-accessibility`. The owner authorized continued work until the five-hour quota has about 5% remaining. This work stays inside MV-6. MV-7 has not started. All Vault tests use synthetic data in temporary directories.

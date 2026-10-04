@@ -546,28 +546,43 @@ export function Sessions({ inspect, request = call }: { inspect: (capsuleId: str
   );
 }
 
-function Context({ capsuleId }: { capsuleId: string | null }) {
+export function Context({ capsuleId, readPage = call }: { capsuleId: string | null; readPage?: typeof call }) {
   const [query, setQuery] = useState("");
   const [id, setId] = useState(capsuleId);
   const [view, setView] = useState<J>(null);
   const [request, setRequest] = useState<J>(null);
+  const [dispatchId, setDispatchId] = useState<string | null>(null);
   const action = useAction();
+  const reads = useLatestRead();
+  const dispatchReads = useLatestRead();
   useEffect(() => {
+    setView(null);
+    setRequest(null);
+    setDispatchId(null);
+    dispatchReads.clear();
     if (!id) return;
-    void action.run(async () => { setRequest(null); setView(await call("context_inspect", { capsuleId: id })); });
-  }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
+    void reads.run(() => readPage("context_inspect", { capsuleId: id }), setView);
+  }, [id, readPage, reads.run, dispatchReads.clear]);
   const delivery: Record<string, string> = {
     preview_not_sent: "仅预览：没有发送给任何目的地",
     dispatched: "已发送（见下方实际请求）",
   };
   return (
-    <div>
-      <form onSubmit={(e) => { e.preventDefault(); void action.run(async (key) => setId((await call("context_preview", { query, sessionId: null, branchId: null }, key)).capsuleId)); }}>
+    <div aria-busy={action.busy || reads.busy || dispatchReads.busy}>
+      <form onSubmit={(e) => {
+        e.preventDefault();
+        if (!query.trim() || action.busy) return;
+        reads.clear(); dispatchReads.clear(); setView(null); setRequest(null); setDispatchId(null);
+        void action.run(async (key) => setId((await readPage("context_preview", { query, sessionId: null, branchId: null }, key)).capsuleId));
+      }}>
         <label htmlFor="cq">编译预览</label>
         <input id="cq" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="输入问题，查看会带上哪些记忆" />
         <button type="submit" disabled={!query.trim() || action.busy}>预览</button>
       </form>
       <ErrorBox error={action.error} />
+      <ErrorBox error={reads.error} />
+      <ErrorBox error={dispatchReads.error} />
+      {(reads.busy || dispatchReads.busy) && <p role="status" className="muted">正在核对上下文与请求…</p>}
       {view && (
         <>
           <p className="state-line"><strong>{delivery[view.delivery]}</strong> · 目的地 {view.capsule.destination.kind} · 预算 {JSON.stringify(view.capsule.budget)}</p>
@@ -588,11 +603,15 @@ function Context({ capsuleId }: { capsuleId: string | null }) {
           {view.dispatches.map((d: J) => (
             <p key={d.dispatchId}>
               发送 <code>{d.dispatchId.slice(0, 12)}</code>：{d.state}（准备 {d.preparedAt}{d.sentAt ? ` · 发送 ${d.sentAt}` : " · 未发送"}{d.completedAt ? ` · 完成 ${d.completedAt}` : ""}）{" "}
-              <button type="button" onClick={() => void action.run(async () => setRequest(await call("dispatch_inspect", { dispatchId: d.dispatchId })))}>查看实际请求</button>
+              <button type="button" onClick={() => {
+                setRequest(null); setDispatchId(d.dispatchId);
+                void dispatchReads.run(() => readPage("dispatch_inspect", { dispatchId: d.dispatchId }), setRequest);
+              }}>查看实际请求</button>
             </p>
           ))}
           {request && (
             <div className="card">
+              <p>实际请求 <code>{dispatchId}</code></p>
               <p>{request.verified ? "已按保存记录重新渲染并核对哈希" : "哈希不符"} · 工具 {request.tools} 个 · {request.destination.kind}</p>
               {request.messages.map((m: J, i: number) => <div key={i}><strong>{m.role}</strong><pre className="source">{m.text}</pre></div>)}
             </div>
