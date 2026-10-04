@@ -16,6 +16,7 @@ use tauri::tray::TrayIconBuilder;
 use tauri::{AppHandle, Manager, State, WebviewWindow, WindowEvent};
 
 mod startup;
+mod window_scope;
 
 #[tauri::command]
 fn startup_status() -> Result<Value, String> {
@@ -30,11 +31,23 @@ fn startup_set(enabled: bool) -> Result<Value, String> {
 struct Core(Arc<Workspace>);
 
 #[tauri::command]
-async fn workspace_call(core: State<'_, Core>, request: Value) -> Result<Value, String> {
+async fn workspace_call(
+    core: State<'_, Core>,
+    window: WebviewWindow,
+    request: Value,
+) -> Result<Value, String> {
+    if !window_scope::allows_workspace_call(window.label(), &request) {
+        return Err("permission_denied".to_owned());
+    }
+    let locking = request.get("command").and_then(Value::as_str) == Some("vault_lock");
     let ws = core.0.clone();
-    tauri::async_runtime::spawn_blocking(move || ws.call(&request))
+    let response = tauri::async_runtime::spawn_blocking(move || ws.call(&request))
         .await
-        .map_err(|_| "worker_failed".to_owned())
+        .map_err(|_| "worker_failed".to_owned())?;
+    if locking && let Some(overlay) = window.app_handle().get_webview_window("overlay") {
+        let _ = overlay.hide();
+    }
+    Ok(response)
 }
 
 /// Open a native dialog and hand the page a token for the choice.
@@ -212,6 +225,9 @@ fn main() {
                 .on_menu_event(move |app, event| match event.id().as_ref() {
                     "show" => show(app, "main"),
                     "lock" => {
+                        if let Some(overlay) = app.get_webview_window("overlay") {
+                            let _ = overlay.hide();
+                        }
                         let _ = tray_core.call(&lock_request());
                     }
                     "exit" => {

@@ -314,10 +314,35 @@ async function main() {
   await waitFor(s, has("待审核（1）"), "injection candidate shown");
   check("W04.source_html_not_executed", injected === "candidate_proposed" && (await s.evaluate("window.__pwned === undefined && document.querySelectorAll('main img').length === 0")));
 
-  // W03: lock refuses work until unlock.
+  // The real overlay may search but cannot use the main window's channel.
+  const quick = await connect(9333, true);
+  await quick.evaluate(HELPERS);
+  await quick.evaluate("__t.set('#q', 'Darkroom')");
+  await quick.evaluate("document.querySelector('form').requestSubmit()");
+  await waitFor(quick, has("Darkroom 2"), "overlay real search");
+  check("W04.overlay_real_search", true);
+  const pendingBeforeOverlay = await s.evaluate("window.__TAURI_INTERNALS__.invoke('workspace_call',{request:{schemaVersion:1,requestId:'req_00000000-0000-4000-8000-000000000e01',command:'workspace_status',idempotencyKey:null,arguments:{}}}).then(r=>r.result.pendingCandidates)");
+  for (const command of ["remember", "review_confirm", "forget_plan", "vault_lock"]) {
+    const request = {schemaVersion:1, requestId:`req_${crypto.randomUUID()}`, command, idempotencyKey:`synthetic-overlay-${crypto.randomUUID()}`, arguments:{text:"Synthetic denied overlay write",claimKey:"synthetic.overlay.denied"}, window:"main", principal:"owner"};
+    const denied = await quick.evaluate(`window.__TAURI_INTERNALS__.invoke('workspace_call',{window:'main',request:${JSON.stringify(request)}}).then(()=> 'allowed',e=>String(e))`);
+    check(`W04.overlay_denies_${command}`, denied === "permission_denied", denied);
+  }
+  const pendingAfterOverlay = await s.evaluate("window.__TAURI_INTERNALS__.invoke('workspace_call',{request:{schemaVersion:1,requestId:'req_00000000-0000-4000-8000-000000000e02',command:'workspace_status',idempotencyKey:null,arguments:{}}}).then(r=>r.result.pendingCandidates)");
+  check("W04.overlay_denials_do_not_write", pendingAfterOverlay === pendingBeforeOverlay);
+  for (const command of ["pick", "exit_app"]) {
+    // An invalid pick kind also avoids a dialog if the permission regresses.
+    const denied = await quick.evaluate(`window.__TAURI_INTERNALS__.invoke(${JSON.stringify(command)},{kind:'synthetic_invalid'}).then(()=> 'allowed',e=>String(e))`);
+    check(`W04.overlay_denies_${command}`, denied.includes("not allowed"), denied);
+  }
+
+  // W03: lock refuses work until unlock, including overlay searches.
   await nav(s, "Vault 与恢复");
   await s.evaluate("__t.click('button', '锁定 Vault')");
   await waitFor(s, has("Vault：locked"), "locked");
+  await quick.evaluate("document.querySelector('form').requestSubmit()");
+  await waitFor(quick, has("Vault 未打开或已锁定"), "overlay locked error");
+  check("W03.overlay_lock_clears_results", await quick.evaluate("document.querySelectorAll('.results li').length === 0"));
+  quick.close();
   await nav(s, "记忆浏览");
   await waitFor(s, has("请先在"), "locked gate");
   check("W03.lock_refuses", true);

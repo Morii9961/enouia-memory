@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "quick-search",
+  "description": "Quick search may call only its search-gated Core channel and show/hide the workspace. It cannot pick files, exit the app, review, write or change startup.",
+  "windows": ["overlay"],
+  "permissions": ["allow-workspace-call", "allow-show-main", "allow-hide-window"]
+}

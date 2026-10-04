@@ -38,7 +38,7 @@ export function useAction() {
 }
 
 /** Only the latest read may publish results, errors or its busy state. */
-function useLatestRead() {
+export function useLatestRead() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<{ text: string; retry?: () => void } | null>(null);
   const generation = useRef(0);
@@ -64,7 +64,13 @@ function useLatestRead() {
     };
     return execute();
   }, []);
-  return { busy, error, run, pending };
+  const clear = useCallback(() => {
+    generation.current += 1;
+    pending.current = false;
+    setBusy(false);
+    setError(null);
+  }, []);
+  return { busy, error, run, pending, clear };
 }
 
 export function ErrorBox({ error }: { error: { text: string; retry?: () => void } | null }) {

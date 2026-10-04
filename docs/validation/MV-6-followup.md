@@ -29,6 +29,8 @@ The [Explorer read-order correction](MV-6-read-order.md) reproduces and fixes st
 
 The [session navigation correction](MV-6-session-navigation.md) binds selection and displayed detail, keeps drafts within their branch, blocks branch changes during writes, and preserves newer unsent drafts after retry. Session fixtures passed 15/15 alongside the existing 9/9 Explorer checks; the rebuilt actual app passed 43/43 again and its installer passed 8/8.
 
+The [quick-search correction](MV-6-overlay.md) closes a reproduced native write path from the overlay. Its actual window identity now gates the channel to search only, and a separate capability excludes picker, exit and startup. The deferred fixture passed 36/36 and the rebuilt actual app passed 52/52 on a fresh synthetic Vault. The final installer passed 8/8 and its ownership checks passed 14/14. Required pinned offline checks passed again: format, **201 Rust tests**, Clippy and independent **34-schema** validation. Native window-scope tests account for the five added Rust cases.
+
 ## Historical 2026-10-02 snapshot — superseded by the result above
 
 Date: 2026-10-02. Base: merged `3523ca8`; branch `codex/mv6-install-accessibility`. The owner authorized continued work until the five-hour quota has about 5% remaining. This work stays inside MV-6. MV-7 has not started. All Vault tests use synthetic data in temporary directories.

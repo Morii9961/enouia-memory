@@ -3,6 +3,7 @@
 import { createRoot } from "react-dom/client";
 import { Memories, Sessions } from "../src/App";
 import { CallError } from "../src/api";
+import Overlay from "../src/Overlay";
 
 type Pending = { command: string; args: Record<string, unknown>; key?: string; resolve: (value: unknown) => void; reject: (error: unknown) => void };
 const pending: Pending[] = [];
@@ -42,4 +43,16 @@ export function mountSessions() {
 export function respondValue(index: number, value: unknown) { pending[index].resolve(value); }
 export function respondSession(index: number, text: string) {
   pending[index].resolve({ lastSavedEventId: `synthetic-event-${index}`, transcript: [{ eventId: `synthetic-event-${index}`, kind: "user_input", deliveryState: "local", text }], turns: [], checkpoints: [] });
+}
+
+export function mountOverlay() {
+  pending.length = 0;
+  const host = document.createElement("section");
+  host.id = "overlay-fixture";
+  document.body.append(host);
+  const root = createRoot(host);
+  root.render(<Overlay readPage={(command, args = {}) => new Promise((resolve, reject) => {
+    pending.push({ command, args, resolve, reject });
+  })} />);
+  return () => { root.unmount(); host.remove(); };
 }

@@ -1,4 +1,4 @@
-// Production Explorer + synthetic deferred reads in an owned WebView2.
+// Production Explorer, Sessions and Overlay with synthetic deferred clients.
 // No Vault, model, native fault command, or third-party page is involved.
 import { spawn } from "node:child_process";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -7,7 +7,7 @@ import { join } from "node:path";
 const [exe, fixture, out] = process.argv.slice(2);
 if (!out) throw new Error("usage: read-smoke.mjs <exe> <fixture.js> <out-dir>");
 mkdirSync(out, { recursive: true });
-const report = { provenance: "production Explorer and Sessions with synthetic deferred clients", checks: [] };
+const report = { provenance: "production Explorer, Sessions and Overlay with synthetic deferred clients", checks: [] };
 const check = (name, ok) => { report.checks.push({ name, ok: Boolean(ok) }); console.log(`${ok ? "PASS" : "FAIL"} ${name}`); };
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const port = 9397;
@@ -262,9 +262,89 @@ try {
   await wait(sessionContains("beta after checkpoint"));
   check("session_retry_preserves_new_unsent_checkpoint", await evaluate("document.querySelector('#session-fixture #cp').value === 'New unsent checkpoint Beta'"));
   await evaluate("window.__unmountSessions()");
+
+  await evaluate(`window.__unmountOverlay = MV6ReadTest.mountOverlay();
+    window.__overlayText = () => document.querySelector('#overlay-fixture').innerText;
+    window.__overlayQuery = (value) => {
+      const input = document.querySelector('#overlay-fixture #q');
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(input, value);
+      input.dispatchEvent(new Event('input', {bubbles:true}));
+    };`);
+  await wait("!!document.querySelector('#overlay-fixture #q')");
+  const submitOverlay = async (query) => {
+    const count = await evaluate("MV6ReadTest.requests().length");
+    await evaluate(`__overlayQuery(${JSON.stringify(query)})`);
+    await sleep(30);
+    await evaluate("document.querySelector('#overlay-fixture form').requestSubmit()");
+    await wait(`MV6ReadTest.requests().length === ${count + 1}`);
+    return count;
+  };
+  const overlayContains = (text) => `__overlayText().includes(${JSON.stringify(text)})`;
+  const oldOverlay = await submitOverlay("old overlay query");
+  const latestOverlay = await submitOverlay("latest overlay query");
+  await evaluate(`MV6ReadTest.respond(${latestOverlay}, 'current overlay result')`);
+  await wait(overlayContains("current overlay result"));
+  await evaluate(`MV6ReadTest.respond(${oldOverlay}, 'old overlay result')`);
+  await sleep(100);
+  check("overlay_latest_success_wins", await evaluate(`${overlayContains("current overlay result")} && !${overlayContains("old overlay result")}`));
+  const oldOverlayFailure = await submitOverlay("old overlay failure");
+  const nextOverlay = await submitOverlay("new overlay success");
+  await evaluate(`MV6ReadTest.respond(${nextOverlay}, 'new overlay result')`);
+  await wait(overlayContains("new overlay result"));
+  await evaluate(`MV6ReadTest.fail(${oldOverlayFailure})`);
+  await sleep(100);
+  check("overlay_obsolete_error_not_shown", await evaluate("!document.querySelector('#overlay-fixture [role=alert]')"));
+  check("overlay_obsolete_error_does_not_clear_results", await evaluate(overlayContains("new overlay result")));
+  const erasedOverlay = await submitOverlay("pending erased query");
+  await evaluate("__overlayQuery('')");
+  await sleep(30);
+  await evaluate(`MV6ReadTest.respond(${erasedOverlay}, 'erased overlay response')`);
+  await sleep(100);
+  check("overlay_erasing_query_invalidates_pending_result", await evaluate("document.querySelector('#overlay-fixture .results').children.length === 0"));
+  const beforeEmptyOverlay = await evaluate("MV6ReadTest.requests().length");
+  await evaluate("document.querySelector('#overlay-fixture form').requestSubmit()");
+  await sleep(50);
+  check("overlay_empty_query_no_request_or_results", await evaluate(`MV6ReadTest.requests().length === ${beforeEmptyOverlay} && document.querySelector('#overlay-fixture .results').children.length === 0`));
+  const oldOverlayBusy = await submitOverlay("old overlay busy");
+  const latestOverlayBusy = await submitOverlay("latest overlay busy");
+  await evaluate(`MV6ReadTest.respond(${oldOverlayBusy}, 'old overlay busy result')`);
+  await sleep(50);
+  check("overlay_latest_read_remains_busy", await evaluate("document.querySelector('#overlay-fixture main').getAttribute('aria-busy') === 'true'"));
+  await evaluate(`MV6ReadTest.respond(${latestOverlayBusy}, 'ready overlay result')`);
+  await wait(overlayContains("ready overlay result"));
+  check("overlay_latest_completion_clears_busy", await evaluate("document.querySelector('#overlay-fixture main').getAttribute('aria-busy') === 'false'"));
+  await evaluate("window.dispatchEvent(new Event('focus'))");
+  await sleep(30);
+  check("overlay_reopen_clears_previous_query_and_results", await evaluate("document.querySelector('#overlay-fixture #q').value === '' && document.querySelector('#overlay-fixture .results').children.length === 0"));
+  const blurredOverlay = await submitOverlay("blurred overlay query");
+  await evaluate("window.dispatchEvent(new Event('blur'))");
+  await sleep(30);
+  await evaluate(`MV6ReadTest.respond(${blurredOverlay}, 'blurred overlay response')`);
+  await sleep(50);
+  check("overlay_blur_invalidates_pending_read", await evaluate("document.querySelector('#overlay-fixture #q').value === '' && document.querySelector('#overlay-fixture .results').children.length === 0"));
+  const retryOverlay = await submitOverlay("retry overlay query");
+  await evaluate(`MV6ReadTest.fail(${retryOverlay})`);
+  await wait("!!document.querySelector('#overlay-fixture [role=alert]')");
+  const hasOverlayRetry = await evaluate("!!document.querySelector('#overlay-fixture [role=alert] button')");
+  check("overlay_current_error_has_retry", hasOverlayRetry);
+  if (hasOverlayRetry) {
+    await evaluate("__overlayQuery('unsubmitted overlay draft')");
+    await sleep(30);
+    await evaluate("document.querySelector('#overlay-fixture [role=alert] button').click()");
+    await wait(`MV6ReadTest.requests().length === ${retryOverlay + 2}`);
+    const retriedOverlay = await evaluate(`MV6ReadTest.requests()[${retryOverlay + 1}]`);
+    check("overlay_retry_keeps_submitted_query", retriedOverlay.args.query === "retry overlay query");
+    await evaluate(`MV6ReadTest.respond(${retryOverlay + 1}, 'overlay retry recovered')`);
+    await wait(overlayContains("overlay retry recovered"));
+    check("overlay_retry_recovers", await evaluate("!document.querySelector('#overlay-fixture [role=alert]') && document.querySelector('#overlay-fixture main').getAttribute('aria-busy') === 'false'"));
+  } else {
+    check("overlay_retry_keeps_submitted_query", false);
+    check("overlay_retry_recovers", false);
+  }
+  await evaluate("window.__unmountOverlay()");
 } finally {
   ws?.close();
   app.kill();
   writeFileSync(join(out, "report.json"), JSON.stringify(report, null, 2));
 }
-if (report.checks.length !== 24 || report.checks.some((item) => !item.ok)) process.exitCode = 1;
+if (report.checks.length !== 36 || report.checks.some((item) => !item.ok)) process.exitCode = 1;
