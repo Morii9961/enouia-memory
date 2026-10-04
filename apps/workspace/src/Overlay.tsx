@@ -1,45 +1,45 @@
 // Quick search (hotkey Ctrl+Alt+M): read-only search, Esc hides.
 import { useEffect, useRef, useState } from "react";
-import { call, describe, shell, type J } from "./api";
+import { call, shell, type J } from "./api";
+import { ErrorBox, useLatestRead } from "./App";
 
-export default function Overlay() {
+export default function Overlay({ readPage = call }: { readPage?: typeof call } = {}) {
   const [query, setQuery] = useState("");
   const [items, setItems] = useState<J[]>([]);
-  const [error, setError] = useState("");
+  const reads = useLatestRead();
   const input = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    const focus = () => input.current?.focus();
+    const clear = () => { reads.clear(); setItems([]); setQuery(""); };
+    const focus = () => { clear(); input.current?.focus(); };
     window.addEventListener("focus", focus);
+    window.addEventListener("blur", clear);
     focus();
-    return () => window.removeEventListener("focus", focus);
-  }, []);
+    return () => { window.removeEventListener("focus", focus); window.removeEventListener("blur", clear); };
+  }, [reads.clear]);
 
-  async function run(e: React.FormEvent) {
+  function clear() { reads.clear(); setItems([]); setQuery(""); }
+  function run(e: React.FormEvent) {
     e.preventDefault();
-    if (!query.trim()) return;
-    try {
-      const page = await call("memory_search", { query, includeHistorical: false, cursor: null, limit: 8 });
-      setItems(page.items);
-      setError("");
-    } catch (err) {
-      setItems([]);
-      setError(describe(err));
-    }
+    if (!query.trim()) { clear(); return; }
+    setItems([]);
+    void reads.run(() => readPage("memory_search", { query, includeHistorical: false, cursor: null, limit: 8 }), (page) => setItems(page.items));
   }
 
   return (
     <main
       className="overlay"
+      aria-busy={reads.busy}
       onKeyDown={(e) => {
-        if (e.key === "Escape") void shell.hideWindow();
+        if (e.key === "Escape") { clear(); void shell.hideWindow(); }
       }}
     >
       <form onSubmit={run} role="search">
         <label htmlFor="q" className="sr-only">搜索记忆</label>
-        <input id="q" ref={input} value={query} onChange={(e) => setQuery(e.target.value)} placeholder="搜索已批准的记忆… (Esc 关闭)" autoComplete="off" />
+        <input id="q" ref={input} value={query} onChange={(e) => { if (!e.target.value.trim()) clear(); else setQuery(e.target.value); }} placeholder="搜索已批准的记忆… (Esc 关闭)" autoComplete="off" />
       </form>
-      {error && <p role="alert" className="error">{error}</p>}
+      <ErrorBox error={reads.error} />
+      {reads.busy && <p role="status" className="muted">正在搜索…</p>}
       <ul className="results" aria-live="polite">
         {items.map((h) => (
           <li key={h.memoryId}>

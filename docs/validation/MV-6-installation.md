@@ -2,6 +2,8 @@
 
 Date: 2026-10-03. Scope: current-user NSIS packaging and a reversible installation drill. No real Vault or login startup entry was created. MV-7 remains unstarted.
 
+Additional 2026-10-04 evidence: the [upgrade and downgrade report](MV-6-upgrade.md) adds 19/19 real-package checks and 7/7 version guard checks, including a correction for silent downgrade in the pinned template. Interactive upgrade and earlier data-format migration remain pending.
+
 Pinned `@tauri-apps/cli` 2.12.0 builds the frontend, release application, and a 7.04 MiB NSIS installer with `npm run bundle` in `apps/workspace`. The installer targets the current user, permits Simplified Chinese and English, and disables downgrades. The custom uninstall hook removes the fixed `EnouiaMemoryWorkspace` startup value only when its command exactly belongs to the installation being removed.
 
 `tools/windows/installer-smoke.ps1` refuses existing installation metadata or startup entries, installs silently into a fresh temporary directory containing spaces, suppresses shortcuts, and uninstalls from that verified owned path. **8/8 checks passed**: installation exit status, installed payload identity, requested installation directory, no opt-in startup enabled, uninstall exit status, app removal, uninstall registration removal, and preservation of a synthetic data sentinel outside the app directory. The drill removes its newly created install-location preference only when it still matches the test directory. Its local reports and synthetic data are not committed.

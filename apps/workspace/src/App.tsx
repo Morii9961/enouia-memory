@@ -37,6 +37,43 @@ export function useAction() {
   return { busy, error, run, clear: () => setError(null) };
 }
 
+/** Only the latest read may publish results, errors or its busy state. */
+export function useLatestRead() {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<{ text: string; retry?: () => void } | null>(null);
+  const generation = useRef(0);
+  const pending = useRef(false);
+  useEffect(() => () => { generation.current += 1; pending.current = false; }, []);
+  const run = useCallback(<T,>(request: () => Promise<T>, publish: (result: T) => void, failed?: () => void) => {
+    const current = ++generation.current;
+    const execute = async () => {
+      if (generation.current !== current) return;
+      pending.current = true;
+      setBusy(true);
+      setError(null);
+      try {
+        const result = await request();
+        if (generation.current === current) publish(result);
+      } catch (err) {
+        if (generation.current === current) {
+          failed?.();
+          setError({ text: describe(err), retry: retryable(err) ? () => void execute() : undefined });
+        }
+      } finally {
+        if (generation.current === current) { pending.current = false; setBusy(false); }
+      }
+    };
+    return execute();
+  }, []);
+  const clear = useCallback(() => {
+    generation.current += 1;
+    pending.current = false;
+    setBusy(false);
+    setError(null);
+  }, []);
+  return { busy, error, run, pending, clear };
+}
+
 export function ErrorBox({ error }: { error: { text: string; retry?: () => void } | null }) {
   if (!error) return null;
   return (
@@ -148,19 +185,28 @@ function PlanDialog({ plan, returnFocus, onClose }: { plan: J; returnFocus?: HTM
   );
 }
 
-function Source({ evidence }: { evidence: J }) {
-  const [excerpt, setExcerpt] = useState<J>(null);
-  const action = useAction();
-  const load = (start: number | null) =>
-    void action.run(async () =>
-      setExcerpt(await call("source_excerpt", { sourceId: evidence.sourceId, sourceRevision: evidence.sourceRevision, startByte: start, maxBytes: 4096 })),
-    );
+export function Source({ evidence, readPage = call }: { evidence: J; readPage?: typeof call }) {
+  const [loaded, setLoaded] = useState<{ sourceId: string; revision: number; page: J } | null>(null);
+  const action = useLatestRead();
+  const excerpt = evidence.available && loaded && loaded.sourceId === evidence.sourceId && loaded.revision === evidence.sourceRevision ? loaded.page : null;
+  useEffect(() => {
+    action.clear(); setLoaded(null);
+  }, [evidence.sourceId, evidence.sourceRevision, evidence.available, action.clear]);
+  const load = (start: number | null) => {
+    if (!evidence.available) return;
+    const sourceId = evidence.sourceId;
+    const revision = evidence.sourceRevision;
+    setLoaded(null);
+    void action.run(() => readPage("source_excerpt", { sourceId, sourceRevision: revision, startByte: start, maxBytes: 4096 }),
+      (page) => setLoaded({ sourceId, revision, page }));
+  };
   return (
-    <li>
+    <li aria-busy={action.busy}>
       <code>{evidence.sourceId}</code> r{evidence.sourceRevision} · 支持 {evidence.supports} ·{" "}
       {evidence.available ? "来源可用" : <span className="warn">来源缺失</span>}{" "}
       {evidence.available && <button type="button" onClick={() => load(null)}>查看来源</button>}
       <ErrorBox error={action.error} />
+      {action.busy && <p role="status" className="muted">正在读取来源…</p>}
       {excerpt && (
         <figure>
           <figcaption className="muted">
@@ -174,7 +220,7 @@ function Source({ evidence }: { evidence: J }) {
   );
 }
 
-function MemoryDetail({ id, onChanged }: { id: string; onChanged: () => void }) {
+export function MemoryDetail({ id, onChanged, readPage = call }: { id: string; onChanged: () => void; readPage?: typeof call }) {
   const [detail, setDetail] = useState<J>(null);
   const [correction, setCorrection] = useState("");
   const [impact, setImpact] = useState<J>(null);
@@ -182,11 +228,11 @@ function MemoryDetail({ id, onChanged }: { id: string; onChanged: () => void }) 
   const planTrigger = useRef<HTMLElement | null>(null);
   const [note, setNote] = useState("");
   const action = useAction();
-  const load = useCallback(() => void action.run(async () => setDetail(await call("memory_read", { memoryId: id }))), [id]); // eslint-disable-line react-hooks/exhaustive-deps
+  const load = useCallback(() => void action.run(async () => setDetail(await readPage("memory_read", { memoryId: id }))), [id, readPage]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(load, [load]);
   const forget = (mode: "forget" | "purge") => {
     planTrigger.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    void action.run(async (key) => setPlan(await call("forget_plan", { memoryId: id, mode, withDependents: false }, key)));
+    void action.run(async (key) => setPlan(await readPage("forget_plan", { memoryId: id, mode, withDependents: false }, key)));
   };
   if (!detail) return <ErrorBox error={action.error} />;
   const r = detail.record;
@@ -211,11 +257,11 @@ function MemoryDetail({ id, onChanged }: { id: string; onChanged: () => void }) 
       <textarea id="fix" value={correction} onChange={(e) => setCorrection(e.target.value)} placeholder="写下正确的内容；提交后进入候选审核，不会直接改写记忆。" />
       <div className="actions">
         <button type="button" disabled={!correction.trim() || action.busy} onClick={() => void action.run(async (key) => {
-          await call("correction_propose", { memoryId: id, revision: r.revision, text: correction }, key);
-          setCorrection("");
+          await readPage("correction_propose", { memoryId: id, revision: r.revision, text: correction }, key);
+          setCorrection((current) => current === correction ? "" : current);
           setNote("已提交纠正候选，请到“候选审核”确认。");
         })}>提交纠正候选</button>
-        <button type="button" onClick={() => void action.run(async () => setImpact(await call("delete_preview", { memoryId: id, withDependents: false })))}>删除影响预览</button>
+        <button type="button" onClick={() => void action.run(async () => setImpact(await readPage("delete_preview", { memoryId: id, withDependents: false })))}>删除影响预览</button>
         <button type="button" disabled={action.busy} onClick={() => forget("forget")}>忘记…</button>
         <button type="button" className="danger" disabled={action.busy} onClick={() => forget("purge")}>彻底删除…</button>
       </div>
@@ -231,33 +277,34 @@ function MemoryDetail({ id, onChanged }: { id: string; onChanged: () => void }) 
   );
 }
 
-function Memories() {
+export function Memories({ readPage = call }: { readPage?: typeof call } = {}) {
   const [query, setQuery] = useState("");
+  const [submittedQuery, setSubmittedQuery] = useState("");
   const [inactive, setInactive] = useState(false);
   const [rows, setRows] = useState<J[]>([]);
   const [next, setNext] = useState<string | null>(null);
   const [mode, setMode] = useState<"list" | "search">("list");
   const [selected, setSelected] = useState<string | null>(null);
-  const action = useAction();
-  const load = (cursor: string | null, kind = mode) =>
-    void action.run(async () => {
-      const page = kind === "search"
-        ? await call("memory_search", { query, includeHistorical: inactive, cursor, limit: 25 })
-        : await call("memory_list", { includeInactive: inactive, cursor, limit: 25 });
-      setRows(cursor ? [...rows, ...page.items] : page.items);
+  const action = useLatestRead();
+  const load = (cursor: string | null, kind = mode, searchQuery = submittedQuery) =>
+    void action.run(() => kind === "search"
+      ? readPage("memory_search", { query: searchQuery, includeHistorical: inactive, cursor, limit: 25 })
+      : readPage("memory_list", { includeInactive: inactive, cursor, limit: 25 }), (page) => {
+      setRows((current) => cursor ? [...current, ...page.items] : page.items);
       setNext(page.nextCursor);
     });
-  useEffect(() => load(null, "list"), [inactive]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => load(null), [inactive]); // eslint-disable-line react-hooks/exhaustive-deps
   return (
     <div className="split">
-      <section aria-label="记忆列表">
-        <form role="search" onSubmit={(e) => { e.preventDefault(); const kind = query.trim() ? "search" : "list"; setMode(kind); load(null, kind); }}>
+      <section aria-label="记忆列表" aria-busy={action.busy}>
+        <form role="search" onSubmit={(e) => { e.preventDefault(); const kind = query.trim() ? "search" : "list"; setMode(kind); setSubmittedQuery(query); load(null, kind, query); }}>
           <label htmlFor="mq" className="sr-only">搜索</label>
           <input id="mq" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="按字面搜索（空白则浏览全部）" />
           <button type="submit">搜索</button>
           <label><input type="checkbox" checked={inactive} onChange={(e) => setInactive(e.target.checked)} /> 含历史</label>
         </form>
         <ErrorBox error={action.error} />
+        {action.busy && <p role="status" className="muted">正在读取记忆…</p>}
         <ul className="list">
           {rows.map((m) => (
             <li key={m.memoryId}>
@@ -337,7 +384,7 @@ function Import() {
   );
 }
 
-function Review() {
+export function Review({ readPage = call }: { readPage?: typeof call } = {}) {
   const [items, setItems] = useState<J[]>([]);
   const [total, setTotal] = useState(0);
   const [plan, setPlan] = useState<J>(null);
@@ -347,12 +394,12 @@ function Review() {
   const focusAfterCommit = useRef(false);
   const planTrigger = useRef<HTMLElement | null>(null);
   const action = useAction();
-  const load = useCallback(() => void action.run(async () => {
-    const page = await call("candidate_list", { cursor: null, limit: 50 });
+  const reads = useLatestRead();
+  const load = useCallback(() => reads.run(() => readPage("candidate_list", { cursor: null, limit: 50 }), (page) => {
     setItems(page.items);
     setTotal(page.total);
-  }), []); // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(load, [load]);
+  }), [readPage, reads.run]);
+  useEffect(() => { void load(); }, [load]);
   useEffect(() => {
     if (focusAfterCommit.current) {
       focusAfterCommit.current = false;
@@ -360,24 +407,36 @@ function Review() {
     }
   }, [items]);
   const decide = (c: J, act: string) => {
+    if (action.busy || reads.pending.current) return;
     planTrigger.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     void action.run(async () =>
-      setPlan(await call("review_plan", { decisions: [{
+      setPlan(await readPage("review_plan", { decisions: [{
         candidateId: c.candidateId, revision: c.revision, action: act,
         editedContent: act === "edit_accept" ? edits[c.candidateId] ?? c.content : null, mergeTarget: null,
       }] })),
     );
   };
   return (
-    <div>
-      <form className="card" onSubmit={(e) => { e.preventDefault(); void action.run(async (key) => { await call("remember", { text, claimKey: claim }, key); setText(""); setClaim(""); load(); }); }}>
+    <div aria-busy={action.busy || reads.busy}>
+      <form className="card" onSubmit={(e) => {
+        e.preventDefault();
+        if (action.busy || reads.pending.current || !text.trim() || !claim.trim()) return;
+        void action.run(async (key) => {
+          await readPage("remember", { text, claimKey: claim }, key);
+          setText((current) => current === text ? "" : current);
+          setClaim((current) => current === claim ? "" : current);
+          await load();
+        });
+      }}>
         <h3>记住一件事</h3>
         <label htmlFor="rt">原话（保存为来源，再生成待审核候选）</label>
         <textarea id="rt" value={text} onChange={(e) => setText(e.target.value)} />
         <label>主题键 <input value={claim} onChange={(e) => setClaim(e.target.value)} placeholder="例如 preference.reading" /></label>
-        <button type="submit" disabled={!text.trim() || !claim.trim() || action.busy}>保存为候选</button>
+        <button type="submit" disabled={!text.trim() || !claim.trim() || action.busy || reads.busy}>保存为候选</button>
       </form>
       <ErrorBox error={action.error} />
+      <ErrorBox error={reads.error} />
+      {reads.busy && <p role="status" className="muted">正在刷新候选…</p>}
       <h3>待审核（{total}）</h3>
       {items.map((c) => (
         <article key={c.candidateId} className="card" aria-label={`候选 ${c.candidateId}`}>
@@ -387,8 +446,8 @@ function Review() {
           <textarea id={`e-${c.candidateId}`} value={edits[c.candidateId] ?? c.content} onChange={(e) => setEdits({ ...edits, [c.candidateId]: e.target.value })} />
           <p className="muted">证据：{c.evidence.map((e: J) => `${e.sourceId} r${e.sourceRevision}`).join("，")}{c.conflicts.length > 0 && <span className="warn"> · {c.conflicts.length} 处冲突</span>}</p>
           <div className="actions">
-            <button type="button" className="primary" disabled={action.busy} onClick={() => decide(c, (edits[c.candidateId] ?? c.content) !== c.content ? "edit_accept" : "accept")}>接受…</button>
-            <button type="button" disabled={action.busy} onClick={() => decide(c, "reject")}>拒绝…</button>
+            <button type="button" className="primary" disabled={action.busy || reads.busy} onClick={() => decide(c, (edits[c.candidateId] ?? c.content) !== c.content ? "edit_accept" : "accept")}>接受…</button>
+            <button type="button" disabled={action.busy || reads.busy} onClick={() => decide(c, "reject")}>拒绝…</button>
           </div>
         </article>
       ))}
@@ -400,7 +459,7 @@ function Review() {
   );
 }
 
-function Sessions({ inspect }: { inspect: (capsuleId: string) => void }) {
+export function Sessions({ inspect, request = call }: { inspect: (capsuleId: string) => void; request?: typeof call }) {
   const [sessions, setSessions] = useState<J[]>([]);
   const [current, setCurrent] = useState<{ sessionId: string; branchId: string } | null>(null);
   const [detail, setDetail] = useState<J>(null);
@@ -408,26 +467,61 @@ function Sessions({ inspect }: { inspect: (capsuleId: string) => void }) {
   const [answer, setAnswer] = useState<J>(null);
   const [summary, setSummary] = useState("");
   const action = useAction();
-  const list = useCallback(() => void action.run(async () => setSessions((await call("session_list")).items)), []); // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(list, [list]);
+  const listRead = useLatestRead();
+  const detailRead = useLatestRead();
+  const writing = useRef(false);
+  const selectedBranch = useRef<string | null>(null);
+  const drafts = useRef(new Map<string, { text: string; summary: string }>());
+  const branchKey = (s: { sessionId: string; branchId: string }) => `${s.sessionId}:${s.branchId}`;
+  const list = useCallback(() => listRead.run(() => request("session_list"), (page) => setSessions(page.items)), [listRead.run, request]);
+  useEffect(() => { void list(); }, [list]);
   const open = (s: { sessionId: string; branchId: string }) =>
-    void action.run(async () => { setCurrent(s); setDetail(await call("session_detail", s)); });
+    detailRead.run(() => request("session_detail", s), (saved) => {
+      const key = branchKey(s);
+      if (selectedBranch.current !== key) { setAnswer(null); action.clear(); }
+      selectedBranch.current = key;
+      const draft = drafts.current.get(key);
+      setText(draft?.text ?? "");
+      setSummary(draft?.summary ?? "");
+      setCurrent(s);
+      setDetail(saved);
+    });
+  const editDraft = (field: "text" | "summary", value: string) => {
+    if (!current) return;
+    const key = branchKey(current);
+    drafts.current.set(key, { ...(drafts.current.get(key) ?? { text: "", summary: "" }), [field]: value });
+    if (field === "text") setText(value); else setSummary(value);
+  };
+  const clearSubmittedDraft = (field: "text" | "summary", submitted: string) => {
+    if (current && drafts.current.get(branchKey(current))?.[field] === submitted) editDraft(field, "");
+  };
+  const write = (commit: (key: string) => Promise<void>) => {
+    if (writing.current || detailRead.pending.current) return;
+    void action.run(async (key) => {
+      writing.current = true;
+      try { await commit(key); } finally { writing.current = false; }
+    });
+  };
+  const busy = action.busy || detailRead.busy;
   return (
     <div className="split">
       <section aria-label="会话列表">
-        <button type="button" disabled={action.busy} onClick={() => void action.run(async (key) => { const s = await call("session_new", {}, key); list(); open({ sessionId: s.sessionId, branchId: s.branchId }); })}>新会话</button>
+        <button type="button" disabled={busy || listRead.busy} onClick={() => write(async (key) => { const s = await request("session_new", {}, key); await list(); await open({ sessionId: s.sessionId, branchId: s.branchId }); })}>新会话</button>
+        <ErrorBox error={listRead.error} />
         <ul className="list">
           {sessions.map((s) => s.branches.map((b: J) => (
             <li key={b.branchId}>
-              <button type="button" aria-current={current?.branchId === b.branchId} onClick={() => open({ sessionId: s.sessionId, branchId: b.branchId })}>
+              <button type="button" disabled={action.busy} aria-current={current?.branchId === b.branchId} onClick={() => { if (!writing.current) void open({ sessionId: s.sessionId, branchId: b.branchId }); }}>
                 {s.updatedAt} · 分支 {b.branchId.slice(3, 11)} · {b.lastEventSeq} 个事件
               </button>
             </li>
           )))}
         </ul>
       </section>
-      <section aria-label="会话内容">
+      <section aria-label="会话内容" aria-busy={busy}>
         <ErrorBox error={action.error} />
+        <ErrorBox error={detailRead.error} />
+        {detailRead.busy && <p role="status" className="muted">正在读取会话…</p>}
         {detail && current && (
           <>
             <p className="muted">最后已保存事件：{detail.lastSavedEventId ?? "无"}</p>
@@ -444,14 +538,14 @@ function Sessions({ inspect }: { inspect: (capsuleId: string) => void }) {
             ))}
             <h4>检查点（暂定，未经审核）</h4>
             <ul>{detail.checkpoints.map((c: J) => <li key={c.checkpoint_id}>{c.status} · {typeof c.summary === "string" ? c.summary : c.checkpoint_id}</li>)}</ul>
-            <form onSubmit={(e) => { e.preventDefault(); void action.run(async (key) => {
-              setAnswer(await call("session_ask", { ...current, text }, key));
-              setText("");
-              setDetail(await call("session_detail", current));
+            <form onSubmit={(e) => { e.preventDefault(); write(async (key) => {
+              setAnswer(await request("session_ask", { ...current, text }, key));
+              clearSubmittedDraft("text", text);
+              await open(current);
             }); }}>
               <label htmlFor="ask">提问（本地 Mock，只引用已批准记忆）</label>
-              <textarea id="ask" value={text} onChange={(e) => setText(e.target.value)} />
-              <button type="submit" disabled={!text.trim() || action.busy}>发送</button>
+              <textarea id="ask" value={text} disabled={busy} onChange={(e) => editDraft("text", e.target.value)} />
+              <button type="submit" disabled={!text.trim() || busy}>发送</button>
             </form>
             {answer && (
               <div className="card" aria-live="polite">
@@ -461,10 +555,10 @@ function Sessions({ inspect }: { inspect: (capsuleId: string) => void }) {
                 <button type="button" onClick={() => inspect(answer.capsuleId)}>查看依据（上下文检查）</button>
               </div>
             )}
-            <form onSubmit={(e) => { e.preventDefault(); void action.run(async (key) => { await call("session_checkpoint", { ...current, summary }, key); setSummary(""); setDetail(await call("session_detail", current)); }); }}>
+            <form onSubmit={(e) => { e.preventDefault(); write(async (key) => { await request("session_checkpoint", { ...current, summary }, key); clearSubmittedDraft("summary", summary); await open(current); }); }}>
               <label htmlFor="cp">检查点摘要</label>
-              <input id="cp" value={summary} onChange={(e) => setSummary(e.target.value)} />
-              <button type="submit" disabled={!summary.trim() || action.busy}>保存检查点</button>
+              <input id="cp" value={summary} disabled={busy} onChange={(e) => editDraft("summary", e.target.value)} />
+              <button type="submit" disabled={!summary.trim() || busy}>保存检查点</button>
             </form>
           </>
         )}
@@ -473,28 +567,43 @@ function Sessions({ inspect }: { inspect: (capsuleId: string) => void }) {
   );
 }
 
-function Context({ capsuleId }: { capsuleId: string | null }) {
+export function Context({ capsuleId, readPage = call }: { capsuleId: string | null; readPage?: typeof call }) {
   const [query, setQuery] = useState("");
   const [id, setId] = useState(capsuleId);
   const [view, setView] = useState<J>(null);
   const [request, setRequest] = useState<J>(null);
+  const [dispatchId, setDispatchId] = useState<string | null>(null);
   const action = useAction();
+  const reads = useLatestRead();
+  const dispatchReads = useLatestRead();
   useEffect(() => {
+    setView(null);
+    setRequest(null);
+    setDispatchId(null);
+    dispatchReads.clear();
     if (!id) return;
-    void action.run(async () => { setRequest(null); setView(await call("context_inspect", { capsuleId: id })); });
-  }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
+    void reads.run(() => readPage("context_inspect", { capsuleId: id }), setView);
+  }, [id, readPage, reads.run, dispatchReads.clear]);
   const delivery: Record<string, string> = {
     preview_not_sent: "仅预览：没有发送给任何目的地",
     dispatched: "已发送（见下方实际请求）",
   };
   return (
-    <div>
-      <form onSubmit={(e) => { e.preventDefault(); void action.run(async (key) => setId((await call("context_preview", { query, sessionId: null, branchId: null }, key)).capsuleId)); }}>
+    <div aria-busy={action.busy || reads.busy || dispatchReads.busy}>
+      <form onSubmit={(e) => {
+        e.preventDefault();
+        if (!query.trim() || action.busy) return;
+        reads.clear(); dispatchReads.clear(); setView(null); setRequest(null); setDispatchId(null);
+        void action.run(async (key) => setId((await readPage("context_preview", { query, sessionId: null, branchId: null }, key)).capsuleId));
+      }}>
         <label htmlFor="cq">编译预览</label>
         <input id="cq" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="输入问题，查看会带上哪些记忆" />
         <button type="submit" disabled={!query.trim() || action.busy}>预览</button>
       </form>
       <ErrorBox error={action.error} />
+      <ErrorBox error={reads.error} />
+      <ErrorBox error={dispatchReads.error} />
+      {(reads.busy || dispatchReads.busy) && <p role="status" className="muted">正在核对上下文与请求…</p>}
       {view && (
         <>
           <p className="state-line"><strong>{delivery[view.delivery]}</strong> · 目的地 {view.capsule.destination.kind} · 预算 {JSON.stringify(view.capsule.budget)}</p>
@@ -515,11 +624,15 @@ function Context({ capsuleId }: { capsuleId: string | null }) {
           {view.dispatches.map((d: J) => (
             <p key={d.dispatchId}>
               发送 <code>{d.dispatchId.slice(0, 12)}</code>：{d.state}（准备 {d.preparedAt}{d.sentAt ? ` · 发送 ${d.sentAt}` : " · 未发送"}{d.completedAt ? ` · 完成 ${d.completedAt}` : ""}）{" "}
-              <button type="button" onClick={() => void action.run(async () => setRequest(await call("dispatch_inspect", { dispatchId: d.dispatchId })))}>查看实际请求</button>
+              <button type="button" onClick={() => {
+                setRequest(null); setDispatchId(d.dispatchId);
+                void dispatchReads.run(() => readPage("dispatch_inspect", { dispatchId: d.dispatchId }), setRequest);
+              }}>查看实际请求</button>
             </p>
           ))}
           {request && (
             <div className="card">
+              <p>实际请求 <code>{dispatchId}</code></p>
               <p>{request.verified ? "已按保存记录重新渲染并核对哈希" : "哈希不符"} · 工具 {request.tools} 个 · {request.destination.kind}</p>
               {request.messages.map((m: J, i: number) => <div key={i}><strong>{m.role}</strong><pre className="source">{m.text}</pre></div>)}
             </div>
@@ -628,17 +741,28 @@ function Status({ status }: { status: J }) {
   );
 }
 
+export function useWorkspaceStatus(readStatus = call) {
+  const [status, setStatus] = useState<J>(null);
+  const reads = useLatestRead();
+  const refresh = useCallback(() => reads.run(() => readStatus("workspace_status"), setStatus, () => setStatus(null)), [readStatus, reads.run]);
+  useEffect(() => {
+    let stopped = false;
+    let timer: ReturnType<typeof setTimeout>;
+    const poll = async () => {
+      await refresh();
+      if (!stopped) timer = setTimeout(poll, 3000);
+    };
+    void poll();
+    return () => { stopped = true; clearTimeout(timer); };
+  }, [refresh]);
+  return { status, error: reads.error, refresh };
+}
+
 export default function App() {
   const [page, setPage] = useState<Page>("status");
-  const [status, setStatus] = useState<J>(null);
+  const { status, error: statusError, refresh } = useWorkspaceStatus();
   const [capsule, setCapsule] = useState<string | null>(null);
   const heading = useRef<HTMLHeadingElement>(null);
-  const refresh = useCallback(() => void call("workspace_status").then(setStatus).catch(() => undefined), []);
-  useEffect(() => {
-    refresh();
-    const timer = setInterval(refresh, 3000);
-    return () => clearInterval(timer);
-  }, [refresh]);
   const go = (next: Page) => {
     setPage(next);
     requestAnimationFrame(() => heading.current?.focus());
@@ -655,7 +779,7 @@ export default function App() {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
   const open = status?.vault?.state === "open";
-  const needsVault = !open && page !== "status" && page !== "vault";
+  const needsVault = page !== "status" && (!status || (!open && page !== "vault"));
   return (
     <div className="app">
       <nav aria-label="页面">
@@ -669,8 +793,10 @@ export default function App() {
       </nav>
       <main id="main-content">
         <h2 ref={heading} tabIndex={-1}>{PAGES.find(([id]) => id === page)?.[1]}</h2>
+        <ErrorBox error={statusError} />
         {needsVault ? (
-          <p>请先在“Vault 与恢复”中打开或解锁 Vault。<button type="button" onClick={() => go("vault")}>前往</button></p>
+          status ? <p>请先在“Vault 与恢复”中打开或解锁 Vault。<button type="button" onClick={() => go("vault")}>前往</button></p>
+            : <p role="status">{statusError ? "暂时无法确认 Vault 状态，请重试或等待刷新。" : "正在读取 Vault 状态…"}</p>
         ) : (
           <>
             {page === "status" && <Status status={status} />}

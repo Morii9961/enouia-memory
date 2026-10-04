@@ -1,6 +1,25 @@
-# MV-6 follow-up — installer, startup, accessibility
+# MV-6 follow-up — installation ownership, window permissions and UI state
 
-## Current result — 2026-10-03
+## Current result — 2026-10-04
+
+The owner authorized continued MV-6 work, separate feature commits, push and merge. The final rebuilt 0.1.0 app passed **52/52** actual-app checks on a fresh synthetic Vault, including native permissions, saved Mock request verification, original-key retry and acknowledged-record recovery after a renderer crash. The separate deferred-client fixture passed **76/76** UI checks; its read/write responses are simulated. The final **7.04 MiB NSIS installer** passed **8/8** isolated installation/uninstallation checks and **14/14** source/generated-template ownership checks. Required pinned offline format, **201 Rust workspace tests**, Clippy with warnings denied and independent Python 3.12 / python-jsonschema 4.26.0 validation of **34 schemas** passed. Frontend and separate fixture typechecks/builds passed; test markers/APIs are absent from production.
+
+| Completed October 4 feature | Evidence | Commit |
+|---|---|---|
+| Silent downgrade refusal and test-only package upgrade/Vault preservation | [Upgrade](MV-6-upgrade.md), 7/7 hook and 19/19 package checks | `518364e` |
+| AppData and unrelated startup values outside uninstall ownership | [Uninstall](MV-6-uninstall.md), 14/14 ownership checks | `d7dc86c` |
+| Explorer latest reads and submitted-query pagination | [Read order](MV-6-read-order.md) | `b39dbd2` |
+| Session selection, branch drafts and write/retry binding | [Sessions](MV-6-session-navigation.md) | `546533a` |
+| Native search-only overlay permissions and transient-read cleanup | [Overlay](MV-6-overlay.md) | `1c7eb86` |
+| Serial status polling and withdrawal of unknown-state content gates | [Status](MV-6-status-polling.md) | `1fe9d0d` |
+| Capsule and actual-request display binding | [Context](MV-6-context-binding.md) | `d68dd39` |
+| Source excerpt identity/revision/availability and range retry | [Sources](MV-6-source-binding.md) | `3f4b612` |
+| Candidate draft preservation and awaited post-write refresh | [Candidate drafts](MV-6-review-drafts.md) | `a18f76b` |
+| Correction draft preservation after acknowledgment/retry | [Correction drafts](MV-6-correction-drafts.md) | `3f12001` |
+
+The package upgrade drill uses synthetic data and a test-only version override, not an earlier released app or older data format. The production version remains 0.1.0. **Still pending:** actual Windows login startup, Narrator, an actual Windows contrast theme, interactive installer accessibility/earlier-release upgrade, signing, real-export acceptance and the other stage-report gaps. Renderer-crash/forced-exit evidence covers acknowledged synthetic records, not interrupted commits, OS crashes, power loss or real-data recovery. No real Run value was enabled, and all Vaults, logs, screenshots, builds and fixture bundles remain ignored. **MV-7 has not started**; real Provider, Runtime/Activity integration and Host authentication are outside this work.
+
+## Historical integrated result — 2026-10-03
 
 The owner authorized continued MV-6 work and a separate commit for each completed feature. The final integrated real-app run passed **43/43** synthetic checks. The final **7.04 MiB NSIS installer** was rebuilt successfully after a test-process file lock was resolved, then passed **8/8** isolated installation/uninstallation checks. Required root checks passed: pinned offline format checking, **196 Rust workspace tests**, Clippy with warnings denied, and independent Python 3.12 / python-jsonschema 4.26.0 validation of **34 schemas**, including 4,913 set records and 63 workspace messages. Frontend and separate test-fixture typechecks/builds passed.
 
@@ -18,6 +37,28 @@ The initial injection failed because Tauri's invocation property is immutable; a
 **Still pending:** actual Windows login startup, Narrator, an actual Windows contrast theme, interactive installer accessibility, upgrade from an earlier installed version, and code signing. Browser accessibility-tree/forced-color checks and isolated registry tests do not establish those results. Manual accessibility steps are in the accessibility report. Crash evidence covers acknowledged synthetic records after a renderer crash and forced app termination, not an interrupted commit, OS crash, power loss, disk failure or real-data recovery.
 
 All Vaults, logs, screenshots, builds and fixture bundles remain ignored local/temporary material. No real startup Run entry was enabled. The production frontend contains neither the fault marker nor its test API. No Runtime dependency, Activity reader, real Provider or model request was introduced. **MV-7 has not started** and requires a separate owner request. Other limits in the original merged stage report remain unchanged.
+
+## Additional installation validation — 2026-10-04
+
+After merge `d7b1500`, the [upgrade drill](MV-6-upgrade.md) reproduced silent downgrade despite the pinned installer's configuration. A preinstall version check fixes that path. The actual hook passed 7/7 isolated version boundary checks, and rebuilt 0.1.0 / test-only 0.1.1 packages passed 19/19 real installation, upgrade, downgrade refusal and synthetic Vault preservation checks. Required offline Rust and independent schema checks passed again. The production version remains 0.1.0. These package checks do not establish manual interactive upgrade, earlier data-format migration, or any of the remaining human acceptance items above.
+
+The [uninstall ownership follow-up](MV-6-uninstall.md) removes the stock template's AppData deletion option and unconditional product-name Run-value removal. Source/generated-script checks passed 14/14; the final packages passed 19/19 upgrade and 8/8 installation checks again, with 3/3 exact startup cleanup checks. These checks preserve the installer boundary without claiming interactive accessibility acceptance.
+
+The [Explorer read-order correction](MV-6-read-order.md) reproduces and fixes stale response/error publication, premature busy-state clearing, draft-query pagination and search loss on history filtering. The controlled UI fixture passed 9/9 and the rebuilt actual application passed 43/43 again on a fresh synthetic Vault. No write behavior or provider capability changed.
+
+The [session navigation correction](MV-6-session-navigation.md) binds selection and displayed detail, keeps drafts within their branch, blocks branch changes during writes, and preserves newer unsent drafts after retry. Session fixtures passed 15/15 alongside the existing 9/9 Explorer checks; the rebuilt actual app passed 43/43 again and its installer passed 8/8.
+
+The [quick-search correction](MV-6-overlay.md) closes a reproduced native write path from the overlay. Its actual window identity now gates the channel to search only, and a separate capability excludes picker, exit and startup. The deferred fixture passed 36/36 and the rebuilt actual app passed 52/52 on a fresh synthetic Vault. The final installer passed 8/8 and its ownership checks passed 14/14. Required pinned offline checks passed again: format, **201 Rust tests**, Clippy and independent **34-schema** validation. Native window-scope tests account for the five added Rust cases.
+
+The [status polling correction](MV-6-status-polling.md) prevents an older open-state response from overwriting a newer lock, serializes automatic reads, and withdraws content while the current status cannot be confirmed. The independent fixture passed 45/45, including nine status checks; the rebuilt actual app passed 52/52 and its final installer passed 8/8. Rust/contracts are unchanged from the 201-test validation above.
+
+The [context display correction](MV-6-context-binding.md) binds capsule inspections and actual request displays to their selected objects, invalidates old responses on a new preview, and clears stale contents on loading/failure. The fixture passed 54/54, including nine context cases. The rebuilt actual app passed 52/52 and its final installer passed 8/8, with unchanged Rust/contracts.
+
+The [source excerpt correction](MV-6-source-binding.md) binds displayed text to its source ID/revision/availability, invalidates pending reads on evidence changes and removes previous text on a new or failed read. The fixture passed 64/64, including ten source cases; the actual app passed 52/52 and its final installer passed 8/8. Byte-range slicing/provenance rules and Rust/contracts are unchanged.
+
+The [candidate draft correction](MV-6-review-drafts.md) preserves new unsent text/claim fields when an earlier request succeeds, keeps writes busy through candidate refresh, and retries failed list reads without repeating an acknowledged write. The fixture passed 71/71, including seven candidate cases; the actual app passed 52/52 and its final installer passed 8/8, with unchanged Rust/contracts.
+
+The [correction draft follow-up](MV-6-correction-drafts.md) preserves newer unsent correction text when an older proposal succeeds or retries. The final fixture passed 76/76, including five correction cases. The final rebuilt app passed 52/52 on a fresh synthetic Vault; its installer passed 8/8 and ownership-template checks passed 14/14. Approved-memory/review rules and Rust/contracts are unchanged.
 
 ## Historical 2026-10-02 snapshot — superseded by the result above
 
