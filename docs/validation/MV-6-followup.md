@@ -23,6 +23,8 @@ All Vaults, logs, screenshots, builds and fixture bundles remain ignored local/t
 
 After merge `d7b1500`, the [upgrade drill](MV-6-upgrade.md) reproduced silent downgrade despite the pinned installer's configuration. A preinstall version check fixes that path. The actual hook passed 7/7 isolated version boundary checks, and rebuilt 0.1.0 / test-only 0.1.1 packages passed 19/19 real installation, upgrade, downgrade refusal and synthetic Vault preservation checks. Required offline Rust and independent schema checks passed again. The production version remains 0.1.0. These package checks do not establish manual interactive upgrade, earlier data-format migration, or any of the remaining human acceptance items above.
 
+The [uninstall ownership follow-up](MV-6-uninstall.md) removes the stock template's AppData deletion option and unconditional product-name Run-value removal. Source/generated-script checks passed 14/14; the final packages passed 19/19 upgrade and 8/8 installation checks again, with 3/3 exact startup cleanup checks. These checks preserve the installer boundary without claiming interactive accessibility acceptance.
+
 ## Historical 2026-10-02 snapshot — superseded by the result above
 
 Date: 2026-10-02. Base: merged `3523ca8`; branch `codex/mv6-install-accessibility`. The owner authorized continued work until the five-hour quota has about 5% remaining. This work stays inside MV-6. MV-7 has not started. All Vault tests use synthetic data in temporary directories.

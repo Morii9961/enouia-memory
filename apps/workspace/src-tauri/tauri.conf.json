@@ -50,6 +50,7 @@
         "installMode": "currentUser",
         "languages": ["SimpChinese", "English"],
         "displayLanguageSelector": true,
+        "template": "./windows/installer.nsi",
         "installerHooks": "./windows/hooks.nsh"
       }
     }
