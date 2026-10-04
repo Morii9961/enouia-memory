@@ -7,6 +7,8 @@ fn main() {
             "show_main",
             "hide_window",
             "exit_app",
+            "startup_status",
+            "startup_set",
         ]),
     ))
     .expect("tauri build");

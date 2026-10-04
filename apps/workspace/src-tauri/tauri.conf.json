@@ -4,6 +4,8 @@
   "version": "0.1.0",
   "identifier": "dev.enouia.memory.workspace",
   "build": {
+    "beforeBuildCommand": "npm run build",
+    "beforeDevCommand": "npm run dev",
     "frontendDist": "../dist",
     "devUrl": "http://localhost:1420"
   },
@@ -38,7 +40,18 @@
     }
   },
   "bundle": {
-    "active": false,
-    "icon": ["icons/icon.ico"]
+    "active": true,
+    "targets": ["nsis"],
+    "shortDescription": "Local memory review and continuity workspace",
+    "icon": ["icons/icon.ico"],
+    "windows": {
+      "allowDowngrades": false,
+      "nsis": {
+        "installMode": "currentUser",
+        "languages": ["SimpChinese", "English"],
+        "displayLanguageSelector": true,
+        "installerHooks": "./windows/hooks.nsh"
+      }
+    }
   }
 }

@@ -41,6 +41,12 @@ Real-app evidence comes from `apps/workspace/e2e/smoke.mjs`: it starts the relea
 
 ## 4. Limits and open items
 
+The original acceptance results and pending items below describe the merged baseline. See the [2026-10-02 follow-up](MV-6-followup.md) for installer/startup changes, passing local checks, and outstanding acceptance work.
+
+### Takeover verification (2026-10-02)
+
+Codex rechecked merged commit `3523ca8`; GitHub `main` and the local checkout matched. From the repository root, the pinned offline toolchain passed format checking, all 193 workspace tests, and Clippy with warnings denied. The independent Python 3.12 / python-jsonschema 4.26.0 check passed all 34 schemas, including 63 workspace IPC messages. The frontend typecheck and production build also passed. The 22/22 real-app result above remains the original acceptance run; it was not rerun in this takeover check. README stage and data-root descriptions were corrected to match the implementation. MV-7 was not started.
+
 - The owner boundary is still in-process: whoever runs the app on this Windows account is the owner. MV-8's Host must authenticate callers.
 - "Last successful backup" is known only for exports made by the running process; the Vault does not record backups, and "last verified restore" is not recorded. Actual restore stays in the CLI (`restore` into an empty folder); the UI only previews an export.
 - Search is MV-4's literal search: a natural question such as "MoriMeta 的设计决定是什么？" does not match, while "MoriMeta 设计决定" does. The Mock then answers `no_supported_evidence`, as designed.

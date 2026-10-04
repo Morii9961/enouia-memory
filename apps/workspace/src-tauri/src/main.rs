@@ -15,6 +15,18 @@ use tauri::menu::{Menu, MenuItem};
 use tauri::tray::TrayIconBuilder;
 use tauri::{AppHandle, Manager, State, WebviewWindow, WindowEvent};
 
+mod startup;
+
+#[tauri::command]
+fn startup_status() -> Result<Value, String> {
+    startup::get()
+}
+
+#[tauri::command]
+fn startup_set(enabled: bool) -> Result<Value, String> {
+    startup::set(enabled)
+}
+
 struct Core(Arc<Workspace>);
 
 #[tauri::command]
@@ -150,6 +162,15 @@ fn hotkey(_app: AppHandle, ws: Arc<Workspace>, _letter: u8) {
 fn main() {
     let ws = Arc::new(Workspace::new(Config::default()));
     let args: Vec<String> = std::env::args().collect();
+    let background = args.iter().any(|arg| arg == "--autostart");
+    let mut context = tauri::generate_context!();
+    if background {
+        for window in &mut context.config_mut().app.windows {
+            if window.label == "main" {
+                window.visible = false;
+            }
+        }
+    }
     if let Some(root) = args
         .windows(2)
         .find(|w| w[0] == "--vault")
@@ -173,7 +194,9 @@ fn main() {
             pick,
             show_main,
             hide_window,
-            exit_app
+            exit_app,
+            startup_status,
+            startup_set
         ])
         .setup(move |app| {
             let show_item =
@@ -209,7 +232,7 @@ fn main() {
                 let _ = window.hide();
             }
         })
-        .run(tauri::generate_context!())
+        .run(context)
         .expect("workspace shell");
     ws.shutdown();
 }

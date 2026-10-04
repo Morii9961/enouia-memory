@@ -197,6 +197,7 @@ The Windows workspace is two layers: `enouia-memory-workspace` (the embedded Cor
 - **Companion shell.** A tray icon (show, lock, exit), a global hotkey (Ctrl+Alt+M by default, another letter with `--hotkey-key`) registered with `RegisterHotKey` on its own thread, reported as `registered` or `conflict` instead of silently failing, and a small always-on-top quick-search window with the same read-only search command.
 - **Rendering.** Source and memory text are rendered as plain text nodes. No Markdown/HTML rendering, no `dangerouslySetInnerHTML`, no link navigation out of the app.
 - **Real-app check.** `apps/workspace/e2e/smoke.mjs` drives the release binary over WebView2 remote debugging on loopback (enabled only by that test's environment) and fills the native dialog of that process only; see the [MV-6 report](../validation/MV-6.md).
+- **MV-6 follow-up.** A current-user NSIS installer owns app files, not user-selected Vaults. Explicit opt-in startup is shell-local, restricted to the main window and one fixed Run value; no Vault root is persisted or automatically opened. Background launch hides the window before creation. These device settings do not extend the Memory IPC contract or introduce Runtime/Activity dependencies. The separately built retry fixture and opt-in renderer crash drill exist only in synthetic debugging runs; no production fault command or permission is added. See the [follow-up evidence](../validation/MV-6-followup.md).
 
 ## Relation to Enouia Runtime's register
 

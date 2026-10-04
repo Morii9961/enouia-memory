@@ -5,17 +5,19 @@
 // (real Tauri IPC, real Core), fills the native Open dialog of that process
 // through UI Automation, and saves screenshots plus a JSON report.
 //
-// node apps/workspace/e2e/smoke.mjs <exe> <vault-root> <import-file> <out-dir> [hotkey-letter]
+// node apps/workspace/e2e/smoke.mjs <exe> <vault-root> <import-file> <out-dir> [hotkey-letter] [retry-fixture] [--crash]
 //
 // Synthetic data only. The debug port exists only for this test process.
 import { spawn, execFileSync } from "node:child_process";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
-const [exe, vault, importFile, out, HOTKEY = "K"] = process.argv.slice(2);
+const [exe, vault, importFile, out, HOTKEY = "K", retryFixture, crashMode] = process.argv.slice(2);
 if (!out) throw new Error("usage: smoke.mjs <exe> <vault-root> <import-file> <out-dir>");
 mkdirSync(out, { recursive: true });
 const report = { checks: [], screenshots: [] };
+const children = new Set();
+const sessions = new Set();
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const check = (id, ok, detail = "") => {
   report.checks.push({ id, ok: Boolean(ok), detail });
@@ -27,6 +29,8 @@ function launch(port, args, extraEnv = {}) {
     env: { ...process.env, ...extraEnv, WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS: `--remote-debugging-port=${port} --remote-debugging-address=127.0.0.1` },
     stdio: "ignore",
   });
+  children.add(child);
+  child.once("exit", () => children.delete(child));
   return child;
 }
 
@@ -35,7 +39,11 @@ async function connect(port, wantOverlay = false, exclude = null) {
     try {
       const targets = await (await fetch(`http://127.0.0.1:${port}/json`)).json();
       const page = targets.find((t) => t.type === "page" && t.url.startsWith("http://tauri.localhost/") && t.url.includes("overlay") === wantOverlay && t.id !== exclude);
-      if (page) return { ...session(page.webSocketDebuggerUrl), id: page.id };
+      if (page) {
+        const s = { ...session(page.webSocketDebuggerUrl), id: page.id };
+        await waitFor(s, "document.readyState === 'complete' && !!document.querySelector('#root > *')", "page initialized");
+        return s;
+      }
     } catch {
       /* not up yet */
     }
@@ -48,8 +56,10 @@ function session(url) {
   const ws = new WebSocket(url);
   let id = 0;
   const pending = new Map();
+  const events = [];
   ws.onmessage = (m) => {
     const msg = JSON.parse(m.data);
+    if (msg.method) events.push(msg.method);
     if (msg.id && pending.has(msg.id)) {
       pending.get(msg.id)(msg);
       pending.delete(msg.id);
@@ -67,13 +77,22 @@ function session(url) {
     if (r.result?.exceptionDetails) throw new Error(r.result.exceptionDetails.exception?.description ?? "eval failed");
     return r.result?.result?.value;
   };
-  return { send, evaluate, close: () => ws.close() };
+  const s = { send, evaluate, events, close: () => { ws.close(); sessions.delete(s); } };
+  sessions.add(s);
+  return s;
 }
 
 const HELPERS = `
 window.__t = {
   byText(sel, text) { return [...document.querySelectorAll(sel)].find((e) => e.textContent.includes(text)); },
-  click(sel, text) { const e = this.byText(sel, text); if (!e) throw new Error('missing ' + text); e.click(); return true; },
+  async click(sel, text) {
+    for (let i = 0; i < 100; i++) {
+      const e = this.byText(sel, text);
+      if (e && !e.disabled) { e.click(); return true; }
+      await new Promise((r) => setTimeout(r, 100));
+    }
+    throw new Error('missing or disabled ' + text);
+  },
   set(sel, value) {
     const e = document.querySelector(sel); if (!e) throw new Error('missing ' + sel);
     const proto = e.tagName === 'TEXTAREA' ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
@@ -108,6 +127,10 @@ const nav = (s, label) => s.evaluate(`__t.click('nav button', ${JSON.stringify(l
 const has = (text) => `document.body.innerText.includes(${JSON.stringify(text)})`;
 const all = (...texts) => texts.map(has).join(" && ");
 const any = (...texts) => `(${texts.map(has).join(" || ")})`;
+async function press(s, key, code, windowsVirtualKeyCode, modifiers = 0) {
+  await s.send("Input.dispatchKeyEvent", {type:"keyDown",key,code,windowsVirtualKeyCode,modifiers,...(key === "Enter" ? {text:"\r",unmodifiedText:"\r"} : {})});
+  await s.send("Input.dispatchKeyEvent", {type:"keyUp",key,code,windowsVirtualKeyCode,modifiers});
+}
 
 // Fill the native Open dialog of `pid` through UI Automation: the file name
 // edit (control 1148) gets the path by WM_SETTEXT, then its Open button
@@ -180,13 +203,33 @@ async function main() {
   await s.evaluate("__t.set('input[placeholder^=\"例如\"]', 'project.morimeta.design')");
   await s.evaluate("__t.click('button', '保存为候选')");
   await waitFor(s, has("待审核（1）"), "candidate listed");
-  await s.evaluate("__t.click('button', '接受')");
+  await s.evaluate("window.__planTrigger = __t.byText('button', '接受'); window.__planTrigger.focus()");
+  await press(s, "Enter", "Enter", 13);
   await waitFor(s, "!!document.querySelector('dialog[open]')", "plan dialog");
   const dialogText = await s.evaluate("document.querySelector('dialog[open]').innerText");
+  check("W05.plan_initial_focus", await s.evaluate("document.activeElement.id === 'plan-title'"));
+  const ax = await s.send("Accessibility.getFullAXTree");
+  check("W05.dialog_accessible_name", ax.result.nodes.some((n) => n.role?.value === "dialog" && n.name?.value?.includes("确认写入")));
+  check("W05.dialog_accessible_description", ax.result.nodes.some((n) => n.role?.value === "dialog" && n.description?.value?.includes("全部记录")));
   check("W01.plan_shows_exact_text", dialogText.includes("Professional Darkroom") && /确认码 [0-9a-f]{8}/.test(dialogText));
   await shot(s, "03-plan");
-  await s.evaluate("__t.click('dialog[open] button', '确认')");
+  let contained = true;
+  for (let i = 0; i < 7; i++) {
+    await press(s, "Tab", "Tab", 9, i % 2 === 0 ? 0 : 8);
+    contained &&= await s.evaluate("document.querySelector('dialog[open]').contains(document.activeElement)");
+  }
+  check("W05.dialog_keeps_keyboard_focus", contained);
+  await press(s, "1", "Digit1", 49, 1);
+  check("W05.modal_blocks_page_shortcut", await s.evaluate("!!document.querySelector('dialog[open]') && document.querySelector('nav button[aria-current=page]').textContent.includes('候选审核')"));
+  await press(s, "Escape", "Escape", 27);
+  await waitFor(s, "!document.querySelector('dialog[open]')", "escape cancelled plan");
+  check("W05.cancel_restores_trigger_focus", await s.evaluate("document.activeElement === window.__planTrigger"));
+  await press(s, "Enter", "Enter", 13);
+  await waitFor(s, "!!document.querySelector('dialog[open]')", "reopened plan");
+  await s.evaluate("__t.byText('dialog[open] button', '确认').focus()");
+  await press(s, "Enter", "Enter", 13);
   await waitFor(s, has("待审核（0）"), "candidate accepted");
+  check("W05.accept_moves_focus_to_review_heading", await s.evaluate("document.activeElement === document.querySelector('main h2')"));
 
   // W01 explorer: open the memory and its source.
   await nav(s, "记忆浏览");
@@ -197,6 +240,10 @@ async function main() {
   await waitFor(s, "!!document.querySelector('pre.source')", "source excerpt");
   check("W01.source_visible", await s.evaluate("document.querySelector('pre.source').textContent.includes('Professional Darkroom')"));
   await shot(s, "04-source");
+  await s.send("Emulation.setDeviceMetricsOverride", {width:720,height:740,deviceScaleFactor:1,mobile:false});
+  check("W05.narrow_viewport_no_horizontal_overflow", await s.evaluate("document.documentElement.scrollWidth <= window.innerWidth"));
+  await shot(s, "narrow-viewport");
+  await s.send("Emulation.clearDeviceMetricsOverride");
 
   // W01 correct: proposal -> review -> new revision.
   await s.evaluate("__t.set('#fix', 'MoriMeta 的设计决定是 Darkroom 2。')");
@@ -209,6 +256,12 @@ async function main() {
   await s.evaluate("__t.click('dialog[open] button', '确认')");
   await waitFor(s, has("待审核（0）"), "correction accepted");
   check("W01.correct", true);
+
+  await s.send("Emulation.setEmulatedMedia", {features:[{name:"forced-colors",value:"active"}]});
+  await nav(s, "记忆浏览");
+  check("W05.forced_colors_selected_page", await s.evaluate("matchMedia('(forced-colors: active)').matches && getComputedStyle(document.querySelector('nav button[aria-current=page]')).forcedColorAdjust === 'none'"));
+  await shot(s, "forced-colors");
+  await s.send("Emulation.setEmulatedMedia", {features:[]});
 
   // W01 ask and inspect.
   await nav(s, "会话");
@@ -275,10 +328,47 @@ async function main() {
 
   // W05 hotkey conflict: a second instance cannot take Ctrl+Alt+M.
   // A second process with its own WebView2 profile and debugging port.
-  const second = launch(9334, ["--hotkey-key", HOTKEY], { WEBVIEW2_USER_DATA_FOLDER: join(out, "webview2-second") });
+  const second = launch(9334, ["--autostart", "--hotkey-key", HOTKEY], { WEBVIEW2_USER_DATA_FOLDER: join(out, "webview2-second") });
   const s2 = await connect(9334);
   await waitFor(s2, "document.body.innerText.includes('Ctrl+Alt+')", "second status");
   check("W05.hotkey_conflict_reported", await s2.evaluate("document.body.innerText.includes('被占用')"));
+  // MainWindowHandle may refer to an invisible tray helper. Probe only the
+  // native window with our exact main title, owned by this test process.
+  const mainWindowState = (pid) => {
+    const script = `$ProgressPreference = 'SilentlyContinue'
+Add-Type -TypeDefinition @'
+using System;
+using System.Text;
+using System.Runtime.InteropServices;
+public static class WindowProbe {
+public delegate bool EnumProc(IntPtr h, IntPtr p);
+[DllImport("user32.dll")] public static extern bool EnumWindows(EnumProc e, IntPtr p);
+[DllImport("user32.dll")] public static extern bool IsWindowVisible(IntPtr h);
+[DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr h, out uint p);
+[DllImport("user32.dll", CharSet=CharSet.Unicode)] public static extern int GetWindowText(IntPtr h, StringBuilder s, int n);
+public static string Probe(uint pid) {
+var result="missing";
+EnumWindows((h,p)=> { uint id; GetWindowThreadProcessId(h,out id); if(id==pid) {
+var title=new StringBuilder(512); GetWindowText(h,title,512);
+if(title.ToString()=="Enouia Memory") result=IsWindowVisible(h)?"visible":"hidden";
+} return true; },IntPtr.Zero); return result;
+}}
+'@
+[WindowProbe]::Probe(${pid})`;
+    return execFileSync("powershell", ["-NoProfile", "-EncodedCommand", Buffer.from(script,"utf16le").toString("base64")], {encoding:"utf8",stdio:["ignore","pipe","pipe"]}).trim();
+  };
+  check("W05.autostart_initially_hidden", mainWindowState(second.pid) === "hidden");
+  const backgroundStatus = await s2.evaluate("window.__TAURI_INTERNALS__.invoke('workspace_call', {request:{schemaVersion:1,requestId:'req_00000000-0000-4000-8000-000000000b01',command:'workspace_status',idempotencyKey:null,arguments:{}}}).then((r) => r.result.vault.state)");
+  check("W05.autostart_no_vault", backgroundStatus === "none", backgroundStatus);
+  const startup = await s2.evaluate("window.__TAURI_INTERNALS__.invoke('startup_status')");
+  check("W05.startup_status_main_only", startup.supported && startup.state === "disabled" && !startup.enabled);
+  const overlay = await connect(9334, true);
+  const startupDenied = await overlay.evaluate("window.__TAURI_INTERNALS__.invoke('startup_set',{enabled:true}).then(() => 'allowed',(e) => String(e))");
+  check("W04.overlay_cannot_enable_startup", startupDenied.includes("not allowed"), startupDenied);
+  overlay.close();
+  await s2.evaluate("window.__TAURI_INTERNALS__.invoke('show_main')");
+  await sleep(300);
+  check("W05.autostart_can_show", mainWindowState(second.pid) === "visible");
   await s2.send("Page.captureScreenshot", { format: "png" }).then((r) => writeFileSync(join(out, "09-hotkey-conflict.png"), Buffer.from(r.result.data, "base64")));
   report.screenshots.push(join(out, "09-hotkey-conflict.png"));
   s2.close();
@@ -315,6 +405,60 @@ async function main() {
   await waitFor(s, has("assistant_completed"), "transcript after restart");
   check("W01.resume_after_restart", await s.evaluate(has("MoriMeta 设计决定")));
   await shot(s, "10-resumed");
+  if (retryFixture) {
+    // This separately built fixture imports the production hook, ErrorBox,
+    // and IPC client. It injects a lost response after a real Core write.
+    // Production invoke stays immutable; no fault entry point is shipped.
+    await s.evaluate(readFileSync(retryFixture, "utf8"));
+    const pending = () => s.evaluate("window.__TAURI_INTERNALS__.invoke('workspace_call',{request:{schemaVersion:1,requestId:'req_00000000-0000-4000-8000-000000000c01',command:'workspace_status',idempotencyKey:null,arguments:{}}}).then((r) => r.result.pendingCandidates)");
+    const before = await pending();
+    await s.evaluate("window.__unmountRetry = MV6RetryTest.mount()");
+    await waitFor(s, "!!document.querySelector('#retry-fixture')", "retry fixture mounted");
+    await s.evaluate("__t.click('#retry-fixture button', 'Commit synthetic candidate')");
+    await waitFor(s, has("synthetic.lost_response"), "deliberate lost response");
+    check("W01.lost_response_committed_once", await pending() === before + 1);
+    await s.evaluate("__t.click('#retry-fixture button', '重试')");
+    await waitFor(s, has("Completed actions: 1"), "retry completed");
+    const evidence = await s.evaluate("MV6RetryTest.evidence()");
+    check("W01.retry_reuses_key_and_candidate", evidence.keys.length === 2 && evidence.keys[0] === evidence.keys[1] && typeof evidence.candidates[0] === "string" && evidence.candidates[0] === evidence.candidates[1] && await pending() === before + 1);
+    await s.evaluate("__t.click('#retry-fixture button', 'Commit synthetic candidate')");
+    await waitFor(s, has("Completed actions: 2"), "new submission completed");
+    const next = await s.evaluate("MV6RetryTest.evidence()");
+    check("W01.new_submission_new_key", next.keys.length === 3 && next.keys[2] !== next.keys[0] && next.candidates[2] !== next.candidates[0] && await pending() === before + 2);
+    await s.evaluate("window.__unmountRetry()");
+  }
+  if (crashMode === "--crash") {
+    // Explicitly opt in only for a synthetic Vault. First crash the actual
+    // renderer and observe the debugger event, then force-stop this owned
+    // app process. All tested writes have already been acknowledged.
+    const status = () => s.evaluate("window.__TAURI_INTERNALS__.invoke('workspace_call',{request:{schemaVersion:1,requestId:'req_00000000-0000-4000-8000-000000000d01',command:'workspace_status',idempotencyKey:null,arguments:{}}}).then((r) => r.result)");
+    const before = await status();
+    await s.send("Inspector.enable");
+    void s.send("Page.crash").catch(() => undefined);
+    for (let i = 0; i < 60 && !s.events.includes("Inspector.targetCrashed"); i++) await sleep(100);
+    check("W01.renderer_crash_observed", s.events.includes("Inspector.targetCrashed"));
+    s.close();
+    app.kill();
+    await sleep(1500);
+    app = launch(9333, ["--vault", vault]);
+    s = await connect(9333);
+    await s.evaluate(HELPERS);
+    await waitFor(s, has("Vault：open"), "reopened after renderer crash and forced exit");
+    const after = await status();
+    check("W01.crash_preserves_pending_candidates", after.pendingCandidates === before.pendingCandidates);
+    await nav(s, "会话");
+    await waitFor(s, "!!document.querySelector('.list button')", "session after crash");
+    await s.evaluate("document.querySelector('.list button').click()");
+    await waitFor(s, all("assistant_completed", "MoriMeta 设计决定"), "transcript after crash");
+    await nav(s, "记忆浏览");
+    await waitFor(s, has("Darkroom 2"), "approved memory after crash");
+    check("W01.crash_preserves_transcript_and_memory", true);
+    await nav(s, "Vault 与恢复");
+    await s.evaluate("__t.click('button', '校验 Vault')");
+    await waitFor(s, all("vault_verify", "succeeded"), "vault verified after crash", 60000);
+    check("W01.vault_verified_after_renderer_crash", true);
+    await shot(s, "11-after-crash");
+  }
   // The page dies with the process, so its reply never comes.
   void s.evaluate("window.__TAURI_INTERNALS__.invoke('exit_app').catch(() => 0)").catch(() => 0);
   await sleep(500); // let the request leave before the socket closes
@@ -329,6 +473,8 @@ main()
     process.exitCode = 1;
   })
   .finally(() => {
+    for (const s of sessions) s.close();
+    for (const child of children) child.kill();
     writeFileSync(join(out, "report.json"), JSON.stringify(report, null, 2));
     const failed = report.checks.filter((c) => !c.ok).length;
     console.log(`${report.checks.length - failed}/${report.checks.length} checks passed`);
