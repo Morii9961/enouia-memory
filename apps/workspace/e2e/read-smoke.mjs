@@ -1,4 +1,4 @@
-// Production Explorer, Sessions and Overlay with synthetic deferred clients.
+// Production reads and status polling with synthetic deferred clients.
 // No Vault, model, native fault command, or third-party page is involved.
 import { spawn } from "node:child_process";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -7,7 +7,7 @@ import { join } from "node:path";
 const [exe, fixture, out] = process.argv.slice(2);
 if (!out) throw new Error("usage: read-smoke.mjs <exe> <fixture.js> <out-dir>");
 mkdirSync(out, { recursive: true });
-const report = { provenance: "production Explorer, Sessions and Overlay with synthetic deferred clients", checks: [] };
+const report = { provenance: "production Explorer, Sessions, Overlay and status hook with synthetic deferred clients", checks: [] };
 const check = (name, ok) => { report.checks.push({ name, ok: Boolean(ok) }); console.log(`${ok ? "PASS" : "FAIL"} ${name}`); };
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const port = 9397;
@@ -342,9 +342,56 @@ try {
     check("overlay_retry_recovers", false);
   }
   await evaluate("window.__unmountOverlay()");
+  await evaluate("window.__unmountStatus = MV6ReadTest.mountStatus()");
+  await wait("MV6ReadTest.requests().length === 1");
+  await sleep(3200);
+  const initialStatusReads = await evaluate("MV6ReadTest.requests().length");
+  check("status_automatic_reads_are_serial", initialStatusReads === 1);
+  await evaluate("document.querySelector('#status-fixture [data-refresh]').click()");
+  await wait(`MV6ReadTest.requests().length === ${initialStatusReads + 1}`);
+  await evaluate(`MV6ReadTest.respondValue(${initialStatusReads}, {vault:{state:'locked'}})`);
+  await wait("document.querySelector('#status-fixture [data-status]').textContent.includes('locked')");
+  await evaluate("MV6ReadTest.respondValue(0, {vault:{state:'open'}})");
+  await sleep(100);
+  check("status_old_open_cannot_overwrite_lock", await evaluate("document.querySelector('#status-fixture [data-status]').textContent.includes('locked') && !document.querySelector('#status-fixture [data-open]')"));
+  // Settle any obsolete baseline interval reads before the next cases.
+  for (let i = 1; i < initialStatusReads; i++) await evaluate(`MV6ReadTest.fail(${i})`);
+  const oldStatusRead = await evaluate("MV6ReadTest.requests().length");
+  await evaluate("document.querySelector('#status-fixture [data-refresh]').click()");
+  await wait(`MV6ReadTest.requests().length === ${oldStatusRead + 1}`);
+  await evaluate("document.querySelector('#status-fixture [data-refresh]').click()");
+  await wait(`MV6ReadTest.requests().length === ${oldStatusRead + 2}`);
+  await evaluate(`MV6ReadTest.respondValue(${oldStatusRead + 1}, {vault:{state:'open'}})`);
+  await evaluate(`MV6ReadTest.fail(${oldStatusRead})`);
+  await sleep(100);
+  check("status_obsolete_error_is_ignored", await evaluate("!document.querySelector('#status-fixture [role=alert]') && document.querySelector('#status-fixture [data-status]').textContent.includes('open')"));
+  const failedStatusRead = await evaluate("MV6ReadTest.requests().length");
+  await evaluate("document.querySelector('#status-fixture [data-refresh]').click()");
+  await wait(`MV6ReadTest.requests().length === ${failedStatusRead + 1}`);
+  await evaluate(`MV6ReadTest.fail(${failedStatusRead})`);
+  await sleep(100);
+  check("status_current_failure_is_visible", await evaluate("!!document.querySelector('#status-fixture [role=alert]')"));
+  check("status_failed_refresh_closes_content_gate", await evaluate("document.querySelector('#status-fixture [data-status]').textContent.includes('unknown') && !document.querySelector('#status-fixture [data-open]')"));
+  const statusRetry = await evaluate("!!document.querySelector('#status-fixture [role=alert] button')");
+  check("status_current_failure_can_retry", statusRetry);
+  if (statusRetry) {
+    await evaluate("document.querySelector('#status-fixture [role=alert] button').click()");
+    await wait(`MV6ReadTest.requests().length === ${failedStatusRead + 2}`);
+    check("status_retry_requests_status_only", await evaluate(`MV6ReadTest.requests()[${failedStatusRead + 1}].command === 'workspace_status'`));
+    await evaluate(`MV6ReadTest.respondValue(${failedStatusRead + 1}, {vault:{state:'open'}})`);
+    await wait("!!document.querySelector('#status-fixture [data-open]')");
+    check("status_retry_clears_error", await evaluate("!document.querySelector('#status-fixture [role=alert]')"));
+  } else {
+    check("status_retry_requests_status_only", false);
+    check("status_retry_clears_error", false);
+  }
+  await evaluate("window.__unmountStatus()");
+  const statusReadsBeforeUnmount = await evaluate("MV6ReadTest.requests().length");
+  await sleep(3200);
+  check("status_unmount_stops_automatic_reads", await evaluate(`MV6ReadTest.requests().length === ${statusReadsBeforeUnmount}`));
 } finally {
   ws?.close();
   app.kill();
   writeFileSync(join(out, "report.json"), JSON.stringify(report, null, 2));
 }
-if (report.checks.length !== 36 || report.checks.some((item) => !item.ok)) process.exitCode = 1;
+if (report.checks.length !== 45 || report.checks.some((item) => !item.ok)) process.exitCode = 1;

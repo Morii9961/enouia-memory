@@ -44,7 +44,7 @@ export function useLatestRead() {
   const generation = useRef(0);
   const pending = useRef(false);
   useEffect(() => () => { generation.current += 1; pending.current = false; }, []);
-  const run = useCallback(<T,>(request: () => Promise<T>, publish: (result: T) => void) => {
+  const run = useCallback(<T,>(request: () => Promise<T>, publish: (result: T) => void, failed?: () => void) => {
     const current = ++generation.current;
     const execute = async () => {
       if (generation.current !== current) return;
@@ -56,6 +56,7 @@ export function useLatestRead() {
         if (generation.current === current) publish(result);
       } catch (err) {
         if (generation.current === current) {
+          failed?.();
           setError({ text: describe(err), retry: retryable(err) ? () => void execute() : undefined });
         }
       } finally {
@@ -700,17 +701,28 @@ function Status({ status }: { status: J }) {
   );
 }
 
+export function useWorkspaceStatus(readStatus = call) {
+  const [status, setStatus] = useState<J>(null);
+  const reads = useLatestRead();
+  const refresh = useCallback(() => reads.run(() => readStatus("workspace_status"), setStatus, () => setStatus(null)), [readStatus, reads.run]);
+  useEffect(() => {
+    let stopped = false;
+    let timer: ReturnType<typeof setTimeout>;
+    const poll = async () => {
+      await refresh();
+      if (!stopped) timer = setTimeout(poll, 3000);
+    };
+    void poll();
+    return () => { stopped = true; clearTimeout(timer); };
+  }, [refresh]);
+  return { status, error: reads.error, refresh };
+}
+
 export default function App() {
   const [page, setPage] = useState<Page>("status");
-  const [status, setStatus] = useState<J>(null);
+  const { status, error: statusError, refresh } = useWorkspaceStatus();
   const [capsule, setCapsule] = useState<string | null>(null);
   const heading = useRef<HTMLHeadingElement>(null);
-  const refresh = useCallback(() => void call("workspace_status").then(setStatus).catch(() => undefined), []);
-  useEffect(() => {
-    refresh();
-    const timer = setInterval(refresh, 3000);
-    return () => clearInterval(timer);
-  }, [refresh]);
   const go = (next: Page) => {
     setPage(next);
     requestAnimationFrame(() => heading.current?.focus());
@@ -727,7 +739,7 @@ export default function App() {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
   const open = status?.vault?.state === "open";
-  const needsVault = !open && page !== "status" && page !== "vault";
+  const needsVault = page !== "status" && (!status || (!open && page !== "vault"));
   return (
     <div className="app">
       <nav aria-label="页面">
@@ -741,8 +753,10 @@ export default function App() {
       </nav>
       <main id="main-content">
         <h2 ref={heading} tabIndex={-1}>{PAGES.find(([id]) => id === page)?.[1]}</h2>
+        <ErrorBox error={statusError} />
         {needsVault ? (
-          <p>请先在“Vault 与恢复”中打开或解锁 Vault。<button type="button" onClick={() => go("vault")}>前往</button></p>
+          status ? <p>请先在“Vault 与恢复”中打开或解锁 Vault。<button type="button" onClick={() => go("vault")}>前往</button></p>
+            : <p role="status">{statusError ? "暂时无法确认 Vault 状态，请重试或等待刷新。" : "正在读取 Vault 状态…"}</p>
         ) : (
           <>
             {page === "status" && <Status status={status} />}

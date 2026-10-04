@@ -1,7 +1,7 @@
 // Synthetic deferred read responses; no native fault command or real data.
 // The production Explorer is mounted unchanged with a test-only read client.
 import { createRoot } from "react-dom/client";
-import { Memories, Sessions } from "../src/App";
+import { ErrorBox, Memories, Sessions, useWorkspaceStatus } from "../src/App";
 import { CallError } from "../src/api";
 import Overlay from "../src/Overlay";
 
@@ -54,5 +54,24 @@ export function mountOverlay() {
   root.render(<Overlay readPage={(command, args = {}) => new Promise((resolve, reject) => {
     pending.push({ command, args, resolve, reject });
   })} />);
+  return () => { root.unmount(); host.remove(); };
+}
+
+const statusClient = (command: string, args: Record<string, unknown> = {}) => new Promise<any>((resolve, reject) => {
+  pending.push({ command, args, resolve, reject });
+});
+function StatusFixture() {
+  const { status, error, refresh } = useWorkspaceStatus(statusClient);
+  return <section><p data-status>Vault: {status?.vault?.state ?? "unknown"}</p>
+    {status?.vault?.state === "open" && <p data-open>Vault content gate open</p>}
+    <ErrorBox error={error} /><button type="button" data-refresh onClick={refresh}>Refresh status</button></section>;
+}
+export function mountStatus() {
+  pending.length = 0;
+  const host = document.createElement("section");
+  host.id = "status-fixture";
+  document.body.append(host);
+  const root = createRoot(host);
+  root.render(<StatusFixture />);
   return () => { root.unmount(); host.remove(); };
 }
