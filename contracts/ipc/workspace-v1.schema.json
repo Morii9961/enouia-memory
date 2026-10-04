@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://contracts.enouia-memory.invalid/ipc/workspace-v1.schema.json",
   "title": "Enouia Memory Windows workspace IPC v1",
-  "description": "Typed envelopes between the Windows workspace frontend and the embedded Core (ADR-MEM-44). camelCase fields; logical IDs and single-use picker tokens only: no paths, SQL, shell text, or caller-asserted identity. Commands that can commit to the Vault carry an idempotency key; the others carry null. A response carries a result object or an error, never both; the result shape per kind and the command-to-kind pairing are enforced in Rust (enouia-memory-contract::workspace).",
+  "description": "Typed envelopes between a Windows host page (Memory's reference workspace or Runtime's client, ADR-MEM-45) and the embedded Core (ADR-MEM-44). camelCase fields; logical IDs and single-use picker tokens only: no paths, SQL, shell text, or caller-asserted identity. Commands that can commit to the Vault carry an idempotency key; the others carry null. A response carries a result object or an error, never both; Rust (enouia-memory-contract::workspace) enforces the command-to-kind pairing; result fields are built by enouia-memory-workspace and are not constrained by this schema.",
   "oneOf": [
     {
       "$ref": "#/$defs/request_workspace_status"

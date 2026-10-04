@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "description": "Windows Memory Workspace frontend (MV-6). Talks only to the shell's workspace_call and pick commands.",
+  "description": "Reference Windows Memory Workspace frontend (MV-6); Enouia Runtime hosts the product client (ADR-MEM-45). Talks only to the shell's workspace_call and pick commands.",
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",

@@ -5,7 +5,8 @@
 mod support;
 
 use enouia_memory_contract::workspace::{
-    COMMANDS, is_long_running, is_write, parse_request, success_kind, validate_response,
+    COMMANDS, HostSurface, is_long_running, is_write, parse_request, success_kind,
+    validate_response,
 };
 use serde_json::Value;
 use support::schema::SchemaStore;
@@ -123,5 +124,34 @@ fn schema_and_rust_agree_on_writes_and_long_operations() {
         "\"shell\"",
     ] {
         assert!(!text.contains(word), "{word}");
+    }
+}
+
+/// The host scope (ADR-MEM-45): the workspace page reaches every command and
+/// leaves validation to the Core; quick search reaches literal search only,
+/// whatever the packet claims about its window or caller.
+#[test]
+fn host_surfaces_scope_requests_by_native_identity_only() {
+    use serde_json::json;
+    for name in COMMANDS {
+        let request = json!({"command": name});
+        assert!(HostSurface::Workspace.allows(&request), "{name}");
+        assert_eq!(
+            HostSurface::QuickSearch.allows(&request),
+            name == "memory_search",
+            "{name}"
+        );
+    }
+    for packet in [
+        json!(null),
+        json!([]),
+        json!({}),
+        json!({"command": 42}),
+        json!({"command": "Memory_search"}),
+        json!({"command": "memory_search "}),
+        json!({"command": "remember", "window": "main", "principal": "owner"}),
+        json!({"command": "remember", "surface": "workspace"}),
+    ] {
+        assert!(!HostSurface::QuickSearch.allows(&packet), "{packet}");
     }
 }

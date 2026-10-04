@@ -1,0 +1,223 @@
+{
+  "schemaVersion": 1,
+  "description": "Enouia Memory's Runtime integration surface (ADR-MEM-45): the files Enouia Runtime's Windows client depends on when it embeds enouia-memory-workspace at a pinned revision and hosts Memory's local frontend. Regenerate with tools/integration/runtime_surface.py and log the new aggregate in docs/integration/RUNTIME.md.",
+  "digest": "sha256 of file bytes with CRLF normalized to LF",
+  "aggregateDigest": "sha256 of '<path>\\t<sha256>\\n' lines sorted by path",
+  "commands": [
+    "workspace_status",
+    "vault_open",
+    "vault_create",
+    "vault_lock",
+    "vault_unlock",
+    "memory_list",
+    "memory_search",
+    "memory_read",
+    "source_excerpt",
+    "candidate_list",
+    "review_plan",
+    "review_discard",
+    "review_confirm",
+    "forget_plan",
+    "delete_preview",
+    "remember",
+    "correction_propose",
+    "import_preview",
+    "import_start",
+    "import_resume",
+    "import_list",
+    "session_list",
+    "session_detail",
+    "session_new",
+    "session_ask",
+    "session_checkpoint",
+    "context_preview",
+    "context_inspect",
+    "dispatch_inspect",
+    "index_rebuild",
+    "vault_verify",
+    "backup_export",
+    "restore_preview",
+    "operation_get",
+    "operation_cancel",
+    "operation_list"
+  ],
+  "coveredDirectories": [
+    "apps/workspace/src",
+    "apps/workspace/src-tauri/capabilities",
+    "apps/workspace/src-tauri/src",
+    "crates/enouia-memory-workspace/src"
+  ],
+  "files": [
+    {
+      "path": "Cargo.toml",
+      "role": "build",
+      "sha256": "2347a7f1990ca3f8e3b8c4acf96d768cb91f67e619b88fa571d9fc9aeab099aa"
+    },
+    {
+      "path": "apps/workspace/package.json",
+      "role": "reference-ui",
+      "sha256": "03fc1b4b4938b53b3897712f1a64349caeb82773326e8c3b049973d944952455"
+    },
+    {
+      "path": "apps/workspace/src-tauri/Cargo.toml",
+      "role": "reference-shell",
+      "sha256": "70fe4cb857268d316952bf003ce3e7f2572b4e7929a05cdb122b33ccacc3980b"
+    },
+    {
+      "path": "apps/workspace/src-tauri/build.rs",
+      "role": "reference-shell",
+      "sha256": "6cc6dbdb32728a9167318dc7e73a7f7317b9f32b73d0d5c0e7a031686d677efd"
+    },
+    {
+      "path": "apps/workspace/src-tauri/capabilities/default.json",
+      "role": "reference-shell",
+      "sha256": "82fba307a3dfff437429adceb0692fbb9f362851a494088ea224933fcabab927"
+    },
+    {
+      "path": "apps/workspace/src-tauri/capabilities/overlay.json",
+      "role": "reference-shell",
+      "sha256": "e55d104ac5ab0100198dfbb0a314d2e06a41905ae5ddc0eef339134473a5a4e3"
+    },
+    {
+      "path": "apps/workspace/src-tauri/capabilities/startup.json",
+      "role": "reference-shell",
+      "sha256": "38b77ced8d006173deb2b5691c89dc6d98bcc6dba462666b8700a03c42845278"
+    },
+    {
+      "path": "apps/workspace/src-tauri/src/main.rs",
+      "role": "reference-shell",
+      "sha256": "f66f99abd6d73c0a8d8004e3bd4ba3e5e20f2467174a5c69c3d761435ab88358"
+    },
+    {
+      "path": "apps/workspace/src-tauri/src/startup.rs",
+      "role": "reference-shell",
+      "sha256": "4d0aa683e9dcc54f33549fe3513e6b95f14fd0f3e2f1383f1757781e77a7fc1f"
+    },
+    {
+      "path": "apps/workspace/src-tauri/src/window_scope.rs",
+      "role": "reference-shell",
+      "sha256": "426d5892356fdcfbbc3a3a45f4b3c513b51ff70d9995e1db1f033c9226558806"
+    },
+    {
+      "path": "apps/workspace/src-tauri/tauri.conf.json",
+      "role": "reference-shell",
+      "sha256": "f8d1ff1aca0da0701ee1aae81f2071df7f6fa8b275485d47303e3aea4016c5b3"
+    },
+    {
+      "path": "apps/workspace/src/App.tsx",
+      "role": "reference-ui",
+      "sha256": "9cf00bf4672da7bb5fbdf270957cc447bd882a600a9aecade1e3dffdae6119bb"
+    },
+    {
+      "path": "apps/workspace/src/Overlay.tsx",
+      "role": "reference-ui",
+      "sha256": "927aafa72c5d330ac151140fb30a71a419c4b55658faa27a62e87a1fa134b58a"
+    },
+    {
+      "path": "apps/workspace/src/api.ts",
+      "role": "reference-ui",
+      "sha256": "19effed700b260dce4ec61d53b3e78c1d89b89b08d1dfef9435ea702fdf7cbcb"
+    },
+    {
+      "path": "apps/workspace/src/env.d.ts",
+      "role": "reference-ui",
+      "sha256": "35d26ea66c86da9701e4f4b467913481ffeae910761cea34c775c5dacb7f8eaa"
+    },
+    {
+      "path": "apps/workspace/src/main.tsx",
+      "role": "reference-ui",
+      "sha256": "767d3692cf9d8fb5208f0d5eb2ccfbe19c8d9ce4aad559b93e2489048345eaef"
+    },
+    {
+      "path": "apps/workspace/src/styles.css",
+      "role": "reference-ui",
+      "sha256": "aa37c121b0214652e583db9bc9f59097441f6acbb0c74e53e8be679a85f834f7"
+    },
+    {
+      "path": "contracts/ipc/workspace-v1.schema.json",
+      "role": "wire",
+      "sha256": "f9ce166b74379eafa4a3831241a0c2d61efbc2285548e4da4eb5f3b6c6f60da7"
+    },
+    {
+      "path": "contracts/memory/common-v1.schema.json",
+      "role": "wire",
+      "sha256": "93056fe8c3d006a5ccf0f74f81a007a36a1d2e1c194fd71fc5685359b27cca8c"
+    },
+    {
+      "path": "crates/enouia-memory-context/Cargo.toml",
+      "role": "build",
+      "sha256": "494064126da1c4e2af6159c3f014932b3f4c3e1b4655c5a7866aef2259358d8c"
+    },
+    {
+      "path": "crates/enouia-memory-contract/Cargo.toml",
+      "role": "build",
+      "sha256": "866c50ba12f49e6f2108276b2e9399ef5e1dba0e63f3e0fad21dfc201958a1b8"
+    },
+    {
+      "path": "crates/enouia-memory-contract/src/error.rs",
+      "role": "wire",
+      "sha256": "0b3a7c6e421bf68ba71fdfa534b7bd41b97fe2a8ec4a952e0b8a7240cfaa615d"
+    },
+    {
+      "path": "crates/enouia-memory-contract/src/workspace.rs",
+      "role": "wire",
+      "sha256": "5f3b1bc30a34a21d2122d1730a60fe051292e075843d3a53da099bfdec026497"
+    },
+    {
+      "path": "crates/enouia-memory-govern/Cargo.toml",
+      "role": "build",
+      "sha256": "0ab767f9d1a4561287e1987ed50e1b956bbf268e074e789e4085d48c9834cf1c"
+    },
+    {
+      "path": "crates/enouia-memory-import/Cargo.toml",
+      "role": "build",
+      "sha256": "3117b4ade6f240a640438e1dd4dc13028a83cd58a6bd931f70843498dbef1eb6"
+    },
+    {
+      "path": "crates/enouia-memory-index/Cargo.toml",
+      "role": "build",
+      "sha256": "1ac31ca68feb4904741df724a7db0a4e74809a7dd6d33da406e753d401d733fe"
+    },
+    {
+      "path": "crates/enouia-memory-vault/Cargo.toml",
+      "role": "build",
+      "sha256": "3c9147a2fcf2b50d7e943ff9256cd63f4899eaf7e869dfa8202a55970607c874"
+    },
+    {
+      "path": "crates/enouia-memory-workspace/Cargo.toml",
+      "role": "build",
+      "sha256": "d1dc7b31228d73ac4ae22f7a5d29243ee3941a8009fea9607ffa8bcadf4d1217"
+    },
+    {
+      "path": "crates/enouia-memory-workspace/src/lib.rs",
+      "role": "core",
+      "sha256": "401a55d354696631f8a7a72ada11464e2026f170211295e2262faa29bcf06f04"
+    },
+    {
+      "path": "crates/enouia-memory-workspace/src/ops.rs",
+      "role": "core",
+      "sha256": "7cda322c305d7aecb01ba6808173bd994ec562c01e423a22a796bbb76a5b618f"
+    },
+    {
+      "path": "crates/enouia-memory-workspace/src/tests.rs",
+      "role": "core",
+      "sha256": "d8cc8109386daf744ae1f2d57d42490f7e25b8d33209562b8a6fc0eb48fb6c1f"
+    },
+    {
+      "path": "crates/enouia-memory-workspace/src/views.rs",
+      "role": "core",
+      "sha256": "f0a7868cec86b439b271330788c5acc48b1e616066c8bcbbb4bf981ec1f424b2"
+    },
+    {
+      "path": "rust-toolchain.toml",
+      "role": "build",
+      "sha256": "eafecfc02f596118c1f053cc9e87302e1ffafe0e43f2625d31f65422487a76f3"
+    },
+    {
+      "path": "tests/fixtures/memory/workspace-manifest.json",
+      "role": "wire",
+      "sha256": "3f8c12e10ff3c267a13750801ec6378016287275c799978d6df8ff720b0cce93"
+    }
+  ],
+  "aggregate": "a499b083913a4dc84b24eaccdb98fe4dd197cece6cac5589d2e1f1b9959aba3a"
+}

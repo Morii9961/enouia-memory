@@ -1,10 +1,12 @@
 //! The embedded Core of the Windows Memory Workspace (MV-6, ADR-MEM-44).
 //!
-//! The Tauri shell forwards every page request to [`Workspace::call`] and
-//! nothing else; this crate owns the rules. It opens only an explicitly
-//! chosen data root, turns native-dialog choices into single-use tokens,
-//! keeps review plans until the owner confirms the exact diff, and runs
-//! long work on worker threads that the page observes by operation ID.
+//! A host shell forwards every page request to [`Workspace::call`] and
+//! nothing else, after checking the caller's [`HostSurface`]: Memory's
+//! reference shell in `apps/workspace`, or Runtime's Windows client through
+//! its own adapter (ADR-MEM-45). This crate owns the rules. It opens only an
+//! explicitly chosen data root, turns native-dialog choices into single-use
+//! tokens, keeps review plans until the owner confirms the exact diff, and
+//! runs long work on worker threads that the page observes by operation ID.
 //!
 //! The owner is the principal that created the Vault and the surface is
 //! `trusted_windows_app`, as the CLI is `trusted_local_cli`. MV-8's Host
@@ -13,6 +15,9 @@
 
 pub mod ops;
 pub mod views;
+
+/// The caller scope every host checks before forwarding (ADR-MEM-45).
+pub use enouia_memory_contract::workspace::HostSurface;
 
 use enouia_memory_context::{CompileInput, answer_saved, compile, session};
 use enouia_memory_contract::candidate::{CandidateRecord, ProposalKind, ProposedType};

@@ -164,12 +164,55 @@ fn memory_govern_depends_only_on_contract_and_store() {
     assert!(dev.contains("enouia-memory-import"));
 }
 
+/// The embedded Core that hosts consume (the reference shell, Runtime's
+/// adapter, later the MV-8 Host) depends only on this repository's domain
+/// crates and Serde. It stays transport-neutral (ADR-MEM-45).
+#[test]
+fn memory_workspace_depends_only_on_this_repository() {
+    let manifest =
+        std::fs::read_to_string(repo().join("crates/enouia-memory-workspace/Cargo.toml")).unwrap();
+    let mut deps = dependencies(&manifest);
+    deps.sort();
+    assert_eq!(
+        deps,
+        [
+            "enouia-memory-context",
+            "enouia-memory-contract",
+            "enouia-memory-govern",
+            "enouia-memory-import",
+            "enouia-memory-index",
+            "enouia-memory-vault",
+            "serde",
+            "serde_json"
+        ]
+    );
+}
+
+/// Window toolkits and native dialogs belong to host shells, never to a
+/// domain crate, so any host can embed the Core (ADR-MEM-45).
+#[test]
+fn no_domain_crate_depends_on_a_window_toolkit() {
+    for entry in std::fs::read_dir(repo().join("crates")).unwrap() {
+        let manifest = entry.unwrap().path().join("Cargo.toml");
+        let deps = dependencies(&std::fs::read_to_string(&manifest).unwrap());
+        for toolkit in ["tauri", "tauri-build", "rfd", "wry", "tao"] {
+            assert!(
+                !deps.iter().any(|d| d == toolkit),
+                "{manifest:?} depends on {toolkit}"
+            );
+        }
+    }
+}
+
 /// The repository builds from its own checkout: no manifest may reference a
 /// path outside the repository or a Git dependency (e.g. the Runtime repo).
 #[test]
 fn no_dependency_reaches_outside_this_repository() {
     let root = repo().canonicalize().unwrap();
-    let mut manifests = vec![repo().join("Cargo.toml")];
+    let mut manifests = vec![
+        repo().join("Cargo.toml"),
+        repo().join("apps/workspace/src-tauri/Cargo.toml"),
+    ];
     for entry in std::fs::read_dir(repo().join("crates")).unwrap() {
         manifests.push(entry.unwrap().path().join("Cargo.toml"));
     }

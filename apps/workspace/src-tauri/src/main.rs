@@ -1,4 +1,6 @@
-//! Windows Memory Workspace shell (MV-6, ADR-MEM-44).
+//! Windows Memory Workspace shell (MV-6, ADR-MEM-44): Memory's reference
+//! shell and acceptance harness. Enouia Runtime hosts the product client
+//! through its own adapter (ADR-MEM-45).
 //!
 //! The shell forwards the page's typed requests to the embedded Core, opens
 //! native file dialogs (the page receives a token, never a path), and owns

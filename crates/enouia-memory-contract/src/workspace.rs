@@ -386,6 +386,31 @@ pub fn is_long_running(command: &str) -> bool {
     )
 }
 
+/// The surface a host presents to the embedded Core (ADR-MEM-45). The host
+/// derives it from its own native window identity, never from a field the
+/// page sends, and checks it before forwarding a request. The reference
+/// shell and Runtime's adapter share this one rule.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum HostSurface {
+    /// The full workspace page. The Core still validates every packet and
+    /// the owner rules.
+    Workspace,
+    /// The quick-search overlay: literal memory search only.
+    QuickSearch,
+}
+
+impl HostSurface {
+    /// Whether this surface may forward `request` to the Core.
+    pub fn allows(self, request: &Value) -> bool {
+        match self {
+            HostSurface::Workspace => true,
+            HostSurface::QuickSearch => {
+                request.get("command").and_then(Value::as_str) == Some("memory_search")
+            }
+        }
+    }
+}
+
 impl Command {
     pub fn name(&self) -> &'static str {
         let value = serde_json::to_value(self).expect("commands serialize");
