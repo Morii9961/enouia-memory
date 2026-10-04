@@ -37,6 +37,34 @@ export function useAction() {
   return { busy, error, run, clear: () => setError(null) };
 }
 
+/** Only the latest read may publish results, errors or its busy state. */
+function useLatestRead() {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<{ text: string; retry?: () => void } | null>(null);
+  const generation = useRef(0);
+  useEffect(() => () => { generation.current += 1; }, []);
+  const run = useCallback(<T,>(request: () => Promise<T>, publish: (result: T) => void) => {
+    const current = ++generation.current;
+    const execute = async () => {
+      if (generation.current !== current) return;
+      setBusy(true);
+      setError(null);
+      try {
+        const result = await request();
+        if (generation.current === current) publish(result);
+      } catch (err) {
+        if (generation.current === current) {
+          setError({ text: describe(err), retry: retryable(err) ? () => void execute() : undefined });
+        }
+      } finally {
+        if (generation.current === current) setBusy(false);
+      }
+    };
+    return execute();
+  }, []);
+  return { busy, error, run };
+}
+
 export function ErrorBox({ error }: { error: { text: string; retry?: () => void } | null }) {
   if (!error) return null;
   return (
@@ -231,33 +259,34 @@ function MemoryDetail({ id, onChanged }: { id: string; onChanged: () => void }) 
   );
 }
 
-function Memories() {
+export function Memories({ readPage = call }: { readPage?: typeof call } = {}) {
   const [query, setQuery] = useState("");
+  const [submittedQuery, setSubmittedQuery] = useState("");
   const [inactive, setInactive] = useState(false);
   const [rows, setRows] = useState<J[]>([]);
   const [next, setNext] = useState<string | null>(null);
   const [mode, setMode] = useState<"list" | "search">("list");
   const [selected, setSelected] = useState<string | null>(null);
-  const action = useAction();
-  const load = (cursor: string | null, kind = mode) =>
-    void action.run(async () => {
-      const page = kind === "search"
-        ? await call("memory_search", { query, includeHistorical: inactive, cursor, limit: 25 })
-        : await call("memory_list", { includeInactive: inactive, cursor, limit: 25 });
-      setRows(cursor ? [...rows, ...page.items] : page.items);
+  const action = useLatestRead();
+  const load = (cursor: string | null, kind = mode, searchQuery = submittedQuery) =>
+    void action.run(() => kind === "search"
+      ? readPage("memory_search", { query: searchQuery, includeHistorical: inactive, cursor, limit: 25 })
+      : readPage("memory_list", { includeInactive: inactive, cursor, limit: 25 }), (page) => {
+      setRows((current) => cursor ? [...current, ...page.items] : page.items);
       setNext(page.nextCursor);
     });
-  useEffect(() => load(null, "list"), [inactive]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => load(null), [inactive]); // eslint-disable-line react-hooks/exhaustive-deps
   return (
     <div className="split">
-      <section aria-label="记忆列表">
-        <form role="search" onSubmit={(e) => { e.preventDefault(); const kind = query.trim() ? "search" : "list"; setMode(kind); load(null, kind); }}>
+      <section aria-label="记忆列表" aria-busy={action.busy}>
+        <form role="search" onSubmit={(e) => { e.preventDefault(); const kind = query.trim() ? "search" : "list"; setMode(kind); setSubmittedQuery(query); load(null, kind, query); }}>
           <label htmlFor="mq" className="sr-only">搜索</label>
           <input id="mq" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="按字面搜索（空白则浏览全部）" />
           <button type="submit">搜索</button>
           <label><input type="checkbox" checked={inactive} onChange={(e) => setInactive(e.target.checked)} /> 含历史</label>
         </form>
         <ErrorBox error={action.error} />
+        {action.busy && <p role="status" className="muted">正在读取记忆…</p>}
         <ul className="list">
           {rows.map((m) => (
             <li key={m.memoryId}>

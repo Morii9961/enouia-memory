@@ -1,4 +1,4 @@
 {
   "extends": "../tsconfig.json",
-  "include": ["retry-fixture.tsx", "../src"]
+  "include": ["retry-fixture.tsx", "read-fixture.tsx", "../src"]
 }

@@ -25,6 +25,8 @@ After merge `d7b1500`, the [upgrade drill](MV-6-upgrade.md) reproduced silent do
 
 The [uninstall ownership follow-up](MV-6-uninstall.md) removes the stock template's AppData deletion option and unconditional product-name Run-value removal. Source/generated-script checks passed 14/14; the final packages passed 19/19 upgrade and 8/8 installation checks again, with 3/3 exact startup cleanup checks. These checks preserve the installer boundary without claiming interactive accessibility acceptance.
 
+The [Explorer read-order correction](MV-6-read-order.md) reproduces and fixes stale response/error publication, premature busy-state clearing, draft-query pagination and search loss on history filtering. The controlled UI fixture passed 9/9 and the rebuilt actual application passed 43/43 again on a fresh synthetic Vault. No write behavior or provider capability changed.
+
 ## Historical 2026-10-02 snapshot — superseded by the result above
 
 Date: 2026-10-02. Base: merged `3523ca8`; branch `codex/mv6-install-accessibility`. The owner authorized continued work until the five-hour quota has about 5% remaining. This work stays inside MV-6. MV-7 has not started. All Vault tests use synthetic data in temporary directories.
