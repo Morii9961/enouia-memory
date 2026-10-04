@@ -384,7 +384,7 @@ function Import() {
   );
 }
 
-function Review() {
+export function Review({ readPage = call }: { readPage?: typeof call } = {}) {
   const [items, setItems] = useState<J[]>([]);
   const [total, setTotal] = useState(0);
   const [plan, setPlan] = useState<J>(null);
@@ -394,12 +394,12 @@ function Review() {
   const focusAfterCommit = useRef(false);
   const planTrigger = useRef<HTMLElement | null>(null);
   const action = useAction();
-  const load = useCallback(() => void action.run(async () => {
-    const page = await call("candidate_list", { cursor: null, limit: 50 });
+  const reads = useLatestRead();
+  const load = useCallback(() => reads.run(() => readPage("candidate_list", { cursor: null, limit: 50 }), (page) => {
     setItems(page.items);
     setTotal(page.total);
-  }), []); // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(load, [load]);
+  }), [readPage, reads.run]);
+  useEffect(() => { void load(); }, [load]);
   useEffect(() => {
     if (focusAfterCommit.current) {
       focusAfterCommit.current = false;
@@ -407,24 +407,36 @@ function Review() {
     }
   }, [items]);
   const decide = (c: J, act: string) => {
+    if (action.busy || reads.pending.current) return;
     planTrigger.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     void action.run(async () =>
-      setPlan(await call("review_plan", { decisions: [{
+      setPlan(await readPage("review_plan", { decisions: [{
         candidateId: c.candidateId, revision: c.revision, action: act,
         editedContent: act === "edit_accept" ? edits[c.candidateId] ?? c.content : null, mergeTarget: null,
       }] })),
     );
   };
   return (
-    <div>
-      <form className="card" onSubmit={(e) => { e.preventDefault(); void action.run(async (key) => { await call("remember", { text, claimKey: claim }, key); setText(""); setClaim(""); load(); }); }}>
+    <div aria-busy={action.busy || reads.busy}>
+      <form className="card" onSubmit={(e) => {
+        e.preventDefault();
+        if (action.busy || reads.pending.current || !text.trim() || !claim.trim()) return;
+        void action.run(async (key) => {
+          await readPage("remember", { text, claimKey: claim }, key);
+          setText((current) => current === text ? "" : current);
+          setClaim((current) => current === claim ? "" : current);
+          await load();
+        });
+      }}>
         <h3>记住一件事</h3>
         <label htmlFor="rt">原话（保存为来源，再生成待审核候选）</label>
         <textarea id="rt" value={text} onChange={(e) => setText(e.target.value)} />
         <label>主题键 <input value={claim} onChange={(e) => setClaim(e.target.value)} placeholder="例如 preference.reading" /></label>
-        <button type="submit" disabled={!text.trim() || !claim.trim() || action.busy}>保存为候选</button>
+        <button type="submit" disabled={!text.trim() || !claim.trim() || action.busy || reads.busy}>保存为候选</button>
       </form>
       <ErrorBox error={action.error} />
+      <ErrorBox error={reads.error} />
+      {reads.busy && <p role="status" className="muted">正在刷新候选…</p>}
       <h3>待审核（{total}）</h3>
       {items.map((c) => (
         <article key={c.candidateId} className="card" aria-label={`候选 ${c.candidateId}`}>
@@ -434,8 +446,8 @@ function Review() {
           <textarea id={`e-${c.candidateId}`} value={edits[c.candidateId] ?? c.content} onChange={(e) => setEdits({ ...edits, [c.candidateId]: e.target.value })} />
           <p className="muted">证据：{c.evidence.map((e: J) => `${e.sourceId} r${e.sourceRevision}`).join("，")}{c.conflicts.length > 0 && <span className="warn"> · {c.conflicts.length} 处冲突</span>}</p>
           <div className="actions">
-            <button type="button" className="primary" disabled={action.busy} onClick={() => decide(c, (edits[c.candidateId] ?? c.content) !== c.content ? "edit_accept" : "accept")}>接受…</button>
-            <button type="button" disabled={action.busy} onClick={() => decide(c, "reject")}>拒绝…</button>
+            <button type="button" className="primary" disabled={action.busy || reads.busy} onClick={() => decide(c, (edits[c.candidateId] ?? c.content) !== c.content ? "edit_accept" : "accept")}>接受…</button>
+            <button type="button" disabled={action.busy || reads.busy} onClick={() => decide(c, "reject")}>拒绝…</button>
           </div>
         </article>
       ))}

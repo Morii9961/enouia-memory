@@ -1,7 +1,7 @@
 // Synthetic deferred read responses; no native fault command or real data.
 // The production Explorer is mounted unchanged with a test-only read client.
 import { createRoot } from "react-dom/client";
-import { Context, ErrorBox, Memories, Sessions, Source, useWorkspaceStatus } from "../src/App";
+import { Context, ErrorBox, Memories, Review, Sessions, Source, useWorkspaceStatus } from "../src/App";
 import { CallError } from "../src/api";
 import Overlay from "../src/Overlay";
 
@@ -111,4 +111,16 @@ export function mountSource() {
 export function changeSource(id: string, revision: number, available = true) { renderSource?.(id, revision, available); }
 export function respondExcerpt(index: number, text: string, start = 0, end = 8) {
   pending[index].resolve({sourceKind:"manual_assertion",speakerRole:"user",byteStart:start,byteEnd:end,totalBytes:16,excerpt:text});
+}
+
+export function mountReview() {
+  pending.length = 0;
+  const host = document.createElement("section");
+  host.id = "review-fixture";
+  document.body.append(host);
+  const root = createRoot(host);
+  root.render(<Review readPage={(command, args = {}, key) => new Promise((resolve, reject) => {
+    pending.push({ command, args, key, resolve, reject });
+  })} />);
+  return () => { root.unmount(); host.remove(); };
 }
