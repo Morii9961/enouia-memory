@@ -1,6 +1,25 @@
-# MV-6 follow-up — installer, startup, accessibility
+# MV-6 follow-up — installation ownership, window permissions and UI state
 
-## Current result — 2026-10-03
+## Current result — 2026-10-04
+
+The owner authorized continued MV-6 work, separate feature commits, push and merge. The final rebuilt 0.1.0 app passed **52/52** actual-app checks on a fresh synthetic Vault, including native permissions, saved Mock request verification, original-key retry and acknowledged-record recovery after a renderer crash. The separate deferred-client fixture passed **76/76** UI checks; its read/write responses are simulated. The final **7.04 MiB NSIS installer** passed **8/8** isolated installation/uninstallation checks and **14/14** source/generated-template ownership checks. Required pinned offline format, **201 Rust workspace tests**, Clippy with warnings denied and independent Python 3.12 / python-jsonschema 4.26.0 validation of **34 schemas** passed. Frontend and separate fixture typechecks/builds passed; test markers/APIs are absent from production.
+
+| Completed October 4 feature | Evidence | Commit |
+|---|---|---|
+| Silent downgrade refusal and test-only package upgrade/Vault preservation | [Upgrade](MV-6-upgrade.md), 7/7 hook and 19/19 package checks | `518364e` |
+| AppData and unrelated startup values outside uninstall ownership | [Uninstall](MV-6-uninstall.md), 14/14 ownership checks | `d7dc86c` |
+| Explorer latest reads and submitted-query pagination | [Read order](MV-6-read-order.md) | `b39dbd2` |
+| Session selection, branch drafts and write/retry binding | [Sessions](MV-6-session-navigation.md) | `546533a` |
+| Native search-only overlay permissions and transient-read cleanup | [Overlay](MV-6-overlay.md) | `1c7eb86` |
+| Serial status polling and withdrawal of unknown-state content gates | [Status](MV-6-status-polling.md) | `1fe9d0d` |
+| Capsule and actual-request display binding | [Context](MV-6-context-binding.md) | `d68dd39` |
+| Source excerpt identity/revision/availability and range retry | [Sources](MV-6-source-binding.md) | `3f4b612` |
+| Candidate draft preservation and awaited post-write refresh | [Candidate drafts](MV-6-review-drafts.md) | `a18f76b` |
+| Correction draft preservation after acknowledgment/retry | [Correction drafts](MV-6-correction-drafts.md) | `3f12001` |
+
+The package upgrade drill uses synthetic data and a test-only version override, not an earlier released app or older data format. The production version remains 0.1.0. **Still pending:** actual Windows login startup, Narrator, an actual Windows contrast theme, interactive installer accessibility/earlier-release upgrade, signing, real-export acceptance and the other stage-report gaps. Renderer-crash/forced-exit evidence covers acknowledged synthetic records, not interrupted commits, OS crashes, power loss or real-data recovery. No real Run value was enabled, and all Vaults, logs, screenshots, builds and fixture bundles remain ignored. **MV-7 has not started**; real Provider, Runtime/Activity integration and Host authentication are outside this work.
+
+## Historical integrated result — 2026-10-03
 
 The owner authorized continued MV-6 work and a separate commit for each completed feature. The final integrated real-app run passed **43/43** synthetic checks. The final **7.04 MiB NSIS installer** was rebuilt successfully after a test-process file lock was resolved, then passed **8/8** isolated installation/uninstallation checks. Required root checks passed: pinned offline format checking, **196 Rust workspace tests**, Clippy with warnings denied, and independent Python 3.12 / python-jsonschema 4.26.0 validation of **34 schemas**, including 4,913 set records and 63 workspace messages. Frontend and separate test-fixture typechecks/builds passed.
 
