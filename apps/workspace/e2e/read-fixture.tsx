@@ -1,7 +1,7 @@
 // Synthetic deferred read responses; no native fault command or real data.
 // The production Explorer is mounted unchanged with a test-only read client.
 import { createRoot } from "react-dom/client";
-import { Context, ErrorBox, Memories, Review, Sessions, Source, useWorkspaceStatus } from "../src/App";
+import { Context, ErrorBox, Memories, MemoryDetail, Review, Sessions, Source, useWorkspaceStatus } from "../src/App";
 import { CallError } from "../src/api";
 import Overlay from "../src/Overlay";
 
@@ -123,4 +123,19 @@ export function mountReview() {
     pending.push({ command, args, key, resolve, reject });
   })} />);
   return () => { root.unmount(); host.remove(); };
+}
+
+export function mountCorrection() {
+  pending.length = 0;
+  const host = document.createElement("section");
+  host.id = "correction-fixture";
+  document.body.append(host);
+  const root = createRoot(host);
+  root.render(<MemoryDetail id="synthetic-approved-memory" onChanged={() => undefined} readPage={(command, args = {}, key) => new Promise((resolve, reject) => {
+    pending.push({ command, args, key, resolve, reject });
+  })} />);
+  return () => { root.unmount(); host.remove(); };
+}
+export function respondMemory(index: number) {
+  pending[index].resolve({record:{memory_id:"synthetic-approved-memory",title:"Synthetic approved record",content:"Original approved content",revision:7,approved_at:"synthetic-time",supersedes:[]}, summary:{type:"fact",status:"active"}, supersededBy:[], evidence:[]});
 }

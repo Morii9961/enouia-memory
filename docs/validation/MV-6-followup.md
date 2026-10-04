@@ -39,6 +39,8 @@ The [source excerpt correction](MV-6-source-binding.md) binds displayed text to 
 
 The [candidate draft correction](MV-6-review-drafts.md) preserves new unsent text/claim fields when an earlier request succeeds, keeps writes busy through candidate refresh, and retries failed list reads without repeating an acknowledged write. The fixture passed 71/71, including seven candidate cases; the actual app passed 52/52 and its final installer passed 8/8, with unchanged Rust/contracts.
 
+The [correction draft follow-up](MV-6-correction-drafts.md) preserves newer unsent correction text when an older proposal succeeds or retries. The final fixture passed 76/76, including five correction cases. The final rebuilt app passed 52/52 on a fresh synthetic Vault; its installer passed 8/8 and ownership-template checks passed 14/14. Approved-memory/review rules and Rust/contracts are unchanged.
+
 ## Historical 2026-10-02 snapshot — superseded by the result above
 
 Date: 2026-10-02. Base: merged `3523ca8`; branch `codex/mv6-install-accessibility`. The owner authorized continued work until the five-hour quota has about 5% remaining. This work stays inside MV-6. MV-7 has not started. All Vault tests use synthetic data in temporary directories.

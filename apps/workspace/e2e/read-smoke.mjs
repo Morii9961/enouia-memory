@@ -564,9 +564,50 @@ try {
   await evaluate(`MV6ReadTest.respondValue(${normalReview + 2}, {items:[],total:0})`);
   await sleep(30);
   await evaluate("window.__unmountReview()");
+  await evaluate(`window.__unmountCorrection = MV6ReadTest.mountCorrection();
+    window.__correctionSet = text => {
+      const area = document.querySelector('#correction-fixture #fix');
+      Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,'value').set.call(area,text);
+      area.dispatchEvent(new Event('input',{bubbles:true}));
+    };`);
+  await wait("MV6ReadTest.requests().length === 1");
+  await evaluate("MV6ReadTest.respondMemory(0)");
+  await wait("!!document.querySelector('#correction-fixture #fix')");
+  const submitCorrection = async (text) => {
+    const count = await evaluate("MV6ReadTest.requests().length");
+    await evaluate(`__correctionSet(${JSON.stringify(text)})`);
+    await sleep(30);
+    await evaluate("[...document.querySelectorAll('#correction-fixture button')].find(b=>b.textContent === '提交纠正候选').click()");
+    await wait(`MV6ReadTest.requests().length === ${count + 1}`);
+    return count;
+  };
+  const failedCorrection = await submitCorrection("Original synthetic correction");
+  await evaluate(`MV6ReadTest.fail(${failedCorrection})`);
+  await wait("!!document.querySelector('#correction-fixture [role=alert] button')");
+  await evaluate("__correctionSet('New unsent correction')");
+  await sleep(30);
+  await evaluate("document.querySelector('#correction-fixture [role=alert] button').click()");
+  await wait(`MV6ReadTest.requests().length === ${failedCorrection + 2}`);
+  const correctionAttempts = await evaluate(`MV6ReadTest.requests().slice(${failedCorrection},${failedCorrection + 2})`);
+  check("correction_retry_keeps_original_payload_revision_key", correctionAttempts[0].key === correctionAttempts[1].key && correctionAttempts[1].args.text === "Original synthetic correction" && correctionAttempts[1].args.memoryId === "synthetic-approved-memory" && correctionAttempts[1].args.revision === 7);
+  await evaluate(`MV6ReadTest.respondValue(${failedCorrection + 1}, {})`);
+  await sleep(50);
+  check("correction_retry_preserves_new_unsent_draft", await evaluate("document.querySelector('#correction-fixture #fix').value === 'New unsent correction'"));
+  const inFlightCorrection = await submitCorrection("Pending acknowledged correction");
+  await evaluate("__correctionSet('New draft during correction')");
+  await sleep(30);
+  await evaluate(`MV6ReadTest.respondValue(${inFlightCorrection}, {})`);
+  await sleep(50);
+  check("correction_ack_preserves_newer_inflight_draft", await evaluate("document.querySelector('#correction-fixture #fix').value === 'New draft during correction'"));
+  const matchingCorrection = await submitCorrection("Matching acknowledged correction");
+  await evaluate(`MV6ReadTest.respondValue(${matchingCorrection}, {})`);
+  await sleep(50);
+  check("correction_ack_clears_matching_draft", await evaluate("document.querySelector('#correction-fixture #fix').value === ''"));
+  check("correction_ack_keeps_approved_display_unchanged", await evaluate("document.querySelector('#correction-fixture .content').textContent === 'Original approved content'"));
+  await evaluate("window.__unmountCorrection()");
 } finally {
   ws?.close();
   app.kill();
   writeFileSync(join(out, "report.json"), JSON.stringify(report, null, 2));
 }
-if (report.checks.length !== 71 || report.checks.some((item) => !item.ok)) process.exitCode = 1;
+if (report.checks.length !== 76 || report.checks.some((item) => !item.ok)) process.exitCode = 1;

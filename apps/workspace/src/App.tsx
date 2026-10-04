@@ -220,7 +220,7 @@ export function Source({ evidence, readPage = call }: { evidence: J; readPage?: 
   );
 }
 
-function MemoryDetail({ id, onChanged }: { id: string; onChanged: () => void }) {
+export function MemoryDetail({ id, onChanged, readPage = call }: { id: string; onChanged: () => void; readPage?: typeof call }) {
   const [detail, setDetail] = useState<J>(null);
   const [correction, setCorrection] = useState("");
   const [impact, setImpact] = useState<J>(null);
@@ -228,11 +228,11 @@ function MemoryDetail({ id, onChanged }: { id: string; onChanged: () => void }) 
   const planTrigger = useRef<HTMLElement | null>(null);
   const [note, setNote] = useState("");
   const action = useAction();
-  const load = useCallback(() => void action.run(async () => setDetail(await call("memory_read", { memoryId: id }))), [id]); // eslint-disable-line react-hooks/exhaustive-deps
+  const load = useCallback(() => void action.run(async () => setDetail(await readPage("memory_read", { memoryId: id }))), [id, readPage]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(load, [load]);
   const forget = (mode: "forget" | "purge") => {
     planTrigger.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    void action.run(async (key) => setPlan(await call("forget_plan", { memoryId: id, mode, withDependents: false }, key)));
+    void action.run(async (key) => setPlan(await readPage("forget_plan", { memoryId: id, mode, withDependents: false }, key)));
   };
   if (!detail) return <ErrorBox error={action.error} />;
   const r = detail.record;
@@ -257,11 +257,11 @@ function MemoryDetail({ id, onChanged }: { id: string; onChanged: () => void }) 
       <textarea id="fix" value={correction} onChange={(e) => setCorrection(e.target.value)} placeholder="写下正确的内容；提交后进入候选审核，不会直接改写记忆。" />
       <div className="actions">
         <button type="button" disabled={!correction.trim() || action.busy} onClick={() => void action.run(async (key) => {
-          await call("correction_propose", { memoryId: id, revision: r.revision, text: correction }, key);
-          setCorrection("");
+          await readPage("correction_propose", { memoryId: id, revision: r.revision, text: correction }, key);
+          setCorrection((current) => current === correction ? "" : current);
           setNote("已提交纠正候选，请到“候选审核”确认。");
         })}>提交纠正候选</button>
-        <button type="button" onClick={() => void action.run(async () => setImpact(await call("delete_preview", { memoryId: id, withDependents: false })))}>删除影响预览</button>
+        <button type="button" onClick={() => void action.run(async () => setImpact(await readPage("delete_preview", { memoryId: id, withDependents: false })))}>删除影响预览</button>
         <button type="button" disabled={action.busy} onClick={() => forget("forget")}>忘记…</button>
         <button type="button" className="danger" disabled={action.busy} onClick={() => forget("purge")}>彻底删除…</button>
       </div>
