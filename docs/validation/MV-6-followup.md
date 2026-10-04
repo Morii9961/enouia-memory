@@ -19,6 +19,10 @@ The initial injection failed because Tauri's invocation property is immutable; a
 
 All Vaults, logs, screenshots, builds and fixture bundles remain ignored local/temporary material. No real startup Run entry was enabled. The production frontend contains neither the fault marker nor its test API. No Runtime dependency, Activity reader, real Provider or model request was introduced. **MV-7 has not started** and requires a separate owner request. Other limits in the original merged stage report remain unchanged.
 
+## Additional installation validation — 2026-10-04
+
+After merge `d7b1500`, the [upgrade drill](MV-6-upgrade.md) reproduced silent downgrade despite the pinned installer's configuration. A preinstall version check fixes that path. The actual hook passed 7/7 isolated version boundary checks, and rebuilt 0.1.0 / test-only 0.1.1 packages passed 19/19 real installation, upgrade, downgrade refusal and synthetic Vault preservation checks. Required offline Rust and independent schema checks passed again. The production version remains 0.1.0. These package checks do not establish manual interactive upgrade, earlier data-format migration, or any of the remaining human acceptance items above.
+
 ## Historical 2026-10-02 snapshot — superseded by the result above
 
 Date: 2026-10-02. Base: merged `3523ca8`; branch `codex/mv6-install-accessibility`. The owner authorized continued work until the five-hour quota has about 5% remaining. This work stays inside MV-6. MV-7 has not started. All Vault tests use synthetic data in temporary directories.
