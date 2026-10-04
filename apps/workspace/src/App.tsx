@@ -42,11 +42,13 @@ function useLatestRead() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<{ text: string; retry?: () => void } | null>(null);
   const generation = useRef(0);
-  useEffect(() => () => { generation.current += 1; }, []);
+  const pending = useRef(false);
+  useEffect(() => () => { generation.current += 1; pending.current = false; }, []);
   const run = useCallback(<T,>(request: () => Promise<T>, publish: (result: T) => void) => {
     const current = ++generation.current;
     const execute = async () => {
       if (generation.current !== current) return;
+      pending.current = true;
       setBusy(true);
       setError(null);
       try {
@@ -57,12 +59,12 @@ function useLatestRead() {
           setError({ text: describe(err), retry: retryable(err) ? () => void execute() : undefined });
         }
       } finally {
-        if (generation.current === current) setBusy(false);
+        if (generation.current === current) { pending.current = false; setBusy(false); }
       }
     };
     return execute();
   }, []);
-  return { busy, error, run };
+  return { busy, error, run, pending };
 }
 
 export function ErrorBox({ error }: { error: { text: string; retry?: () => void } | null }) {
@@ -429,7 +431,7 @@ function Review() {
   );
 }
 
-function Sessions({ inspect }: { inspect: (capsuleId: string) => void }) {
+export function Sessions({ inspect, request = call }: { inspect: (capsuleId: string) => void; request?: typeof call }) {
   const [sessions, setSessions] = useState<J[]>([]);
   const [current, setCurrent] = useState<{ sessionId: string; branchId: string } | null>(null);
   const [detail, setDetail] = useState<J>(null);
@@ -437,26 +439,61 @@ function Sessions({ inspect }: { inspect: (capsuleId: string) => void }) {
   const [answer, setAnswer] = useState<J>(null);
   const [summary, setSummary] = useState("");
   const action = useAction();
-  const list = useCallback(() => void action.run(async () => setSessions((await call("session_list")).items)), []); // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(list, [list]);
+  const listRead = useLatestRead();
+  const detailRead = useLatestRead();
+  const writing = useRef(false);
+  const selectedBranch = useRef<string | null>(null);
+  const drafts = useRef(new Map<string, { text: string; summary: string }>());
+  const branchKey = (s: { sessionId: string; branchId: string }) => `${s.sessionId}:${s.branchId}`;
+  const list = useCallback(() => listRead.run(() => request("session_list"), (page) => setSessions(page.items)), [listRead.run, request]);
+  useEffect(() => { void list(); }, [list]);
   const open = (s: { sessionId: string; branchId: string }) =>
-    void action.run(async () => { setCurrent(s); setDetail(await call("session_detail", s)); });
+    detailRead.run(() => request("session_detail", s), (saved) => {
+      const key = branchKey(s);
+      if (selectedBranch.current !== key) { setAnswer(null); action.clear(); }
+      selectedBranch.current = key;
+      const draft = drafts.current.get(key);
+      setText(draft?.text ?? "");
+      setSummary(draft?.summary ?? "");
+      setCurrent(s);
+      setDetail(saved);
+    });
+  const editDraft = (field: "text" | "summary", value: string) => {
+    if (!current) return;
+    const key = branchKey(current);
+    drafts.current.set(key, { ...(drafts.current.get(key) ?? { text: "", summary: "" }), [field]: value });
+    if (field === "text") setText(value); else setSummary(value);
+  };
+  const clearSubmittedDraft = (field: "text" | "summary", submitted: string) => {
+    if (current && drafts.current.get(branchKey(current))?.[field] === submitted) editDraft(field, "");
+  };
+  const write = (commit: (key: string) => Promise<void>) => {
+    if (writing.current || detailRead.pending.current) return;
+    void action.run(async (key) => {
+      writing.current = true;
+      try { await commit(key); } finally { writing.current = false; }
+    });
+  };
+  const busy = action.busy || detailRead.busy;
   return (
     <div className="split">
       <section aria-label="会话列表">
-        <button type="button" disabled={action.busy} onClick={() => void action.run(async (key) => { const s = await call("session_new", {}, key); list(); open({ sessionId: s.sessionId, branchId: s.branchId }); })}>新会话</button>
+        <button type="button" disabled={busy || listRead.busy} onClick={() => write(async (key) => { const s = await request("session_new", {}, key); await list(); await open({ sessionId: s.sessionId, branchId: s.branchId }); })}>新会话</button>
+        <ErrorBox error={listRead.error} />
         <ul className="list">
           {sessions.map((s) => s.branches.map((b: J) => (
             <li key={b.branchId}>
-              <button type="button" aria-current={current?.branchId === b.branchId} onClick={() => open({ sessionId: s.sessionId, branchId: b.branchId })}>
+              <button type="button" disabled={action.busy} aria-current={current?.branchId === b.branchId} onClick={() => { if (!writing.current) void open({ sessionId: s.sessionId, branchId: b.branchId }); }}>
                 {s.updatedAt} · 分支 {b.branchId.slice(3, 11)} · {b.lastEventSeq} 个事件
               </button>
             </li>
           )))}
         </ul>
       </section>
-      <section aria-label="会话内容">
+      <section aria-label="会话内容" aria-busy={busy}>
         <ErrorBox error={action.error} />
+        <ErrorBox error={detailRead.error} />
+        {detailRead.busy && <p role="status" className="muted">正在读取会话…</p>}
         {detail && current && (
           <>
             <p className="muted">最后已保存事件：{detail.lastSavedEventId ?? "无"}</p>
@@ -473,14 +510,14 @@ function Sessions({ inspect }: { inspect: (capsuleId: string) => void }) {
             ))}
             <h4>检查点（暂定，未经审核）</h4>
             <ul>{detail.checkpoints.map((c: J) => <li key={c.checkpoint_id}>{c.status} · {typeof c.summary === "string" ? c.summary : c.checkpoint_id}</li>)}</ul>
-            <form onSubmit={(e) => { e.preventDefault(); void action.run(async (key) => {
-              setAnswer(await call("session_ask", { ...current, text }, key));
-              setText("");
-              setDetail(await call("session_detail", current));
+            <form onSubmit={(e) => { e.preventDefault(); write(async (key) => {
+              setAnswer(await request("session_ask", { ...current, text }, key));
+              clearSubmittedDraft("text", text);
+              await open(current);
             }); }}>
               <label htmlFor="ask">提问（本地 Mock，只引用已批准记忆）</label>
-              <textarea id="ask" value={text} onChange={(e) => setText(e.target.value)} />
-              <button type="submit" disabled={!text.trim() || action.busy}>发送</button>
+              <textarea id="ask" value={text} disabled={busy} onChange={(e) => editDraft("text", e.target.value)} />
+              <button type="submit" disabled={!text.trim() || busy}>发送</button>
             </form>
             {answer && (
               <div className="card" aria-live="polite">
@@ -490,10 +527,10 @@ function Sessions({ inspect }: { inspect: (capsuleId: string) => void }) {
                 <button type="button" onClick={() => inspect(answer.capsuleId)}>查看依据（上下文检查）</button>
               </div>
             )}
-            <form onSubmit={(e) => { e.preventDefault(); void action.run(async (key) => { await call("session_checkpoint", { ...current, summary }, key); setSummary(""); setDetail(await call("session_detail", current)); }); }}>
+            <form onSubmit={(e) => { e.preventDefault(); write(async (key) => { await request("session_checkpoint", { ...current, summary }, key); clearSubmittedDraft("summary", summary); await open(current); }); }}>
               <label htmlFor="cp">检查点摘要</label>
-              <input id="cp" value={summary} onChange={(e) => setSummary(e.target.value)} />
-              <button type="submit" disabled={!summary.trim() || action.busy}>保存检查点</button>
+              <input id="cp" value={summary} disabled={busy} onChange={(e) => editDraft("summary", e.target.value)} />
+              <button type="submit" disabled={!summary.trim() || busy}>保存检查点</button>
             </form>
           </>
         )}

@@ -7,7 +7,7 @@ import { join } from "node:path";
 const [exe, fixture, out] = process.argv.slice(2);
 if (!out) throw new Error("usage: read-smoke.mjs <exe> <fixture.js> <out-dir>");
 mkdirSync(out, { recursive: true });
-const report = { provenance: "production Explorer with synthetic deferred read client", checks: [] };
+const report = { provenance: "production Explorer and Sessions with synthetic deferred clients", checks: [] };
 const check = (name, ok) => { report.checks.push({ name, ok: Boolean(ok) }); console.log(`${ok ? "PASS" : "FAIL"} ${name}`); };
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const port = 9397;
@@ -129,9 +129,142 @@ try {
   await wait(textIncludes("retry recovered result"));
   check("latest_retry_recovers", await evaluate("!document.querySelector('#read-fixture [role=alert]') && document.querySelector('#read-fixture [aria-busy]').getAttribute('aria-busy') === 'false'"));
   await evaluate("window.__unmountReads()");
+
+  // Sessions use deferred synthetic responses too. No real session write
+  // occurs here; the separate real-app run verifies actual IPC/Core writes.
+  await evaluate(`window.__unmountSessions = MV6ReadTest.mountSessions();
+    window.__sessionText = () => document.querySelector('#session-fixture').innerText;
+    window.__sessionSet = (selector, value) => {
+      const input = document.querySelector('#session-fixture ' + selector);
+      const prototype = input.tagName === 'TEXTAREA' ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
+      Object.getOwnPropertyDescriptor(prototype, 'value').set.call(input, value);
+      input.dispatchEvent(new Event('input', {bubbles:true}));
+    };`);
+  await wait("MV6ReadTest.requests().length === 1");
+  await evaluate(`MV6ReadTest.respondValue(0, {items:[
+    {sessionId:'synthetic-alpha',updatedAt:'synthetic',branches:[{branchId:'brnAlpha001',lastEventSeq:1}]},
+    {sessionId:'synthetic-beta',updatedAt:'synthetic',branches:[{branchId:'brnBeta0001',lastEventSeq:1}]}
+  ]})`);
+  await wait("document.querySelectorAll('#session-fixture .list button').length === 2");
+  const selectSession = async (name) => {
+    const count = await evaluate("MV6ReadTest.requests().length");
+    await evaluate(`[...document.querySelectorAll('#session-fixture .list button')].find((b) => b.textContent.includes(${JSON.stringify(name)})).click()`);
+    await wait(`MV6ReadTest.requests().length === ${count + 1}`);
+    return count;
+  };
+  const selectedIs = (name) => `[...document.querySelectorAll('#session-fixture .list button')].find((b) => b.getAttribute('aria-current') === 'true')?.textContent.includes(${JSON.stringify(name)})`;
+  const sessionContains = (text) => `__sessionText().includes(${JSON.stringify(text)})`;
+  const delayedAlpha = await selectSession("Alpha001");
+  const selectedBeta = await selectSession("Beta0001");
+  await evaluate(`MV6ReadTest.respondSession(${selectedBeta}, 'beta transcript')`);
+  await wait(sessionContains("beta transcript"));
+  await evaluate(`MV6ReadTest.respondSession(${delayedAlpha}, 'obsolete alpha transcript')`);
+  await sleep(100);
+  check("session_latest_detail_matches_selected_branch", await evaluate(`${selectedIs("Beta0001")} && ${sessionContains("beta transcript")} && !${sessionContains("obsolete alpha transcript")}`));
+
+  const loadingAlpha = await selectSession("Alpha001");
+  check("session_selection_changes_atomically_with_detail", await evaluate(selectedIs("Beta0001")));
+  await evaluate(`MV6ReadTest.respondSession(${loadingAlpha}, 'alpha transcript')`);
+  await wait(sessionContains("alpha transcript"));
+  await evaluate("__sessionSet('#ask', 'Draft Alpha'); __sessionSet('#cp', 'Summary Alpha')");
+  await sleep(30);
+  const draftBeta = await selectSession("Beta0001");
+  await evaluate(`MV6ReadTest.respondSession(${draftBeta}, 'beta transcript')`);
+  await wait(sessionContains("beta transcript"));
+  check("session_drafts_do_not_cross_branches", await evaluate("document.querySelector('#session-fixture #ask').value === '' && document.querySelector('#session-fixture #cp').value === ''"));
+  await evaluate("__sessionSet('#ask', 'Draft Beta'); __sessionSet('#cp', 'Summary Beta')");
+  await sleep(30);
+  const restoreAlpha = await selectSession("Alpha001");
+  await evaluate(`MV6ReadTest.respondSession(${restoreAlpha}, 'alpha transcript')`);
+  await wait(sessionContains("alpha transcript"));
+  check("session_question_draft_restored", await evaluate("document.querySelector('#session-fixture #ask').value === 'Draft Alpha'"));
+  check("session_checkpoint_draft_restored", await evaluate("document.querySelector('#session-fixture #cp').value === 'Summary Alpha'"));
+
+  const answerBeta = await selectSession("Beta0001");
+  await evaluate(`MV6ReadTest.respondSession(${answerBeta}, 'beta transcript')`);
+  await wait(sessionContains("beta transcript"));
+  await evaluate("__sessionSet('#ask', 'Send Beta')");
+  await sleep(30);
+  const askIndex = await evaluate("MV6ReadTest.requests().length");
+  await evaluate("document.querySelector('#session-fixture #ask').closest('form').requestSubmit()");
+  await wait(`MV6ReadTest.requests().length === ${askIndex + 1}`);
+  const askRequest = await evaluate(`MV6ReadTest.requests()[${askIndex}]`);
+  check("session_write_keeps_selected_branch_and_key", askRequest.command === "session_ask" && askRequest.args.branchId === "brnBeta0001" && askRequest.args.text === "Send Beta" && typeof askRequest.key === "string");
+  await evaluate(`MV6ReadTest.respondValue(${askIndex}, {status:'synthetic_completed',statements:['answer for beta'],sources:[],capsuleId:'synthetic-capsule'})`);
+  await wait(`MV6ReadTest.requests().length === ${askIndex + 2}`);
+  await evaluate(`MV6ReadTest.respondSession(${askIndex + 1}, 'beta after answer')`);
+  await wait(sessionContains("beta after answer"));
+  const afterAnswerAlpha = await selectSession("Alpha001");
+  await evaluate(`MV6ReadTest.respondSession(${afterAnswerAlpha}, 'alpha transcript')`);
+  await wait(sessionContains("alpha transcript"));
+  check("session_answer_does_not_cross_branches", await evaluate(`!${sessionContains("answer for beta")}`));
+
+  const oldFailure = await selectSession("Alpha001");
+  const newSuccess = await selectSession("Beta0001");
+  await evaluate(`MV6ReadTest.respondSession(${newSuccess}, 'beta newest transcript')`);
+  await wait(sessionContains("beta newest transcript"));
+  await evaluate(`MV6ReadTest.fail(${oldFailure})`);
+  await sleep(100);
+  check("session_obsolete_failure_not_shown", await evaluate("!document.querySelector('#session-fixture [role=alert]')"));
+
+  await evaluate("__sessionSet('#ask', 'Persist Beta')");
+  await sleep(30);
+  const writingIndex = await evaluate("MV6ReadTest.requests().length");
+  await evaluate("document.querySelector('#session-fixture #ask').closest('form').requestSubmit()");
+  await wait(`MV6ReadTest.requests().length === ${writingIndex + 1}`);
+  await evaluate("document.querySelector('#session-fixture .list button').click()");
+  await sleep(100);
+  const duringWriteCount = await evaluate("MV6ReadTest.requests().length");
+  check("session_cannot_switch_during_write", duringWriteCount === writingIndex + 1 && await evaluate(selectedIs("Beta0001")));
+  if (duringWriteCount > writingIndex + 1) await evaluate(`MV6ReadTest.respondSession(${writingIndex + 1}, 'alpha during write')`);
+  await evaluate(`MV6ReadTest.respondValue(${writingIndex}, {status:'synthetic_completed',statements:['persisted beta answer'],sources:[],capsuleId:'synthetic-capsule'})`);
+  await wait(`MV6ReadTest.requests().length === ${duringWriteCount + 1}`);
+  await evaluate(`MV6ReadTest.respondSession(${duringWriteCount}, 'beta persisted transcript')`);
+  await wait(sessionContains("beta persisted transcript"));
+  check("session_acknowledged_write_refreshes_same_branch", await evaluate(selectedIs("Beta0001")));
+
+  await evaluate("__sessionSet('#ask', 'Retry original Beta')");
+  await sleep(30);
+  const failedAsk = await evaluate("MV6ReadTest.requests().length");
+  await evaluate("document.querySelector('#session-fixture #ask').closest('form').requestSubmit()");
+  await wait(`MV6ReadTest.requests().length === ${failedAsk + 1}`);
+  await evaluate(`MV6ReadTest.fail(${failedAsk})`);
+  await wait("!!document.querySelector('#session-fixture [role=alert] button')");
+  await evaluate("__sessionSet('#ask', 'New unsent Beta')");
+  await sleep(30);
+  await evaluate("document.querySelector('#session-fixture [role=alert] button').click()");
+  await wait(`MV6ReadTest.requests().length === ${failedAsk + 2}`);
+  const askAttempts = await evaluate(`MV6ReadTest.requests().slice(${failedAsk}, ${failedAsk + 2})`);
+  check("session_retry_keeps_original_payload_and_key", askAttempts[0].key === askAttempts[1].key && askAttempts[1].args.text === "Retry original Beta" && askAttempts[1].args.branchId === "brnBeta0001");
+  check("session_retry_blocks_branch_switch", await evaluate("[...document.querySelectorAll('#session-fixture .list button')].every((b) => b.disabled)"));
+  await evaluate(`MV6ReadTest.respondValue(${failedAsk + 1}, {status:'synthetic_completed',statements:['retried original beta'],sources:[],capsuleId:'synthetic-capsule'})`);
+  await wait(`MV6ReadTest.requests().length === ${failedAsk + 3}`);
+  await evaluate(`MV6ReadTest.respondSession(${failedAsk + 2}, 'beta after retry')`);
+  await wait(sessionContains("beta after retry"));
+  check("session_retry_preserves_new_unsent_question", await evaluate("document.querySelector('#session-fixture #ask').value === 'New unsent Beta'"));
+
+  await evaluate("__sessionSet('#cp', 'Original checkpoint Beta')");
+  await sleep(30);
+  const failedCheckpoint = await evaluate("MV6ReadTest.requests().length");
+  await evaluate("document.querySelector('#session-fixture #cp').closest('form').requestSubmit()");
+  await wait(`MV6ReadTest.requests().length === ${failedCheckpoint + 1}`);
+  await evaluate(`MV6ReadTest.fail(${failedCheckpoint})`);
+  await wait("!!document.querySelector('#session-fixture [role=alert] button')");
+  await evaluate("__sessionSet('#cp', 'New unsent checkpoint Beta')");
+  await sleep(30);
+  await evaluate("document.querySelector('#session-fixture [role=alert] button').click()");
+  await wait(`MV6ReadTest.requests().length === ${failedCheckpoint + 2}`);
+  const checkpointAttempts = await evaluate(`MV6ReadTest.requests().slice(${failedCheckpoint}, ${failedCheckpoint + 2})`);
+  check("session_checkpoint_retry_keeps_payload_and_key", checkpointAttempts[0].key === checkpointAttempts[1].key && checkpointAttempts[1].args.summary === "Original checkpoint Beta" && checkpointAttempts[1].args.branchId === "brnBeta0001");
+  await evaluate(`MV6ReadTest.respondValue(${failedCheckpoint + 1}, {})`);
+  await wait(`MV6ReadTest.requests().length === ${failedCheckpoint + 3}`);
+  await evaluate(`MV6ReadTest.respondSession(${failedCheckpoint + 2}, 'beta after checkpoint')`);
+  await wait(sessionContains("beta after checkpoint"));
+  check("session_retry_preserves_new_unsent_checkpoint", await evaluate("document.querySelector('#session-fixture #cp').value === 'New unsent checkpoint Beta'"));
+  await evaluate("window.__unmountSessions()");
 } finally {
   ws?.close();
   app.kill();
   writeFileSync(join(out, "report.json"), JSON.stringify(report, null, 2));
 }
-if (report.checks.length !== 9 || report.checks.some((item) => !item.ok)) process.exitCode = 1;
+if (report.checks.length !== 24 || report.checks.some((item) => !item.ok)) process.exitCode = 1;
