@@ -91,7 +91,7 @@
     {
       "path": "apps/workspace/src-tauri/src/startup.rs",
       "role": "reference-shell",
-      "sha256": "4d0aa683e9dcc54f33549fe3513e6b95f14fd0f3e2f1383f1757781e77a7fc1f"
+      "sha256": "b7dbf37463653c3c59192d2a24ddb70c18c0f4e479e7b1634ab18aa96ea78004"
     },
     {
       "path": "apps/workspace/src-tauri/src/window_scope.rs",
@@ -219,5 +219,5 @@
       "sha256": "3f8c12e10ff3c267a13750801ec6378016287275c799978d6df8ff720b0cce93"
     }
   ],
-  "aggregate": "c49bbaa9f82c21a812a34a247e4a5595cd51707ab406bb8205444f8259a17212"
+  "aggregate": "1266d7642845b53f1b7c1a4bf46fa9dca1e2c1303a517754fe53938007e7b2e2"
 }
