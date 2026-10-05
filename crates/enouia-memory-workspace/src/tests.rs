@@ -12,6 +12,228 @@ use std::time::Duration;
 static COUNTER: AtomicU64 = AtomicU64::new(0);
 const T0: i64 = 1_790_000_000_000;
 
+#[test]
+fn picker_admission_excludes_concurrent_page_uses_of_one_token() {
+    let env = Env::new("picker-admission");
+    std::fs::write(env.base.join("notes.md"), "Synthetic picker input").unwrap();
+    std::fs::create_dir(env.base.join("backup")).unwrap();
+    std::fs::create_dir(env.base.join("export")).unwrap();
+    for (kind, relative, command, field) in [
+        (
+            PickKind::BackupDestination,
+            "backup",
+            "backup_export",
+            "destinationToken",
+        ),
+        (
+            PickKind::ImportFile,
+            "notes.md",
+            "import_preview",
+            "importToken",
+        ),
+        (
+            PickKind::ImportFile,
+            "notes.md",
+            "import_start",
+            "importToken",
+        ),
+        (
+            PickKind::ExportFolder,
+            "export",
+            "restore_preview",
+            "exportToken",
+        ),
+    ] {
+        let token = env.pick(kind, relative);
+        let (ready_tx, ready_rx) = std::sync::mpsc::channel();
+        let (release_tx, release_rx) = std::sync::mpsc::channel();
+        std::thread::scope(|scope| {
+            let ws = &env.ws;
+            let held_token = &token;
+            let held = scope.spawn(move || {
+                ws.with_lifecycle(false, || {
+                    ws.with_pick(held_token, kind, true, |_| {
+                        ready_tx.send(()).unwrap();
+                        release_rx.recv_timeout(Duration::from_secs(10)).unwrap();
+                        Ok(())
+                    })
+                })
+            });
+            ready_rx.recv_timeout(Duration::from_secs(5)).unwrap();
+            let mut args = json!({field: token});
+            if command == "import_start" {
+                args["accountAlias"] = json!("synthetic-picker");
+            }
+            let response = env.send(command, args);
+            release_tx.send(()).unwrap();
+            held.join().unwrap().unwrap();
+            assert_eq!(response["error"]["code"], "busy", "{command}: {response}");
+            assert_eq!(response["error"]["rules"][0], "workspace.token_busy");
+            assert_eq!(response["error"]["retryable"], true);
+            assert!(
+                !response
+                    .to_string()
+                    .contains(&env.base.to_string_lossy().to_string())
+            );
+        });
+    }
+}
+
+#[test]
+fn picker_admission_releases_on_error_and_unwind_and_consumes_on_success() {
+    let env = Env::new("picker-release");
+    for kind in [
+        PickKind::VaultRoot,
+        PickKind::BackupDestination,
+        PickKind::ExportFolder,
+    ] {
+        let token = env.pick(kind, "vault");
+        let denied: R<()> = env.ws.with_pick(&token, kind, true, |_| {
+            Err(fail(
+                MemoryErrorCode::StorageFailed,
+                "synthetic.pick_failed",
+            ))
+        });
+        assert!(denied.is_err());
+        let panic = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            env.ws.with_lifecycle(false, || {
+                env.ws
+                    .with_pick::<()>(&token, kind, true, |_| panic!("synthetic picker unwind"))
+            })
+        }));
+        assert!(panic.is_err());
+        assert!(!env.ws.picks.is_poisoned());
+        env.ws
+            .with_pick(&token, kind, false, |path| {
+                assert_eq!(path, env.base.join("vault"));
+                Ok(())
+            })
+            .unwrap();
+        env.ws.with_pick(&token, kind, true, |_| Ok(())).unwrap();
+        let missing = env
+            .ws
+            .with_pick(&token, kind, true, |_| Ok(()))
+            .unwrap_err();
+        assert_eq!(missing.0.rules[0], "workspace.token_unknown");
+    }
+}
+
+#[test]
+fn a_reserved_picker_does_not_block_other_choices_or_extend_its_ttl() {
+    let env = Env::new("picker-independent");
+    std::fs::create_dir(env.base.join("backup")).unwrap();
+    let chosen_at = env.clock.now_unix_ms();
+    let token = env.pick(PickKind::BackupDestination, "backup");
+    let (ready_tx, ready_rx) = std::sync::mpsc::channel();
+    let (release_tx, release_rx) = std::sync::mpsc::channel();
+    std::thread::scope(|scope| {
+        let ws = &env.ws;
+        let held_token = &token;
+        let held = scope.spawn(move || {
+            ws.with_lifecycle(false, || {
+                ws.with_pick::<()>(held_token, PickKind::BackupDestination, true, |_| {
+                    ready_tx.send(()).unwrap();
+                    release_rx.recv_timeout(Duration::from_secs(10)).unwrap();
+                    Err(fail(
+                        MemoryErrorCode::StorageFailed,
+                        "synthetic.pick_failed",
+                    ))
+                })
+            })
+        });
+        ready_rx.recv_timeout(Duration::from_secs(5)).unwrap();
+        env.clock.set(chosen_at + PICK_TTL_MS);
+        let start = std::time::Instant::now();
+        let other = env.pick(PickKind::BackupDestination, "backup");
+        let unblocked = env
+            .ws
+            .with_pick(&other, PickKind::BackupDestination, true, |_| Ok(()));
+        let elapsed = start.elapsed();
+        let retained_while_active = env.ws.picks.lock().unwrap().contains_key(&token);
+        let expired = env
+            .ws
+            .with_pick(&token, PickKind::BackupDestination, true, |_| Ok(()));
+        release_tx.send(()).unwrap();
+        assert!(held.join().unwrap().is_err());
+        unblocked.unwrap();
+        assert!(
+            elapsed < Duration::from_millis(500),
+            "unrelated picker blocked: {elapsed:?}"
+        );
+        assert!(retained_while_active);
+        assert_eq!(expired.unwrap_err().0.rules[0], "workspace.token_unknown");
+        let after = env
+            .ws
+            .with_pick(&token, PickKind::BackupDestination, true, |_| Ok(()));
+        assert_eq!(after.unwrap_err().0.rules[0], "workspace.token_unknown");
+        env.pick(PickKind::BackupDestination, "backup");
+        assert!(!env.ws.picks.lock().unwrap().contains_key(&token));
+    });
+}
+
+#[test]
+fn picker_preview_retries_and_async_failure_preserve_consumption_rules() {
+    let env = Env::new("picker-outcomes");
+    std::fs::write(env.base.join("notes.md"), "Synthetic reusable preview").unwrap();
+    let token = env.pick(PickKind::ImportFile, "notes.md");
+    std::fs::remove_file(env.base.join("notes.md")).unwrap();
+    assert_eq!(
+        env.err("import_preview", json!({"importToken": token}))["rules"][0],
+        "workspace.pick_missing"
+    );
+    std::fs::write(env.base.join("notes.md"), "Synthetic reusable preview").unwrap();
+    for _ in 0..2 {
+        assert_eq!(
+            env.ok("import_preview", json!({"importToken": token}))["recognized"],
+            true
+        );
+    }
+    // Scheduling succeeds even though the selected input disappeared. The
+    // worker fails, but the single-use token must not become available again.
+    std::fs::remove_file(env.base.join("notes.md")).unwrap();
+    let started = env.ok(
+        "import_start",
+        json!({"importToken": token, "accountAlias": "synthetic-picker"}),
+    );
+    assert_eq!(env.wait(&started)["state"], "failed");
+    assert_eq!(
+        env.err("import_preview", json!({"importToken": token}))["rules"][0],
+        "workspace.token_unknown"
+    );
+
+    std::fs::create_dir(env.base.join("repo-backup")).unwrap();
+    std::fs::create_dir(env.base.join("repo-backup/.git")).unwrap();
+    let destination = env.pick(PickKind::BackupDestination, "repo-backup");
+    assert_eq!(
+        env.err("backup_export", json!({"destinationToken": destination}))["code"],
+        "invalid_request"
+    );
+    // The root verification failure occurs before scheduling and keeps choice.
+    std::fs::remove_dir(env.base.join("repo-backup/.git")).unwrap();
+    let started = env.ok("backup_export", json!({"destinationToken": destination}));
+    assert_eq!(env.wait(&started)["state"], "succeeded");
+    assert_eq!(
+        env.err("backup_export", json!({"destinationToken": destination}))["rules"][0],
+        "workspace.token_unknown"
+    );
+
+    let valid_export = env.pick(PickKind::ExportFolder, "repo-backup");
+    assert_eq!(
+        env.ok("restore_preview", json!({"exportToken": valid_export}))["valid"],
+        true
+    );
+    assert_eq!(
+        env.err("restore_preview", json!({"exportToken": valid_export}))["rules"][0],
+        "workspace.token_unknown"
+    );
+
+    std::fs::create_dir(env.base.join("invalid-export")).unwrap();
+    let export = env.pick(PickKind::ExportFolder, "invalid-export");
+    env.err("restore_preview", json!({"exportToken": export}));
+    env.err("restore_preview", json!({"exportToken": export}));
+    assert!(env.ws.picks.lock().unwrap().contains_key(&export));
+}
+
 struct Env {
     base: PathBuf,
     clock: Arc<FakeClock>,

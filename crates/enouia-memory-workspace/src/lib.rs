@@ -206,6 +206,26 @@ struct Pick {
     kind: PickKind,
     path: PathBuf,
     expires_ms: i64,
+    in_use: bool,
+}
+
+/// Release admission on errors or unwind, consume only on successful admission.
+/// The picker map is never locked while a command performs IO.
+struct PickLease<'a> {
+    picks: &'a Mutex<BTreeMap<String, Pick>>,
+    token: &'a str,
+    consume: bool,
+}
+
+impl Drop for PickLease<'_> {
+    fn drop(&mut self) {
+        let mut picks = self.picks.lock().unwrap_or_else(|e| e.into_inner());
+        if self.consume {
+            picks.remove(self.token);
+        } else if let Some(pick) = picks.get_mut(self.token) {
+            pick.in_use = false;
+        }
+    }
 }
 
 struct Open {
@@ -418,13 +438,14 @@ impl Workspace {
         let token = format!("tok_{}", hex(&self.config.ids.random_16()));
         let mut picks = self.picks.lock().expect("picks");
         let now = self.now_ms();
-        picks.retain(|_, p| p.expires_ms > now);
+        picks.retain(|_, p| p.in_use || p.expires_ms > now);
         picks.insert(
             token.clone(),
             Pick {
                 kind,
                 path: path.to_path_buf(),
                 expires_ms: now + PICK_TTL_MS,
+                in_use: false,
             },
         );
         Ok(Picked {
@@ -434,31 +455,44 @@ impl Workspace {
         })
     }
 
-    /// The path behind a picker token. The token stays valid until the
-    /// command that uses it succeeds (`consume_pick`), so a transient failure
-    /// can be retried with the same choice (ADR-MEM-46).
-    fn take_pick(&self, token: &str, kind: PickKind, consume: bool) -> R<PathBuf> {
-        let mut picks = self.picks.lock().expect("picks");
-        let now = self.now_ms();
-        let pick = picks
-            .get(token)
-            .filter(|p| p.expires_ms > now)
-            .ok_or_else(|| fail(MemoryErrorCode::NotFound, "workspace.token_unknown"))?;
-        if pick.kind != kind {
-            return Err(fail(
-                MemoryErrorCode::InvalidRequest,
-                "workspace.token_kind",
-            ));
-        }
-        let path = pick.path.clone();
-        if consume {
-            picks.remove(token);
-        }
-        Ok(path)
-    }
-
-    fn consume_pick(&self, token: &str) {
-        self.picks.lock().expect("picks").remove(token);
+    /// Reserve a picker token through command admission. Failure (including
+    /// unwind) allows retry until expiry; a successful preview is reusable.
+    /// Async starts consume on scheduling success, not on worker completion.
+    /// Callers hold the lifecycle gate through this helper.
+    fn with_pick<T>(
+        &self,
+        token: &str,
+        kind: PickKind,
+        consume_on_success: bool,
+        work: impl FnOnce(PathBuf) -> R<T>,
+    ) -> R<T> {
+        let path = {
+            let mut picks = self.picks.lock().expect("picks");
+            let now = self.now_ms();
+            let pick = picks
+                .get_mut(token)
+                .filter(|p| p.expires_ms > now)
+                .ok_or_else(|| fail(MemoryErrorCode::NotFound, "workspace.token_unknown"))?;
+            if pick.kind != kind {
+                return Err(fail(
+                    MemoryErrorCode::InvalidRequest,
+                    "workspace.token_kind",
+                ));
+            }
+            if pick.in_use {
+                return Err(fail(MemoryErrorCode::Busy, "workspace.token_busy"));
+            }
+            pick.in_use = true;
+            pick.path.clone()
+        };
+        let mut lease = PickLease {
+            picks: &self.picks,
+            token,
+            consume: false,
+        };
+        let result = work(path);
+        lease.consume = result.is_ok() && consume_on_success;
+        result
     }
 
     /// Open a Vault at an explicit root for the shell's `--vault` argument.
@@ -653,15 +687,15 @@ impl Workspace {
         Ok(match command {
             Command::WorkspaceStatus(_) => Done::of(self.status()),
             Command::VaultOpen(a) => {
-                let root = self.take_pick(&a.root_token, PickKind::VaultRoot, false)?;
-                self.open_at(&root)?;
-                self.consume_pick(&a.root_token);
+                self.with_pick(&a.root_token, PickKind::VaultRoot, true, |root| {
+                    self.open_at(&root)
+                })?;
                 Done::of(self.status())
             }
             Command::VaultCreate(a) => {
-                let root = self.take_pick(&a.root_token, PickKind::VaultRoot, false)?;
-                self.create_at(&root)?;
-                self.consume_pick(&a.root_token);
+                self.with_pick(&a.root_token, PickKind::VaultRoot, true, |root| {
+                    self.create_at(&root)
+                })?;
                 Done::of(self.status())
             }
             Command::VaultLock(_) => {
@@ -1317,13 +1351,18 @@ impl Workspace {
 
     fn import_preview(&self, token: &str) -> R<Value> {
         let open = self.open()?;
-        let path = self.take_pick(token, PickKind::ImportFile, false)?;
+        self.with_pick(token, PickKind::ImportFile, false, |path| {
+            self.import_preview_at(&open, &path)
+        })
+    }
+
+    fn import_preview_at(&self, open: &Open, path: &Path) -> R<Value> {
         let options = enouia_memory_import::ImportOptions::new(
             open.owner.clone(),
             "preview",
-            self.policy(&open)?,
+            self.policy(open)?,
         );
-        let meta = std::fs::metadata(&path)
+        let meta = std::fs::metadata(path)
             .map_err(|_| fail(MemoryErrorCode::NotFound, "workspace.pick_missing"))?;
         if meta.len() > options.max_input_bytes {
             return Err(fail(
@@ -1331,11 +1370,11 @@ impl Workspace {
                 "import.input_too_large",
             ));
         }
-        let bytes = std::fs::read(&path)
+        let bytes = std::fs::read(path)
             .map_err(|_| fail(MemoryErrorCode::StorageFailed, "workspace.pick_unreadable"))?;
         let hash = sha256(&bytes);
         let duplicate = self
-            .imports(&open)?
+            .imports(open)?
             .into_iter()
             .find(|m| m.input_object_hash == hash && m.duplicate_of.is_none())
             .map(|m| m.import_id);
@@ -1351,7 +1390,7 @@ impl Workspace {
                 } => (false, json!(input_kind), 0, warnings),
             };
         Ok(json!({
-            "displayName": base_name(&path), "bytes": bytes.len(), "inputKind": kind,
+            "displayName": base_name(path), "bytes": bytes.len(), "inputKind": kind,
             "recognized": recognized, "units": units, "duplicateOf": duplicate,
             "warnings": warnings.iter().map(|w| w.code.clone()).collect::<Vec<_>>(),
             "archivedEvenIfUnsupported": true,
@@ -1401,15 +1440,14 @@ impl Workspace {
         let fingerprint = format!("{}\n{}", a.import_token, a.account_alias);
         self.start_once("import", key, fingerprint, || {
             let open = self.open()?;
-            let path = self.take_pick(&a.import_token, PickKind::ImportFile, false)?;
-            let options = self.import_options(&open, &a.account_alias)?;
-            let done = self.spawn("import", move |ticket| {
-                let report =
-                    enouia_memory_import::import_file(&open.vault, &path, &options, ticket)?;
-                Ok(import_outcome(&report.manifest, ticket))
-            });
-            self.consume_pick(&a.import_token);
-            Ok(done)
+            self.with_pick(&a.import_token, PickKind::ImportFile, true, |path| {
+                let options = self.import_options(&open, &a.account_alias)?;
+                Ok(self.spawn("import", move |ticket| {
+                    let report =
+                        enouia_memory_import::import_file(&open.vault, &path, &options, ticket)?;
+                    Ok(import_outcome(&report.manifest, ticket))
+                }))
+            })
         })
     }
 
@@ -1747,27 +1785,26 @@ impl Workspace {
 
     fn backup_export(&self, token: &str) -> R<Done> {
         let open = self.open()?;
-        let destination = self.take_pick(token, PickKind::BackupDestination, false)?;
-        let verified =
-            verify_data_root(&destination, &RootPolicy::default()).map_err(root_rejected)?;
-        let name = base_name(&destination);
-        let done = self.spawn("backup_export", move |_| {
-            let pin = open.vault.pin_current()?;
-            let export = export_pinned(&open.vault, &pin, &verified)?;
-            Ok(json!({
-                "commitId": export.commit_id, "sequence": export.sequence,
-                "files": export.files.len(), "destinationName": name,
-            }))
-        });
-        self.consume_pick(token);
-        *self.last_backup.lock().expect("backup") = done.operation_id.clone();
-        Ok(done)
+        self.with_pick(token, PickKind::BackupDestination, true, |destination| {
+            let verified =
+                verify_data_root(&destination, &RootPolicy::default()).map_err(root_rejected)?;
+            let name = base_name(&destination);
+            let done = self.spawn("backup_export", move |_| {
+                let pin = open.vault.pin_current()?;
+                let export = export_pinned(&open.vault, &pin, &verified)?;
+                Ok(json!({
+                    "commitId": export.commit_id, "sequence": export.sequence,
+                    "files": export.files.len(), "destinationName": name,
+                }))
+            });
+            *self.last_backup.lock().expect("backup") = done.operation_id.clone();
+            Ok(done)
+        })
     }
 
     fn restore_preview(&self, token: &str) -> R<Value> {
-        let path = self.take_pick(token, PickKind::ExportFolder, false)?;
+        self.with_pick(token, PickKind::ExportFolder, true, |path| {
         let export = verify_export(&path)?;
-        self.consume_pick(token);
         let same = self
             .open()
             .ok()
@@ -1779,6 +1816,7 @@ impl Workspace {
             "sameVaultAsOpen": same,
             "restoreHow": "cli_restore_into_empty_target",
         }))
+        })
     }
 }
 
