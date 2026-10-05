@@ -960,6 +960,14 @@ impl Workspace {
         let start = a.start_byte.unwrap_or(0);
         let (excerpt, byte_start, byte_end, truncated) =
             views::excerpt(&text, start, a.max_bytes.min(wire::EXCERPT_MAX_BYTES));
+        // Never report a successful empty page before EOF: its cursor would
+        // repeat forever. Keep the byte cap and require room for one character.
+        if byte_end == byte_start && byte_start < text.len() as u64 {
+            return Err(fail(
+                MemoryErrorCode::InvalidRequest,
+                "workspace.excerpt_budget",
+            ));
+        }
         Ok(json!({
             "sourceId": source.source_id, "sourceRevision": source.revision,
             "sourceKind": source.source_kind, "speakerRole": source.speaker_role,

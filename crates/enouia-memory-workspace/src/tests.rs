@@ -13,6 +13,55 @@ static COUNTER: AtomicU64 = AtomicU64::new(0);
 const T0: i64 = 1_790_000_000_000;
 
 #[test]
+fn source_excerpt_advances_or_rejects_an_insufficient_utf8_budget() {
+    let env = Env::new("excerpt-budget");
+    let text = "Aé中😀Z";
+    let memory = env.remember(text, "synthetic.excerpt_budget");
+    let detail = env.ok("memory_read", json!({"memoryId": memory}));
+    let source = &detail["evidence"][0];
+    for start in (0..=text.len() as u64 + 1).chain([enouia_memory_contract::json::MAX_SAFE_INTEGER])
+    {
+        let mut aligned = start.min(text.len() as u64) as usize;
+        while !text.is_char_boundary(aligned) {
+            aligned -= 1;
+        }
+        for budget in 1..=4 {
+            let response = env.send(
+                "source_excerpt",
+                json!({
+                    "sourceId": source["sourceId"], "sourceRevision": source["sourceRevision"],
+                    "startByte": start, "maxBytes": budget,
+                }),
+            );
+            let next = text[aligned..].chars().next();
+            if next.is_some_and(|c| c.len_utf8() as u64 > budget) {
+                assert_eq!(
+                    response["error"]["code"], "invalid_request",
+                    "start={start}, budget={budget}: {response}"
+                );
+                assert_eq!(response["error"]["rules"][0], "workspace.excerpt_budget");
+                assert_eq!(response["error"]["retryable"], false);
+                continue;
+            }
+            assert_eq!(response["error"], Value::Null, "{response}");
+            let result = &response["result"];
+            let end = result["byteEnd"].as_u64().unwrap() as usize;
+            assert_eq!(result["byteStart"], aligned);
+            assert!(text.is_char_boundary(end));
+            assert!(end - aligned <= budget as usize);
+            assert_eq!(result["excerpt"], &text[aligned..end]);
+            assert_eq!(result["totalBytes"], text.len());
+            if next.is_some() {
+                assert!(end as u64 > start, "non-advancing page: {result}");
+            } else {
+                assert_eq!(result["excerpt"], "");
+                assert_eq!(end, text.len());
+            }
+        }
+    }
+}
+
+#[test]
 fn picker_admission_excludes_concurrent_page_uses_of_one_token() {
     let env = Env::new("picker-admission");
     std::fs::write(env.base.join("notes.md"), "Synthetic picker input").unwrap();

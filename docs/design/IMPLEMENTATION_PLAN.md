@@ -128,6 +128,8 @@ flowchart LR
 
 > **v1.2（2026-10-04，ADR-MEM-45）：** 本阶段界面的宿主改为 Runtime：Runtime 的 Windows 客户端以固定修订嵌入 `enouia-memory-workspace`，成为产品客户端。现有 W01～W05 证据（W01～W04 通过，W05 部分通过）来自本仓库参考外壳 `apps/workspace`，须由 Runtime 在其宿主上重新验证；参考外壳继续作为本仓库的验收工具。本说明不开启新阶段。
 
+> **2026-10-05 接入加固：** 补充了 Vault 生命周期状态隔离、Core 并发互斥、任务取消结果、原生退出/锁定后台调度、选择令牌并发占用，以及 UTF-8 来源分页检查，详见[文档索引](../README.md)中的六份 ADR-MEM-46 后续报告。本修订的完整 Rust 测试 236 项（Core 29 项）、fmt、Clippy、独立 34-schema 交叉检查及 Runtime 接入面检查通过；新增证据为本地合成数据。Runtime 尚需更新固定修订、适配行为并在自身 Windows 客户端重新验收；实际登录启动、无障碍、签名等原有待验收项不因此完成。仍处于 MV-6，MV-7 未开始。
+
 1. **MV-6.1 薄 UI**：Memory Explorer、Import Center、Candidate Review、Sessions，typed IPC 与取消/分页。
 2. **MV-6.2 Context Inspector**：区分 compile preview / 实际 dispatched、来源和排除理由，权限不泄漏。
 3. **MV-6.3 Recovery / Status**：索引重建、备份恢复预览、删除影响、锁定、组件健康、工作线程与进度。
