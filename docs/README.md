@@ -18,6 +18,8 @@ The 2026-10-05 MV-6 [lifecycle](validation/MV-6-vault-lifecycle.md), [concurrenc
 
 ## Import record (2026-09-28)
 
+The [pending concurrent source replay finding](validation/MV-6-pending-source-replay.md) records a synthetic failure identified after the seven completed hardening slices. It remains unfixed and is not counted as passing evidence.
+
 The design package, the two prompts, and the review were written in this directory. They were moved unchanged from the repository root into the folders above, apart from the substitutions listed here. The unredacted originals are kept in the ignored `.local/originals/` with their SHA-256 values.
 
 - Machine paths (drive-letter project paths and a user-profile temp path) were replaced by neutral names such as "Memory 仓库（本地 checkout）", "Runtime 仓库（本地 checkout）", `docs/design/…`, and `<本地临时目录>`. This follows the design rule of removing private machine paths before publication.
