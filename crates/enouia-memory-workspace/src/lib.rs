@@ -21,7 +21,7 @@ pub use enouia_memory_contract::workspace::HostSurface;
 
 use enouia_memory_context::{CompileInput, answer_saved, compile, session};
 use enouia_memory_contract::candidate::{CandidateRecord, ProposalKind, ProposedType};
-use enouia_memory_contract::commit::{DeleteMode, DeleteScope};
+use enouia_memory_contract::commit::{DeleteMode, DeleteScope, OperationKind};
 use enouia_memory_contract::common::{
     ActorRef, ActorType, Sensitivity, TimePrecision, TrustedSurface,
 };
@@ -36,7 +36,7 @@ use enouia_memory_contract::ids::{
 use enouia_memory_contract::import::ImportManifest;
 use enouia_memory_contract::json::Revision;
 use enouia_memory_contract::memory::CanonicalMemory;
-use enouia_memory_contract::ports::{CommitPin, IdSource};
+use enouia_memory_contract::ports::{CommitPin, IdSource, IdempotencyScope};
 use enouia_memory_contract::record::{Record, RecordKind, RecordRef};
 use enouia_memory_contract::session::{ClientSurface, SessionRecord};
 use enouia_memory_contract::source::{ConfirmationMethod, SourceRecord};
@@ -1289,6 +1289,8 @@ impl Workspace {
 
     fn remember(&self, a: &wire::RememberArgs, key: &str) -> R<Value> {
         let open = self.open()?;
+        let proposal_key = format!("remember\n{key}");
+        self.check_remember_key(&open, a, proposal_key.as_bytes())?;
         let source =
             self.assertion(&open, &a.text, format!("remember-source\n{key}").as_bytes())?;
         let subject = SubjectId::parse(&open.owner.actor_id.as_str().replacen("prn_", "sub_", 1))
@@ -1302,12 +1304,48 @@ impl Workspace {
             details,
             vec![EvidenceSpec::content(source.clone(), one())],
         );
-        self.proposed(
-            &open,
-            &proposal,
-            format!("remember\n{key}").as_bytes(),
-            source,
-        )
+        let shown = self.proposed(&open, &proposal, proposal_key.as_bytes(), source)?;
+        // Recheck after admission: another call may have published this key
+        // between the first lookup and proposal commit.
+        self.check_remember_key(&open, a, proposal_key.as_bytes())?;
+        Ok(shown)
+    }
+
+    fn check_remember_key(&self, open: &Open, a: &wire::RememberArgs, key: &[u8]) -> R<()> {
+        let scope = IdempotencyScope {
+            principal_id: open.owner.actor_id.clone(),
+            operation_kind: OperationKind::CandidatePropose,
+            key_hash: sha256(key),
+        };
+        let Some((_, _, receipt)) = open.vault.find_receipt(&scope)? else {
+            return Ok(());
+        };
+        let reference = receipt
+            .records
+            .iter()
+            .find(|r| r.record_kind == RecordKind::Candidate)
+            .ok_or_else(|| {
+                fail(
+                    MemoryErrorCode::StorageFailed,
+                    "workspace.receipt_candidate",
+                )
+            })?;
+        // Read the receipt's original revision, even after review or edits.
+        // The normal purge barriers still apply to this historical read.
+        let pin = open.vault.pin_current()?;
+        let candidate: CandidateRecord = parse(&open.vault.read_revision(&pin, reference)?)?;
+        let claim = candidate
+            .proposed_details
+            .as_ref()
+            .and_then(|d| d.get("claim_key"))
+            .and_then(Value::as_str);
+        if candidate.proposed_content != a.text || claim != Some(a.claim_key.as_str()) {
+            return Err(fail(
+                MemoryErrorCode::IdempotencyConflict,
+                "workspace.key_reuse",
+            ));
+        }
+        Ok(())
     }
 
     fn correction(&self, a: &wire::CorrectionArgs, key: &str) -> R<Value> {

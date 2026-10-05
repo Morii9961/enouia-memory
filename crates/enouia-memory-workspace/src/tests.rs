@@ -13,6 +13,52 @@ static COUNTER: AtomicU64 = AtomicU64::new(0);
 const T0: i64 = 1_790_000_000_000;
 
 #[test]
+fn remember_replay_binds_the_claim_key_after_reopen_and_review() {
+    let env = Env::new("remember-claim-replay");
+    let args = json!({"text": "Synthetic stable text", "claimKey": "synthetic.first_claim"});
+    let first = env.send_keyed("remember", args.clone(), "claim-replay-key");
+    assert_eq!(first["error"], Value::Null);
+    let candidate = &first["result"];
+    let plan = env.ok(
+        "review_plan",
+        json!({"decisions": [{
+            "candidateId": candidate["candidateId"], "revision": candidate["revision"],
+            "action": "accept", "editedContent": null, "mergeTarget": null,
+        }]}),
+    );
+    env.ok(
+        "review_confirm",
+        json!({"planId": plan["planId"], "diffHash": plan["diffHash"]}),
+    );
+    for reopen in [false, true] {
+        if reopen {
+            env.ws.shutdown();
+            env.ws.open_root(&env.base.join("vault")).unwrap();
+        }
+        let before = env.ok("workspace_status", json!({}))["vault"]["headCommitId"].clone();
+        let same = env.send_keyed("remember", args.clone(), "claim-replay-key");
+        assert_eq!(same["error"], Value::Null);
+        assert_eq!(same["result"]["candidateId"], candidate["candidateId"]);
+        let changed = env.send_keyed(
+            "remember",
+            json!({
+                "text": "Synthetic stable text", "claimKey": "synthetic.other_claim",
+            }),
+            "claim-replay-key",
+        );
+        assert_eq!(
+            changed["error"]["code"], "idempotency_conflict",
+            "{changed}"
+        );
+        assert_eq!(changed["error"]["rules"][0], "workspace.key_reuse");
+        assert_eq!(
+            env.ok("workspace_status", json!({}))["vault"]["headCommitId"],
+            before
+        );
+    }
+}
+
+#[test]
 fn source_excerpt_advances_or_rejects_an_insufficient_utf8_budget() {
     let env = Env::new("excerpt-budget");
     let text = "Aé中😀Z";
