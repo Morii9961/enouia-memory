@@ -84,9 +84,14 @@
       "sha256": "38b77ced8d006173deb2b5691c89dc6d98bcc6dba462666b8700a03c42845278"
     },
     {
+      "path": "apps/workspace/src-tauri/src/lifecycle.rs",
+      "role": "reference-shell",
+      "sha256": "0b10499c80ac10fa3ee5aa174061d11b3287c11cae8d3f5dbdd5f7347c6e97b3"
+    },
+    {
       "path": "apps/workspace/src-tauri/src/main.rs",
       "role": "reference-shell",
-      "sha256": "7d2d336145870188505d92cb9db88e6c83e23533b65e1096fad6d6ba968385eb"
+      "sha256": "a346593a11999f307002e621aa4820ee12a6df192119910a2a51c7686d6e6df5"
     },
     {
       "path": "apps/workspace/src-tauri/src/startup.rs",
@@ -219,5 +224,5 @@
       "sha256": "3f8c12e10ff3c267a13750801ec6378016287275c799978d6df8ff720b0cce93"
     }
   ],
-  "aggregate": "8f6dbe664c7cb4333b5f775a150c78b806e5da95d6a2280502b7b4521ea4a9cd"
+  "aggregate": "4a39ccdddc84a7b9a024edc085ce2b0c0f5e424524caa3e9edc143397a0d5f5a"
 }

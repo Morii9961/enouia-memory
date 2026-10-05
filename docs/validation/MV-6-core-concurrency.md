@@ -24,4 +24,4 @@ Repository-root checks passed on pinned Rust 1.98.1 GNU, offline, with MinGW ahe
 
 ## Limits
 
-All evidence is synthetic and local. Runtime pin adoption, its adapter/UI concurrency, actual Windows application/installer suites, real exports, Provider calls, signing, Narrator, OS crashes and power-loss durability remain unverified. Native tray/page exit still uses the reference shell's existing scheduling; Core protection does not establish UI responsiveness for those paths.
+All evidence is synthetic and local. Runtime pin adoption, its adapter/UI concurrency, actual Windows application/installer suites, real exports, Provider calls, signing, Narrator, OS crashes and power-loss durability remain unverified. Core protection alone did not establish native tray/page responsiveness; the subsequent [reference scheduling report](MV-6-shell-lifecycle.md) adds synthetic off-thread scheduling evidence for those paths.
