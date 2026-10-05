@@ -212,7 +212,7 @@ Refines ADR-MEM-19 and amends the hosting part of ADR-MEM-44. The handoff, host 
 - **One Core per Vault.** The reference shell, Runtime, and the CLI can each open the same Vault. Commits serialize through the writer lock, but two embedded Cores also hold the index file. Run one embedded Core per Vault at a time until MV-8's Host owns the lock.
 - **Data root.** Hosts open only an explicitly chosen root (ADR-MEM-37, 44). The `%LOCALAPPDATA%\EnouiaMemory` default named in ADR-MEM-19 is not used. A remembered or default root in any host needs a Memory ADR.
 - **Cloud stays here.** MV-7 (real Provider), MV-8 (Host, MCP), MV-9 (gateway, queue), MV-10 (replicas), MV-11, `contracts/ipc/memory-v1.schema.json` (the agent surface), `contracts/provider/capabilities-v1.schema.json`, backup, and their code and ADRs remain in this repository. Runtime implements no Provider calls, MCP, gateway, or replica, and never carries Memory sync over its Activity delivery path.
-- **Activity.** Activity data never enters workspace IPC. A host replaces the Core's fixed `activity: independent_not_managed` status row with its own Activity health.
+- **Activity.** Activity data never enters workspace IPC. A host replaces the Core's fixed Activity status row (`component: "activity"`, `mode: "independent_not_managed"`) with its own Activity health.
 
 ## Relation to Enouia Runtime's register
 

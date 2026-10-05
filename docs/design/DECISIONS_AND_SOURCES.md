@@ -94,7 +94,7 @@ Runtime 核对路径为 Runtime 仓库（本地 checkout），HEAD 为 `3ab5c5da
 
 | ID | 决定 |
 |---|---|
-| ADR-MEM-19 | Memory 独立仓库、自有最小宿主端口；Runtime 经版本化契约接入；默认数据根 `%LOCALAPPDATA%\EnouiaMemory` |
+| ADR-MEM-19 | Memory 独立仓库、自有最小宿主端口；Runtime 经版本化契约接入；默认数据根 `%LOCALAPPDATA%\EnouiaMemory`（v1.2 不使用默认根，见 §4b） |
 | ADR-MEM-20～29 | MV-0 草稿中的实现决定，改用本仓库编号（原稿见 `docs/history/`） |
 | ADR-MEM-30 | 外发、降级、授权批准必须绑定所批准的确切对象（修正 F1/F2） |
 | ADR-MEM-31 | 持久 Policy/Grant/撤回记录与默认拒绝评估（修正 F4） |
@@ -105,15 +105,24 @@ Runtime 核对路径为 Runtime 仓库（本地 checkout），HEAD 为 `3ab5c5da
 
 详见 [ADR 登记簿](../adr/README.md)。上文 §3 是 v1.0 设计时对 Runtime 的只读核对记录，保留为历史。
 
+## 4b. v1.2 追加决定（2026-10-04，ADR-MEM-45）
+
+| ID | 决定 |
+|---|---|
+| ADR-MEM-45 | Runtime 的 Windows 客户端以固定 Git 修订嵌入 `enouia-memory-workspace`，成为 Memory 本地部分的产品客户端；本仓库 `apps/workspace` 保留为参考外壳与验收工具。`HostSurface` 是各宿主共用的调用范围规则；同一 Vault 同时只运行一个嵌入式 Core；只打开显式选择的数据根，不使用 ADR-MEM-19 的默认数据根；Activity 不进入 workspace IPC；云端阶段（MV-7～MV-11）及其契约留在本仓库。细化 ADR-MEM-19，修订 ADR-MEM-44 的宿主部分 |
+
+ADR-MEM-36～44 是 MV-1～MV-6 的实现决定，见 [ADR 登记簿](../adr/README.md)。交接、宿主职责、变更路由与兼容记录见 [Runtime 集成说明](../integration/RUNTIME.md)；Runtime 侧的对应决定是 Runtime ADR-025。
+
 ## 5. 已确定与留到启用前的事项
 
 | 事项 | 本轮结论 | 必须落定的阶段 |
 |---|---|---|
 | 所有权/文件真相源/五类/审核/时间/事务 | 已有规范，按本设计实施 | MV-0～MV-3 |
-| 默认数据根和保护层 | 已选；实际卷保护状态未检查 | 真实私人数据导入前 |
+| 默认数据根和保护层 | 已选；实际卷保护状态未检查（v1.2：不使用默认根，各入口只打开显式选择的根，ADR-MEM-45） | 真实私人数据导入前 |
 | 真实导出格式与附件完整度 | 未取得真实样本，不虚构兼容性 | MV-2 真实演练 |
 | 备份工具路线 | restic 适配器；介质、恢复秘密由用户控制 | MV-1 实际配置与恢复前 |
 | Windows 控件/UI 细节 | 任务路径已定，视觉细节实现时设计 | MV-6 |
+| Windows 产品客户端宿主（v1.2） | Runtime 客户端以固定修订嵌入 `enouia-memory-workspace`；`apps/workspace` 为参考外壳（ADR-MEM-45） | 已定；在 Runtime 宿主上重新验证 W01～W05 属于 Runtime 的验证工作 |
 | 真实 Provider/model/API 能力 | 保留可替换端口，不猜当前能力 | MV-7 |
 | MCP transport 产品兼容 | 本地 stdio 优先；远程按官方认证 | MV-8/9 |
 | VPS 资源/域名/connector | 不假设已有；先基于负载估算再配置 | MV-9 |

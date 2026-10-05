@@ -4,10 +4,11 @@ All project documentation lives under `docs/`.
 
 | Folder | Content | Status |
 |---|---|---|
-| [design/](design/README.md) | Memory design package v1.1 (Chinese): vision, architecture, data model, import/review, context, interfaces, privacy/recovery, plan, acceptance, decisions, handoff | Target specification. v1.1 corrects repository ownership, the data root and the MV-0R entry; v1.0 is in Git history (`da0d1e3`) |
+| [design/](design/README.md) | Memory design package v1.2 (Chinese): vision, architecture, data model, import/review, context, interfaces, privacy/recovery, plan, acceptance, decisions, handoff | Target specification. v1.1 corrects repository ownership, the data root and the MV-0R entry; v1.2 records that Runtime hosts the local frontend (ADR-MEM-45); v1.0 is in Git history (`da0d1e3`) |
 | [reviews/](reviews/MV0_REVIEW_AND_REPO_CORRECTION.md) | Independent MV-0 review: findings F1–F6 and the migration plan R0–R5 | Authoritative for MV-0R |
 | [handoff/](handoff/) | Startup prompts: the original MV-0 prompt (superseded) and the MV-0R correction prompt | Historical or current task inputs, not standing authorization |
-| [adr/](adr/README.md) | Decision register: design ADR-MEM-01…18 and implementation ADR-MEM-19…44 | Current |
+| [adr/](adr/README.md) | Decision register: design ADR-MEM-01…18 and implementation ADR-MEM-19…45 | Current |
+| [integration/](integration/RUNTIME.md) | Runtime hosting handoff (ADR-MEM-45): ownership, host duties, change routing, the [surface manifest](integration/runtime-surface.json) and the compatibility log | Current |
 | [contracts/](contracts/CONTRACT_NOTES.md) | Contract notes and the [constraint enforcement map](contracts/CONSTRAINT_MAP.md) | Current (MV-0R) |
 | [validation/](validation/MV-6.md) | Stage evidence: the [MV-0R](validation/MV-0R.md), [MV-1](validation/MV-1.md), [MV-2](validation/MV-2.md), [MV-3](validation/MV-3.md), [MV-4](validation/MV-4.md), [MV-5](validation/MV-5.md), [MV-6](validation/MV-6.md), and [MV-6 follow-up](validation/MV-6-followup.md) reports | Current |
 | [history/](history/) | The MV-0 draft report and ADR draft written in the Runtime working tree, kept as history | Historical |

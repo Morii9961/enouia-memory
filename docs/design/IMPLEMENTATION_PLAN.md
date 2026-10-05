@@ -10,6 +10,8 @@
 
 先把设计同步进本仓库的文档和 ADR（v1.1：Memory 独立仓库，见 ADR-MEM-19），再添加代码。不能先写存储实现后以实现倒推 Schema。发现与本设计冲突时提供具体差异与影响，修正相应契约/验收后继续，不能仅留 TODO 绕过去。
 
+v1.2（ADR-MEM-45）：凡改动 Runtime 集成面（`docs/integration/runtime-surface.json` 所列文件：workspace IPC 契约、嵌入式 Core、其构建闭包、参考外壳与前端），须在同一提交中重新生成该清单，并在 [Runtime 集成说明](../integration/RUNTIME.md) 的兼容记录中登记：改动内容、对 Runtime 属于新增还是破坏性变更，以及 Runtime 须采纳什么。登记前 `runtime_surface` 测试会一直失败。
+
 ## 2. 总依赖图与交付点
 
 ```mermaid
@@ -124,6 +126,8 @@ flowchart LR
 
 > **v1.1（2026-10-04 进度）：** MV-6 基线已用合成数据实现并合并，见 [MV-6 报告](../validation/MV-6.md)（ADR-MEM-44）。嵌入式 Core（`enouia-memory-workspace`）+ Tauri 2 外壳 + React 页面，经 workspace IPC v1 单一通道；文件只经原生对话框换令牌。[后续改进](../validation/MV-6-followup.md)补充安装、自启动、重试、无障碍，修复静默降级、卸载所有权、快捷搜索越权与界面旧响应/草稿丢失。合成数据上的真实应用回归 52/52、独立模拟界面检查 76/76、Rust 201 项及安装卸载 8/8 通过。测试专用 0.1.1 包验证了升级、降级拒绝及合成 Vault 保留；发行版本仍为 0.1.0，不代表旧数据格式迁移验收。实际登录启动、Narrator、系统对比主题、交互安装/旧发行版升级及签名仍待验收。MV-7 尚未开始。
 
+> **v1.2（2026-10-04，ADR-MEM-45）：** 本阶段界面的宿主改为 Runtime：Runtime 的 Windows 客户端以固定修订嵌入 `enouia-memory-workspace`，成为产品客户端。现有 W01～W05 证据（W01～W04 通过，W05 部分通过）来自本仓库参考外壳 `apps/workspace`，须由 Runtime 在其宿主上重新验证；参考外壳继续作为本仓库的验收工具。本说明不开启新阶段。
+
 1. **MV-6.1 薄 UI**：Memory Explorer、Import Center、Candidate Review、Sessions，typed IPC 与取消/分页。
 2. **MV-6.2 Context Inspector**：区分 compile preview / 实际 dispatched、来源和排除理由，权限不泄漏。
 3. **MV-6.3 Recovery / Status**：索引重建、备份恢复预览、删除影响、锁定、组件健康、工作线程与进度。
@@ -142,7 +146,7 @@ flowchart LR
 
 ## 12. MV-8 — Memory Host 与 MCP
 
-1. **MV-8.1 进程转换**：从嵌入 Core 升级用户级唯一 Host，排他锁、迁移/升级协议、UI 断开与重连。
+1. **MV-8.1 进程转换**：从嵌入 Core 升级用户级唯一 Host，排他锁、迁移/升级协议、UI 断开与重连（UI 指 Runtime 的 Windows 客户端，沿用 workspace IPC v1 信封连接 Host；参考外壳承担重连验收）。
 2. **MV-8.2 本地工具**：stdio MCP adapter、principal/scopes、六个最小工具、旧 memory_update 仅提议别名。
 3. **MV-8.3 客户端接入**：按实际产品逐个测试 transport、auth、工具大小/许可；保存兼容矩阵。
 4. **MV-8.4 安全验证**：无凭据、错 scope、恶意来源、伪造 review、重复写、旧 revision、锁定后重用会话均失败。

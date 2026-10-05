@@ -35,7 +35,7 @@ Every host (the reference shell, Runtime's adapter, a test harness) must:
 5. **Retry honestly.** Reuse an idempotency key only to resend the same payload. Retry only when `retryable` is true. `revision_conflict`, a stale cursor, or an unknown plan means re-read or re-plan.
 6. **Render safely.** Use a strict CSP (`default-src 'self'`, `connect-src ipc: http://ipc.localhost`, no remote resources) and no `fs`, `shell`, `http`, or dialog plugin. Render memory and source text as plain text nodes only (`source_excerpt.untrusted` is always true). Never log request or response bodies, and persist no copy of memory text.
 7. **Open roots explicitly.** Do not default, remember, or auto-open a Vault root. Creating a Vault needs the typed phrase `create new vault`, and the Core enforces it.
-8. **Keep Activity out.** Replace the Core's fixed `activity: independent_not_managed` status row with the host's own Activity health. Never send Activity data through `call`.
+8. **Keep Activity out.** Replace the Core's fixed Activity status row (`component: "activity"`, `state: "unavailable"`, `mode: "independent_not_managed"`) with the host's own Activity health. Never send Activity data through `call`.
 9. **Run one Core per Vault.** Do not run the reference shell and Runtime on the same Vault at once (see ADR-MEM-45).
 
 ## Routing a change to Runtime

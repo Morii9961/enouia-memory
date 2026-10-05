@@ -1,6 +1,8 @@
-# Enouia Memory · 架构设计包 v1.1
+# Enouia Memory · 架构设计包 v1.2
 
 > **v1.1 修订（2026-09-28，MV-0R）：** Enouia Memory 在本仓库 [Morii9961/enouia-memory](https://github.com/Morii9961/enouia-memory) 独立开发（ADR-MEM-19）。原设计中“把实现放进 Runtime 工作区”的安排已失效，MV-0 草稿已迁入本仓库并按 [独立审核](../reviews/MV0_REVIEW_AND_REPO_CORRECTION.md) 修正 F1～F6，结果见 [MV-0R 报告](../validation/MV-0R.md) 与 [ADR 登记簿](../adr/README.md)。本版只修改工程归属、数据根与阶段入口；v1.0 原文可在 Git 历史（提交 da0d1e3）中查看。下文“本轮核对范围”记录最初设计包的范围。
+
+> **v1.2 修订（2026-10-04，ADR-MEM-45）：** Enouia Runtime 的 Windows 客户端成为 Memory 本地部分的产品客户端：它以固定 Git 修订嵌入 `enouia-memory-workspace`，只经自身适配器和 workspace IPC v1 调用。本仓库的 `apps/workspace` 保留为参考外壳与验收工具，不是产品客户端；本地部分的新产品界面先在 Runtime 落地。改动 Runtime 依赖的集成面时，须在同一提交中按 [Runtime 集成说明](../integration/RUNTIME.md) 登记 Runtime 须采纳的内容。领域 crate、契约、数据规则、CLI 与全部云端阶段（MV-7～MV-11）仍在本仓库。本版补充宿主归属、集成面登记规则和两种 IPC 形状的区分，其余设计不变。
 
 设计日期：2026-09-28。设计负责人：Enouia（本轮由 Codex 完成）；后续实现交接对象：用户指定的 Claude Opus 5.5。
 
@@ -34,7 +36,7 @@ Morii 可以先读愿景、总架构和实施计划。Claude 在实现前须读�
 4. 单写者、不可变修订、事务清单及一个 CURRENT 指针共同提交，避免“几次单文件替换”冒充跨文件事务。
 5. 模型和外部 Agent 只能提出候选；正式提交必须有可验证的用户确认。
 6. 优先级、敏感度、事实时效性独立；旧事实可以正确描述过去，却不足以证明今天的状态。
-7. 先离线 Mock 闭环，再 Windows 最小记忆界面，再真实 Provider / MCP；完整桌面 Companion 随后扩展。
+7. 先离线 Mock 闭环，再 Windows 最小记忆界面，再真实 Provider / MCP；完整桌面 Companion 随后扩展。v1.2：Windows 界面由 Runtime 客户端承载（嵌入固定修订的 `enouia-memory-workspace`），本仓库 `apps/workspace` 为参考外壳。
 8. VPS 先做可替换的网关和持久队列；加密备份、加密设备副本、可供服务器计算的有限副本是三种不同能力。
 
 ## 本轮核对范围

@@ -3,6 +3,8 @@
 > **仓库边界已更正（2026-09-28）。** 本文关于 Runtime 仓库（本地 checkout） 为实现仓库的安排已失效。Memory 改为 Memory 仓库（本地 checkout） 独立工程与 GitHub 仓库；下一步先按 [MV-0R 修正提示词](../handoff/CLAUDE_MV0_CORRECTION_PROMPT.md) 完成迁移及契约修复。正文保留为历史交接，不能覆盖用户的新要求。
 >
 > **MV-0R 已完成（2026-09-28）：** 迁移与 F1～F6 修正的结果、证据及 MV-1 入口见 [MV-0R 报告](../validation/MV-0R.md)。下一阶段只在用户明确授权后开始。
+>
+> **Runtime 宿主（2026-10-04，ADR-MEM-45）：** Memory 本地前端由 Runtime 的 Windows 客户端承载（以固定修订嵌入 `enouia-memory-workspace`），本仓库 `apps/workspace` 为参考外壳；涉及本地界面或集成面的改动经 [Runtime 集成说明](../integration/RUNTIME.md) 转给 Runtime。
 
 设计包版本：v1.0 / 2026-09-28。设计已完成，代码尚未开始。本文件供 Morii 在新的实施任务中使用；它本身不触发任何执行、线程消息或部署。
 
@@ -63,5 +65,6 @@
 - 阶段次序：[IMPLEMENTATION_PLAN](IMPLEMENTATION_PLAN.md)
 - 行为验收：[ACCEPTANCE](ACCEPTANCE.md)
 - 差异与依据：[DECISIONS_AND_SOURCES](DECISIONS_AND_SOURCES.md)
+- Runtime 集成：[integration/RUNTIME](../integration/RUNTIME.md)
 
 即使新的模型窗口看不到本轮聊天，这套文件也应足以恢复项目目标、设计选择、范围、实施次序和验收要求；不要依赖某个聊天 ID 作为唯一交接资料。

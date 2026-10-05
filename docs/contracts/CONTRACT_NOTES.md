@@ -48,19 +48,25 @@ Host ports (`foundation`): `Clock`/`FakeClock`, `Cancellation`, `WriterLock` (OS
 | `SecretStore` / `SecretBytes` | Not serializable, not clonable, redacted Debug |
 | `BackupPort` | Backs up a pinned commit under a lease. A restore plan keeps the network off until tombstones and revocations are reconciled. MV-1 implements the export/verify/restore functions and a restic command adapter; the trait itself is wired once restic is installed (lease/GC arrive with purge in MV-3) |
 
-`MemoryErrorCode` has 23 codes. `unauthenticated`, `permission_denied` and `not_found` are non-disclosing. IPC errors carry only `{code, component, retryable}`.
+`MemoryErrorCode` has 23 codes. `unauthenticated`, `permission_denied` and `not_found` are non-disclosing. Memory IPC v1 errors carry only `{code, component, retryable}`. Workspace IPC v1, the channel the Windows hosts use (ADR-MEM-44, 45), has its own shape: errors are `{code, retryable, rules}` (contract codes and rule identifiers only), and its responses carry no `policyEpoch`.
 
 ## 4. Dependency direction and data
 
+Redrawn for ADR-MEM-45 from each `Cargo.toml`. `A → B` means A depends on B. Only normal dependencies are shown; dev-dependencies (govern → import, index → govern, context → govern) are omitted.
+
 ```text
-enouia-memory-contract  (serde, serde_json only)
-        ↑
-enouia-memory-vault     (+ windows-sys =0.61.2 on Windows)   ← MV-1
-        ↑
-enouia-memory-cli       (local entry point)                   ← MV-1
-(future) context / session / provider crates in this repository
-        ↑
-Enouia Runtime adapters (Windows client), via versioned contracts or a pinned release
+enouia-memory-contract   serde, serde_json only                                 ← MV-0R
+enouia-memory-vault      → contract  (+ windows-sys =0.61.2 on Windows)         ← MV-1
+enouia-memory-import     → contract, vault  (+ crc32fast, miniz_oxide)          ← MV-2
+enouia-memory-govern     → contract, vault                                      ← MV-3
+enouia-memory-index      → contract, vault  (+ rusqlite, bundled SQLite)        ← MV-4
+enouia-memory-context    → contract, vault, index                               ← MV-5
+enouia-memory-workspace  → contract, vault, import, govern, index, context      ← MV-6 (embedded Core)
+enouia-memory-cli        → contract, vault, import, govern, index, context      ← MV-1 (local entry point)
+
+Hosts of the Core (workspace IPC v1 only; no host calls a domain crate directly):
+apps/workspace/src-tauri   → enouia-memory-workspace (path; + tauri, rfd, windows-sys)   reference shell
+Runtime host adapter       → enouia-memory-workspace @ pinned rev                        product client (ADR-MEM-45)
 ```
 
-Nothing here reads Activity data or depends on Runtime, Moriium or credentials. `tests/boundaries.rs` enforces this: no path outside the repository, no Git dependency, no `std::fs`/`net`/`process`/`env` in the contract crate. Everything needed for recovery is a file record under `vault/`: reviews, approvals, policies, idempotency receipts, tombstones, checkpoints and session events.
+Nothing here reads Activity data or depends on Runtime, Moriium or credentials. `tests/boundaries.rs` enforces this: no path outside the repository, no Git dependency, no `std::fs`/`net`/`process`/`env` in the contract crate. `memory_workspace_depends_only_on_this_repository` and `no_domain_crate_depends_on_a_window_toolkit` keep the Core transport-neutral, so any host can embed it. Everything needed for recovery is a file record under `vault/`: reviews, approvals, policies, idempotency receipts, tombstones, checkpoints and session events. The files Runtime depends on are recorded in `docs/integration/runtime-surface.json`; see [integration/RUNTIME.md](../integration/RUNTIME.md).

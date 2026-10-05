@@ -40,10 +40,13 @@ MV-1 update: rows whose "Later behavior" names MV-1 now have store evidence (com
 | Dispatch covers every carried resource (F1) | ✔ `resource_refs` | ✔ `dispatch.resource_kind` | ✔ `dispatch.hidden_resource` | MV-5 real render |
 | Dispatch digest bound to the actual request (F3) | ✗ | ✔ `dispatch.request_hash`; `ProviderRequest::verify_against` | ✔ approval payload binding | MV-5/7 send path |
 | Deletion/policy barrier rechecked before send | ✗ | – | ✔ | MV-5/7 live recheck |
-| IPC request/response contracts | ✔ | ✔ `ipc.*` | – | MV-6/8 transports |
+| IPC request/response contracts | ✔ | ✔ `ipc.*` | – | transports: reference shell / Runtime host (MV-6), Host/MCP (MV-8) |
 | Import closure: sources cite an existing import and its bytes; completed coverage counts its sources; revisions keep the received bytes (`import.input_changed`) | received hash format | ✔ ImportManifest rules | ✔ `check_imports` | MV-2 reconciliation re-derives every cited source |
 | Commit validated on a scoped set equals whole-Vault validation (ADR-MEM-39) | – | – | ✔ `delta::validate_delta`, property test `tests/delta.rs` | MV-3.0 store uses it for every commit |
 | Self-contained build; no Runtime/Activity dependency | – | `tests/boundaries.rs` | – | **MV-1** installed-artifact run (D03/D04 behavior) |
+| Embedded Core stays transport-neutral: workspace Core depends only on this repository; no domain crate depends on a window toolkit (ADR-MEM-45) | – | `crates/enouia-memory-contract/tests/boundaries.rs` `memory_workspace_depends_only_on_this_repository`, `no_domain_crate_depends_on_a_window_toolkit` | – | – |
+| Host caller scope: the native window identity selects a `HostSurface`; quick search reaches `memory_search` only; packet fields never widen it (ADR-MEM-45) | – | `HostSurface::allows`; `crates/enouia-memory-contract/tests/workspace.rs` `host_surfaces_scope_requests_by_native_identity_only` | – | reference shell `window_scope` tests (`apps/workspace/src-tauri/src/window_scope.rs`); the Runtime host must apply the same rule |
+| Runtime integration surface changes recorded and logged (ADR-MEM-45) | – | `crates/enouia-memory-contract/tests/runtime_surface.rs` | – | regenerated with `tools/integration/runtime_surface.py`; cannot prove that Runtime adopted a change |
 
 ## Rule coverage
 

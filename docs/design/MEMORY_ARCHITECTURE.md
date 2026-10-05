@@ -12,6 +12,8 @@
 
 **v1.1 更正（MV-0R）：** Memory 在独立仓库实现，拥有自己的契约、领域代码与最小宿主端口；Runtime 只通过版本化契约或固定版本发布物接入，并以自身适配器映射健康状态与错误（[ADR-MEM-19](../adr/README.md)）。Runtime 的已生效契约不被本仓库改写；差异记录在本仓库 ADR 与 [契约说明](../contracts/CONTRACT_NOTES.md)。
 
+**v1.2 修订（2026-10-04，ADR-MEM-45）：** Runtime 的 Windows 客户端是 Memory 本地部分的产品客户端：它以固定 Git 修订嵌入 `enouia-memory-workspace`，只经 workspace IPC v1 和自身适配器调用，不直接调用领域 crate；本仓库 `apps/workspace` 是参考外壳与验收工具。每个宿主按原生窗口身份套用 `HostSurface` 限定调用范围，同一 Vault 同时只运行一个嵌入式 Core，只打开显式选择的数据根。集成面的改动先在 [Runtime 集成说明](../integration/RUNTIME.md) 登记，再由 Runtime 升级固定修订。Provider、Host/MCP、网关与副本等云端部分仍在本仓库实现。
+
 ## 2. 系统全图
 
 ```mermaid
@@ -28,7 +30,7 @@ flowchart TB
   Policy --> Compiler[Context Compiler]
   Compiler --> Outbound[外发策略检查与实际请求记录]
   Outbound --> Provider[Mock / 外部模型 / 本地模型]
-  Windows[Windows UI] --> API[Core 领域接口]
+  Windows[Windows UI（由 Runtime 客户端承载）] --> API[Core 领域接口]
   MCP[受限 MCP Bridge] --> API
   API --> Writer
   API --> Compiler
@@ -54,11 +56,11 @@ Activity 没有进入这条数据链。Windows 可以在独立 Activity 页面�
 | ContextCompiler | 检索、时效判定、排序、预算、来源打包 | 不拥有凭据，不隐藏额外记忆 |
 | PolicyService | 读取/目的/外发/副本权限，当前删除屏障 | 不接受模型给自己的权限升级 |
 | ProviderAdapter | 能力、请求渲染、调用、取消、错误和用量 | 不写 Canonical，不接收整个 Vault |
-| Windows / CLI / MCP | 领域接口适配与呈现 | 不另造数据库或绕过 Core 写文件 |
+| Windows（Runtime 客户端；`apps/workspace` 为参考外壳）/ CLI / MCP | 领域接口适配与呈现 | 不另造数据库或绕过 Core 写文件；Windows 宿主只经 workspace IPC v1 调用 Core |
 | Gateway / Sync | 接收、持久暂存、租约、去重、游标、回执 | 不做权威记忆合并，不替本地批准 |
 | BackupService | 固定提交点导出、加密备份、检查与恢复演练 | 备份成功不等于恢复已验证 |
 
-逻辑组件不等于立即拆出同名 crate。v1.1：全部在本仓库实现，先有纯契约 crate `enouia-memory-contract`，其后按阶段需要增加 memory（存储/审核/索引）、context（检索与编译）、session（会话）、provider（适配器）等 crate；Windows 客户端组合它们的工作属于 Runtime。避免为尚未实现的远程功能搭建空框架。
+逻辑组件不等于立即拆出同名 crate。v1.1：全部在本仓库实现，先有纯契约 crate `enouia-memory-contract`，其后按阶段需要增加 memory（存储/审核/索引）、context（检索与编译）、session（会话）、provider（适配器）等 crate（现有 crate 与依赖方向见 [契约说明](../contracts/CONTRACT_NOTES.md) §4）；v1.2：组合它们的是本仓库的嵌入式 Core `enouia-memory-workspace`（ADR-MEM-44）；Windows 产品客户端由 Runtime 以固定修订嵌入该 Core（ADR-MEM-45），本仓库 `apps/workspace` 为参考外壳。避免为尚未实现的远程功能搭建空框架。
 
 ## 4. 谁是权威源
 
@@ -77,7 +79,7 @@ Raw 只证明“来源中有这段内容”；Canonical 表示“Morii 以此范
 
 ## 5. 数据根与可读格式
 
-运行数据默认在 `%LOCALAPPDATA%\EnouiaMemory`（v1.1；与 Runtime/Activity 的数据根分开）；允许显式更换经过验证的本地绝对路径。不使用本仓库、其他源代码库、安装目录、网络共享或 OneDrive 同步目录作为运行 Vault。
+运行数据默认在 `%LOCALAPPDATA%\EnouiaMemory`（v1.1；与 Runtime/Activity 的数据根分开）；允许显式更换经过验证的本地绝对路径。不使用本仓库、其他源代码库、安装目录、网络共享或 OneDrive 同步目录作为运行 Vault。v1.2：CLI 与各 Windows 宿主（参考外壳、Runtime 客户端）都只打开显式选择的根，不使用上述默认位置（ADR-MEM-37、44、45）。
 
 以下为目标布局，仅是路径规范，没有在本轮创建这些目录：
 
@@ -150,8 +152,8 @@ SQLite 保持本地；不把运行中的 DB/WAL 放同步盘。SQLite 官方说�
 | 阶段 | 拓扑 | UI 关闭后 |
 |---|---|---|
 | MV-1～MV-5 | 库 + 最小本地控制入口 | 没有承诺常驻采集；已有数据安全保留 |
-| MV-6～MV-7 | Tauri 嵌入 Core，复用同一库 | Core 可退出；Activity 仍按自己的进程约定运行 |
-| MV-8 | 单一用户级 Memory Host + UI/CLI/MCP 适配器 | Host 可独立运行；主机锁与生命周期已验证 |
+| MV-6～MV-7 | Runtime 客户端嵌入固定修订的 Core（`enouia-memory-workspace`），复用同一库；参考外壳 `apps/workspace` 也嵌入 Core，但不与 Runtime 同时打开同一 Vault | Core 可退出；Activity 仍按自己的进程约定运行 |
+| MV-8 | 单一用户级 Memory Host + UI/CLI/MCP 适配器；Runtime UI 改为 Host 客户端，workspace IPC v1 信封不变，只换宿主传输 | Host 可独立运行；主机锁与生命周期已验证 |
 | MV-9～MV-10 | 本地主机主动连 Gateway；可选设备/服务副本 | VPS 排队；读能力取决于明确授权的副本模式 |
 
 MV-8 切换 Host 后 UI 不再内嵌第二个可写 Core。用户登出、休眠、关机或 Vault 锁定时本地服务不可用；不默认安装 SYSTEM 服务绕过账户边界。

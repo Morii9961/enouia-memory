@@ -89,6 +89,8 @@
 | W04 | 前端能力与内容渲染 | 不能任意文件/SQL/shell/外网调用；来源脚本与远程图片不执行 |
 | W05 | 可访问性和安装行为 | 键盘路径、焦点、热键冲突、托盘/重启验证；日志不含私人正文 |
 
+> **v1.2（2026-10-04，ADR-MEM-45）：** W01～W05 的现有结果来自本仓库参考外壳 `apps/workspace`（W01～W04 通过，W05 部分通过，见 [MV-6 报告](../validation/MV-6.md) 与 [后续改进](../validation/MV-6-followup.md)）。Memory 本地前端改由 Runtime 承载后，这五项须在 Runtime 宿主上重新运行，属于 Runtime 的验证工作；在此之前，参考外壳的结果不能当作 Runtime 宿主的验收结论。同一 Vault 同时只运行一个嵌入式 Core（Runtime 或参考外壳）：提交经写锁串行，但两个嵌入式 Core 会同时占用索引文件；这一限制在 MV-8 Host 持锁后解除。
+
 ## 8. Provider、安全与备份
 
 | ID | 测试 | 通过条件 |

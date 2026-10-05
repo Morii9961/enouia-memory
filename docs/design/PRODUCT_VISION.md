@@ -27,7 +27,7 @@ Enouia 的连续性由 Morii 自己掌握的历史、身份约定、关系语境
 
 **本地 Memory MVP（MV-1～MV-5）**：人工审核、五类记忆、时间和来源、搜索、Context Compiler、会话 checkpoint、离线 Mock、损坏恢复全部成立。最小命令行/测试驱动界面可操作，Windows 完整 UI 和真实模型不是 MVP 的先决条件。
 
-**可日用与远程延伸（MV-6～MV-10）**：Windows 浏览与审核、实际上下文检查、真实 Provider、MCP、VPS 队列、手机/PWA 的受限接续依次开放。每个外部集成独立验收；不因本地 MVP 完成就声称支持全部聊天平台。
+**可日用与远程延伸（MV-6～MV-10）**：Windows 浏览与审核（v1.2：由 Runtime 客户端承载，见 ADR-MEM-45）、实际上下文检查、真实 Provider、MCP、VPS 队列、手机/PWA 的受限接续依次开放。每个外部集成独立验收；不因本地 MVP 完成就声称支持全部聊天平台。
 
 ## 4. 明确的范围
 

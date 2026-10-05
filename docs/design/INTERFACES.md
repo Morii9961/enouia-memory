@@ -8,6 +8,8 @@ Windows、最小 CLI、MCP、未来 PWA 复用同一套领域操作。传输可�
 
 本地 IPC 响应沿用 Runtime M0 的 `schemaVersion: 1` 与 kind discriminant；存储字段继续 snake_case，由后端映射，不改变 Activity 现有 DTO。公共响应头包含 requestId、kind、vaultCommitId、policyEpoch、operationId（写操作时）、result/error。
 
+v1.2 注：上述响应头属于面向 Agent 的 Memory IPC v1（`contracts/ipc/memory-v1.schema.json`，错误为 `{code, component, retryable}`）。Windows 宿主使用的 [workspace IPC v1](../../contracts/ipc/workspace-v1.schema.json) 响应为 `{schemaVersion, requestId, kind, vaultCommitId, operationId, result, error}`，不含 policyEpoch，错误为 `{code, retryable, rules}`（ADR-MEM-44）。
+
 通用错误：unauthenticated、permission_denied、not_found、vault_locked、busy、revision_conflict、idempotency_conflict、invalid_source、broken_provenance、unsupported_schema、index_not_ready、budget_exceeded、storage_full、storage_failed、audit_unavailable、provider_unavailable、offline、cancelled。附 retryable 与脱敏详情；不得返回原始异常堆栈、绝对路径或令牌。
 
 长任务返回 operationId，用户按 ID 查询状态/取消；进度不是完成证据。写操作只有 Vault commit 已达持久化条件才返回 committed。读操作返回所用快照和 stale/partial 状态。
@@ -37,7 +39,7 @@ memory_search 默认 limit 20、最大 100；单次来源片段默认不超过 8
 
 ## 3. Windows 联动
 
-Windows 采用已有 Tauri + React 方向，UI 只接 typed DTO，文件选择后由后端处理。第一版页面按实际任务设计：
+Windows 采用已有 Tauri + React 方向，UI 只接 typed DTO，文件选择后由后端处理。v1.2：该界面由 Runtime 的 Windows 客户端承载，经 workspace IPC v1 调用以固定修订嵌入的 `enouia-memory-workspace`（ADR-MEM-45）；本仓库 `apps/workspace` 是参考外壳与验收工具。第一版页面按实际任务设计：
 
 | 页面 | 必须能完成的操作 | 必须可见的状态 |
 |---|---|---|
@@ -57,6 +59,10 @@ Windows 采用已有 Tauri + React 方向，UI 只接 typed DTO，文件选择�
 
 健康状态沿用 Runtime 的 `Healthy / Degraded / Unavailable / Recovering`，另带 operational mode、lastAttemptAt、lastSuccessAt、error code、数据水位与 age。索引重建可使 MemoryIndex=Recovering，而 Vault 仍 Healthy；Provider 不可用不把已保存记忆标丢失。健康探测不推进来源更新时间，也不自动产生 VPS Runtime heartbeat。客户端协议/API 版本不支持时显示可恢复错误，不用空列表伪装空 Vault。
 
+### 宿主职责（v1.2，ADR-MEM-45）
+
+每个宿主（Runtime 适配器、参考外壳、测试工具）都须履行 [Runtime 集成说明的宿主职责](../integration/RUNTIME.md#host-duties)，完整清单以该页为准，此处不重复。要点是路径只留在原生侧，按原生窗口身份套用 `HostSurface` 后才转发，同一 Vault 同时只运行一个嵌入式 Core。经宿主写入的审核记为 `trusted_windows_app`，前提是宿主保持 W04 的保证：严格 CSP，没有 fs/shell/http/dialog 插件，正文只以纯文本渲染，页面不传路径，也不记录请求或响应正文。Runtime Status 页的 Activity 状态来自 Runtime：宿主以自己的 Activity 健康状态替换 Core 固定返回的 Activity 行（`mode: independent_not_managed`），Activity 数据从不经过 workspace IPC。
+
 ## 4. Provider 边界
 
 保留既有 ProviderRequest / ProviderResponse / ToolRequest / ToolResult / ProviderCapabilities 抽象。先 Mock，再分别接用户选择的 OpenAI、Anthropic 或本地模型适配器。本设计不固定真实模型 ID、价格、账户权限或未验证能力；“Claude Opus 5.5”是用户指定的实现交接对象，不是本轮调用或兼容性结论。
@@ -72,6 +78,8 @@ Provider 永远由 Core 后端调用，密钥通过 OS 保护的秘密存储读�
 MV-8 首先实现用户级单一 Host，通过受限 Windows named pipe 或等效认证 IPC 供 UI、CLI、stdio MCP adapter 使用。选择并验证管道 ACL、调用进程身份、消息大小、超时与 schema；本机可连接不等于有全部权限。stdio adapter 只是授权客户端，不另开一个直接写 Vault 的实例。
 
 Host 拥有 Vault 写锁；UI 连接失败时显示离线/Host 启动错误，不偷偷降级成第二写者。启动、升级、退出顺序为停止接新请求、取消/完成有界操作、提交水位、释放句柄。运行进程与安装版本不匹配时只读或拒绝，不跨版本并写。
+
+v1.2：本节的 UI 指 Runtime 的 Windows 客户端；参考外壳 `apps/workspace` 用于 MV-8.1 的断开与重连验收。Runtime UI 从嵌入 Core 改为 Host 客户端时，workspace IPC v1 信封不变，只换宿主传输；这一切换作为破坏性的集成面变更，连同 Runtime 迁移一起记入 [Runtime 集成说明](../integration/RUNTIME.md)。
 
 接入特定聊天产品前需验证该账户与版本是否提供所需 MCP transport、认证、工具权限、网络可达性和工具结果限制。某产品不可接入时保留本地 CLI/手动 capsule 导出方案；这不是 Memory MVP 失败。工具调用不提供未经 API 暴露的全量平台会话历史。
 
