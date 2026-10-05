@@ -1,7 +1,7 @@
 // Windows Memory Workspace (MV-6). Every value shown comes from the Core;
 // text from memories and sources is rendered as plain text, never as HTML.
 import { useCallback, useEffect, useRef, useState } from "react";
-import { call, describe, newKey, pick, retryable, shell, type J } from "./api";
+import { CallError, call, describe, newKey, pick, retryable, shell, type J } from "./api";
 
 const PAGES = [
   ["status", "运行状态"],
@@ -125,7 +125,7 @@ function Operation({ id, onDone }: { id: string; onDone?: (status: J) => void })
           {status.cancelRequested ? "正在取消…" : "取消"}
         </button>
       )}
-      {status.error && <span className="error-inline">{status.error.code}</span>}
+      {status.error && <span className="error-inline">{describe(new CallError(status.error))}</span>}
       <ErrorBox error={cancel.error} />
     </div>
   );
@@ -337,6 +337,10 @@ function Import() {
   const action = useAction();
   const refresh = useCallback(() => void action.run(async () => setImports((await call("import_list")).items)), []); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(refresh, [refresh]);
+  // The Core refuses to start a file again while its earlier import is
+  // interrupted (`import.resume_existing`); that import resumes instead.
+  const earlier = preview?.duplicateOf ? imports.find((m) => m.importId === preview.duplicateOf) : undefined;
+  const interrupted = earlier?.status === "parsing" || earlier?.status === "archived";
   return (
     <div>
       <p>选择导出文件后由后台归档原件并解析；页面只拿到文件名和令牌。</p>
@@ -346,16 +350,19 @@ function Import() {
           if (!p) return;
           setPicked(p);
           setPreview(await call("import_preview", { importToken: p.token }));
+          setImports((await call("import_list")).items);
         })}>选择文件…</button>
       </div>
       <ErrorBox error={action.error} />
       {preview && (
         <div className="card">
           <p><strong>{preview.displayName}</strong> · {preview.bytes} 字节 · {preview.inputKind} · {preview.recognized ? `可解析，${preview.units} 个单元` : "不支持的格式（仍会原样归档）"}</p>
-          {preview.duplicateOf && <p className="warn">与已有导入 {preview.duplicateOf} 相同，将记为重复。</p>}
+          {preview.duplicateOf && (interrupted
+            ? <p className="warn">与已有导入 {preview.duplicateOf} 相同，而那次导入被中断了。请在下方导入记录中继续它，不要重新开始。</p>
+            : <p className="warn">与已有导入 {preview.duplicateOf} 相同，将记为重复。</p>)}
           {preview.warnings.length > 0 && <p className="muted">警告：{preview.warnings.join(", ")}</p>}
           <label>账户别名 <input value={alias} onChange={(e) => setAlias(e.target.value)} pattern="[a-z0-9][a-z0-9_-]*" /></label>
-          <button type="button" className="primary" disabled={!picked || action.busy} onClick={() => void action.run(async (key) => {
+          <button type="button" className="primary" disabled={!picked || action.busy || interrupted} onClick={() => void action.run(async (key) => {
             const started = await call("import_start", { importToken: picked.token, accountAlias: alias }, key);
             setOp(started.operationId);
             setPicked(null);
@@ -375,7 +382,11 @@ function Import() {
               <td>{m.counts.sources_created}</td>
               <td>{m.counts.attachments_missing}</td>
               <td>{m.warnings.join(", ")}</td>
-              <td>{(m.status === "parsing" || m.status === "archived") && <button type="button" disabled={action.busy} onClick={() => void action.run(async (key) => setOp((await call("import_resume", { importId: m.importId, accountAlias: m.accountScope ?? alias }, key)).operationId))}>继续</button>}</td>
+              <td>{(m.status === "parsing" || m.status === "archived") && <button type="button" disabled={action.busy} onClick={() => void action.run(async (key) => {
+                setOp((await call("import_resume", { importId: m.importId, accountAlias: m.accountScope ?? alias }, key)).operationId);
+                setPicked(null);
+                setPreview(null);
+              })}>继续</button>}</td>
             </tr>
           ))}
         </tbody>

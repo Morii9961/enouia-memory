@@ -106,17 +106,17 @@
     {
       "path": "apps/workspace/src/App.tsx",
       "role": "reference-ui",
-      "sha256": "95b84b0c42c109e3cd125abff09efe24af08090d76236ab80af1d5171c4aaa0a"
+      "sha256": "c3ba5174cfb258bdee17f2f727f25ae7cd15e5fef39b855433c7a9b7f5256081"
     },
     {
       "path": "apps/workspace/src/Overlay.tsx",
       "role": "reference-ui",
-      "sha256": "927aafa72c5d330ac151140fb30a71a419c4b55658faa27a62e87a1fa134b58a"
+      "sha256": "199d995c5489f2e0fdd68074426178ef9857385653c00ed5f07dd5b3fd37b93a"
     },
     {
       "path": "apps/workspace/src/api.ts",
       "role": "reference-ui",
-      "sha256": "0cd12b6ee75b1c4fb3ed877c871df2c92ca23c7105122287ac25b13c90b752fc"
+      "sha256": "e7d565799c4f4616c0a42dcbae2677f832a563bd0583bf1d68a5a2291d656441"
     },
     {
       "path": "apps/workspace/src/env.d.ts",
@@ -219,5 +219,5 @@
       "sha256": "3f8c12e10ff3c267a13750801ec6378016287275c799978d6df8ff720b0cce93"
     }
   ],
-  "aggregate": "1266d7642845b53f1b7c1a4bf46fa9dca1e2c1303a517754fe53938007e7b2e2"
+  "aggregate": "7d7b6d5dbc6b84534ff31c143e45d40be3e934b4ebac1b403122174a02a95028"
 }
