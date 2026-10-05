@@ -747,3 +747,71 @@ fn a_held_handle_does_not_block_this_cores_reopen() {
     assert_eq!(refused.rules, ["workspace.vault_in_use"]);
     assert!(!refused.retryable);
 }
+
+/// A synthetic ChatGPT export: `n` two-message conversations.
+fn chatgpt_export(n: usize) -> String {
+    let conversations: Vec<Value> = (0..n)
+        .map(|i| {
+            let (a, b) = (format!("m{i}a"), format!("m{i}b"));
+            json!({
+                "title": "Synthetic", "create_time": 1_719_900_000.0 + i as f64,
+                "update_time": 1_719_900_000.0 + i as f64,
+                "conversation_id": format!("conv-{i}"), "id": format!("conv-{i}"), "current_node": b,
+                "mapping": {
+                    "root": {"id": "root", "message": null, "parent": null, "children": [a]},
+                    a.clone(): {"id": a, "parent": "root", "children": [b], "message": {"id": a, "author": {"role": "user", "name": null, "metadata": {}}, "create_time": 1_719_900_000.0 + i as f64, "content": {"content_type": "text", "parts": [format!("Synthetic question {i}.")]}, "metadata": {}, "status": "finished_successfully"}},
+                    b.clone(): {"id": b, "parent": a, "children": [], "message": {"id": b, "author": {"role": "assistant", "name": null, "metadata": {}}, "create_time": 1_719_900_001.0 + i as f64, "content": {"content_type": "text", "parts": [format!("Synthetic answer {i}.")]}, "metadata": {}, "status": "finished_successfully"}},
+                },
+            })
+        })
+        .collect();
+    serde_json::to_string(&conversations).unwrap()
+}
+
+/// ADR-MEM-46: an import cancelled before its first batch stays `archived`;
+/// its operation still reports `cancelled` and resumable, and resume
+/// completes it.
+#[test]
+fn an_import_cancelled_before_its_first_batch_is_resumable() {
+    struct Cancelled;
+    impl enouia_memory_contract::foundation::Cancellation for Cancelled {
+        fn is_cancelled(&self) -> bool {
+            true
+        }
+    }
+    let env = Env::new("cancel-early");
+    let file = env.base.join("conversations.json");
+    std::fs::write(&file, chatgpt_export(120)).unwrap();
+    let open = env.ws.open().unwrap();
+    let options = env.ws.import_options(&open, "acct-main").unwrap();
+    let report =
+        enouia_memory_import::import_file(&open.vault, &file, &options, &Cancelled).unwrap();
+    assert_eq!(
+        report.manifest.status,
+        enouia_memory_contract::import::ImportStatus::Archived
+    );
+    let id = OperationId::from_random([8; 16]);
+    let manifest = report.manifest.clone();
+    env.ws
+        .operations()
+        .spawn(id.clone(), "import", move |ticket| {
+            while !ticket.cancelled() {
+                std::thread::sleep(Duration::from_millis(2));
+            }
+            Ok(import_outcome(&manifest, ticket))
+        });
+    env.ok("operation_cancel", json!({"operationId": id}));
+    let done = env
+        .ws
+        .operations()
+        .wait(&id, Duration::from_secs(10))
+        .unwrap();
+    assert_eq!(done["state"], "cancelled", "{done}");
+    assert_eq!(done["result"]["resumable"], true);
+    let resumed = env.wait(&env.ok(
+        "import_resume",
+        json!({"importId": report.import_id, "accountAlias": "acct-main"}),
+    ));
+    assert_eq!(resumed["state"], "succeeded", "{resumed}");
+    assert_eq!(resumed["result"]["status"], "completed", "{resumed}");
+}

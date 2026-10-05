@@ -375,7 +375,7 @@ function Import() {
               <td>{m.counts.sources_created}</td>
               <td>{m.counts.attachments_missing}</td>
               <td>{m.warnings.join(", ")}</td>
-              <td>{m.status === "parsing" && <button type="button" disabled={action.busy} onClick={() => void action.run(async (key) => setOp((await call("import_resume", { importId: m.importId, accountAlias: m.accountScope ?? alias }, key)).operationId))}>继续</button>}</td>
+              <td>{(m.status === "parsing" || m.status === "archived") && <button type="button" disabled={action.busy} onClick={() => void action.run(async (key) => setOp((await call("import_resume", { importId: m.importId, accountAlias: m.accountScope ?? alias }, key)).operationId))}>继续</button>}</td>
             </tr>
           ))}
         </tbody>
