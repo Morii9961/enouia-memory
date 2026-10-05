@@ -1090,3 +1090,104 @@ fn poisoned_lifecycle_refuses_work_but_allows_observation_and_shutdown() {
         "none"
     );
 }
+
+#[test]
+fn a_cancel_request_does_not_hide_a_worker_failure() {
+    let env = Env::new("cancel-worker-error");
+    for code in [
+        MemoryErrorCode::StorageFailed,
+        MemoryErrorCode::PermissionDenied,
+        MemoryErrorCode::Busy,
+    ] {
+        let id = OperationId::from_random(env.ws.config.ids.random_16());
+        let (ready_tx, ready_rx) = std::sync::mpsc::channel();
+        let (release_tx, release_rx) = std::sync::mpsc::channel();
+        env.ws.operations().spawn(id.clone(), "test", move |_| {
+            ready_tx.send(()).unwrap();
+            release_rx.recv_timeout(Duration::from_secs(10)).unwrap();
+            Err(WorkspaceError::new(code, &["test.worker_failure"]))
+        });
+        ready_rx.recv_timeout(Duration::from_secs(5)).unwrap();
+        env.ok("operation_cancel", json!({"operationId": id}));
+        release_tx.send(()).unwrap();
+        let done = env
+            .ws
+            .operations()
+            .wait(&id, Duration::from_secs(5))
+            .unwrap();
+        assert_eq!(done["state"], "failed", "{done}");
+        assert_eq!(done["error"]["code"], json!(code));
+        assert_eq!(done["cancelRequested"], true);
+    }
+}
+
+#[test]
+fn cancelling_a_terminal_operation_does_not_change_its_outcome() {
+    let env = Env::new("cancel-terminal");
+    for kind in ["success", "failure", "cancelled"] {
+        let id = OperationId::from_random(env.ws.config.ids.random_16());
+        env.ws
+            .operations()
+            .spawn(id.clone(), "test", move |_| match kind {
+                "success" => Ok(json!({"saved": true})),
+                "cancelled" => Err(WorkspaceError::new(
+                    MemoryErrorCode::Cancelled,
+                    &["test.cancelled"],
+                )),
+                _ => Err(WorkspaceError::new(
+                    MemoryErrorCode::StorageFailed,
+                    &["test.worker_failure"],
+                )),
+            });
+        let done = env
+            .ws
+            .operations()
+            .wait(&id, Duration::from_secs(5))
+            .unwrap();
+        assert_eq!(done["cancelRequested"], false);
+        assert_eq!(env.ok("operation_cancel", json!({"operationId": id})), done);
+    }
+}
+
+#[test]
+fn a_worker_cancellation_is_reported_as_cancelled() {
+    let env = Env::new("worker-cancelled");
+    let id = OperationId::from_random(env.ws.config.ids.random_16());
+    env.ws.operations().spawn(id.clone(), "test", |_| {
+        Err(WorkspaceError::new(
+            MemoryErrorCode::Cancelled,
+            &["test.cancelled"],
+        ))
+    });
+    let done = env
+        .ws
+        .operations()
+        .wait(&id, Duration::from_secs(5))
+        .unwrap();
+    assert_eq!(done["state"], "cancelled", "{done}");
+    assert_eq!(done["error"]["code"], "cancelled");
+}
+
+#[test]
+fn completed_work_stays_successful_after_a_cancel_request() {
+    let env = Env::new("cancel-successful-work");
+    let id = OperationId::from_random(env.ws.config.ids.random_16());
+    let (ready_tx, ready_rx) = std::sync::mpsc::channel();
+    let (release_tx, release_rx) = std::sync::mpsc::channel();
+    env.ws.operations().spawn(id.clone(), "test", move |_| {
+        ready_tx.send(()).unwrap();
+        release_rx.recv_timeout(Duration::from_secs(10)).unwrap();
+        Ok(json!({"saved": true}))
+    });
+    ready_rx.recv_timeout(Duration::from_secs(5)).unwrap();
+    env.ok("operation_cancel", json!({"operationId": id}));
+    release_tx.send(()).unwrap();
+    let done = env
+        .ws
+        .operations()
+        .wait(&id, Duration::from_secs(5))
+        .unwrap();
+    assert_eq!(done["state"], "succeeded");
+    assert_eq!(done["result"]["saved"], true);
+    assert_eq!(done["cancelRequested"], true);
+}
