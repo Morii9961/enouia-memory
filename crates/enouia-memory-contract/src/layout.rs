@@ -100,6 +100,13 @@ pub fn lock_file() -> String {
     format!("{VAULT_DIR}/LOCK")
 }
 
+/// Held exclusively by an embedded workspace Core for as long as it has the
+/// Vault open (ADR-MEM-46), so two hosts never share one Vault's index. It
+/// sits with the disposable index, never with canonical records.
+pub fn host_lock_file() -> String {
+    "indexes/host.lock".to_owned()
+}
+
 pub fn publish_journal() -> String {
     format!("{VAULT_DIR}/journal/published.jsonl")
 }

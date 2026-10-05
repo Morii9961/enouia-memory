@@ -70,8 +70,27 @@ const CODES: Record<string, string> = {
   budget_exceeded: "超出上下文预算",
 };
 
+// Rules that say more than their code (ADR-MEM-46).
+const RULES: Record<string, string> = {
+  "workspace.vault_in_use": "这个 Vault 已在另一个应用中打开，请先在那里锁定或退出",
+  "root.inside_repository": "该文件夹位于 Git 工作区内，不能作为 Vault",
+  "root.cloud_sync_folder": "该文件夹位于同步盘（如 OneDrive）中，不能作为 Vault",
+  "root.not_local_fixed_disk": "该文件夹不在本机固定磁盘上",
+  "root.unsupported_filesystem": "该磁盘不是 NTFS 或 ReFS",
+  "root.system_location": "不能使用 Program Files 或 Windows 目录",
+  "root.reparse_point": "路径中有符号链接或连接点",
+  "root.not_canonical": "请使用文件夹的完整原始路径（不是短名称或映射盘）",
+  "root.network_path": "不能使用网络位置",
+  "root.insufficient_space": "磁盘剩余空间不足",
+  "root.missing": "文件夹不存在",
+  "root.not_a_directory": "所选项目不是文件夹",
+  "root.unreadable": "无法读取该文件夹的属性",
+};
+
 export function describe(error: unknown): string {
   if (error instanceof CallError) {
+    const specific = error.error.rules.map((r) => RULES[r]).find(Boolean);
+    if (specific) return specific;
     const text = CODES[error.error.code] ?? error.error.code;
     const rules = error.error.rules.length ? `（${error.error.rules.join(", ")}）` : "";
     return `${text}${rules}`;

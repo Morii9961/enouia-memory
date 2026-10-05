@@ -191,7 +191,9 @@ fn main() {
         .find(|w| w[0] == "--vault")
         .map(|w| PathBuf::from(&w[1]))
     {
-        // A rejected root leaves the workspace empty; the page shows why.
+        // A rejected root (or one open in another app) leaves the workspace
+        // empty; the owner then opens a Vault from the Vault page, which
+        // names the reason.
         let _ = ws.open_root(&root);
     }
     let letter = args

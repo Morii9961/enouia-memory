@@ -46,6 +46,7 @@ MV-1 update: rows whose "Later behavior" names MV-1 now have store evidence (com
 | Self-contained build; no Runtime/Activity dependency | – | `tests/boundaries.rs` | – | **MV-1** installed-artifact run (D03/D04 behavior) |
 | Embedded Core stays transport-neutral: workspace Core depends only on this repository; no domain crate depends on a window toolkit (ADR-MEM-45) | – | `crates/enouia-memory-contract/tests/boundaries.rs` `memory_workspace_depends_only_on_this_repository`, `no_domain_crate_depends_on_a_window_toolkit` | – | – |
 | Host caller scope: the native window identity selects a `HostSurface`; quick search reaches `memory_search` only; packet fields never widen it (ADR-MEM-45) | – | `HostSurface::allows`; `crates/enouia-memory-contract/tests/workspace.rs` `host_surfaces_scope_requests_by_native_identity_only` | – | reference shell `window_scope` tests (`apps/workspace/src-tauri/src/window_scope.rs`); the Runtime host must apply the same rule |
+| One embedded Core per Vault; root rejection reasons; confirm and import retries; contained operation panics (ADR-MEM-46) | – | workspace Core tests in `crates/enouia-memory-workspace/src/tests.rs` | – | real-app evidence on the Runtime host |
 | Runtime integration surface changes recorded and logged (ADR-MEM-45) | – | `crates/enouia-memory-contract/tests/runtime_surface.rs` | – | regenerated with `tools/integration/runtime_surface.py`; cannot prove that Runtime adopted a change |
 
 ## Rule coverage

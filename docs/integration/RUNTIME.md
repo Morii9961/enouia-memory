@@ -36,7 +36,7 @@ Every host (the reference shell, Runtime's adapter, a test harness) must:
 6. **Render safely.** Use a strict CSP (`default-src 'self'`, `connect-src ipc: http://ipc.localhost`, no remote resources) and no `fs`, `shell`, `http`, or dialog plugin. Render memory and source text as plain text nodes only (`source_excerpt.untrusted` is always true). Never log request or response bodies, and persist no copy of memory text.
 7. **Open roots explicitly.** Do not default, remember, or auto-open a Vault root. Creating a Vault needs the typed phrase `create new vault`, and the Core enforces it.
 8. **Keep Activity out.** Replace the Core's fixed Activity status row (`component: "activity"`, `state: "unavailable"`, `mode: "independent_not_managed"`) with the host's own Activity health. Never send Activity data through `call`.
-9. **Run one Core per Vault.** Do not run the reference shell and Runtime on the same Vault at once (see ADR-MEM-45).
+9. **One Core per Vault.** The Core enforces this (ADR-MEM-46): a second embedded Core gets `busy` / `workspace.vault_in_use`, which is not retryable. Tell the owner the Vault is open in another app.
 
 ## Routing a change to Runtime
 
@@ -67,15 +67,22 @@ Every host (the reference shell, Runtime's adapter, a test harness) must:
 
 ## Known Core behavior hosts should handle
 
-These were found while preparing the handoff. They are Memory-side follow-ups and are not changed by ADR-MEM-45.
+[ADR-MEM-46](../adr/README.md) fixed these items, which were found during the handoff:
 
-- `review_confirm` removes its plan even when the commit fails. A retryable `busy` answer therefore leads to `not_found` / `workspace.plan_unknown` on retry, and the owner must plan again.
-- `vault_create`, `import_start`, and `backup_export` consume their token before the work starts. `import_start` and `import_resume` ignore the idempotency key. After a lost response, a retry gets `workspace.token_unknown`; recover the running import through `operation_list`.
-- Every `verify_data_root` rejection collapses to `invalid_request` / `workspace.root_rejected`. A host can only list the common causes: inside a Git working tree, a sync folder, not NTFS/ReFS, or not a fixed disk.
-- The index is taken with `try_lock`. Two concurrent index users (search, ask, preview) get a retryable `index_not_ready` / `index.busy`.
-- `vault_verify` and `backup_export` cannot be cancelled, so a lock or exit waits for them.
-- A panicking operation stays `running` and can poison the index until the Vault is locked and unlocked.
-- There is no version handshake. The pinned revision and `schemaVersion: 1` are the only version facts. `workspace_status` reports no build version.
+- dropped confirm plans
+- consumed tokens on failure
+- unkeyed import retries
+- hidden root reasons
+- operations stuck as `running` after a panic
+- poisoned indexes
+- unguarded shared Vaults
+
+What remains:
+
+- **Keyless `vault_create` and `backup_export`.** Their requests carry no idempotency key, so a retry after a lost response that had succeeded gets `workspace.token_unknown`. Recover through `workspace_status` (`lastBackup`, the open Vault) or `operation_list`.
+- **Index contention.** The index is taken with `try_lock`. Two concurrent index users (search, ask, preview) get a retryable `index_not_ready` / `index.busy`.
+- **Uncancellable operations.** `vault_verify` and `backup_export` cannot be cancelled, so a lock or exit waits for them. Keep status and progress reads outside any host-side lifecycle gate.
+- **No version handshake.** The pinned revision and `schemaVersion: 1` are the only version facts. `workspace_status` reports no build version.
 
 ## Compatibility log
 
@@ -84,3 +91,4 @@ Each row records the surface aggregate printed by `tools/integration/runtime_sur
 | Date | Surface aggregate | Change | Runtime follow-up |
 |---|---|---|---|
 | 2026-10-04 | `a499b083913a4dc84b24eaccdb98fe4dd197cece6cac5589d2e1f1b9959aba3a` | Initial surface (ADR-MEM-45): workspace IPC v1 (36 commands), the Core API above, the build closure, the reference shell and frontend. Adds `HostSurface`, which the reference shell now uses for its window scope. | Runtime ADR-025: embed the Core at this revision in `apps/desktop`, map Runtime's main window to `HostSurface::Workspace`, port the reference client behavior, and record the pin in `docs/integration/memory-pin.json`. |
+| 2026-10-05 | `4e5d44297e52e63c65ee3a79926152a8b8aa6b99db93299462fe546ea8daa8c7` | ADR-MEM-46, additive for pages: root rejection reasons (`root.*`); picker tokens kept after failed commands; `review_confirm` keeps its plan on retryable failures; keyed `import_start`/`import_resume` replay (`workspace.key_reuse` on conflict); one embedded Core per Vault (`busy` / `workspace.vault_in_use`, not retryable; the lock follows open/close, a refused unlock stays locked, unlocking an open Vault answers its status); panicking operations end `failed` (`operation.panicked`); poisoned index reopened. The reference shell names the new rules. Envelope, commands and `Workspace` API unchanged. | Bump the pin. Show `workspace.vault_in_use` and the `root.*` reasons as owner-readable text, without a Retry for `vault_in_use`. The adapter's lifecycle gate stays valid; a Retry on a busy confirm now succeeds. |

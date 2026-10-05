@@ -27,7 +27,7 @@ These come from [design/DECISIONS_AND_SOURCES](../design/DECISIONS_AND_SOURCES.m
 | ADR-MEM-17 | Single primary; offline edits become candidates | Deferred (MV-10) |
 | ADR-MEM-18 | Adapters open only after measurement | Adopted |
 
-## ADR-MEM-19 … 45 — implementation decisions (MV-0 / MV-0R / MV-1 … MV-6, Runtime integration)
+## ADR-MEM-19 … 46 — implementation decisions (MV-0 / MV-0R / MV-1 … MV-6, Runtime integration)
 
 ADR-MEM-20 to 29 were first drafted with Enouia Runtime's register numbers 020–029 and never committed there. The draft is kept in [history](../history/adr-draft-runtime-numbering.md). Numbering here is this repository's own.
 
@@ -199,7 +199,7 @@ The Windows workspace is two layers: `enouia-memory-workspace` (the embedded Cor
 - **Real-app check.** `apps/workspace/e2e/smoke.mjs` drives the release binary over WebView2 remote debugging on loopback (enabled only by that test's environment) and fills the native dialog of that process only; see the [MV-6 report](../validation/MV-6.md).
 - **MV-6 follow-up.** A current-user NSIS installer owns app files, not user-selected Vaults. Explicit opt-in startup is shell-local, restricted to the main window and one fixed Run value; no Vault root is persisted or automatically opened. Background launch hides the window before creation. These device settings do not extend the Memory IPC contract or introduce Runtime/Activity dependencies. The separately built retry fixture and opt-in renderer crash drill exist only in synthetic debugging runs; no production fault command or permission is added. See the [follow-up evidence](../validation/MV-6-followup.md).
 
-### ADR-MEM-45 — Runtime hosts Memory's local client (Adopted, Runtime integration)
+### ADR-MEM-45 — Runtime hosts Memory's local client (Adopted, Runtime integration; one-Core rule enforced by ADR-MEM-46)
 
 Refines ADR-MEM-19 and amends the hosting part of ADR-MEM-44. The handoff, host duties, change routing, and compatibility log are in [integration/RUNTIME.md](../integration/RUNTIME.md).
 
@@ -209,10 +209,29 @@ Refines ADR-MEM-19 and amends the hosting part of ADR-MEM-44. The handoff, host 
 - **Reference shell.** `apps/workspace` stays here as the reference shell and acceptance harness: MV-6 evidence, installer tooling, and later MV-8.1 reconnect tests. It is not the product client. New product UI for the local part lands in Runtime first; changes to the reference shell or frontend are logged for Runtime like any other surface change.
 - **Integration surface.** `docs/integration/runtime-surface.json` records every file Runtime depends on (wire contract, Core crate, build closure, reference shell and frontend) with its digest. `crates/enouia-memory-contract/tests/runtime_surface.rs` fails until a change is regenerated with `tools/integration/runtime_surface.py` and its aggregate is logged in `integration/RUNTIME.md`. The test forces an acknowledgment in this repository; it cannot prove Runtime adopted the change.
 - **Trusted surface.** Runtime-hosted reviews are stamped `trusted_windows_app`. That holds only while the host keeps the W04 guarantees: strict CSP, no `fs`/`shell`/`http`/dialog plugins, plain-text rendering, no paths from the page, and no logs of request or response bodies.
-- **One Core per Vault.** The reference shell, Runtime, and the CLI can each open the same Vault. Commits serialize through the writer lock, but two embedded Cores also hold the index file. Run one embedded Core per Vault at a time until MV-8's Host owns the lock.
+- **One Core per Vault.** The reference shell, Runtime, and the CLI can each open the same Vault. Commits serialize through the writer lock, but two embedded Cores also hold the index file. Run one embedded Core per Vault at a time until MV-8's Host owns the lock; ADR-MEM-46 enforces this.
 - **Data root.** Hosts open only an explicitly chosen root (ADR-MEM-37, 44). The `%LOCALAPPDATA%\EnouiaMemory` default named in ADR-MEM-19 is not used. A remembered or default root in any host needs a Memory ADR.
 - **Cloud stays here.** MV-7 (real Provider), MV-8 (Host, MCP), MV-9 (gateway, queue), MV-10 (replicas), MV-11, `contracts/ipc/memory-v1.schema.json` (the agent surface), `contracts/provider/capabilities-v1.schema.json`, backup, and their code and ADRs remain in this repository. Runtime implements no Provider calls, MCP, gateway, or replica, and never carries Memory sync over its Activity delivery path.
 - **Activity.** Activity data never enters workspace IPC. A host replaces the Core's fixed Activity status row (`component: "activity"`, `mode: "independent_not_managed"`) with its own Activity health.
+
+### ADR-MEM-46 — Host-facing Core follow-ups (Adopted, Runtime integration)
+
+These were found while handing the local client to Runtime (ADR-MEM-45). They change how the workspace Core answers its hosts. The workspace IPC v1 envelope and commands are unchanged, and every change is additive for pages.
+
+- **Root reasons.** A rejected data root answers `invalid_request` with `workspace.root_rejected` plus one reason rule. The reasons are `root.inside_repository`, `root.cloud_sync_folder`, `root.not_local_fixed_disk`, `root.unsupported_filesystem`, `root.system_location`, `root.reparse_point`, `root.not_canonical`, `root.network_path`, `root.missing`, `root.not_a_directory`, `root.insufficient_space`, `root.unreadable` and `root.not_absolute`. The path is never returned.
+- **Tokens survive failures.** `vault_open`, `vault_create`, `import_start`, `backup_export` and `restore_preview` consume their picker token only when they succeed. A failed attempt can be retried with the same choice until the token expires.
+- **Confirm retries.** `review_confirm` keeps its plan after a retryable failure, for example `busy` while another writer holds the lock. The retry replays idempotently through the plan nonce's receipt, and a purge's file step is keyed. A non-retryable failure ends the plan, as before.
+- **Keyed operation starts.** `import_start` and `import_resume` honour their idempotency key within the process. The same key and request answer the operation already started. The same key with a different request gets `idempotency_conflict` / `workspace.key_reuse`. Keys reset when the Vault closes.
+- **One Core per Vault.**
+  - While a workspace Core has a Vault open, it holds `indexes/host.lock` exclusively. The lock file sits with the disposable index, never with canonical records.
+  - A second Core, meaning another host process, gets `busy` / `workspace.vault_in_use`. It is not retryable, because another app holds the Vault.
+  - The lock belongs to the open/close lifecycle, not to in-flight handles. `close` detaches the Vault before it cancels and joins operations, so no command can start work on a closing Vault. It then unlocks explicitly. The OS releases the lock if the process ends.
+  - A refused unlock leaves the Vault locked, so it can be retried once the other app lets go. Unlocking a Vault that is already open answers its status.
+  - The CLI commits through the per-commit writer lock and does not keep the index open, so it is unaffected.
+  - MV-8's Host will replace this with its own exclusive lock.
+- **Contained failures.** A panicking operation ends `failed` with `storage_failed` / `operation.panicked` (not retryable), even after a cancel request, instead of staying `running`. A poisoned index is dropped and reopened from the Vault, since the index is disposable.
+
+Evidence: the workspace Core tests `rejected_roots_name_their_reason_and_keep_the_token`, `a_busy_confirm_keeps_its_plan_for_the_retry`, `an_import_retry_answers_the_started_operation`, `a_second_core_cannot_open_an_open_vault`, `a_held_handle_does_not_block_this_cores_reopen`, `unlock_of_an_open_vault_answers_at_once`, `a_panicking_operation_ends_failed` and `a_panic_after_cancel_still_ends_failed`. The reference shell names `workspace.vault_in_use` and the `root.*` reasons in owner-readable text.
 
 ## Relation to Enouia Runtime's register
 

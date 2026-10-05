@@ -152,7 +152,7 @@ SQLite 保持本地；不把运行中的 DB/WAL 放同步盘。SQLite 官方说�
 | 阶段 | 拓扑 | UI 关闭后 |
 |---|---|---|
 | MV-1～MV-5 | 库 + 最小本地控制入口 | 没有承诺常驻采集；已有数据安全保留 |
-| MV-6～MV-7 | Runtime 客户端嵌入固定修订的 Core（`enouia-memory-workspace`），复用同一库；参考外壳 `apps/workspace` 也嵌入 Core，但不与 Runtime 同时打开同一 Vault | Core 可退出；Activity 仍按自己的进程约定运行 |
+| MV-6～MV-7 | Runtime 客户端嵌入固定修订的 Core（`enouia-memory-workspace`），复用同一库；参考外壳 `apps/workspace` 也嵌入 Core；同一 Vault 同时只允许一个嵌入式 Core（`indexes/host.lock`，ADR-MEM-46） | Core 可退出；Activity 仍按自己的进程约定运行 |
 | MV-8 | 单一用户级 Memory Host + UI/CLI/MCP 适配器；Runtime UI 改为 Host 客户端，workspace IPC v1 信封不变，只换宿主传输 | Host 可独立运行；主机锁与生命周期已验证 |
 | MV-9～MV-10 | 本地主机主动连 Gateway；可选设备/服务副本 | VPS 排队；读能力取决于明确授权的副本模式 |
 

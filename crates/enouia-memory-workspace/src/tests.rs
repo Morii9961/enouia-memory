@@ -89,6 +89,21 @@ impl Env {
         response
     }
 
+    /// Send with an explicit idempotency key, as a page retry does.
+    fn send_keyed(&self, command: &str, arguments: Value, key: &str) -> Value {
+        self.tick();
+        let n = self.n.fetch_add(1, Ordering::SeqCst);
+        let request = json!({
+            "schemaVersion": 1,
+            "requestId": format!("req_00000000-0000-4000-8000-{n:012x}"),
+            "command": command, "idempotencyKey": key, "arguments": arguments,
+        });
+        let response = self.ws.call(&request);
+        validate_response(command, &response)
+            .unwrap_or_else(|e| panic!("{command}: {e}: {response}"));
+        response
+    }
+
     fn ok(&self, command: &str, arguments: Value) -> Value {
         let response = self.send(command, arguments);
         assert_eq!(response["error"], Value::Null, "{command}: {response}");
@@ -545,4 +560,190 @@ fn forget_and_purge_go_through_a_plan() {
     assert_eq!(missing["code"], "not_found");
     let verified = env.wait(&env.ok("vault_verify", json!({})));
     assert_eq!(verified["result"]["clean"], true, "{verified}");
+}
+
+/// ADR-MEM-46: a rejected root names its reason, and a failed command does
+/// not consume the picker token, so the same choice can be retried.
+#[test]
+fn rejected_roots_name_their_reason_and_keep_the_token() {
+    let env = Env::new("root-reason");
+    std::fs::create_dir_all(env.base.join("repo/.git")).unwrap();
+    std::fs::create_dir_all(env.base.join("repo/vault")).unwrap();
+    let token = env.pick(PickKind::VaultRoot, "repo/vault");
+    for _ in 0..2 {
+        let error = env.err("vault_open", json!({"rootToken": token}));
+        assert_eq!(error["code"], "invalid_request");
+        assert_eq!(
+            error["rules"],
+            json!(["workspace.root_rejected", "root.inside_repository"])
+        );
+    }
+}
+
+/// ADR-MEM-46: a retryable confirm failure keeps the plan; the same confirm
+/// then succeeds.
+#[test]
+fn a_busy_confirm_keeps_its_plan_for_the_retry() {
+    let env = Env::new("confirm-busy");
+    let proposed = env.ok(
+        "remember",
+        json!({"text": "Synthetic retry fact.", "claimKey": "test.retry"}),
+    );
+    let plan = env.ok(
+        "review_plan",
+        json!({"decisions": [{"candidateId": proposed["candidateId"], "revision": proposed["revision"], "action": "accept", "editedContent": null, "mergeTarget": null}]}),
+    );
+    let confirm = json!({"planId": plan["planId"], "diffHash": plan["diffHash"]});
+    // Another writer holds the Vault lock: the confirm waits, then is busy.
+    let writer = std::fs::OpenOptions::new()
+        .read(true)
+        .write(true)
+        .open(env.base.join("vault/vault/LOCK"))
+        .unwrap();
+    writer.try_lock().unwrap();
+    let response = env.send_keyed("review_confirm", confirm.clone(), "retry-key-0000000001");
+    assert_eq!(response["error"]["code"], "busy", "{response}");
+    assert_eq!(response["error"]["retryable"], true);
+    drop(writer);
+    let response = env.send_keyed("review_confirm", confirm.clone(), "retry-key-0000000001");
+    assert_eq!(response["error"], Value::Null, "{response}");
+    assert!(response["result"]["commitId"].is_string());
+    let list = env.ok(
+        "memory_list",
+        json!({"includeInactive": false, "cursor": null, "limit": null}),
+    );
+    assert_eq!(list["total"], 1);
+}
+
+/// ADR-MEM-46: an import retried with the same key answers the operation
+/// already started; the same key with another request is a conflict.
+#[test]
+fn an_import_retry_answers_the_started_operation() {
+    let env = Env::new("import-key");
+    std::fs::write(
+        env.base.join("notes.md"),
+        "# Synthetic
+
+One synthetic note.
+",
+    )
+    .unwrap();
+    let token = env.pick(PickKind::ImportFile, "notes.md");
+    let args = json!({"importToken": token, "accountAlias": "acct-main"});
+    let first = env.send_keyed("import_start", args.clone(), "import-key-000000001");
+    let retry = env.send_keyed("import_start", args, "import-key-000000001");
+    assert_eq!(first["operationId"], retry["operationId"], "{retry}");
+    assert!(first["operationId"].is_string());
+    let other = env.send_keyed(
+        "import_start",
+        json!({"importToken": token, "accountAlias": "acct-other"}),
+        "import-key-000000001",
+    );
+    assert_eq!(other["error"]["code"], "idempotency_conflict", "{other}");
+    let done = env.wait(&first["result"]);
+    assert_eq!(done["state"], "succeeded", "{done}");
+    // A new submission (new key) cannot reuse the consumed token.
+    let again = env.send_keyed(
+        "import_start",
+        json!({"importToken": token, "accountAlias": "acct-main"}),
+        "import-key-000000002",
+    );
+    assert_eq!(again["error"]["rules"][0], "workspace.token_unknown");
+}
+
+/// ADR-MEM-46: one embedded Core per Vault. A second Core is refused while
+/// the first has the Vault open, and admitted once it locks.
+#[test]
+fn a_second_core_cannot_open_an_open_vault() {
+    let env = Env::new("host-lock");
+    let other = Workspace::new(Config {
+        clock: env.clock.clone(),
+        ids: Arc::new(SequentialIdSource::new(0xc000)),
+    });
+    let root = env.base.join("vault");
+    let refused = other.open_root(&root).unwrap_err();
+    assert_eq!(refused.code, MemoryErrorCode::Busy);
+    assert_eq!(refused.rules, ["workspace.vault_in_use"]);
+    env.ok("vault_lock", json!({}));
+    other.open_root(&root).unwrap();
+    let unlock = env.err("vault_unlock", json!({}));
+    assert_eq!(unlock["rules"][0], "workspace.vault_in_use");
+    let status = env.ok("workspace_status", json!({}));
+    assert_eq!(
+        status["vault"]["state"], "locked",
+        "a refused unlock stays locked"
+    );
+    other.shutdown();
+    let status = env.ok("vault_unlock", json!({}));
+    assert_eq!(status["vault"]["state"], "open");
+}
+
+/// ADR-MEM-46: a panicking operation ends `failed`, never `running`.
+#[test]
+fn a_panicking_operation_ends_failed() {
+    let env = Env::new("panic");
+    let id = OperationId::from_random([5; 16]);
+    env.ws
+        .operations()
+        .spawn(id.clone(), "test_panic", |_| panic!("synthetic panic"));
+    let done = env
+        .ws
+        .operations()
+        .wait(&id, Duration::from_secs(10))
+        .unwrap();
+    assert_eq!(done["state"], "failed", "{done}");
+    assert_eq!(done["error"]["rules"], json!(["operation.panicked"]));
+    assert_eq!(done["error"]["retryable"], false);
+}
+
+/// ADR-MEM-46: unlocking an open Vault answers its status (it once hung on
+/// the slot mutex).
+#[test]
+fn unlock_of_an_open_vault_answers_at_once() {
+    let env = Env::new("unlock-open");
+    let status = env.ok("vault_unlock", json!({}));
+    assert_eq!(status["vault"]["state"], "open");
+}
+
+/// ADR-MEM-46: a panic after a cancel request is still a failure.
+#[test]
+fn a_panic_after_cancel_still_ends_failed() {
+    let env = Env::new("panic-cancel");
+    let id = OperationId::from_random([6; 16]);
+    env.ws
+        .operations()
+        .spawn(id.clone(), "test_panic", |ticket| {
+            while !ticket.cancelled() {
+                std::thread::sleep(Duration::from_millis(2));
+            }
+            panic!("synthetic panic after cancel")
+        });
+    env.ok("operation_cancel", json!({"operationId": id}));
+    let done = env
+        .ws
+        .operations()
+        .wait(&id, Duration::from_secs(10))
+        .unwrap();
+    assert_eq!(done["state"], "failed", "{done}");
+}
+
+/// ADR-MEM-46: the host lock belongs to the open/close lifecycle. A handle
+/// to the closed Vault still held in this process (an in-flight read) does
+/// not make this Core's own unlock or reopen report `vault_in_use`, and the
+/// refusal for another process is not a blind retry.
+#[test]
+fn a_held_handle_does_not_block_this_cores_reopen() {
+    let env = Env::new("host-lifecycle");
+    let held = env.ws.open().unwrap();
+    env.ok("vault_lock", json!({}));
+    let status = env.ok("vault_unlock", json!({}));
+    assert_eq!(status["vault"]["state"], "open");
+    drop(held);
+    let other = Workspace::new(Config {
+        clock: env.clock.clone(),
+        ids: Arc::new(SequentialIdSource::new(0xd000)),
+    });
+    let refused = other.open_root(&env.base.join("vault")).unwrap_err();
+    assert_eq!(refused.rules, ["workspace.vault_in_use"]);
+    assert!(!refused.retryable);
 }

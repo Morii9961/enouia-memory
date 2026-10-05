@@ -86,7 +86,7 @@
     {
       "path": "apps/workspace/src-tauri/src/main.rs",
       "role": "reference-shell",
-      "sha256": "f66f99abd6d73c0a8d8004e3bd4ba3e5e20f2467174a5c69c3d761435ab88358"
+      "sha256": "7d2d336145870188505d92cb9db88e6c83e23533b65e1096fad6d6ba968385eb"
     },
     {
       "path": "apps/workspace/src-tauri/src/startup.rs",
@@ -116,7 +116,7 @@
     {
       "path": "apps/workspace/src/api.ts",
       "role": "reference-ui",
-      "sha256": "19effed700b260dce4ec61d53b3e78c1d89b89b08d1dfef9435ea702fdf7cbcb"
+      "sha256": "0cd12b6ee75b1c4fb3ed877c871df2c92ca23c7105122287ac25b13c90b752fc"
     },
     {
       "path": "apps/workspace/src/env.d.ts",
@@ -191,17 +191,17 @@
     {
       "path": "crates/enouia-memory-workspace/src/lib.rs",
       "role": "core",
-      "sha256": "401a55d354696631f8a7a72ada11464e2026f170211295e2262faa29bcf06f04"
+      "sha256": "80fb9be9920c465e7ffadeb5e4cd61f59fe4c5adc501c7b3d50ecb2cc2c85128"
     },
     {
       "path": "crates/enouia-memory-workspace/src/ops.rs",
       "role": "core",
-      "sha256": "7cda322c305d7aecb01ba6808173bd994ec562c01e423a22a796bbb76a5b618f"
+      "sha256": "318901a81f6284befdf4c3332cb649fcad20a050bab7b0822f933e23b9b006ab"
     },
     {
       "path": "crates/enouia-memory-workspace/src/tests.rs",
       "role": "core",
-      "sha256": "d8cc8109386daf744ae1f2d57d42490f7e25b8d33209562b8a6fc0eb48fb6c1f"
+      "sha256": "7a70ed6cc6b24d1ecc66fd065cc93d284c64a755053846bc86b1b71035c9784e"
     },
     {
       "path": "crates/enouia-memory-workspace/src/views.rs",
@@ -219,5 +219,5 @@
       "sha256": "3f8c12e10ff3c267a13750801ec6378016287275c799978d6df8ff720b0cce93"
     }
   ],
-  "aggregate": "a499b083913a4dc84b24eaccdb98fe4dd197cece6cac5589d2e1f1b9959aba3a"
+  "aggregate": "4e5d44297e52e63c65ee3a79926152a8b8aa6b99db93299462fe546ea8daa8c7"
 }

@@ -2,6 +2,7 @@
 //! ID. Progress is a count (commits applied, batches committed); it is never
 //! evidence of completion. Only `succeeded` is.
 
+use enouia_memory_contract::error::MemoryErrorCode;
 use enouia_memory_contract::ids::OperationId;
 use enouia_memory_contract::ipc::OperationState;
 use enouia_memory_contract::workspace::WorkspaceError;
@@ -77,15 +78,28 @@ impl Operations {
         let ticket = Ticket(op.clone());
         let handle = std::thread::spawn(move || {
             op.outcome.lock().expect("outcome").0 = OperationState::Running;
-            let result = work(&ticket);
-            let mut outcome = op.outcome.lock().expect("outcome");
+            // A panic is a defect, but it must end as `failed`, never stay
+            // `running` forever (ADR-MEM-46).
+            let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| work(&ticket)));
+            let mut outcome = op.outcome.lock().unwrap_or_else(|e| e.into_inner());
             *outcome = match result {
-                Ok(value) if value.get("cancelled") == Some(&json!(true)) => {
+                // Even after a cancel request: a panic is a failure.
+                Err(_) => {
+                    let mut error = WorkspaceError::new(
+                        MemoryErrorCode::StorageFailed,
+                        &["operation.panicked"],
+                    );
+                    error.retryable = false;
+                    (OperationState::Failed, Some(error), None)
+                }
+                Ok(Ok(value)) if value.get("cancelled") == Some(&json!(true)) => {
                     (OperationState::Cancelled, None, Some(value))
                 }
-                Ok(value) => (OperationState::Succeeded, None, Some(value)),
-                Err(error) if ticket.cancelled() => (OperationState::Cancelled, Some(error), None),
-                Err(error) => (OperationState::Failed, Some(error), None),
+                Ok(Ok(value)) => (OperationState::Succeeded, None, Some(value)),
+                Ok(Err(error)) if ticket.cancelled() => {
+                    (OperationState::Cancelled, Some(error), None)
+                }
+                Ok(Err(error)) => (OperationState::Failed, Some(error), None),
             };
         });
         let mut threads = self.threads.lock().expect("threads");

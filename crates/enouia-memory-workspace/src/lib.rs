@@ -55,7 +55,8 @@ use enouia_memory_vault::error::Fault;
 use enouia_memory_vault::health::HealthState;
 use enouia_memory_vault::service::{ManualAssertionInput, new_genesis};
 use enouia_memory_vault::{
-    OsIdSource, RootPolicy, SystemClock, Vault, VaultError, VaultOptions, verify_data_root,
+    OsIdSource, RootPolicy, RootRejection, SystemClock, Vault, VaultError, VaultOptions,
+    verify_data_root,
 };
 use ops::{Operations, Ticket};
 use serde_json::{Map, Value, json};
@@ -118,6 +119,50 @@ impl From<ContractError> for Fail {
     fn from(error: ContractError) -> Self {
         Self(WorkspaceError::from_contract(&error))
     }
+}
+
+/// One embedded Core per Vault (ADR-MEM-46): hold `indexes/host.lock`
+/// exclusively while the Vault is open. The OS releases it when the handle
+/// drops or the process ends, so a crash never leaves it held.
+fn host_lock(vault: &Vault) -> R<std::fs::File> {
+    let file = vault
+        .managed_root()
+        .open_lock_file(&enouia_memory_contract::layout::host_lock_file())?;
+    match file.try_lock() {
+        Ok(()) => Ok(file),
+        Err(std::fs::TryLockError::WouldBlock) => {
+            // Another process has this Vault open; retrying now cannot help.
+            let mut error = WorkspaceError::new(MemoryErrorCode::Busy, &["workspace.vault_in_use"]);
+            error.retryable = false;
+            Err(Fail(error))
+        }
+        Err(std::fs::TryLockError::Error(_)) => {
+            Err(fail(MemoryErrorCode::StorageFailed, "workspace.host_lock"))
+        }
+    }
+}
+
+/// A rejected data root names its reason as a rule, never the path.
+fn root_rejected(reason: RootRejection) -> Fail {
+    let rule = match reason {
+        RootRejection::NotAbsolute => "root.not_absolute",
+        RootRejection::NetworkPath => "root.network_path",
+        RootRejection::Missing => "root.missing",
+        RootRejection::NotADirectory => "root.not_a_directory",
+        RootRejection::NotCanonical => "root.not_canonical",
+        RootRejection::ReparsePoint => "root.reparse_point",
+        RootRejection::NotLocalFixedDisk => "root.not_local_fixed_disk",
+        RootRejection::UnsupportedFilesystem => "root.unsupported_filesystem",
+        RootRejection::CloudSyncFolder => "root.cloud_sync_folder",
+        RootRejection::InsideRepository => "root.inside_repository",
+        RootRejection::SystemLocation => "root.system_location",
+        RootRejection::InsufficientSpace => "root.insufficient_space",
+        RootRejection::Unreadable => "root.unreadable",
+    };
+    Fail(WorkspaceError::new(
+        MemoryErrorCode::InvalidRequest,
+        &["workspace.root_rejected", rule],
+    ))
 }
 
 fn fail(code: MemoryErrorCode, rule: &str) -> Fail {
@@ -189,6 +234,12 @@ pub struct Workspace {
     plans: Mutex<BTreeMap<String, PendingPlan>>,
     /// Results of confirmed plans, so a retried confirm answers the same.
     confirmed: Mutex<BTreeMap<String, Value>>,
+    /// Started imports by idempotency key: (request fingerprint, operation).
+    started: Mutex<BTreeMap<String, (String, OperationId)>>,
+    /// The exclusive host lock of the open Vault (ADR-MEM-46). It belongs to
+    /// the open/close lifecycle, not to `Open`'s reference count, so a read
+    /// still in flight cannot keep it held after close.
+    host: Mutex<Option<std::fs::File>>,
     /// The last backup export of this process (the Vault does not record it).
     last_backup: Mutex<Option<OperationId>>,
     /// Companion status reported by the shell (tray, hotkey, overlay).
@@ -316,6 +367,8 @@ impl Workspace {
             picks: Mutex::new(BTreeMap::new()),
             plans: Mutex::new(BTreeMap::new()),
             confirmed: Mutex::new(BTreeMap::new()),
+            started: Mutex::new(BTreeMap::new()),
+            host: Mutex::new(None),
             last_backup: Mutex::new(None),
             companion: Mutex::new(
                 json!({"tray": "absent", "hotkey": {"state": "absent"}, "overlay": "absent"}),
@@ -372,6 +425,9 @@ impl Workspace {
         })
     }
 
+    /// The path behind a picker token. The token stays valid until the
+    /// command that uses it succeeds (`consume_pick`), so a transient failure
+    /// can be retried with the same choice (ADR-MEM-46).
     fn take_pick(&self, token: &str, kind: PickKind, consume: bool) -> R<PathBuf> {
         let mut picks = self.picks.lock().expect("picks");
         let now = self.now_ms();
@@ -392,6 +448,10 @@ impl Workspace {
         Ok(path)
     }
 
+    fn consume_pick(&self, token: &str) {
+        self.picks.lock().expect("picks").remove(token);
+    }
+
     /// Open a Vault at an explicit root for the shell's `--vault` argument.
     pub fn open_root(&self, root: &Path) -> Result<(), WorkspaceError> {
         self.open_at(root).map_err(|f| f.0)
@@ -399,8 +459,7 @@ impl Workspace {
 
     fn open_at(&self, root: &Path) -> R<()> {
         self.close(None);
-        let verified = verify_data_root(root, &RootPolicy::default())
-            .map_err(|_| fail(MemoryErrorCode::InvalidRequest, "workspace.root_rejected"))?;
+        let verified = verify_data_root(root, &RootPolicy::default()).map_err(root_rejected)?;
         let vault = Vault::open(
             &verified,
             None,
@@ -408,7 +467,9 @@ impl Workspace {
             self.config.ids.clone(),
             VaultOptions::default(),
         )?;
+        let host = host_lock(&vault)?;
         let owner = vault.descriptor().created_by.clone();
+        *self.host.lock().expect("host") = Some(host);
         *self.slot.lock().expect("slot") = Slot::Open(Arc::new(Open {
             vault: Arc::new(vault),
             index: Arc::new(Mutex::new(None)),
@@ -420,8 +481,7 @@ impl Workspace {
 
     fn create_at(&self, root: &Path) -> R<()> {
         self.close(None);
-        let verified = verify_data_root(root, &RootPolicy::default())
-            .map_err(|_| fail(MemoryErrorCode::InvalidRequest, "workspace.root_rejected"))?;
+        let verified = verify_data_root(root, &RootPolicy::default()).map_err(root_rejected)?;
         let owner = ActorRef {
             actor_id: PrincipalId::from_random(self.config.ids.random_16()),
             actor_type: ActorType::Owner,
@@ -446,9 +506,15 @@ impl Workspace {
     /// Cancel and join every operation, drop review plans and the Vault and
     /// index handles. `then` is the slot left behind (`Locked` or `Empty`).
     fn close(&self, then: Option<Slot>) {
+        // Detach the Vault first, so no new command can start work on it
+        // while running operations are cancelled and joined.
+        *self.slot.lock().expect("slot") = then.unwrap_or(Slot::Empty);
         self.ops.cancel_all_and_join();
         self.plans.lock().expect("plans").clear();
-        *self.slot.lock().expect("slot") = then.unwrap_or(Slot::Empty);
+        self.started.lock().expect("started").clear();
+        if let Some(host) = self.host.lock().expect("host").take() {
+            let _ = host.unlock();
+        }
     }
 
     /// Exit path for the shell: stop accepting work, cancel and join
@@ -473,8 +539,13 @@ impl Workspace {
             Err(TryLockError::WouldBlock) => {
                 return Err(fail(MemoryErrorCode::IndexNotReady, "index.busy"));
             }
-            Err(TryLockError::Poisoned(_)) => {
-                return Err(fail(MemoryErrorCode::IndexNotReady, "index.poisoned"));
+            Err(TryLockError::Poisoned(poisoned)) => {
+                // A panic while the index was held leaves it in an unknown
+                // state. The index is disposable: reopen it from the Vault.
+                let mut guard = poisoned.into_inner();
+                *guard = None;
+                open.index.clear_poison();
+                guard
             }
         };
         if guard.is_none() {
@@ -521,13 +592,15 @@ impl Workspace {
         Ok(match command {
             Command::WorkspaceStatus(_) => Done::of(self.status()),
             Command::VaultOpen(a) => {
-                let root = self.take_pick(&a.root_token, PickKind::VaultRoot, true)?;
+                let root = self.take_pick(&a.root_token, PickKind::VaultRoot, false)?;
                 self.open_at(&root)?;
+                self.consume_pick(&a.root_token);
                 Done::of(self.status())
             }
             Command::VaultCreate(a) => {
-                let root = self.take_pick(&a.root_token, PickKind::VaultRoot, true)?;
+                let root = self.take_pick(&a.root_token, PickKind::VaultRoot, false)?;
                 self.create_at(&root)?;
+                self.consume_pick(&a.root_token);
                 Done::of(self.status())
             }
             Command::VaultLock(_) => {
@@ -536,14 +609,23 @@ impl Workspace {
                 Done::of(self.status())
             }
             Command::VaultUnlock(_) => {
-                let root = match &*self.slot.lock().expect("slot") {
-                    Slot::Locked(root) => root.clone(),
-                    Slot::Open(_) => return Ok(Done::of(self.status())),
+                let locked = match &*self.slot.lock().expect("slot") {
+                    Slot::Locked(root) => Some(root.clone()),
+                    Slot::Open(_) => None,
                     Slot::Empty => {
                         return Err(fail(MemoryErrorCode::VaultLocked, "workspace.no_vault"));
                     }
                 };
-                self.open_at(&root)?;
+                // Already open: answer the status (outside the slot guard).
+                let Some(root) = locked else {
+                    return Ok(Done::of(self.status()));
+                };
+                // A refused unlock (for example `workspace.vault_in_use`)
+                // leaves the Vault locked, so Unlock can be retried.
+                if let Err(error) = self.open_at(&root) {
+                    *self.slot.lock().expect("slot") = Slot::Locked(root);
+                    return Err(error);
+                }
                 Done::of(self.status())
             }
             Command::MemoryList(a) => Done::of(self.memory_list(a)?),
@@ -563,7 +645,7 @@ impl Workspace {
             Command::CorrectionPropose(a) => Done::of(self.correction(a, key)?),
             Command::ImportPreview(a) => Done::of(self.import_preview(&a.import_token)?),
             Command::ImportStart(a) => self.import_start(a, key)?,
-            Command::ImportResume(a) => self.import_resume(a)?,
+            Command::ImportResume(a) => self.import_resume(a, key)?,
             Command::ImportList(_) => Done::of(self.import_list()?),
             Command::SessionList(_) => Done::of(self.session_list()?),
             Command::SessionDetail(a) => Done::of(self.session_detail(a)?),
@@ -922,9 +1004,28 @@ impl Workspace {
             owner: open.owner.clone(),
             surface: SURFACE,
         };
-        let outcome = confirm(&open.vault, &pending.plan, &confirmation);
-        self.plans.lock().expect("plans").remove(plan_id);
-        outcome?;
+        let finished = self.finish_confirm(&open, &pending, &confirmation);
+        // A retryable failure keeps the plan, so the same confirm (same key,
+        // same diff) can be retried; the commit and the file purge are both
+        // idempotent. Any other outcome ends the plan (ADR-MEM-46).
+        if !matches!(&finished, Err(Fail(error)) if error.retryable) {
+            self.plans.lock().expect("plans").remove(plan_id);
+        }
+        let result = finished?;
+        self.confirmed
+            .lock()
+            .expect("confirmed")
+            .insert(plan_id.to_owned(), result.clone());
+        Ok(result)
+    }
+
+    fn finish_confirm(
+        &self,
+        open: &Open,
+        pending: &PendingPlan,
+        confirmation: &OwnerConfirmation,
+    ) -> R<Value> {
+        confirm(&open.vault, &pending.plan, confirmation)?;
         let ids = &pending.plan.ids;
         let mut result = json!({
             "commitId": pending.plan.commit_id,
@@ -947,10 +1048,6 @@ impl Workspace {
                 "overallState": "backup_purge_pending",
             });
         }
-        self.confirmed
-            .lock()
-            .expect("confirmed")
-            .insert(plan_id.to_owned(), result.clone());
         Ok(result)
     }
 
@@ -1202,24 +1299,65 @@ impl Workspace {
         ))
     }
 
-    fn import_start(&self, a: &wire::ImportStartArgs, _key: &str) -> R<Done> {
-        let open = self.open()?;
-        let path = self.take_pick(&a.import_token, PickKind::ImportFile, true)?;
-        let options = self.import_options(&open, &a.account_alias)?;
-        Ok(self.spawn("import", move |ticket| {
-            let report = enouia_memory_import::import_file(&open.vault, &path, &options, ticket)?;
-            Ok(import_outcome(&report.manifest, ticket))
-        }))
+    /// Start an operation once per idempotency key (ADR-MEM-46): a retry with
+    /// the same key and request answers the operation already started; the
+    /// same key with a different request is a conflict.
+    fn start_once(
+        &self,
+        kind: &'static str,
+        key: &str,
+        fingerprint: String,
+        start: impl FnOnce() -> R<Done>,
+    ) -> R<Done> {
+        let mut started = self.started.lock().expect("started");
+        let scope = format!("{kind}\n{key}");
+        if let Some((seen, id)) = started.get(&scope) {
+            if *seen != fingerprint {
+                return Err(fail(
+                    MemoryErrorCode::IdempotencyConflict,
+                    "workspace.key_reuse",
+                ));
+            }
+            return Ok(Done {
+                result: json!({"operationId": id, "kind": kind}),
+                operation_id: Some(id.clone()),
+            });
+        }
+        let done = start()?;
+        if let Some(id) = &done.operation_id {
+            started.insert(scope, (fingerprint, id.clone()));
+        }
+        Ok(done)
     }
 
-    fn import_resume(&self, a: &wire::ImportResumeArgs) -> R<Done> {
-        let open = self.open()?;
-        let options = self.import_options(&open, &a.account_alias)?;
-        let id = a.import_id.clone();
-        Ok(self.spawn("import_resume", move |ticket| {
-            let report = enouia_memory_import::resume_import(&open.vault, &id, &options, ticket)?;
-            Ok(import_outcome(&report.manifest, ticket))
-        }))
+    fn import_start(&self, a: &wire::ImportStartArgs, key: &str) -> R<Done> {
+        let fingerprint = format!("{}\n{}", a.import_token, a.account_alias);
+        self.start_once("import", key, fingerprint, || {
+            let open = self.open()?;
+            let path = self.take_pick(&a.import_token, PickKind::ImportFile, false)?;
+            let options = self.import_options(&open, &a.account_alias)?;
+            let done = self.spawn("import", move |ticket| {
+                let report =
+                    enouia_memory_import::import_file(&open.vault, &path, &options, ticket)?;
+                Ok(import_outcome(&report.manifest, ticket))
+            });
+            self.consume_pick(&a.import_token);
+            Ok(done)
+        })
+    }
+
+    fn import_resume(&self, a: &wire::ImportResumeArgs, key: &str) -> R<Done> {
+        let fingerprint = format!("{}\n{}", a.import_id, a.account_alias);
+        self.start_once("import_resume", key, fingerprint, || {
+            let open = self.open()?;
+            let options = self.import_options(&open, &a.account_alias)?;
+            let id = a.import_id.clone();
+            Ok(self.spawn("import_resume", move |ticket| {
+                let report =
+                    enouia_memory_import::resume_import(&open.vault, &id, &options, ticket)?;
+                Ok(import_outcome(&report.manifest, ticket))
+            }))
+        })
     }
 
     fn import_list(&self) -> R<Value> {
@@ -1502,10 +1640,10 @@ impl Workspace {
     fn index_rebuild(&self) -> R<Done> {
         let open = self.open()?;
         Ok(self.spawn("index_rebuild", move |ticket| {
-            let mut guard = open
-                .index
-                .lock()
-                .map_err(|_| fail(MemoryErrorCode::IndexNotReady, "index.poisoned"))?;
+            let mut guard = open.index.lock().unwrap_or_else(|poisoned| {
+                open.index.clear_poison();
+                poisoned.into_inner()
+            });
             *guard = None;
             ticket.set_total(open.vault.pin_current().ok().map(|p| p.sequence));
             let cancel = || {
@@ -1542,9 +1680,9 @@ impl Workspace {
 
     fn backup_export(&self, token: &str) -> R<Done> {
         let open = self.open()?;
-        let destination = self.take_pick(token, PickKind::BackupDestination, true)?;
-        let verified = verify_data_root(&destination, &RootPolicy::default())
-            .map_err(|_| fail(MemoryErrorCode::InvalidRequest, "workspace.root_rejected"))?;
+        let destination = self.take_pick(token, PickKind::BackupDestination, false)?;
+        let verified =
+            verify_data_root(&destination, &RootPolicy::default()).map_err(root_rejected)?;
         let name = base_name(&destination);
         let done = self.spawn("backup_export", move |_| {
             let pin = open.vault.pin_current()?;
@@ -1554,13 +1692,15 @@ impl Workspace {
                 "files": export.files.len(), "destinationName": name,
             }))
         });
+        self.consume_pick(token);
         *self.last_backup.lock().expect("backup") = done.operation_id.clone();
         Ok(done)
     }
 
     fn restore_preview(&self, token: &str) -> R<Value> {
-        let path = self.take_pick(token, PickKind::ExportFolder, true)?;
+        let path = self.take_pick(token, PickKind::ExportFolder, false)?;
         let export = verify_export(&path)?;
+        self.consume_pick(token);
         let same = self
             .open()
             .ok()
