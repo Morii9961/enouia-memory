@@ -232,15 +232,15 @@ pub struct Workspace {
     ops: Operations,
     picks: Mutex<BTreeMap<String, Pick>>,
     plans: Mutex<BTreeMap<String, PendingPlan>>,
-    /// Results of confirmed plans, so a retried confirm answers the same.
-    confirmed: Mutex<BTreeMap<String, Value>>,
+    /// Results and exact diff hashes of confirmed plans in this open Vault.
+    confirmed: Mutex<BTreeMap<String, (enouia_memory_contract::hash::Sha256Hex, Value)>>,
     /// Started imports by idempotency key: (request fingerprint, operation).
     started: Mutex<BTreeMap<String, (String, OperationId)>>,
     /// The exclusive host lock of the open Vault (ADR-MEM-46). It belongs to
     /// the open/close lifecycle, not to `Open`'s reference count, so a read
     /// still in flight cannot keep it held after close.
     host: Mutex<Option<std::fs::File>>,
-    /// The last backup export of this process (the Vault does not record it).
+    /// The last backup export since this Vault was opened (not persisted).
     last_backup: Mutex<Option<OperationId>>,
     /// Companion status reported by the shell (tray, hotkey, overlay).
     companion: Mutex<Value>,
@@ -503,15 +503,22 @@ impl Workspace {
         self.open_at(root)
     }
 
-    /// Cancel and join every operation, drop review plans and the Vault and
-    /// index handles. `then` is the slot left behind (`Locked` or `Empty`).
+    /// Cancel and join every operation, then forget the open Vault's page
+    /// state. Root picker tokens remain usable for an open/create retry.
+    /// `then` is the slot left behind (`Locked` or `Empty`).
     fn close(&self, then: Option<Slot>) {
         // Detach the Vault first, so no new command can start work on it
         // while running operations are cancelled and joined.
         *self.slot.lock().expect("slot") = then.unwrap_or(Slot::Empty);
-        self.ops.cancel_all_and_join();
+        self.ops.close();
         self.plans.lock().expect("plans").clear();
+        self.confirmed.lock().expect("confirmed").clear();
         self.started.lock().expect("started").clear();
+        *self.last_backup.lock().expect("backup") = None;
+        self.picks
+            .lock()
+            .expect("picks")
+            .retain(|_, pick| pick.kind == PickKind::VaultRoot);
         if let Some(host) = self.host.lock().expect("host").take() {
             let _ = host.unlock();
         }
@@ -980,10 +987,16 @@ impl Workspace {
         plan_id: &str,
         diff_hash: &enouia_memory_contract::hash::Sha256Hex,
     ) -> R<Value> {
-        if let Some(done) = self.confirmed.lock().expect("confirmed").get(plan_id) {
+        let open = self.open()?;
+        if let Some((seen, done)) = self.confirmed.lock().expect("confirmed").get(plan_id) {
+            if seen != diff_hash {
+                return Err(fail(
+                    MemoryErrorCode::RevisionConflict,
+                    "workspace.diff_hash_mismatch",
+                ));
+            }
             return Ok(done.clone());
         }
-        let open = self.open()?;
         let pending = {
             let plans = self.plans.lock().expect("plans");
             let pending = plans
@@ -1015,7 +1028,7 @@ impl Workspace {
         self.confirmed
             .lock()
             .expect("confirmed")
-            .insert(plan_id.to_owned(), result.clone());
+            .insert(plan_id.to_owned(), (diff_hash.clone(), result.clone()));
         Ok(result)
     }
 

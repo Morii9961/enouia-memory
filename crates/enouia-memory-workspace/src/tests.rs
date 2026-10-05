@@ -747,3 +747,188 @@ fn a_held_handle_does_not_block_this_cores_reopen() {
     assert_eq!(refused.rules, ["workspace.vault_in_use"]);
     assert!(!refused.retryable);
 }
+
+#[test]
+fn a_confirmed_retry_still_checks_the_diff() {
+    let env = Env::new("confirm-replay-diff");
+    let proposed = env.ok(
+        "remember",
+        json!({"text": "Synthetic reviewed fact", "claimKey": "synthetic.replay"}),
+    );
+    let plan = env.ok(
+        "review_plan",
+        json!({"decisions": [{"candidateId": proposed["candidateId"], "revision": proposed["revision"], "action": "accept", "editedContent": null, "mergeTarget": null}]}),
+    );
+    let args = json!({"planId": plan["planId"], "diffHash": plan["diffHash"]});
+    let first = env.ok("review_confirm", args.clone());
+    assert_eq!(env.ok("review_confirm", args), first);
+    let head = env.ok("workspace_status", json!({}))["vault"]["headCommitId"].clone();
+    let wrong = env.err(
+        "review_confirm",
+        json!({"planId": plan["planId"], "diffHash": "0".repeat(64)}),
+    );
+    assert_eq!(wrong["rules"], json!(["workspace.diff_hash_mismatch"]));
+    assert_eq!(
+        env.ok("workspace_status", json!({}))["vault"]["headCommitId"],
+        head
+    );
+}
+
+#[test]
+fn closing_a_vault_forgets_confirmed_replies() {
+    for action in ["lock", "switch", "failed_open", "shutdown"] {
+        let env = Env::new(&format!("confirm-close-{action}"));
+        let proposed = env.ok(
+            "remember",
+            json!({"text": "Synthetic old Vault fact", "claimKey": "synthetic.old_vault"}),
+        );
+        let plan = env.ok(
+            "review_plan",
+            json!({"decisions": [{"candidateId": proposed["candidateId"], "revision": proposed["revision"], "action": "accept", "editedContent": null, "mergeTarget": null}]}),
+        );
+        let args = json!({"planId": plan["planId"], "diffHash": plan["diffHash"]});
+        env.ok("review_confirm", args.clone());
+        close_for_test(&env, action);
+        let gone = env.err("review_confirm", args.clone());
+        assert_eq!(
+            gone["rules"][0],
+            if action == "switch" {
+                "workspace.plan_unknown"
+            } else if action == "lock" {
+                "workspace.locked"
+            } else {
+                "workspace.no_vault"
+            }
+        );
+        if action == "lock" {
+            env.ok("vault_unlock", json!({}));
+            assert_eq!(
+                env.err("review_confirm", args)["rules"][0],
+                "workspace.plan_unknown"
+            );
+            assert_eq!(
+                env.ok(
+                    "memory_list",
+                    json!({"includeInactive": false, "cursor": null, "limit": null})
+                )["total"],
+                1
+            );
+        }
+    }
+}
+
+fn close_for_test(env: &Env, action: &str) {
+    match action {
+        "lock" => {
+            env.ok("vault_lock", json!({}));
+        }
+        "switch" => {
+            std::fs::create_dir(env.base.join("other-vault")).unwrap();
+            let token = env.pick(PickKind::VaultRoot, "other-vault");
+            env.ok(
+                "vault_create",
+                json!({"rootToken": token, "confirmPhrase": "create new vault"}),
+            );
+        }
+        "failed_open" => {
+            assert!(env.ws.open_root(&env.base.join("missing")).is_err());
+        }
+        "shutdown" => env.ws.shutdown(),
+        _ => unreachable!(),
+    }
+}
+
+#[test]
+fn closing_a_vault_forgets_operations_backups_and_picks() {
+    for action in ["lock", "switch", "failed_open", "shutdown"] {
+        let env = Env::new(&format!("operation-close-{action}"));
+        std::fs::create_dir(env.base.join("backup")).unwrap();
+        let backup_token = env.pick(PickKind::BackupDestination, "backup");
+        let started = env.ok("backup_export", json!({"destinationToken": backup_token}));
+        assert_eq!(env.wait(&started)["state"], "succeeded");
+        let id = started["operationId"].clone();
+        assert_eq!(
+            env.ok("workspace_status", json!({}))["lastBackup"]["state"],
+            "succeeded"
+        );
+        let export_token = env.pick(PickKind::ExportFolder, "backup");
+        let unused_backup_token = env.pick(PickKind::BackupDestination, "backup");
+        std::fs::write(env.base.join("notes.md"), "# Synthetic old Vault input\n").unwrap();
+        let import_token = env.pick(PickKind::ImportFile, "notes.md");
+        close_for_test(&env, action);
+        assert_eq!(env.ok("operation_list", json!({}))["items"], json!([]));
+        for command in ["operation_get", "operation_cancel"] {
+            assert_eq!(
+                env.err(command, json!({"operationId": id}))["rules"][0],
+                "workspace.operation_unknown"
+            );
+        }
+        assert_eq!(
+            env.err("restore_preview", json!({"exportToken": export_token}))["rules"][0],
+            "workspace.token_unknown"
+        );
+        if action == "lock" {
+            env.ok("vault_unlock", json!({}));
+        }
+        if matches!(action, "lock" | "switch") {
+            assert_eq!(
+                env.ok("workspace_status", json!({}))["lastBackup"],
+                Value::Null
+            );
+            assert_eq!(
+                env.err(
+                    "backup_export",
+                    json!({"destinationToken": unused_backup_token})
+                )["rules"][0],
+                "workspace.token_unknown"
+            );
+            assert_eq!(
+                env.err("import_preview", json!({"importToken": import_token}))["rules"][0],
+                "workspace.token_unknown"
+            );
+            let fresh = env.pick(PickKind::ImportFile, "notes.md");
+            assert_eq!(
+                env.ok("import_preview", json!({"importToken": fresh}))["recognized"],
+                true
+            );
+        }
+    }
+}
+
+#[test]
+fn closing_keeps_progress_until_the_worker_has_joined() {
+    let env = Env::new("close-worker-join");
+    let (ready_tx, ready_rx) = std::sync::mpsc::channel();
+    let (release_tx, release_rx) = std::sync::mpsc::channel();
+    let id = OperationId::from_random([0x73; 16]);
+    env.ws.operations().spawn(id.clone(), "test", move |_| {
+        ready_tx.send(()).unwrap();
+        release_rx.recv_timeout(Duration::from_secs(10)).unwrap();
+        Ok(json!({"joined": true}))
+    });
+    ready_rx.recv_timeout(Duration::from_secs(10)).unwrap();
+    std::thread::scope(|scope| {
+        let closing = scope.spawn(|| env.ws.shutdown());
+        let deadline = std::time::Instant::now() + Duration::from_secs(5);
+        loop {
+            let status = env
+                .ws
+                .operations()
+                .status(&id)
+                .expect("progress while closing");
+            if status["cancelRequested"] == true {
+                assert_eq!(status["state"], "running");
+                break;
+            }
+            assert!(
+                std::time::Instant::now() < deadline,
+                "close did not request cancellation"
+            );
+            std::thread::sleep(Duration::from_millis(5));
+        }
+        release_tx.send(()).unwrap();
+        closing.join().unwrap();
+    });
+    assert!(env.ws.operations().status(&id).is_none());
+    assert_eq!(env.ok("operation_list", json!({}))["items"], json!([]));
+}

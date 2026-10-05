@@ -106,7 +106,7 @@
     {
       "path": "apps/workspace/src/App.tsx",
       "role": "reference-ui",
-      "sha256": "9cf00bf4672da7bb5fbdf270957cc447bd882a600a9aecade1e3dffdae6119bb"
+      "sha256": "bfe3005ba3dcc5ca6b5afde44dd64fa7a6f8b0a720927e7e36e02a5a535022f0"
     },
     {
       "path": "apps/workspace/src/Overlay.tsx",
@@ -191,17 +191,17 @@
     {
       "path": "crates/enouia-memory-workspace/src/lib.rs",
       "role": "core",
-      "sha256": "80fb9be9920c465e7ffadeb5e4cd61f59fe4c5adc501c7b3d50ecb2cc2c85128"
+      "sha256": "a888a144a6e70597d824ec024d20d355889dc87da42e9c1ec1a5212fc6d8d64d"
     },
     {
       "path": "crates/enouia-memory-workspace/src/ops.rs",
       "role": "core",
-      "sha256": "318901a81f6284befdf4c3332cb649fcad20a050bab7b0822f933e23b9b006ab"
+      "sha256": "2e6816bbe4d0043b6f2398a26e2f49dd498844d9c63154a38924d728b5101804"
     },
     {
       "path": "crates/enouia-memory-workspace/src/tests.rs",
       "role": "core",
-      "sha256": "7a70ed6cc6b24d1ecc66fd065cc93d284c64a755053846bc86b1b71035c9784e"
+      "sha256": "93b6bd50b4e26044f0418b2016f373ca5be3c4bde2a2903921acad2a6dd9b495"
     },
     {
       "path": "crates/enouia-memory-workspace/src/views.rs",
@@ -219,5 +219,5 @@
       "sha256": "3f8c12e10ff3c267a13750801ec6378016287275c799978d6df8ff720b0cce93"
     }
   ],
-  "aggregate": "4e5d44297e52e63c65ee3a79926152a8b8aa6b99db93299462fe546ea8daa8c7"
+  "aggregate": "65d7ae8c115ad4d38c1702243df7f2ba4ff4f4593356dd0b486a74aa71dcbf36"
 }

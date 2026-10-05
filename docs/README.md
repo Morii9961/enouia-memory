@@ -14,6 +14,8 @@ All project documentation lives under `docs/`.
 | [history/](history/) | The MV-0 draft report and ADR draft written in the Runtime working tree, kept as history | Historical |
 | `history/private/` | Original v0.1 working draft. It contains personal examples, so it is kept locally and ignored by Git | Private, not published |
 
+The [2026-10-05 MV-6 Core lifecycle report](validation/MV-6-vault-lifecycle.md) records the follow-up to ADR-MEM-46 and the corresponding Runtime pin adoption boundary.
+
 ## Import record (2026-09-28)
 
 The design package, the two prompts, and the review were written in this directory. They were moved unchanged from the repository root into the folders above, apart from the substitutions listed here. The unredacted originals are kept in the ignored `.local/originals/` with their SHA-256 values.

@@ -164,6 +164,13 @@ impl Operations {
         }
     }
 
+    /// End an open Vault's operation history. Keep progress available while
+    /// workers stop; discard results only once every worker has joined.
+    pub(crate) fn close(&self) {
+        self.cancel_all_and_join();
+        self.map.lock().expect("operations").clear();
+    }
+
     /// Wait for one operation (tests and the shell's bounded exit).
     pub fn wait(&self, id: &OperationId, timeout: std::time::Duration) -> Option<Value> {
         let start = std::time::Instant::now();
