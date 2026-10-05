@@ -62,7 +62,7 @@ use ops::{Operations, Ticket};
 use serde_json::{Map, Value, json};
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
-use std::sync::{Arc, Mutex, TryLockError};
+use std::sync::{Arc, Mutex, RwLock, TryLockError};
 
 /// How long a picker token stays valid.
 pub const PICK_TTL_MS: i64 = 10 * 60 * 1000;
@@ -228,6 +228,9 @@ struct PendingPlan {
 
 pub struct Workspace {
     config: Config,
+    /// Lifecycle changes exclude complete page calls and native picks. Status
+    /// and operation controls bypass this gate so close can still be observed.
+    lifecycle: RwLock<()>,
     slot: Mutex<Slot>,
     ops: Operations,
     picks: Mutex<BTreeMap<String, Pick>>,
@@ -362,6 +365,7 @@ impl Workspace {
     pub fn new(config: Config) -> Self {
         Self {
             config,
+            lifecycle: RwLock::new(()),
             slot: Mutex::new(Slot::Empty),
             ops: Operations::default(),
             picks: Mutex::new(BTreeMap::new()),
@@ -391,6 +395,11 @@ impl Workspace {
     /// Register a native-dialog choice. Only the shell calls this; the page
     /// receives the token, the base name, and the size.
     pub fn register_pick(&self, kind: PickKind, path: &Path) -> Result<Picked, WorkspaceError> {
+        self.with_lifecycle(false, || self.register_pick_at(kind, path).map_err(Fail))
+            .map_err(|f| f.0)
+    }
+
+    fn register_pick_at(&self, kind: PickKind, path: &Path) -> Result<Picked, WorkspaceError> {
         let meta = std::fs::symlink_metadata(path).map_err(|_| {
             WorkspaceError::new(MemoryErrorCode::NotFound, &["workspace.pick_missing"])
         })?;
@@ -454,7 +463,8 @@ impl Workspace {
 
     /// Open a Vault at an explicit root for the shell's `--vault` argument.
     pub fn open_root(&self, root: &Path) -> Result<(), WorkspaceError> {
-        self.open_at(root).map_err(|f| f.0)
+        self.with_lifecycle(true, || self.open_at(root))
+            .map_err(|f| f.0)
     }
 
     fn open_at(&self, root: &Path) -> R<()> {
@@ -527,7 +537,27 @@ impl Workspace {
     /// Exit path for the shell: stop accepting work, cancel and join
     /// operations, release every handle.
     pub fn shutdown(&self) {
+        // Shutdown still attempts cleanup if a lifecycle writer panicked.
+        let _guard = self.lifecycle.write().unwrap_or_else(|e| e.into_inner());
         self.close(None);
+    }
+
+    fn with_lifecycle<T>(&self, exclusive: bool, work: impl FnOnce() -> R<T>) -> R<T> {
+        let unavailable = || {
+            let mut error = WorkspaceError::new(
+                MemoryErrorCode::StorageFailed,
+                &["workspace.lifecycle_failed"],
+            );
+            error.retryable = false;
+            Fail(error)
+        };
+        if exclusive {
+            let _guard = self.lifecycle.write().map_err(|_| unavailable())?;
+            work()
+        } else {
+            let _guard = self.lifecycle.read().map_err(|_| unavailable())?;
+            work()
+        }
     }
 
     fn open(&self) -> R<Arc<Open>> {
@@ -575,20 +605,44 @@ impl Workspace {
             Err(error) => Response::failed(request_id, WorkspaceError::from_contract(&error)),
             Ok((parsed, command)) => {
                 let key = parsed.idempotency_key.clone();
-                match self.route(&command, key.as_deref()) {
-                    Ok(done) => {
-                        let mut response =
-                            Response::ok(parsed.request_id, command.success_kind(), done.result);
-                        response.operation_id = done.operation_id;
-                        response.vault_commit_id = self
-                            .open()
-                            .ok()
-                            .and_then(|o| o.vault.pin_current().ok())
-                            .map(|p| p.commit_id);
-                        response
-                    }
-                    Err(Fail(error)) => Response::failed(parsed.request_id, error),
-                }
+                let handle = || {
+                    Ok(match self.route(&command, key.as_deref()) {
+                        Ok(done) => {
+                            let mut response = Response::ok(
+                                parsed.request_id,
+                                command.success_kind(),
+                                done.result,
+                            );
+                            response.operation_id = done.operation_id;
+                            response.vault_commit_id = self
+                                .open()
+                                .ok()
+                                .and_then(|o| o.vault.pin_current().ok())
+                                .map(|p| p.commit_id);
+                            response
+                        }
+                        Err(Fail(error)) => Response::failed(parsed.request_id, error),
+                    })
+                };
+                let handled = if matches!(
+                    command,
+                    Command::WorkspaceStatus(_)
+                        | Command::OperationGet(_)
+                        | Command::OperationList(_)
+                        | Command::OperationCancel(_)
+                ) {
+                    handle()
+                } else {
+                    let exclusive = matches!(
+                        command,
+                        Command::VaultOpen(_)
+                            | Command::VaultCreate(_)
+                            | Command::VaultLock(_)
+                            | Command::VaultUnlock(_)
+                    );
+                    self.with_lifecycle(exclusive, handle)
+                };
+                handled.unwrap_or_else(|Fail(error)| Response::failed(request_id, error))
             }
         };
         serde_json::to_value(response).expect("responses serialize")

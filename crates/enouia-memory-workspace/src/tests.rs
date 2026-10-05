@@ -28,6 +28,10 @@ impl Drop for Env {
 
 impl Env {
     fn new(name: &str) -> Self {
+        Self::with_clock(name, None)
+    }
+
+    fn with_clock(name: &str, custom_clock: Option<Arc<dyn Clock + Send + Sync>>) -> Self {
         let tmp = std::env::temp_dir().join("enouia-memory-workspace-tests");
         std::fs::create_dir_all(&tmp).unwrap();
         let tmp = std::fs::canonicalize(&tmp).unwrap();
@@ -41,7 +45,7 @@ impl Env {
         std::fs::create_dir_all(base.join("vault")).unwrap();
         let clock = Arc::new(FakeClock::new(T0));
         let ws = Workspace::new(Config {
-            clock: clock.clone(),
+            clock: custom_clock.unwrap_or_else(|| clock.clone()),
             ids: Arc::new(SequentialIdSource::new(0xb000)),
         });
         let env = Self {
@@ -918,6 +922,25 @@ fn closing_keeps_progress_until_the_worker_has_joined() {
                 .expect("progress while closing");
             if status["cancelRequested"] == true {
                 assert_eq!(status["state"], "running");
+                assert_eq!(
+                    env.ok("operation_get", json!({"operationId": id}))["state"],
+                    "running"
+                );
+                assert_eq!(
+                    env.ok("operation_list", json!({}))["items"]
+                        .as_array()
+                        .unwrap()
+                        .len(),
+                    1
+                );
+                assert_eq!(
+                    env.ok("workspace_status", json!({}))["operationsRunning"],
+                    1
+                );
+                assert_eq!(
+                    env.ok("operation_cancel", json!({"operationId": id}))["cancelRequested"],
+                    true
+                );
                 break;
             }
             assert!(
@@ -931,4 +954,139 @@ fn closing_keeps_progress_until_the_worker_has_joined() {
     });
     assert!(env.ws.operations().status(&id).is_none());
     assert_eq!(env.ok("operation_list", json!({}))["items"], json!([]));
+}
+
+/// Pause an actual memory-list read after it has acquired the open Vault.
+/// The injected Clock is a test port; no production blocking hook is added.
+struct PausedClock {
+    ready: std::sync::mpsc::Sender<()>,
+    release: Mutex<Option<std::sync::mpsc::Receiver<()>>>,
+}
+
+impl Clock for PausedClock {
+    fn now_unix_ms(&self) -> i64 {
+        let release = self.release.lock().unwrap().take();
+        if let Some(release) = release {
+            self.ready.send(()).unwrap();
+            release.recv_timeout(Duration::from_secs(10)).unwrap();
+        }
+        T0 + 5_000
+    }
+}
+
+#[test]
+fn lifecycle_waits_for_an_in_flight_page_call() {
+    for command in ["memory_list", "remember"] {
+        for action in ["lock", "switch", "failed_open", "shutdown"] {
+            let (ready_tx, ready_rx) = std::sync::mpsc::channel();
+            let (release_tx, release_rx) = std::sync::mpsc::channel();
+            let paused = Arc::new(PausedClock {
+                ready: ready_tx,
+                release: Mutex::new(None),
+            });
+            let env = Env::with_clock(
+                &format!("lifecycle-page-read-{action}"),
+                Some(paused.clone()),
+            );
+            let before_head =
+                env.ok("workspace_status", json!({}))["vault"]["headCommitId"].clone();
+            *paused.release.lock().unwrap() = Some(release_rx);
+            let arguments = if command == "memory_list" {
+                json!({"includeInactive": false, "cursor": null, "limit": null})
+            } else {
+                json!({"text": "Synthetic held write", "claimKey": "synthetic.lifecycle_write"})
+            };
+            std::thread::scope(|scope| {
+                let reading = scope.spawn(|| env.send(command, arguments));
+                ready_rx.recv_timeout(Duration::from_secs(5)).unwrap();
+                let (closing_tx, closing_rx) = std::sync::mpsc::channel();
+                let (done_tx, done_rx) = std::sync::mpsc::channel();
+                let env_ref = &env;
+                let closing = scope.spawn(move || {
+                    closing_tx.send(()).unwrap();
+                    close_for_test(env_ref, action);
+                    done_tx.send(()).unwrap();
+                });
+                closing_rx.recv_timeout(Duration::from_secs(5)).unwrap();
+                let closed_early = done_rx.recv_timeout(Duration::from_millis(150)).is_ok();
+                let (status_tx, status_rx) = std::sync::mpsc::channel();
+                let env_ref = &env;
+                let observing = scope.spawn(move || {
+                    status_tx
+                        .send(env_ref.send("workspace_status", json!({})))
+                        .unwrap();
+                });
+                let status = status_rx.recv_timeout(Duration::from_millis(500)).ok();
+                // Always release before asserting, including on the broken base.
+                release_tx.send(()).unwrap();
+                let read = reading.join().unwrap();
+                closing.join().unwrap();
+                observing.join().unwrap();
+                assert!(!closed_early, "{action} passed an in-flight Vault read");
+                assert_eq!(
+                    status.expect("status bypasses a waiting lifecycle writer")["result"]["vault"]
+                        ["state"],
+                    "open"
+                );
+                assert_eq!(read["error"], Value::Null, "{read}");
+                assert!(
+                    read["vaultCommitId"].is_string(),
+                    "response pinned before close: {read}"
+                );
+                if command == "memory_list" {
+                    assert_eq!(read["result"]["total"], 0);
+                    assert_eq!(read["vaultCommitId"], before_head);
+                } else {
+                    assert_eq!(read["result"]["state"], "pending");
+                    env.ws.open_root(&env.base.join("vault")).unwrap();
+                    let candidates =
+                        env.ok("candidate_list", json!({"cursor": null, "limit": null}));
+                    assert_eq!(candidates["total"], 1);
+                    assert_eq!(
+                        candidates["items"][0]["candidateId"],
+                        read["result"]["candidateId"]
+                    );
+                }
+            });
+        }
+    }
+}
+
+#[test]
+fn poisoned_lifecycle_refuses_work_but_allows_observation_and_shutdown() {
+    let env = Env::new("lifecycle-poison");
+    std::thread::scope(|scope| {
+        let panicked = scope.spawn(|| {
+            let _guard = env.ws.lifecycle.write().unwrap();
+            panic!("synthetic lifecycle failure");
+        });
+        assert!(panicked.join().is_err());
+    });
+    let refused = env.err(
+        "memory_list",
+        json!({"includeInactive": false, "cursor": null, "limit": null}),
+    );
+    assert_eq!(refused["rules"], json!(["workspace.lifecycle_failed"]));
+    assert_eq!(refused["retryable"], false);
+    assert_eq!(
+        env.ws
+            .register_pick(PickKind::VaultRoot, &env.base.join("vault"))
+            .unwrap_err()
+            .rules,
+        ["workspace.lifecycle_failed"]
+    );
+    assert_eq!(
+        env.ws.open_root(&env.base.join("vault")).unwrap_err().rules,
+        ["workspace.lifecycle_failed"]
+    );
+    assert_eq!(
+        env.ok("workspace_status", json!({}))["vault"]["state"],
+        "open"
+    );
+    assert_eq!(env.ok("operation_list", json!({}))["items"], json!([]));
+    env.ws.shutdown();
+    assert_eq!(
+        env.ok("workspace_status", json!({}))["vault"]["state"],
+        "none"
+    );
 }

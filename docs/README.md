@@ -14,7 +14,7 @@ All project documentation lives under `docs/`.
 | [history/](history/) | The MV-0 draft report and ADR draft written in the Runtime working tree, kept as history | Historical |
 | `history/private/` | Original v0.1 working draft. It contains personal examples, so it is kept locally and ignored by Git | Private, not published |
 
-The [2026-10-05 MV-6 Core lifecycle report](validation/MV-6-vault-lifecycle.md) records the follow-up to ADR-MEM-46 and the corresponding Runtime pin adoption boundary.
+The [2026-10-05 MV-6 Core lifecycle report](validation/MV-6-vault-lifecycle.md) and [concurrency report](validation/MV-6-core-concurrency.md) record the follow-ups to ADR-MEM-46 and the corresponding Runtime pin adoption boundary.
 
 ## Import record (2026-09-28)
 
