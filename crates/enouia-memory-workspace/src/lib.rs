@@ -1186,10 +1186,9 @@ impl Workspace {
         let proposal_key = format!("forget\n{key}");
         self.check_forget_key(&open, a, mode, scope, proposal_key.as_bytes())?;
         let memory = self.stored_memory(&open, &a.memory_id)?;
-        let proposed = propose(
-            &open.vault,
+        let proposed = self.propose_owner(
+            &open,
             &delete_proposal(&memory, mode, scope),
-            &Origin::owner(open.owner.clone()),
             proposal_key.as_bytes(),
         )?;
         self.check_forget_key(&open, a, mode, scope, proposal_key.as_bytes())?;
@@ -1273,12 +1272,7 @@ impl Workspace {
         key: &[u8],
         source: impl serde::Serialize,
     ) -> R<Value> {
-        let (id, state) = match propose(
-            &open.vault,
-            proposal,
-            &Origin::owner(open.owner.clone()),
-            key,
-        )? {
+        let (id, state) = match self.propose_owner(open, proposal, key)? {
             Proposed::Stored(written) => (written.id, "pending"),
             Proposed::DuplicateOf(id) => (id, "duplicate"),
         };
@@ -1288,6 +1282,31 @@ impl Workspace {
             .record_entry(&pin, RecordKind::Candidate, id.as_str())?
             .map(|e| e.revision);
         Ok(json!({"candidateId": id, "revision": revision, "state": state, "sourceId": source}))
+    }
+
+    fn propose_owner(&self, open: &Open, proposal: &Proposal, key: &[u8]) -> R<Proposed> {
+        let origin = Origin::owner(open.owner.clone());
+        match propose(&open.vault, proposal, &origin, key) {
+            Err(error) if error.code() == MemoryErrorCode::IdempotencyConflict => {
+                // Generated candidate bytes differ across concurrent calls.
+                // Resolve a newly published receipt only after comparing the
+                // original logical proposal; do not change persistent hashes.
+                self.check_proposal_key(open, key, |candidate| {
+                    candidate.proposal_kind == proposal.kind
+                        && candidate.proposed_type == proposal.proposed_type
+                        && candidate.proposed_content == proposal.content
+                        && candidate.proposed_details == proposal.details
+                        && candidate.target_memory_id == proposal.target_memory_id
+                        && candidate.target_identity_id == proposal.target_identity_id
+                        && candidate.expected_revision == proposal.expected_revision
+                        && candidate.reason == proposal.reason
+                })?;
+                // One bounded lookup retry. Other errors remain untouched, and
+                // each route retains its logical-argument postcheck.
+                Ok(propose(&open.vault, proposal, &origin, key)?)
+            }
+            result => Ok(result?),
+        }
     }
 
     fn remember(&self, a: &wire::RememberArgs, key: &str) -> R<Value> {

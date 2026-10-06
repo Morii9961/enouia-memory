@@ -13,6 +13,93 @@ static COUNTER: AtomicU64 = AtomicU64::new(0);
 const T0: i64 = 1_790_000_000_000;
 
 #[test]
+fn remember_replays_a_proposal_published_after_its_initial_lookup() {
+    check_remember_proposal_admission(false);
+}
+
+#[test]
+fn remember_refuses_a_changed_claim_published_after_its_initial_lookup() {
+    check_remember_proposal_admission(true);
+}
+
+fn check_remember_proposal_admission(conflict: bool) {
+    let env = Env::new("remember-proposal-admission");
+    let key = "synthetic-remember-proposal-race";
+    let args = json!({"text": "Synthetic proposal replay", "claimKey": "synthetic.proposal_race"});
+    let open = env.ws.open().unwrap();
+    env.ws
+        .assertion(
+            &open,
+            args["text"].as_str().unwrap(),
+            format!("remember-source\n{key}").as_bytes(),
+        )
+        .unwrap();
+    let request = json!({"schemaVersion": 1, "requestId": "req_00000000-0000-4000-8000-000000000101",
+        "command": "remember", "idempotencyKey": key, "arguments": args});
+    let callers = AtomicU64::new(0);
+    with_concurrent_allocations_at(
+        &env,
+        0,
+        true,
+        |_| {},
+        |ws| {
+            let n = callers.fetch_add(1, Ordering::SeqCst);
+            let mut own = request.clone();
+            if conflict {
+                own["arguments"]["claimKey"] = json!(format!("synthetic.race_claim_{n}"));
+            }
+            ws.call(&own)
+        },
+        |ws, first, second| {
+            for response in [&first, &second] {
+                validate_response("remember", response).unwrap();
+            }
+            if conflict {
+                let responses = [&first, &second];
+                assert_eq!(
+                    responses
+                        .iter()
+                        .filter(|r| r["error"] == Value::Null)
+                        .count(),
+                    1
+                );
+                let refused = responses
+                    .iter()
+                    .find(|r| r["error"] != Value::Null)
+                    .unwrap();
+                assert_eq!(refused["error"]["code"], "idempotency_conflict");
+                assert_eq!(refused["error"]["rules"][0], "workspace.key_reuse");
+                assert_eq!(refused["result"], Value::Null);
+                let open = ws.open().unwrap();
+                assert_eq!(
+                    pending_candidates(&open.vault, &open.vault.pin_current().unwrap())
+                        .unwrap()
+                        .len(),
+                    1
+                );
+                return;
+            }
+            for response in [&first, &second] {
+                assert_eq!(response["error"], Value::Null, "{response}");
+            }
+            assert_eq!(first["result"], second["result"]);
+            let open = ws.open().unwrap();
+            let pin = open.vault.pin_current().unwrap();
+            assert_eq!(pending_candidates(&open.vault, &pin).unwrap().len(), 1);
+            let repeated = ws.call(&request);
+            assert_eq!(repeated["result"], first["result"]);
+            assert_eq!(open.vault.pin_current().unwrap().commit_id, pin.commit_id);
+            let mut changed = request.clone();
+            changed["arguments"]["claimKey"] = json!("synthetic.changed_claim");
+            let changed = ws.call(&changed);
+            assert_eq!(changed["error"]["code"], "idempotency_conflict");
+            assert_eq!(changed["result"], Value::Null);
+            assert_eq!(open.vault.pin_current().unwrap().commit_id, pin.commit_id);
+        },
+    );
+}
+
+#[test]
 fn correction_replay_binds_target_revision_and_text() {
     let env = Env::new("correction-key-binding");
     let target = env.remember(
