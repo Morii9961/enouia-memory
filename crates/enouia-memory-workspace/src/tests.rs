@@ -13,6 +13,73 @@ static COUNTER: AtomicU64 = AtomicU64::new(0);
 const T0: i64 = 1_790_000_000_000;
 
 #[test]
+fn correction_and_forget_recover_late_proposal_receipts() {
+    for command in ["correction_propose", "forget_plan"] {
+        let env = Env::new(command);
+        let memory = env.remember("Synthetic admission target", "synthetic.admission_target");
+        let key = "synthetic-other-proposal-race";
+        let args = if command == "correction_propose" {
+            let open = env.ws.open().unwrap();
+            env.ws
+                .assertion(
+                    &open,
+                    "Synthetic admission correction",
+                    format!("correction-source\n{key}").as_bytes(),
+                )
+                .unwrap();
+            json!({"memoryId": memory, "revision": 1, "text": "Synthetic admission correction"})
+        } else {
+            json!({"memoryId": memory, "mode": "forget", "withDependents": false})
+        };
+        let request = json!({"schemaVersion": 1, "requestId": "req_00000000-0000-4000-8000-000000000102",
+            "command": command, "idempotencyKey": key, "arguments": args});
+        with_concurrent_allocations_at(
+            &env,
+            0,
+            true,
+            |_| {},
+            |ws| ws.call(&request),
+            |ws, first, second| {
+                for response in [&first, &second] {
+                    validate_response(command, response).unwrap();
+                    assert_eq!(response["error"], Value::Null, "{command}: {response}");
+                    if command == "forget_plan" {
+                        let tombstone = response["result"]["records"]
+                            .as_array()
+                            .unwrap()
+                            .iter()
+                            .find(|r| r["record_kind"] == "tombstone")
+                            .unwrap();
+                        assert_eq!(tombstone["value"]["targets"][0]["record_id"], memory);
+                        assert_eq!(tombstone["value"]["mode"], "logical_delete");
+                        assert_eq!(tombstone["value"]["scope"], "all_revisions");
+                    }
+                }
+                if command == "correction_propose" {
+                    assert_eq!(first["result"], second["result"]);
+                }
+                let open = ws.open().unwrap();
+                let pin = open.vault.pin_current().unwrap();
+                assert_eq!(pending_candidates(&open.vault, &pin).unwrap().len(), 1);
+                let retry = ws.call(&request);
+                assert_eq!(retry["error"], Value::Null);
+                let mut changed = request.clone();
+                if command == "correction_propose" {
+                    changed["arguments"]["text"] = json!("Synthetic different correction");
+                } else {
+                    changed["arguments"]["mode"] = json!("purge");
+                }
+                let refused = ws.call(&changed);
+                assert_eq!(refused["error"]["code"], "idempotency_conflict");
+                assert_eq!(refused["error"]["rules"][0], "workspace.key_reuse");
+                assert_eq!(refused["result"], Value::Null);
+                assert_eq!(open.vault.pin_current().unwrap().commit_id, pin.commit_id);
+            },
+        );
+    }
+}
+
+#[test]
 fn remember_replays_a_proposal_published_after_its_initial_lookup() {
     check_remember_proposal_admission(false);
 }
