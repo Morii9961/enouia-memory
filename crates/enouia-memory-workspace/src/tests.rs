@@ -13,6 +13,179 @@ static COUNTER: AtomicU64 = AtomicU64::new(0);
 const T0: i64 = 1_790_000_000_000;
 
 #[test]
+fn full_remember_replays_a_source_published_after_its_initial_lookup() {
+    check_full_remember_replay(0, true, false);
+}
+
+#[test]
+fn full_remember_replays_a_concurrent_source_commit() {
+    check_full_remember_replay(1, false, false);
+}
+
+#[test]
+fn full_remember_refuses_a_changed_claim_after_source_replay() {
+    check_full_remember_replay(0, true, true);
+}
+
+fn check_full_remember_replay(skip: usize, ordered: bool, conflict: bool) {
+    let env = Env::new("full-remember-replay");
+    let text = "Synthetic full remember replay";
+    let envelope = json!({"schemaVersion": 1, "requestId": "req_00000000-0000-4000-8000-000000000201",
+        "command": "remember", "idempotencyKey": "synthetic-full-remember-replay",
+        "arguments": {"text": text, "claimKey": "synthetic.full_remember"}});
+    let callers = AtomicU64::new(0);
+    with_concurrent_allocations_at(
+        &env,
+        skip,
+        ordered,
+        |_| {},
+        |ws| {
+            let n = callers.fetch_add(1, Ordering::SeqCst);
+            let mut own = envelope.clone();
+            own["requestId"] = json!(format!("req_00000000-0000-4000-8000-{:012x}", n + 201));
+            if conflict {
+                own["arguments"]["claimKey"] = json!(format!("synthetic.full_remember_{n}"));
+            }
+            call_with_contention_retry(ws, &own)
+        },
+        |ws, first, second| {
+            for response in [&first, &second] {
+                validate_response("remember", response).unwrap();
+            }
+            assert_ne!(first["requestId"], second["requestId"]);
+            let responses = [&first, &second];
+            let successful: Vec<_> = responses
+                .iter()
+                .filter(|r| r["error"] == Value::Null)
+                .collect();
+            assert_eq!(successful.len(), if conflict { 1 } else { 2 });
+            let published = &successful[0]["result"];
+            let open = ws.open().unwrap();
+            let pin = open.vault.pin_current().unwrap();
+            let sources = open.vault.record_entries(&pin, RecordKind::Source).unwrap();
+            assert_eq!(sources.len(), 1);
+            assert_eq!(json!(sources[0].record_id), published["sourceId"]);
+            let pending = pending_candidates(&open.vault, &pin).unwrap();
+            assert_eq!(pending.len(), 1);
+            assert_eq!(json!(pending[0].candidate_id), published["candidateId"]);
+            assert_eq!(json!(pending[0].source_id), published["sourceId"]);
+            assert_eq!(
+                json!(pending[0].evidence[0].source_id),
+                published["sourceId"]
+            );
+            let excerpt = ws.call(&json!({"schemaVersion": 1,
+                "requestId": "req_00000000-0000-4000-8000-000000000203",
+                "command": "source_excerpt", "idempotencyKey": null,
+                "arguments": {"sourceId": published["sourceId"], "sourceRevision": 1,
+                    "startByte": null, "maxBytes": 4096}}));
+            validate_response("source_excerpt", &excerpt).unwrap();
+            assert_eq!(excerpt["error"], Value::Null, "{excerpt}");
+            assert_eq!(excerpt["result"]["excerpt"], text);
+            assert_eq!(excerpt["result"]["untrusted"], true);
+            if conflict {
+                let refused = responses
+                    .iter()
+                    .find(|r| r["error"] != Value::Null)
+                    .unwrap();
+                assert_eq!(refused["error"]["code"], "idempotency_conflict");
+                assert_eq!(refused["error"]["rules"][0], "workspace.key_reuse");
+                assert_eq!(refused["result"], Value::Null);
+            } else {
+                assert_eq!(first["result"], second["result"]);
+                let mut repeated = envelope.clone();
+                repeated["requestId"] = json!("req_00000000-0000-4000-8000-000000000204");
+                let replay = ws.call(&repeated);
+                validate_response("remember", &replay).unwrap();
+                assert_eq!(replay["error"], Value::Null, "{replay}");
+                assert_eq!(replay["result"], *published);
+            }
+            assert_eq!(open.vault.pin_current().unwrap().commit_id, pin.commit_id);
+        },
+    );
+}
+
+#[test]
+fn correction_head_retry_rechecks_the_target_revision() {
+    let env = Env::new("correction-head-retry-target");
+    let memory = env.remember("Synthetic head retry target", "synthetic.head_retry");
+    let keys = ["synthetic-target-retry-one", "synthetic-target-retry-two"];
+    let texts = [
+        "Synthetic first target revision",
+        "Synthetic second target revision",
+    ];
+    let open = env.ws.open().unwrap();
+    for (key, text) in keys.iter().zip(texts.iter()) {
+        env.ws
+            .assertion(&open, text, format!("correction-source\n{key}").as_bytes())
+            .unwrap();
+    }
+    let callers = AtomicU64::new(0);
+    with_concurrent_allocations_at(
+        &env,
+        0,
+        true,
+        |ws| {
+            let open = ws.open().unwrap();
+            let pending =
+                pending_candidates(&open.vault, &open.vault.pin_current().unwrap()).unwrap();
+            assert_eq!(pending.len(), 1);
+            let plan = ws.call(&json!({"schemaVersion": 1,
+                "requestId": "req_00000000-0000-4000-8000-000000000211",
+                "command": "review_plan", "idempotencyKey": null,
+                "arguments": {"decisions": [{"candidateId": pending[0].candidate_id,
+                    "revision": pending[0].revision, "action": "accept",
+                    "editedContent": null, "mergeTarget": null}]}}));
+            validate_response("review_plan", &plan).unwrap();
+            assert_eq!(plan["error"], Value::Null, "{plan}");
+            let confirmed = ws.call(&json!({"schemaVersion": 1,
+                "requestId": "req_00000000-0000-4000-8000-000000000212",
+                "command": "review_confirm", "idempotencyKey": "synthetic-target-retry-confirm",
+                "arguments": {"planId": plan["result"]["planId"], "diffHash": plan["result"]["diffHash"]}}));
+            validate_response("review_confirm", &confirmed).unwrap();
+            assert_eq!(confirmed["error"], Value::Null, "{confirmed}");
+        },
+        |ws| {
+            let n = callers.fetch_add(1, Ordering::SeqCst) as usize;
+            ws.call(&json!({"schemaVersion": 1,
+                "requestId": format!("req_00000000-0000-4000-8000-{:012x}", n + 213),
+                "command": "correction_propose", "idempotencyKey": keys[n],
+                "arguments": {"memoryId": memory, "revision": 1, "text": texts[n]}}))
+        },
+        |ws, first, second| {
+            for response in [&first, &second] {
+                validate_response("correction_propose", response).unwrap();
+            }
+            let responses = [&first, &second];
+            assert_eq!(
+                responses
+                    .iter()
+                    .filter(|r| r["error"] == Value::Null)
+                    .count(),
+                1
+            );
+            let refused = responses
+                .iter()
+                .find(|r| r["error"] != Value::Null)
+                .unwrap();
+            assert_eq!(refused["error"]["code"], "revision_conflict");
+            assert_eq!(refused["error"]["rules"][0], "fault.revision_mismatch");
+            assert_eq!(refused["result"], Value::Null);
+            let open = ws.open().unwrap();
+            let pin = open.vault.pin_current().unwrap();
+            assert!(pending_candidates(&open.vault, &pin).unwrap().is_empty());
+            assert_eq!(
+                open.vault
+                    .record_entry(&pin, RecordKind::Memory, &memory)
+                    .unwrap()
+                    .unwrap()
+                    .revision,
+                Revision::new(2).unwrap()
+            );
+        },
+    );
+}
+
+#[test]
 fn different_keys_do_not_publish_duplicate_pending_candidates() {
     check_different_key_proposals(true, false);
 }
