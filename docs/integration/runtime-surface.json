@@ -45,7 +45,9 @@
     "apps/workspace/src",
     "apps/workspace/src-tauri/capabilities",
     "apps/workspace/src-tauri/src",
-    "crates/enouia-memory-workspace/src"
+    "apps/workspace/src-tauri/windows",
+    "crates/enouia-memory-workspace/src",
+    "tools/windows"
   ],
   "files": [
     {
@@ -102,6 +104,26 @@
       "path": "apps/workspace/src-tauri/tauri.conf.json",
       "role": "reference-shell",
       "sha256": "f8d1ff1aca0da0701ee1aae81f2071df7f6fa8b275485d47303e3aea4016c5b3"
+    },
+    {
+      "path": "apps/workspace/src-tauri/windows/README.md",
+      "role": "reference-installer",
+      "sha256": "0a3ba95e54cacff678f6f5c3c97a29c0d5a8fdb055b6cdb26a37d935cd3d96ed"
+    },
+    {
+      "path": "apps/workspace/src-tauri/windows/hooks.nsh",
+      "role": "reference-installer",
+      "sha256": "f35df29f2b2b2acd3a54c53977b4d70f5806f4bebe97d4d9df8e650705fa0f71"
+    },
+    {
+      "path": "apps/workspace/src-tauri/windows/installer-LICENSE-MIT.txt",
+      "role": "reference-installer",
+      "sha256": "9dd42ea92cff2ede5cd477cbfcce051b2d0115c0ac7f368ee88cb545055dff1d"
+    },
+    {
+      "path": "apps/workspace/src-tauri/windows/installer.nsi",
+      "role": "reference-installer",
+      "sha256": "f067bb1c4801a55b70d0b88bd30589d75f511874e768a0c3f7406a82b159f365"
     },
     {
       "path": "apps/workspace/src/App.tsx",
@@ -217,7 +239,32 @@
       "path": "tests/fixtures/memory/workspace-manifest.json",
       "role": "wire",
       "sha256": "3f8c12e10ff3c267a13750801ec6378016287275c799978d6df8ff720b0cce93"
+    },
+    {
+      "path": "tools/windows/installer-smoke.ps1",
+      "role": "reference-installer",
+      "sha256": "d7e2e9cabe04bd8a6cf48bb93f70b639c18ed0ccec10cc7923a71786758960c3"
+    },
+    {
+      "path": "tools/windows/installer-template-check.ps1",
+      "role": "reference-installer",
+      "sha256": "1ab0c7dc7ba0d34d0b01b0d07401fe1234cd8fb3b0d3d55f237b8ad64298ca48"
+    },
+    {
+      "path": "tools/windows/installer-upgrade-smoke.ps1",
+      "role": "reference-installer",
+      "sha256": "84fe7909d96fd2ddef3eb6cc74eb1b120d88de90f1600b8430cfca4a439cece3"
+    },
+    {
+      "path": "tools/windows/installer-version-smoke.ps1",
+      "role": "reference-installer",
+      "sha256": "eb7f9807cc379875bc186d26bcf87b1ccc9490f6690dac518ecdc48182ca48f4"
+    },
+    {
+      "path": "tools/windows/startup-cleanup-smoke.ps1",
+      "role": "reference-installer",
+      "sha256": "3603c1855d9f9ec9b3585143a0191508980b260b1ffd26c82b3e6f9b7223a75d"
     }
   ],
-  "aggregate": "7d7b6d5dbc6b84534ff31c143e45d40be3e934b4ebac1b403122174a02a95028"
+  "aggregate": "e68cc0a1c0e30b3d7ed19f30f39ad397eb6cae7582777f6d5e8b45ebc4bfd5e3"
 }

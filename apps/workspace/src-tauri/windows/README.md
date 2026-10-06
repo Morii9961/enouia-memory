@@ -5,7 +5,7 @@
 Two sections are removed, with no other upstream behavior changes:
 
 - The uninstall confirmation page's “delete app data” checkbox and callbacks. Vault locations are explicitly chosen and may be inside a directory the generic template considers application data.
-- The uninstall section's generic product-name Run-value deletion and recursive AppData deletion. `hooks.nsh` alone clears the fixed startup value after an exact command match. Uninstall removes application files; Memory deletion remains a Core review operation.
+- The uninstall section's generic product-name Run-value deletion and recursive AppData deletion. `hooks.nsh` alone clears the fixed startup value after an exact command match. Like upstream's deletion, it runs at the end of the uninstall section, after the running-app check, and not in update mode, so a cancelled uninstall keeps the value. Uninstall removes application files; Memory deletion remains a Core review operation.
 
 The preinstall hook also checks registered versions before file replacement; see the [upgrade report](../../../../docs/validation/MV-6-upgrade.md). Upstream's own installer/uninstaller pages, application file handling, installation registration, shortcuts, language support, and WebView2 installation remain in place.
 

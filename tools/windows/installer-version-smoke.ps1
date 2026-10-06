@@ -9,10 +9,11 @@ $compiler = (Resolve-Path -LiteralPath $MakeNsis).Path
 $plugins = (Resolve-Path -LiteralPath $TauriPlugins).Path
 $hook = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..\..\apps\workspace\src-tauri\windows\hooks.nsh')).Path
 $root = Join-Path ([IO.Path]::GetTempPath()) ('enouia-version-guard-' + [guid]::NewGuid().ToString('N'))
-$registryName = 'Software\EnouiaMemoryTests\Version-' + [guid]::NewGuid().ToString('N')
+$parentName = 'Software\EnouiaMemoryTests'
+$registryName = $parentName + '\Version-' + [guid]::NewGuid().ToString('N')
 $registryPath = 'HKCU:\' + $registryName
 New-Item -ItemType Directory -Path $root | Out-Null
-New-Item -Path $registryPath | Out-Null
+New-Item -Path $registryPath -Force | Out-Null
 $source = @'
 Unicode true
 RequestExecutionLevel user
@@ -72,8 +73,11 @@ try {
             $installed -eq $case.allowed -and $retainedVersion -ceq $case.version
     }
 } finally {
-    # Exact fresh test key, no recursive deletion or real uninstall metadata.
+    # Exact fresh test key, no recursive deletion or real uninstall metadata;
+    # then the parent only if nothing else uses it.
     Remove-Item -LiteralPath $registryPath
+    $parent = Get-Item -LiteralPath ('HKCU:\' + $parentName)
+    if ($parent.SubKeyCount -eq 0 -and $parent.ValueCount -eq 0) { Remove-Item -LiteralPath ('HKCU:\' + $parentName) }
     $checks | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $root 'report.json')
     foreach ($name in $checks.Keys) { Write-Output "$name=$($checks[$name])" }
     Write-Output "Synthetic evidence: $root"

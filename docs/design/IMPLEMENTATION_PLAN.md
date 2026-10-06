@@ -10,7 +10,7 @@
 
 先把设计同步进本仓库的文档和 ADR（v1.1：Memory 独立仓库，见 ADR-MEM-19），再添加代码。不能先写存储实现后以实现倒推 Schema。发现与本设计冲突时提供具体差异与影响，修正相应契约/验收后继续，不能仅留 TODO 绕过去。
 
-v1.2（ADR-MEM-45）：凡改动 Runtime 集成面（`docs/integration/runtime-surface.json` 所列文件：workspace IPC 契约、嵌入式 Core、其构建闭包、参考外壳与前端），须在同一提交中重新生成该清单，并在 [Runtime 集成说明](../integration/RUNTIME.md) 的兼容记录中登记：改动内容、对 Runtime 属于新增还是破坏性变更，以及 Runtime 须采纳什么。登记前 `runtime_surface` 测试会一直失败。
+v1.2（ADR-MEM-45）：凡改动 Runtime 集成面（`docs/integration/runtime-surface.json` 所列文件：workspace IPC 契约、嵌入式 Core、其构建闭包、参考外壳与前端，以及 2026-10-06 起 Runtime 安装程序所派生的参考安装程序），须在同一提交中重新生成该清单，并在 [Runtime 集成说明](../integration/RUNTIME.md) 的兼容记录中登记：改动内容、对 Runtime 属于新增还是破坏性变更，以及 Runtime 须采纳什么。登记前 `runtime_surface` 测试会一直失败。
 
 ## 2. 总依赖图与交付点
 
