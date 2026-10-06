@@ -1619,6 +1619,89 @@ fn forget_and_purge_go_through_a_plan() {
     assert_eq!(verified["result"]["clean"], true, "{verified}");
 }
 
+#[test]
+fn concurrent_purge_confirm_replays_one_complete_result() {
+    let env = Env::new("concurrent-purge-confirm");
+    let memory = env.remember(
+        "Synthetic concurrent purge target",
+        "synthetic.purge_confirm",
+    );
+    env.ws.shutdown();
+    let (ready_tx, ready_rx) = std::sync::mpsc::channel();
+    let (a_tx, a_rx) = std::sync::mpsc::channel();
+    let (b_tx, b_rx) = std::sync::mpsc::channel();
+    let ids = Arc::new(HeldIds {
+        armed: AtomicU64::new(0),
+        skip_per_thread: 0,
+        calls: Mutex::new(std::collections::HashMap::new()),
+        ready: ready_tx,
+        releases: Mutex::new(vec![a_rx, b_rx]),
+        seq: SequentialIdSource::new(0xe000),
+    });
+    let ws = Workspace::new(Config {
+        clock: env.clock.clone(),
+        ids: ids.clone(),
+    });
+    ws.open_root(&env.base.join("vault")).unwrap();
+    let plan = ws.call(&json!({"schemaVersion": 1,
+        "requestId": "req_00000000-0000-4000-8000-000000000301",
+        "command": "forget_plan", "idempotencyKey": "synthetic-concurrent-purge-plan",
+        "arguments": {"memoryId": memory, "mode": "purge", "withDependents": false}}));
+    validate_response("forget_plan", &plan).unwrap();
+    assert_eq!(plan["error"], Value::Null, "{plan}");
+    let request = json!({"schemaVersion": 1,
+        "requestId": "req_00000000-0000-4000-8000-000000000302",
+        "command": "review_confirm", "idempotencyKey": "synthetic-concurrent-purge-confirm",
+        "arguments": {"planId": plan["result"]["planId"], "diffHash": plan["result"]["diffHash"]}});
+    ids.armed.store(2, Ordering::SeqCst);
+    let (first, second) = std::thread::scope(|scope| {
+        let first = scope.spawn(|| call_with_contention_retry(&ws, &request));
+        let paused = ready_rx.recv_timeout(Duration::from_secs(5)).is_ok();
+        let observed = ws.call(&json!({"schemaVersion": 1,
+            "requestId": "req_00000000-0000-4000-8000-000000000304",
+            "command": "workspace_status", "idempotencyKey": null, "arguments": {}}));
+        let second = scope.spawn(|| {
+            let mut own = request.clone();
+            own["requestId"] = json!("req_00000000-0000-4000-8000-000000000303");
+            call_with_contention_retry(&ws, &own)
+        });
+        // The old path reaches a second receipt allocation; a serialized
+        // confirm waits before touching the purge again. Always release both.
+        let _ = ready_rx.recv_timeout(Duration::from_secs(5));
+        let _ = b_tx.send(());
+        let _ = a_tx.send(());
+        let results = (first.join().unwrap(), second.join().unwrap());
+        assert!(paused, "first confirmation must pause after removing files");
+        validate_response("workspace_status", &observed).unwrap();
+        assert_eq!(observed["error"], Value::Null, "{observed}");
+        assert_eq!(observed["result"]["vault"]["state"], "open");
+        results
+    });
+    for response in [&first, &second] {
+        validate_response("review_confirm", response).unwrap();
+        assert_eq!(response["error"], Value::Null, "{response}");
+    }
+    assert_ne!(first["requestId"], second["requestId"]);
+    assert!(first["result"]["purge"]["filesRemoved"].as_u64().unwrap() > 0);
+    assert_eq!(
+        first["result"], second["result"],
+        "same plan must replay its complete result"
+    );
+    let open = ws.open().unwrap();
+    let pin = open.vault.pin_current().unwrap();
+    assert_eq!(
+        open.vault
+            .record_entries(&pin, RecordKind::PurgeReceipt)
+            .unwrap()
+            .len(),
+        1
+    );
+    let replay = ws.call(&request);
+    assert_eq!(replay["result"], first["result"]);
+    assert_eq!(open.vault.pin_current().unwrap().commit_id, pin.commit_id);
+    ws.shutdown();
+}
+
 /// ADR-MEM-46: a rejected root names its reason, and a failed command does
 /// not consume the picker token, so the same choice can be retried.
 #[test]

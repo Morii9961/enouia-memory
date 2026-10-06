@@ -1085,7 +1085,11 @@ impl Workspace {
         diff_hash: &enouia_memory_contract::hash::Sha256Hex,
     ) -> R<Value> {
         let open = self.open()?;
-        if let Some((seen, done)) = self.confirmed.lock().expect("confirmed").get(plan_id) {
+        // Serialize confirmation through complete result publication, including
+        // file purge. A concurrent retry must replay the original counters,
+        // rather than repeat post-commit effects before the cache is populated.
+        let mut confirmed = self.confirmed.lock().expect("confirmed");
+        if let Some((seen, done)) = confirmed.get(plan_id) {
             if seen != diff_hash {
                 return Err(fail(
                     MemoryErrorCode::RevisionConflict,
@@ -1122,10 +1126,7 @@ impl Workspace {
             self.plans.lock().expect("plans").remove(plan_id);
         }
         let result = finished?;
-        self.confirmed
-            .lock()
-            .expect("confirmed")
-            .insert(plan_id.to_owned(), (diff_hash.clone(), result.clone()));
+        confirmed.insert(plan_id.to_owned(), (diff_hash.clone(), result.clone()));
         Ok(result)
     }
 

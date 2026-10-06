@@ -267,6 +267,8 @@ The [full remember replay and target freshness acceptance](../validation/MV-6-fu
 
 - **Background import read budgets (2026-10-06 follow-up).** The existing Core import worker's domain pipeline bounds both selected-file reads by observed/global size, while preserving exact double-read/hash admission before archive publication. Controlled actual file replacements cover both open boundaries. See [worker read evidence](../validation/MV-6-import-read-budget.md).
 
+- **Complete confirmation result replay (2026-10-06 follow-up).** Core holds its existing result-cache mutex through confirmation and optional file purge. Concurrent confirmation retries replay the complete first result instead of overwriting removal counters. Confirmations within one Core serialize; existing retryable-plan retention and status observation remain. See [confirmation evidence](../validation/MV-6-confirm-result-replay.md).
+
 ## Relation to Enouia Runtime's register
 
 
