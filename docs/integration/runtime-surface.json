@@ -108,12 +108,12 @@
     {
       "path": "apps/workspace/src-tauri/windows/README.md",
       "role": "reference-installer",
-      "sha256": "0a3ba95e54cacff678f6f5c3c97a29c0d5a8fdb055b6cdb26a37d935cd3d96ed"
+      "sha256": "6eb3c631148ba8d7ca8375275801fe2e75139f83878856ebd1f5e71b4322431b"
     },
     {
       "path": "apps/workspace/src-tauri/windows/hooks.nsh",
       "role": "reference-installer",
-      "sha256": "f35df29f2b2b2acd3a54c53977b4d70f5806f4bebe97d4d9df8e650705fa0f71"
+      "sha256": "db26011d43989552a7ec9e5655d60df7e8436bbdc2117fb4858e6ca2595e48d7"
     },
     {
       "path": "apps/workspace/src-tauri/windows/installer-LICENSE-MIT.txt",
@@ -248,7 +248,7 @@
     {
       "path": "tools/windows/installer-template-check.ps1",
       "role": "reference-installer",
-      "sha256": "1ab0c7dc7ba0d34d0b01b0d07401fe1234cd8fb3b0d3d55f237b8ad64298ca48"
+      "sha256": "c4fdd763599caaf34069d3b34c6d4a22b52897ef36d7ce3aa030a8791be34bec"
     },
     {
       "path": "tools/windows/installer-upgrade-smoke.ps1",
@@ -261,10 +261,15 @@
       "sha256": "eb7f9807cc379875bc186d26bcf87b1ccc9490f6690dac518ecdc48182ca48f4"
     },
     {
+      "path": "tools/windows/locked-file-smoke.ps1",
+      "role": "reference-installer",
+      "sha256": "605a19c0849d54d90a6e6b14e940055f174d1f128feb43d5a212b671d7d5d604"
+    },
+    {
       "path": "tools/windows/startup-cleanup-smoke.ps1",
       "role": "reference-installer",
       "sha256": "3603c1855d9f9ec9b3585143a0191508980b260b1ffd26c82b3e6f9b7223a75d"
     }
   ],
-  "aggregate": "e68cc0a1c0e30b3d7ed19f30f39ad397eb6cae7582777f6d5e8b45ebc4bfd5e3"
+  "aggregate": "690fe16bba907017fe347deb4aca36047f177ed72d77f525bdc9241928ee2b60"
 }

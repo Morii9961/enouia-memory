@@ -2,6 +2,11 @@
 ; Startup is opt-in inside the app. Uninstall removes only its exact command,
 ; and only once the app files are gone: after the running-app check (which a
 ; Cancel aborts) and never in update mode, as upstream.
+; A file that cannot be replaced (for example an executable still locked
+; just after it was closed) fails the install instead of being skipped. With
+; NSIS's default, a silent install skipped it, exited 0 and registered the
+; new version over the old files. Nothing is registered before the copy.
+AllowSkipFiles off
 !ifndef ENOUIA_STARTUP_RUN_KEY
   !define ENOUIA_STARTUP_RUN_KEY "Software\Microsoft\Windows\CurrentVersion\Run"
 !endif

@@ -18,6 +18,7 @@ $checks = [ordered]@{
     # The exact startup cleanup runs after the uninstall section's running-app check.
     scoped_startup_hook_retained = $template.IndexOf('!insertmacro NSIS_HOOK_POSTUNINSTALL') -gt $template.LastIndexOf('!insertmacro CheckIfAppIsRunning')
     downgrade_hook_retained = $template.Contains('!insertmacro NSIS_HOOK_PREINSTALL')
+    locked_files_fail_install = (Get-Content -LiteralPath (Join-Path $shell 'windows/hooks.nsh') -Raw -Encoding UTF8) -match '(?m)^AllowSkipFiles off\s*$' -and $template -notmatch '(?im)^\s*AllowSkipFiles\s+on'
     app_payload_removal_retained = $template.Contains('Delete "$INSTDIR\${MAINBINARYNAME}.exe"')
     uninstaller_creation_retained = $template.Contains('WriteUninstaller "$INSTDIR\uninstall.exe"')
     upstream_license_retained = $license.Contains('Permission is hereby granted, free of charge')
