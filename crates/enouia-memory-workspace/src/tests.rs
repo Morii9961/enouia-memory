@@ -959,6 +959,65 @@ fn picker_preview_retries_and_async_failure_preserve_consumption_rules() {
     assert!(env.ws.picks.lock().unwrap().contains_key(&export));
 }
 
+#[test]
+fn import_preview_revalidates_a_changed_picker_file_kind() {
+    let env = Env::new("preview-changed-kind");
+    let selected = env.base.join("selected.md");
+    std::fs::write(&selected, "Synthetic selected preview").unwrap();
+    let token = env.pick(PickKind::ImportFile, "selected.md");
+    let before = env.ok("workspace_status", json!({}))["vault"]["headCommitId"].clone();
+    std::fs::remove_file(&selected).unwrap();
+    std::fs::create_dir(&selected).unwrap();
+    let refused = env.send("import_preview", json!({"importToken": token}));
+    assert_eq!(refused["error"]["code"], "invalid_request");
+    assert_eq!(
+        refused["error"]["rules"][0],
+        "import.input_not_regular_file"
+    );
+    assert_eq!(refused["result"], Value::Null);
+    std::fs::remove_dir(&selected).unwrap();
+    std::fs::write(&selected, "Synthetic restored preview").unwrap();
+    for _ in 0..2 {
+        let preview = env.ok("import_preview", json!({"importToken": token}));
+        assert_eq!(preview["recognized"], true);
+        assert_eq!(preview["bytes"], 26);
+    }
+    assert_eq!(
+        env.ok("workspace_status", json!({}))["vault"]["headCommitId"],
+        before
+    );
+}
+
+#[test]
+fn import_preview_bounds_actual_reads_past_the_metadata_budget() {
+    let exact = b"synthetic";
+    let mut same = std::io::Cursor::new(exact);
+    assert_eq!(read_preview_bytes(&mut same, 9, 9).unwrap(), exact);
+    let mut grown = std::io::Cursor::new(vec![b'x'; 8192]);
+    let refused = read_preview_bytes(&mut grown, 9, 9).unwrap_err();
+    assert_eq!(refused.0.code, MemoryErrorCode::InvalidRequest);
+    assert_eq!(refused.0.rules[0], "import.input_too_large");
+    assert_eq!(
+        grown.position(),
+        10,
+        "only the budget and one sentinel byte may be read"
+    );
+}
+
+#[test]
+fn import_preview_refuses_size_drift_within_the_global_limit() {
+    let mut grown = std::io::Cursor::new(vec![b'x'; 8192]);
+    let refused = read_preview_bytes(&mut grown, 9, 8192).unwrap_err();
+    assert_eq!(refused.0.rules[0], "import.input_changed");
+    assert_eq!(
+        grown.position(),
+        10,
+        "the metadata size also bounds reading"
+    );
+    let refused = read_preview_bytes(std::io::Cursor::new(b"short"), 9, 8192).unwrap_err();
+    assert_eq!(refused.0.rules[0], "import.input_changed");
+}
+
 struct Env {
     base: PathBuf,
     clock: Arc<FakeClock>,

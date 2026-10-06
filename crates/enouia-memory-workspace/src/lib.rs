@@ -61,6 +61,7 @@ use enouia_memory_vault::{
 use ops::{Operations, Ticket};
 use serde_json::{Map, Value, json};
 use std::collections::BTreeMap;
+use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, RwLock, TryLockError};
 
@@ -1472,16 +1473,23 @@ impl Workspace {
             "preview",
             self.policy(open)?,
         );
-        let meta = std::fs::metadata(path)
+        let meta = std::fs::symlink_metadata(path)
             .map_err(|_| fail(MemoryErrorCode::NotFound, "workspace.pick_missing"))?;
+        if !meta.is_file() || enouia_memory_vault::platform::is_reparse_point(&meta) {
+            return Err(fail(
+                MemoryErrorCode::InvalidRequest,
+                "import.input_not_regular_file",
+            ));
+        }
         if meta.len() > options.max_input_bytes {
             return Err(fail(
                 MemoryErrorCode::InvalidRequest,
                 "import.input_too_large",
             ));
         }
-        let bytes = std::fs::read(path)
+        let file = std::fs::File::open(path)
             .map_err(|_| fail(MemoryErrorCode::StorageFailed, "workspace.pick_unreadable"))?;
+        let bytes = read_preview_bytes(file, meta.len(), options.max_input_bytes)?;
         let hash = sha256(&bytes);
         let duplicate = self
             .imports(open)?
@@ -1937,6 +1945,28 @@ pub fn purge_key(nonce: &str) -> Vec<u8> {
 {nonce}"
     )
     .into_bytes()
+}
+
+/// Bound bytes read even when an input grows after the metadata check.
+fn read_preview_bytes(reader: impl Read, expected: u64, max: u64) -> R<Vec<u8>> {
+    let mut bytes = Vec::new();
+    reader
+        .take(expected.min(max).saturating_add(1))
+        .read_to_end(&mut bytes)
+        .map_err(|_| fail(MemoryErrorCode::StorageFailed, "workspace.pick_unreadable"))?;
+    if bytes.len() as u64 > max {
+        return Err(fail(
+            MemoryErrorCode::InvalidRequest,
+            "import.input_too_large",
+        ));
+    }
+    if bytes.len() as u64 != expected {
+        return Err(fail(
+            MemoryErrorCode::InvalidRequest,
+            "import.input_changed",
+        ));
+    }
+    Ok(bytes)
 }
 
 /// The exact evidence text of a source: the owner's or agent's words, or the
