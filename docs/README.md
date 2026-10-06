@@ -34,6 +34,8 @@ The [full remember replay and target freshness report](validation/MV-6-full-reme
 
 The [import preview input admission report](validation/MV-6-import-preview-input.md) records type revalidation at token use and bounded preview reads, with actual directory replacement and synthetic reader-limit evidence.
 
+The [background import read budget report](validation/MV-6-import-read-budget.md) extends selected-file read limits to the Core's existing import worker, retaining exact double-read/hash admission and archive semantics.
+
 ## Import record (2026-09-28)
 
 The design package, the two prompts, and the review were written in this directory. They were moved unchanged from the repository root into the folders above, apart from the substitutions listed here. The unredacted originals are kept in the ignored `.local/originals/` with their SHA-256 values.

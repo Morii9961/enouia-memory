@@ -989,6 +989,53 @@ fn import_preview_revalidates_a_changed_picker_file_kind() {
 }
 
 #[test]
+fn import_worker_refuses_changed_kind_without_a_partial_archive() {
+    let env = Env::new("import-worker-changed-kind");
+    let selected = env.base.join("selected.md");
+    std::fs::write(&selected, "Synthetic selected import").unwrap();
+    let token = env.pick(PickKind::ImportFile, "selected.md");
+    let before = env.ok("workspace_status", json!({}))["vault"]["headCommitId"].clone();
+    std::fs::remove_file(&selected).unwrap();
+    std::fs::create_dir(&selected).unwrap();
+    let started = env.ok(
+        "import_start",
+        json!({"importToken": token, "accountAlias": "synthetic-bounded-import"}),
+    );
+    let refused = env.wait(&started);
+    assert_eq!(refused["state"], "failed");
+    assert_eq!(refused["error"]["code"], "invalid_request");
+    assert_eq!(
+        refused["error"]["rules"][0],
+        "import.input_not_regular_file"
+    );
+    assert_eq!(refused["result"], Value::Null);
+    assert_eq!(env.ok("import_list", json!({}))["items"], json!([]));
+    assert_eq!(
+        env.ok("workspace_status", json!({}))["vault"]["headCommitId"],
+        before
+    );
+    assert_eq!(
+        env.err("import_preview", json!({"importToken": token}))["rules"][0],
+        "workspace.token_unknown"
+    );
+    std::fs::remove_dir(&selected).unwrap();
+    std::fs::write(&selected, "Synthetic restored import").unwrap();
+    let fresh = env.pick(PickKind::ImportFile, "selected.md");
+    let started = env.ok(
+        "import_start",
+        json!({"importToken": fresh, "accountAlias": "synthetic-bounded-import"}),
+    );
+    assert_eq!(env.wait(&started)["state"], "succeeded");
+    assert_eq!(
+        env.ok("import_list", json!({}))["items"]
+            .as_array()
+            .unwrap()
+            .len(),
+        1
+    );
+}
+
+#[test]
 fn import_preview_bounds_actual_reads_past_the_metadata_budget() {
     let exact = b"synthetic";
     let mut same = std::io::Cursor::new(exact);
