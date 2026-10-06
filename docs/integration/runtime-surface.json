@@ -248,7 +248,7 @@
     {
       "path": "tools/windows/installer-template-check.ps1",
       "role": "reference-installer",
-      "sha256": "c4fdd763599caaf34069d3b34c6d4a22b52897ef36d7ce3aa030a8791be34bec"
+      "sha256": "24b1450dacad1c34bfb9045b7cadee8c277ed2a34e1b3a107d44bf9130914ffc"
     },
     {
       "path": "tools/windows/installer-upgrade-smoke.ps1",
@@ -263,7 +263,7 @@
     {
       "path": "tools/windows/locked-file-smoke.ps1",
       "role": "reference-installer",
-      "sha256": "605a19c0849d54d90a6e6b14e940055f174d1f128feb43d5a212b671d7d5d604"
+      "sha256": "9e36ca509ebbb9b9d94385af8c6361053094d586cb4dbd9991314aa2f4bfc4ee"
     },
     {
       "path": "tools/windows/startup-cleanup-smoke.ps1",
@@ -271,5 +271,5 @@
       "sha256": "3603c1855d9f9ec9b3585143a0191508980b260b1ffd26c82b3e6f9b7223a75d"
     }
   ],
-  "aggregate": "690fe16bba907017fe347deb4aca36047f177ed72d77f525bdc9241928ee2b60"
+  "aggregate": "e0dbfafeeb65a99d2a03a88307ef8bb7ece08565a220c18d87844cdf68391685"
 }

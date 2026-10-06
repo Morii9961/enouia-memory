@@ -41,7 +41,8 @@ SectionEnd
     } finally { $lock.Dispose() }
     $kept = (Get-Content -LiteralPath $existing) -ceq 'Synthetic old payload'
     $checks[$case.name] = if ($case.name -eq 'production_hooks') {
-        $process.ExitCode -ne 0 -and -not (Test-Path -LiteralPath $after) -and $kept
+        # NSIS's abort code for a failed install.
+        $process.ExitCode -eq 2 -and -not (Test-Path -LiteralPath $after) -and $kept
     } else {
         # The control shows what the hooks prevent: exit 0 with the file skipped.
         $process.ExitCode -eq 0 -and (Test-Path -LiteralPath $after) -and $kept

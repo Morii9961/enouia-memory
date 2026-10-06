@@ -2,6 +2,17 @@ param([string]$RenderedTemplate)
 # Static ownership checks complement actual installer drills. They also
 # cover UI-only deletion branches which a silent uninstall cannot select.
 $ErrorActionPreference = 'Stop'
+# True when, inside the named section, `first` appears and then `second`,
+# both before that section's SectionEnd. A check elsewhere in the file does
+# not count.
+function Test-SectionOrder([string]$Text, [string]$Section, [string]$First, [string]$Second) {
+    $start = $Text.IndexOf("`nSection $Section")
+    if ($start -lt 0) { return $false }
+    $end = $Text.IndexOf("`nSectionEnd", $start)
+    $a = $Text.IndexOf($First, $start)
+    $b = $Text.IndexOf($Second, $start)
+    return $end -gt $start -and $a -gt $start -and $b -gt $a -and $b -lt $end
+}
 $repo = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..\..')).Path
 $shell = Join-Path $repo 'apps/workspace/src-tauri'
 $config = Get-Content -LiteralPath (Join-Path $shell 'tauri.conf.json') -Raw -Encoding UTF8 | ConvertFrom-Json
@@ -15,9 +26,9 @@ $checks = [ordered]@{
     no_appdata_delete_option = $template -notmatch 'DeleteAppDataCheckbox|\$\(deleteAppData\)'
     no_recursive_appdata_deletion = $template -notmatch '(?i)RmDir\s+/r\s+"\$(LOCALAPPDATA|APPDATA)\\'
     no_generic_startup_deletion = $template -notmatch '(?i)DeleteRegValue\s+HKCU\s+"Software\\Microsoft\\Windows\\CurrentVersion\\Run"'
-    # The exact startup cleanup runs after the uninstall section's running-app check.
-    scoped_startup_hook_retained = $template.IndexOf('!insertmacro NSIS_HOOK_POSTUNINSTALL') -gt $template.LastIndexOf('!insertmacro CheckIfAppIsRunning')
-    downgrade_hook_retained = $template.Contains('!insertmacro NSIS_HOOK_PREINSTALL')
+    # The exact startup cleanup runs after the uninstall section's own running-app check.
+    scoped_startup_hook_retained = Test-SectionOrder $template 'Uninstall' '!insertmacro CheckIfAppIsRunning' '!insertmacro NSIS_HOOK_POSTUNINSTALL'
+    downgrade_hook_retained = Test-SectionOrder $template 'Install' '!insertmacro NSIS_HOOK_PREINSTALL' '!insertmacro CheckIfAppIsRunning'
     locked_files_fail_install = (Get-Content -LiteralPath (Join-Path $shell 'windows/hooks.nsh') -Raw -Encoding UTF8) -match '(?m)^AllowSkipFiles off\s*$' -and $template -notmatch '(?im)^\s*AllowSkipFiles\s+on'
     app_payload_removal_retained = $template.Contains('Delete "$INSTDIR\${MAINBINARYNAME}.exe"')
     uninstaller_creation_retained = $template.Contains('WriteUninstaller "$INSTDIR\uninstall.exe"')
@@ -28,7 +39,7 @@ if ($RenderedTemplate) {
     $checks.rendered_no_appdata_delete_option = $rendered -notmatch 'DeleteAppDataCheckbox|\$\(deleteAppData\)'
     $checks.rendered_no_recursive_appdata_deletion = $rendered -notmatch '(?i)RmDir\s+/r\s+"\$(LOCALAPPDATA|APPDATA)\\'
     $checks.rendered_no_generic_startup_deletion = $rendered -notmatch '(?i)DeleteRegValue\s+HKCU\s+"Software\\Microsoft\\Windows\\CurrentVersion\\Run"'
-    $checks.rendered_scoped_startup_hook = $rendered.IndexOf('!insertmacro NSIS_HOOK_POSTUNINSTALL') -gt $rendered.LastIndexOf('!insertmacro CheckIfAppIsRunning')
+    $checks.rendered_scoped_startup_hook = Test-SectionOrder $rendered 'Uninstall' '!insertmacro CheckIfAppIsRunning' '!insertmacro NSIS_HOOK_POSTUNINSTALL'
 }
 foreach ($name in $checks.Keys) { Write-Output "$name=$($checks[$name])" }
 if ($checks.Values -contains $false) { throw 'Installer ownership checks failed.' }
