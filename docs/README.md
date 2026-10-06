@@ -24,6 +24,8 @@ The [Mock dispatch/reply replay report](validation/MV-6-mock-replay.md) records 
 
 The [correction and forgetting request-binding report](validation/MV-6-proposal-binding.md) records the eleventh slice: published proposals bind original targets and arguments, including one forced concurrent correction replay.
 
+The [full session ask replay report](validation/MV-6-full-session-replay.md) extends acceptance to two same-key page schedules starting before input creation, through saved compilation, Mock dispatch and reply.
+
 ## Import record (2026-09-28)
 
 The design package, the two prompts, and the review were written in this directory. They were moved unchanged from the repository root into the folders above, apart from the substitutions listed here. The unredacted originals are kept in the ignored `.local/originals/` with their SHA-256 values.

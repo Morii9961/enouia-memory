@@ -1948,17 +1948,27 @@ fn with_concurrent_allocations_at(
 
 #[test]
 fn session_ask_replay_reads_a_receipt_published_after_its_initial_pin() {
-    check_session_ask_dispatch_replay(0, true, false);
+    check_session_ask_replay(0, true, false, true);
 }
 
 #[test]
 fn concurrent_session_ask_replay_uses_the_published_dispatch_and_reply() {
-    check_session_ask_dispatch_replay(1, false, false);
+    check_session_ask_replay(1, false, false, true);
 }
 
 #[test]
 fn session_ask_replay_refuses_evidence_deleted_while_the_call_is_paused() {
-    check_session_ask_dispatch_replay(0, true, true);
+    check_session_ask_replay(0, true, true, true);
+}
+
+#[test]
+fn full_session_ask_replays_an_input_published_while_the_call_is_paused() {
+    check_session_ask_replay(0, true, false, false);
+}
+
+#[test]
+fn full_session_ask_replays_a_concurrent_input_commit() {
+    check_session_ask_replay(1, false, false, false);
 }
 
 fn call_with_contention_retry(ws: &Workspace, envelope: &Value) -> Value {
@@ -1975,8 +1985,13 @@ fn call_with_contention_retry(ws: &Workspace, envelope: &Value) -> Value {
     panic!("synthetic index/writer contention did not release");
 }
 
-fn check_session_ask_dispatch_replay(skip: usize, ordered: bool, delete_during_replay: bool) {
-    let env = Env::new(&format!("mock-page-replay-{skip}"));
+fn check_session_ask_replay(
+    skip: usize,
+    ordered: bool,
+    delete_during_replay: bool,
+    prepared: bool,
+) {
+    let env = Env::new(&format!("mock-page-replay-{skip}-{prepared}"));
     let created = env.ok("session_new", json!({}));
     let sid = enouia_memory_contract::ids::SessionId::parse(created["sessionId"].as_str().unwrap())
         .unwrap();
@@ -1985,21 +2000,25 @@ fn check_session_ask_dispatch_replay(skip: usize, ordered: bool, delete_during_r
     let key = "synthetic-ask-dispatch-race";
     let text = "Synthetic replay question";
     let memory = delete_during_replay.then(|| env.remember(text, "synthetic.replay_deleted"));
-    let request = request_id_for(key, "session_ask");
-    let open = env.ws.open().unwrap();
-    session::save_input(
-        &open.vault,
-        &open.owner,
-        &sid,
-        &bid,
-        text,
-        &request,
-        format!("ask-input\n{key}").as_bytes(),
-    )
-    .unwrap();
-    env.ws
-        .compiled(&open, text, request, Some(&sid), Some(&bid))
+    let included = (!prepared).then(|| env.remember(text, "synthetic.full_ask"));
+    if prepared {
+        let request = request_id_for(key, "session_ask");
+        let open = env.ws.open().unwrap();
+        session::save_input(
+            &open.vault,
+            &open.owner,
+            &sid,
+            &bid,
+            text,
+            &request,
+            format!("ask-input\n{key}").as_bytes(),
+        )
         .unwrap();
+        env.ws
+            .compiled(&open, text, request, Some(&sid), Some(&bid))
+            .unwrap();
+    }
+    let callers = AtomicU64::new(0);
     let envelope = json!({"schemaVersion": 1, "requestId": "req_00000000-0000-4000-8000-000000000011",
         "command": "session_ask", "idempotencyKey": key,
         "arguments": {"sessionId": sid, "branchId": bid, "text": text}});
@@ -2019,7 +2038,12 @@ fn check_session_ask_dispatch_replay(skip: usize, ordered: bool, delete_during_r
                 assert_eq!(confirmed["error"], Value::Null, "{confirmed}");
             }
         },
-        |ws| call_with_contention_retry(ws, &envelope),
+        |ws| {
+            let n = callers.fetch_add(1, Ordering::SeqCst) + 0x100;
+            let mut own = envelope.clone();
+            own["requestId"] = json!(format!("req_00000000-0000-4000-8000-{n:012x}"));
+            call_with_contention_retry(ws, &own)
+        },
         |ws, first, second| {
             if delete_during_replay {
                 let responses = [&first, &second];
@@ -2053,6 +2077,10 @@ fn check_session_ask_dispatch_replay(skip: usize, ordered: bool, delete_during_r
                 assert_eq!(response["error"], Value::Null, "{response}");
             }
             assert_eq!(first["result"], second["result"]);
+            if let Some(memory) = &included {
+                assert_eq!(first["result"]["memories"][0]["memory_id"], *memory);
+                assert_ne!(first["requestId"], second["requestId"]);
+            }
             let dispatch = ws.call(
                 &json!({"schemaVersion": 1, "requestId": "req_00000000-0000-4000-8000-000000000012",
             "command": "dispatch_inspect", "idempotencyKey": null,
@@ -2081,6 +2109,20 @@ fn check_session_ask_dispatch_replay(skip: usize, ordered: bool, delete_during_r
                 ws.open().unwrap().vault.pin_current().unwrap().commit_id,
                 before.commit_id
             );
+            if !prepared {
+                retry["arguments"]["text"] = json!("Synthetic changed request text");
+                let changed = ws.call(&retry);
+                validate_response("session_ask", &changed).unwrap();
+                assert_eq!(
+                    changed["error"]["code"], "idempotency_conflict",
+                    "{changed}"
+                );
+                assert_eq!(changed["result"], Value::Null);
+                assert_eq!(
+                    ws.open().unwrap().vault.pin_current().unwrap().commit_id,
+                    before.commit_id
+                );
+            }
         },
     );
 }
