@@ -22,6 +22,8 @@ The 2026-10-06 [concurrent Context session replay report](validation/MV-6-sessio
 
 The [Mock dispatch/reply replay report](validation/MV-6-mock-replay.md) records the tenth slice, including full `session_ask` page calls around saved input/capsule state and a deletion during paused replay.
 
+The [correction and forgetting request-binding report](validation/MV-6-proposal-binding.md) records the eleventh slice: published proposals bind original targets and arguments, including one forced concurrent correction replay.
+
 ## Import record (2026-09-28)
 
 The design package, the two prompts, and the review were written in this directory. They were moved unchanged from the repository root into the folders above, apart from the substitutions listed here. The unredacted originals are kept in the ignored `.local/originals/` with their SHA-256 values.

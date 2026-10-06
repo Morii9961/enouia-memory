@@ -1174,7 +1174,6 @@ impl Workspace {
 
     fn forget_plan(&self, a: &wire::ForgetArgs, key: &str) -> R<Value> {
         let open = self.open()?;
-        let memory = self.stored_memory(&open, &a.memory_id)?;
         let (mode, purge) = match a.mode {
             ForgetMode::Forget => (DeleteMode::LogicalDelete, false),
             ForgetMode::Purge => (DeleteMode::Purge, true),
@@ -1184,12 +1183,16 @@ impl Workspace {
         } else {
             DeleteScope::AllRevisions
         };
+        let proposal_key = format!("forget\n{key}");
+        self.check_forget_key(&open, a, mode, scope, proposal_key.as_bytes())?;
+        let memory = self.stored_memory(&open, &a.memory_id)?;
         let proposed = propose(
             &open.vault,
             &delete_proposal(&memory, mode, scope),
             &Origin::owner(open.owner.clone()),
-            format!("forget\n{key}").as_bytes(),
+            proposal_key.as_bytes(),
         )?;
+        self.check_forget_key(&open, a, mode, scope, proposal_key.as_bytes())?;
         let id = match proposed {
             Proposed::Stored(written) => written.id,
             Proposed::DuplicateOf(id) => id,
@@ -1312,6 +1315,48 @@ impl Workspace {
     }
 
     fn check_remember_key(&self, open: &Open, a: &wire::RememberArgs, key: &[u8]) -> R<()> {
+        self.check_proposal_key(open, key, |candidate| {
+            let claim = candidate
+                .proposed_details
+                .as_ref()
+                .and_then(|d| d.get("claim_key"))
+                .and_then(Value::as_str);
+            candidate.proposed_content == a.text && claim == Some(a.claim_key.as_str())
+        })
+    }
+
+    fn check_correction_key(&self, open: &Open, a: &wire::CorrectionArgs, key: &[u8]) -> R<()> {
+        self.check_proposal_key(open, key, |candidate| {
+            candidate.proposal_kind == ProposalKind::Revise
+                && candidate.target_memory_id.as_ref() == Some(&a.memory_id)
+                && candidate.expected_revision == Some(a.revision)
+                && candidate.proposed_content == a.text
+        })
+    }
+
+    fn check_forget_key(
+        &self,
+        open: &Open,
+        a: &wire::ForgetArgs,
+        mode: DeleteMode,
+        scope: DeleteScope,
+        key: &[u8],
+    ) -> R<()> {
+        self.check_proposal_key(open, key, |candidate| {
+            let details = candidate.proposed_details.as_ref();
+            candidate.proposal_kind == ProposalKind::Delete
+                && candidate.target_memory_id.as_ref() == Some(&a.memory_id)
+                && details.and_then(|d| d.get("mode")) == Some(&json!(mode))
+                && details.and_then(|d| d.get("scope")) == Some(&json!(scope))
+        })
+    }
+
+    fn check_proposal_key(
+        &self,
+        open: &Open,
+        key: &[u8],
+        matches: impl FnOnce(&CandidateRecord) -> bool,
+    ) -> R<()> {
         let scope = IdempotencyScope {
             principal_id: open.owner.actor_id.clone(),
             operation_kind: OperationKind::CandidatePropose,
@@ -1334,12 +1379,7 @@ impl Workspace {
         // The normal purge barriers still apply to this historical read.
         let pin = open.vault.pin_current()?;
         let candidate: CandidateRecord = parse(&open.vault.read_revision(&pin, reference)?)?;
-        let claim = candidate
-            .proposed_details
-            .as_ref()
-            .and_then(|d| d.get("claim_key"))
-            .and_then(Value::as_str);
-        if candidate.proposed_content != a.text || claim != Some(a.claim_key.as_str()) {
+        if !matches(&candidate) {
             return Err(fail(
                 MemoryErrorCode::IdempotencyConflict,
                 "workspace.key_reuse",
@@ -1350,6 +1390,8 @@ impl Workspace {
 
     fn correction(&self, a: &wire::CorrectionArgs, key: &str) -> R<Value> {
         let open = self.open()?;
+        let proposal_key = format!("correction\n{key}");
+        self.check_correction_key(&open, a, proposal_key.as_bytes())?;
         let memory = self.stored_memory(&open, &a.memory_id)?;
         if memory.revision != a.revision {
             return Err(fail(
@@ -1378,12 +1420,9 @@ impl Workspace {
             effective_from: None,
             reopens_candidate_id: None,
         };
-        self.proposed(
-            &open,
-            &proposal,
-            format!("correction\n{key}").as_bytes(),
-            source,
-        )
+        let shown = self.proposed(&open, &proposal, proposal_key.as_bytes(), source)?;
+        self.check_correction_key(&open, a, proposal_key.as_bytes())?;
+        Ok(shown)
     }
 
     // ----- import -------------------------------------------------------

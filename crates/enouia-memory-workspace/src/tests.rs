@@ -13,6 +13,190 @@ static COUNTER: AtomicU64 = AtomicU64::new(0);
 const T0: i64 = 1_790_000_000_000;
 
 #[test]
+fn correction_replay_binds_target_revision_and_text() {
+    let env = Env::new("correction-key-binding");
+    let target = env.remember(
+        "Synthetic first correction target",
+        "synthetic.correct_first",
+    );
+    let other = env.remember(
+        "Synthetic other correction target",
+        "synthetic.correct_other",
+    );
+    let args = json!({"memoryId": target, "revision": 1, "text": "Synthetic corrected text"});
+    let first = env.send_keyed("correction_propose", args.clone(), "correction-binding-key");
+    assert_eq!(first["error"], Value::Null, "{first}");
+    for reopen in [false, true] {
+        if reopen {
+            env.ws.shutdown();
+            env.ws.open_root(&env.base.join("vault")).unwrap();
+        }
+        let before = env.ok("workspace_status", json!({}))["vault"]["headCommitId"].clone();
+        let same = env.send_keyed("correction_propose", args.clone(), "correction-binding-key");
+        assert_eq!(same["result"], first["result"], "{same}");
+        for changed in [
+            json!({"memoryId": other, "revision": 1, "text": "Synthetic corrected text"}),
+            json!({"memoryId": target, "revision": 1, "text": "Synthetic different text"}),
+        ] {
+            let response = env.send_keyed("correction_propose", changed, "correction-binding-key");
+            assert_eq!(
+                response["error"]["code"], "idempotency_conflict",
+                "{response}"
+            );
+            assert_eq!(response["error"]["rules"][0], "workspace.key_reuse");
+            assert_eq!(response["result"], Value::Null);
+        }
+        assert_eq!(
+            env.ok("workspace_status", json!({}))["vault"]["headCommitId"],
+            before
+        );
+    }
+    let update = env.ok(
+        "correction_propose",
+        json!({
+            "memoryId": target, "revision": 1, "text": "Synthetic independently accepted update",
+        }),
+    );
+    let plan = env.ok(
+        "review_plan",
+        json!({"decisions": [{
+            "candidateId": update["candidateId"], "revision": update["revision"],
+            "action": "accept", "editedContent": null, "mergeTarget": null,
+        }]}),
+    );
+    env.ok(
+        "review_confirm",
+        json!({"planId": plan["planId"], "diffHash": plan["diffHash"]}),
+    );
+    let before = env.ok("workspace_status", json!({}))["vault"]["headCommitId"].clone();
+    let changed = env.send_keyed(
+        "correction_propose",
+        json!({
+            "memoryId": target, "revision": 2, "text": "Synthetic corrected text",
+        }),
+        "correction-binding-key",
+    );
+    assert_eq!(
+        changed["error"]["code"], "idempotency_conflict",
+        "{changed}"
+    );
+    assert_eq!(changed["error"]["rules"][0], "workspace.key_reuse");
+    let stale = env.send_keyed("correction_propose", args, "correction-binding-key");
+    assert_eq!(stale["error"]["code"], "revision_conflict", "{stale}");
+    assert_eq!(
+        env.ok("workspace_status", json!({}))["vault"]["headCommitId"],
+        before
+    );
+}
+
+#[test]
+fn forget_replay_binds_target_mode_and_dependent_scope() {
+    let env = Env::new("forget-key-binding");
+    let target = env.remember("Synthetic first deletion target", "synthetic.delete_first");
+    let other = env.remember("Synthetic other deletion target", "synthetic.delete_other");
+    let args = json!({"memoryId": target, "mode": "forget", "withDependents": false});
+    let first = env.send_keyed("forget_plan", args.clone(), "forget-binding-key");
+    assert_eq!(first["error"], Value::Null, "{first}");
+    for reopen in [false, true] {
+        if reopen {
+            env.ws.shutdown();
+            env.ws.open_root(&env.base.join("vault")).unwrap();
+        }
+        let before = env.ok("workspace_status", json!({}))["vault"]["headCommitId"].clone();
+        let same = env.send_keyed("forget_plan", args.clone(), "forget-binding-key");
+        assert_eq!(same["error"], Value::Null, "{same}");
+        let tombstone = same["result"]["records"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|r| r["record_kind"] == "tombstone")
+            .unwrap();
+        assert_eq!(tombstone["value"]["targets"][0]["record_id"], target);
+        assert_eq!(tombstone["value"]["mode"], "logical_delete");
+        assert_eq!(tombstone["value"]["scope"], "all_revisions");
+        assert_eq!(same["result"]["purge"], false);
+        for changed in [
+            json!({"memoryId": other, "mode": "forget", "withDependents": false}),
+            json!({"memoryId": target, "mode": "purge", "withDependents": false}),
+            json!({"memoryId": target, "mode": "forget", "withDependents": true}),
+        ] {
+            let response = env.send_keyed("forget_plan", changed, "forget-binding-key");
+            assert_eq!(
+                response["error"]["code"], "idempotency_conflict",
+                "{response}"
+            );
+            assert_eq!(response["error"]["rules"][0], "workspace.key_reuse");
+            assert_eq!(response["result"], Value::Null);
+        }
+        assert_eq!(
+            env.ok("workspace_status", json!({}))["vault"]["headCommitId"],
+            before
+        );
+    }
+}
+
+#[test]
+fn correction_replay_rechecks_a_receipt_published_after_admission() {
+    let env = Env::new("correction-concurrent-binding");
+    let targets = [
+        env.remember("Synthetic racing target one", "synthetic.race_one"),
+        env.remember("Synthetic racing target two", "synthetic.race_two"),
+    ];
+    let callers = AtomicU64::new(0);
+    with_concurrent_allocations_at(
+        &env,
+        0,
+        true,
+        |_| {},
+        |ws| {
+            let n = callers.fetch_add(1, Ordering::SeqCst) as usize;
+            ws.call(&json!({
+            "schemaVersion": 1,
+            "requestId": format!("req_00000000-0000-4000-8000-{n:012x}"),
+            "command": "correction_propose", "idempotencyKey": "correction-racing-key",
+            "arguments": {"memoryId": targets[n], "revision": 1, "text": "Synthetic same correction"},
+        }))
+        },
+        |ws, first, second| {
+            let responses = [first, second];
+            for response in &responses {
+                validate_response("correction_propose", response).unwrap();
+            }
+            assert_eq!(
+                responses
+                    .iter()
+                    .filter(|v| v["error"] == Value::Null)
+                    .count(),
+                1,
+                "{responses:?}"
+            );
+            let refused = responses
+                .iter()
+                .find(|v| v["kind"] == "memory_error")
+                .unwrap();
+            assert_eq!(
+                refused["error"]["code"], "idempotency_conflict",
+                "{refused}"
+            );
+            assert_eq!(refused["error"]["rules"][0], "workspace.key_reuse");
+            let open = ws.open().unwrap();
+            let pin = open.vault.pin_current().unwrap();
+            let candidates: Vec<CandidateRecord> =
+                latest_records(&open.vault, &pin, RecordKind::Candidate).unwrap();
+            assert_eq!(
+                candidates
+                    .iter()
+                    .filter(
+                        |c| c.status == enouia_memory_contract::candidate::CandidateStatus::Pending
+                    )
+                    .count(),
+                1
+            );
+        },
+    );
+}
+
+#[test]
 fn remember_replay_binds_the_claim_key_after_reopen_and_review() {
     let env = Env::new("remember-claim-replay");
     let args = json!({"text": "Synthetic stable text", "claimKey": "synthetic.first_claim"});
@@ -1333,7 +1517,9 @@ fn lifecycle_waits_for_an_in_flight_page_call() {
                         .send(env_ref.send("workspace_status", json!({})))
                         .unwrap();
                 });
-                let status = status_rx.recv_timeout(Duration::from_millis(500)).ok();
+                // This proves lock bypass, not a 500 ms filesystem/ACL latency
+                // target. Keep the bound below PausedClock's 10 s release wait.
+                let status = status_rx.recv_timeout(Duration::from_secs(5)).ok();
                 // Always release before asserting, including on the broken base.
                 release_tx.send(()).unwrap();
                 let read = reading.join().unwrap();
@@ -1775,6 +1961,20 @@ fn session_ask_replay_refuses_evidence_deleted_while_the_call_is_paused() {
     check_session_ask_dispatch_replay(0, true, true);
 }
 
+fn call_with_contention_retry(ws: &Workspace, envelope: &Value) -> Value {
+    for _ in 0..200 {
+        let response = ws.call(envelope);
+        let error = &response["error"];
+        let contention = error["code"] == "index_not_ready"
+            || (error["code"] == "busy" && error["rules"][0] == "fault.writer_busy");
+        if !contention || error["retryable"] != true {
+            return response;
+        }
+        std::thread::sleep(Duration::from_millis(5));
+    }
+    panic!("synthetic index/writer contention did not release");
+}
+
 fn check_session_ask_dispatch_replay(skip: usize, ordered: bool, delete_during_replay: bool) {
     let env = Env::new(&format!("mock-page-replay-{skip}"));
     let created = env.ok("session_new", json!({}));
@@ -1819,16 +2019,7 @@ fn check_session_ask_dispatch_replay(skip: usize, ordered: bool, delete_during_r
                 assert_eq!(confirmed["error"], Value::Null, "{confirmed}");
             }
         },
-        |ws| {
-            for _ in 0..200 {
-                let response = ws.call(&envelope);
-                if response["error"]["code"] != "index_not_ready" {
-                    return response;
-                }
-                std::thread::sleep(Duration::from_millis(5));
-            }
-            panic!("synthetic index contention did not release");
-        },
+        |ws| call_with_contention_retry(ws, &envelope),
         |ws, first, second| {
             if delete_during_replay {
                 let responses = [&first, &second];
