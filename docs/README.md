@@ -18,6 +18,8 @@ The 2026-10-05 MV-6 [lifecycle](validation/MV-6-vault-lifecycle.md), [concurrenc
 
 The [concurrent source replay finding and correction](validation/MV-6-pending-source-replay.md) records the eighth slice: the initially failing synthetic diagnostic and its subsequent manual-assertion service fix. Other service and full-page concurrency cases remain follow-ups.
 
+The 2026-10-06 [concurrent Context session replay report](validation/MV-6-session-replay.md) records the ninth slice, including full `session_new` page calls and input/fork/checkpoint service regressions.
+
 ## Import record (2026-09-28)
 
 The design package, the two prompts, and the review were written in this directory. They were moved unchanged from the repository root into the folders above, apart from the substitutions listed here. The unredacted originals are kept in the ignored `.local/originals/` with their SHA-256 values.

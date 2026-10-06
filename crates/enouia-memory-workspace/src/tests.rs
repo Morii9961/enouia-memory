@@ -1511,27 +1511,177 @@ fn completed_work_stays_successful_after_a_cancel_request() {
 
 #[test]
 fn diagnostic_concurrent_assertion_returns_the_published_source() {
-    struct HeldIds {
-        armed: AtomicU64,
-        ready: std::sync::mpsc::Sender<()>,
-        releases: Mutex<Vec<std::sync::mpsc::Receiver<()>>>,
-        seq: SequentialIdSource,
-    }
-    impl IdSource for HeldIds {
-        fn random_16(&self) -> [u8; 16] {
-            if self
-                .armed
-                .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |n| n.checked_sub(1))
-                .is_ok()
-            {
-                let release = self.releases.lock().unwrap().pop().unwrap();
-                self.ready.send(()).unwrap();
-                release.recv_timeout(Duration::from_secs(10)).unwrap();
-            }
-            self.seq.random_16()
-        }
-    }
     let env = Env::new("diagnostic-assertion-replay");
+    with_concurrent_allocations(
+        &env,
+        |ws| {
+            let open = ws.open().unwrap();
+            serde_json::to_value(
+                ws.assertion(&open, "Synthetic concurrent source", b"diagnostic-same-key")
+                    .unwrap(),
+            )
+            .unwrap()
+        },
+        |_, first, second| {
+            assert_eq!(
+                first, second,
+                "same key/text must return the original published source"
+            );
+        },
+    );
+}
+
+struct HeldIds {
+    armed: AtomicU64,
+    ready: std::sync::mpsc::Sender<()>,
+    releases: Mutex<Vec<std::sync::mpsc::Receiver<()>>>,
+    seq: SequentialIdSource,
+}
+
+#[test]
+fn concurrent_context_session_input_replays_the_published_id() {
+    check_concurrent_context_session_write("input");
+}
+
+#[test]
+fn concurrent_context_session_fork_replays_the_published_id() {
+    check_concurrent_context_session_write("fork");
+}
+
+#[test]
+fn concurrent_context_session_checkpoint_replays_the_published_id() {
+    check_concurrent_context_session_write("checkpoint");
+}
+
+fn check_concurrent_context_session_write(kind: &str) {
+    let env = Env::new(&format!("session-write-replay-{kind}"));
+    let created = env.ok("session_new", json!({}));
+    let sid = enouia_memory_contract::ids::SessionId::parse(created["sessionId"].as_str().unwrap())
+        .unwrap();
+    let bid = enouia_memory_contract::ids::BranchId::parse(created["branchId"].as_str().unwrap())
+        .unwrap();
+    env.ok(
+        "session_ask",
+        json!({"sessionId": sid, "branchId": bid, "text": "Synthetic setup turn"}),
+    );
+    let detail = env.ok("session_detail", json!({"sessionId": sid, "branchId": bid}));
+    let at =
+        enouia_memory_contract::ids::EventId::parse(detail["lastSavedEventId"].as_str().unwrap())
+            .unwrap();
+    let request = RequestId::parse("req_00000000-0000-4000-8000-000000000099").unwrap();
+    let work = |ws: &Workspace| {
+        let open = ws.open().unwrap();
+        match kind {
+            "input" => serde_json::to_value(
+                session::save_input(
+                    &open.vault,
+                    &open.owner,
+                    &sid,
+                    &bid,
+                    "Synthetic concurrent input",
+                    &request,
+                    b"synthetic-context-race",
+                )
+                .unwrap()
+                .id,
+            )
+            .unwrap(),
+            "fork" => serde_json::to_value(
+                session::fork(
+                    &open.vault,
+                    &open.owner,
+                    &sid,
+                    &at,
+                    b"synthetic-context-race",
+                )
+                .unwrap()
+                .id,
+            )
+            .unwrap(),
+            _ => serde_json::to_value(
+                session::checkpoint(
+                    &open.vault,
+                    &open.owner,
+                    &sid,
+                    &bid,
+                    &session::CheckpointInput {
+                        summary: "Synthetic concurrent checkpoint".into(),
+                        decisions: vec![],
+                        open_loops: vec![],
+                    },
+                    b"synthetic-context-race",
+                )
+                .unwrap()
+                .id,
+            )
+            .unwrap(),
+        }
+    };
+    with_concurrent_allocations(&env, work, |ws, first, second| {
+        assert_eq!(first, second, "{kind} must return published IDs");
+        let open = ws.open().unwrap();
+        let pin = open.vault.pin_current().unwrap();
+        match kind {
+            "input" | "checkpoint" => {
+                let record_kind = if kind == "input" {
+                    RecordKind::SessionEvent
+                } else {
+                    RecordKind::Checkpoint
+                };
+                assert!(
+                    open.vault
+                        .record_entry(&pin, record_kind, first.as_str().unwrap())
+                        .unwrap()
+                        .is_some()
+                );
+            }
+            _ => {
+                let stored = session::get(&open.vault, &pin, &sid).unwrap();
+                assert_eq!(stored.branches.len(), 2);
+                assert!(stored.branches.iter().any(|b| json!(b.branch_id) == first));
+            }
+        }
+        assert_eq!(work(ws), first, "{kind} subsequent replay");
+        assert_eq!(open.vault.pin_current().unwrap().commit_id, pin.commit_id);
+        if kind == "fork" {
+            let later = session::fork(&open.vault, &open.owner, &sid, &at, b"synthetic-later-fork")
+                .unwrap();
+            assert_ne!(json!(later.id), first);
+            assert_eq!(
+                work(ws),
+                first,
+                "replay uses the receipt's historical branch, not the latest fork"
+            );
+            assert_eq!(
+                session::get(&open.vault, &open.vault.pin_current().unwrap(), &sid)
+                    .unwrap()
+                    .branches
+                    .len(),
+                3
+            );
+        }
+    });
+}
+impl IdSource for HeldIds {
+    fn random_16(&self) -> [u8; 16] {
+        if self
+            .armed
+            .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |n| n.checked_sub(1))
+            .is_ok()
+        {
+            let release = self.releases.lock().unwrap().pop().unwrap();
+            self.ready.send(()).unwrap();
+            release.recv_timeout(Duration::from_secs(10)).unwrap();
+        }
+        self.seq.random_16()
+    }
+}
+
+fn with_concurrent_allocations(
+    env: &Env,
+    work: impl Fn(&Workspace) -> Value + Sync,
+    check: impl FnOnce(&Workspace, Value, Value),
+) {
     env.ws.shutdown();
     let (ready_tx, ready_rx) = std::sync::mpsc::channel();
     let (a_tx, a_rx) = std::sync::mpsc::channel();
@@ -1547,13 +1697,10 @@ fn diagnostic_concurrent_assertion_returns_the_published_source() {
         ids: ids.clone(),
     });
     ws.open_root(&env.base.join("vault")).unwrap();
-    let open = ws.open().unwrap();
     ids.armed.store(2, Ordering::SeqCst);
     let values = std::thread::scope(|scope| {
-        let first = scope
-            .spawn(|| ws.assertion(&open, "Synthetic concurrent source", b"diagnostic-same-key"));
-        let second = scope
-            .spawn(|| ws.assertion(&open, "Synthetic concurrent source", b"diagnostic-same-key"));
+        let first = scope.spawn(|| work(&ws));
+        let second = scope.spawn(|| work(&ws));
         let both_ready = ready_rx.recv_timeout(Duration::from_secs(5)).is_ok()
             && ready_rx.recv_timeout(Duration::from_secs(5)).is_ok();
         let _ = a_tx.send(());
@@ -1565,10 +1712,47 @@ fn diagnostic_concurrent_assertion_returns_the_published_source() {
         );
         results
     });
+    check(&ws, values.0, values.1);
     ws.shutdown();
-    assert_eq!(
-        values.0.unwrap(),
-        values.1.unwrap(),
-        "same key/text must return the original published source"
+}
+
+#[test]
+fn concurrent_session_new_replays_the_published_session_and_branch() {
+    let env = Env::new("session-new-replay");
+    with_concurrent_allocations(
+        &env,
+        |ws| {
+            ws.call(&json!({
+        "schemaVersion": 1, "requestId": "req_00000000-0000-4000-8000-000000000001",
+        "command": "session_new", "idempotencyKey": "synthetic-session-new-race", "arguments": {},
+    }))
+        },
+        |ws, first, second| {
+            for response in [&first, &second] {
+                validate_response("session_new", response).unwrap();
+                assert_eq!(response["error"], Value::Null, "{response}");
+            }
+            assert_eq!(
+                first["result"], second["result"],
+                "same-key session creation must return published IDs"
+            );
+            let listed = ws.call(&json!({
+                "schemaVersion": 1, "requestId": "req_00000000-0000-4000-8000-000000000002",
+                "command": "session_list", "idempotencyKey": null, "arguments": {},
+            }));
+            assert_eq!(listed["result"]["items"].as_array().unwrap().len(), 1);
+            let detail = ws.call(&json!({
+            "schemaVersion": 1, "requestId": "req_00000000-0000-4000-8000-000000000003",
+            "command": "session_detail", "idempotencyKey": null,
+            "arguments": {"sessionId": first["result"]["sessionId"], "branchId": first["result"]["branchId"]},
+        }));
+            validate_response("session_detail", &detail).unwrap();
+            assert_eq!(detail["error"], Value::Null, "{detail}");
+            let replay = ws.call(&json!({
+            "schemaVersion": 1, "requestId": "req_00000000-0000-4000-8000-000000000004",
+            "command": "session_new", "idempotencyKey": "synthetic-session-new-race", "arguments": {},
+        }));
+            assert_eq!(replay["result"], first["result"]);
+        },
     );
 }

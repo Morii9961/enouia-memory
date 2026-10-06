@@ -18,6 +18,28 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::collections::BTreeSet;
 
+fn replay_record(outcome: &CommitOutcome, kind: RecordKind) -> Result<Option<&RecordRef>> {
+    match outcome {
+        CommitOutcome::Committed { .. } => Ok(None),
+        CommitOutcome::Replayed { receipt, .. } => receipt
+            .records
+            .iter()
+            .find(|r| r.record_kind == kind)
+            .map(Some)
+            .ok_or_else(missing),
+    }
+}
+
+fn receipt_session(vault: &Vault, reference: &RecordRef) -> Result<SessionRecord> {
+    read(
+        vault,
+        &vault.pin_current()?,
+        RecordKind::Session,
+        &reference.record_id,
+        reference.revision,
+    )
+}
+
 pub fn start(
     vault: &Vault,
     input: &SessionStart,
@@ -39,11 +61,10 @@ pub fn start(
             .iter()
             .find(|r| r.record_kind == RecordKind::Session)
             .ok_or_else(missing)?;
-        let sid = SessionId::parse(&id.record_id).map_err(|_| missing())?;
-        let session = get(vault, &vault.pin_current()?, &sid)?;
+        let session = receipt_session(vault, id)?;
         return Ok(Written {
             outcome: CommitOutcome::Replayed { commit_id, receipt },
-            id: (sid, session.default_branch_id),
+            id: (session.session_id, session.default_branch_id),
         });
     }
     let pin = vault.pin_current()?;
@@ -83,10 +104,13 @@ pub fn start(
         vec![staged(RecordKind::Session, sid.as_str(), one(), &session)?],
         vec![],
     )?;
-    Ok(Written {
-        outcome,
-        id: (sid, bid),
-    })
+    let id = if let Some(reference) = replay_record(&outcome, RecordKind::Session)? {
+        let stored = receipt_session(vault, reference)?;
+        (stored.session_id, stored.default_branch_id)
+    } else {
+        (sid, bid)
+    };
+    Ok(Written { outcome, id })
 }
 
 pub fn get(vault: &Vault, pin: &CommitPin, sid: &SessionId) -> Result<SessionRecord> {
@@ -411,6 +435,11 @@ fn append(
         ],
         objects,
     )?;
+    let id = if let Some(reference) = replay_record(&outcome, RecordKind::SessionEvent)? {
+        EventId::parse(&reference.record_id).map_err(|_| missing())?
+    } else {
+        id
+    };
     Ok(Written { outcome, id })
 }
 
@@ -433,13 +462,7 @@ pub fn fork(
             .iter()
             .find(|r| r.record_kind == RecordKind::Session)
             .ok_or_else(missing)?;
-        let session: SessionRecord = read(
-            vault,
-            &vault.pin_current()?,
-            RecordKind::Session,
-            sid.as_str(),
-            entry.revision,
-        )?;
+        let session = receipt_session(vault, entry)?;
         let id = session
             .branches
             .last()
@@ -487,6 +510,16 @@ pub fn fork(
         )?],
         vec![],
     )?;
+    let id = if let Some(reference) = replay_record(&outcome, RecordKind::Session)? {
+        receipt_session(vault, reference)?
+            .branches
+            .last()
+            .ok_or_else(missing)?
+            .branch_id
+            .clone()
+    } else {
+        id
+    };
     Ok(Written { outcome, id })
 }
 
@@ -595,6 +628,11 @@ pub fn checkpoint(
         )?],
         vec![],
     )?;
+    let id = if let Some(reference) = replay_record(&outcome, RecordKind::Checkpoint)? {
+        CheckpointId::parse(&reference.record_id).map_err(|_| missing())?
+    } else {
+        id
+    };
     Ok(Written { outcome, id })
 }
 
