@@ -8,12 +8,12 @@ use crate::{
 };
 use enouia_memory_contract::common::{ActorRef, SourceRevisionRef};
 use enouia_memory_contract::{
-    commit::{ObjectKind, OperationKind},
+    commit::{ObjectKind, OperationKind, OperationReceipt},
     context::*,
     hash::{Sha256Hex, sha256},
     ids::*,
     json::SchemaVersion,
-    ports::StagedObject,
+    ports::{CommitOutcome, StagedObject},
     provider::ProviderRequest,
     record::RecordKind,
 };
@@ -29,6 +29,43 @@ pub struct MockAnswer {
     pub memories: Vec<MemoryRevisionRef>,
     pub sources: Vec<SourceRevisionRef>,
     pub request_hash: Sha256Hex,
+}
+
+fn restore_dispatch(
+    vault: &Vault,
+    receipt: &OperationReceipt,
+    capsule: &ContextCapsule,
+    answer: &mut MockAnswer,
+) -> Result<()> {
+    let reference = receipt
+        .records
+        .iter()
+        .find(|r| r.record_kind == RecordKind::Dispatch)
+        .ok_or_else(missing)?;
+    // A receipt can appear after this call's initial pin. Read through the
+    // current catalog, retaining the original receipt revision and barriers.
+    let previous: DispatchRecord = read(
+        vault,
+        &vault.pin_current()?,
+        RecordKind::Dispatch,
+        &reference.record_id,
+        reference.revision,
+    )?;
+    let fresh = vault.check_fresh(
+        &pin_at(vault, &capsule.vault_commit_id)?,
+        &resource_refs(capsule),
+    )?;
+    if fresh.head.policy_epoch != capsule.policy_epoch
+        || fresh.head.deletion_epoch != capsule.deletion_epoch
+    {
+        return Err(invalid("mock.recompile_required"));
+    }
+    if previous.capsule_id != capsule.capsule_id || previous.request_id != capsule.request_id {
+        return Err(invalid("mock.request_mismatch"));
+    }
+    answer.dispatch_id = previous.dispatch_id;
+    answer.request_hash = previous.request_hash;
+    Ok(())
 }
 
 /// There is no alternate prompt, evidence, model memory, hidden tool, or
@@ -210,20 +247,7 @@ pub fn answer_saved(
         key.as_bytes(),
         &payload,
     )? {
-        let reference = receipt
-            .records
-            .iter()
-            .find(|r| r.record_kind == RecordKind::Dispatch)
-            .ok_or_else(missing)?;
-        let previous: DispatchRecord = read(
-            vault,
-            &current,
-            RecordKind::Dispatch,
-            &reference.record_id,
-            one(),
-        )?;
-        answer.dispatch_id = previous.dispatch_id;
-        answer.request_hash = previous.request_hash;
+        restore_dispatch(vault, &receipt, &capsule, &mut answer)?;
         // A crash between dispatch publication and reply publication leaves
         // the turn pending. Retry repairs that last durable step exactly once.
         if let Some(input) = input_event {
@@ -248,7 +272,7 @@ pub fn answer_saved(
         return Err(invalid("mock.recompile_required"));
     }
     dispatch.egress.checked_at = vault.now()?;
-    commit(
+    let outcome = commit(
         vault,
         actor,
         &checked.head,
@@ -263,6 +287,9 @@ pub fn answer_saved(
         )?],
         objects,
     )?;
+    if let CommitOutcome::Replayed { receipt, .. } = outcome {
+        restore_dispatch(vault, &receipt, &capsule, &mut answer)?;
+    }
     if let Some(input) = input_event {
         let text = String::from_utf8(bytes(&answer)?).map_err(|_| invalid("mock.utf8"))?;
         session::append_output(

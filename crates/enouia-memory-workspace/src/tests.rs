@@ -1533,6 +1533,8 @@ fn diagnostic_concurrent_assertion_returns_the_published_source() {
 
 struct HeldIds {
     armed: AtomicU64,
+    skip_per_thread: usize,
+    calls: Mutex<std::collections::HashMap<std::thread::ThreadId, usize>>,
     ready: std::sync::mpsc::Sender<()>,
     releases: Mutex<Vec<std::sync::mpsc::Receiver<()>>>,
     seq: SequentialIdSource,
@@ -1664,10 +1666,17 @@ fn check_concurrent_context_session_write(kind: &str) {
 }
 impl IdSource for HeldIds {
     fn random_16(&self) -> [u8; 16] {
-        if self
-            .armed
-            .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |n| n.checked_sub(1))
-            .is_ok()
+        let pause = {
+            let mut calls = self.calls.lock().unwrap();
+            let count = calls.entry(std::thread::current().id()).or_default();
+            *count += 1;
+            *count > self.skip_per_thread
+        };
+        if pause
+            && self
+                .armed
+                .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |n| n.checked_sub(1))
+                .is_ok()
         {
             let release = self.releases.lock().unwrap().pop().unwrap();
             self.ready.send(()).unwrap();
@@ -1682,12 +1691,25 @@ fn with_concurrent_allocations(
     work: impl Fn(&Workspace) -> Value + Sync,
     check: impl FnOnce(&Workspace, Value, Value),
 ) {
+    with_concurrent_allocations_at(env, 0, false, |_| {}, work, check);
+}
+
+fn with_concurrent_allocations_at(
+    env: &Env,
+    skip_per_thread: usize,
+    ordered_release: bool,
+    after_first: impl FnOnce(&Workspace),
+    work: impl Fn(&Workspace) -> Value + Sync,
+    check: impl FnOnce(&Workspace, Value, Value),
+) {
     env.ws.shutdown();
     let (ready_tx, ready_rx) = std::sync::mpsc::channel();
     let (a_tx, a_rx) = std::sync::mpsc::channel();
     let (b_tx, b_rx) = std::sync::mpsc::channel();
     let ids = Arc::new(HeldIds {
         armed: AtomicU64::new(0),
+        skip_per_thread,
+        calls: Mutex::new(std::collections::HashMap::new()),
         ready: ready_tx,
         releases: Mutex::new(vec![a_rx, b_rx]),
         seq: SequentialIdSource::new(0xd000),
@@ -1698,22 +1720,178 @@ fn with_concurrent_allocations(
     });
     ws.open_root(&env.base.join("vault")).unwrap();
     ids.armed.store(2, Ordering::SeqCst);
+    let (finished_tx, finished_rx) = std::sync::mpsc::channel();
     let values = std::thread::scope(|scope| {
-        let first = scope.spawn(|| work(&ws));
-        let second = scope.spawn(|| work(&ws));
+        let run = || {
+            let value = work(&ws);
+            finished_tx.send(()).unwrap();
+            value
+        };
+        let first = scope.spawn(run);
+        let second = scope.spawn(run);
         let both_ready = ready_rx.recv_timeout(Duration::from_secs(5)).is_ok()
             && ready_rx.recv_timeout(Duration::from_secs(5)).is_ok();
-        let _ = a_tx.send(());
         let _ = b_tx.send(());
+        let first_finished =
+            !ordered_release || finished_rx.recv_timeout(Duration::from_secs(5)).is_ok();
+        let between = if ordered_release && first_finished {
+            Some(std::panic::catch_unwind(std::panic::AssertUnwindSafe(
+                || after_first(&ws),
+            )))
+        } else {
+            None
+        };
+        let _ = a_tx.send(());
         let results = (first.join().unwrap(), second.join().unwrap());
+        if let Some(Err(panic)) = between {
+            std::panic::resume_unwind(panic);
+        }
         assert!(
             both_ready,
             "both calls must pass the initial receipt lookup before publication"
+        );
+        assert!(
+            first_finished,
+            "the first call must finish before the second resumes"
         );
         results
     });
     check(&ws, values.0, values.1);
     ws.shutdown();
+}
+
+#[test]
+fn session_ask_replay_reads_a_receipt_published_after_its_initial_pin() {
+    check_session_ask_dispatch_replay(0, true, false);
+}
+
+#[test]
+fn concurrent_session_ask_replay_uses_the_published_dispatch_and_reply() {
+    check_session_ask_dispatch_replay(1, false, false);
+}
+
+#[test]
+fn session_ask_replay_refuses_evidence_deleted_while_the_call_is_paused() {
+    check_session_ask_dispatch_replay(0, true, true);
+}
+
+fn check_session_ask_dispatch_replay(skip: usize, ordered: bool, delete_during_replay: bool) {
+    let env = Env::new(&format!("mock-page-replay-{skip}"));
+    let created = env.ok("session_new", json!({}));
+    let sid = enouia_memory_contract::ids::SessionId::parse(created["sessionId"].as_str().unwrap())
+        .unwrap();
+    let bid = enouia_memory_contract::ids::BranchId::parse(created["branchId"].as_str().unwrap())
+        .unwrap();
+    let key = "synthetic-ask-dispatch-race";
+    let text = "Synthetic replay question";
+    let memory = delete_during_replay.then(|| env.remember(text, "synthetic.replay_deleted"));
+    let request = request_id_for(key, "session_ask");
+    let open = env.ws.open().unwrap();
+    session::save_input(
+        &open.vault,
+        &open.owner,
+        &sid,
+        &bid,
+        text,
+        &request,
+        format!("ask-input\n{key}").as_bytes(),
+    )
+    .unwrap();
+    env.ws
+        .compiled(&open, text, request, Some(&sid), Some(&bid))
+        .unwrap();
+    let envelope = json!({"schemaVersion": 1, "requestId": "req_00000000-0000-4000-8000-000000000011",
+        "command": "session_ask", "idempotencyKey": key,
+        "arguments": {"sessionId": sid, "branchId": bid, "text": text}});
+    with_concurrent_allocations_at(
+        &env,
+        skip,
+        ordered,
+        |ws| {
+            if let Some(memory) = &memory {
+                let plan = ws.call(&json!({"schemaVersion": 1, "requestId": "req_00000000-0000-4000-8000-000000000021",
+                    "command": "forget_plan", "idempotencyKey": "synthetic-replay-forget",
+                    "arguments": {"memoryId": memory, "mode": "forget", "withDependents": false}}));
+                assert_eq!(plan["error"], Value::Null, "{plan}");
+                let confirmed = ws.call(&json!({"schemaVersion": 1, "requestId": "req_00000000-0000-4000-8000-000000000022",
+                    "command": "review_confirm", "idempotencyKey": "synthetic-replay-forget-confirm",
+                    "arguments": {"planId": plan["result"]["planId"], "diffHash": plan["result"]["diffHash"]}}));
+                assert_eq!(confirmed["error"], Value::Null, "{confirmed}");
+            }
+        },
+        |ws| {
+            for _ in 0..200 {
+                let response = ws.call(&envelope);
+                if response["error"]["code"] != "index_not_ready" {
+                    return response;
+                }
+                std::thread::sleep(Duration::from_millis(5));
+            }
+            panic!("synthetic index contention did not release");
+        },
+        |ws, first, second| {
+            if delete_during_replay {
+                let responses = [&first, &second];
+                for response in responses {
+                    validate_response("session_ask", response).unwrap();
+                }
+                assert_eq!(
+                    responses
+                        .iter()
+                        .filter(|r| r["error"] == Value::Null)
+                        .count(),
+                    1
+                );
+                let refused = responses
+                    .iter()
+                    .find(|r| r["error"] != Value::Null)
+                    .unwrap();
+                assert_eq!(refused["kind"], "memory_error");
+                assert_eq!(refused["result"], Value::Null);
+                assert!(
+                    matches!(
+                        refused["error"]["rules"][0].as_str(),
+                        Some("mock.recompile_required" | "fault.not_found")
+                    ),
+                    "{refused}"
+                );
+                return;
+            }
+            for response in [&first, &second] {
+                validate_response("session_ask", response).unwrap();
+                assert_eq!(response["error"], Value::Null, "{response}");
+            }
+            assert_eq!(first["result"], second["result"]);
+            let dispatch = ws.call(
+                &json!({"schemaVersion": 1, "requestId": "req_00000000-0000-4000-8000-000000000012",
+            "command": "dispatch_inspect", "idempotencyKey": null,
+            "arguments": {"dispatchId": first["result"]["dispatchId"]}}),
+            );
+            validate_response("dispatch_inspect", &dispatch).unwrap();
+            assert_eq!(dispatch["result"]["verified"], true, "{dispatch}");
+            let detail = ws.call(&json!({"schemaVersion": 1, "requestId": "req_00000000-0000-4000-8000-000000000013",
+            "command": "session_detail", "idempotencyKey": null, "arguments": {"sessionId": sid, "branchId": bid}}));
+            validate_response("session_detail", &detail).unwrap();
+            assert_eq!(detail["result"]["turns"].as_array().unwrap().len(), 1);
+            assert_eq!(detail["result"]["turns"][0]["state"], "completed");
+            assert_eq!(detail["result"]["transcript"].as_array().unwrap().len(), 2);
+            let saved = detail["result"]["transcript"][1]["text"].as_str().unwrap();
+            let saved: Value = serde_json::from_str(saved).unwrap();
+            assert_eq!(saved["dispatch_id"], first["result"]["dispatchId"]);
+            let before = ws.open().unwrap().vault.pin_current().unwrap();
+            let mut retry = envelope.clone();
+            retry["requestId"] = json!("req_00000000-0000-4000-8000-000000000014");
+            let repeated = ws.call(&retry);
+            assert_eq!(
+                repeated["result"], first["result"],
+                "fresh transport request ID replays the same action"
+            );
+            assert_eq!(
+                ws.open().unwrap().vault.pin_current().unwrap().commit_id,
+                before.commit_id
+            );
+        },
+    );
 }
 
 #[test]
