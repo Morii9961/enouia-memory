@@ -1508,3 +1508,67 @@ fn completed_work_stays_successful_after_a_cancel_request() {
     assert_eq!(done["result"]["saved"], true);
     assert_eq!(done["cancelRequested"], true);
 }
+
+#[test]
+fn diagnostic_concurrent_assertion_returns_the_published_source() {
+    struct HeldIds {
+        armed: AtomicU64,
+        ready: std::sync::mpsc::Sender<()>,
+        releases: Mutex<Vec<std::sync::mpsc::Receiver<()>>>,
+        seq: SequentialIdSource,
+    }
+    impl IdSource for HeldIds {
+        fn random_16(&self) -> [u8; 16] {
+            if self
+                .armed
+                .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |n| n.checked_sub(1))
+                .is_ok()
+            {
+                let release = self.releases.lock().unwrap().pop().unwrap();
+                self.ready.send(()).unwrap();
+                release.recv_timeout(Duration::from_secs(10)).unwrap();
+            }
+            self.seq.random_16()
+        }
+    }
+    let env = Env::new("diagnostic-assertion-replay");
+    env.ws.shutdown();
+    let (ready_tx, ready_rx) = std::sync::mpsc::channel();
+    let (a_tx, a_rx) = std::sync::mpsc::channel();
+    let (b_tx, b_rx) = std::sync::mpsc::channel();
+    let ids = Arc::new(HeldIds {
+        armed: AtomicU64::new(0),
+        ready: ready_tx,
+        releases: Mutex::new(vec![a_rx, b_rx]),
+        seq: SequentialIdSource::new(0xd000),
+    });
+    let ws = Workspace::new(Config {
+        clock: env.clock.clone(),
+        ids: ids.clone(),
+    });
+    ws.open_root(&env.base.join("vault")).unwrap();
+    let open = ws.open().unwrap();
+    ids.armed.store(2, Ordering::SeqCst);
+    let values = std::thread::scope(|scope| {
+        let first = scope
+            .spawn(|| ws.assertion(&open, "Synthetic concurrent source", b"diagnostic-same-key"));
+        let second = scope
+            .spawn(|| ws.assertion(&open, "Synthetic concurrent source", b"diagnostic-same-key"));
+        let both_ready = ready_rx.recv_timeout(Duration::from_secs(5)).is_ok()
+            && ready_rx.recv_timeout(Duration::from_secs(5)).is_ok();
+        let _ = a_tx.send(());
+        let _ = b_tx.send(());
+        let results = (first.join().unwrap(), second.join().unwrap());
+        assert!(
+            both_ready,
+            "both calls must pass the initial receipt lookup before publication"
+        );
+        results
+    });
+    ws.shutdown();
+    assert_eq!(
+        values.0.unwrap(),
+        values.1.unwrap(),
+        "same key/text must return the original published source"
+    );
+}

@@ -16,9 +16,9 @@ All project documentation lives under `docs/`.
 
 The 2026-10-05 MV-6 [lifecycle](validation/MV-6-vault-lifecycle.md), [concurrency](validation/MV-6-core-concurrency.md), [operation outcome](validation/MV-6-operation-outcomes.md), [reference scheduling](validation/MV-6-shell-lifecycle.md), [picker admission](validation/MV-6-picker-admission.md), [excerpt pagination](validation/MV-6-excerpt-pagination.md), and [remember replay](validation/MV-6-remember-replay.md) reports record follow-ups to ADR-MEM-46 and the corresponding Runtime pin adoption boundaries.
 
-## Import record (2026-09-28)
+The [concurrent source replay finding and correction](validation/MV-6-pending-source-replay.md) records the eighth slice: the initially failing synthetic diagnostic and its subsequent manual-assertion service fix. Other service and full-page concurrency cases remain follow-ups.
 
-The [pending concurrent source replay finding](validation/MV-6-pending-source-replay.md) records a synthetic failure identified after the seven completed hardening slices. It remains unfixed and is not counted as passing evidence.
+## Import record (2026-09-28)
 
 The design package, the two prompts, and the review were written in this directory. They were moved unchanged from the repository root into the folders above, apart from the substitutions listed here. The unredacted originals are kept in the ignored `.local/originals/` with their SHA-256 values.
 
