@@ -1305,6 +1305,12 @@ impl Workspace {
                 // each route retains its logical-argument postcheck.
                 Ok(propose(&open.vault, proposal, &origin, key)?)
             }
+            Err(error) if error.fault == Fault::HeadMoved => {
+                // Re-read the pending queue and target once after another
+                // writer invalidates proposal assembly. This can deduplicate
+                // a different-key proposal; repeated movement remains an error.
+                Ok(propose(&open.vault, proposal, &origin, key)?)
+            }
             result => Ok(result?),
         }
     }

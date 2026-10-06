@@ -13,6 +13,125 @@ static COUNTER: AtomicU64 = AtomicU64::new(0);
 const T0: i64 = 1_790_000_000_000;
 
 #[test]
+fn different_keys_do_not_publish_duplicate_pending_candidates() {
+    check_different_key_proposals(true, false);
+}
+
+#[test]
+fn different_keys_preserve_distinct_proposals_after_head_movement() {
+    check_different_key_proposals(false, false);
+}
+
+#[test]
+fn governance_refuses_proposal_publication_from_a_stale_dedupe_snapshot() {
+    check_different_key_proposals(true, true);
+}
+
+fn check_different_key_proposals(duplicate: bool, domain_only: bool) {
+    let env = Env::new("different-key-proposal-dedupe");
+    let texts = [
+        "Synthetic simultaneous duplicate",
+        if duplicate {
+            "Synthetic simultaneous duplicate"
+        } else {
+            "Synthetic independent proposal"
+        },
+    ];
+    let keys = ["synthetic-dedupe-key-one", "synthetic-dedupe-key-two"];
+    let open = env.ws.open().unwrap();
+    let sources: Vec<_> = keys
+        .iter()
+        .enumerate()
+        .map(|(n, key)| {
+            env.ws
+                .assertion(
+                    &open,
+                    texts[n],
+                    format!("remember-source\n{key}").as_bytes(),
+                )
+                .unwrap()
+        })
+        .collect();
+    let callers = AtomicU64::new(0);
+    with_concurrent_allocations_at(
+        &env,
+        0,
+        true,
+        |_| {},
+        |ws| {
+            let n = callers.fetch_add(1, Ordering::SeqCst) as usize;
+            if domain_only {
+                let open = ws.open().unwrap();
+                let subject = open.owner.actor_id.as_str().replacen("prn_", "sub_", 1);
+                let details = json!({"claim_key": "synthetic.simultaneous_duplicate", "subject_ids": [subject]});
+                let proposal = Proposal::create(
+                    ProposedType::Fact,
+                    texts[n],
+                    details.as_object().unwrap().clone(),
+                    vec![EvidenceSpec::content(sources[n].clone(), one())],
+                );
+                return match propose(
+                    &open.vault,
+                    &proposal,
+                    &Origin::owner(open.owner.clone()),
+                    keys[n].as_bytes(),
+                ) {
+                    Ok(Proposed::Stored(written)) => {
+                        json!({"candidate": written.id, "error": null})
+                    }
+                    Ok(Proposed::DuplicateOf(id)) => json!({"candidate": id, "error": null}),
+                    Err(error) => json!({"candidate": null, "error": format!("{:?}", error.fault)}),
+                };
+            }
+            ws.call(&json!({"schemaVersion": 1,
+            "requestId": format!("req_00000000-0000-4000-8000-{n:012x}"),
+            "command": "remember", "idempotencyKey": keys[n],
+            "arguments": {"text": texts[n], "claimKey": "synthetic.simultaneous_duplicate"}}))
+        },
+        |ws, first, second| {
+            if domain_only {
+                let responses = [&first, &second];
+                assert_eq!(
+                    responses
+                        .iter()
+                        .filter(|r| r["error"] == Value::Null)
+                        .count(),
+                    1
+                );
+                let refused = responses
+                    .iter()
+                    .find(|r| r["error"] != Value::Null)
+                    .unwrap();
+                assert_eq!(refused["error"], "HeadMoved");
+                assert_eq!(refused["candidate"], Value::Null);
+                let open = ws.open().unwrap();
+                assert_eq!(
+                    pending_candidates(&open.vault, &open.vault.pin_current().unwrap())
+                        .unwrap()
+                        .len(),
+                    1
+                );
+                return;
+            }
+            for response in [&first, &second] {
+                validate_response("remember", response).unwrap();
+                assert_eq!(response["error"], Value::Null, "{response}");
+            }
+            let open = ws.open().unwrap();
+            let pin = open.vault.pin_current().unwrap();
+            assert_eq!(
+                pending_candidates(&open.vault, &pin).unwrap().len(),
+                if duplicate { 1 } else { 2 }
+            );
+            assert_eq!(
+                first["result"]["candidateId"] == second["result"]["candidateId"],
+                duplicate
+            );
+        },
+    );
+}
+
+#[test]
 fn correction_and_forget_recover_late_proposal_receipts() {
     for command in ["correction_propose", "forget_plan"] {
         let env = Env::new(command);

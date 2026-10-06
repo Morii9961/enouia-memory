@@ -28,6 +28,8 @@ The [full session ask replay report](validation/MV-6-full-session-replay.md) ext
 
 The [late proposal admission report](validation/MV-6-proposal-admission.md) records recovery of identical owner proposals when a receipt appears after initial lookup, with a forced changed-claim refusal.
 
+The [different-key proposal deduplication report](validation/MV-6-proposal-dedupe.md) binds new candidate publication to the dedupe snapshot, with one Core re-evaluation on head movement and a direct governance conflict regression.
+
 ## Import record (2026-09-28)
 
 The design package, the two prompts, and the review were written in this directory. They were moved unchanged from the repository root into the folders above, apart from the substitutions listed here. The unredacted originals are kept in the ignored `.local/originals/` with their SHA-256 values.
