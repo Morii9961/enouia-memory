@@ -1702,6 +1702,133 @@ fn concurrent_purge_confirm_replays_one_complete_result() {
     ws.shutdown();
 }
 
+#[test]
+fn closing_during_purge_waits_for_the_complete_response_and_expires_replay() {
+    for action in ["lock", "shutdown"] {
+        let env = Env::new(&format!("purge-close-{action}"));
+        let memory = env.remember("Synthetic closing purge target", "synthetic.purge_close");
+        env.ws.shutdown();
+        let (ready_tx, ready_rx) = std::sync::mpsc::channel();
+        let (release_tx, release_rx) = std::sync::mpsc::channel();
+        let ids = Arc::new(HeldIds {
+            armed: AtomicU64::new(0),
+            skip_per_thread: 0,
+            calls: Mutex::new(std::collections::HashMap::new()),
+            ready: ready_tx,
+            releases: Mutex::new(vec![release_rx]),
+            seq: SequentialIdSource::new(0xf000),
+        });
+        let ws = Workspace::new(Config {
+            clock: env.clock.clone(),
+            ids: ids.clone(),
+        });
+        ws.open_root(&env.base.join("vault")).unwrap();
+        let plan = ws.call(&json!({"schemaVersion": 1,
+            "requestId": "req_00000000-0000-4000-8000-000000000311",
+            "command": "forget_plan", "idempotencyKey": "synthetic-closing-purge-plan",
+            "arguments": {"memoryId": memory, "mode": "purge", "withDependents": false}}));
+        validate_response("forget_plan", &plan).unwrap();
+        assert_eq!(plan["error"], Value::Null, "{plan}");
+        let request = json!({"schemaVersion": 1,
+            "requestId": "req_00000000-0000-4000-8000-000000000312",
+            "command": "review_confirm", "idempotencyKey": "synthetic-closing-purge-confirm",
+            "arguments": {"planId": plan["result"]["planId"], "diffHash": plan["result"]["diffHash"]}});
+        ids.armed.store(1, Ordering::SeqCst);
+        let response = std::thread::scope(|scope| {
+            let confirming = scope.spawn(|| ws.call(&request));
+            let paused = ready_rx.recv_timeout(Duration::from_secs(5)).is_ok();
+            let (started_tx, started_rx) = std::sync::mpsc::channel();
+            let (done_tx, done_rx) = std::sync::mpsc::channel();
+            let ws_ref = &ws;
+            let closing = scope.spawn(move || {
+                started_tx.send(()).unwrap();
+                let response = if action == "lock" {
+                    Some(ws_ref.call(&json!({"schemaVersion": 1,
+                        "requestId": "req_00000000-0000-4000-8000-000000000313",
+                        "command": "vault_lock", "idempotencyKey": null, "arguments": {}})))
+                } else {
+                    ws_ref.shutdown();
+                    None
+                };
+                done_tx.send(()).unwrap();
+                response
+            });
+            let started = started_rx.recv_timeout(Duration::from_secs(5)).is_ok();
+            let closed_early = done_rx.recv_timeout(Duration::from_millis(150)).is_ok();
+            let (status_tx, status_rx) = std::sync::mpsc::channel();
+            let ws_ref = &ws;
+            let observing = scope.spawn(move || {
+                status_tx
+                    .send(ws_ref.call(&json!({"schemaVersion": 1,
+                    "requestId": "req_00000000-0000-4000-8000-000000000314",
+                    "command": "workspace_status", "idempotencyKey": null, "arguments": {}})))
+                    .unwrap();
+            });
+            let status = status_rx.recv_timeout(Duration::from_secs(5)).ok();
+            // Release the receipt allocator before assertions, even on a
+            // broken lifecycle path or an observation timeout.
+            let _ = release_tx.send(());
+            let response = confirming.join().unwrap();
+            let closed = closing.join().unwrap();
+            observing.join().unwrap();
+            assert!(
+                paused,
+                "purge must reach its post-removal receipt allocation"
+            );
+            assert!(started, "the lifecycle action must have started");
+            assert!(!closed_early, "{action} closed before the purge completed");
+            let status = status.expect("status bypasses the pending lifecycle action");
+            validate_response("workspace_status", &status).unwrap();
+            assert_eq!(status["error"], Value::Null, "{status}");
+            assert_eq!(status["result"]["vault"]["state"], "open");
+            if let Some(closed) = closed {
+                validate_response("vault_lock", &closed).unwrap();
+                assert_eq!(closed["error"], Value::Null, "{closed}");
+            }
+            response
+        });
+        validate_response("review_confirm", &response).unwrap();
+        assert_eq!(response["error"], Value::Null, "{response}");
+        assert!(
+            response["result"]["purge"]["filesRemoved"]
+                .as_u64()
+                .unwrap()
+                > 0
+        );
+        assert!(response["vaultCommitId"].is_string(), "{response}");
+        let closed_retry = ws.call(&request);
+        validate_response("review_confirm", &closed_retry).unwrap();
+        assert_eq!(closed_retry["result"], Value::Null);
+        assert_eq!(
+            closed_retry["error"]["rules"][0],
+            if action == "lock" {
+                "workspace.locked"
+            } else {
+                "workspace.no_vault"
+            }
+        );
+        ws.open_root(&env.base.join("vault")).unwrap();
+        let open = ws.open().unwrap();
+        let pin = open.vault.pin_current().unwrap();
+        let stale = ws.call(&request);
+        validate_response("review_confirm", &stale).unwrap();
+        assert_eq!(stale["result"], Value::Null);
+        assert_eq!(stale["error"]["rules"][0], "workspace.plan_unknown");
+        assert_eq!(open.vault.pin_current().unwrap().commit_id, pin.commit_id);
+        let receipts = open
+            .vault
+            .record_entries(&pin, RecordKind::PurgeReceipt)
+            .unwrap();
+        assert_eq!(receipts.len(), 1);
+        assert_eq!(
+            receipts[0].record_id,
+            response["result"]["purge"]["receiptId"].as_str().unwrap()
+        );
+        assert!(open.vault.verify(&pin).unwrap().is_clean());
+        ws.shutdown();
+    }
+}
+
 /// ADR-MEM-46: a rejected root names its reason, and a failed command does
 /// not consume the picker token, so the same choice can be retried.
 #[test]
