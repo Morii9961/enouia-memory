@@ -45,7 +45,9 @@
     "apps/workspace/src",
     "apps/workspace/src-tauri/capabilities",
     "apps/workspace/src-tauri/src",
-    "crates/enouia-memory-workspace/src"
+    "apps/workspace/src-tauri/windows",
+    "crates/enouia-memory-workspace/src",
+    "tools/windows"
   ],
   "files": [
     {
@@ -96,7 +98,7 @@
     {
       "path": "apps/workspace/src-tauri/src/startup.rs",
       "role": "reference-shell",
-      "sha256": "4d0aa683e9dcc54f33549fe3513e6b95f14fd0f3e2f1383f1757781e77a7fc1f"
+      "sha256": "b7dbf37463653c3c59192d2a24ddb70c18c0f4e479e7b1634ab18aa96ea78004"
     },
     {
       "path": "apps/workspace/src-tauri/src/window_scope.rs",
@@ -109,19 +111,39 @@
       "sha256": "f8d1ff1aca0da0701ee1aae81f2071df7f6fa8b275485d47303e3aea4016c5b3"
     },
     {
+      "path": "apps/workspace/src-tauri/windows/README.md",
+      "role": "reference-installer",
+      "sha256": "6eb3c631148ba8d7ca8375275801fe2e75139f83878856ebd1f5e71b4322431b"
+    },
+    {
+      "path": "apps/workspace/src-tauri/windows/hooks.nsh",
+      "role": "reference-installer",
+      "sha256": "db26011d43989552a7ec9e5655d60df7e8436bbdc2117fb4858e6ca2595e48d7"
+    },
+    {
+      "path": "apps/workspace/src-tauri/windows/installer-LICENSE-MIT.txt",
+      "role": "reference-installer",
+      "sha256": "9dd42ea92cff2ede5cd477cbfcce051b2d0115c0ac7f368ee88cb545055dff1d"
+    },
+    {
+      "path": "apps/workspace/src-tauri/windows/installer.nsi",
+      "role": "reference-installer",
+      "sha256": "f067bb1c4801a55b70d0b88bd30589d75f511874e768a0c3f7406a82b159f365"
+    },
+    {
       "path": "apps/workspace/src/App.tsx",
       "role": "reference-ui",
-      "sha256": "bfe3005ba3dcc5ca6b5afde44dd64fa7a6f8b0a720927e7e36e02a5a535022f0"
+      "sha256": "63a60545fe1ec9cbf9b992d94178cd0d09fb3cbaa48d827e49db2050c3de2b1b"
     },
     {
       "path": "apps/workspace/src/Overlay.tsx",
       "role": "reference-ui",
-      "sha256": "927aafa72c5d330ac151140fb30a71a419c4b55658faa27a62e87a1fa134b58a"
+      "sha256": "199d995c5489f2e0fdd68074426178ef9857385653c00ed5f07dd5b3fd37b93a"
     },
     {
       "path": "apps/workspace/src/api.ts",
       "role": "reference-ui",
-      "sha256": "0cd12b6ee75b1c4fb3ed877c871df2c92ca23c7105122287ac25b13c90b752fc"
+      "sha256": "e7d565799c4f4616c0a42dcbae2677f832a563bd0583bf1d68a5a2291d656441"
     },
     {
       "path": "apps/workspace/src/env.d.ts",
@@ -196,7 +218,7 @@
     {
       "path": "crates/enouia-memory-workspace/src/lib.rs",
       "role": "core",
-      "sha256": "995f3674fa39cae4795522de8c08e72df237e4e13ed8d3a8cf8c6bcfbda3749e"
+      "sha256": "5d66afd7a8674efd4669244722c40d8b3a0ec3ef892226870df8d583c3293a70"
     },
     {
       "path": "crates/enouia-memory-workspace/src/ops.rs",
@@ -206,7 +228,7 @@
     {
       "path": "crates/enouia-memory-workspace/src/tests.rs",
       "role": "core",
-      "sha256": "ce6f5395bdf40409ab5a047b9c79eba4b0d5b72b3c94d5ea1a5e5773058956c2"
+      "sha256": "477eb8efb02309aa69f44a73a41a6aa096cfa12f446691f4b37f4e09a893d76f"
     },
     {
       "path": "crates/enouia-memory-workspace/src/views.rs",
@@ -222,7 +244,37 @@
       "path": "tests/fixtures/memory/workspace-manifest.json",
       "role": "wire",
       "sha256": "3f8c12e10ff3c267a13750801ec6378016287275c799978d6df8ff720b0cce93"
+    },
+    {
+      "path": "tools/windows/installer-smoke.ps1",
+      "role": "reference-installer",
+      "sha256": "d7e2e9cabe04bd8a6cf48bb93f70b639c18ed0ccec10cc7923a71786758960c3"
+    },
+    {
+      "path": "tools/windows/installer-template-check.ps1",
+      "role": "reference-installer",
+      "sha256": "24b1450dacad1c34bfb9045b7cadee8c277ed2a34e1b3a107d44bf9130914ffc"
+    },
+    {
+      "path": "tools/windows/installer-upgrade-smoke.ps1",
+      "role": "reference-installer",
+      "sha256": "84fe7909d96fd2ddef3eb6cc74eb1b120d88de90f1600b8430cfca4a439cece3"
+    },
+    {
+      "path": "tools/windows/installer-version-smoke.ps1",
+      "role": "reference-installer",
+      "sha256": "eb7f9807cc379875bc186d26bcf87b1ccc9490f6690dac518ecdc48182ca48f4"
+    },
+    {
+      "path": "tools/windows/locked-file-smoke.ps1",
+      "role": "reference-installer",
+      "sha256": "9e36ca509ebbb9b9d94385af8c6361053094d586cb4dbd9991314aa2f4bfc4ee"
+    },
+    {
+      "path": "tools/windows/startup-cleanup-smoke.ps1",
+      "role": "reference-installer",
+      "sha256": "3603c1855d9f9ec9b3585143a0191508980b260b1ffd26c82b3e6f9b7223a75d"
     }
   ],
-  "aggregate": "04ca8e62840b65dc7b5c239245ee77641d26be9ee2b878668681cdb840ae20b8"
+  "aggregate": "22c85e95c3acf1151751c03a383113d2415d4fe882e2b976da0fd8c3976e59a2"
 }

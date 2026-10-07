@@ -1,5 +1,12 @@
 ; This installer owns app files, never a user-selected Vault or backup.
-; Startup is opt-in inside the app. Uninstall removes only its exact command.
+; Startup is opt-in inside the app. Uninstall removes only its exact command,
+; and only once the app files are gone: after the running-app check (which a
+; Cancel aborts) and never in update mode, as upstream.
+; A file that cannot be replaced (for example an executable still locked
+; just after it was closed) fails the install instead of being skipped. With
+; NSIS's default, a silent install skipped it, exited 0 and registered the
+; new version over the old files. Nothing is registered before the copy.
+AllowSkipFiles off
 !ifndef ENOUIA_STARTUP_RUN_KEY
   !define ENOUIA_STARTUP_RUN_KEY "Software\Microsoft\Windows\CurrentVersion\Run"
 !endif
@@ -30,8 +37,10 @@
   Pop $R1
   Pop $R0
 !macroend
-!macro NSIS_HOOK_PREUNINSTALL
-  ReadRegStr $R0 HKCU "${ENOUIA_STARTUP_RUN_KEY}" "EnouiaMemoryWorkspace"
-  StrCmpS $R0 '$\"$INSTDIR\enouia-memory-workspace.exe$\" --autostart' 0 +2
-    DeleteRegValue HKCU "${ENOUIA_STARTUP_RUN_KEY}" "EnouiaMemoryWorkspace"
+!macro NSIS_HOOK_POSTUNINSTALL
+  ${If} $UpdateMode <> 1
+    ReadRegStr $R0 HKCU "${ENOUIA_STARTUP_RUN_KEY}" "EnouiaMemoryWorkspace"
+    StrCmpS $R0 '$\"$INSTDIR\enouia-memory-workspace.exe$\" --autostart' 0 +2
+      DeleteRegValue HKCU "${ENOUIA_STARTUP_RUN_KEY}" "EnouiaMemoryWorkspace"
+  ${EndIf}
 !macroend

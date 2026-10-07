@@ -10,7 +10,7 @@
 
 先把设计同步进本仓库的文档和 ADR（v1.1：Memory 独立仓库，见 ADR-MEM-19），再添加代码。不能先写存储实现后以实现倒推 Schema。发现与本设计冲突时提供具体差异与影响，修正相应契约/验收后继续，不能仅留 TODO 绕过去。
 
-v1.2（ADR-MEM-45）：凡改动 Runtime 集成面（`docs/integration/runtime-surface.json` 所列文件：workspace IPC 契约、嵌入式 Core、其构建闭包、参考外壳与前端），须在同一提交中重新生成该清单，并在 [Runtime 集成说明](../integration/RUNTIME.md) 的兼容记录中登记：改动内容、对 Runtime 属于新增还是破坏性变更，以及 Runtime 须采纳什么。登记前 `runtime_surface` 测试会一直失败。
+v1.2（ADR-MEM-45）：凡改动 Runtime 集成面（`docs/integration/runtime-surface.json` 所列文件：workspace IPC 契约、嵌入式 Core、其构建闭包、参考外壳与前端，以及 2026-10-06 起 Runtime 安装程序所派生的参考安装程序），须在同一提交中重新生成该清单，并在 [Runtime 集成说明](../integration/RUNTIME.md) 的兼容记录中登记：改动内容、对 Runtime 属于新增还是破坏性变更，以及 Runtime 须采纳什么。登记前 `runtime_surface` 测试会一直失败。
 
 ## 2. 总依赖图与交付点
 
@@ -128,7 +128,7 @@ flowchart LR
 
 > **v1.2（2026-10-04，ADR-MEM-45）：** 本阶段界面的宿主改为 Runtime：Runtime 的 Windows 客户端以固定修订嵌入 `enouia-memory-workspace`，成为产品客户端。现有 W01～W05 证据（W01～W04 通过，W05 部分通过）来自本仓库参考外壳 `apps/workspace`，须由 Runtime 在其宿主上重新验证；参考外壳继续作为本仓库的验收工具。本说明不开启新阶段。
 
-> **2026-10-05～07 接入加固：** 补充了 Vault 生命周期状态隔离、Core 并发互斥、任务取消结果、原生退出/锁定后台调度、选择令牌并发占用、UTF-8 来源分页检查，remember 重放的 claimKey 绑定，并发手动来源重放的返回 ID 修复，Context 会话并发重放 ID 修复，Mock dispatch/reply 重放修复，以及修订/遗忘请求绑定，详见[文档索引](../README.md)中的十八份 ADR-MEM-46 后续报告（包括输入保存前开始的整条会话重放验收、晚发布提案回执恢复，不同键提案并发查重修复，从来源创建开始的整条 remember 重放和目标修订新鲜度验收，导入预览/后台导入的文件类型和读取边界加固，以及并发确认的完整结果重放修复）。本修订的完整 Rust 测试 269 项（Core 58 项）、fmt、Clippy、独立 34-schema 交叉检查及 Runtime 接入面检查通过；新增证据为本地合成数据。Runtime 尚需更新固定修订、适配行为并在自身 Windows 客户端重新验收；实际登录启动、无障碍、签名等原有待验收项不因此完成。仍处于 MV-6，MV-7 未开始。
+> **2026-10-05～07 接入加固：** 补充了 Vault 生命周期状态隔离、Core 并发互斥、任务取消结果、原生退出/锁定后台调度、选择令牌并发占用、UTF-8 来源分页检查，remember 重放的 claimKey 绑定，并发手动来源重放的返回 ID 修复，Context 会话并发重放 ID 修复，Mock dispatch/reply 重放修复，以及修订/遗忘请求绑定，详见[文档索引](../README.md)中的十八份 ADR-MEM-46 后续报告（包括输入保存前开始的整条会话重放验收、晚发布提案回执恢复，不同键提案并发查重修复，从来源创建开始的整条 remember 重放和目标修订新鲜度验收，导入预览/后台导入的文件类型和读取边界加固，以及并发确认的完整结果重放修复）。本修订的完整 Rust 测试 270 项（Core 59 项）、fmt、Clippy、独立 34-schema 交叉检查及 Runtime 接入面检查通过；新增证据为本地合成数据。Runtime 尚需更新固定修订、适配行为并在自身 Windows 客户端重新验收；实际登录启动、无障碍、签名等原有待验收项不因此完成。仍处于 MV-6，MV-7 未开始。
 
 1. **MV-6.1 薄 UI**：Memory Explorer、Import Center、Candidate Review、Sessions，typed IPC 与取消/分页。
 2. **MV-6.2 Context Inspector**：区分 compile preview / 实际 dispatched、来源和排除理由，权限不泄漏。

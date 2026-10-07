@@ -192,5 +192,12 @@ mod tests {
             unsafe { RegDeleteKeyW(HKEY_CURRENT_USER, name.as_ptr()) },
             0
         );
+        // Remove the parent test key too when no other run still uses it.
+        let parent: Vec<u16> = "Software\\EnouiaMemoryTests"
+            .encode_utf16()
+            .chain(Some(0))
+            .collect();
+        // SAFETY: deletes only the empty parent test key; fails harmlessly otherwise.
+        unsafe { RegDeleteKeyW(HKEY_CURRENT_USER, parent.as_ptr()) };
     }
 }

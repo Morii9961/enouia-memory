@@ -12,10 +12,20 @@ export default function Overlay({ readPage = call }: { readPage?: typeof call } 
   useEffect(() => {
     const clear = () => { reads.clear(); setItems([]); setQuery(""); };
     const focus = () => { clear(); input.current?.focus(); };
+    // On the window, not the page root: a click on text or padding moves
+    // focus to <body>, outside React's container.
+    const escape = (e: KeyboardEvent) => {
+      if (e.key === "Escape") { clear(); void shell.hideWindow(); }
+    };
     window.addEventListener("focus", focus);
     window.addEventListener("blur", clear);
+    window.addEventListener("keydown", escape);
     focus();
-    return () => { window.removeEventListener("focus", focus); window.removeEventListener("blur", clear); };
+    return () => {
+      window.removeEventListener("focus", focus);
+      window.removeEventListener("blur", clear);
+      window.removeEventListener("keydown", escape);
+    };
   }, [reads.clear]);
 
   function clear() { reads.clear(); setItems([]); setQuery(""); }
@@ -27,13 +37,7 @@ export default function Overlay({ readPage = call }: { readPage?: typeof call } 
   }
 
   return (
-    <main
-      className="overlay"
-      aria-busy={reads.busy}
-      onKeyDown={(e) => {
-        if (e.key === "Escape") { clear(); void shell.hideWindow(); }
-      }}
-    >
+    <main className="overlay" aria-busy={reads.busy}>
       <form onSubmit={run} role="search">
         <label htmlFor="q" className="sr-only">搜索记忆</label>
         <input id="q" ref={input} value={query} onChange={(e) => { if (!e.target.value.trim()) clear(); else setQuery(e.target.value); }} placeholder="搜索已批准的记忆… (Esc 关闭)" autoComplete="off" />

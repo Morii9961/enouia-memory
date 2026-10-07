@@ -70,8 +70,10 @@ const CODES: Record<string, string> = {
   budget_exceeded: "超出上下文预算",
 };
 
-// Rules that say more than their code (ADR-MEM-46).
+// Rules that say more than their code (ADR-MEM-46 and the import pipeline).
 const RULES: Record<string, string> = {
+  "import.resume_existing": "这个文件之前的导入被中断了，请在导入记录中继续它，而不是重新开始",
+  "import.adapter_changed": "这次导入已无法继续：当前版本解析该文件的方式与开始导入时不同",
   "workspace.vault_in_use": "这个 Vault 已在另一个应用中打开，请先在那里锁定或退出",
   "root.inside_repository": "该文件夹位于 Git 工作区内，不能作为 Vault",
   "root.cloud_sync_folder": "该文件夹位于同步盘（如 OneDrive）中，不能作为 Vault",

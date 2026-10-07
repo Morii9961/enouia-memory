@@ -1996,9 +1996,12 @@ fn source_text(vault: &Vault, pin: &CommitPin, source: &SourceRecord) -> R<Strin
 }
 
 fn import_outcome(m: &ImportManifest, ticket: &Ticket) -> Value {
+    use enouia_memory_contract::import::ImportStatus;
     let mut row = import_row(m);
+    // A cancel before the first batch leaves the import `archived`: received
+    // but not parsed. Like `parsing`, it is stopped and resumable (ADR-MEM-46).
     let stopped =
-        ticket.cancelled() && m.status == enouia_memory_contract::import::ImportStatus::Parsing;
+        ticket.cancelled() && matches!(m.status, ImportStatus::Archived | ImportStatus::Parsing);
     row["cancelled"] = json!(stopped);
     row["resumable"] = json!(stopped);
     row

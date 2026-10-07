@@ -55,6 +55,10 @@ DIRECTORIES = {
     "apps/workspace/src-tauri/src": "reference-shell",
     "apps/workspace/src-tauri/capabilities": "reference-shell",
     "apps/workspace/src": "reference-ui",
+    # Runtime's installer (its ADR-027) copies this template and ports the
+    # hooks and drills.
+    "apps/workspace/src-tauri/windows": "reference-installer",
+    "tools/windows": "reference-installer",
 }
 
 

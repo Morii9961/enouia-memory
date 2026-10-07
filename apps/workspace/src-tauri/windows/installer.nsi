@@ -824,7 +824,7 @@ Section Uninstall
     DeleteRegKey HKCU "${UNINSTKEY}"
   !endif
 
-  ; Enouia: the exact startup command is handled by NSIS_HOOK_PREUNINSTALL.
+  ; Enouia: the exact startup command is handled by NSIS_HOOK_POSTUNINSTALL.
   ; Never infer ownership of user data from an AppData path.
 
   !ifmacrodef NSIS_HOOK_POSTUNINSTALL
