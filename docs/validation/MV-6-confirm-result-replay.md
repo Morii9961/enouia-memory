@@ -14,7 +14,7 @@ Core now holds its existing confirmation-result mutex from cache lookup through 
 
 The fixed focused regression passed, and `a_busy_confirm_keeps_its_plan_for_the_retry` passed after the lock change, retaining the existing retryable storage-contention behavior.
 
-The owner requested immediate stop and computer shutdown during the final root suite. This commit preserves unfinished work. The fixed focused purge regression and busy-plan retry passed before the additional status assertion; that updated status assertion and the complete final Rust/Clippy suite remain unverified. Formatting and the independent Python 34-schema cross-check passed, and the regenerated Runtime aggregate `04ca8e62840b65dc7b5c239245ee77641d26be9ee2b878668681cdb840ae20b8` is logged and passes the surface checker. The preceding verified baseline remains `9c14cb9` (268 workspace tests / 57 Core tests). Resume by rerunning all required checks; do not treat this saved work as a completed slice.
+The owner's immediate shutdown request interrupted the first final suite; `bdeb6c8` saved the work as WIP. Verification resumed on 2026-10-07 without a production source change. All required root checks passed with the pinned offline toolchain: formatting, 269 workspace Rust tests (58 Core tests, including the status assertion), and all-targets Clippy with warnings denied. Python 3.12 / python-jsonschema independently passed all 34 schemas and their fixture corpora. The regenerated, logged Runtime aggregate is `04ca8e62840b65dc7b5c239245ee77641d26be9ee2b878668681cdb840ae20b8`; the surface checker and `git diff --check` passed. This completes the previously interrupted slice.
 
 ## Runtime adoption and limits
 
