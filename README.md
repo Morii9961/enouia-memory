@@ -6,14 +6,14 @@ Status (2026-10-04): **MV-1 through MV-5 provide the local Memory foundation, ve
 
 Current MV-6 progress (2026-10-08): the Core hardening through `04792f1` was merged into `main` in [PR #5](https://github.com/Morii9961/enouia-memory/pull/5). It covers Vault lifecycle isolation, concurrent source/session/proposal replay, bounded import reads and complete purge confirmation results. See the [current status and next steps](docs/validation/MV-6-current-status.md) and the individual [reports](docs/README.md). Runtime must adopt the combined revision and reset its corresponding UI state as recorded in the [compatibility log](docs/integration/RUNTIME.md). This is synthetic Core evidence; the October 4 actual-app counts above do not validate this revision.
 
-A real export drill (I07), encrypted backup with restic, OS-crash and power-loss evidence, and the gaps in the stage reports remain pending. **MV-7 has not started.** Responses still use the offline Mock; real model calls, embedding, MCP, and VPS integration are not implemented. All committed fixtures are synthetic. See the [implementation plan](docs/design/IMPLEMENTATION_PLAN.md) and [stage reports](docs/README.md).
+A real export drill (I07), encrypted backup with restic, OS-crash and power-loss evidence, and the gaps in the stage reports remain pending. **MV-7 text Provider functionality is implemented (2026-10-08), with real smoke deferred by the owner.** OpenAI Responses and Anthropic Messages have native adapters, explicit egress inspection/approval, bounded calls, durable results, quotas and optional source-bound candidate extraction ([report](docs/validation/MV-7.md), [native integration](docs/integration/PROVIDERS.md)). The workspace UI still uses offline Mock; real-account connectivity, Runtime adoption, embedding, MCP and VPS remain pending. All committed fixtures are synthetic. See the [implementation plan](docs/design/IMPLEMENTATION_PLAN.md) and [stage reports](docs/README.md).
 
 ## Layout
 
 ```text
 docs/        all documentation: design/, adr/, contracts/, integration/, validation/, reviews/, handoff/, history/
 contracts/   JSON Schema 2020-12 machine contracts (memory, context, provider, ipc, store)
-crates/      Rust workspace: contract, vault, import, govern, index, context, workspace Core, and CLI
+crates/      Rust workspace: contract, vault, import, govern, index, context, provider, workspace Core, and CLI
 apps/workspace/  reference Tauri shell and React frontend, and the acceptance harness (not the product client)
 tests/       synthetic fixtures
 ```

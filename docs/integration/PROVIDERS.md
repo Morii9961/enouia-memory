@@ -1,0 +1,48 @@
+# Native text Provider integration
+
+Implemented in `crates/enouia-memory-provider`; [ADR-MEM-47](../adr/047-explicit-provider-dispatch.md) defines the boundaries. This is a Rust native interface for a future host adapter. Existing workspace IPC, the reference shell and Runtime's current product UI have not been switched to real calls.
+
+## Prepare and inspect
+
+Use `Api::OpenAiResponses` or `Api::AnthropicMessages`, then `Api::binding(model)` with an explicitly chosen model. Supply account-verified `ProviderCapabilities`: text/streaming support, context/output limits, counting method and verification timestamp. No model name, account access, API key or price is assumed from a subscription. This implementation accepts `TokenCounting::Estimated`; unknown or unsupported counting is refused. The input estimate covers full wire UTF-8 bytes and a safety margin. It cannot promise an exact tokenizer/context-window boundary; a server context-limit rejection is a terminal failure.
+
+`policy::plan_grant(vault, owner, trusted_surface, resources, purposes, bindings)` produces an opaque plan. Display `inspect()` and require the matching `hash()` in `policy::confirm`. One grant may name both supported APIs, each with its exact model. A native revision review using `Decision::AcceptWithEgress` binds a memory to that grant. Reading a memory locally and authorizing it externally are separate decisions. `plan_revoke` makes a shown revocation; pending capsules fail after it is confirmed.
+
+Save the input with existing `session::save_input`, rebuild/update the index and call `compiler::compile_for_destination` with the exact external destination. The saved capsule includes the input event and evidence set. Construct `VaultAdapter` with that input event, authenticated Vault owner, explicit enabled flag, and `Quota`. Call `prepare_saved` with `Limits` and `CallOptions`. Inspect `PreparedCall::inspect().body()`, endpoint, binding and hash. The stored logical request digest and actual HTTP body digest are distinct; neither includes credentials.
+
+For private resources call `VaultAdapter::approve(call, inspected_wire_hash, trusted_surface, nonce)` after the native owner confirms the displayed body. Approval expires after 15 minutes and is consumed by admission; changing model, output limit, body or evidence requires a fresh preparation/inspection. This does not permit highly sensitive content.
+
+## Send and recover
+
+Instantiate `Client` with `HttpsTransport`, native `CredentialStore`, and the same `VaultAdapter` as guard/journal. Run its synchronous `send` on a dedicated native worker, outside an existing async runtime and off the UI thread. Pass the exact inspected wire hash and a cancellation handle. The only HTTP endpoints are the two fixed official origins. There is no proxy inference, redirect, automatic retry or fallback.
+
+The host must disable `enabled`, signal cancellation and join its worker before clearing Vault-scoped state on lock/close. Authorization and restore gates are checked before admission, during receipt and before final delivery. Stream deltas are saved as partial Session events; polling the Session can show persisted text. A transport EOF without a terminal event is a failure. A `Length` result preserves text but does not complete the turn.
+
+Use `invocations()` for reservations/outcomes, `saved_response(dispatch_id)` for a terminal saved result, and `inspect_saved(dispatch_id)` for the exact archived body. These are owner-only Vault reads and respect freshness/deletion barriers. Invoke `recover_local_outcome` after reopening to reconcile a published terminal receipt with an unknown ledger. No receipt means unknown; never resend that input event. To choose a different Provider after a known failed attempt, first save a new explicit user turn. No automatic switch is provided.
+
+`Quota` bounds Session attempts and reserved tokens, with optional `PriceLimit` in integer micro-USD per million tokens. Reservations are conservative and remain charged after unknown/failure. Known usage is recorded separately. This is a local reservation limit, not a billing statement or global/account quota. The host must provide rates explicitly and implement any broader account budget.
+
+## Credentials and resources
+
+The Windows store targets are fixed: `Enouia.Memory.Provider.openai` and `Enouia.Memory.Provider.anthropic`. Credential writes are native-only. Read/write functions and HTTPS transport are implemented but deliberately not exercised with a real account in this implementation run. Keys do not enter page IPC, Session objects, fixtures or logs. Non-Windows native credential access is unsupported; another native SecretStore can implement the port.
+
+The owner deferred real smoke calls. Both adapters are validated only with synthetic Vaults and fake transports. Optional candidate extraction is implemented as an explicit native flow and remains inactive until the host exposes and enables it. No MV-8 Host/MCP work starts here.
+
+## Optional extraction
+
+`extraction::create` saves an owner-selected `ExtractionOptions` job without HTTP. Select 1–16 exact Source revisions and UTF-8 byte ranges; each range is at most 32 KiB, their combined size at most 64 KiB. The resolved source content and snippet hashes, exact API/model, native-selected subject, `extract-text-1` prompt version, candidate limit (1–32), pending backlog ceiling (1–500), token reservation ceiling and optional integer micro-USD cost ceiling are immutable. Storage validation binds the job to its saved input, source hashes and existing candidate IDs; scoped validation loads all selected revisions. Reusing the creation key with changed input is refused. Imported locators require the complete raw object and refuse objects over 64 MiB before allocation. This limit never silently truncates a source.
+
+The prompt carries the actual speaker role and evidence class. The extraction compiler selects source evidence and the saved input, without searching unrelated canonical memories or identities. SourceRead and destination ProviderSend grants, sensitivity restrictions, inspection, private per-request approval, quota, audit and one-attempt admission still apply. Construct `VaultAdapter` with the job's `input_event_id`, then `extraction::prepare`; inspect/approve/send with the ordinary native flow. A disabled adapter refuses preparation and candidate application. Admission also rechecks paused state, the exact job binding and Extraction purpose. Saved job budgets cap the caller’s Session quota; a saved monetary cap requires explicit price rates and cannot be bypassed by restoring a higher default quota. Input safety margin is included in both token and price reservations.
+
+After a completed saved response, `extraction::apply_next` validates the entire strict JSON candidate envelope before publishing anything. Only facts and preferences are accepted in this version. Claims need a literal quote inside a selected snippet; the native subject and exact source evidence are assigned independently of the model. Length-limited, failed, cancelled and unknown outcomes cannot become extraction candidates. All claims start uncertain and pending with ModelExtraction origin/run provenance; the existing owner review decides canonical acceptance. Literal quotation proves source containment, not the truth of the model's paraphrase.
+
+One call applies at most one candidate and then saves the cursor in `SessionRecord.extraction_jobs`. `set_paused` controls local application; resume reads the same saved response and never calls HTTP again. A crash between candidate publication and cursor persistence recovers the original receipt/ID even if the pending backlog is now full or the owner has reviewed the candidate. New publication uses the same pinned head as the pause/backlog check. Identical reviewed claims against unchanged source content/evidence class are suppressed and recorded as null cursor entries; materially changed evidence may enter review again. Pending duplicate fingerprints reuse the existing candidate. Candidate evidence preserves its existing whole-source locator; the precise selected offsets/quote remain traceable through the saved job/request/response.
+
+Deleting source evidence with dependents includes the saved extraction input before a capsule or Dispatch exists, plus ordinary request/response dependents after admission. Jobs retain non-content IDs, hashes and progress as deletion-safe metadata; erased input/source reads fail. Extraction jobs are optional and omitted when empty. Populated jobs, like populated Provider ledgers, require new strict Session readers. The native host must stop extraction workers before closing/locking the Vault; no worker or product toggle is created here.
+
+## API sources checked during implementation
+
+- [OpenAI Responses create](https://developers.openai.com/api/reference/python/resources/responses/methods/create): text input, streaming, output cap, `store` and `truncation`.
+- [Anthropic Messages create](https://platform.claude.com/docs/en/api/messages/create) and [streaming](https://platform.claude.com/docs/en/build-with-claude/streaming): version header, system blocks and typed SSE lifecycle.
+- [reqwest 0.13.5 ClientBuilder](https://docs.rs/reqwest/0.13.5/reqwest/struct.ClientBuilder.html): fixed TLS transport and explicit request policies.
+- Microsoft [CredReadW](https://learn.microsoft.com/en-us/windows/win32/api/wincred/nf-wincred-credreadw) and [CredWriteW](https://learn.microsoft.com/en-us/windows/win32/api/wincred/nf-wincred-credwritew): named native credentials.

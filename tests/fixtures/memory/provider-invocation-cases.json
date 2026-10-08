@@ -1,0 +1,25 @@
+{
+  "base": {
+    "dispatch_id": "dsp_00000001-0000-4000-8000-000000000001",
+    "input_event_id": "evt_00000001-0000-4000-8000-000000000001",
+    "wire_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "wire_size_bytes": 256,
+    "reserved_tokens": 512,
+    "reserved_cost_microusd": null,
+    "state": "outcome_unknown",
+    "terminal_event_id": null,
+    "input_tokens": null,
+    "output_tokens": null,
+    "error_code": null
+  },
+  "cases": [
+    {"name": "admitted", "set": {}, "accept": true},
+    {"name": "completed", "set": {"state": "completed", "terminal_event_id": "evt_00000002-0000-4000-8000-000000000002", "input_tokens": 32, "output_tokens": 8}, "accept": true},
+    {"name": "zero-reservation", "set": {"reserved_tokens": 0}, "accept": false},
+    {"name": "credential-field", "set": {"api_key": "synthetic-only"}, "accept": false},
+    {"name": "invalid-id", "set": {"dispatch_id": "bad"}, "accept": false},
+    {"name": "completed-without-terminal", "set": {"state": "completed"}, "accept": false},
+    {"name": "unknown-with-terminal", "set": {"terminal_event_id": "evt_00000002-0000-4000-8000-000000000002"}, "accept": false},
+    {"name": "completed-with-error", "set": {"state": "completed", "terminal_event_id": "evt_00000002-0000-4000-8000-000000000002", "error_code": "offline"}, "accept": false}
+  ]
+}

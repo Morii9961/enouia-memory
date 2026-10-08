@@ -189,6 +189,22 @@ def main():
             failures.append(f"store case {case['id']}: independent validator accepted={accepted}, manifest says {case['schema']}")
     counts["store_documents"] = len(store["valid"]) + len(store["invalid"])
 
+    invocation_cases = load(FIXTURES / "provider-invocation-cases.json")
+    for case in invocation_cases["cases"]:
+        value = copy.deepcopy(invocation_cases["base"])
+        value.update(case["set"])
+        if valid("provider/invocation-v1.schema.json", value) != case["accept"]:
+            failures.append(f"provider invocation case {case['name']}: disagreement")
+    counts["provider_invocation_cases"] = len(invocation_cases["cases"])
+
+    extraction_cases = load(FIXTURES / "extraction-job-cases.json")
+    for case in extraction_cases["cases"]:
+        value = copy.deepcopy(extraction_cases["base"])
+        apply_ops(value, case["ops"])
+        if valid("provider/extraction-job-v1.schema.json", value) != case["schema"]:
+            failures.append(f"extraction job case {case['name']}: disagreement")
+    counts["extraction_job_cases"] = len(extraction_cases["cases"])
+
     print(f"python-jsonschema {version}: " + ", ".join(f"{k}={v}" for k, v in counts.items()))
     for failure in failures:
         print("FAIL", failure)

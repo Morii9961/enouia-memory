@@ -11,7 +11,7 @@ use crate::fault::{FaultPoint, Faults};
 use crate::platform;
 use enouia_memory_contract::layout::MANAGED_ROOTS;
 use std::fs::{self, File, OpenOptions};
-use std::io::{self, Write};
+use std::io::{self, Read, Write};
 use std::path::{Path, PathBuf};
 
 /// Reserved device names that Windows resolves anywhere in a path.
@@ -136,6 +136,37 @@ impl ManagedRoot {
             Err(e) if e.kind() == io::ErrorKind::NotFound => Ok(None),
             Err(e) => Err(e.into()),
         }
+    }
+
+    /// Bound allocation before reading bytes, including a concurrently grown
+    /// file. Existing managed-path and reparse checks still apply.
+    pub(crate) fn read_bounded(&self, rel: &str, max_bytes: usize) -> Result<Option<Vec<u8>>> {
+        let path = self.resolve(rel)?;
+        self.check_components(rel)?;
+        let file = match File::open(path) {
+            Ok(file) => file,
+            Err(e) if e.kind() == io::ErrorKind::NotFound => return Ok(None),
+            Err(e) => return Err(e.into()),
+        };
+        let over_budget = || {
+            VaultError::new(
+                enouia_memory_contract::MemoryErrorCode::BudgetExceeded,
+                Fault::Contract(vec!["object.read_budget"]),
+            )
+        };
+        let limit = u64::try_from(max_bytes)
+            .ok()
+            .and_then(|n| n.checked_add(1))
+            .ok_or_else(over_budget)?;
+        if file.metadata()?.len() > max_bytes as u64 {
+            return Err(over_budget());
+        }
+        let mut bytes = Vec::new();
+        file.take(limit).read_to_end(&mut bytes)?;
+        if bytes.len() > max_bytes {
+            return Err(over_budget());
+        }
+        Ok(Some(bytes))
     }
 
     /// Names of the entries of a managed directory (empty if absent).

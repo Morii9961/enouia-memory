@@ -382,6 +382,13 @@ write("memory/session-v1.schema.json", record(
      "policy_id": c("policyId"), "created_at": c("timestamp"), "updated_at": c("timestamp"),
      "extensions": c("extensions")}, None, "session-v1.schema.json"))
 
+# MV-7 optional ledger field; earlier sessions serialize identically.
+_session_path = ROOT / "memory/session-v1.schema.json"
+_session = json.loads(_session_path.read_text(encoding="utf-8"))
+_session["properties"]["provider_invocations"] = arr({"$ref": "../provider/invocation-v1.schema.json"})
+_session["properties"]["extraction_jobs"] = arr({"$ref": "../provider/extraction-job-v1.schema.json"})
+write("memory/session-v1.schema.json", _session)
+
 kinds_state = [("assistant_chunk", "partial"), ("assistant_completed", "completed"),
                ("turn_cancelled", "interrupted"), ("turn_failed", "failed")]
 event_rules = [when("kind", [k], {"properties": {"delivery_state": {"const": s}}}) for k, s in kinds_state]

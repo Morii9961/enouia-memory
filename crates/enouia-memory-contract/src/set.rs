@@ -1045,6 +1045,168 @@ fn check_sessions(set: &View, out: &mut Vec<Violation>) {
     for session in &set.sessions {
         let is_latest = latest_session(session.session_id.as_str())
             .is_some_and(|l| l.revision == session.revision);
+        if is_latest {
+            for job in &session.extraction_jobs {
+                if set.tombstones.iter().any(|t| {
+                    t.targets.iter().any(|r| {
+                        r.record_kind == RecordKind::SessionEvent
+                            && r.record_id == job.input_event_id.as_str()
+                    })
+                }) {
+                    continue;
+                }
+                if by_id.get(job.input_event_id.as_str()).is_none_or(|input| {
+                    input.kind != EventKind::UserMessage
+                        || input.session_id != session.session_id
+                        || input
+                            .content_ref
+                            .as_ref()
+                            .is_none_or(|r| r.object_hash != job.input_hash)
+                        || input.source_refs
+                            != job
+                                .sources
+                                .iter()
+                                .map(|s| s.source.clone())
+                                .collect::<Vec<_>>()
+                }) {
+                    out.push(Violation::new(
+                        "extraction.input",
+                        session.session_id.to_string(),
+                    ));
+                }
+                if job.sources.iter().any(|selected| {
+                    set.source(&selected.source)
+                        .is_none_or(|source| source.content_hash != selected.content_hash)
+                }) {
+                    out.push(Violation::new(
+                        "extraction.source",
+                        session.session_id.to_string(),
+                    ));
+                }
+                if job.candidates.iter().flatten().any(|id| {
+                    !set.candidates.iter().any(|c| &c.candidate_id == id)
+                        && !set.tombstones.iter().any(|t| {
+                            t.targets.iter().any(|r| {
+                                r.record_kind == RecordKind::Candidate && r.record_id == id.as_str()
+                            })
+                        })
+                }) {
+                    out.push(Violation::new(
+                        "extraction.candidate",
+                        session.session_id.to_string(),
+                    ));
+                }
+            }
+            for invocation in &session.provider_invocations {
+                let input = by_id.get(invocation.input_event_id.as_str());
+                // Purge can remove the private event while retaining this
+                // admission tombstone. Its IDs must never permit a resend.
+                if set.tombstones.iter().any(|t| {
+                    t.targets.iter().any(|r| {
+                        r.record_kind == RecordKind::SessionEvent
+                            && r.record_id == invocation.input_event_id.as_str()
+                            || r.record_kind == RecordKind::Dispatch
+                                && r.record_id == invocation.dispatch_id.as_str()
+                            || invocation.terminal_event_id.as_ref().is_some_and(|id| {
+                                r.record_kind == RecordKind::SessionEvent
+                                    && r.record_id == id.as_str()
+                            })
+                    })
+                }) {
+                    continue;
+                }
+                let dispatch = set
+                    .dispatches
+                    .iter()
+                    .find(|d| d.dispatch_id == invocation.dispatch_id);
+                if input.is_none_or(|e| {
+                    e.kind != EventKind::UserMessage || e.session_id != session.session_id
+                }) || dispatch.is_none_or(|d| {
+                    input.is_none_or(|e| e.request_id.as_ref() != Some(&d.request_id))
+                }) {
+                    out.push(Violation::new(
+                        "invocation.input_dispatch",
+                        session.session_id.to_string(),
+                    ));
+                }
+                if let Some(terminal) = &invocation.terminal_event_id {
+                    let terminal = by_id.get(terminal.as_str());
+                    let completed = invocation.state == crate::provider::InvocationState::Completed;
+                    if terminal.is_none_or(|e| {
+                        input.is_none_or(|i| {
+                            e.turn_id != i.turn_id
+                                || e.session_id != i.session_id
+                                || e.sequence <= i.sequence
+                        }) || (e.kind == EventKind::AssistantCompleted) != completed
+                            || !matches!(
+                                e.kind,
+                                EventKind::AssistantCompleted
+                                    | EventKind::TurnFailed
+                                    | EventKind::TurnCancelled
+                            )
+                    }) {
+                        out.push(Violation::new(
+                            "invocation.terminal",
+                            session.session_id.to_string(),
+                        ));
+                    }
+                }
+            }
+            if let Some(previous) = set
+                .sessions
+                .iter()
+                .filter(|s| s.session_id == session.session_id && s.revision < session.revision)
+                .max_by_key(|s| s.revision)
+            {
+                for old in &previous.extraction_jobs {
+                    let next = session
+                        .extraction_jobs
+                        .iter()
+                        .find(|j| j.run_id == old.run_id);
+                    if next.is_none_or(|n| {
+                        let mut fixed = n.clone();
+                        fixed.state = old.state;
+                        fixed.cursor = old.cursor;
+                        fixed.candidates = old.candidates.clone();
+                        fixed != *old
+                            || n.cursor < old.cursor
+                            || n.cursor > old.cursor + 1
+                            || !n.candidates.starts_with(&old.candidates)
+                            || old.state == crate::extraction::ExtractionState::Paused
+                                && n.cursor != old.cursor
+                            || n.state == crate::extraction::ExtractionState::Paused
+                                && n.cursor != old.cursor
+                            || old.state == crate::extraction::ExtractionState::Completed
+                                && n != old
+                    }) {
+                        out.push(Violation::new(
+                            "extraction.history",
+                            session.session_id.to_string(),
+                        ));
+                    }
+                }
+                for old in &previous.provider_invocations {
+                    let next = session
+                        .provider_invocations
+                        .iter()
+                        .find(|r| r.dispatch_id == old.dispatch_id);
+                    if next.is_none_or(|n| {
+                        n.input_event_id != old.input_event_id
+                            || n.wire_hash != old.wire_hash
+                            || n.wire_size_bytes != old.wire_size_bytes
+                            || n.reserved_tokens != old.reserved_tokens
+                            || n.reserved_cost_microusd != old.reserved_cost_microusd
+                            || old.state != crate::provider::InvocationState::OutcomeUnknown
+                                && n != old
+                    }) {
+                        out.push(Violation::new(
+                            "invocation.history",
+                            session.session_id.to_string(),
+                        ));
+                    }
+                }
+            }
+        }
         let max = sequences
             .get(session.session_id.as_str())
             .and_then(|s| s.keys().next_back().copied())

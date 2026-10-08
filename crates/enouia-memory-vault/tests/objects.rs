@@ -164,6 +164,21 @@ fn user_messages_are_saved_with_their_text_before_anything_else() {
             .unwrap();
         assert_eq!(bytes, texts[index].as_bytes());
         assert_eq!(content.size_bytes, bytes.len() as u64);
+        assert_eq!(
+            harness
+                .vault
+                .read_object_bounded(&pin, &content.object_hash, bytes.len())
+                .unwrap(),
+            bytes
+        );
+        assert_eq!(
+            harness
+                .vault
+                .read_object_bounded(&pin, &content.object_hash, bytes.len() - 1)
+                .unwrap_err()
+                .code(),
+            MemoryErrorCode::BudgetExceeded
+        );
     }
     // A lost response: the same message key replays, no third event.
     let replay = harness

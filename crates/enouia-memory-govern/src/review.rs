@@ -22,7 +22,8 @@ use enouia_memory_contract::common::{ActorRef, ActorType, EvidenceRef, TrustedSu
 use enouia_memory_contract::hash::{Sha256Hex, sha256};
 use enouia_memory_contract::identity::IdentityMetadata;
 use enouia_memory_contract::ids::{
-    CandidateId, CommitId, ConflictGroupId, DeleteId, IdentityId, MemoryId, ProjectId, ReviewId,
+    CandidateId, CommitId, ConflictGroupId, DeleteId, IdentityId, MemoryId, PolicyId, ProjectId,
+    ReviewId,
 };
 use enouia_memory_contract::json::{Revision, canonical_bytes};
 use enouia_memory_contract::memory::{CanonicalMemory, MemoryBody, MemoryStatus, ProjectEntity};
@@ -48,6 +49,13 @@ pub enum Decision {
     Accept {
         candidate_id: CandidateId,
         revision: Revision,
+    },
+    /// Owner-only review that also binds the resulting memory/identity to an
+    /// existing standing egress grant. Proposals cannot set this metadata.
+    AcceptWithEgress {
+        candidate_id: CandidateId,
+        revision: Revision,
+        policy_id: PolicyId,
     },
     /// Write it with the owner's text and fields instead. The candidate keeps
     /// the original proposal; the review hashes the approved text.
@@ -77,6 +85,11 @@ impl Decision {
             Self::Accept {
                 candidate_id,
                 revision,
+            }
+            | Self::AcceptWithEgress {
+                candidate_id,
+                revision,
+                ..
             }
             | Self::EditAccept {
                 candidate_id,
@@ -494,7 +507,9 @@ fn decide(
             }
             (ReviewAction::Merge, "merged")
         }
-        Decision::Accept { .. } | Decision::EditAccept { .. } => {
+        Decision::Accept { .. }
+        | Decision::AcceptWithEgress { .. }
+        | Decision::EditAccept { .. } => {
             let (content, details, edited) = match decision {
                 Decision::EditAccept {
                     content, details, ..
@@ -620,6 +635,36 @@ fn decide(
             (action, "accepted")
         }
     };
+    if let Decision::AcceptWithEgress { policy_id, .. } = decision {
+        use enouia_memory_contract::policy::{PolicyOrigin, PolicyRecord, Scope};
+        let (policy, revision): (PolicyRecord, _) =
+            latest(ctx.vault, &ctx.pin, RecordKind::Policy, policy_id.as_str())?
+                .ok_or_else(|| invalid("review.egress_policy_missing"))?;
+        if policy.origin != PolicyOrigin::OwnerGrant
+            || !policy.active_at(&ctx.now)
+            || !policy.scopes.contains(&Scope::ProviderSend)
+        {
+            return Err(invalid("review.egress_policy_invalid"));
+        }
+        // Several reviewed memories may deliberately share one grant.
+        if !built.expected.iter().any(|(kind, id, rev)| {
+            *kind == RecordKind::Policy && id == policy_id.as_str() && *rev == Some(revision)
+        }) {
+            built.expect(RecordKind::Policy, policy_id.as_str(), Some(revision))?;
+        }
+        let mut bound = false;
+        for (kind, id, _, value) in &mut built.records {
+            if matches!(kind, RecordKind::Memory | RecordKind::Identity)
+                && results.iter().any(|r| r["record_id"] == *id)
+            {
+                value["egress_policy_id"] = json!(policy_id);
+                bound = true;
+            }
+        }
+        if !bound {
+            return Err(invalid("review.egress_target_required"));
+        }
+    }
     // The candidate's resolving revision.
     let mut resolved = serde_json::to_value(&candidate).expect("candidate");
     resolved["revision"] = json!(next(rev).get());

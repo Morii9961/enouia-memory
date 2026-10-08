@@ -24,6 +24,12 @@
     "extensions"
   ],
   "properties": {
+    "provider_invocations": {
+      "type": "array",
+      "items": {
+        "$ref": "../provider/invocation-v1.schema.json"
+      }
+    },
     "schema_version": {
       "$ref": "common-v1.schema.json#/$defs/schemaVersion"
     },
@@ -146,6 +152,12 @@
     },
     "extensions": {
       "$ref": "common-v1.schema.json#/$defs/extensions"
+    },
+    "extraction_jobs": {
+      "type": "array",
+      "items": {
+        "$ref": "../provider/extraction-job-v1.schema.json"
+      }
     }
   }
 }

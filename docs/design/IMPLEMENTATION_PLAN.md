@@ -139,6 +139,8 @@ flowchart LR
 
 ## 11. MV-7 — 真实 Provider 与可选模型抽取
 
+> **2026-10-08 功能进度：** 主人已明确开启 MV-7，并要求暂不进行真实 smoke。两家文本 API 的原生适配、外发审核/授权、持久化和限额已实现，见 [报告](../validation/MV-7.md) 与 [ADR-MEM-47](../adr/047-explicit-provider-dispatch.md)。workspace 页面仍使用 Mock；Runtime 宿主接入、账户能力与真实双 Provider 验收待做。可选模型抽取已实现来源片段绑定、候选审核队列、暂停/恢复、拒绝项抑制及预算，尚未在宿主激活；不宣称 MV-7 阶段验收完成。
+
 1. **MV-7.1 接口探测**：核对所选 OpenAI/Anthropic/本地 Provider 官方版本和账户实际能力，固定 tokenizer/预算能力与密钥存储。
 2. **MV-7.2 外发与调用**：确切 payload inspection、敏感内容确认、超时/取消/重试、禁止未授权 fallback、流式保存。
 3. **MV-7.3 双 Provider 验收**：同一批准证据集生成可追溯回答；平台 A 失败时 Vault 仍正常；不要求模型行为逐字相同。

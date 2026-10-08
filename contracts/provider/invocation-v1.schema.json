@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.enouia-memory.invalid/provider/invocation-v1.schema.json",
+  "title": "Enouia provider invocation ledger entry v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["dispatch_id", "input_event_id", "wire_hash", "wire_size_bytes", "reserved_tokens", "reserved_cost_microusd", "state", "terminal_event_id", "input_tokens", "output_tokens", "error_code"],
+  "properties": {
+    "dispatch_id": {"$ref": "../memory/common-v1.schema.json#/$defs/dispatchId"},
+    "input_event_id": {"$ref": "../memory/common-v1.schema.json#/$defs/eventId"},
+    "wire_hash": {"$ref": "../memory/common-v1.schema.json#/$defs/sha256"},
+    "wire_size_bytes": {"type": "integer", "minimum": 1, "maximum": 2097152},
+    "reserved_tokens": {"type": "integer", "minimum": 1, "maximum": 9007199254740991},
+    "reserved_cost_microusd": {"oneOf": [{"type": "null"}, {"type": "integer", "minimum": 0, "maximum": 9007199254740991}]},
+    "state": {"enum": ["outcome_unknown", "completed", "length", "cancelled", "failed"]},
+    "terminal_event_id": {"oneOf": [{"type": "null"}, {"$ref": "../memory/common-v1.schema.json#/$defs/eventId"}]},
+    "input_tokens": {"oneOf": [{"type": "null"}, {"type": "integer", "minimum": 0, "maximum": 9007199254740991}]},
+    "output_tokens": {"oneOf": [{"type": "null"}, {"type": "integer", "minimum": 0, "maximum": 9007199254740991}]},
+    "error_code": {"oneOf": [{"type": "null"}, {"$ref": "../memory/common-v1.schema.json#/$defs/memoryErrorCode"}]}
+  },
+  "allOf": [
+    {"if": {"properties": {"state": {"const": "outcome_unknown"}}}, "then": {"properties": {"terminal_event_id": {"type": "null"}}}, "else": {"properties": {"terminal_event_id": {"$ref": "../memory/common-v1.schema.json#/$defs/eventId"}}}},
+    {"if": {"properties": {"state": {"enum": ["completed", "length"]}}}, "then": {"properties": {"error_code": {"type": "null"}}}}
+  ],
+  "$comment": "Cross-record identity is enforced by Rust. Wire text and secrets are excluded."
+}
