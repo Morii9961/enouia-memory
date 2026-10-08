@@ -844,7 +844,7 @@ impl InvocationJournal for VaultAdapter<'_> {
             )
             .map_err(|e| e.error)?;
         }
-        let terminal = session::append_output_with_guard(
+        session::append_invocation_output(
             self.vault,
             &self.owner,
             &self.input_event,
@@ -856,42 +856,15 @@ impl InvocationJournal for VaultAdapter<'_> {
             } else {
                 None
             },
+            &session::InvocationCompletion {
+                dispatch_id: dispatch.dispatch_id.clone(),
+                state,
+                input_tokens: response.and_then(|r| r.input_tokens),
+                output_tokens: response.and_then(|r| r.output_tokens),
+                error_code: failure.map(|e| e.code),
+            },
         )
-        .map_err(|e| e.error)?
-        .id;
-        let input = self.input()?;
-        let pin = self.vault.pin_current().map_err(|e| e.error)?;
-        let mut header: SessionRecord =
-            read(self.vault, RecordKind::Session, input.session_id.as_str())?;
-        let row = header
-            .provider_invocations
-            .iter_mut()
-            .find(|r| r.dispatch_id == dispatch.dispatch_id)
-            .ok_or_else(|| error(MemoryErrorCode::NotFound))?;
-        if row.state != InvocationState::OutcomeUnknown {
-            return Ok(());
-        }
-        row.state = state;
-        row.terminal_event_id = Some(terminal);
-        row.input_tokens = response.and_then(|r| r.input_tokens);
-        row.output_tokens = response.and_then(|r| r.output_tokens);
-        row.error_code = failure.map(|e| e.code);
-        header.revision = Revision::new(header.revision.get() + 1)
-            .ok_or_else(|| error(MemoryErrorCode::InvalidRequest))?;
-        header.updated_at = self.vault.now().map_err(|e| e.error)?;
-        commit(
-            self.vault,
-            &self.owner,
-            &pin,
-            &format!("provider-outcome:{}", dispatch.dispatch_id),
-            vec![staged(
-                RecordKind::Session,
-                header.session_id.as_str(),
-                header.revision,
-                &header,
-            )?],
-            vec![],
-        )?;
+        .map_err(|e| e.error)?;
         Ok(())
     }
 }

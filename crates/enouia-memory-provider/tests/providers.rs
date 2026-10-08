@@ -1106,6 +1106,211 @@ fn network_failure_is_saved_and_does_not_authorize_retry() {
     assert_eq!(http.calls.get(), 1);
 }
 #[test]
+fn terminal_event_and_exact_outcome_publish_together_across_reopen() {
+    use enouia_memory_contract::provider::{FinishReason, ProviderResponse};
+    use enouia_memory_vault::{
+        Vault, VaultOptions,
+        fault::{FaultAction, FaultPoint, Faults},
+    };
+    for api in [Api::OpenAiResponses, Api::AnthropicMessages] {
+        for finish in [FinishReason::Completed, FinishReason::Length] {
+            for point in [FaultPoint::BeforeCurrent, FaultPoint::AfterCurrent] {
+                let env = Env::new("atomic-provider-terminal");
+                let (capsule, input, policy, caps) = setup(&env, api, Sensitivity::Normal);
+                let root = enouia_memory_vault::verify_data_root(
+                    env.vault.managed_root().root(),
+                    &enouia_memory_vault::RootPolicy::default(),
+                )
+                .unwrap();
+                let faults = Faults::armed();
+                let interrupted = Vault::open(
+                    &root,
+                    None,
+                    env.clock.clone(),
+                    std::sync::Arc::new(enouia_memory_vault::OsIdSource),
+                    VaultOptions {
+                        faults: faults.clone(),
+                        ..VaultOptions::default()
+                    },
+                )
+                .unwrap();
+                let enabled = AtomicBool::new(true);
+                let adapter = VaultAdapter {
+                    vault: &interrupted,
+                    owner: owner(),
+                    input_event: input.clone(),
+                    enabled: &enabled,
+                    quota: Quota::default(),
+                };
+                let mut options = CallOptions::text(policy, 128);
+                options.streaming = true;
+                let call = adapter
+                    .prepare_saved(api, &capsule, &caps, Limits::default(), options)
+                    .unwrap();
+                assert!(adapter.claim(&call).unwrap());
+                adapter.chunk(call.dispatch(), 1, "合成答复").unwrap();
+                let before = interrupted.pin_current().unwrap();
+                let response = ProviderResponse {
+                    text: "合成答复".into(),
+                    finish,
+                    tool_requests: vec![],
+                    input_tokens: Some(100),
+                    output_tokens: Some(4),
+                };
+                faults.arm(point, 1, FaultAction::Fail(112));
+                assert!(
+                    adapter
+                        .finish(call.dispatch(), Some(&response), None)
+                        .is_err()
+                );
+                let restored = Vault::open(
+                    &root,
+                    None,
+                    env.clock.clone(),
+                    std::sync::Arc::new(enouia_memory_vault::OsIdSource),
+                    VaultOptions::default(),
+                )
+                .unwrap();
+                let recovered = VaultAdapter {
+                    vault: &restored,
+                    owner: owner(),
+                    input_event: input,
+                    enabled: &enabled,
+                    quota: Quota::default(),
+                };
+                let after = restored.pin_current().unwrap();
+                let row = recovered.invocations().unwrap().remove(0);
+                if point == FaultPoint::BeforeCurrent {
+                    assert_eq!(after, before);
+                    assert_eq!(row.state, InvocationState::OutcomeUnknown);
+                    assert!(row.terminal_event_id.is_none());
+                    assert!(
+                        recovered
+                            .saved_response(&call.dispatch().dispatch_id)
+                            .unwrap()
+                            .is_none()
+                    );
+                } else {
+                    assert_eq!(after.sequence, before.sequence + 1);
+                    assert_eq!(
+                        row.state,
+                        if finish == FinishReason::Completed {
+                            InvocationState::Completed
+                        } else {
+                            InvocationState::Length
+                        }
+                    );
+                    assert!(row.terminal_event_id.is_some());
+                    assert_eq!(row.input_tokens, Some(100));
+                    assert_eq!(row.output_tokens, Some(4));
+                    let saved = recovered
+                        .saved_response(&call.dispatch().dispatch_id)
+                        .unwrap()
+                        .unwrap();
+                    assert_eq!(saved.finish, finish);
+                    assert_eq!(saved.text, response.text);
+                    assert_eq!(saved.input_tokens, response.input_tokens);
+                    assert_eq!(saved.output_tokens, response.output_tokens);
+                    recovered
+                        .finish(call.dispatch(), Some(&response), None)
+                        .unwrap();
+                    assert_eq!(restored.pin_current().unwrap(), after);
+                    let changed = ProviderResponse {
+                        input_tokens: Some(101),
+                        ..response
+                    };
+                    assert_eq!(
+                        recovered
+                            .finish(call.dispatch(), Some(&changed), None)
+                            .unwrap_err()
+                            .code,
+                        MemoryErrorCode::IdempotencyConflict
+                    );
+                    assert_eq!(restored.pin_current().unwrap(), after);
+                }
+                assert!(
+                    !recovered
+                        .recover_local_outcome(&call.dispatch().dispatch_id)
+                        .unwrap()
+                );
+                assert!(!recovered.claim(&call).unwrap());
+                assert!(restored.verify(&after).unwrap().is_clean());
+            }
+        }
+    }
+}
+
+#[test]
+fn terminal_metadata_cannot_bind_a_different_admission_or_invalid_state() {
+    use enouia_memory_contract::session::EventKind;
+    let env = Env::new("terminal-metadata");
+    let api = Api::OpenAiResponses;
+    let (capsule, input, policy, caps) = setup(&env, api, Sensitivity::Normal);
+    let enabled = AtomicBool::new(true);
+    let adapter = VaultAdapter {
+        vault: &env.vault,
+        owner: owner(),
+        input_event: input.clone(),
+        enabled: &enabled,
+        quota: Quota::default(),
+    };
+    let call = adapter
+        .prepare_saved(
+            api,
+            &capsule,
+            &caps,
+            Limits::default(),
+            CallOptions::text(policy, 128),
+        )
+        .unwrap();
+    assert!(adapter.claim(&call).unwrap());
+    let pin = env.vault.pin_current().unwrap();
+    let valid = session::InvocationCompletion {
+        dispatch_id: call.dispatch().dispatch_id.clone(),
+        state: InvocationState::Completed,
+        input_tokens: Some(100),
+        output_tokens: Some(4),
+        error_code: None,
+    };
+    let wrong_dispatch = session::InvocationCompletion {
+        dispatch_id: DispatchId::from_random(env.vault.random_id_bytes()),
+        ..valid.clone()
+    };
+    let wrong_kind = session::InvocationCompletion {
+        state: InvocationState::Length,
+        ..valid.clone()
+    };
+    let invalid_error = session::InvocationCompletion {
+        error_code: Some(MemoryErrorCode::ProviderUnavailable),
+        ..valid.clone()
+    };
+    for (index, metadata) in [wrong_dispatch, wrong_kind, invalid_error]
+        .iter()
+        .enumerate()
+    {
+        assert!(
+            session::append_invocation_output(
+                &env.vault,
+                &owner(),
+                &input,
+                EventKind::AssistantCompleted,
+                Some("合成答复"),
+                format!("invalid-terminal:{index}").as_bytes(),
+                None,
+                metadata
+            )
+            .is_err()
+        );
+        assert_eq!(env.vault.pin_current().unwrap(), pin);
+        assert_eq!(
+            adapter.invocations().unwrap()[0].state,
+            InvocationState::OutcomeUnknown
+        );
+    }
+    assert!(env.vault.verify(&pin).unwrap().is_clean());
+}
+
+#[test]
 fn wire_and_local_terminal_recovery_survive_reopen() {
     let env = Env::new("reopen");
     let api = Api::AnthropicMessages;

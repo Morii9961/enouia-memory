@@ -8,6 +8,7 @@ use enouia_memory_contract::hash::{Sha256Hex, sha256};
 use enouia_memory_contract::ids::*;
 use enouia_memory_contract::json::{Revision, SchemaVersion};
 use enouia_memory_contract::ports::{CommitOutcome, CommitPin, StagedObject};
+use enouia_memory_contract::provider::InvocationState;
 use enouia_memory_contract::record::{RecordKind, RecordRef};
 use enouia_memory_contract::session::*;
 use enouia_memory_vault::{
@@ -249,6 +250,7 @@ pub fn save_input(
         key,
         None,
         &[],
+        None,
     )
 }
 
@@ -277,6 +279,7 @@ pub fn save_input_with_sources(
         key,
         None,
         sources,
+        None,
     )
 }
 
@@ -310,6 +313,54 @@ pub fn append_output_with_guard(
     key: &[u8],
     guard: Option<OutputGuard>,
 ) -> Result<Written<EventId>> {
+    append_output_impl(vault, actor, input, kind, text, key, guard, None)
+}
+
+/// Native result metadata published atomically with the terminal event. This
+/// is transport-neutral; it cannot create an admission or authorize a send.
+#[derive(Clone, Debug, Serialize)]
+pub struct InvocationCompletion {
+    pub dispatch_id: DispatchId,
+    pub state: InvocationState,
+    pub input_tokens: Option<u64>,
+    pub output_tokens: Option<u64>,
+    pub error_code: Option<enouia_memory_contract::MemoryErrorCode>,
+}
+
+#[allow(clippy::too_many_arguments)]
+pub fn append_invocation_output(
+    vault: &Vault,
+    actor: &ActorRef,
+    input: &EventId,
+    kind: EventKind,
+    text: Option<&str>,
+    key: &[u8],
+    guard: Option<OutputGuard>,
+    completion: &InvocationCompletion,
+) -> Result<Written<EventId>> {
+    append_output_impl(
+        vault,
+        actor,
+        input,
+        kind,
+        text,
+        key,
+        guard,
+        Some(completion),
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn append_output_impl(
+    vault: &Vault,
+    actor: &ActorRef,
+    input: &EventId,
+    kind: EventKind,
+    text: Option<&str>,
+    key: &[u8],
+    guard: Option<OutputGuard>,
+    completion: Option<&InvocationCompletion>,
+) -> Result<Written<EventId>> {
     owner(vault, actor)?;
     if !matches!(
         kind,
@@ -337,6 +388,7 @@ pub fn append_output_with_guard(
         key,
         guard,
         &[],
+        completion,
     )
 }
 
@@ -353,6 +405,7 @@ fn append(
     key: &[u8],
     guard: Option<OutputGuard>,
     sources: &[enouia_memory_contract::common::SourceRevisionRef],
+    completion: Option<&InvocationCompletion>,
 ) -> Result<Written<EventId>> {
     owner(vault, actor)?;
     if (kind.needs_content() != text.is_some()
@@ -365,6 +418,9 @@ fn append(
         json!({"session":sid,"branch":bid,"kind":kind,"input":input,"text":text,"request":request});
     if !sources.is_empty() {
         logical["sources"] = json!(sources);
+    }
+    if let Some(completion) = completion {
+        logical["invocation"] = json!(completion);
     }
     let payload = sha256(&bytes(&logical)?);
     if let Some((commit_id, receipt)) =
@@ -476,6 +532,36 @@ fn append(
         sensitivity: guard.map_or(sensitivity, |g| sensitivity.max(g.sensitivity)),
         extensions: Default::default(),
     };
+    if let Some(completion) = completion {
+        let matches_kind = matches!(
+            (completion.state, kind),
+            (InvocationState::Completed, EventKind::AssistantCompleted)
+                | (
+                    InvocationState::Length | InvocationState::Failed,
+                    EventKind::TurnFailed
+                )
+                | (InvocationState::Cancelled, EventKind::TurnCancelled)
+        );
+        if !matches_kind {
+            return Err(invalid("session.invocation_terminal_kind"));
+        }
+        let row = session
+            .provider_invocations
+            .iter_mut()
+            .find(|r| r.dispatch_id == completion.dispatch_id && Some(&r.input_event_id) == input)
+            .ok_or_else(|| invalid("session.invocation_required"))?;
+        if row.state != InvocationState::OutcomeUnknown {
+            return Err(invalid("session.invocation_terminal"));
+        }
+        row.state = completion.state;
+        row.terminal_event_id = Some(id.clone());
+        row.input_tokens = completion.input_tokens;
+        row.output_tokens = completion.output_tokens;
+        row.error_code = completion.error_code;
+        if !row.validate().is_empty() {
+            return Err(invalid("session.invocation_metadata"));
+        }
+    }
     session.revision =
         Revision::new(session.revision.get() + 1).ok_or_else(|| invalid("number.out_of_range"))?;
     session.last_event_seq = sequence;
