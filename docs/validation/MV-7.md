@@ -11,6 +11,7 @@ The owner explicitly started MV-7 and then instructed: implement functionality f
 - Private content needs an exact, expiring, single-use per-request approval. Highly sensitive content is refused. Current policy/deletion/lock/restore gates and durable audit precede HTTP admission. Missing credentials, capabilities, approval, quota or audit fail without an attempt.
 - Admission atomically persists immutable Dispatch, message bodies, full wire body and a Session invocation reservation. Same input/dispatch cannot be resent, even with an unknown/crashed outcome or a new dispatch ID. Known usage, terminal errors, local token/price reservations and incomplete length results are retained.
 - Stream chunks are saved before delivery. Responses inherit the strictest carried evidence sensitivity. Publishing private text checks original policy/deletion epochs against the writer's pinned head; final delivery checks authorization again. EOF is never completion.
+- Stream decoding rejects out-of-order message phases and conflicting stop reasons, supports Anthropic's multiple top-level/cumulative usage updates and retains optional values when omitted/null. Parser or persistence errors latch permanently, so trailing failures cannot later become a completed result.
 - Exact archived inspection and saved results survive reopen. A terminal-receipt/ledger publication gap is repaired locally without HTTP. Existing dependent deletion now covers full request archives and length-failure response bodies; the shared-evidence purge leaves a clean Vault.
 - Disabling the native adapter blocks protected reads, preparation, approval, local recovery and late terminal publication. An admitted result refused after disable remains unknown until a local terminal receipt exists; the host still owns cancellation/join on lock/close.
 - Native Windows credential read/write targets are restricted to the two named Provider entries. Those functions are compiled, not exercised against the owner's credential store.
@@ -35,10 +36,12 @@ A context case checks that version-2 wire input and preview preserve an explicit
 
 A both-API agent-consent case first reproduced acceptance of an unsupported model-evidence preference, then verifies whole-response refusal with no candidates/cursor/head changes. A fact-only response from that same agent source stays pending with `model_claim` evidence and uncertain status, even though the source claims user consent. It never enters the canonical view.
 
+Two stream cases cover premature/open-block/conflicting stop updates, reopening blocks after top-level updates, trailing errors after a valid terminal for both APIs and failure latching. The positive case covers multiple top-level updates with cumulative counters, late input usage, and omitted/null values preserving prior known metadata. The initial negative case reproduced the old order-acceptance gap. The implementation follows the official Anthropic event flow/types linked in the native guide.
+
 | Check | Result |
 |---|---|
 | Pinned Rust formatting | Passed: `cargo fmt --all -- --check` |
-| Offline `cargo test --workspace --locked` | Passed: 299 tests, including 24 Provider cases and 60 workspace Core cases. Recovery/deletion, extraction evidence/context/preview, disabled protected reads and bounded object reads are included in this final run. |
+| Offline `cargo test --workspace --locked` | Passed: 301 tests, including 26 Provider cases and 60 workspace Core cases. Streaming lifecycle, recovery/deletion, extraction evidence/context/preview, disabled protected reads and bounded object reads are included in this final run. |
 | Offline strict workspace Clippy, all targets | Passed: `cargo clippy --workspace --all-targets --locked -- -D warnings` |
 | Python 3.12 / python-jsonschema 4.26.0 | Passed: 36 schemas; 53 valid records; 117 record mutations; 4,913 set records; 51 IPC, 63 workspace, 46 store, 8 invocation and 19 extraction-job cases |
 | Runtime integration manifest/log | Passed: aggregate `f1a52c732445fe9ea0c5d5b33eaec3fd5fe7b9a71376ca3215e594f1792cf167` |

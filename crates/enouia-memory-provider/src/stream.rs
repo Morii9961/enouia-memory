@@ -5,7 +5,7 @@ use crate::{
     error,
 };
 use enouia_memory_contract::{
-    MemoryErrorCode,
+    MemoryError, MemoryErrorCode,
     provider::{FinishReason, ProviderResponse},
 };
 use serde_json::{Value, json};
@@ -23,6 +23,8 @@ pub struct Decoder {
     started: bool,
     next_block: u64,
     open_block: Option<u64>,
+    message_deltas_started: bool,
+    failure: Option<MemoryError>,
 }
 impl Decoder {
     pub fn new(api: Api) -> Self {
@@ -38,9 +40,25 @@ impl Decoder {
             started: false,
             next_block: 0,
             open_block: None,
+            message_deltas_started: false,
+            failure: None,
         }
     }
     pub fn push(
+        &mut self,
+        bytes: &[u8],
+        on_text: &mut dyn FnMut(&str) -> Result<()>,
+    ) -> Result<()> {
+        if let Some(failure) = self.failure {
+            return Err(failure);
+        }
+        let result = self.push_inner(bytes, on_text);
+        if let Err(failure) = result {
+            self.failure = Some(failure);
+        }
+        result
+    }
+    fn push_inner(
         &mut self,
         bytes: &[u8],
         on_text: &mut dyn FnMut(&str) -> Result<()>,
@@ -130,6 +148,7 @@ impl Decoder {
                 if !self.started
                     || v["content_block"]["type"] != "text"
                     || self.open_block.is_some()
+                    || self.message_deltas_started
                     || v["index"].as_u64() != Some(self.next_block)
                 {
                     return Err(error(MemoryErrorCode::ProviderUnavailable));
@@ -165,8 +184,23 @@ impl Decoder {
                 self.open_block = None;
             }
             (Api::AnthropicMessages, "message_delta") => {
-                self.stop = v["delta"]["stop_reason"].as_str().map(str::to_owned);
-                self.usage["output_tokens"] = v["usage"]["output_tokens"].clone();
+                if !self.started || self.open_block.is_some() {
+                    return Err(error(MemoryErrorCode::ProviderUnavailable));
+                }
+                self.message_deltas_started = true;
+                // Anthropic permits multiple top-level deltas. Usage-only
+                // updates must not erase a known stop reason or reopen blocks.
+                if let Some(stop) = v["delta"]["stop_reason"].as_str() {
+                    if self.stop.as_deref().is_some_and(|known| known != stop) {
+                        return Err(error(MemoryErrorCode::ProviderUnavailable));
+                    }
+                    self.stop = Some(stop.into());
+                }
+                for key in ["input_tokens", "output_tokens"] {
+                    if let Some(tokens) = v["usage"].get(key).filter(|tokens| !tokens.is_null()) {
+                        self.usage[key] = tokens.clone();
+                    }
+                }
             }
             (Api::AnthropicMessages, "message_stop") => {
                 if !self.started || self.open_block.is_some() {
@@ -191,6 +225,9 @@ impl Decoder {
         Ok(())
     }
     pub fn finish(self) -> Result<ProviderResponse> {
+        if let Some(failure) = self.failure {
+            return Err(failure);
+        }
         if !self.line.is_empty() || !self.data.is_empty() {
             return Err(error(MemoryErrorCode::ProviderUnavailable));
         }

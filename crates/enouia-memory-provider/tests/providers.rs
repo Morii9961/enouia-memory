@@ -588,6 +588,85 @@ fn admitted_crash_is_unknown_and_cannot_be_resent() {
     );
 }
 #[test]
+fn sse_rejects_out_of_order_stops_and_errors_cannot_be_finished_or_resumed() {
+    let start = json!({"type":"message_start","message":{"type":"message","role":"assistant","usage":{"input_tokens":100,"output_tokens":0}}});
+    let block =
+        json!({"type":"content_block_start","index":0,"content_block":{"type":"text","text":""}});
+    let block_end = json!({"type":"content_block_stop","index":0});
+    let delta = json!({"type":"message_delta","delta":{"stop_reason":"end_turn"},"usage":{"output_tokens":0}});
+    let conflicting = json!({"type":"message_delta","delta":{"stop_reason":"max_tokens"},"usage":{"output_tokens":1}});
+    let stop = json!({"type":"message_stop"});
+    for events in [
+        vec![delta.clone(), start.clone(), stop.clone()],
+        vec![
+            start.clone(),
+            block.clone(),
+            delta.clone(),
+            block_end.clone(),
+            stop.clone(),
+        ],
+        vec![start.clone(), delta.clone(), conflicting, stop.clone()],
+        vec![start, delta, block, block_end, stop],
+    ] {
+        let bytes = events
+            .iter()
+            .map(|v| format!("data: {v}\n\n"))
+            .collect::<String>();
+        let mut decoder = Decoder::new(Api::AnthropicMessages);
+        assert_eq!(
+            decoder
+                .push(bytes.as_bytes(), &mut |_| Ok(()))
+                .unwrap_err()
+                .code,
+            MemoryErrorCode::ProviderUnavailable
+        );
+        assert!(
+            decoder
+                .push(b"data: {\"type\":\"message_stop\"}\n\n", &mut |_| Ok(()))
+                .is_err()
+        );
+        assert!(decoder.finish().is_err());
+    }
+    // A valid terminal followed by a malformed/error event cannot later be
+    // exposed as successful by a caller that tries finish after push failed.
+    for api in [Api::OpenAiResponses, Api::AnthropicMessages] {
+        let mut decoder = Decoder::new(api);
+        decoder
+            .push(&streaming_reply(api, true), &mut |_| Ok(()))
+            .unwrap();
+        assert!(
+            decoder
+                .push(b"data: {\"type\":\"error\"}\n\n", &mut |_| Ok(()))
+                .is_err()
+        );
+        assert!(decoder.finish().is_err());
+    }
+}
+#[test]
+fn anthropic_multiple_top_level_deltas_keep_stop_reason_and_cumulative_usage() {
+    let events = [
+        json!({"type":"message_start","message":{"type":"message","role":"assistant","usage":{"input_tokens":100,"output_tokens":0}}}),
+        json!({"type":"message_delta","delta":{"stop_reason":null},"usage":{"output_tokens":1}}),
+        json!({"type":"message_delta","delta":{"stop_reason":"end_turn"},"usage":{"input_tokens":110,"output_tokens":4}}),
+        json!({"type":"message_delta","delta":{"stop_reason":null},"usage":{"output_tokens":5}}),
+        json!({"type":"message_delta","delta":{},"usage":{"input_tokens":null,"output_tokens":6}}),
+        json!({"type":"message_stop"}),
+    ];
+    let bytes = events
+        .iter()
+        .map(|v| format!("data: {v}\n\n"))
+        .collect::<String>();
+    let mut decoder = Decoder::new(Api::AnthropicMessages);
+    decoder.push(bytes.as_bytes(), &mut |_| Ok(())).unwrap();
+    let response = decoder.finish().unwrap();
+    assert_eq!(
+        response.finish,
+        enouia_memory_contract::provider::FinishReason::Completed
+    );
+    assert_eq!(response.input_tokens, Some(110));
+    assert_eq!(response.output_tokens, Some(6));
+}
+#[test]
 fn fragmented_sse_preserves_utf8_and_rejects_missing_terminal() {
     let body = format!(
         "event: response.output_text.delta\r\ndata: {}\r\n\r\nevent: response.completed\ndata: {}\n\n",
