@@ -16,12 +16,13 @@ The owner explicitly started MV-7 and then instructed: implement functionality f
 - Native Windows credential read/write targets are restricted to the two named Provider entries. Those functions are compiled, not exercised against the owner's credential store.
 - Optional source-bound extraction persists immutable selection/prompt/binding/budgets and progress. Whole-response JSON/quotation validation precedes proposals; candidates remain pending, with source-derived evidence class/sensitivity. Pause, local cursor receipt recovery, unchanged reviewed-claim suppression and bounded pending backlog are enforced. Source-dependent deletion erases undispatched input too. Immutable job token/monetary caps survive reopening and constrain the caller’s Session quota; required prices cannot be omitted. Input safety margin is reserved for tokens and cost.
 - Local extraction preview returns literal citations and source metadata, preserving UTF-8 offsets in resolved source text and the difference between the model's original proposal and the current owner-edited/reviewed candidate. Paused jobs remain inspectable; the preview never writes or sends and refuses a changed pinned view.
+- New `extract-text-2` inputs preserve source occurrence/capture time, precision, branch uncertainty and selection offsets. The local preview includes complete selected text so qualifiers outside the literal quote stay visible. Version-1 saved jobs remain valid and unchanged.
 
 ## Synthetic acceptance
 
 `crates/enouia-memory-provider/tests/providers.rs` uses isolated Vaults, synthetic evidence, fake secrets and fake byte transports. Its original 13 cases cover both API envelopes, exact archives/replay, private approval and changed wire refusal, missing keys/capabilities/lock/quotas, admitted crash/new-dispatch refusal, fragmented UTF-8 SSE, both streaming terminal/truncated cases, network failure, reopen/local receipt recovery, explicit price ceilings, shared reviewed evidence and purge, standing-policy revocation, length-preserving incomplete outcomes and cancellation. The shared-evidence case also proves that private evidence yields a private result in an otherwise normal Session.
 
-Seven additional extraction cases cover both APIs, source-only preparation, no canonical writes, enable/pause/resume, invalid later claims leaving zero candidates, unchanged rejection suppression, changed-key/UTF-8/backlog refusal, reopen after injected publication failure, deletion before dispatch and durable token/price/pause admission limits. Seventeen extraction-job fixtures distinguish schema shape from typed cross-field constraints. Storage validation also binds source content hashes and candidate IDs; added property cases prove scoped/whole-set equivalence for extraction jobs.
+Seven additional extraction cases cover both APIs, source-only preparation, no canonical writes, enable/pause/resume, invalid later claims leaving zero candidates, unchanged rejection suppression, changed-key/UTF-8/backlog refusal, reopen after injected publication failure, deletion before dispatch and durable token/price/pause admission limits. Nineteen extraction-job fixtures distinguish schema shape from typed cross-field constraints, accept both supported prompt versions and reject unknown versions. Storage validation also binds source content hashes and candidate IDs; added property cases prove scoped/whole-set equivalence for extraction jobs.
 
 Contract/schema acceptance adds eight positive/negative invocation cases, checked independently by serde/domain validation, the Rust subset validator and pinned python-jsonschema. Existing fixtures remain synthetic; no Runtime checkout, fixtures or target directory is used.
 
@@ -29,12 +30,14 @@ A further adapter-disable case checks archived/saved reads, local recovery, prep
 
 The preview case checks a narrowed Unicode source selection, exact citation offsets, source role/time/class preservation, unchanged Vault head, paused inspection and latest owner edits separately from original proposals, plus disabled/wrong-owner refusal. Existing invalid-quotation and reviewed-suppression cases also check preview rejection and current rejected/suppressed states.
 
+A context case checks that version-2 wire input and preview preserve an explicitly unknown occurrence time and branch alongside the archival timestamp. Complete selected text retains negation and conditions outside the model quote. No canonical memory is accepted; quotation containment remains separate from semantic correctness.
+
 | Check | Result |
 |---|---|
 | Pinned Rust formatting | Passed: `cargo fmt --all -- --check` |
-| Offline `cargo test --workspace --locked` | Passed: 297 tests, including 22 Provider cases and 60 workspace Core cases. Recovery/deletion, extraction preview, disabled protected reads and bounded object reads are included in this final run. |
+| Offline `cargo test --workspace --locked` | Passed: 298 tests, including 23 Provider cases and 60 workspace Core cases. Recovery/deletion, extraction context/preview, disabled protected reads and bounded object reads are included in this final run. |
 | Offline strict workspace Clippy, all targets | Passed: `cargo clippy --workspace --all-targets --locked -- -D warnings` |
-| Python 3.12 / python-jsonschema 4.26.0 | Passed: 36 schemas; 53 valid records; 117 record mutations; 4,913 set records; 51 IPC, 63 workspace, 46 store, 8 invocation and 17 extraction-job cases |
+| Python 3.12 / python-jsonschema 4.26.0 | Passed: 36 schemas; 53 valid records; 117 record mutations; 4,913 set records; 51 IPC, 63 workspace, 46 store, 8 invocation and 19 extraction-job cases |
 | Runtime integration manifest/log | Passed: aggregate `f1a52c732445fe9ea0c5d5b33eaec3fd5fe7b9a71376ca3215e594f1792cf167` |
 
 The initial full check detected the missing actual aggregate in the compatibility row; that row was corrected and the full check repeated. Earlier targeted checks exposed test-only shared idempotency/claim labels and an incorrect source-delete scope; those fixtures were corrected. Extraction preparation also exposed an inappropriate normal-search query budget; extraction now compiles selected sources directly. These failures did not cause live calls.

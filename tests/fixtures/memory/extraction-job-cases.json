@@ -32,6 +32,18 @@
   },
   "cases": [
     {
+      "name": "context-prompt-v2",
+      "ops": [{"op": "set", "path": "/prompt_version", "value": "extract-text-2"}],
+      "schema": true,
+      "domain": true
+    },
+    {
+      "name": "unknown-prompt-version",
+      "ops": [{"op": "set", "path": "/prompt_version", "value": "extract-text-3"}],
+      "schema": false,
+      "domain": false
+    },
+    {
       "name": "ready",
       "ops": [],
       "schema": true,

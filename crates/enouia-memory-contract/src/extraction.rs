@@ -48,8 +48,10 @@ pub struct ExtractionJob {
 }
 impl ExtractionJob {
     pub fn validate(&self) -> Vec<Violation> {
-        let bad = self.prompt_version != "extract-text-1"
-            || !matches!(self.binding.provider.as_str(), "openai" | "anthropic")
+        let bad = !matches!(
+            self.prompt_version.as_str(),
+            "extract-text-1" | "extract-text-2"
+        ) || !matches!(self.binding.provider.as_str(), "openai" | "anthropic")
             || self.binding.model.is_empty()
             || self.binding.model.len() > 160
             || !self

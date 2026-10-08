@@ -1429,6 +1429,10 @@ fn extraction_preview_preserves_exact_quotes_and_current_owner_edits_without_wri
         assert_eq!(citation.selected_start, options.sources[0].start);
         assert_eq!(citation.selected_end, options.sources[0].end);
         assert_eq!(
+            citation.selected_text,
+            text[options.sources[0].start as usize..options.sources[0].end as usize]
+        );
+        assert_eq!(
             citation.evidence_class,
             enouia_memory_contract::common::EvidenceClass::UserStatement
         );
@@ -1499,6 +1503,160 @@ fn extraction_preview_preserves_exact_quotes_and_current_owner_edits_without_wri
         MemoryErrorCode::PermissionDenied
     );
     assert_eq!(http.calls.get(), 1);
+}
+#[test]
+fn extraction_v2_keeps_unknown_time_branch_and_negation_context() {
+    use enouia_memory_contract::{
+        commit::OperationKind,
+        common::TimePrecision,
+        json::{Knowable, canonical_bytes},
+        ports::{CommitRequest, IdempotencyScope, StagedRecord},
+        record::{AnyRecord, RecordRef},
+    };
+    use enouia_memory_provider::extraction;
+    let env = Env::new("extraction-context");
+    let api = Api::OpenAiResponses;
+    let id = extraction_source(&env);
+    let pin = env.vault.pin_current().unwrap();
+    let AnyRecord::Source(mut source) = env
+        .vault
+        .read_parsed(
+            &pin,
+            &RecordRef::new(RecordKind::Source, id.as_str(), Revision::new(1).unwrap()),
+        )
+        .unwrap()
+    else {
+        panic!("source")
+    };
+    // A synthetic source revision with unknown occurrence/branch and explicit
+    // qualifiers. Its archival timestamp must not become an occurrence time.
+    let text = "并不偏好合成红色；只有在合成条件成立时才倾向合成蓝色。";
+    source.revision = Revision::new(2).unwrap();
+    source.manual_assertion.as_mut().unwrap().input_text = text.into();
+    source.content_hash = sha256(text.as_bytes());
+    source.occurred_at = None;
+    source.time_precision = TimePrecision::Unknown;
+    source.branch_id = Knowable::Unknown;
+    let payload = canonical_bytes(&serde_json::to_value(&source).unwrap()).unwrap();
+    env.vault
+        .commit(CommitRequest {
+            commit_id: CommitId::from_random(env.vault.random_id_bytes()),
+            expected_commit_id: Some(pin.commit_id),
+            principal: owner(),
+            operation_kind: OperationKind::Import,
+            idempotency: IdempotencyScope {
+                principal_id: owner().actor_id,
+                operation_kind: OperationKind::Import,
+                key_hash: sha256(b"context-source-revision"),
+            },
+            request_payload_hash: sha256(&payload),
+            expected_revisions: vec![(
+                RecordKind::Source,
+                id.to_string(),
+                Some(Revision::new(1).unwrap()),
+            )],
+            records: vec![StagedRecord {
+                record_kind: RecordKind::Source,
+                record_id: id.to_string(),
+                revision: source.revision,
+                bytes: payload,
+            }],
+            objects: vec![],
+        })
+        .unwrap();
+    let mut options = extraction_options(id, api);
+    options.sources[0].source.source_revision = source.revision;
+    options.sources[0].end = text.len() as u64;
+    let policy = grant(&env, api);
+    let (sid, run) = extraction::create(
+        &env.vault,
+        &owner(),
+        &env.policy(),
+        &options,
+        b"context-run",
+    )
+    .unwrap();
+    let job = extraction::job(&env.vault, &owner(), &sid, &run).unwrap();
+    assert_eq!(job.prompt_version, "extract-text-2");
+    let enabled = AtomicBool::new(true);
+    let adapter = VaultAdapter {
+        vault: &env.vault,
+        owner: owner(),
+        input_event: job.input_event_id.clone(),
+        enabled: &enabled,
+        quota: Quota::default(),
+    };
+    let (index, _) = enouia_memory_index::Index::rebuild(&env.vault).unwrap();
+    let call = extraction::prepare(
+        &adapter,
+        &index,
+        &run,
+        &extraction_capabilities(&env, api),
+        Limits::default(),
+        CallOptions::text(policy, 1024),
+    )
+    .unwrap();
+    let wire: serde_json::Value = serde_json::from_slice(call.inspect().body()).unwrap();
+    let prompt: serde_json::Value =
+        serde_json::from_str(wire["input"][1]["content"].as_str().unwrap()).unwrap();
+    assert_eq!(prompt["prompt_version"], "extract-text-2");
+    assert_eq!(prompt["sources"][0]["text"], text);
+    assert_eq!(
+        prompt["sources"][0]["source_context"]["occurred_at"],
+        serde_json::Value::Null
+    );
+    assert_eq!(
+        prompt["sources"][0]["source_context"]["captured_at"],
+        json!(source.captured_at)
+    );
+    assert_eq!(
+        prompt["sources"][0]["source_context"]["time_precision"],
+        "unknown"
+    );
+    assert_eq!(
+        prompt["sources"][0]["source_context"]["branch_id"],
+        "unknown"
+    );
+    assert_eq!(prompt["sources"][0]["selection"]["end"], text.len());
+    let http = FakeHttp {
+        calls: Cell::new(0),
+        bytes: extraction_reply(api, false),
+        fail: false,
+    };
+    Client {
+        transport: &http,
+        secrets: &Secrets { missing: false },
+        guard: &adapter,
+        journal: &adapter,
+    }
+    .send(&call, &call.inspect().hash(), &NeverCancel)
+    .unwrap();
+    let shown = extraction::preview(&adapter, &run).unwrap();
+    for item in &shown.items {
+        assert_eq!(item.citation.selected_text, text);
+        assert_eq!(item.citation.occurred_at, None);
+        assert_eq!(item.citation.time_precision, TimePrecision::Unknown);
+        assert_eq!(item.citation.branch_id, Knowable::Unknown);
+        assert_eq!(item.citation.captured_at, source.captured_at);
+    }
+    // Containment does not assert model correctness; the selected negation
+    // remains available to the owner and no canonical record is accepted.
+    assert!(
+        enouia_memory_govern::canonical_memories(
+            &env.vault,
+            &env.vault.pin_current().unwrap(),
+            enouia_memory_govern::Canonical::AllStatuses
+        )
+        .unwrap()
+        .is_empty()
+    );
+    assert_eq!(http.calls.get(), 1);
+    assert!(
+        env.vault
+            .verify(&env.vault.pin_current().unwrap())
+            .unwrap()
+            .is_clean()
+    );
 }
 #[test]
 fn extraction_is_explicit_resumable_and_never_accepts_memories() {
