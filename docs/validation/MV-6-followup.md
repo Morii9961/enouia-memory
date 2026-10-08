@@ -1,6 +1,10 @@
 # MV-6 follow-up — installation ownership, window permissions and UI state
 
-## Current result — 2026-10-04
+## Core lifecycle follow-up — 2026-10-05
+
+The [Core lifecycle report](MV-6-vault-lifecycle.md) records synthetic coverage for confirmation replay and Vault-scoped task/backup/picker state after lock, switch, failed open and shutdown. The [Runtime compatibility log](../integration/RUNTIME.md) names the required pin and host UI adoption work. It does not rerun the actual-app or installer suites below; their counts remain historical evidence.
+
+## Integrated app result — 2026-10-04
 
 The owner authorized continued MV-6 work, separate feature commits, push and merge. The final rebuilt 0.1.0 app passed **52/52** actual-app checks on a fresh synthetic Vault, including native permissions, saved Mock request verification, original-key retry and acknowledged-record recovery after a renderer crash. The separate deferred-client fixture passed **76/76** UI checks; its read/write responses are simulated. The final **7.04 MiB NSIS installer** passed **8/8** isolated installation/uninstallation checks and **14/14** source/generated-template ownership checks. Required pinned offline format, **201 Rust workspace tests**, Clippy with warnings denied and independent Python 3.12 / python-jsonschema 4.26.0 validation of **34 schemas** passed. Frontend and separate fixture typechecks/builds passed; test markers/APIs are absent from production.
 

@@ -17,6 +17,7 @@ use tauri::menu::{Menu, MenuItem};
 use tauri::tray::TrayIconBuilder;
 use tauri::{AppHandle, Manager, State, WebviewWindow, WindowEvent};
 
+mod lifecycle;
 mod startup;
 mod window_scope;
 
@@ -104,14 +105,12 @@ fn hide_window(window: WebviewWindow) {
 
 /// Exit: cancel and join operations, release the Vault, end the process.
 #[tauri::command]
-fn exit_app(app: AppHandle, core: State<'_, Core>) {
-    core.0.shutdown();
+async fn exit_app(app: AppHandle, core: State<'_, Core>) -> Result<(), String> {
+    lifecycle::queue_shutdown(core.0.clone())
+        .await
+        .map_err(|_| "worker_failed".to_owned())?;
     app.exit(0);
-}
-
-fn lock_request() -> Value {
-    json!({"schemaVersion": 1, "requestId": "req_00000000-0000-4000-8000-000000000001",
-           "command": "vault_lock", "idempotencyKey": null, "arguments": {}})
+    Ok(())
 }
 
 fn tray_icon() -> tauri::image::Image<'static> {
@@ -232,11 +231,13 @@ fn main() {
                         if let Some(overlay) = app.get_webview_window("overlay") {
                             let _ = overlay.hide();
                         }
-                        let _ = tray_core.call(&lock_request());
+                        // The menu callback returns while Core waits for calls
+                        // and joins operations on a blocking worker.
+                        lifecycle::queue_lock(tray_core.clone());
                     }
                     "exit" => {
-                        tray_core.shutdown();
-                        app.exit(0);
+                        let app = app.clone();
+                        lifecycle::queue_exit(tray_core.clone(), move || app.exit(0));
                     }
                     _ => {}
                 })

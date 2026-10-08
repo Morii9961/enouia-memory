@@ -21,7 +21,7 @@ pub use enouia_memory_contract::workspace::HostSurface;
 
 use enouia_memory_context::{CompileInput, answer_saved, compile, session};
 use enouia_memory_contract::candidate::{CandidateRecord, ProposalKind, ProposedType};
-use enouia_memory_contract::commit::{DeleteMode, DeleteScope};
+use enouia_memory_contract::commit::{DeleteMode, DeleteScope, OperationKind};
 use enouia_memory_contract::common::{
     ActorRef, ActorType, Sensitivity, TimePrecision, TrustedSurface,
 };
@@ -36,7 +36,7 @@ use enouia_memory_contract::ids::{
 use enouia_memory_contract::import::ImportManifest;
 use enouia_memory_contract::json::Revision;
 use enouia_memory_contract::memory::CanonicalMemory;
-use enouia_memory_contract::ports::{CommitPin, IdSource};
+use enouia_memory_contract::ports::{CommitPin, IdSource, IdempotencyScope};
 use enouia_memory_contract::record::{Record, RecordKind, RecordRef};
 use enouia_memory_contract::session::{ClientSurface, SessionRecord};
 use enouia_memory_contract::source::{ConfirmationMethod, SourceRecord};
@@ -61,8 +61,9 @@ use enouia_memory_vault::{
 use ops::{Operations, Ticket};
 use serde_json::{Map, Value, json};
 use std::collections::BTreeMap;
+use std::io::Read;
 use std::path::{Path, PathBuf};
-use std::sync::{Arc, Mutex, TryLockError};
+use std::sync::{Arc, Mutex, RwLock, TryLockError};
 
 /// How long a picker token stays valid.
 pub const PICK_TTL_MS: i64 = 10 * 60 * 1000;
@@ -206,6 +207,26 @@ struct Pick {
     kind: PickKind,
     path: PathBuf,
     expires_ms: i64,
+    in_use: bool,
+}
+
+/// Release admission on errors or unwind, consume only on successful admission.
+/// The picker map is never locked while a command performs IO.
+struct PickLease<'a> {
+    picks: &'a Mutex<BTreeMap<String, Pick>>,
+    token: &'a str,
+    consume: bool,
+}
+
+impl Drop for PickLease<'_> {
+    fn drop(&mut self) {
+        let mut picks = self.picks.lock().unwrap_or_else(|e| e.into_inner());
+        if self.consume {
+            picks.remove(self.token);
+        } else if let Some(pick) = picks.get_mut(self.token) {
+            pick.in_use = false;
+        }
+    }
 }
 
 struct Open {
@@ -228,19 +249,22 @@ struct PendingPlan {
 
 pub struct Workspace {
     config: Config,
+    /// Lifecycle changes exclude complete page calls and native picks. Status
+    /// and operation controls bypass this gate so close can still be observed.
+    lifecycle: RwLock<()>,
     slot: Mutex<Slot>,
     ops: Operations,
     picks: Mutex<BTreeMap<String, Pick>>,
     plans: Mutex<BTreeMap<String, PendingPlan>>,
-    /// Results of confirmed plans, so a retried confirm answers the same.
-    confirmed: Mutex<BTreeMap<String, Value>>,
+    /// Results and exact diff hashes of confirmed plans in this open Vault.
+    confirmed: Mutex<BTreeMap<String, (enouia_memory_contract::hash::Sha256Hex, Value)>>,
     /// Started imports by idempotency key: (request fingerprint, operation).
     started: Mutex<BTreeMap<String, (String, OperationId)>>,
     /// The exclusive host lock of the open Vault (ADR-MEM-46). It belongs to
     /// the open/close lifecycle, not to `Open`'s reference count, so a read
     /// still in flight cannot keep it held after close.
     host: Mutex<Option<std::fs::File>>,
-    /// The last backup export of this process (the Vault does not record it).
+    /// The last backup export since this Vault was opened (not persisted).
     last_backup: Mutex<Option<OperationId>>,
     /// Companion status reported by the shell (tray, hotkey, overlay).
     companion: Mutex<Value>,
@@ -362,6 +386,7 @@ impl Workspace {
     pub fn new(config: Config) -> Self {
         Self {
             config,
+            lifecycle: RwLock::new(()),
             slot: Mutex::new(Slot::Empty),
             ops: Operations::default(),
             picks: Mutex::new(BTreeMap::new()),
@@ -391,6 +416,11 @@ impl Workspace {
     /// Register a native-dialog choice. Only the shell calls this; the page
     /// receives the token, the base name, and the size.
     pub fn register_pick(&self, kind: PickKind, path: &Path) -> Result<Picked, WorkspaceError> {
+        self.with_lifecycle(false, || self.register_pick_at(kind, path).map_err(Fail))
+            .map_err(|f| f.0)
+    }
+
+    fn register_pick_at(&self, kind: PickKind, path: &Path) -> Result<Picked, WorkspaceError> {
         let meta = std::fs::symlink_metadata(path).map_err(|_| {
             WorkspaceError::new(MemoryErrorCode::NotFound, &["workspace.pick_missing"])
         })?;
@@ -409,13 +439,14 @@ impl Workspace {
         let token = format!("tok_{}", hex(&self.config.ids.random_16()));
         let mut picks = self.picks.lock().expect("picks");
         let now = self.now_ms();
-        picks.retain(|_, p| p.expires_ms > now);
+        picks.retain(|_, p| p.in_use || p.expires_ms > now);
         picks.insert(
             token.clone(),
             Pick {
                 kind,
                 path: path.to_path_buf(),
                 expires_ms: now + PICK_TTL_MS,
+                in_use: false,
             },
         );
         Ok(Picked {
@@ -425,36 +456,50 @@ impl Workspace {
         })
     }
 
-    /// The path behind a picker token. The token stays valid until the
-    /// command that uses it succeeds (`consume_pick`), so a transient failure
-    /// can be retried with the same choice (ADR-MEM-46).
-    fn take_pick(&self, token: &str, kind: PickKind, consume: bool) -> R<PathBuf> {
-        let mut picks = self.picks.lock().expect("picks");
-        let now = self.now_ms();
-        let pick = picks
-            .get(token)
-            .filter(|p| p.expires_ms > now)
-            .ok_or_else(|| fail(MemoryErrorCode::NotFound, "workspace.token_unknown"))?;
-        if pick.kind != kind {
-            return Err(fail(
-                MemoryErrorCode::InvalidRequest,
-                "workspace.token_kind",
-            ));
-        }
-        let path = pick.path.clone();
-        if consume {
-            picks.remove(token);
-        }
-        Ok(path)
-    }
-
-    fn consume_pick(&self, token: &str) {
-        self.picks.lock().expect("picks").remove(token);
+    /// Reserve a picker token through command admission. Failure (including
+    /// unwind) allows retry until expiry; a successful preview is reusable.
+    /// Async starts consume on scheduling success, not on worker completion.
+    /// Callers hold the lifecycle gate through this helper.
+    fn with_pick<T>(
+        &self,
+        token: &str,
+        kind: PickKind,
+        consume_on_success: bool,
+        work: impl FnOnce(PathBuf) -> R<T>,
+    ) -> R<T> {
+        let path = {
+            let mut picks = self.picks.lock().expect("picks");
+            let now = self.now_ms();
+            let pick = picks
+                .get_mut(token)
+                .filter(|p| p.expires_ms > now)
+                .ok_or_else(|| fail(MemoryErrorCode::NotFound, "workspace.token_unknown"))?;
+            if pick.kind != kind {
+                return Err(fail(
+                    MemoryErrorCode::InvalidRequest,
+                    "workspace.token_kind",
+                ));
+            }
+            if pick.in_use {
+                return Err(fail(MemoryErrorCode::Busy, "workspace.token_busy"));
+            }
+            pick.in_use = true;
+            pick.path.clone()
+        };
+        let mut lease = PickLease {
+            picks: &self.picks,
+            token,
+            consume: false,
+        };
+        let result = work(path);
+        lease.consume = result.is_ok() && consume_on_success;
+        result
     }
 
     /// Open a Vault at an explicit root for the shell's `--vault` argument.
     pub fn open_root(&self, root: &Path) -> Result<(), WorkspaceError> {
-        self.open_at(root).map_err(|f| f.0)
+        self.with_lifecycle(true, || self.open_at(root))
+            .map_err(|f| f.0)
     }
 
     fn open_at(&self, root: &Path) -> R<()> {
@@ -503,15 +548,22 @@ impl Workspace {
         self.open_at(root)
     }
 
-    /// Cancel and join every operation, drop review plans and the Vault and
-    /// index handles. `then` is the slot left behind (`Locked` or `Empty`).
+    /// Cancel and join every operation, then forget the open Vault's page
+    /// state. Root picker tokens remain usable for an open/create retry.
+    /// `then` is the slot left behind (`Locked` or `Empty`).
     fn close(&self, then: Option<Slot>) {
         // Detach the Vault first, so no new command can start work on it
         // while running operations are cancelled and joined.
         *self.slot.lock().expect("slot") = then.unwrap_or(Slot::Empty);
-        self.ops.cancel_all_and_join();
+        self.ops.close();
         self.plans.lock().expect("plans").clear();
+        self.confirmed.lock().expect("confirmed").clear();
         self.started.lock().expect("started").clear();
+        *self.last_backup.lock().expect("backup") = None;
+        self.picks
+            .lock()
+            .expect("picks")
+            .retain(|_, pick| pick.kind == PickKind::VaultRoot);
         if let Some(host) = self.host.lock().expect("host").take() {
             let _ = host.unlock();
         }
@@ -520,7 +572,27 @@ impl Workspace {
     /// Exit path for the shell: stop accepting work, cancel and join
     /// operations, release every handle.
     pub fn shutdown(&self) {
+        // Shutdown still attempts cleanup if a lifecycle writer panicked.
+        let _guard = self.lifecycle.write().unwrap_or_else(|e| e.into_inner());
         self.close(None);
+    }
+
+    fn with_lifecycle<T>(&self, exclusive: bool, work: impl FnOnce() -> R<T>) -> R<T> {
+        let unavailable = || {
+            let mut error = WorkspaceError::new(
+                MemoryErrorCode::StorageFailed,
+                &["workspace.lifecycle_failed"],
+            );
+            error.retryable = false;
+            Fail(error)
+        };
+        if exclusive {
+            let _guard = self.lifecycle.write().map_err(|_| unavailable())?;
+            work()
+        } else {
+            let _guard = self.lifecycle.read().map_err(|_| unavailable())?;
+            work()
+        }
     }
 
     fn open(&self) -> R<Arc<Open>> {
@@ -568,20 +640,44 @@ impl Workspace {
             Err(error) => Response::failed(request_id, WorkspaceError::from_contract(&error)),
             Ok((parsed, command)) => {
                 let key = parsed.idempotency_key.clone();
-                match self.route(&command, key.as_deref()) {
-                    Ok(done) => {
-                        let mut response =
-                            Response::ok(parsed.request_id, command.success_kind(), done.result);
-                        response.operation_id = done.operation_id;
-                        response.vault_commit_id = self
-                            .open()
-                            .ok()
-                            .and_then(|o| o.vault.pin_current().ok())
-                            .map(|p| p.commit_id);
-                        response
-                    }
-                    Err(Fail(error)) => Response::failed(parsed.request_id, error),
-                }
+                let handle = || {
+                    Ok(match self.route(&command, key.as_deref()) {
+                        Ok(done) => {
+                            let mut response = Response::ok(
+                                parsed.request_id,
+                                command.success_kind(),
+                                done.result,
+                            );
+                            response.operation_id = done.operation_id;
+                            response.vault_commit_id = self
+                                .open()
+                                .ok()
+                                .and_then(|o| o.vault.pin_current().ok())
+                                .map(|p| p.commit_id);
+                            response
+                        }
+                        Err(Fail(error)) => Response::failed(parsed.request_id, error),
+                    })
+                };
+                let handled = if matches!(
+                    command,
+                    Command::WorkspaceStatus(_)
+                        | Command::OperationGet(_)
+                        | Command::OperationList(_)
+                        | Command::OperationCancel(_)
+                ) {
+                    handle()
+                } else {
+                    let exclusive = matches!(
+                        command,
+                        Command::VaultOpen(_)
+                            | Command::VaultCreate(_)
+                            | Command::VaultLock(_)
+                            | Command::VaultUnlock(_)
+                    );
+                    self.with_lifecycle(exclusive, handle)
+                };
+                handled.unwrap_or_else(|Fail(error)| Response::failed(request_id, error))
             }
         };
         serde_json::to_value(response).expect("responses serialize")
@@ -592,15 +688,15 @@ impl Workspace {
         Ok(match command {
             Command::WorkspaceStatus(_) => Done::of(self.status()),
             Command::VaultOpen(a) => {
-                let root = self.take_pick(&a.root_token, PickKind::VaultRoot, false)?;
-                self.open_at(&root)?;
-                self.consume_pick(&a.root_token);
+                self.with_pick(&a.root_token, PickKind::VaultRoot, true, |root| {
+                    self.open_at(&root)
+                })?;
                 Done::of(self.status())
             }
             Command::VaultCreate(a) => {
-                let root = self.take_pick(&a.root_token, PickKind::VaultRoot, false)?;
-                self.create_at(&root)?;
-                self.consume_pick(&a.root_token);
+                self.with_pick(&a.root_token, PickKind::VaultRoot, true, |root| {
+                    self.create_at(&root)
+                })?;
                 Done::of(self.status())
             }
             Command::VaultLock(_) => {
@@ -865,6 +961,14 @@ impl Workspace {
         let start = a.start_byte.unwrap_or(0);
         let (excerpt, byte_start, byte_end, truncated) =
             views::excerpt(&text, start, a.max_bytes.min(wire::EXCERPT_MAX_BYTES));
+        // Never report a successful empty page before EOF: its cursor would
+        // repeat forever. Keep the byte cap and require room for one character.
+        if byte_end == byte_start && byte_start < text.len() as u64 {
+            return Err(fail(
+                MemoryErrorCode::InvalidRequest,
+                "workspace.excerpt_budget",
+            ));
+        }
         Ok(json!({
             "sourceId": source.source_id, "sourceRevision": source.revision,
             "sourceKind": source.source_kind, "speakerRole": source.speaker_role,
@@ -980,10 +1084,20 @@ impl Workspace {
         plan_id: &str,
         diff_hash: &enouia_memory_contract::hash::Sha256Hex,
     ) -> R<Value> {
-        if let Some(done) = self.confirmed.lock().expect("confirmed").get(plan_id) {
+        let open = self.open()?;
+        // Serialize confirmation through complete result publication, including
+        // file purge. A concurrent retry must replay the original counters,
+        // rather than repeat post-commit effects before the cache is populated.
+        let mut confirmed = self.confirmed.lock().expect("confirmed");
+        if let Some((seen, done)) = confirmed.get(plan_id) {
+            if seen != diff_hash {
+                return Err(fail(
+                    MemoryErrorCode::RevisionConflict,
+                    "workspace.diff_hash_mismatch",
+                ));
+            }
             return Ok(done.clone());
         }
-        let open = self.open()?;
         let pending = {
             let plans = self.plans.lock().expect("plans");
             let pending = plans
@@ -1012,10 +1126,7 @@ impl Workspace {
             self.plans.lock().expect("plans").remove(plan_id);
         }
         let result = finished?;
-        self.confirmed
-            .lock()
-            .expect("confirmed")
-            .insert(plan_id.to_owned(), result.clone());
+        confirmed.insert(plan_id.to_owned(), (diff_hash.clone(), result.clone()));
         Ok(result)
     }
 
@@ -1065,7 +1176,6 @@ impl Workspace {
 
     fn forget_plan(&self, a: &wire::ForgetArgs, key: &str) -> R<Value> {
         let open = self.open()?;
-        let memory = self.stored_memory(&open, &a.memory_id)?;
         let (mode, purge) = match a.mode {
             ForgetMode::Forget => (DeleteMode::LogicalDelete, false),
             ForgetMode::Purge => (DeleteMode::Purge, true),
@@ -1075,12 +1185,15 @@ impl Workspace {
         } else {
             DeleteScope::AllRevisions
         };
-        let proposed = propose(
-            &open.vault,
+        let proposal_key = format!("forget\n{key}");
+        self.check_forget_key(&open, a, mode, scope, proposal_key.as_bytes())?;
+        let memory = self.stored_memory(&open, &a.memory_id)?;
+        let proposed = self.propose_owner(
+            &open,
             &delete_proposal(&memory, mode, scope),
-            &Origin::owner(open.owner.clone()),
-            format!("forget\n{key}").as_bytes(),
+            proposal_key.as_bytes(),
         )?;
+        self.check_forget_key(&open, a, mode, scope, proposal_key.as_bytes())?;
         let id = match proposed {
             Proposed::Stored(written) => written.id,
             Proposed::DuplicateOf(id) => id,
@@ -1161,12 +1274,7 @@ impl Workspace {
         key: &[u8],
         source: impl serde::Serialize,
     ) -> R<Value> {
-        let (id, state) = match propose(
-            &open.vault,
-            proposal,
-            &Origin::owner(open.owner.clone()),
-            key,
-        )? {
+        let (id, state) = match self.propose_owner(open, proposal, key)? {
             Proposed::Stored(written) => (written.id, "pending"),
             Proposed::DuplicateOf(id) => (id, "duplicate"),
         };
@@ -1178,8 +1286,41 @@ impl Workspace {
         Ok(json!({"candidateId": id, "revision": revision, "state": state, "sourceId": source}))
     }
 
+    fn propose_owner(&self, open: &Open, proposal: &Proposal, key: &[u8]) -> R<Proposed> {
+        let origin = Origin::owner(open.owner.clone());
+        match propose(&open.vault, proposal, &origin, key) {
+            Err(error) if error.code() == MemoryErrorCode::IdempotencyConflict => {
+                // Generated candidate bytes differ across concurrent calls.
+                // Resolve a newly published receipt only after comparing the
+                // original logical proposal; do not change persistent hashes.
+                self.check_proposal_key(open, key, |candidate| {
+                    candidate.proposal_kind == proposal.kind
+                        && candidate.proposed_type == proposal.proposed_type
+                        && candidate.proposed_content == proposal.content
+                        && candidate.proposed_details == proposal.details
+                        && candidate.target_memory_id == proposal.target_memory_id
+                        && candidate.target_identity_id == proposal.target_identity_id
+                        && candidate.expected_revision == proposal.expected_revision
+                        && candidate.reason == proposal.reason
+                })?;
+                // One bounded lookup retry. Other errors remain untouched, and
+                // each route retains its logical-argument postcheck.
+                Ok(propose(&open.vault, proposal, &origin, key)?)
+            }
+            Err(error) if error.fault == Fault::HeadMoved => {
+                // Re-read the pending queue and target once after another
+                // writer invalidates proposal assembly. This can deduplicate
+                // a different-key proposal; repeated movement remains an error.
+                Ok(propose(&open.vault, proposal, &origin, key)?)
+            }
+            result => Ok(result?),
+        }
+    }
+
     fn remember(&self, a: &wire::RememberArgs, key: &str) -> R<Value> {
         let open = self.open()?;
+        let proposal_key = format!("remember\n{key}");
+        self.check_remember_key(&open, a, proposal_key.as_bytes())?;
         let source =
             self.assertion(&open, &a.text, format!("remember-source\n{key}").as_bytes())?;
         let subject = SubjectId::parse(&open.owner.actor_id.as_str().replacen("prn_", "sub_", 1))
@@ -1193,16 +1334,91 @@ impl Workspace {
             details,
             vec![EvidenceSpec::content(source.clone(), one())],
         );
-        self.proposed(
-            &open,
-            &proposal,
-            format!("remember\n{key}").as_bytes(),
-            source,
-        )
+        let shown = self.proposed(&open, &proposal, proposal_key.as_bytes(), source)?;
+        // Recheck after admission: another call may have published this key
+        // between the first lookup and proposal commit.
+        self.check_remember_key(&open, a, proposal_key.as_bytes())?;
+        Ok(shown)
+    }
+
+    fn check_remember_key(&self, open: &Open, a: &wire::RememberArgs, key: &[u8]) -> R<()> {
+        self.check_proposal_key(open, key, |candidate| {
+            let claim = candidate
+                .proposed_details
+                .as_ref()
+                .and_then(|d| d.get("claim_key"))
+                .and_then(Value::as_str);
+            candidate.proposed_content == a.text && claim == Some(a.claim_key.as_str())
+        })
+    }
+
+    fn check_correction_key(&self, open: &Open, a: &wire::CorrectionArgs, key: &[u8]) -> R<()> {
+        self.check_proposal_key(open, key, |candidate| {
+            candidate.proposal_kind == ProposalKind::Revise
+                && candidate.target_memory_id.as_ref() == Some(&a.memory_id)
+                && candidate.expected_revision == Some(a.revision)
+                && candidate.proposed_content == a.text
+        })
+    }
+
+    fn check_forget_key(
+        &self,
+        open: &Open,
+        a: &wire::ForgetArgs,
+        mode: DeleteMode,
+        scope: DeleteScope,
+        key: &[u8],
+    ) -> R<()> {
+        self.check_proposal_key(open, key, |candidate| {
+            let details = candidate.proposed_details.as_ref();
+            candidate.proposal_kind == ProposalKind::Delete
+                && candidate.target_memory_id.as_ref() == Some(&a.memory_id)
+                && details.and_then(|d| d.get("mode")) == Some(&json!(mode))
+                && details.and_then(|d| d.get("scope")) == Some(&json!(scope))
+        })
+    }
+
+    fn check_proposal_key(
+        &self,
+        open: &Open,
+        key: &[u8],
+        matches: impl FnOnce(&CandidateRecord) -> bool,
+    ) -> R<()> {
+        let scope = IdempotencyScope {
+            principal_id: open.owner.actor_id.clone(),
+            operation_kind: OperationKind::CandidatePropose,
+            key_hash: sha256(key),
+        };
+        let Some((_, _, receipt)) = open.vault.find_receipt(&scope)? else {
+            return Ok(());
+        };
+        let reference = receipt
+            .records
+            .iter()
+            .find(|r| r.record_kind == RecordKind::Candidate)
+            .ok_or_else(|| {
+                fail(
+                    MemoryErrorCode::StorageFailed,
+                    "workspace.receipt_candidate",
+                )
+            })?;
+        // Read the receipt's original revision, even after review or edits.
+        // The normal purge barriers still apply to this historical read.
+        let pin = open.vault.pin_current()?;
+        let candidate: CandidateRecord = parse(&open.vault.read_revision(&pin, reference)?)?;
+        if !matches(&candidate) {
+            return Err(fail(
+                MemoryErrorCode::IdempotencyConflict,
+                "workspace.key_reuse",
+            ));
+        }
+        Ok(())
     }
 
     fn correction(&self, a: &wire::CorrectionArgs, key: &str) -> R<Value> {
         let open = self.open()?;
+        let proposal_key = format!("correction\n{key}");
+        self.check_correction_key(&open, a, proposal_key.as_bytes())?;
         let memory = self.stored_memory(&open, &a.memory_id)?;
         if memory.revision != a.revision {
             return Err(fail(
@@ -1231,12 +1447,9 @@ impl Workspace {
             effective_from: None,
             reopens_candidate_id: None,
         };
-        self.proposed(
-            &open,
-            &proposal,
-            format!("correction\n{key}").as_bytes(),
-            source,
-        )
+        let shown = self.proposed(&open, &proposal, proposal_key.as_bytes(), source)?;
+        self.check_correction_key(&open, a, proposal_key.as_bytes())?;
+        Ok(shown)
     }
 
     // ----- import -------------------------------------------------------
@@ -1250,25 +1463,37 @@ impl Workspace {
 
     fn import_preview(&self, token: &str) -> R<Value> {
         let open = self.open()?;
-        let path = self.take_pick(token, PickKind::ImportFile, false)?;
+        self.with_pick(token, PickKind::ImportFile, false, |path| {
+            self.import_preview_at(&open, &path)
+        })
+    }
+
+    fn import_preview_at(&self, open: &Open, path: &Path) -> R<Value> {
         let options = enouia_memory_import::ImportOptions::new(
             open.owner.clone(),
             "preview",
-            self.policy(&open)?,
+            self.policy(open)?,
         );
-        let meta = std::fs::metadata(&path)
+        let meta = std::fs::symlink_metadata(path)
             .map_err(|_| fail(MemoryErrorCode::NotFound, "workspace.pick_missing"))?;
+        if !meta.is_file() || enouia_memory_vault::platform::is_reparse_point(&meta) {
+            return Err(fail(
+                MemoryErrorCode::InvalidRequest,
+                "import.input_not_regular_file",
+            ));
+        }
         if meta.len() > options.max_input_bytes {
             return Err(fail(
                 MemoryErrorCode::InvalidRequest,
                 "import.input_too_large",
             ));
         }
-        let bytes = std::fs::read(&path)
+        let file = std::fs::File::open(path)
             .map_err(|_| fail(MemoryErrorCode::StorageFailed, "workspace.pick_unreadable"))?;
+        let bytes = read_preview_bytes(file, meta.len(), options.max_input_bytes)?;
         let hash = sha256(&bytes);
         let duplicate = self
-            .imports(&open)?
+            .imports(open)?
             .into_iter()
             .find(|m| m.input_object_hash == hash && m.duplicate_of.is_none())
             .map(|m| m.import_id);
@@ -1284,7 +1509,7 @@ impl Workspace {
                 } => (false, json!(input_kind), 0, warnings),
             };
         Ok(json!({
-            "displayName": base_name(&path), "bytes": bytes.len(), "inputKind": kind,
+            "displayName": base_name(path), "bytes": bytes.len(), "inputKind": kind,
             "recognized": recognized, "units": units, "duplicateOf": duplicate,
             "warnings": warnings.iter().map(|w| w.code.clone()).collect::<Vec<_>>(),
             "archivedEvenIfUnsupported": true,
@@ -1334,15 +1559,14 @@ impl Workspace {
         let fingerprint = format!("{}\n{}", a.import_token, a.account_alias);
         self.start_once("import", key, fingerprint, || {
             let open = self.open()?;
-            let path = self.take_pick(&a.import_token, PickKind::ImportFile, false)?;
-            let options = self.import_options(&open, &a.account_alias)?;
-            let done = self.spawn("import", move |ticket| {
-                let report =
-                    enouia_memory_import::import_file(&open.vault, &path, &options, ticket)?;
-                Ok(import_outcome(&report.manifest, ticket))
-            });
-            self.consume_pick(&a.import_token);
-            Ok(done)
+            self.with_pick(&a.import_token, PickKind::ImportFile, true, |path| {
+                let options = self.import_options(&open, &a.account_alias)?;
+                Ok(self.spawn("import", move |ticket| {
+                    let report =
+                        enouia_memory_import::import_file(&open.vault, &path, &options, ticket)?;
+                    Ok(import_outcome(&report.manifest, ticket))
+                }))
+            })
         })
     }
 
@@ -1680,27 +1904,26 @@ impl Workspace {
 
     fn backup_export(&self, token: &str) -> R<Done> {
         let open = self.open()?;
-        let destination = self.take_pick(token, PickKind::BackupDestination, false)?;
-        let verified =
-            verify_data_root(&destination, &RootPolicy::default()).map_err(root_rejected)?;
-        let name = base_name(&destination);
-        let done = self.spawn("backup_export", move |_| {
-            let pin = open.vault.pin_current()?;
-            let export = export_pinned(&open.vault, &pin, &verified)?;
-            Ok(json!({
-                "commitId": export.commit_id, "sequence": export.sequence,
-                "files": export.files.len(), "destinationName": name,
-            }))
-        });
-        self.consume_pick(token);
-        *self.last_backup.lock().expect("backup") = done.operation_id.clone();
-        Ok(done)
+        self.with_pick(token, PickKind::BackupDestination, true, |destination| {
+            let verified =
+                verify_data_root(&destination, &RootPolicy::default()).map_err(root_rejected)?;
+            let name = base_name(&destination);
+            let done = self.spawn("backup_export", move |_| {
+                let pin = open.vault.pin_current()?;
+                let export = export_pinned(&open.vault, &pin, &verified)?;
+                Ok(json!({
+                    "commitId": export.commit_id, "sequence": export.sequence,
+                    "files": export.files.len(), "destinationName": name,
+                }))
+            });
+            *self.last_backup.lock().expect("backup") = done.operation_id.clone();
+            Ok(done)
+        })
     }
 
     fn restore_preview(&self, token: &str) -> R<Value> {
-        let path = self.take_pick(token, PickKind::ExportFolder, false)?;
+        self.with_pick(token, PickKind::ExportFolder, true, |path| {
         let export = verify_export(&path)?;
-        self.consume_pick(token);
         let same = self
             .open()
             .ok()
@@ -1712,6 +1935,7 @@ impl Workspace {
             "sameVaultAsOpen": same,
             "restoreHow": "cli_restore_into_empty_target",
         }))
+        })
     }
 }
 
@@ -1722,6 +1946,28 @@ pub fn purge_key(nonce: &str) -> Vec<u8> {
 {nonce}"
     )
     .into_bytes()
+}
+
+/// Bound bytes read even when an input grows after the metadata check.
+fn read_preview_bytes(reader: impl Read, expected: u64, max: u64) -> R<Vec<u8>> {
+    let mut bytes = Vec::new();
+    reader
+        .take(expected.min(max).saturating_add(1))
+        .read_to_end(&mut bytes)
+        .map_err(|_| fail(MemoryErrorCode::StorageFailed, "workspace.pick_unreadable"))?;
+    if bytes.len() as u64 > max {
+        return Err(fail(
+            MemoryErrorCode::InvalidRequest,
+            "import.input_too_large",
+        ));
+    }
+    if bytes.len() as u64 != expected {
+        return Err(fail(
+            MemoryErrorCode::InvalidRequest,
+            "import.input_changed",
+        ));
+    }
+    Ok(bytes)
 }
 
 /// The exact evidence text of a source: the owner's or agent's words, or the

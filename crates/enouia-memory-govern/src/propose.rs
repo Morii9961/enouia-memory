@@ -312,13 +312,14 @@ fn commit_candidate(
     candidate: &Value,
     id: &CandidateId,
     revision: Revision,
+    expected_head: Option<&CommitId>,
 ) -> Result<Written<CandidateId>> {
     let (_, record): (CandidateRecord, _) =
         staged(RecordKind::Candidate, id.as_str(), revision, candidate)?;
     let expected = revision.get().checked_sub(1).and_then(Revision::new);
     let outcome = vault.commit(CommitRequest {
         commit_id: CommitId::from_random(vault.random_id_bytes()),
-        expected_commit_id: None,
+        expected_commit_id: expected_head.cloned(),
         principal: actor.clone(),
         operation_kind: OperationKind::CandidatePropose,
         idempotency: scope(actor, key),
@@ -414,7 +415,20 @@ pub fn propose(
         "updated_at": now,
         "extensions": {},
     });
-    commit_candidate(vault, &origin.actor, key, &candidate, &id, one()).map(Proposed::Stored)
+    // The pending fingerprint lookup must remain valid through publication.
+    // A different-key writer can otherwise publish the same fingerprint
+    // between this snapshot and our commit. The existing head precondition
+    // rejects that stale proposal before it writes another candidate.
+    commit_candidate(
+        vault,
+        &origin.actor,
+        key,
+        &candidate,
+        &id,
+        one(),
+        Some(&pin.commit_id),
+    )
+    .map(Proposed::Stored)
 }
 
 /// Changes to a pending candidate; unset fields keep their value.
@@ -506,7 +520,7 @@ pub fn edit_candidate(
     ));
     value["revision"] = json!(next(expected).get());
     value["updated_at"] = json!(vault.now()?);
-    commit_candidate(vault, actor, key, &value, id, next(expected))
+    commit_candidate(vault, actor, key, &value, id, next(expected), None)
 }
 
 /// The proposer (or the owner) withdraws a pending candidate. Withdrawn is
@@ -527,7 +541,7 @@ pub fn withdraw(
     value["status"] = json!("withdrawn");
     value["revision"] = json!(next(expected).get());
     value["updated_at"] = json!(vault.now()?);
-    commit_candidate(vault, actor, key, &value, id, next(expected))
+    commit_candidate(vault, actor, key, &value, id, next(expected), None)
 }
 
 /// The review queue: every candidate whose latest revision is pending,

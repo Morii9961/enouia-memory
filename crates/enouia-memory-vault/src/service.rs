@@ -229,10 +229,17 @@ impl Vault {
             }],
             objects: Vec::new(),
         })?;
-        Ok(Written {
-            outcome,
-            id: source_id,
-        })
+        let id = if let CommitOutcome::Replayed { receipt, .. } = &outcome {
+            receipt
+                .records
+                .iter()
+                .find(|r| r.record_kind == RecordKind::Source)
+                .and_then(|r| SourceId::parse(&r.record_id).ok())
+                .ok_or_else(|| VaultError::corrupt("receipt"))?
+        } else {
+            source_id
+        };
+        Ok(Written { outcome, id })
     }
 
     /// Create a session with one default branch and no events yet.

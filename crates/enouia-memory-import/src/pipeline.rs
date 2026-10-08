@@ -37,6 +37,7 @@ use enouia_memory_contract::time::Timestamp;
 use enouia_memory_vault::{Fault, Vault, VaultError};
 use serde_json::{Value, json};
 use std::collections::{BTreeMap, BTreeSet};
+use std::io::Read;
 use std::path::Path;
 
 type Result<T> = std::result::Result<T, VaultError>;
@@ -90,6 +91,14 @@ fn invalid(rule: &'static str) -> VaultError {
 }
 
 fn read_input(path: &Path, max: u64) -> Result<Vec<u8>> {
+    read_input_with(path, max, |path| std::fs::File::open(path))
+}
+
+fn read_input_with<R: Read>(
+    path: &Path,
+    max: u64,
+    mut open: impl FnMut(&Path) -> std::io::Result<R>,
+) -> Result<Vec<u8>> {
     let meta = std::fs::symlink_metadata(path)?;
     if enouia_memory_vault::platform::is_reparse_point(&meta) || !meta.is_file() {
         return Err(invalid("import.input_not_regular_file"));
@@ -97,12 +106,26 @@ fn read_input(path: &Path, max: u64) -> Result<Vec<u8>> {
     if meta.len() > max {
         return Err(invalid("import.input_too_large"));
     }
-    let first = std::fs::read(path)?;
-    let second = std::fs::read(path)?;
-    if first.len() as u64 != meta.len() || sha256(&first) != sha256(&second) {
+    let first = read_input_bytes(open(path)?, meta.len(), max)?;
+    let second = read_input_bytes(open(path)?, meta.len(), max)?;
+    if sha256(&first) != sha256(&second) {
         return Err(invalid("import.input_changed"));
     }
     Ok(first)
+}
+
+fn read_input_bytes(reader: impl Read, expected: u64, max: u64) -> Result<Vec<u8>> {
+    let mut bytes = Vec::new();
+    reader
+        .take(expected.min(max).saturating_add(1))
+        .read_to_end(&mut bytes)?;
+    if bytes.len() as u64 > max {
+        return Err(invalid("import.input_too_large"));
+    }
+    if bytes.len() as u64 != expected {
+        return Err(invalid("import.input_changed"));
+    }
+    Ok(bytes)
 }
 
 /// Upstream identity used to reconcile repeated imports (DATA_MODEL §1):
@@ -798,4 +821,126 @@ fn run_batches(
         manifest,
         commits,
     })
+}
+
+#[cfg(test)]
+mod input_read_tests {
+    use super::*;
+    use std::cell::Cell;
+    use std::rc::Rc;
+    use std::sync::atomic::{AtomicU64, Ordering};
+
+    static N: AtomicU64 = AtomicU64::new(0);
+
+    struct Input(std::path::PathBuf);
+
+    impl Input {
+        fn new() -> Self {
+            let path = std::env::temp_dir().join(format!(
+                "enouia-memory-bounded-input-{}-{}.md",
+                std::process::id(),
+                N.fetch_add(1, Ordering::SeqCst)
+            ));
+            std::fs::write(&path, b"synthetic").unwrap();
+            Self(path)
+        }
+    }
+
+    impl Drop for Input {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_file(&self.0);
+        }
+    }
+
+    struct Counted<R> {
+        reader: R,
+        bytes: Rc<Cell<usize>>,
+    }
+
+    impl<R: Read> Read for Counted<R> {
+        fn read(&mut self, out: &mut [u8]) -> std::io::Result<usize> {
+            let count = self.reader.read(out)?;
+            self.bytes.set(self.bytes.get() + count);
+            Ok(count)
+        }
+    }
+
+    #[test]
+    fn stable_input_keeps_both_exact_reads() {
+        let input = Input::new();
+        let total = Rc::new(Cell::new(0));
+        let bytes = read_input_with(&input.0, 10000, |path| {
+            Ok(Counted {
+                reader: std::fs::File::open(path)?,
+                bytes: total.clone(),
+            })
+        })
+        .unwrap();
+        assert_eq!(bytes, b"synthetic");
+        assert_eq!(total.get(), 18);
+    }
+
+    #[test]
+    fn oversized_input_is_refused_before_opening() {
+        let input = Input::new();
+        let refused = read_input_with::<std::fs::File>(&input.0, 8, |_| {
+            panic!("oversized input must not be opened")
+        })
+        .unwrap_err();
+        assert_eq!(
+            refused.fault,
+            Fault::Contract(vec!["import.input_too_large"])
+        );
+    }
+
+    #[test]
+    fn changed_second_input_read_stops_at_the_observed_budget() {
+        for replacement in [vec![b'x'; 8192], b"short".to_vec(), b"different".to_vec()] {
+            let input = Input::new();
+            let second_bytes = Rc::new(Cell::new(0));
+            let mut calls = 0;
+            let refused = read_input_with(&input.0, 10000, |path| {
+                calls += 1;
+                if calls == 2 {
+                    std::fs::write(path, &replacement)?;
+                }
+                Ok(Counted {
+                    reader: std::fs::File::open(path)?,
+                    bytes: if calls == 2 {
+                        second_bytes.clone()
+                    } else {
+                        Rc::new(Cell::new(0))
+                    },
+                })
+            })
+            .unwrap_err();
+            assert_eq!(refused.code(), MemoryErrorCode::InvalidRequest);
+            assert_eq!(refused.fault, Fault::Contract(vec!["import.input_changed"]));
+            assert!(
+                second_bytes.get() <= 10,
+                "second read consumed {} bytes",
+                second_bytes.get()
+            );
+        }
+    }
+
+    #[test]
+    fn changed_first_input_read_stops_before_opening_again() {
+        let input = Input::new();
+        let first_bytes = Rc::new(Cell::new(0));
+        let mut calls = 0;
+        let refused = read_input_with(&input.0, 10000, |path| {
+            calls += 1;
+            std::fs::write(path, vec![b'x'; 8192])?;
+            Ok(Counted {
+                reader: std::fs::File::open(path)?,
+                bytes: first_bytes.clone(),
+            })
+        })
+        .unwrap_err();
+        assert_eq!(refused.code(), MemoryErrorCode::InvalidRequest);
+        assert_eq!(refused.fault, Fault::Contract(vec!["import.input_changed"]));
+        assert_eq!(calls, 1);
+        assert_eq!(first_bytes.get(), 10);
+    }
 }

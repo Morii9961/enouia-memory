@@ -86,9 +86,14 @@
       "sha256": "38b77ced8d006173deb2b5691c89dc6d98bcc6dba462666b8700a03c42845278"
     },
     {
+      "path": "apps/workspace/src-tauri/src/lifecycle.rs",
+      "role": "reference-shell",
+      "sha256": "0b10499c80ac10fa3ee5aa174061d11b3287c11cae8d3f5dbdd5f7347c6e97b3"
+    },
+    {
       "path": "apps/workspace/src-tauri/src/main.rs",
       "role": "reference-shell",
-      "sha256": "7d2d336145870188505d92cb9db88e6c83e23533b65e1096fad6d6ba968385eb"
+      "sha256": "a346593a11999f307002e621aa4820ee12a6df192119910a2a51c7686d6e6df5"
     },
     {
       "path": "apps/workspace/src-tauri/src/startup.rs",
@@ -128,7 +133,7 @@
     {
       "path": "apps/workspace/src/App.tsx",
       "role": "reference-ui",
-      "sha256": "c3ba5174cfb258bdee17f2f727f25ae7cd15e5fef39b855433c7a9b7f5256081"
+      "sha256": "63a60545fe1ec9cbf9b992d94178cd0d09fb3cbaa48d827e49db2050c3de2b1b"
     },
     {
       "path": "apps/workspace/src/Overlay.tsx",
@@ -213,17 +218,17 @@
     {
       "path": "crates/enouia-memory-workspace/src/lib.rs",
       "role": "core",
-      "sha256": "298c0c56ae05c91b62f1bfa526cfea1049279706bda7e27b73f83309f2af7a81"
+      "sha256": "5d66afd7a8674efd4669244722c40d8b3a0ec3ef892226870df8d583c3293a70"
     },
     {
       "path": "crates/enouia-memory-workspace/src/ops.rs",
       "role": "core",
-      "sha256": "318901a81f6284befdf4c3332cb649fcad20a050bab7b0822f933e23b9b006ab"
+      "sha256": "f4ab06441dc8bf6e5218d5f15774f018fa220406406707c508547bd6b04ebe0a"
     },
     {
       "path": "crates/enouia-memory-workspace/src/tests.rs",
       "role": "core",
-      "sha256": "ed340353db2fedc4b1fb383e8cce045d78a60400188088b6d1e1e2e78ea38ef3"
+      "sha256": "f76cc9d8c062c3269dfc92f151f9517bec78ad540d4975bf9963a38a025f7d72"
     },
     {
       "path": "crates/enouia-memory-workspace/src/views.rs",
@@ -271,5 +276,5 @@
       "sha256": "3603c1855d9f9ec9b3585143a0191508980b260b1ffd26c82b3e6f9b7223a75d"
     }
   ],
-  "aggregate": "e0dbfafeeb65a99d2a03a88307ef8bb7ece08565a220c18d87844cdf68391685"
+  "aggregate": "ef2282cd0abf8aeb5598fda80ec96df5c372bd9b269e3f729a73540494582e77"
 }

@@ -55,8 +55,8 @@ pub struct Operations {
 
 impl Operations {
     /// Start `work` on a worker thread. `Ok` becomes `succeeded` with its
-    /// result; an error becomes `failed`, or `cancelled` when cancellation
-    /// was requested and the work stopped early.
+    /// result; an error becomes `failed`, or `cancelled` when the worker
+    /// reports the cancellation error. A request alone is not an outcome.
     pub fn spawn(
         &self,
         id: OperationId,
@@ -96,7 +96,7 @@ impl Operations {
                     (OperationState::Cancelled, None, Some(value))
                 }
                 Ok(Ok(value)) => (OperationState::Succeeded, None, Some(value)),
-                Ok(Err(error)) if ticket.cancelled() => {
+                Ok(Err(error)) if error.code == MemoryErrorCode::Cancelled => {
                     (OperationState::Cancelled, Some(error), None)
                 }
                 Ok(Err(error)) => (OperationState::Failed, Some(error), None),
@@ -125,7 +125,7 @@ impl Operations {
             .expect("operations")
             .get(id.as_str())?
             .clone();
-        op.cancel.store(true, Ordering::SeqCst);
+        request_cancel(&op);
         Some(describe(&op))
     }
 
@@ -155,13 +155,20 @@ impl Operations {
     /// Request cancellation of every operation and wait for the workers.
     pub fn cancel_all_and_join(&self) {
         for op in self.map.lock().expect("operations").values() {
-            op.cancel.store(true, Ordering::SeqCst);
+            request_cancel(op);
         }
         let threads: Vec<JoinHandle<()>> =
             std::mem::take(&mut *self.threads.lock().expect("threads"));
         for thread in threads {
             let _ = thread.join();
         }
+    }
+
+    /// End an open Vault's operation history. Keep progress available while
+    /// workers stop; discard results only once every worker has joined.
+    pub(crate) fn close(&self) {
+        self.cancel_all_and_join();
+        self.map.lock().expect("operations").clear();
     }
 
     /// Wait for one operation (tests and the shell's bounded exit).
@@ -175,6 +182,15 @@ impl Operations {
             }
             std::thread::sleep(std::time::Duration::from_millis(5));
         }
+    }
+}
+
+/// Serialize cancellation admission with terminal outcome publication. A
+/// late request must not rewrite the history of a finished task.
+fn request_cancel(op: &Operation) {
+    let outcome = op.outcome.lock().expect("outcome");
+    if matches!(outcome.0, OperationState::Queued | OperationState::Running) {
+        op.cancel.store(true, Ordering::SeqCst);
     }
 }
 

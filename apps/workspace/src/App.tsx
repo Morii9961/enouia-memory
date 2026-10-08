@@ -682,7 +682,7 @@ function Vault({ status, refresh }: { status: J; refresh: () => void }) {
             <dt>最新提交</dt><dd>#{v.headSequence} · {v.lastCommitAt}</dd>
             <dt>磁盘剩余</dt><dd>{v.freeBytes != null ? `${(v.freeBytes / 2 ** 30).toFixed(1)} GiB` : "未知"}</dd>
             <dt>仅所有者可访问</dt><dd>{v.ownerOnlyAcl == null ? "未知" : v.ownerOnlyAcl ? "是" : "否（可用 CLI protect）"}</dd>
-            <dt>最后备份（本次运行）</dt><dd>{status.lastBackup ? `${status.lastBackup.state} ${status.lastBackup.result?.commitId ?? ""}` : "本次运行未备份；Vault 不记录备份"}</dd>
+            <dt>最后备份（本次打开 Vault）</dt><dd>{status.lastBackup ? `${status.lastBackup.state} ${status.lastBackup.result?.commitId ?? ""}` : "本次打开后未备份；Vault 不记录备份"}</dd>
             <dt>最后验证恢复</dt><dd>未记录（恢复预览只校验备份）</dd>
           </dl>
           <div className="actions">

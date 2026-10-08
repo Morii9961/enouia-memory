@@ -14,6 +14,30 @@ All project documentation lives under `docs/`.
 | [history/](history/) | The MV-0 draft report and ADR draft written in the Runtime working tree, kept as history | Historical |
 | `history/private/` | Original v0.1 working draft. It contains personal examples, so it is kept locally and ignored by Git | Private, not published |
 
+The 2026-10-05 MV-6 [lifecycle](validation/MV-6-vault-lifecycle.md), [concurrency](validation/MV-6-core-concurrency.md), [operation outcome](validation/MV-6-operation-outcomes.md), [reference scheduling](validation/MV-6-shell-lifecycle.md), [picker admission](validation/MV-6-picker-admission.md), [excerpt pagination](validation/MV-6-excerpt-pagination.md), and [remember replay](validation/MV-6-remember-replay.md) reports record follow-ups to ADR-MEM-46 and the corresponding Runtime pin adoption boundaries.
+
+The [concurrent source replay finding and correction](validation/MV-6-pending-source-replay.md) records the eighth slice: the initially failing synthetic diagnostic and its subsequent manual-assertion service fix. Other service and full-page concurrency cases remain follow-ups.
+
+The 2026-10-06 [concurrent Context session replay report](validation/MV-6-session-replay.md) records the ninth slice, including full `session_new` page calls and input/fork/checkpoint service regressions.
+
+The [Mock dispatch/reply replay report](validation/MV-6-mock-replay.md) records the tenth slice, including full `session_ask` page calls around saved input/capsule state and a deletion during paused replay.
+
+The [correction and forgetting request-binding report](validation/MV-6-proposal-binding.md) records the eleventh slice: published proposals bind original targets and arguments, including one forced concurrent correction replay.
+
+The [full session ask replay report](validation/MV-6-full-session-replay.md) extends acceptance to two same-key page schedules starting before input creation, through saved compilation, Mock dispatch and reply.
+
+The [late proposal admission report](validation/MV-6-proposal-admission.md) records recovery of identical owner proposals when a receipt appears after initial lookup, with a forced changed-claim refusal.
+
+The [different-key proposal deduplication report](validation/MV-6-proposal-dedupe.md) binds new candidate publication to the dedupe snapshot, with one Core re-evaluation on head movement and a direct governance conflict regression.
+
+The [full remember replay and target freshness report](validation/MV-6-full-remember-replay.md) composes the source and proposal fixes from initial page admission, including changed-claim refusal and a correction target changed during head retry.
+
+The [import preview input admission report](validation/MV-6-import-preview-input.md) records type revalidation at token use and bounded preview reads, with actual directory replacement and synthetic reader-limit evidence.
+
+The [background import read budget report](validation/MV-6-import-read-budget.md) extends selected-file read limits to the Core's existing import worker, retaining exact double-read/hash admission and archive semantics.
+
+The [complete confirmation result replay report](validation/MV-6-confirm-result-replay.md) records a same-plan purge confirmation race and serializes confirmation through complete result-cache publication.
+
 ## Import record (2026-09-28)
 
 The design package, the two prompts, and the review were written in this directory. They were moved unchanged from the repository root into the folders above, apart from the substitutions listed here. The unredacted originals are kept in the ignored `.local/originals/` with their SHA-256 values.
