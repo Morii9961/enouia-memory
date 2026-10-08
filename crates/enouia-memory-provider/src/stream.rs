@@ -1,7 +1,7 @@
 //! Bounded incremental SSE decoding. A closed socket is never completion.
 use crate::{
     Result,
-    codec::{Api, decode},
+    codec::{Api, decode, decode_usage},
     error,
 };
 use enouia_memory_contract::{
@@ -196,7 +196,12 @@ impl Decoder {
                     }
                     self.stop = Some(stop.into());
                 }
-                for key in ["input_tokens", "output_tokens"] {
+                for key in [
+                    "input_tokens",
+                    "output_tokens",
+                    "cache_creation_input_tokens",
+                    "cache_read_input_tokens",
+                ] {
                     if let Some(tokens) = v["usage"].get(key).filter(|tokens| !tokens.is_null()) {
                         self.usage[key] = tokens.clone();
                     }
@@ -211,12 +216,13 @@ impl Decoder {
                     Some("max_tokens") => FinishReason::Length,
                     _ => return Err(error(MemoryErrorCode::ProviderUnavailable)),
                 };
+                let (input_tokens, output_tokens) = decode_usage(self.api, &self.usage)?;
                 self.terminal = Some(ProviderResponse {
                     text: self.text.clone(),
                     finish,
                     tool_requests: vec![],
-                    input_tokens: self.usage["input_tokens"].as_u64(),
-                    output_tokens: self.usage["output_tokens"].as_u64(),
+                    input_tokens,
+                    output_tokens,
                 });
             }
             // Known metadata and unknown future SSE event kinds carry no text.

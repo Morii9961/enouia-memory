@@ -221,11 +221,50 @@ pub fn decode(api: Api, body: &[u8]) -> Result<ProviderResponse> {
             (finish, &v["usage"])
         }
     };
+    let (input_tokens, output_tokens) = decode_usage(api, usage)?;
     Ok(ProviderResponse {
         text,
         finish,
         tool_requests: vec![],
-        input_tokens: usage["input_tokens"].as_u64(),
-        output_tokens: usage["output_tokens"].as_u64(),
+        input_tokens,
+        output_tokens,
     })
+}
+
+/// Normalize only reported counts, without guessing missing usage or price.
+/// OpenAI cache details are a subset of input_tokens; Anthropic reports cache
+/// creation/read separately from uncached input. Nested creation details are
+/// another breakdown and must not be added again.
+pub(crate) fn decode_usage(api: Api, usage: &Value) -> Result<(Option<u64>, Option<u64>)> {
+    if usage.is_null() {
+        return Ok((None, None));
+    }
+    if !usage.is_object() {
+        return Err(error(MemoryErrorCode::ProviderUnavailable));
+    }
+    let count = |key: &str| -> Result<Option<u64>> {
+        match usage.get(key) {
+            None | Some(Value::Null) => Ok(None),
+            Some(value) => value
+                .as_u64()
+                .filter(|n| *n <= enouia_memory_contract::json::MAX_SAFE_INTEGER)
+                .map(Some)
+                .ok_or_else(|| error(MemoryErrorCode::ProviderUnavailable)),
+        }
+    };
+    let mut input = count("input_tokens")?;
+    if api == Api::AnthropicMessages {
+        for key in ["cache_creation_input_tokens", "cache_read_input_tokens"] {
+            let cached = count(key)?.unwrap_or(0);
+            if let Some(known) = input {
+                input = Some(
+                    known
+                        .checked_add(cached)
+                        .filter(|n| *n <= enouia_memory_contract::json::MAX_SAFE_INTEGER)
+                        .ok_or_else(|| error(MemoryErrorCode::ProviderUnavailable))?,
+                );
+            }
+        }
+    }
+    Ok((input, count("output_tokens")?))
 }

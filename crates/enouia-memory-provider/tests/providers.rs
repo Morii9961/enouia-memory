@@ -413,6 +413,159 @@ fn disabled_adapter_blocks_archives_recovery_and_late_publication() {
     );
 }
 #[test]
+fn provider_usage_keeps_total_input_without_double_counting_cache_breakdowns() {
+    for api in [Api::OpenAiResponses, Api::AnthropicMessages] {
+        let mut body: serde_json::Value = serde_json::from_slice(&reply(api)).unwrap();
+        if api == Api::OpenAiResponses {
+            body["usage"]["input_tokens_details"] =
+                json!({"cached_tokens":90,"cache_write_tokens":5});
+        } else {
+            body["usage"]["cache_creation_input_tokens"] = json!(20);
+            body["usage"]["cache_read_input_tokens"] = json!(30);
+            body["usage"]["cache_creation"] =
+                json!({"ephemeral_5m_input_tokens":5,"ephemeral_1h_input_tokens":15});
+        }
+        let response =
+            enouia_memory_provider::codec::decode(api, &serde_json::to_vec(&body).unwrap())
+                .unwrap();
+        assert_eq!(
+            response.input_tokens,
+            Some(if api == Api::OpenAiResponses {
+                100
+            } else {
+                150
+            })
+        );
+    }
+    let events = [
+        json!({"type":"message_start","message":{"type":"message","role":"assistant","usage":{"input_tokens":100,"cache_creation_input_tokens":20,"cache_read_input_tokens":30,"output_tokens":0}}}),
+        json!({"type":"message_delta","delta":{"stop_reason":"end_turn"},"usage":{"input_tokens":110,"cache_creation_input_tokens":25,"output_tokens":4}}),
+        json!({"type":"message_delta","delta":{},"usage":{"cache_read_input_tokens":null,"output_tokens":5}}),
+        json!({"type":"message_stop"}),
+    ];
+    let bytes = events
+        .iter()
+        .map(|v| format!("data: {v}\n\n"))
+        .collect::<String>();
+    let mut decoder = Decoder::new(Api::AnthropicMessages);
+    decoder.push(bytes.as_bytes(), &mut |_| Ok(())).unwrap();
+    let response = decoder.finish().unwrap();
+    assert_eq!(response.input_tokens, Some(165));
+    assert_eq!(response.output_tokens, Some(5));
+}
+#[test]
+fn malformed_usage_fails_before_completed_publication_and_unknown_is_not_zero() {
+    for api in [Api::OpenAiResponses, Api::AnthropicMessages] {
+        let mut absent: serde_json::Value = serde_json::from_slice(&reply(api)).unwrap();
+        absent.as_object_mut().unwrap().remove("usage");
+        let unknown =
+            enouia_memory_provider::codec::decode(api, &serde_json::to_vec(&absent).unwrap())
+                .unwrap();
+        assert_eq!(unknown.input_tokens, None);
+        assert_eq!(unknown.output_tokens, None);
+        let stream = String::from_utf8(streaming_reply(api, true))
+            .unwrap()
+            .lines()
+            .map(|line| {
+                if let Some(data) = line.strip_prefix("data: ") {
+                    let mut event: serde_json::Value = serde_json::from_str(data).unwrap();
+                    if event["type"] == "response.completed" {
+                        event["response"]["usage"]["output_tokens"] = json!(-1);
+                    } else if event["type"] == "message_delta" {
+                        event["usage"]["output_tokens"] = json!(-1);
+                    }
+                    format!("data: {event}\n")
+                } else {
+                    format!("{line}\n")
+                }
+            })
+            .collect::<String>();
+        let mut decoder = Decoder::new(api);
+        assert!(decoder.push(stream.as_bytes(), &mut |_| Ok(())).is_err());
+        assert!(decoder.finish().is_err());
+        for invalid in [
+            json!(-1),
+            json!("100"),
+            json!(1.5),
+            json!(true),
+            json!(9_007_199_254_740_992u64),
+        ] {
+            let env = Env::new("invalid-usage");
+            let (capsule, input, policy, caps) = setup(&env, api, Sensitivity::Normal);
+            let enabled = AtomicBool::new(true);
+            let adapter = VaultAdapter {
+                vault: &env.vault,
+                owner: owner(),
+                input_event: input,
+                enabled: &enabled,
+                quota: Quota::default(),
+            };
+            let call = adapter
+                .prepare_saved(
+                    api,
+                    &capsule,
+                    &caps,
+                    Limits::default(),
+                    CallOptions::text(policy, 128),
+                )
+                .unwrap();
+            let mut body: serde_json::Value = serde_json::from_slice(&reply(api)).unwrap();
+            body["usage"]["input_tokens"] = invalid;
+            let http = FakeHttp {
+                calls: Cell::new(0),
+                bytes: serde_json::to_vec(&body).unwrap(),
+                fail: false,
+            };
+            assert_eq!(
+                Client {
+                    transport: &http,
+                    secrets: &Secrets { missing: false },
+                    guard: &adapter,
+                    journal: &adapter
+                }
+                .send(&call, &call.inspect().hash(), &NeverCancel)
+                .unwrap_err()
+                .code,
+                MemoryErrorCode::ProviderUnavailable
+            );
+            let row = &adapter.invocations().unwrap()[0];
+            assert_eq!(row.state, InvocationState::Failed);
+            assert_eq!(row.input_tokens, None);
+            assert!(
+                adapter
+                    .saved_response(&call.dispatch().dispatch_id)
+                    .unwrap()
+                    .is_none()
+            );
+            assert_eq!(http.calls.get(), 1);
+            assert!(
+                env.vault
+                    .verify(&env.vault.pin_current().unwrap())
+                    .unwrap()
+                    .is_clean()
+            );
+        }
+    }
+    for usage in [
+        json!(false),
+        json!([]),
+        json!({"input_tokens":100,"output_tokens":-1}),
+        json!({"input_tokens":100,"cache_read_input_tokens":"30","output_tokens":4}),
+        json!({"input_tokens":9_007_199_254_740_991u64,"cache_creation_input_tokens":1,"output_tokens":4}),
+    ] {
+        let mut body: serde_json::Value =
+            serde_json::from_slice(&reply(Api::AnthropicMessages)).unwrap();
+        body["usage"] = usage;
+        assert!(
+            enouia_memory_provider::codec::decode(
+                Api::AnthropicMessages,
+                &serde_json::to_vec(&body).unwrap()
+            )
+            .is_err()
+        );
+    }
+}
+#[test]
 fn private_requires_bound_confirmation_and_wire_mutations_are_refused() {
     let env = Env::new("private");
     let api = Api::OpenAiResponses;
