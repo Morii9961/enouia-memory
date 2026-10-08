@@ -1350,6 +1350,157 @@ fn extraction_capabilities(env: &Env, api: Api) -> ProviderCapabilities {
     }
 }
 #[test]
+fn extraction_preview_preserves_exact_quotes_and_current_owner_edits_without_writes() {
+    use enouia_memory_provider::extraction::{self, ExtractionApplication};
+    let env = Env::new("extraction-preview");
+    let api = Api::AnthropicMessages;
+    let source = extraction_source(&env);
+    let mut options = extraction_options(source.clone(), api);
+    // Select a proper UTF-8 subrange, so citation offsets cannot be relative
+    // to the selected snippet or confused with character offsets.
+    options.sources[0].start = "偏好".len() as u64;
+    options.sources[0].end -= "。".len() as u64;
+    let policy = grant(&env, api);
+    let (sid, run) = extraction::create(
+        &env.vault,
+        &owner(),
+        &env.policy(),
+        &options,
+        b"preview-run",
+    )
+    .unwrap();
+    let job = extraction::job(&env.vault, &owner(), &sid, &run).unwrap();
+    let enabled = AtomicBool::new(true);
+    let adapter = VaultAdapter {
+        vault: &env.vault,
+        owner: owner(),
+        input_event: job.input_event_id,
+        enabled: &enabled,
+        quota: Quota::default(),
+    };
+    assert_eq!(
+        extraction::preview(&adapter, &run).unwrap_err().code,
+        MemoryErrorCode::NotFound
+    );
+    let (index, _) = enouia_memory_index::Index::rebuild(&env.vault).unwrap();
+    let call = extraction::prepare(
+        &adapter,
+        &index,
+        &run,
+        &extraction_capabilities(&env, api),
+        Limits::default(),
+        CallOptions::text(policy, 1024),
+    )
+    .unwrap();
+    let mut wire: serde_json::Value =
+        serde_json::from_slice(&extraction_reply(api, false)).unwrap();
+    let mut claims: serde_json::Value =
+        serde_json::from_str(wire["content"][0]["text"].as_str().unwrap()).unwrap();
+    claims["candidates"][0]["quote"] = json!("合成红色");
+    wire["content"][0]["text"] = json!(claims.to_string());
+    let http = FakeHttp {
+        calls: Cell::new(0),
+        bytes: serde_json::to_vec(&wire).unwrap(),
+        fail: false,
+    };
+    Client {
+        transport: &http,
+        secrets: &Secrets { missing: false },
+        guard: &adapter,
+        journal: &adapter,
+    }
+    .send(&call, &call.inspect().hash(), &NeverCancel)
+    .unwrap();
+    let pin = env.vault.pin_current().unwrap();
+    let shown = extraction::preview(&adapter, &run).unwrap();
+    assert_eq!(env.vault.pin_current().unwrap().commit_id, pin.commit_id);
+    assert_eq!(shown.dispatch_id, call.dispatch().dispatch_id);
+    assert_eq!(shown.response_hash, sha256(claims.to_string().as_bytes()));
+    assert_eq!(shown.items.len(), 2);
+    let text = "偏好合成红色，并倾向合成蓝色。";
+    for item in &shown.items {
+        let citation = &item.citation;
+        assert_eq!(
+            &text[citation.start as usize..citation.end as usize],
+            citation.quote
+        );
+        assert_eq!(citation.start, text.find(&citation.quote).unwrap() as u64);
+        assert_eq!(citation.source.source_id, source);
+        assert_eq!(citation.selected_start, options.sources[0].start);
+        assert_eq!(citation.selected_end, options.sources[0].end);
+        assert_eq!(
+            citation.evidence_class,
+            enouia_memory_contract::common::EvidenceClass::UserStatement
+        );
+        assert_eq!(
+            citation.speaker_role,
+            enouia_memory_contract::common::SpeakerRole::User
+        );
+        assert_eq!(citation.sensitivity, Sensitivity::Normal);
+        assert_eq!(
+            citation.time_precision,
+            enouia_memory_contract::common::TimePrecision::Second
+        );
+        assert!(citation.occurred_at.is_some());
+        assert_eq!(item.application, ExtractionApplication::AwaitingCursor);
+        assert!(item.current_candidate.is_none());
+    }
+    let applied = extraction::apply_next(&adapter, &run).unwrap();
+    let id = applied.candidates[0].as_ref().unwrap();
+    enouia_memory_govern::propose::edit_candidate(
+        &env.vault,
+        id,
+        Revision::new(1).unwrap(),
+        &enouia_memory_govern::propose::CandidateEdit {
+            content: Some("主人修订的合成红色陈述".into()),
+            details: None,
+            evidence: None,
+            reason: None,
+        },
+        &owner(),
+        b"preview-owner-edit",
+    )
+    .unwrap();
+    extraction::set_paused(&env.vault, &owner(), &sid, &run, true).unwrap();
+    let pin = env.vault.pin_current().unwrap();
+    let edited = extraction::preview(&adapter, &run).unwrap();
+    assert_eq!(env.vault.pin_current().unwrap().commit_id, pin.commit_id);
+    assert_eq!(
+        edited.items[0].proposal.content,
+        shown.items[0].proposal.content
+    );
+    let candidate = edited.items[0].current_candidate.as_ref().unwrap();
+    assert_eq!(candidate.revision.get(), 2);
+    assert_eq!(candidate.proposed_content, "主人修订的合成红色陈述");
+    assert_eq!(
+        edited.items[0].application,
+        ExtractionApplication::CandidateRecorded
+    );
+    assert_eq!(
+        edited.items[1].application,
+        ExtractionApplication::AwaitingCursor
+    );
+    assert_eq!(
+        edited.job.state,
+        enouia_memory_contract::extraction::ExtractionState::Paused
+    );
+    enabled.store(false, Ordering::SeqCst);
+    assert_eq!(
+        extraction::preview(&adapter, &run).unwrap_err().code,
+        MemoryErrorCode::VaultLocked
+    );
+    enabled.store(true, Ordering::SeqCst);
+    let wrong_owner = VaultAdapter {
+        owner: agent(),
+        ..adapter
+    };
+    assert_eq!(
+        extraction::preview(&wrong_owner, &run).unwrap_err().code,
+        MemoryErrorCode::PermissionDenied
+    );
+    assert_eq!(http.calls.get(), 1);
+}
+#[test]
 fn extraction_is_explicit_resumable_and_never_accepts_memories() {
     use enouia_memory_contract::extraction::ExtractionState;
     use enouia_memory_provider::extraction;
@@ -1497,6 +1648,10 @@ fn extraction_validates_the_whole_response_before_any_candidate() {
     .send(&call, &call.inspect().hash(), &NeverCancel)
     .unwrap();
     assert_eq!(
+        extraction::preview(&adapter, &run).unwrap_err().code,
+        MemoryErrorCode::BrokenProvenance
+    );
+    assert_eq!(
         extraction::apply_next(&adapter, &run).unwrap_err().code,
         MemoryErrorCode::BrokenProvenance
     );
@@ -1589,6 +1744,20 @@ fn reviewed_extraction_is_suppressed_when_the_evidence_is_unchanged() {
             .unwrap();
         } else {
             assert!(done.candidates.iter().all(Option::is_none));
+        }
+        let shown = extraction::preview(&adapter, &run).unwrap();
+        if pass == 0 {
+            assert!(
+                shown
+                    .items
+                    .iter()
+                    .all(|i| i.current_candidate.as_ref().unwrap().status
+                        == enouia_memory_contract::candidate::CandidateStatus::Rejected)
+            );
+        } else {
+            assert!(shown.items.iter().all(|i| i.application
+                == extraction::ExtractionApplication::Suppressed
+                && i.current_candidate.is_none()));
         }
     }
     let pin = env.vault.pin_current().unwrap();

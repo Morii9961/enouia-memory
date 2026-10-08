@@ -10,13 +10,16 @@ use crate::{
 use enouia_memory_context::{CompileInput, compiler, session};
 use enouia_memory_contract::{
     MemoryErrorCode,
-    candidate::{OriginKind, ProposedType},
-    common::{ActorRef, ActorType, Sensitivity, SourceRevisionRef},
+    candidate::{CandidateRecord, OriginKind, ProposedType},
+    common::{
+        ActorRef, ActorType, EvidenceClass, Sensitivity, SourceRevisionRef, SpeakerRole,
+        TimePrecision,
+    },
     context::{Destination, DestinationKind},
     extraction::{ExtractionJob, ExtractionSource, ExtractionState},
-    hash::sha256,
+    hash::{Sha256Hex, sha256},
     ids::*,
-    json::Revision,
+    json::{Knowable, Revision},
     memory::{PreferenceStrength, is_label},
     policy::*,
     provider::{InvocationState, ProviderCapabilities},
@@ -24,6 +27,7 @@ use enouia_memory_contract::{
     scan::{contains_local_path, contains_secret_material},
     session::{ClientSurface, SessionEvent, SessionRecord},
     source::SourceRecord,
+    time::Timestamp,
 };
 use enouia_memory_govern::{EvidenceSpec, Origin, Proposal, Proposed};
 use enouia_memory_index::Index;
@@ -51,6 +55,53 @@ pub struct ExtractionOptions {
     pub max_pending: u64,
     pub max_reserved_tokens: u64,
     pub max_reserved_cost_microusd: Option<u64>,
+}
+
+/// A local review citation. Offsets are UTF-8 bytes in the resolved Source text,
+/// not offsets in an enclosing raw export. Repeated quotes use the first match
+/// inside the owner-selected slice. No evidence classification is inferred.
+#[derive(Clone, Debug, PartialEq)]
+pub struct ExtractionCitation {
+    pub source: SourceRevisionRef,
+    pub content_hash: Sha256Hex,
+    pub quote: String,
+    pub start: u64,
+    pub end: u64,
+    pub selected_start: u64,
+    pub selected_end: u64,
+    pub speaker_role: SpeakerRole,
+    pub evidence_class: EvidenceClass,
+    pub sensitivity: Sensitivity,
+    pub occurred_at: Option<Timestamp>,
+    pub captured_at: Timestamp,
+    pub time_precision: TimePrecision,
+    pub branch_id: Knowable<Option<BranchId>>,
+}
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ExtractionApplication {
+    /// No cursor receipt yet; a candidate may already exist after a crash.
+    AwaitingCursor,
+    Suppressed,
+    CandidateRecorded,
+}
+#[derive(Clone, Debug, PartialEq)]
+pub struct ExtractionPreviewItem {
+    pub response_index: u64,
+    /// The original model suggestion, separate from subsequent owner edits.
+    pub proposal: Proposal,
+    pub citation: ExtractionCitation,
+    pub application: ExtractionApplication,
+    /// Current revision/status/conflicts of the ID recorded in the job. A
+    /// reused candidate keeps its own evidence; this citation describes only
+    /// the saved model response and never silently appends evidence to it.
+    pub current_candidate: Option<CandidateRecord>,
+}
+#[derive(Clone, Debug, PartialEq)]
+pub struct ExtractionPreview {
+    pub job: ExtractionJob,
+    pub dispatch_id: DispatchId,
+    pub response_hash: Sha256Hex,
+    pub items: Vec<ExtractionPreviewItem>,
 }
 fn owner(vault: &Vault, actor: &ActorRef) -> Result<()> {
     if actor.actor_type != ActorType::Owner || actor != &vault.descriptor().created_by {
@@ -481,7 +532,11 @@ enum Claim {
         strength: PreferenceStrength,
     },
 }
-fn proposals(adapter: &VaultAdapter<'_>, job: &ExtractionJob, text: &str) -> Result<Vec<Proposal>> {
+fn proposals(
+    adapter: &VaultAdapter<'_>,
+    job: &ExtractionJob,
+    text: &str,
+) -> Result<Vec<ExtractionPreviewItem>> {
     if text.len() > 256 * 1024 || contains_secret_material(text) || contains_local_path(text) {
         return Err(error(MemoryErrorCode::InvalidRequest));
     }
@@ -552,9 +607,26 @@ fn proposals(adapter: &VaultAdapter<'_>, job: &ExtractionJob, text: &str) -> Res
         let snippet = text
             .get(selected.start as usize..selected.end as usize)
             .ok_or_else(|| error(MemoryErrorCode::InvalidRequest))?;
-        if !snippet.contains(&quote) {
-            return Err(error(MemoryErrorCode::BrokenProvenance));
-        }
+        let offset = snippet
+            .find(&quote)
+            .ok_or_else(|| error(MemoryErrorCode::BrokenProvenance))?;
+        let start = selected.start + offset as u64;
+        let citation = ExtractionCitation {
+            source: selected.source.clone(),
+            content_hash: source.content_hash,
+            end: start + quote.len() as u64,
+            start,
+            quote,
+            selected_start: selected.start,
+            selected_end: selected.end,
+            speaker_role: source.speaker_role,
+            evidence_class: source.evidence_class,
+            sensitivity: source.sensitivity,
+            occurred_at: source.occurred_at,
+            captured_at: source.captured_at,
+            time_precision: source.time_precision,
+            branch_id: source.branch_id,
+        };
         details["subject_ids"] = json!([job.subject_id]);
         details["epistemic_status"] = json!("uncertain");
         let mut proposal = Proposal::create(
@@ -567,9 +639,96 @@ fn proposals(adapter: &VaultAdapter<'_>, job: &ExtractionJob, text: &str) -> Res
             )],
         );
         proposal.reason = "model_extraction".into();
-        all.push(proposal);
+        all.push(ExtractionPreviewItem {
+            response_index: all.len() as u64,
+            proposal,
+            citation,
+            application: ExtractionApplication::AwaitingCursor,
+            current_candidate: None,
+        });
     }
     Ok(all)
+}
+/// Review a completed saved response locally, including while paused. This
+/// performs the same whole-response validation as application, never writes,
+/// never sends, and fails if its pinned view changes before delivery.
+pub fn preview(adapter: &VaultAdapter<'_>, run: &ExtractionRunId) -> Result<ExtractionPreview> {
+    if !adapter.enabled.load(Ordering::SeqCst) {
+        return Err(error(MemoryErrorCode::VaultLocked));
+    }
+    owner(adapter.vault, &adapter.owner)?;
+    let pin = adapter.vault.pin_current().map_err(|e| e.error)?;
+    let input: SessionEvent = read(
+        adapter.vault,
+        RecordKind::SessionEvent,
+        adapter.input_event.as_str(),
+    )?;
+    let current = job(adapter.vault, &adapter.owner, &input.session_id, run)?;
+    if current.input_event_id != adapter.input_event {
+        return Err(error(MemoryErrorCode::PermissionDenied));
+    }
+    let invocation = adapter
+        .invocations()?
+        .into_iter()
+        .find(|i| i.input_event_id == current.input_event_id)
+        .ok_or_else(|| error(MemoryErrorCode::NotFound))?;
+    if invocation.state != InvocationState::Completed {
+        return Err(error(MemoryErrorCode::ProviderUnavailable));
+    }
+    let response = adapter
+        .saved_response(&invocation.dispatch_id)?
+        .ok_or_else(|| error(MemoryErrorCode::NotFound))?;
+    let mut items = proposals(adapter, &current, &response.text)?;
+    if current.cursor > items.len() as u64 {
+        return Err(error(MemoryErrorCode::InvalidRequest));
+    }
+    let mut refs = current
+        .sources
+        .iter()
+        .map(|s| {
+            RecordRef::new(
+                RecordKind::Source,
+                s.source.source_id.as_str(),
+                s.source.source_revision,
+            )
+        })
+        .collect::<Vec<_>>();
+    refs.push(RecordRef::new(
+        RecordKind::SessionEvent,
+        input.event_id.as_str(),
+        crate::vault::one(),
+    ));
+    for (item, recorded) in items.iter_mut().zip(&current.candidates) {
+        if let Some(id) = recorded {
+            let candidate: CandidateRecord =
+                read(adapter.vault, RecordKind::Candidate, id.as_str())?;
+            refs.push(RecordRef::new(
+                RecordKind::Candidate,
+                id.as_str(),
+                candidate.revision,
+            ));
+            item.application = ExtractionApplication::CandidateRecorded;
+            item.current_candidate = Some(candidate);
+        } else {
+            item.application = ExtractionApplication::Suppressed;
+        }
+    }
+    let fresh = adapter
+        .vault
+        .check_fresh(&pin, &refs)
+        .map_err(|e| e.error)?;
+    if fresh.head.commit_id != pin.commit_id {
+        return Err(error(MemoryErrorCode::RevisionConflict));
+    }
+    if !adapter.enabled.load(Ordering::SeqCst) {
+        return Err(error(MemoryErrorCode::VaultLocked));
+    }
+    Ok(ExtractionPreview {
+        job: current,
+        dispatch_id: invocation.dispatch_id,
+        response_hash: sha256(response.text.as_bytes()),
+        items,
+    })
 }
 /// Apply one candidate from an already saved completed response. Pausing and
 /// recovery affect only local application, never authorize an HTTP retry.
@@ -602,7 +761,7 @@ pub fn apply_next(adapter: &VaultAdapter<'_>, run: &ExtractionRunId) -> Result<E
         .ok_or_else(|| error(MemoryErrorCode::NotFound))?;
     let all = proposals(adapter, &current, &response.text)?;
     let mut next = current.clone();
-    if let Some(proposal) = all.get(current.cursor as usize) {
+    if let Some(item) = all.get(current.cursor as usize) {
         let pin = adapter.vault.pin_current().map_err(|e| e.error)?;
         // Check the pause/cursor on the same head used to publish the proposal.
         // A later pause changes that head and rejects publication atomically.
@@ -667,7 +826,7 @@ pub fn apply_next(adapter: &VaultAdapter<'_>, run: &ExtractionRunId) -> Result<E
         }
         let proposed = enouia_memory_govern::propose::propose_extracted(
             adapter.vault,
-            proposal,
+            &item.proposal,
             &origin,
             key.as_bytes(),
             &pin.commit_id,
