@@ -1659,6 +1659,189 @@ fn extraction_v2_keeps_unknown_time_branch_and_negation_context() {
     );
 }
 #[test]
+fn extraction_does_not_promote_agent_consent_claims_to_user_preferences() {
+    use enouia_memory_contract::{
+        candidate::CandidateStatus,
+        commit::OperationKind,
+        common::{EvidenceClass, Locator, SpeakerRole},
+        json::canonical_bytes,
+        ports::{CommitRequest, IdempotencyScope, StagedRecord},
+        record::{AnyRecord, RecordRef},
+        source::{AgentSubmission, SourceKind},
+    };
+    use enouia_memory_provider::extraction;
+    for api in [Api::OpenAiResponses, Api::AnthropicMessages] {
+        let env = Env::new("extraction-agent-consent");
+        let manual = extraction_source(&env);
+        let pin = env.vault.pin_current().unwrap();
+        let AnyRecord::Source(mut source) = env
+            .vault
+            .read_parsed(
+                &pin,
+                &RecordRef::new(
+                    RecordKind::Source,
+                    manual.as_str(),
+                    Revision::new(1).unwrap(),
+                ),
+            )
+            .unwrap()
+        else {
+            panic!("source")
+        };
+        let text = source.manual_assertion.take().unwrap().input_text;
+        source.source_id = SourceId::from_random(env.vault.random_id_bytes());
+        source.source_kind = SourceKind::AgentSubmission;
+        source.speaker_role = SpeakerRole::Assistant;
+        source.evidence_class = EvidenceClass::ModelClaim;
+        source.locator = Locator::ByteRange {
+            start: 0,
+            end: text.len() as u64,
+        };
+        source.agent_submission = Some(AgentSubmission {
+            submitting_principal: agent(),
+            submitted_text: text,
+            claimed_user_consent: true,
+        });
+        let payload = canonical_bytes(&serde_json::to_value(&source).unwrap()).unwrap();
+        env.vault
+            .commit(CommitRequest {
+                commit_id: CommitId::from_random(env.vault.random_id_bytes()),
+                expected_commit_id: Some(pin.commit_id),
+                principal: owner(),
+                operation_kind: OperationKind::Import,
+                idempotency: IdempotencyScope {
+                    principal_id: owner().actor_id,
+                    operation_kind: OperationKind::Import,
+                    key_hash: sha256(b"agent-source"),
+                },
+                request_payload_hash: sha256(&payload),
+                expected_revisions: vec![(RecordKind::Source, source.source_id.to_string(), None)],
+                records: vec![StagedRecord {
+                    record_kind: RecordKind::Source,
+                    record_id: source.source_id.to_string(),
+                    revision: source.revision,
+                    bytes: payload,
+                }],
+                objects: vec![],
+            })
+            .unwrap();
+        let options = extraction_options(source.source_id, api);
+        let policy = grant(&env, api);
+        let enabled = AtomicBool::new(true);
+        for only_fact in [false, true] {
+            let (sid, run) = extraction::create(
+                &env.vault,
+                &owner(),
+                &env.policy(),
+                &options,
+                format!("agent-extract-{only_fact}").as_bytes(),
+            )
+            .unwrap();
+            let job = extraction::job(&env.vault, &owner(), &sid, &run).unwrap();
+            let adapter = VaultAdapter {
+                vault: &env.vault,
+                owner: owner(),
+                input_event: job.input_event_id,
+                enabled: &enabled,
+                quota: Quota::default(),
+            };
+            let (index, _) = enouia_memory_index::Index::rebuild(&env.vault).unwrap();
+            let call = extraction::prepare(
+                &adapter,
+                &index,
+                &run,
+                &extraction_capabilities(&env, api),
+                Limits::default(),
+                CallOptions::text(policy.clone(), 1024),
+            )
+            .unwrap();
+            let mut wire: serde_json::Value =
+                serde_json::from_slice(&extraction_reply(api, false)).unwrap();
+            let body = if api == Api::OpenAiResponses {
+                &mut wire["output"][0]["content"][0]["text"]
+            } else {
+                &mut wire["content"][0]["text"]
+            };
+            if only_fact {
+                let mut claims: serde_json::Value =
+                    serde_json::from_str(body.as_str().unwrap()).unwrap();
+                claims["candidates"].as_array_mut().unwrap().truncate(1);
+                *body = json!(claims.to_string());
+            }
+            let http = FakeHttp {
+                calls: Cell::new(0),
+                bytes: serde_json::to_vec(&wire).unwrap(),
+                fail: false,
+            };
+            Client {
+                transport: &http,
+                secrets: &Secrets { missing: false },
+                guard: &adapter,
+                journal: &adapter,
+            }
+            .send(&call, &call.inspect().hash(), &NeverCancel)
+            .unwrap();
+            let pin = env.vault.pin_current().unwrap();
+            if !only_fact {
+                assert_eq!(
+                    extraction::preview(&adapter, &run).unwrap_err().code,
+                    MemoryErrorCode::InvalidRequest
+                );
+                assert_eq!(
+                    extraction::apply_next(&adapter, &run).unwrap_err().code,
+                    MemoryErrorCode::InvalidRequest
+                );
+                assert_eq!(env.vault.pin_current().unwrap().commit_id, pin.commit_id);
+                assert!(
+                    enouia_memory_govern::pending_candidates(&env.vault, &pin)
+                        .unwrap()
+                        .is_empty()
+                );
+                assert_eq!(
+                    extraction::job(&env.vault, &owner(), &sid, &run)
+                        .unwrap()
+                        .cursor,
+                    0
+                );
+            } else {
+                let done = extraction::apply_next(&adapter, &run).unwrap();
+                assert_eq!(
+                    done.state,
+                    enouia_memory_contract::extraction::ExtractionState::Completed
+                );
+                let shown = extraction::preview(&adapter, &run).unwrap();
+                let candidate = shown.items[0].current_candidate.as_ref().unwrap();
+                assert_eq!(candidate.status, CandidateStatus::Pending);
+                assert_eq!(
+                    candidate.evidence[0].evidence_class,
+                    EvidenceClass::ModelClaim
+                );
+                assert_eq!(
+                    candidate.proposed_details.as_ref().unwrap()["epistemic_status"],
+                    "uncertain"
+                );
+                assert_eq!(shown.items[0].citation.speaker_role, SpeakerRole::Assistant);
+            }
+            assert_eq!(http.calls.get(), 1);
+        }
+        assert!(
+            enouia_memory_govern::canonical_memories(
+                &env.vault,
+                &env.vault.pin_current().unwrap(),
+                enouia_memory_govern::Canonical::AllStatuses
+            )
+            .unwrap()
+            .is_empty()
+        );
+        assert!(
+            env.vault
+                .verify(&env.vault.pin_current().unwrap())
+                .unwrap()
+                .is_clean()
+        );
+    }
+}
+#[test]
 fn extraction_is_explicit_resumable_and_never_accepts_memories() {
     use enouia_memory_contract::extraction::ExtractionState;
     use enouia_memory_provider::extraction;

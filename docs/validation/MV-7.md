@@ -17,6 +17,7 @@ The owner explicitly started MV-7 and then instructed: implement functionality f
 - Optional source-bound extraction persists immutable selection/prompt/binding/budgets and progress. Whole-response JSON/quotation validation precedes proposals; candidates remain pending, with source-derived evidence class/sensitivity. Pause, local cursor receipt recovery, unchanged reviewed-claim suppression and bounded pending backlog are enforced. Source-dependent deletion erases undispatched input too. Immutable job token/monetary caps survive reopening and constrain the caller’s Session quota; required prices cannot be omitted. Input safety margin is reserved for tokens and cost.
 - Local extraction preview returns literal citations and source metadata, preserving UTF-8 offsets in resolved source text and the difference between the model's original proposal and the current owner-edited/reviewed candidate. Paused jobs remain inspectable; the preview never writes or sends and refuses a changed pinned view.
 - New `extract-text-2` inputs preserve source occurrence/capture time, precision, branch uncertainty and selection offsets. The local preview includes complete selected text so qualifiers outside the literal quote stay visible. Version-1 saved jobs remain valid and unchanged.
+- Preference extraction requires actual user evidence. Imported/agent consent claims never promote a model claim to user preference evidence; invalid later preferences refuse the full response before publication. Pending facts retain actual model evidence and uncertain status.
 
 ## Synthetic acceptance
 
@@ -32,10 +33,12 @@ The preview case checks a narrowed Unicode source selection, exact citation offs
 
 A context case checks that version-2 wire input and preview preserve an explicitly unknown occurrence time and branch alongside the archival timestamp. Complete selected text retains negation and conditions outside the model quote. No canonical memory is accepted; quotation containment remains separate from semantic correctness.
 
+A both-API agent-consent case first reproduced acceptance of an unsupported model-evidence preference, then verifies whole-response refusal with no candidates/cursor/head changes. A fact-only response from that same agent source stays pending with `model_claim` evidence and uncertain status, even though the source claims user consent. It never enters the canonical view.
+
 | Check | Result |
 |---|---|
 | Pinned Rust formatting | Passed: `cargo fmt --all -- --check` |
-| Offline `cargo test --workspace --locked` | Passed: 298 tests, including 23 Provider cases and 60 workspace Core cases. Recovery/deletion, extraction context/preview, disabled protected reads and bounded object reads are included in this final run. |
+| Offline `cargo test --workspace --locked` | Passed: 299 tests, including 24 Provider cases and 60 workspace Core cases. Recovery/deletion, extraction evidence/context/preview, disabled protected reads and bounded object reads are included in this final run. |
 | Offline strict workspace Clippy, all targets | Passed: `cargo clippy --workspace --all-targets --locked -- -D warnings` |
 | Python 3.12 / python-jsonschema 4.26.0 | Passed: 36 schemas; 53 valid records; 117 record mutations; 4,913 set records; 51 IPC, 63 workspace, 46 store, 8 invocation and 19 extraction-job cases |
 | Runtime integration manifest/log | Passed: aggregate `f1a52c732445fe9ea0c5d5b33eaec3fd5fe7b9a71376ca3215e594f1792cf167` |

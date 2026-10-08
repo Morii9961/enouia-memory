@@ -608,6 +608,12 @@ fn proposals(
         if source.revision != selected.source.source_revision {
             return Err(error(MemoryErrorCode::RevisionConflict));
         }
+        // A quoted model/agent suggestion does not establish the owner's
+        // preference. Claimed consent inside imported data is never evidence
+        // of confirmation; only the stored source classification qualifies.
+        if kind == ProposedType::Preference && !source.evidence_class.is_user_evidence() {
+            return Err(error(MemoryErrorCode::InvalidRequest));
+        }
         let text = source_text(adapter.vault, &source)?;
         let snippet = text
             .get(selected.start as usize..selected.end as usize)
