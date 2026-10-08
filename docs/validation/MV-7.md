@@ -12,6 +12,7 @@ The owner explicitly started MV-7 and then instructed: implement functionality f
 - Admission atomically persists immutable Dispatch, message bodies, full wire body and a Session invocation reservation. Same input/dispatch cannot be resent, even with an unknown/crashed outcome or a new dispatch ID. Known usage, terminal errors, local token/price reservations and incomplete length results are retained.
 - Stream chunks are saved before delivery. Responses inherit the strictest carried evidence sensitivity. Publishing private text checks original policy/deletion epochs against the writer's pinned head; final delivery checks authorization again. EOF is never completion.
 - Exact archived inspection and saved results survive reopen. A terminal-receipt/ledger publication gap is repaired locally without HTTP. Existing dependent deletion now covers full request archives and length-failure response bodies; the shared-evidence purge leaves a clean Vault.
+- Disabling the native adapter blocks protected reads, preparation, approval, local recovery and late terminal publication. An admitted result refused after disable remains unknown until a local terminal receipt exists; the host still owns cancellation/join on lock/close.
 - Native Windows credential read/write targets are restricted to the two named Provider entries. Those functions are compiled, not exercised against the owner's credential store.
 - Optional source-bound extraction persists immutable selection/prompt/binding/budgets and progress. Whole-response JSON/quotation validation precedes proposals; candidates remain pending, with source-derived evidence class/sensitivity. Pause, local cursor receipt recovery, unchanged reviewed-claim suppression and bounded pending backlog are enforced. Source-dependent deletion erases undispatched input too. Immutable job token/monetary caps survive reopening and constrain the caller’s Session quota; required prices cannot be omitted. Input safety margin is reserved for tokens and cost.
 
@@ -23,10 +24,12 @@ Seven additional extraction cases cover both APIs, source-only preparation, no c
 
 Contract/schema acceptance adds eight positive/negative invocation cases, checked independently by serde/domain validation, the Rust subset validator and pinned python-jsonschema. Existing fixtures remain synthetic; no Runtime checkout, fixtures or target directory is used.
 
+A further adapter-disable case checks archived/saved reads, local recovery, preparation and late-result refusal without a new Vault commit, then verifies unchanged unknown admission and protected reads after re-enabling.
+
 | Check | Result |
 |---|---|
 | Pinned Rust formatting | Passed: `cargo fmt --all -- --check` |
-| Offline `cargo test --workspace --locked` | Passed: 295 tests, including 20 Provider cases and 60 workspace Core cases. Recovery/deletion and bounded object reads are included in this final run. |
+| Offline `cargo test --workspace --locked` | Passed: 296 tests, including 21 Provider cases and 60 workspace Core cases. Recovery/deletion, disabled protected reads and bounded object reads are included in this final run. |
 | Offline strict workspace Clippy, all targets | Passed: `cargo clippy --workspace --all-targets --locked -- -D warnings` |
 | Python 3.12 / python-jsonschema 4.26.0 | Passed: 36 schemas; 53 valid records; 117 record mutations; 4,913 set records; 51 IPC, 63 workspace, 46 store, 8 invocation and 17 extraction-job cases |
 | Runtime integration manifest/log | Passed: aggregate `f1a52c732445fe9ea0c5d5b33eaec3fd5fe7b9a71376ca3215e594f1792cf167` |

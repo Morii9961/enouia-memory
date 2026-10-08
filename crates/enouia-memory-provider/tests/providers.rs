@@ -290,6 +290,129 @@ fn both_providers_archive_exact_request_and_replay_without_http() {
     }
 }
 #[test]
+fn disabled_adapter_blocks_archives_recovery_and_late_publication() {
+    let env = Env::new("disabled-reads");
+    let api = Api::OpenAiResponses;
+    let (capsule, input, policy, caps) = setup(&env, api, Sensitivity::Normal);
+    let enabled = AtomicBool::new(true);
+    let adapter = VaultAdapter {
+        vault: &env.vault,
+        owner: owner(),
+        input_event: input,
+        enabled: &enabled,
+        quota: Quota::default(),
+    };
+    let call = adapter
+        .prepare_saved(
+            api,
+            &capsule,
+            &caps,
+            Limits::default(),
+            CallOptions::text(policy.clone(), 128),
+        )
+        .unwrap();
+    assert!(adapter.claim(&call).unwrap());
+    let response = enouia_memory_contract::provider::ProviderResponse {
+        text: "合成迟到答复".into(),
+        finish: enouia_memory_contract::provider::FinishReason::Completed,
+        tool_requests: vec![],
+        input_tokens: Some(100),
+        output_tokens: Some(4),
+    };
+    enabled.store(false, Ordering::SeqCst);
+    let pin = env.vault.pin_current().unwrap();
+    assert_eq!(
+        adapter
+            .prepare_saved(
+                api,
+                &capsule,
+                &caps,
+                Limits::default(),
+                CallOptions::text(policy, 128)
+            )
+            .err()
+            .unwrap()
+            .code,
+        MemoryErrorCode::VaultLocked
+    );
+    assert_eq!(
+        adapter.invocations().unwrap_err().code,
+        MemoryErrorCode::VaultLocked
+    );
+    assert_eq!(
+        adapter
+            .inspect_saved(&call.dispatch().dispatch_id)
+            .unwrap_err()
+            .code,
+        MemoryErrorCode::VaultLocked
+    );
+    assert_eq!(
+        adapter
+            .saved_response(&call.dispatch().dispatch_id)
+            .unwrap_err()
+            .code,
+        MemoryErrorCode::VaultLocked
+    );
+    assert_eq!(
+        adapter
+            .recover_local_outcome(&call.dispatch().dispatch_id)
+            .unwrap_err()
+            .code,
+        MemoryErrorCode::VaultLocked
+    );
+    assert_eq!(
+        adapter
+            .finish(call.dispatch(), Some(&response), None)
+            .unwrap_err()
+            .code,
+        MemoryErrorCode::VaultLocked
+    );
+    assert_eq!(env.vault.pin_current().unwrap().commit_id, pin.commit_id);
+    enabled.store(true, Ordering::SeqCst);
+    assert_eq!(
+        adapter.invocations().unwrap()[0].state,
+        InvocationState::OutcomeUnknown
+    );
+    assert!(
+        !adapter
+            .recover_local_outcome(&call.dispatch().dispatch_id)
+            .unwrap()
+    );
+    assert!(
+        adapter
+            .saved_response(&call.dispatch().dispatch_id)
+            .unwrap()
+            .is_none()
+    );
+    assert_eq!(
+        adapter
+            .inspect_saved(&call.dispatch().dispatch_id)
+            .unwrap()
+            .body(),
+        call.inspect().body()
+    );
+    adapter
+        .finish(call.dispatch(), Some(&response), None)
+        .unwrap();
+    enabled.store(false, Ordering::SeqCst);
+    assert_eq!(
+        adapter
+            .saved_response(&call.dispatch().dispatch_id)
+            .unwrap_err()
+            .code,
+        MemoryErrorCode::VaultLocked
+    );
+    enabled.store(true, Ordering::SeqCst);
+    assert_eq!(
+        adapter
+            .saved_response(&call.dispatch().dispatch_id)
+            .unwrap()
+            .unwrap()
+            .text,
+        response.text
+    );
+}
+#[test]
 fn private_requires_bound_confirmation_and_wire_mutations_are_refused() {
     let env = Env::new("private");
     let api = Api::OpenAiResponses;

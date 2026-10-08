@@ -185,6 +185,9 @@ impl VaultAdapter<'_> {
         {
             return Err(error(MemoryErrorCode::PermissionDenied));
         }
+        if !self.enabled.load(Ordering::SeqCst) {
+            return Err(error(MemoryErrorCode::VaultLocked));
+        }
         Ok(())
     }
     fn input(&self) -> Result<SessionEvent> {
@@ -287,7 +290,9 @@ impl VaultAdapter<'_> {
             sent_at: None,
             completed_at: None,
         };
-        crate::client::prepare(api, &request, &dispatch, capabilities, limits)
+        let call = crate::client::prepare(api, &request, &dispatch, capabilities, limits)?;
+        self.owner_check()?;
+        Ok(call)
     }
     /// Trusted native confirmation after exact wire inspection. The logical
     /// approval binds resources/destination and the diff hash binds wire bytes.
@@ -335,6 +340,7 @@ impl VaultAdapter<'_> {
             return Err(error(MemoryErrorCode::InvalidRequest));
         }
         let pin = self.vault.pin_current().map_err(|e| e.error)?;
+        self.owner_check()?;
         commit(
             self.vault,
             &self.owner,
@@ -357,6 +363,7 @@ impl VaultAdapter<'_> {
         let input = self.input()?;
         let header: SessionRecord =
             read(self.vault, RecordKind::Session, input.session_id.as_str())?;
+        self.owner_check()?;
         Ok(header.provider_invocations)
     }
     /// Reads the archived HTTP body, without credentials or an HTTP attempt.
@@ -418,6 +425,7 @@ impl VaultAdapter<'_> {
         {
             return Err(error(MemoryErrorCode::StorageFailed));
         }
+        self.owner_check()?;
         Ok(wire)
     }
     /// Repairs a crash between terminal Session publication and ledger update.
@@ -462,6 +470,7 @@ impl VaultAdapter<'_> {
         header.revision = Revision::new(header.revision.get() + 1)
             .ok_or_else(|| error(MemoryErrorCode::InvalidRequest))?;
         header.updated_at = self.vault.now().map_err(|e| e.error)?;
+        self.owner_check()?;
         commit(
             self.vault,
             &self.owner,
@@ -497,7 +506,7 @@ impl VaultAdapter<'_> {
                 .as_str(),
         )?;
         let pin = self.vault.pin_current().map_err(|e| e.error)?;
-        Ok(Some(ProviderResponse {
+        let response = ProviderResponse {
             text: session::text(self.vault, &pin, &event).map_err(|e| e.error)?,
             finish: if row.state == InvocationState::Completed {
                 FinishReason::Completed
@@ -507,16 +516,15 @@ impl VaultAdapter<'_> {
             tool_requests: vec![],
             input_tokens: row.input_tokens,
             output_tokens: row.output_tokens,
-        }))
+        };
+        self.owner_check()?;
+        Ok(Some(response))
     }
 }
 
 impl SendGuard for VaultAdapter<'_> {
     fn check(&self, dispatch: &DispatchRecord, audit: bool) -> Result<()> {
         self.owner_check()?;
-        if !self.enabled.load(Ordering::SeqCst) {
-            return Err(error(MemoryErrorCode::VaultLocked));
-        }
         if !enouia_memory_vault::backup::network_allowed(self.vault).map_err(|e| e.error)? {
             return Err(error(MemoryErrorCode::VaultRecovering));
         }
