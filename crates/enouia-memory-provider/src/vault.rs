@@ -117,6 +117,8 @@ pub struct PriceLimit {
 #[derive(Clone, Copy, Debug)]
 pub struct Quota {
     pub max_attempts: usize,
+    /// Per-Session admission ceiling. Each earlier attempt debits at least its
+    /// reservation, or more if reported token usage exceeds that estimate.
     pub max_reserved_tokens: u64,
     pub price_limit: Option<PriceLimit>,
 }
@@ -647,7 +649,16 @@ impl InvocationJournal for VaultAdapter<'_> {
         let spent = header
             .provider_invocations
             .iter()
-            .try_fold(0u64, |sum, r| sum.checked_add(r.reserved_tokens))
+            .try_fold(0u64, |sum, r| {
+                // Missing usage remains unknown in the ledger. For admission
+                // retain the whole reservation floor, including failed/unknown
+                // attempts, and never ignore a higher reported token count.
+                let known = r
+                    .input_tokens
+                    .unwrap_or(0)
+                    .checked_add(r.output_tokens.unwrap_or(0))?;
+                sum.checked_add(r.reserved_tokens.max(known))
+            })
             .ok_or_else(|| error(MemoryErrorCode::BudgetExceeded))?;
         let job = header
             .extraction_jobs

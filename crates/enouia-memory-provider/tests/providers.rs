@@ -566,6 +566,137 @@ fn malformed_usage_fails_before_completed_publication_and_unknown_is_not_zero() 
     }
 }
 #[test]
+fn later_admission_uses_reported_usage_overruns_and_never_refunds_reservations() {
+    use enouia_memory_contract::record::{AnyRecord, RecordRef};
+    for api in [Api::OpenAiResponses, Api::AnthropicMessages] {
+        for reported_input in [50_000u64, 1] {
+            let env = Env::new("usage-quota");
+            let (capsule, input, policy, caps) = setup(&env, api, Sensitivity::Normal);
+            let enabled = AtomicBool::new(true);
+            let first = VaultAdapter {
+                vault: &env.vault,
+                owner: owner(),
+                input_event: input.clone(),
+                enabled: &enabled,
+                quota: Quota::default(),
+            };
+            let call = first
+                .prepare_saved(
+                    api,
+                    &capsule,
+                    &caps,
+                    Limits::default(),
+                    CallOptions::text(policy.clone(), 128),
+                )
+                .unwrap();
+            let mut response: serde_json::Value = serde_json::from_slice(&reply(api)).unwrap();
+            response["usage"]["input_tokens"] = json!(reported_input);
+            let http = FakeHttp {
+                calls: Cell::new(0),
+                bytes: serde_json::to_vec(&response).unwrap(),
+                fail: false,
+            };
+            Client {
+                transport: &http,
+                secrets: &Secrets { missing: false },
+                guard: &first,
+                journal: &first,
+            }
+            .send(&call, &call.inspect().hash(), &NeverCancel)
+            .unwrap();
+            let reserved = first.invocations().unwrap()[0].reserved_tokens;
+            let pin = env.vault.pin_current().unwrap();
+            let AnyRecord::SessionEvent(previous) = env
+                .vault
+                .read_parsed(
+                    &pin,
+                    &RecordRef::new(
+                        RecordKind::SessionEvent,
+                        input.as_str(),
+                        Revision::new(1).unwrap(),
+                    ),
+                )
+                .unwrap()
+            else {
+                panic!("input")
+            };
+            let mut compile = CompileInput::local(
+                "第二个合成输入",
+                owner(),
+                RequestId::from_random(env.vault.random_id_bytes()),
+            );
+            compile.session_id = Some(previous.session_id.clone());
+            compile.branch_id = Some(previous.branch_id.clone());
+            let next_input = session::save_input(
+                &env.vault,
+                &owner(),
+                &previous.session_id,
+                &previous.branch_id,
+                &compile.query,
+                &compile.request_id,
+                b"second-budget-input",
+            )
+            .unwrap()
+            .id;
+            let (index, _) = enouia_memory_index::Index::rebuild(&env.vault).unwrap();
+            let capsule = compiler::compile_for_destination(
+                &env.vault,
+                &index,
+                &compile,
+                &Destination {
+                    kind: DestinationKind::ExternalProvider,
+                    provider_binding: Some(caps.binding.clone()),
+                },
+            )
+            .unwrap();
+            let mut next = VaultAdapter {
+                vault: &env.vault,
+                owner: owner(),
+                input_event: next_input,
+                enabled: &enabled,
+                quota: Quota::default(),
+            };
+            let prepared = next
+                .prepare_saved(
+                    api,
+                    &capsule.capsule.capsule_id,
+                    &caps,
+                    Limits::default(),
+                    CallOptions::text(policy, 128),
+                )
+                .unwrap();
+            let next_reserved =
+                prepared.estimated_input_tokens() + prepared.dispatch().output.max_output_tokens;
+            let reported_total = reported_input + 4;
+            next.quota.max_reserved_tokens = next_reserved
+                + if reported_input == 1 {
+                    assert!(reported_total < reserved);
+                    reported_total // Actual use never refunds the original floor.
+                } else {
+                    assert!(reported_total > reserved);
+                    reserved // An underestimated reservation cannot hide overrun.
+                };
+            let pin = env.vault.pin_current().unwrap();
+            assert_eq!(
+                Client {
+                    transport: &http,
+                    secrets: &Secrets { missing: false },
+                    guard: &next,
+                    journal: &next
+                }
+                .send(&prepared, &prepared.inspect().hash(), &NeverCancel)
+                .unwrap_err()
+                .code,
+                MemoryErrorCode::BudgetExceeded
+            );
+            assert_eq!(http.calls.get(), 1);
+            assert_eq!(env.vault.pin_current().unwrap().commit_id, pin.commit_id);
+            assert_eq!(next.invocations().unwrap().len(), 1);
+            assert!(env.vault.verify(&pin).unwrap().is_clean());
+        }
+    }
+}
+#[test]
 fn private_requires_bound_confirmation_and_wire_mutations_are_refused() {
     let env = Env::new("private");
     let api = Api::OpenAiResponses;
