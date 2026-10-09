@@ -105,7 +105,7 @@ pub fn prepare(
 
 /// Host journal implementations MUST durably and atomically claim a dispatch
 /// (and its single-use approval) before returning true. false means an earlier
-/// attempt exists and MUST NOT cause another HTTP send. Persist every chunk
+/// attempt exists or the turn is already closed; MUST NOT send HTTP. Persist every chunk
 /// before exposing it, and a terminal outcome before returning to the caller.
 pub trait InvocationJournal {
     fn claim(&self, call: &PreparedCall) -> Result<bool>;

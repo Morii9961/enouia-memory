@@ -51,10 +51,12 @@ Two output cases first reproduce the rejection of a standalone whitespace chunk,
 
 A metadata case first reproduces an actual serde-json panic when an Anthropic start usage array receives a later counter update. It covers malformed start/update usage shapes and counts, wrong delta/stop types, later valid values masking an invalid earlier value, and overflow introduced only by merging a partial update. All failures are immediate, do not panic, and latch across subsequent push/finish. Missing/null initial usage remains unknown while later reported output is retained. The native fake transport records one failed invocation and refuses resend; no completed response is published.
 
+A closed-turn case first reproduces native admission of a prepared request after a generic local terminal event, despite no prior Provider ledger. Both APIs now refuse completed, cancelled and failed turns before admission/HTTP, leaving no invocation/reservation and no new Vault commit. This includes a local Mock reply ending the input before native sending. The terminal-event view is pinned by the existing optimistic admission commit; a concurrent close cannot be silently reopened.
+
 | Check | Result |
 |---|---|
 | Pinned Rust formatting | Passed: `cargo fmt --all -- --check` |
-| Offline `cargo test --workspace --locked` | Passed: 309 tests, including 34 Provider cases and 60 workspace Core cases, on 2026-10-09 with one harness worker. Immediate metadata validation, whitespace/zero-text output, atomic terminals, usage/quota, extraction and recovery/deletion are included. Earlier harness failures and focused reruns are recorded below. |
+| Offline `cargo test --workspace --locked` | Passed: 310 tests, including 35 Provider cases and 60 workspace Core cases, on 2026-10-09 with one harness worker. Closed-turn admission, immediate metadata validation, whitespace/zero-text output, atomic terminals, usage/quota, extraction and recovery/deletion are included. Earlier harness failures and focused reruns are recorded below. |
 | Offline strict workspace Clippy, all targets | Passed: `cargo clippy --workspace --all-targets --locked -- -D warnings` |
 | Python 3.12 / python-jsonschema 4.26.0 | Passed: 36 schemas; 53 valid records; 117 record mutations; 4,913 set records; 51 IPC, 63 workspace, 46 store, 8 invocation and 19 extraction-job cases |
 | Runtime integration manifest/log | Passed: aggregate `f1a52c732445fe9ea0c5d5b33eaec3fd5fe7b9a71376ca3215e594f1792cf167` |

@@ -980,6 +980,78 @@ fn missing_keys_unknown_capabilities_lock_and_quotas_do_not_send() {
     assert_eq!(http.calls.get(), 0);
 }
 #[test]
+fn already_closed_input_never_admits_or_sends_a_prepared_provider_call() {
+    use enouia_memory_contract::session::EventKind;
+    for api in [Api::OpenAiResponses, Api::AnthropicMessages] {
+        for kind in [
+            EventKind::AssistantCompleted,
+            EventKind::TurnCancelled,
+            EventKind::TurnFailed,
+        ] {
+            let env = Env::new("closed-provider-turn");
+            let (capsule, input, policy, caps) = setup(&env, api, Sensitivity::Normal);
+            let enabled = AtomicBool::new(true);
+            let adapter = VaultAdapter {
+                vault: &env.vault,
+                owner: owner(),
+                input_event: input.clone(),
+                enabled: &enabled,
+                quota: Quota::default(),
+            };
+            let call = adapter
+                .prepare_saved(
+                    api,
+                    &capsule,
+                    &caps,
+                    Limits::default(),
+                    CallOptions::text(policy, 128),
+                )
+                .unwrap();
+            session::append_output(
+                &env.vault,
+                &owner(),
+                &input,
+                kind,
+                if kind == EventKind::AssistantCompleted {
+                    Some("合成本地答复")
+                } else {
+                    None
+                },
+                b"owner-closed-turn",
+            )
+            .unwrap();
+            let pin = env.vault.pin_current().unwrap();
+            assert!(
+                !adapter.claim(&call).unwrap(),
+                "a closed turn is not a new send permission"
+            );
+            let http = FakeHttp {
+                calls: Cell::new(0),
+                bytes: reply(api),
+                fail: false,
+            };
+            let client = Client {
+                transport: &http,
+                secrets: &Secrets { missing: false },
+                guard: &adapter,
+                journal: &adapter,
+            };
+            assert_eq!(
+                client
+                    .send(&call, &call.inspect().hash(), &NeverCancel)
+                    .unwrap_err()
+                    .code,
+                MemoryErrorCode::IdempotencyConflict
+            );
+            assert_eq!(http.calls.get(), 0);
+            assert!(adapter.invocations().unwrap().is_empty());
+            assert_eq!(env.vault.pin_current().unwrap(), pin);
+            assert!(env.vault.verify(&pin).unwrap().is_clean());
+        }
+    }
+}
+
+#[test]
 fn admitted_crash_is_unknown_and_cannot_be_resent() {
     let env = Env::new("crash");
     let api = Api::OpenAiResponses;

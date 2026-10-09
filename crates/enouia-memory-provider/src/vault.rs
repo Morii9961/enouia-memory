@@ -642,6 +642,25 @@ impl InvocationJournal for VaultAdapter<'_> {
         }) {
             return Ok(false);
         }
+        // Local cancellation, failure or a Mock reply may close the turn
+        // before any native admission exists. A previously prepared request
+        // still cannot reopen/send that input. The commit below pins this
+        // event view, so a concurrent terminal publication conflicts too.
+        if session::events(self.vault, &pin, &input.session_id, &input.branch_id)
+            .map_err(|e| e.error)?
+            .iter()
+            .any(|event| {
+                event.turn_id == input.turn_id
+                    && matches!(
+                        event.kind,
+                        EventKind::AssistantCompleted
+                            | EventKind::TurnCancelled
+                            | EventKind::TurnFailed
+                    )
+            })
+        {
+            return Ok(false);
+        }
         let reserved = call
             .estimated_input_tokens
             .checked_add(call.dispatch.output.max_output_tokens)
