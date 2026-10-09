@@ -140,6 +140,7 @@ impl Client<'_> {
         if cancellation.is_cancelled() {
             return Err(error(MemoryErrorCode::Cancelled));
         }
+        self.transport.preflight()?;
         self.guard.check(&call.dispatch, false)?;
         let secret = self.secrets.read(match call.wire.api {
             Api::OpenAiResponses => "Enouia.Memory.Provider.openai",

@@ -9,6 +9,11 @@ use enouia_memory_contract::{MemoryErrorCode, foundation::Cancellation, ports::S
 use std::time::Duration;
 
 pub trait Transport {
+    /// Local execution-context validation only: no HTTP, credential reads or
+    /// admission side effects. Existing/custom transports default to allowed.
+    fn preflight(&self) -> Result<()> {
+        Ok(())
+    }
     fn exchange(
         &self,
         request: &WireRequest,
@@ -22,6 +27,15 @@ pub trait Transport {
 #[derive(Default)]
 pub struct HttpsTransport;
 impl Transport for HttpsTransport {
+    fn preflight(&self) -> Result<()> {
+        // This synchronous native transport owns its runtime. Require a
+        // dedicated thread outside ANY entered Tokio context, rather than
+        // risk nested block_on panics or depend on private Tokio internals.
+        if tokio::runtime::Handle::try_current().is_ok() {
+            return Err(error(MemoryErrorCode::InvalidRequest));
+        }
+        Ok(())
+    }
     fn exchange(
         &self,
         request: &WireRequest,
@@ -36,6 +50,7 @@ impl Transport for HttpsTransport {
         if timeout.is_zero() || timeout > Duration::from_secs(300) {
             return Err(error(MemoryErrorCode::InvalidRequest));
         }
+        self.preflight()?;
         let runtime = tokio::runtime::Builder::new_current_thread()
             .enable_all()
             .build()

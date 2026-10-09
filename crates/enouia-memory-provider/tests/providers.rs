@@ -4260,3 +4260,123 @@ fn openai_terminal_event_and_response_status_must_agree_before_publication() {
         assert!(env.vault.verify(&pin).unwrap().is_clean());
     }
 }
+
+#[test]
+fn native_http_context_refuses_before_secret_read_or_admission() {
+    struct CountSecrets(Cell<u64>);
+    impl SecretStore for CountSecrets {
+        fn read(&self, _: &str) -> Result<SecretBytes> {
+            self.0.set(self.0.get() + 1);
+            // Empty synthetic credentials independently prevent HTTP even
+            // if a regression gets past the execution-context check.
+            Ok(SecretBytes::new(vec![]))
+        }
+    }
+    let runtime = tokio::runtime::Builder::new_current_thread()
+        .build()
+        .unwrap();
+    for api in [Api::OpenAiResponses, Api::AnthropicMessages] {
+        let env = Env::new("native-http-context");
+        let (capsule, input, policy, caps) = setup(&env, api, Sensitivity::Normal);
+        let enabled = AtomicBool::new(true);
+        let adapter = VaultAdapter {
+            vault: &env.vault,
+            owner: owner(),
+            input_event: input,
+            enabled: &enabled,
+            quota: Quota::default(),
+        };
+        let call = adapter
+            .prepare_saved(
+                api,
+                &capsule,
+                &caps,
+                Limits::default(),
+                CallOptions::text(policy, 128),
+            )
+            .unwrap();
+        let secrets = CountSecrets(Cell::new(0));
+        let native = enouia_memory_provider::transport::HttpsTransport;
+        let client = Client {
+            transport: &native,
+            secrets: &secrets,
+            guard: &adapter,
+            journal: &adapter,
+        };
+        let before = env.vault.pin_current().unwrap();
+        runtime.block_on(async {
+            let failure = client
+                .send(&call, &call.inspect().hash(), &NeverCancel)
+                .unwrap_err();
+            assert_eq!(failure.code, MemoryErrorCode::InvalidRequest);
+            assert!(!failure.retryable);
+            // Direct transport use must have the same guard before creating
+            // an inner runtime; there is no credential store or live secret.
+            let mut delivered = false;
+            assert_eq!(
+                native
+                    .exchange(
+                        call.inspect(),
+                        &SecretBytes::new(vec![]),
+                        &NeverCancel,
+                        Duration::from_secs(1),
+                        &mut |_| {
+                            delivered = true;
+                            Ok(())
+                        }
+                    )
+                    .unwrap_err()
+                    .code,
+                MemoryErrorCode::InvalidRequest
+            );
+            assert!(!delivered);
+            tokio::task::yield_now().await;
+        });
+        assert_eq!(secrets.0.get(), 0);
+        assert_eq!(env.vault.pin_current().unwrap(), before);
+        assert!(adapter.invocations().unwrap().is_empty());
+        // An entered synchronous context is refused conservatively too.
+        // Native HTTPS requires its own thread outside any Tokio context.
+        {
+            let _entered = runtime.enter();
+            assert_eq!(
+                client
+                    .send(&call, &call.inspect().hash(), &NeverCancel)
+                    .unwrap_err()
+                    .code,
+                MemoryErrorCode::InvalidRequest
+            );
+        }
+        assert_eq!(secrets.0.get(), 0);
+        assert_eq!(env.vault.pin_current().unwrap(), before);
+        // The exact approval/admission remains unconsumed. Fake transports
+        // retain their default preflight and work in this synthetic runtime.
+        let fake = FakeHttp {
+            calls: Cell::new(0),
+            bytes: reply(api),
+            fail: false,
+        };
+        let fake_client = Client {
+            transport: &fake,
+            ..client
+        };
+        runtime.block_on(async {
+            assert_eq!(
+                fake_client
+                    .send(&call, &call.inspect().hash(), &NeverCancel)
+                    .unwrap()
+                    .text,
+                "合成答复"
+            );
+        });
+        assert_eq!(fake.calls.get(), 1);
+        assert_eq!(secrets.0.get(), 1);
+        assert_eq!(adapter.invocations().unwrap().len(), 1);
+        assert!(
+            env.vault
+                .verify(&env.vault.pin_current().unwrap())
+                .unwrap()
+                .is_clean()
+        );
+    }
+}
