@@ -49,10 +49,12 @@ Two atomic-terminal cases cover both APIs, completed/length results and injected
 
 Two output cases first reproduce the rejection of a standalone whitespace chunk, then cover both APIs, completed/length states, mixed and wholly whitespace output, Anthropic initial block text, and empty deltas. Chunk bytes/order match the nonempty input fragments exactly. Zero visible text in JSON/SSE still saves exact finish/usage in one terminal commit without partial chunks or repair/resend permission. Blank owner input and direct empty chunks refuse with no head change. Empty content objects use the existing zero-size contract; schemas and stored shapes are unchanged.
 
+A metadata case first reproduces an actual serde-json panic when an Anthropic start usage array receives a later counter update. It covers malformed start/update usage shapes and counts, wrong delta/stop types, later valid values masking an invalid earlier value, and overflow introduced only by merging a partial update. All failures are immediate, do not panic, and latch across subsequent push/finish. Missing/null initial usage remains unknown while later reported output is retained. The native fake transport records one failed invocation and refuses resend; no completed response is published.
+
 | Check | Result |
 |---|---|
 | Pinned Rust formatting | Passed: `cargo fmt --all -- --check` |
-| Offline `cargo test --workspace --locked` | Passed: 308 tests, including 33 Provider cases and 60 workspace Core cases, on 2026-10-09 with one harness worker. Exact whitespace/zero-text output, atomic terminals, usage/quota, extraction and recovery/deletion are included. Earlier harness failures and focused reruns are recorded below. |
+| Offline `cargo test --workspace --locked` | Passed: 309 tests, including 34 Provider cases and 60 workspace Core cases, on 2026-10-09 with one harness worker. Immediate metadata validation, whitespace/zero-text output, atomic terminals, usage/quota, extraction and recovery/deletion are included. Earlier harness failures and focused reruns are recorded below. |
 | Offline strict workspace Clippy, all targets | Passed: `cargo clippy --workspace --all-targets --locked -- -D warnings` |
 | Python 3.12 / python-jsonschema 4.26.0 | Passed: 36 schemas; 53 valid records; 117 record mutations; 4,913 set records; 51 IPC, 63 workspace, 46 store, 8 invocation and 19 extraction-job cases |
 | Runtime integration manifest/log | Passed: aggregate `f1a52c732445fe9ea0c5d5b33eaec3fd5fe7b9a71376ca3215e594f1792cf167` |

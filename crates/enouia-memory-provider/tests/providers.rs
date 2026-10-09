@@ -566,6 +566,159 @@ fn malformed_usage_fails_before_completed_publication_and_unknown_is_not_zero() 
     }
 }
 #[test]
+fn malformed_stream_metadata_fails_immediately_without_panic_or_later_overwrite() {
+    use std::panic::{AssertUnwindSafe, catch_unwind};
+    let start = json!({"type":"message_start","message":{"type":"message","role":"assistant","usage":{"input_tokens":100,"output_tokens":0}}});
+    let valid = json!({"type":"message_delta","delta":{"stop_reason":"end_turn"},"usage":{"output_tokens":4}});
+    let stop = json!({"type":"message_stop"});
+    let encode = |events: Vec<serde_json::Value>| {
+        events
+            .iter()
+            .map(|v| format!("event: {}\ndata: {v}\n\n", v["type"].as_str().unwrap()))
+            .collect::<String>()
+            .into_bytes()
+    };
+    let malformed = vec![
+        json!([]),
+        json!(false),
+        json!("invalid"),
+        json!({"input_tokens":-1}),
+        json!({"output_tokens":"4"}),
+        json!({"cache_read_input_tokens":true}),
+        json!({"input_tokens":9007199254740991u64,"cache_creation_input_tokens":1}),
+    ];
+    let mut sequences = vec![];
+    for usage in &malformed {
+        let mut invalid = start.clone();
+        invalid["message"]["usage"] = usage.clone();
+        sequences.push(vec![invalid, valid.clone(), stop.clone()]);
+        let mut invalid = valid.clone();
+        invalid["usage"] = usage.clone();
+        sequences.push(vec![
+            start.clone(),
+            valid.clone(),
+            invalid,
+            valid.clone(),
+            stop.clone(),
+        ]);
+    }
+    // Wrong known container/stop types cannot be ignored as optional nulls.
+    for delta in [
+        json!(false),
+        json!([]),
+        json!("invalid"),
+        json!(null),
+        json!({"stop_reason":false}),
+        json!({"stop_reason":42}),
+        json!({"stop_reason":[]}),
+    ] {
+        let mut invalid = valid.clone();
+        invalid["delta"] = delta;
+        sequences.push(vec![
+            start.clone(),
+            valid.clone(),
+            invalid,
+            valid.clone(),
+            stop.clone(),
+        ]);
+    }
+    // A individually valid update must also fit the merged running total.
+    let mut near_limit = start.clone();
+    near_limit["message"]["usage"]["input_tokens"] = json!(9007199254740991u64);
+    sequences.push(vec![near_limit, json!({"type":"message_delta","delta":{},"usage":{"cache_read_input_tokens":1}}),
+        json!({"type":"message_delta","delta":{"stop_reason":"end_turn"},"usage":{"cache_read_input_tokens":0}}), stop.clone()]);
+    for sequence in sequences {
+        let mut decoder = Decoder::new(Api::AnthropicMessages);
+        let result = catch_unwind(AssertUnwindSafe(|| {
+            decoder.push(&encode(sequence), &mut |_| Ok(()))
+        }));
+        assert!(result.is_ok(), "malformed external metadata must not panic");
+        assert!(
+            result.unwrap().is_err(),
+            "later valid metadata must not hide earlier invalid data"
+        );
+        assert!(
+            decoder
+                .push(&encode(vec![valid.clone(), stop.clone()]), &mut |_| Ok(()))
+                .is_err()
+        );
+        assert!(decoder.finish().is_err());
+    }
+    for usage in [json!(null), json!({})] {
+        let mut unknown = start.clone();
+        unknown["message"]["usage"] = usage;
+        let mut decoder = Decoder::new(Api::AnthropicMessages);
+        decoder
+            .push(
+                &encode(vec![unknown, valid.clone(), stop.clone()]),
+                &mut |_| Ok(()),
+            )
+            .unwrap();
+        let result = decoder.finish().unwrap();
+        assert_eq!(result.input_tokens, None);
+        assert_eq!(result.output_tokens, Some(4));
+    }
+    let env = Env::new("invalid-stream-usage");
+    let api = Api::AnthropicMessages;
+    let (capsule, input, policy, caps) = setup(&env, api, Sensitivity::Normal);
+    let enabled = AtomicBool::new(true);
+    let adapter = VaultAdapter {
+        vault: &env.vault,
+        owner: owner(),
+        input_event: input,
+        enabled: &enabled,
+        quota: Quota::default(),
+    };
+    let mut options = CallOptions::text(policy, 128);
+    options.streaming = true;
+    let call = adapter
+        .prepare_saved(api, &capsule, &caps, Limits::default(), options)
+        .unwrap();
+    let mut invalid = start;
+    invalid["message"]["usage"] = json!([]);
+    let http = FakeHttp {
+        calls: Cell::new(0),
+        bytes: encode(vec![invalid, valid, stop]),
+        fail: false,
+    };
+    let client = Client {
+        transport: &http,
+        secrets: &Secrets { missing: false },
+        guard: &adapter,
+        journal: &adapter,
+    };
+    assert_eq!(
+        client
+            .send(&call, &call.inspect().hash(), &NeverCancel)
+            .unwrap_err()
+            .code,
+        MemoryErrorCode::ProviderUnavailable
+    );
+    assert_eq!(
+        adapter.invocations().unwrap()[0].state,
+        InvocationState::Failed
+    );
+    assert!(
+        adapter
+            .saved_response(&call.dispatch().dispatch_id)
+            .unwrap()
+            .is_none()
+    );
+    assert!(
+        client
+            .send(&call, &call.inspect().hash(), &NeverCancel)
+            .is_err()
+    );
+    assert_eq!(http.calls.get(), 1);
+    assert!(
+        env.vault
+            .verify(&env.vault.pin_current().unwrap())
+            .unwrap()
+            .is_clean()
+    );
+}
+
+#[test]
 fn later_admission_uses_reported_usage_overruns_and_never_refunds_reservations() {
     use enouia_memory_contract::record::{AnyRecord, RecordRef};
     for api in [Api::OpenAiResponses, Api::AnthropicMessages] {

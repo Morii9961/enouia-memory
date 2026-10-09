@@ -143,8 +143,13 @@ impl Decoder {
                 {
                     return Err(error(MemoryErrorCode::ProviderUnavailable));
                 }
+                let usage = v["message"]["usage"].clone();
+                decode_usage(self.api, &usage)?;
                 self.started = true;
-                self.usage = v["message"]["usage"].clone();
+                // Missing/null usage is unknown, but the mutable running
+                // accumulator must always be an object, never external data
+                // such as an array/string that would panic on key assignment.
+                self.usage = if usage.is_null() { json!({}) } else { usage };
             }
             (Api::AnthropicMessages, "content_block_start") => {
                 if !self.started
@@ -188,18 +193,27 @@ impl Decoder {
                 self.open_block = None;
             }
             (Api::AnthropicMessages, "message_delta") => {
-                if !self.started || self.open_block.is_some() {
+                if !self.started || self.open_block.is_some() || !v["delta"].is_object() {
                     return Err(error(MemoryErrorCode::ProviderUnavailable));
                 }
+                // Validate each update before merging: a later cumulative
+                // counter must never hide an earlier malformed field.
+                decode_usage(self.api, &v["usage"])?;
                 self.message_deltas_started = true;
                 // Anthropic permits multiple top-level deltas. Usage-only
                 // updates must not erase a known stop reason or reopen blocks.
-                if let Some(stop) = v["delta"]["stop_reason"].as_str() {
+                let stop = match v["delta"].get("stop_reason") {
+                    None | Some(Value::Null) => None,
+                    Some(Value::String(stop)) => Some(stop.as_str()),
+                    _ => return Err(error(MemoryErrorCode::ProviderUnavailable)),
+                };
+                if let Some(stop) = stop {
                     if self.stop.as_deref().is_some_and(|known| known != stop) {
                         return Err(error(MemoryErrorCode::ProviderUnavailable));
                     }
                     self.stop = Some(stop.into());
                 }
+                let mut merged = self.usage.clone();
                 for key in [
                     "input_tokens",
                     "output_tokens",
@@ -207,9 +221,11 @@ impl Decoder {
                     "cache_read_input_tokens",
                 ] {
                     if let Some(tokens) = v["usage"].get(key).filter(|tokens| !tokens.is_null()) {
-                        self.usage[key] = tokens.clone();
+                        merged[key] = tokens.clone();
                     }
                 }
+                decode_usage(self.api, &merged)?;
+                self.usage = merged;
             }
             (Api::AnthropicMessages, "message_stop") => {
                 if !self.started || self.open_block.is_some() {
