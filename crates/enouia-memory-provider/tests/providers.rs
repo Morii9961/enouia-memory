@@ -4988,3 +4988,164 @@ fn rejected_http_heads_keep_structured_failures_without_body_delivery_or_resend(
         }
     }
 }
+#[test]
+fn sse_line_framing_preserves_text_and_completion_across_fragment_boundaries() {
+    fn framed(source: &str, mode: usize, bom: bool) -> Vec<u8> {
+        let mut wire = if bom { vec![0xef, 0xbb, 0xbf] } else { vec![] };
+        for (index, line) in source.split_inclusive('\n').enumerate() {
+            wire.extend_from_slice(line.strip_suffix('\n').unwrap_or(line).as_bytes());
+            if line.ends_with('\n') {
+                let ending = match mode {
+                    0 => "\n",
+                    1 => "\r\n",
+                    2 => "\r",
+                    _ => ["\r", "\r\n", "\n"][index % 3],
+                };
+                wire.extend_from_slice(ending.as_bytes());
+            }
+        }
+        wire
+    }
+    let expected = "合成\u{feff}答复";
+    for api in [Api::OpenAiResponses, Api::AnthropicMessages] {
+        let complete = String::from_utf8(streaming_reply(api, true))
+            .unwrap()
+            .replace("合成答复", expected);
+        let incomplete = String::from_utf8(streaming_reply(api, false))
+            .unwrap()
+            .replace("合成答复", expected);
+        for named in [false, true] {
+            let filter = |source: &str| {
+                source
+                    .split_inclusive('\n')
+                    .filter(|line| named || !line.starts_with("event:"))
+                    .collect::<String>()
+            };
+            let complete = filter(&complete);
+            let incomplete = filter(&incomplete);
+            for mode in 0..4 {
+                for bom in [false, true] {
+                    for size in [1, 2, 3, 7, 256] {
+                        let mut decoder = Decoder::new(api);
+                        let mut chunks = vec![];
+                        for bytes in framed(&complete, mode, bom).chunks(size) {
+                            decoder
+                                .push(bytes, &mut |text| {
+                                    chunks.push(text.to_owned());
+                                    Ok(())
+                                })
+                                .unwrap();
+                        }
+                        assert_eq!(chunks, vec![expected]);
+                        let response = decoder.finish().unwrap();
+                        assert_eq!(response.text, expected);
+                        assert_eq!(
+                            response.finish,
+                            enouia_memory_contract::provider::FinishReason::Completed
+                        );
+                        assert_eq!(
+                            (response.input_tokens, response.output_tokens),
+                            (Some(100), Some(4))
+                        );
+                    }
+                    for truncated in [&incomplete, complete.strip_suffix('\n').unwrap()] {
+                        let mut decoder = Decoder::new(api);
+                        let mut chunks = String::new();
+                        for byte in framed(truncated, mode, bom) {
+                            decoder
+                                .push(&[byte], &mut |text| {
+                                    chunks.push_str(text);
+                                    Ok(())
+                                })
+                                .unwrap();
+                        }
+                        assert_eq!(chunks, expected);
+                        assert_eq!(
+                            decoder.finish().unwrap_err().code,
+                            MemoryErrorCode::ProviderUnavailable
+                        );
+                    }
+                    let mut decoder = Decoder::new(api);
+                    decoder
+                        .push(&framed(&complete, mode, bom), &mut |_| Ok(()))
+                        .unwrap();
+                    assert_eq!(
+                        decoder
+                            .push(b"data: {\"type\":\"error\"}\r\r", &mut |_| Ok(()))
+                            .unwrap_err()
+                            .code,
+                        MemoryErrorCode::ProviderUnavailable
+                    );
+                    assert!(
+                        decoder
+                            .push(&framed(&complete, mode, bom), &mut |_| Ok(()))
+                            .is_err()
+                    );
+                    assert!(decoder.finish().is_err());
+                }
+            }
+        }
+        let env = Env::new("sse-framing-journal");
+        let (capsule, input, policy, caps) = setup(&env, api, Sensitivity::Normal);
+        let enabled = AtomicBool::new(true);
+        let adapter = VaultAdapter {
+            vault: &env.vault,
+            owner: owner(),
+            input_event: input,
+            enabled: &enabled,
+            quota: Quota::default(),
+        };
+        let mut options = CallOptions::text(policy, 128);
+        options.streaming = true;
+        let call = adapter
+            .prepare_saved(api, &capsule, &caps, Limits::default(), options)
+            .unwrap();
+        let data_only = complete
+            .split_inclusive('\n')
+            .filter(|line| !line.starts_with("event:"))
+            .collect::<String>();
+        let http = FakeHttp {
+            calls: Cell::new(0),
+            bytes: framed(&data_only, 3, true),
+            fail: false,
+        };
+        let response = Client {
+            transport: &http,
+            secrets: &Secrets { missing: false },
+            guard: &adapter,
+            journal: &adapter,
+        }
+        .send(&call, &call.inspect().hash(), &NeverCancel)
+        .unwrap();
+        assert_eq!(response.text, expected);
+        assert_eq!(http.calls.get(), 1);
+        let row = adapter.invocations().unwrap().remove(0);
+        assert_eq!(row.state, InvocationState::Completed);
+        assert_eq!((row.input_tokens, row.output_tokens), (Some(100), Some(4)));
+        assert_eq!(
+            adapter
+                .saved_response(&row.dispatch_id)
+                .unwrap()
+                .unwrap()
+                .text,
+            expected
+        );
+        let before = env.vault.pin_current().unwrap();
+        assert!(!adapter.claim(&call).unwrap());
+        assert_eq!(env.vault.pin_current().unwrap(), before);
+        assert!(env.vault.verify(&before).unwrap().is_clean());
+    }
+    // Framing support does not relax the existing event allocation ceiling.
+    let mut decoder = Decoder::new(Api::OpenAiResponses);
+    assert_eq!(
+        decoder
+            .push(
+                &vec![b'x'; enouia_memory_provider::stream::MAX_EVENT_BYTES + 1],
+                &mut |_| Ok(())
+            )
+            .unwrap_err()
+            .code,
+        MemoryErrorCode::BudgetExceeded
+    );
+    assert!(decoder.finish().is_err());
+}

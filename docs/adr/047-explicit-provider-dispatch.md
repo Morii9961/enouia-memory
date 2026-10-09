@@ -37,6 +37,8 @@ Failed/cancelled streams retain the last validated normalized usage through `Dec
 
 Native response-head validation maps remote HTTP 401/403 to existing unauthenticated/permission-denied codes before reading any body. Other non-success statuses and invalid JSON/SSE media types retain the generic provider error; no ambiguous billing cause is inferred. The pure `HttpsTransport::validate_response_head` is shared with offline harnesses. A remote refusal remains one admitted failed attempt with retained reservation, unknown usage and no response-body storage or retry permission. Local pre-admission credential refusal is distinct. No Core, wire or storage shape is added.
 
+Incremental SSE framing accepts LF, CRLF and standalone CR across callback boundaries, stripping one stream-leading UTF-8 BOM without altering text characters. Final blank-line and Provider-terminal validation, byte ceilings, permanent failure latching and one-attempt rules remain. These are event-stream framing rules, not browser reconnect/redirect/retry semantics. No Core, wire or storage shape is added.
+
 ## Compatibility and remaining gates
 
 `SessionRecord.provider_invocations` and `extraction_jobs` are optional and omitted when empty, preserving existing Mock session serialization. Once populated, an older deny-unknown-fields Session reader cannot open them. Runtime must adopt the new Memory revision before enabling these native calls and must own cancellation/disable/lifecycle/UI integration. This change adds no page credential or HTTP command. There is no product Provider UI in this repository and no Runtime adoption evidence.

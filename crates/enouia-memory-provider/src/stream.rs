@@ -14,6 +14,8 @@ pub const MAX_EVENT_BYTES: usize = 1024 * 1024;
 pub struct Decoder {
     api: Api,
     line: Vec<u8>,
+    first_line: bool,
+    after_cr: bool,
     data: Vec<u8>,
     event: String,
     text: String,
@@ -32,6 +34,8 @@ impl Decoder {
         Self {
             api,
             line: vec![],
+            first_line: true,
+            after_cr: false,
             data: vec![],
             event: String::new(),
             text: String::new(),
@@ -71,12 +75,25 @@ impl Decoder {
         on_text: &mut dyn FnMut(&str) -> Result<()>,
     ) -> Result<()> {
         for byte in bytes {
-            if *byte == b'\n' {
-                self.line(on_text)?;
-            } else {
-                self.line.push(*byte);
-                if self.line.len() + self.data.len() > MAX_EVENT_BYTES {
-                    return Err(error(MemoryErrorCode::BudgetExceeded));
+            // CR terminates a line immediately. Suppress only its optional
+            // following LF, including when that LF arrives in another push.
+            if self.after_cr {
+                self.after_cr = false;
+                if *byte == b'\n' {
+                    continue;
+                }
+            }
+            match *byte {
+                b'\r' => {
+                    self.line(on_text)?;
+                    self.after_cr = true;
+                }
+                b'\n' => self.line(on_text)?,
+                _ => {
+                    self.line.push(*byte);
+                    if self.line.len() + self.data.len() > MAX_EVENT_BYTES {
+                        return Err(error(MemoryErrorCode::BudgetExceeded));
+                    }
                 }
             }
         }
@@ -84,7 +101,14 @@ impl Decoder {
     }
     fn line(&mut self, on_text: &mut dyn FnMut(&str) -> Result<()>) -> Result<()> {
         let raw = std::mem::take(&mut self.line);
-        let raw = raw.strip_suffix(b"\r").unwrap_or(&raw);
+        // A single leading UTF-8 BOM is framing, not part of the first field.
+        // Buffering the complete first line also handles a fragmented BOM.
+        let raw = if self.first_line {
+            self.first_line = false;
+            raw.strip_prefix(b"\xef\xbb\xbf").unwrap_or(&raw)
+        } else {
+            &raw
+        };
         if raw.is_empty() {
             if !self.data.is_empty() {
                 let data = std::mem::take(&mut self.data);
