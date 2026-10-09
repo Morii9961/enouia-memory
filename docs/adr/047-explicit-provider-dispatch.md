@@ -7,7 +7,7 @@ The owner authorized MV-7 functionality and deferred real smoke calls. This adds
 
 ## Native flow
 
-1. The native owner inspects and confirms a scoped standing policy with `policy::plan_grant` / `confirm`. Each destination fixes an API and model. Revocation follows the same plan/hash confirmation and advances the policy epoch.
+1. The native owner inspects and confirms a scoped standing policy with `policy::plan_grant` / `confirm`. The opaque expiring plan privately binds the original local Vault ID/root, owner, trusted surface and pinned history; a copied history cannot transplant that local confirmation. Physical paths never enter persisted/displayed policy bytes. Each destination fixes an API and model. Revocation follows the same plan/hash confirmation and advances the policy epoch.
 2. Governance `Decision::AcceptWithEgress` explicitly binds resulting canonical memory/identity to an existing grant in the displayed, hash-bound review plan. Ordinary approval leaves external use disabled. An existing memory can be bound through an owner revision proposal. A proposal cannot set egress metadata itself.
 3. Save the user input first. Compile a saved external capsule with `compile_for_destination`. Bind the actual API/model and retain source references and exclusion reasons. No external request is created by compilation.
 4. `VaultAdapter::prepare_saved` renders this capsule into the exact canonical HTTP body, with separate logical and wire hashes. The trusted surface displays this body, destination, output limit and reservation. Private data additionally needs a short-lived, single-use Egress approval for the exact request/resources. Highly sensitive content is denied.

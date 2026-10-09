@@ -142,6 +142,90 @@ fn grant_bindings(env: &Env, bindings: &[(Api, String)]) -> PolicyId {
     .unwrap();
     plan.policy_id().clone()
 }
+
+#[test]
+fn standing_policy_confirmation_is_bound_to_its_local_vault_even_for_identical_copies() {
+    use enouia_memory_provider::policy;
+    for revoke in [false, true] {
+        let original = Env::new("policy-plan-original");
+        let copy = Env::new("policy-plan-identical-copy");
+        let plan = if revoke {
+            let original_policy = grant(&original, Api::OpenAiResponses);
+            assert_eq!(original_policy, grant(&copy, Api::OpenAiResponses));
+            policy::plan_revoke(
+                &original.vault,
+                owner(),
+                TrustedSurface::TrustedLocalCli,
+                &original_policy,
+            )
+            .unwrap()
+        } else {
+            policy::plan_grant(
+                &original.vault,
+                owner(),
+                TrustedSurface::TrustedLocalCli,
+                ResourceSelector {
+                    all_projects: true,
+                    project_ids: vec![],
+                    record_kinds: vec![RecordKind::Memory, RecordKind::SessionEvent],
+                    max_sensitivity: Sensitivity::Normal,
+                },
+                vec![Purpose::Answer],
+                &[(Api::OpenAiResponses, "synthetic-model".into())],
+            )
+            .unwrap()
+        };
+        // Copies/restores can retain all logical IDs and the exact history.
+        // This synthetic pair intentionally reproduces that condition.
+        assert_eq!(
+            original.vault.descriptor().vault_id,
+            copy.vault.descriptor().vault_id
+        );
+        let original_pin = original.vault.pin_current().unwrap();
+        let copy_pin = copy.vault.pin_current().unwrap();
+        assert_eq!(original_pin, copy_pin);
+        assert_ne!(
+            original.vault.managed_root().root(),
+            copy.vault.managed_root().root()
+        );
+        let inspected = plan.hash();
+        assert_eq!(
+            policy::confirm(
+                &copy.vault,
+                &owner(),
+                TrustedSurface::TrustedLocalCli,
+                &plan,
+                &inspected,
+            )
+            .unwrap_err()
+            .code,
+            MemoryErrorCode::PermissionDenied
+        );
+        assert_eq!(copy.vault.pin_current().unwrap(), copy_pin);
+        assert_eq!(original.vault.pin_current().unwrap(), original_pin);
+        // Refusal against a copy must not consume the original confirmation.
+        policy::confirm(
+            &original.vault,
+            &owner(),
+            TrustedSurface::TrustedLocalCli,
+            &plan,
+            &inspected,
+        )
+        .unwrap();
+        let confirmed_pin = original.vault.pin_current().unwrap();
+        policy::confirm(
+            &original.vault,
+            &owner(),
+            TrustedSurface::TrustedLocalCli,
+            &plan,
+            &inspected,
+        )
+        .unwrap();
+        assert_eq!(original.vault.pin_current().unwrap(), confirmed_pin);
+        assert!(original.vault.verify(&confirmed_pin).unwrap().is_clean());
+        assert!(copy.vault.verify(&copy_pin).unwrap().is_clean());
+    }
+}
 fn setup(
     env: &Env,
     api: Api,

@@ -7,7 +7,7 @@ use enouia_memory_contract::{
     common::{ActorRef, ActorType, TrustedSurface},
     context::{DestinationKind, Purpose},
     hash::{Sha256Hex, sha256},
-    ids::{ApprovalId, CommitId, PolicyId},
+    ids::{ApprovalId, CommitId, PolicyId, VaultId},
     json::{Revision, SchemaVersion, canonical_bytes},
     policy::*,
     ports::{CommitOutcome, CommitPin, CommitRequest, IdempotencyScope, StagedRecord},
@@ -20,6 +20,8 @@ use enouia_memory_vault::Vault;
 pub struct PolicyPlan {
     owner: ActorRef,
     surface: TrustedSurface,
+    vault_id: VaultId,
+    root: std::path::PathBuf,
     pin: CommitPin,
     policy: PolicyRecord,
     bytes: Vec<u8>,
@@ -139,6 +141,8 @@ fn make_plan(
     Ok(PolicyPlan {
         owner,
         surface,
+        vault_id: vault.descriptor().vault_id.clone(),
+        root: vault.managed_root().root().to_path_buf(),
         pin: vault.pin_current().map_err(|e| e.error)?,
         policy,
         bytes,
@@ -156,7 +160,15 @@ pub fn confirm(
     inspected_hash: &Sha256Hex,
 ) -> Result<CommitOutcome> {
     owner(vault, actor)?;
-    if actor != &plan.owner || surface != plan.surface || inspected_hash != &plan.hash() {
+    // A restored/copied history may retain owner, Vault ID and CURRENT.
+    // Native inspection still authorizes only the local Vault it came from.
+    // This physical binding is private, never part of persisted policy bytes.
+    if actor != &plan.owner
+        || surface != plan.surface
+        || plan.vault_id != vault.descriptor().vault_id
+        || plan.root.as_path() != vault.managed_root().root()
+        || inspected_hash != &plan.hash()
+    {
         return Err(error(MemoryErrorCode::PermissionDenied));
     }
     let now = vault.now().map_err(|e| e.error)?;
