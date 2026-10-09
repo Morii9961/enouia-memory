@@ -47,6 +47,8 @@ The native owner selects exact source revisions/UTF-8 snippets, subject and budg
 
 Local application advances one candidate at a time. A paused job cannot publish against its pause snapshot; later changes fail the optimistic head precondition. Published proposal receipts survive a missing cursor update and are recovered without consuming backlog again or invoking HTTP. Identical previously reviewed claims against unchanged source bytes/evidence class are suppressed; new evidence may be reviewed. Source deletion with dependents erases even an undispatched extraction input. Large raw objects are refused before allocation. Native lifecycle cancellation and UI adoption remain the host's responsibility.
 
+Application binds the adapter to the job's original input before ready/paused/completed state handling, matching preparation and preview. A later input in the same Session cannot use the old job's candidate application or completed replay. Correctly bound pause/resume/progress and read-only completed replay remain unchanged; no Core, wire or storage shape is added.
+
 New jobs use `extract-text-2`, carrying source occurrence/capture time, precision, known/unknown branch and selected offsets without inventing time or branch relationships. Version-1 jobs remain valid and keep their saved input. The native read-only preview carries complete selected text and literal quote offsets, keeping model proposals separate from current owner-edited/reviewed candidates. It never approves, writes or sends. Qualification/quotation containment does not prove semantic truth.
 
 See [native usage](../integration/PROVIDERS.md), [implementation evidence](../validation/MV-7.md) and [Runtime compatibility](../integration/RUNTIME.md).

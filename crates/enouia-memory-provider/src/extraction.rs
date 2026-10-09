@@ -757,6 +757,9 @@ pub fn apply_next(adapter: &VaultAdapter<'_>, run: &ExtractionRunId) -> Result<E
         adapter.input_event.as_str(),
     )?;
     let current = job(adapter.vault, &adapter.owner, &input.session_id, run)?;
+    if current.input_event_id != adapter.input_event {
+        return Err(error(MemoryErrorCode::PermissionDenied));
+    }
     if current.state == ExtractionState::Completed {
         return Ok(current);
     }

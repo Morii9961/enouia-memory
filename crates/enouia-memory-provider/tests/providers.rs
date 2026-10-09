@@ -4728,3 +4728,147 @@ fn failed_or_cancelled_streams_keep_validated_usage_for_later_token_admission() 
         }
     }
 }
+
+#[test]
+fn extraction_application_requires_the_original_input_even_for_completed_replay() {
+    use enouia_memory_contract::{extraction::ExtractionState, record::RecordRef};
+    use enouia_memory_provider::extraction;
+    for api in [Api::OpenAiResponses, Api::AnthropicMessages] {
+        let env = Env::new("extraction-input-binding");
+        let options = extraction_options(extraction_source(&env), api);
+        let policy = grant(&env, api);
+        let (sid, run) = extraction::create(
+            &env.vault,
+            &owner(),
+            &env.policy(),
+            &options,
+            b"original-extraction-input",
+        )
+        .unwrap();
+        let job = extraction::job(&env.vault, &owner(), &sid, &run).unwrap();
+        let enabled = AtomicBool::new(true);
+        let adapter = VaultAdapter {
+            vault: &env.vault,
+            owner: owner(),
+            input_event: job.input_event_id.clone(),
+            enabled: &enabled,
+            quota: Quota::default(),
+        };
+        let (index, _) = enouia_memory_index::Index::rebuild(&env.vault).unwrap();
+        let caps = extraction_capabilities(&env, api);
+        let call = extraction::prepare(
+            &adapter,
+            &index,
+            &run,
+            &caps,
+            Limits::default(),
+            CallOptions::text(policy.clone(), 1024),
+        )
+        .unwrap();
+        let http = FakeHttp {
+            calls: Cell::new(0),
+            bytes: extraction_reply(api, false),
+            fail: false,
+        };
+        Client {
+            transport: &http,
+            secrets: &Secrets { missing: false },
+            guard: &adapter,
+            journal: &adapter,
+        }
+        .send(&call, &call.inspect().hash(), &NeverCancel)
+        .unwrap();
+        let pin = env.vault.pin_current().unwrap();
+        let enouia_memory_contract::record::AnyRecord::SessionEvent(input) = env
+            .vault
+            .read_parsed(
+                &pin,
+                &RecordRef::new(
+                    RecordKind::SessionEvent,
+                    job.input_event_id.as_str(),
+                    Revision::new(1).unwrap(),
+                ),
+            )
+            .unwrap()
+        else {
+            panic!("input")
+        };
+        let later_input = session::save_input(
+            &env.vault,
+            &owner(),
+            &sid,
+            &input.branch_id,
+            "同一会话中的另一个明确合成输入",
+            &RequestId::from_random(env.vault.random_id_bytes()),
+            b"later-extraction-input",
+        )
+        .unwrap()
+        .id;
+        let wrong = VaultAdapter {
+            input_event: later_input,
+            owner: adapter.owner.clone(),
+            ..adapter
+        };
+        drop(index);
+        let (index, _) = enouia_memory_index::Index::rebuild(&env.vault).unwrap();
+        let before = env.vault.pin_current().unwrap();
+        assert_eq!(
+            extraction::prepare(
+                &wrong,
+                &index,
+                &run,
+                &caps,
+                Limits::default(),
+                CallOptions::text(policy, 1024),
+            )
+            .err()
+            .unwrap()
+            .code,
+            MemoryErrorCode::PermissionDenied
+        );
+        assert_eq!(env.vault.pin_current().unwrap(), before);
+        for cursor in 0..=2 {
+            let current = extraction::job(&env.vault, &owner(), &sid, &run).unwrap();
+            assert_eq!(current.cursor, cursor);
+            let before = env.vault.pin_current().unwrap();
+            assert_eq!(
+                extraction::preview(&wrong, &run).unwrap_err().code,
+                MemoryErrorCode::PermissionDenied
+            );
+            assert_eq!(
+                extraction::apply_next(&wrong, &run).unwrap_err().code,
+                MemoryErrorCode::PermissionDenied
+            );
+            assert_eq!(env.vault.pin_current().unwrap(), before);
+            let shown = extraction::preview(&adapter, &run).unwrap();
+            assert_eq!(shown.job, current);
+            if cursor < 2 {
+                extraction::set_paused(&env.vault, &owner(), &sid, &run, true).unwrap();
+                let before = env.vault.pin_current().unwrap();
+                assert_eq!(
+                    extraction::apply_next(&wrong, &run).unwrap_err().code,
+                    MemoryErrorCode::PermissionDenied
+                );
+                assert_eq!(
+                    extraction::apply_next(&adapter, &run).unwrap_err().code,
+                    MemoryErrorCode::Cancelled
+                );
+                assert_eq!(env.vault.pin_current().unwrap(), before);
+                extraction::set_paused(&env.vault, &owner(), &sid, &run, false).unwrap();
+                let next = extraction::apply_next(&adapter, &run).unwrap();
+                assert_eq!(next.cursor, cursor + 1);
+            } else {
+                assert_eq!(current.state, ExtractionState::Completed);
+                assert_eq!(extraction::apply_next(&adapter, &run).unwrap(), current);
+                assert_eq!(env.vault.pin_current().unwrap(), before);
+            }
+        }
+        assert_eq!(http.calls.get(), 1);
+        assert!(
+            env.vault
+                .verify(&env.vault.pin_current().unwrap())
+                .unwrap()
+                .is_clean()
+        );
+    }
+}
