@@ -123,6 +123,14 @@ impl Decoder {
                 }
             }
             (Api::OpenAiResponses, "response.completed" | "response.incomplete") => {
+                let expected_status = if kind == "response.completed" {
+                    "completed"
+                } else {
+                    "incomplete"
+                };
+                if v["response"]["status"] != expected_status {
+                    return Err(error(MemoryErrorCode::ProviderUnavailable));
+                }
                 let bytes = serde_json::to_vec(&v["response"])
                     .map_err(|_| error(MemoryErrorCode::ProviderUnavailable))?;
                 let answer = decode(self.api, &bytes)?;

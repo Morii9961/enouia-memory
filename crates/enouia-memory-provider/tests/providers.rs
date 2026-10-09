@@ -4114,3 +4114,149 @@ fn extraction_pause_controls_pin_the_job_before_source_validation() {
         );
     }
 }
+#[test]
+fn openai_terminal_event_and_response_status_must_agree_before_publication() {
+    use enouia_memory_contract::{provider::FinishReason, session::EventKind};
+    for completed in [true, false] {
+        let api = Api::OpenAiResponses;
+        let mut response: serde_json::Value = serde_json::from_slice(&reply(api)).unwrap();
+        if !completed {
+            response["status"] = json!("incomplete");
+            response["incomplete_details"] = json!({"reason":"max_output_tokens"});
+        }
+        let response_bytes = serde_json::to_vec(&response).unwrap();
+        assert_eq!(
+            enouia_memory_provider::codec::decode(api, &response_bytes)
+                .unwrap()
+                .finish,
+            if completed {
+                FinishReason::Completed
+            } else {
+                FinishReason::Length
+            }
+        );
+        let delta = json!({"type":"response.output_text.delta","delta":"合成答复"});
+        let wrong_terminal = json!({
+            "type":if completed {"response.incomplete"} else {"response.completed"},
+            "response":response,
+        });
+        let bytes = format!("data: {delta}\n\ndata: {wrong_terminal}\n\n").into_bytes();
+        let mut decoder = Decoder::new(api);
+        let mut partial = String::new();
+        assert_eq!(
+            decoder
+                .push(&bytes, &mut |text| {
+                    partial.push_str(text);
+                    Ok(())
+                })
+                .unwrap_err()
+                .code,
+            MemoryErrorCode::ProviderUnavailable
+        );
+        assert_eq!(partial, "合成答复");
+        let correct_terminal = json!({
+            "type":if completed {"response.completed"} else {"response.incomplete"},
+            "response":response,
+        });
+        assert!(
+            decoder
+                .push(
+                    format!("data: {correct_terminal}\n\n").as_bytes(),
+                    &mut |_| Ok(())
+                )
+                .is_err()
+        );
+        assert!(decoder.finish().is_err());
+
+        let env = Env::new("openai-terminal-status");
+        let (capsule, input, policy, caps) = setup(&env, api, Sensitivity::Normal);
+        let enabled = AtomicBool::new(true);
+        let adapter = VaultAdapter {
+            vault: &env.vault,
+            owner: owner(),
+            input_event: input.clone(),
+            enabled: &enabled,
+            quota: Quota::default(),
+        };
+        let mut options = CallOptions::text(policy, 128);
+        options.streaming = true;
+        let call = adapter
+            .prepare_saved(api, &capsule, &caps, Limits::default(), options)
+            .unwrap();
+        let http = FakeHttp {
+            calls: Cell::new(0),
+            bytes,
+            fail: false,
+        };
+        let client = Client {
+            transport: &http,
+            secrets: &Secrets { missing: false },
+            guard: &adapter,
+            journal: &adapter,
+        };
+        assert_eq!(
+            client
+                .send(&call, &call.inspect().hash(), &NeverCancel)
+                .unwrap_err()
+                .code,
+            MemoryErrorCode::ProviderUnavailable
+        );
+        let row = adapter.invocations().unwrap().remove(0);
+        assert_eq!(row.state, InvocationState::Failed);
+        assert_eq!(row.error_code, Some(MemoryErrorCode::ProviderUnavailable));
+        assert!(adapter.saved_response(&row.dispatch_id).unwrap().is_none());
+        let pin = env.vault.pin_current().unwrap();
+        let entry = env
+            .vault
+            .record_entry(&pin, RecordKind::SessionEvent, input.as_str())
+            .unwrap()
+            .unwrap();
+        let event: enouia_memory_contract::session::SessionEvent =
+            enouia_memory_contract::record::parse_record(
+                &env.vault
+                    .read_record(
+                        &pin,
+                        &enouia_memory_contract::record::RecordRef::new(
+                            RecordKind::SessionEvent,
+                            input.as_str(),
+                            entry.revision,
+                        ),
+                    )
+                    .unwrap(),
+            )
+            .unwrap();
+        let events =
+            session::events(&env.vault, &pin, &event.session_id, &event.branch_id).unwrap();
+        assert_eq!(
+            events
+                .iter()
+                .filter(|e| e.kind == EventKind::AssistantCompleted)
+                .count(),
+            0
+        );
+        assert_eq!(
+            events
+                .iter()
+                .filter(|e| e.kind == EventKind::TurnFailed)
+                .count(),
+            1
+        );
+        let chunks: Vec<_> = events
+            .iter()
+            .filter(|e| e.kind == EventKind::AssistantChunk)
+            .collect();
+        assert_eq!(chunks.len(), 1);
+        assert_eq!(
+            session::text(&env.vault, &pin, chunks[0]).unwrap(),
+            "合成答复"
+        );
+        assert!(
+            client
+                .send(&call, &call.inspect().hash(), &NeverCancel)
+                .is_err()
+        );
+        assert_eq!(http.calls.get(), 1);
+        assert_eq!(env.vault.pin_current().unwrap(), pin);
+        assert!(env.vault.verify(&pin).unwrap().is_clean());
+    }
+}
