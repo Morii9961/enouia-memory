@@ -19,6 +19,7 @@ pub struct Decoder {
     text: String,
     terminal: Option<ProviderResponse>,
     usage: Value,
+    observed_usage: (Option<u64>, Option<u64>),
     stop: Option<String>,
     started: bool,
     next_block: u64,
@@ -36,6 +37,7 @@ impl Decoder {
             text: String::new(),
             terminal: None,
             usage: json!({}),
+            observed_usage: (None, None),
             stop: None,
             started: false,
             next_block: 0,
@@ -43,6 +45,11 @@ impl Decoder {
             message_deltas_started: false,
             failure: None,
         }
+    }
+    /// Last fully validated reported counters, even when the stream fails.
+    /// These may be partial usage; they do not establish a terminal response.
+    pub fn observed_usage(&self) -> (Option<u64>, Option<u64>) {
+        self.observed_usage
     }
     pub fn push(
         &mut self,
@@ -138,6 +145,7 @@ impl Decoder {
                 if answer.text != self.text {
                     return Err(error(MemoryErrorCode::ProviderUnavailable));
                 }
+                self.observed_usage = (answer.input_tokens, answer.output_tokens);
                 self.terminal = Some(answer);
             }
             (Api::OpenAiResponses, "error" | "response.failed")
@@ -152,12 +160,13 @@ impl Decoder {
                     return Err(error(MemoryErrorCode::ProviderUnavailable));
                 }
                 let usage = v["message"]["usage"].clone();
-                decode_usage(self.api, &usage)?;
+                let normalized = decode_usage(self.api, &usage)?;
                 self.started = true;
                 // Missing/null usage is unknown, but the mutable running
                 // accumulator must always be an object, never external data
                 // such as an array/string that would panic on key assignment.
                 self.usage = if usage.is_null() { json!({}) } else { usage };
+                self.observed_usage = normalized;
             }
             (Api::AnthropicMessages, "content_block_start") => {
                 if !self.started
@@ -232,8 +241,9 @@ impl Decoder {
                         merged[key] = tokens.clone();
                     }
                 }
-                decode_usage(self.api, &merged)?;
+                let normalized = decode_usage(self.api, &merged)?;
                 self.usage = merged;
+                self.observed_usage = normalized;
             }
             (Api::AnthropicMessages, "message_stop") => {
                 if !self.started || self.open_block.is_some() {

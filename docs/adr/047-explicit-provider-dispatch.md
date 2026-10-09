@@ -33,6 +33,8 @@ Native HTTPS also has a side-effect-free execution-context preflight. `Client` c
 
 Local transport secret validation runs after reading credentials but before audit/admission. Native HTTPS's existing text/size/control-byte rules return nonretryable `Unauthenticated` without consuming approval, reservation or attempt; direct exchange validates before runtime creation. The default allows opaque credentials for custom transports. This does not verify account access or change any key-prefix assumption, credential-store record or request wire shape.
 
+Failed/cancelled streams retain the last validated normalized usage through `Decoder::observed_usage` and the default-compatible `InvocationJournal::finish_failure` hook. The native Vault journal saves these nullable counters atomically with the failure using existing terminal metadata, so later token admission cannot omit a known overrun merely because the stream ended unsuccessfully. Invalid later metadata does not overwrite the last valid report; counters are partial when no valid terminal was received, and missing values stay unknown. Completion, immutable reservation floors, monetary admission and one-attempt rules are unchanged. No Core, wire or storage shape is added.
+
 ## Compatibility and remaining gates
 
 `SessionRecord.provider_invocations` and `extraction_jobs` are optional and omitted when empty, preserving existing Mock session serialization. Once populated, an older deny-unknown-fields Session reader cannot open them. Runtime must adopt the new Memory revision before enabling these native calls and must own cancellation/disable/lifecycle/UI integration. This change adds no page credential or HTTP command. There is no product Provider UI in this repository and no Runtime adoption evidence.

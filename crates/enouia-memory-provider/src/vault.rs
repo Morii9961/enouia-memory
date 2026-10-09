@@ -1022,4 +1022,36 @@ impl InvocationJournal for VaultAdapter<'_> {
         .map_err(|e| e.error)?;
         Ok(())
     }
+    fn finish_failure(
+        &self,
+        dispatch: &DispatchRecord,
+        failure: MemoryError,
+        input_tokens: Option<u64>,
+        output_tokens: Option<u64>,
+    ) -> Result<()> {
+        self.owner_check()?;
+        let (state, kind) = if failure.code == MemoryErrorCode::Cancelled {
+            (InvocationState::Cancelled, EventKind::TurnCancelled)
+        } else {
+            (InvocationState::Failed, EventKind::TurnFailed)
+        };
+        session::append_invocation_output(
+            self.vault,
+            &self.owner,
+            &self.input_event,
+            kind,
+            None,
+            format!("provider-terminal:{}", dispatch.dispatch_id).as_bytes(),
+            None,
+            &session::InvocationCompletion {
+                dispatch_id: dispatch.dispatch_id.clone(),
+                state,
+                input_tokens,
+                output_tokens,
+                error_code: Some(failure.code),
+            },
+        )
+        .map_err(|e| e.error)?;
+        Ok(())
+    }
 }

@@ -4495,3 +4495,236 @@ fn malformed_native_credentials_do_not_consume_private_approval_or_admission() {
         );
     }
 }
+
+#[test]
+fn failed_or_cancelled_streams_keep_validated_usage_for_later_token_admission() {
+    struct Stop(Cell<bool>);
+    impl Cancellation for Stop {
+        fn is_cancelled(&self) -> bool {
+            self.0.get()
+        }
+    }
+    struct PrefixHttp<'a> {
+        bytes: Vec<u8>,
+        mode: &'static str,
+        stop: &'a Stop,
+    }
+    impl Transport for PrefixHttp<'_> {
+        fn exchange(
+            &self,
+            _: &WireRequest,
+            _: &SecretBytes,
+            _: &dyn Cancellation,
+            _: Duration,
+            sink: &mut dyn FnMut(&[u8]) -> Result<()>,
+        ) -> Result<()> {
+            for chunk in self.bytes.chunks(3) {
+                sink(chunk)?;
+            }
+            if self.mode == "cancel" {
+                self.stop.0.set(true);
+            }
+            if self.mode == "eof" {
+                return Err(enouia_memory_contract::MemoryError::new(
+                    MemoryErrorCode::ProviderUnavailable,
+                    enouia_memory_contract::foundation::ComponentId::Provider,
+                ));
+            }
+            Ok(())
+        }
+    }
+    for api in [Api::OpenAiResponses, Api::AnthropicMessages] {
+        for mode in ["eof", "cancel", "malformed"] {
+            let env = Env::new("failed-stream-usage");
+            let (capsule, input, policy, caps) = setup(&env, api, Sensitivity::Normal);
+            let enabled = AtomicBool::new(true);
+            let adapter = VaultAdapter {
+                vault: &env.vault,
+                owner: owner(),
+                input_event: input.clone(),
+                enabled: &enabled,
+                quota: Quota::default(),
+            };
+            let mut options = CallOptions::text(policy.clone(), 128);
+            options.streaming = true;
+            let call = adapter
+                .prepare_saved(api, &capsule, &caps, Limits::default(), options)
+                .unwrap();
+            let mut events = match api {
+                Api::OpenAiResponses => {
+                    let mut terminal: serde_json::Value =
+                        serde_json::from_slice(&reply(api)).unwrap();
+                    terminal["usage"] = json!({"input_tokens":5000,"output_tokens":1000});
+                    vec![
+                        json!({"type":"response.output_text.delta","delta":"合成答复"}),
+                        json!({"type":"response.completed","response":terminal}),
+                    ]
+                }
+                Api::AnthropicMessages => vec![
+                    json!({"type":"message_start","message":{"type":"message","role":"assistant","usage":{"input_tokens":5000,"cache_creation_input_tokens":2,"cache_read_input_tokens":3,"output_tokens":0}}}),
+                    json!({"type":"content_block_start","index":0,"content_block":{"type":"text","text":"合成答复"}}),
+                    json!({"type":"content_block_stop","index":0}),
+                    json!({"type":"message_delta","delta":{"stop_reason":"end_turn"},"usage":{"output_tokens":1000}}),
+                ],
+            };
+            if mode == "malformed" {
+                events.push(match api {
+                    Api::OpenAiResponses => json!({"type":"error"}),
+                    Api::AnthropicMessages => json!({"type":"message_delta","delta":{},"usage":{"output_tokens":"invalid"}}),
+                });
+            }
+            let stop = Stop(Cell::new(false));
+            let http = PrefixHttp {
+                bytes: events
+                    .iter()
+                    .map(|event| format!("data: {event}\n\n"))
+                    .collect::<String>()
+                    .into_bytes(),
+                mode,
+                stop: &stop,
+            };
+            let failure = Client {
+                transport: &http,
+                secrets: &Secrets { missing: false },
+                guard: &adapter,
+                journal: &adapter,
+            }
+            .send(&call, &call.inspect().hash(), &stop)
+            .unwrap_err();
+            assert_eq!(
+                failure.code,
+                if mode == "cancel" {
+                    MemoryErrorCode::Cancelled
+                } else {
+                    MemoryErrorCode::ProviderUnavailable
+                }
+            );
+            assert!(!failure.retryable);
+            let row = adapter.invocations().unwrap().remove(0);
+            assert_eq!(
+                row.state,
+                if mode == "cancel" {
+                    InvocationState::Cancelled
+                } else {
+                    InvocationState::Failed
+                }
+            );
+            assert_eq!(row.error_code, Some(failure.code));
+            let known_input = if api == Api::OpenAiResponses {
+                5000
+            } else {
+                5005
+            };
+            assert_eq!(row.input_tokens, Some(known_input));
+            assert_eq!(row.output_tokens, Some(1000));
+            assert!(row.reserved_tokens < known_input + 1000);
+            assert!(adapter.saved_response(&row.dispatch_id).unwrap().is_none());
+            assert!(!adapter.claim(&call).unwrap());
+            let pin = env.vault.pin_current().unwrap();
+            adapter
+                .finish_failure(call.dispatch(), failure, Some(known_input), Some(1000))
+                .unwrap();
+            assert_eq!(env.vault.pin_current().unwrap(), pin);
+            assert_eq!(
+                adapter
+                    .finish_failure(call.dispatch(), failure, Some(known_input + 1), Some(1000))
+                    .unwrap_err()
+                    .code,
+                MemoryErrorCode::IdempotencyConflict
+            );
+            assert_eq!(env.vault.pin_current().unwrap(), pin);
+            let entry = env
+                .vault
+                .record_entry(&pin, RecordKind::SessionEvent, input.as_str())
+                .unwrap()
+                .unwrap();
+            let event: enouia_memory_contract::session::SessionEvent =
+                enouia_memory_contract::record::parse_record(
+                    &env.vault
+                        .read_record(
+                            &pin,
+                            &enouia_memory_contract::record::RecordRef::new(
+                                RecordKind::SessionEvent,
+                                input.as_str(),
+                                entry.revision,
+                            ),
+                        )
+                        .unwrap(),
+                )
+                .unwrap();
+            let events =
+                session::events(&env.vault, &pin, &event.session_id, &event.branch_id).unwrap();
+            assert!(events.iter().any(|e| e.kind
+                == enouia_memory_contract::session::EventKind::AssistantChunk
+                && session::text(&env.vault, &pin, e).unwrap() == "合成答复"));
+            let mut compile = CompileInput::local(
+                "新的明确合成输入",
+                owner(),
+                RequestId::from_random(env.vault.random_id_bytes()),
+            );
+            compile.session_id = Some(event.session_id.clone());
+            compile.branch_id = Some(event.branch_id.clone());
+            let next_input = session::save_input(
+                &env.vault,
+                &owner(),
+                &event.session_id,
+                &event.branch_id,
+                &compile.query,
+                &compile.request_id,
+                b"after-failed-stream",
+            )
+            .unwrap()
+            .id;
+            let (index, _) = enouia_memory_index::Index::rebuild(&env.vault).unwrap();
+            let next_capsule = compiler::compile_for_destination(
+                &env.vault,
+                &index,
+                &compile,
+                &Destination {
+                    kind: DestinationKind::ExternalProvider,
+                    provider_binding: Some(caps.binding.clone()),
+                },
+            )
+            .unwrap();
+            let mut next = VaultAdapter {
+                input_event: next_input,
+                ..adapter
+            };
+            let next_call = next
+                .prepare_saved(
+                    api,
+                    &next_capsule.capsule.capsule_id,
+                    &caps,
+                    Limits::default(),
+                    CallOptions::text(policy, 128),
+                )
+                .unwrap();
+            // The old reservation alone would allow this ceiling. Known
+            // reported usage, including a failed/cancelled prefix, must not.
+            next.quota.max_reserved_tokens = row.reserved_tokens
+                + next_call.estimated_input_tokens()
+                + next_call.dispatch().output.max_output_tokens;
+            let never_sent = FakeHttp {
+                calls: Cell::new(0),
+                bytes: reply(api),
+                fail: false,
+            };
+            let before = env.vault.pin_current().unwrap();
+            assert_eq!(
+                Client {
+                    transport: &never_sent,
+                    secrets: &Secrets { missing: false },
+                    guard: &next,
+                    journal: &next
+                }
+                .send(&next_call, &next_call.inspect().hash(), &NeverCancel)
+                .unwrap_err()
+                .code,
+                MemoryErrorCode::BudgetExceeded
+            );
+            assert_eq!(never_sent.calls.get(), 0);
+            assert_eq!(env.vault.pin_current().unwrap(), before);
+            assert!(env.vault.verify(&before).unwrap().is_clean());
+        }
+    }
+}

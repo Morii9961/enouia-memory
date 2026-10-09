@@ -116,6 +116,18 @@ pub trait InvocationJournal {
         response: Option<&ProviderResponse>,
         failure: Option<MemoryError>,
     ) -> Result<()>;
+    /// Persist known streaming usage with a failure. Custom journals retain
+    /// their existing behavior by default; VaultAdapter records these counters
+    /// atomically with the failed/cancelled outcome for later token admission.
+    fn finish_failure(
+        &self,
+        dispatch: &DispatchRecord,
+        failure: MemoryError,
+        _input_tokens: Option<u64>,
+        _output_tokens: Option<u64>,
+    ) -> Result<()> {
+        self.finish(dispatch, None, Some(failure))
+    }
 }
 
 pub struct Client<'a> {
@@ -162,7 +174,7 @@ impl Client<'_> {
         let mut total = 0usize;
         let mut sequence = 0;
         let mut decoder = Decoder::new(call.wire.api);
-        let result = (|| {
+        let received = (|| {
             self.guard.check(&call.dispatch, false)?;
             if cancellation.is_cancelled() {
                 return Err(error(MemoryErrorCode::Cancelled));
@@ -198,12 +210,16 @@ impl Client<'_> {
                 return Err(error(MemoryErrorCode::Cancelled));
             }
             self.guard.check(&call.dispatch, false)?;
+            Ok(())
+        })();
+        let (input_tokens, output_tokens) = decoder.observed_usage();
+        let result = received.and_then(|()| {
             if call.wire.streaming {
                 decoder.finish()
             } else {
                 decode(call.wire.api, &body)
             }
-        })();
+        });
         match result {
             Ok(response) => {
                 self.journal.finish(&call.dispatch, Some(&response), None)?;
@@ -213,7 +229,8 @@ impl Client<'_> {
             Err(mut err) => {
                 // A retryable transport error does not authorize an egress retry.
                 err.retryable = false;
-                self.journal.finish(&call.dispatch, None, Some(err))?;
+                self.journal
+                    .finish_failure(&call.dispatch, err, input_tokens, output_tokens)?;
                 Err(err)
             }
         }
