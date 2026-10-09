@@ -1260,6 +1260,61 @@ fn anthropic_multiple_top_level_deltas_keep_stop_reason_and_cumulative_usage() {
     assert_eq!(response.output_tokens, Some(6));
 }
 #[test]
+fn anthropic_cumulative_usage_never_regresses_or_recovers_after_a_conflict() {
+    for field in [
+        "input_tokens",
+        "cache_creation_input_tokens",
+        "cache_read_input_tokens",
+        "output_tokens",
+    ] {
+        let mut decoder = Decoder::new(Api::AnthropicMessages);
+        let start = json!({"type":"message_start","message":{"type":"message","role":"assistant","usage":{"input_tokens":5000,"cache_creation_input_tokens":2,"cache_read_input_tokens":3,"output_tokens":0}}});
+        let known = json!({"type":"message_delta","delta":{},"usage":{"output_tokens":1000}});
+        for event in [&start, &known, &known] {
+            let bytes = format!("data: {event}\n\n");
+            for byte in bytes.as_bytes() {
+                decoder.push(&[*byte], &mut |_| Ok(())).unwrap();
+            }
+        }
+        assert_eq!(decoder.observed_usage(), (Some(5005), Some(1000)));
+        let previous = match field {
+            "input_tokens" => 5000,
+            "cache_creation_input_tokens" => 2,
+            "cache_read_input_tokens" => 3,
+            "output_tokens" => 1000,
+            _ => unreachable!(),
+        };
+        let mut usage = json!({});
+        usage[field] = json!(previous - 1);
+        // A rising total must not mask a falling component.
+        if field == "cache_creation_input_tokens" {
+            usage["input_tokens"] = json!(5001);
+        }
+        let conflict =
+            json!({"type":"message_delta","delta":{"stop_reason":"end_turn"},"usage":usage});
+        assert_eq!(
+            decoder
+                .push(format!("data: {conflict}\n\n").as_bytes(), &mut |_| Ok(()))
+                .unwrap_err()
+                .code,
+            MemoryErrorCode::ProviderUnavailable
+        );
+        assert_eq!(decoder.observed_usage(), (Some(5005), Some(1000)));
+        let corrected = json!({"type":"message_delta","delta":{"stop_reason":"end_turn"},"usage":{"input_tokens":5001,"cache_creation_input_tokens":3,"cache_read_input_tokens":4,"output_tokens":1001}});
+        assert!(
+            decoder
+                .push(
+                    format!("data: {corrected}\n\ndata: {{\"type\":\"message_stop\"}}\n\n")
+                        .as_bytes(),
+                    &mut |_| Ok(())
+                )
+                .is_err()
+        );
+        assert_eq!(decoder.observed_usage(), (Some(5005), Some(1000)));
+        assert!(decoder.finish().is_err());
+    }
+}
+#[test]
 fn fragmented_sse_preserves_utf8_and_rejects_missing_terminal() {
     let body = format!(
         "event: response.output_text.delta\r\ndata: {}\r\n\r\nevent: response.completed\ndata: {}\n\n",
@@ -4534,7 +4589,18 @@ fn failed_or_cancelled_streams_keep_validated_usage_for_later_token_admission() 
         }
     }
     for api in [Api::OpenAiResponses, Api::AnthropicMessages] {
-        for mode in ["eof", "cancel", "malformed"] {
+        for mode in [
+            "eof",
+            "cancel",
+            "malformed",
+            "input_tokens",
+            "output_tokens",
+            "cache_creation_input_tokens",
+            "cache_read_input_tokens",
+        ] {
+            if api != Api::AnthropicMessages && mode.ends_with("tokens") {
+                continue;
+            }
             let env = Env::new("failed-stream-usage");
             let (capsule, input, policy, caps) = setup(&env, api, Sensitivity::Normal);
             let enabled = AtomicBool::new(true);
@@ -4572,6 +4638,22 @@ fn failed_or_cancelled_streams_keep_validated_usage_for_later_token_admission() 
                     Api::OpenAiResponses => json!({"type":"error"}),
                     Api::AnthropicMessages => json!({"type":"message_delta","delta":{},"usage":{"output_tokens":"invalid"}}),
                 });
+            }
+            if mode.ends_with("tokens") {
+                let previous = match mode {
+                    "input_tokens" => 5000,
+                    "output_tokens" => 1000,
+                    "cache_creation_input_tokens" => 2,
+                    "cache_read_input_tokens" => 3,
+                    _ => unreachable!(),
+                };
+                let mut usage = json!({});
+                usage[mode] = json!(previous - 1);
+                if mode == "cache_creation_input_tokens" {
+                    usage["input_tokens"] = json!(5001);
+                }
+                events.push(json!({"type":"message_delta","delta":{},"usage":usage}));
+                events.push(json!({"type":"message_stop"}));
             }
             let stop = Stop(Cell::new(false));
             let http = PrefixHttp {

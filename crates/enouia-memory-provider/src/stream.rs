@@ -262,6 +262,16 @@ impl Decoder {
                     "cache_read_input_tokens",
                 ] {
                     if let Some(tokens) = v["usage"].get(key).filter(|tokens| !tokens.is_null()) {
+                        // These are cumulative counters, not adjustments.
+                        // Refuse a smaller component even if another rises;
+                        // keep the last validated tuple for failure admission.
+                        if merged[key]
+                            .as_u64()
+                            .zip(tokens.as_u64())
+                            .is_some_and(|(known, next)| next < known)
+                        {
+                            return Err(error(MemoryErrorCode::ProviderUnavailable));
+                        }
                         merged[key] = tokens.clone();
                     }
                 }
