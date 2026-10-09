@@ -4380,3 +4380,118 @@ fn native_http_context_refuses_before_secret_read_or_admission() {
         );
     }
 }
+#[test]
+fn malformed_native_credentials_do_not_consume_private_approval_or_admission() {
+    struct FixedSecret(Vec<u8>);
+    impl SecretStore for FixedSecret {
+        fn read(&self, _: &str) -> Result<SecretBytes> {
+            Ok(SecretBytes::new(self.0.clone()))
+        }
+    }
+    for api in [Api::OpenAiResponses, Api::AnthropicMessages] {
+        let env = Env::new("credential-shape-preflight");
+        let (capsule, input, policy, caps) = setup(&env, api, Sensitivity::Private);
+        let enabled = AtomicBool::new(true);
+        let adapter = VaultAdapter {
+            vault: &env.vault,
+            owner: owner(),
+            input_event: input,
+            enabled: &enabled,
+            quota: Quota::default(),
+        };
+        let prepared = adapter
+            .prepare_saved(
+                api,
+                &capsule,
+                &caps,
+                Limits::default(),
+                CallOptions::text(policy, 128),
+            )
+            .unwrap();
+        let inspected = prepared.inspect().hash();
+        let call = adapter
+            .approve(
+                prepared,
+                &inspected,
+                TrustedSurface::TrustedLocalCli,
+                "credential-shape-confirmation",
+            )
+            .unwrap();
+        let before = env.vault.pin_current().unwrap();
+        let native = enouia_memory_provider::transport::HttpsTransport;
+        // Every shape is already refused by native HTTP before builder.send,
+        // independently of whether Client validates it before admission.
+        for secret in [
+            vec![],
+            vec![0xff],
+            b"synthetic\r\ncredential".to_vec(),
+            vec![0],
+            vec![0x7f],
+            vec![b'x'; 4097],
+        ] {
+            let store = FixedSecret(secret.clone());
+            let client = Client {
+                transport: &native,
+                secrets: &store,
+                guard: &adapter,
+                journal: &adapter,
+            };
+            let failure = client.send(&call, &inspected, &NeverCancel).unwrap_err();
+            assert_eq!(failure.code, MemoryErrorCode::Unauthenticated);
+            assert!(!failure.retryable);
+            assert!(adapter.invocations().unwrap().is_empty());
+            assert_eq!(env.vault.pin_current().unwrap(), before);
+            let mut delivered = false;
+            assert_eq!(
+                native
+                    .exchange(
+                        call.inspect(),
+                        &SecretBytes::new(secret),
+                        &NeverCancel,
+                        Duration::from_secs(1),
+                        &mut |_| {
+                            delivered = true;
+                            Ok(())
+                        }
+                    )
+                    .unwrap_err()
+                    .code,
+                MemoryErrorCode::Unauthenticated
+            );
+            assert!(!delivered);
+            assert_eq!(env.vault.pin_current().unwrap(), before);
+        }
+        // A custom transport can support opaque/binary secret bytes. Its
+        // default local validation must not inherit native HTTP's text rules.
+        let binary_store = FixedSecret(vec![0xff]);
+        let fake = FakeHttp {
+            calls: Cell::new(0),
+            bytes: reply(api),
+            fail: false,
+        };
+        let fake_client = Client {
+            transport: &fake,
+            secrets: &binary_store,
+            guard: &adapter,
+            journal: &adapter,
+        };
+        assert_eq!(
+            fake_client
+                .send(&call, &inspected, &NeverCancel)
+                .unwrap()
+                .text,
+            "合成答复"
+        );
+        assert_eq!(fake.calls.get(), 1);
+        let row = adapter.invocations().unwrap().remove(0);
+        assert_eq!(row.state, InvocationState::Completed);
+        assert_eq!(row.dispatch_id, call.dispatch().dispatch_id);
+        assert!(!adapter.claim(&call).unwrap());
+        assert!(
+            env.vault
+                .verify(&env.vault.pin_current().unwrap())
+                .unwrap()
+                .is_clean()
+        );
+    }
+}

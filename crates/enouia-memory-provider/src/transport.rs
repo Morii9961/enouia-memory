@@ -8,10 +8,27 @@ use crate::{
 use enouia_memory_contract::{MemoryErrorCode, foundation::Cancellation, ports::SecretBytes};
 use std::time::Duration;
 
+fn credential_text(secret: &SecretBytes) -> Result<&str> {
+    let credential = std::str::from_utf8(secret.expose())
+        .map_err(|_| error(MemoryErrorCode::Unauthenticated))?;
+    if credential.is_empty()
+        || credential.len() > 4096
+        || credential.bytes().any(|b| b.is_ascii_control())
+    {
+        return Err(error(MemoryErrorCode::Unauthenticated));
+    }
+    Ok(credential)
+}
+
 pub trait Transport {
     /// Local execution-context validation only: no HTTP, credential reads or
     /// admission side effects. Existing/custom transports default to allowed.
     fn preflight(&self) -> Result<()> {
+        Ok(())
+    }
+    /// Local secret-shape validation only. Never retain/log the bytes or
+    /// contact a server. Custom protocols can keep opaque/binary credentials.
+    fn validate_secret(&self, _secret: &SecretBytes) -> Result<()> {
         Ok(())
     }
     fn exchange(
@@ -36,6 +53,9 @@ impl Transport for HttpsTransport {
         }
         Ok(())
     }
+    fn validate_secret(&self, secret: &SecretBytes) -> Result<()> {
+        credential_text(secret).map(|_| ())
+    }
     fn exchange(
         &self,
         request: &WireRequest,
@@ -51,6 +71,7 @@ impl Transport for HttpsTransport {
             return Err(error(MemoryErrorCode::InvalidRequest));
         }
         self.preflight()?;
+        let credential = credential_text(secret)?;
         let runtime = tokio::runtime::Builder::new_current_thread()
             .enable_all()
             .build()
@@ -62,10 +83,6 @@ impl Transport for HttpsTransport {
                 .redirect(reqwest::redirect::Policy::none()).retry(reqwest::retry::never())
                 .timeout(timeout).connect_timeout(timeout.min(Duration::from_secs(15)))
                 .build().map_err(|_| error(MemoryErrorCode::ProviderUnavailable))?;
-            let credential = std::str::from_utf8(secret.expose()).map_err(|_| error(MemoryErrorCode::Unauthenticated))?;
-            if credential.is_empty() || credential.len() > 4096 || credential.bytes().any(|b| b.is_ascii_control()) {
-                return Err(error(MemoryErrorCode::Unauthenticated));
-            }
             let mut header = reqwest::header::HeaderValue::from_str(&match request.api {
                 Api::OpenAiResponses => format!("Bearer {credential}"),
                 Api::AnthropicMessages => credential.to_owned(),

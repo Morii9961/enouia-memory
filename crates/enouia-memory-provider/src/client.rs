@@ -146,6 +146,7 @@ impl Client<'_> {
             Api::OpenAiResponses => "Enouia.Memory.Provider.openai",
             Api::AnthropicMessages => "Enouia.Memory.Provider.anthropic",
         })?;
+        self.transport.validate_secret(&secret)?;
         // No state is consumed by a missing credential. Admission failures,
         // audit failures and retry races cannot escape this send boundary.
         if cancellation.is_cancelled() {

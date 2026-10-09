@@ -31,6 +31,8 @@ OpenAI terminal SSE kinds must agree with their nested response status before de
 
 Native HTTPS also has a side-effect-free execution-context preflight. `Client` checks it before credentials/admission; direct transport calls check it before runtime creation. Any entered Tokio context is conservatively refused with nonretryable `InvalidRequest`, preserving the dedicated native-thread requirement without nested-runtime panics or consumed admission/approval. Custom transports default to an allowed preflight. No Core, wire or storage surface is added.
 
+Local transport secret validation runs after reading credentials but before audit/admission. Native HTTPS's existing text/size/control-byte rules return nonretryable `Unauthenticated` without consuming approval, reservation or attempt; direct exchange validates before runtime creation. The default allows opaque credentials for custom transports. This does not verify account access or change any key-prefix assumption, credential-store record or request wire shape.
+
 ## Compatibility and remaining gates
 
 `SessionRecord.provider_invocations` and `extraction_jobs` are optional and omitted when empty, preserving existing Mock session serialization. Once populated, an older deny-unknown-fields Session reader cannot open them. Runtime must adopt the new Memory revision before enabling these native calls and must own cancellation/disable/lifecycle/UI integration. This change adds no page credential or HTTP command. There is no product Provider UI in this repository and no Runtime adoption evidence.
