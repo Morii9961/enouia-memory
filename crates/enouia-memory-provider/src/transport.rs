@@ -43,6 +43,42 @@ pub trait Transport {
 
 #[derive(Default)]
 pub struct HttpsTransport;
+impl HttpsTransport {
+    /// Pure native response-head validation, shared with offline host harnesses.
+    /// Invoke before reading a response body. This does not establish egress
+    /// authorization, account access or final billing, and never carries text.
+    pub fn validate_response_head(
+        status: u16,
+        content_type: Option<&str>,
+        streaming: bool,
+    ) -> Result<()> {
+        if !(200..300).contains(&status) {
+            return Err(error(match status {
+                401 => MemoryErrorCode::Unauthenticated,
+                403 => MemoryErrorCode::PermissionDenied,
+                // Other statuses can have multiple service/billing causes.
+                // Discard error bodies rather than infer a local budget or
+                // record-level failure from provider-controlled messages.
+                _ => MemoryErrorCode::ProviderUnavailable,
+            }));
+        }
+        let media_type = content_type
+            .unwrap_or("")
+            .split(';')
+            .next()
+            .unwrap_or("")
+            .trim();
+        let expected = if streaming {
+            "text/event-stream"
+        } else {
+            "application/json"
+        };
+        if media_type != expected {
+            return Err(error(MemoryErrorCode::ProviderUnavailable));
+        }
+        Ok(())
+    }
+}
 impl Transport for HttpsTransport {
     fn preflight(&self) -> Result<()> {
         // This synchronous native transport owns its runtime. Require a
@@ -99,12 +135,9 @@ impl Transport for HttpsTransport {
             let work = async {
                 let mut response = builder.send().await.map_err(|_| error(MemoryErrorCode::ProviderUnavailable))?;
                 // Error bodies may echo input/credentials; discard them entirely.
-                if !response.status().is_success() { return Err(error(MemoryErrorCode::ProviderUnavailable)); }
                 let content_type = response.headers().get(reqwest::header::CONTENT_TYPE)
-                    .and_then(|v| v.to_str().ok()).unwrap_or("").split(';').next().unwrap_or("").trim();
-                if content_type != if request.streaming {"text/event-stream"} else {"application/json"} {
-                    return Err(error(MemoryErrorCode::ProviderUnavailable));
-                }
+                    .and_then(|v| v.to_str().ok());
+                Self::validate_response_head(response.status().as_u16(), content_type, request.streaming)?;
                 while let Some(bytes) = response.chunk().await.map_err(|_| error(MemoryErrorCode::ProviderUnavailable))? {
                     if cancellation.is_cancelled() { return Err(error(MemoryErrorCode::Cancelled)); }
                     on_bytes(&bytes)?;

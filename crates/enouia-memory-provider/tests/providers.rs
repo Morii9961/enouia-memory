@@ -4872,3 +4872,119 @@ fn extraction_application_requires_the_original_input_even_for_completed_replay(
         );
     }
 }
+#[test]
+fn rejected_http_heads_keep_structured_failures_without_body_delivery_or_resend() {
+    use enouia_memory_provider::transport::HttpsTransport;
+    struct HeadersHttp {
+        calls: Cell<u64>,
+        delivered: Cell<u64>,
+        status: u16,
+        content_type: Option<&'static str>,
+        streaming: bool,
+    }
+    impl Transport for HeadersHttp {
+        fn exchange(
+            &self,
+            _: &WireRequest,
+            _: &SecretBytes,
+            _: &dyn Cancellation,
+            _: Duration,
+            sink: &mut dyn FnMut(&[u8]) -> Result<()>,
+        ) -> Result<()> {
+            self.calls.set(self.calls.get() + 1);
+            HttpsTransport::validate_response_head(self.status, self.content_type, self.streaming)?;
+            // Native HTTPS applies this same head check before reading any
+            // error body. Synthetic echoes must never reach persistence.
+            self.delivered.set(self.delivered.get() + 1);
+            sink(b"synthetic-error-body-echo")
+        }
+    }
+    for api in [Api::OpenAiResponses, Api::AnthropicMessages] {
+        for streaming in [false, true] {
+            let correct_media = if streaming {
+                "text/event-stream; charset=utf-8"
+            } else {
+                "application/json; charset=utf-8"
+            };
+            HttpsTransport::validate_response_head(200, Some(correct_media), streaming).unwrap();
+            let wrong_media = if streaming {
+                "application/json"
+            } else {
+                "text/event-stream"
+            };
+            for (status, content_type, code) in [
+                (401, Some("text/html"), MemoryErrorCode::Unauthenticated),
+                (403, None, MemoryErrorCode::PermissionDenied),
+                (429, None, MemoryErrorCode::ProviderUnavailable),
+                (503, None, MemoryErrorCode::ProviderUnavailable),
+                (
+                    302,
+                    Some("application/json"),
+                    MemoryErrorCode::ProviderUnavailable,
+                ),
+                (200, Some("text/html"), MemoryErrorCode::ProviderUnavailable),
+                (200, Some(wrong_media), MemoryErrorCode::ProviderUnavailable),
+            ] {
+                let env = Env::new("http-head-outcome");
+                let (capsule, input, policy, caps) = setup(&env, api, Sensitivity::Normal);
+                let enabled = AtomicBool::new(true);
+                let adapter = VaultAdapter {
+                    vault: &env.vault,
+                    owner: owner(),
+                    input_event: input,
+                    enabled: &enabled,
+                    quota: Quota::default(),
+                };
+                let mut options = CallOptions::text(policy, 128);
+                options.streaming = streaming;
+                let call = adapter
+                    .prepare_saved(api, &capsule, &caps, Limits::default(), options)
+                    .unwrap();
+                let http = HeadersHttp {
+                    calls: Cell::new(0),
+                    delivered: Cell::new(0),
+                    status,
+                    content_type,
+                    streaming,
+                };
+                let client = Client {
+                    transport: &http,
+                    secrets: &Secrets { missing: false },
+                    guard: &adapter,
+                    journal: &adapter,
+                };
+                let failure = client
+                    .send(&call, &call.inspect().hash(), &NeverCancel)
+                    .unwrap_err();
+                assert_eq!(failure.code, code);
+                assert!(!failure.retryable);
+                assert_eq!(http.calls.get(), 1);
+                assert_eq!(http.delivered.get(), 0);
+                let row = adapter.invocations().unwrap().remove(0);
+                assert_eq!(row.state, InvocationState::Failed);
+                assert_eq!(row.error_code, Some(code));
+                assert_eq!((row.input_tokens, row.output_tokens), (None, None));
+                assert_eq!(row.reserved_tokens, call.estimated_input_tokens() + 128);
+                assert!(row.terminal_event_id.is_some());
+                assert!(adapter.saved_response(&row.dispatch_id).unwrap().is_none());
+                let before = env.vault.pin_current().unwrap();
+                assert!(
+                    env.vault
+                        .read_object(&before, &sha256(b"synthetic-error-body-echo"))
+                        .is_err()
+                );
+                assert_eq!(
+                    client
+                        .send(&call, &call.inspect().hash(), &NeverCancel)
+                        .unwrap_err()
+                        .code,
+                    MemoryErrorCode::IdempotencyConflict
+                );
+                assert_eq!(http.calls.get(), 1);
+                assert_eq!(http.delivered.get(), 0);
+                assert_eq!(env.vault.pin_current().unwrap(), before);
+                assert!(env.vault.verify(&before).unwrap().is_clean());
+            }
+        }
+    }
+}
