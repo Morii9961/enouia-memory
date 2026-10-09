@@ -3966,3 +3966,151 @@ fn extraction_admission_keeps_saved_token_cost_and_pause_limits() {
         );
     }
 }
+#[test]
+fn extraction_pause_controls_pin_the_job_before_source_validation() {
+    use enouia_memory_contract::{extraction::ExtractionState, foundation::Clock};
+    use enouia_memory_provider::extraction;
+    use std::sync::{Arc, Mutex, mpsc};
+
+    struct PauseClock {
+        gate: Mutex<Option<(mpsc::Sender<()>, mpsc::Receiver<()>)>>,
+    }
+    impl Clock for PauseClock {
+        fn now_unix_ms(&self) -> i64 {
+            let gate = self.gate.lock().unwrap().take();
+            if let Some((entered, release)) = gate {
+                entered.send(()).unwrap();
+                release.recv_timeout(Duration::from_secs(30)).unwrap();
+            }
+            T0
+        }
+    }
+
+    for (initially_paused, applications) in [(false, 1), (false, 2), (true, 1), (true, 2)] {
+        let env = Env::new("extraction-pause-completion-race");
+        let api = Api::OpenAiResponses;
+        let source = extraction_source(&env);
+        let policy = grant(&env, api);
+        let (sid, run) = extraction::create(
+            &env.vault,
+            &owner(),
+            &env.policy(),
+            &extraction_options(source, api),
+            b"pause-race-run",
+        )
+        .unwrap();
+        let job = extraction::job(&env.vault, &owner(), &sid, &run).unwrap();
+        let enabled = AtomicBool::new(true);
+        let adapter = VaultAdapter {
+            vault: &env.vault,
+            owner: owner(),
+            input_event: job.input_event_id,
+            enabled: &enabled,
+            quota: Quota::default(),
+        };
+        let (index, _) = enouia_memory_index::Index::rebuild(&env.vault).unwrap();
+        let call = extraction::prepare(
+            &adapter,
+            &index,
+            &run,
+            &extraction_capabilities(&env, api),
+            Limits::default(),
+            CallOptions::text(policy, 1024),
+        )
+        .unwrap();
+        let http = FakeHttp {
+            calls: Cell::new(0),
+            bytes: extraction_reply(api, false),
+            fail: false,
+        };
+        Client {
+            transport: &http,
+            secrets: &Secrets { missing: false },
+            guard: &adapter,
+            journal: &adapter,
+        }
+        .send(&call, &call.inspect().hash(), &NeverCancel)
+        .unwrap();
+        if initially_paused {
+            extraction::set_paused(&env.vault, &owner(), &sid, &run, true).unwrap();
+        }
+        let clock = Arc::new(PauseClock {
+            gate: Mutex::new(None),
+        });
+        let root = enouia_memory_vault::verify_data_root(
+            env.vault.managed_root().root(),
+            &enouia_memory_vault::RootPolicy::default(),
+        )
+        .unwrap();
+        let delayed = enouia_memory_vault::Vault::open(
+            &root,
+            None,
+            clock.clone(),
+            Arc::new(enouia_memory_vault::OsIdSource),
+            enouia_memory_vault::VaultOptions::default(),
+        )
+        .unwrap();
+        let (entered_tx, entered_rx) = mpsc::channel();
+        let (release_tx, release_rx) = mpsc::channel();
+        *clock.gate.lock().unwrap() = Some((entered_tx, release_rx));
+        let (delayed_result, completed, completed_pin) = std::thread::scope(|scope| {
+            let worker = scope.spawn(|| {
+                extraction::set_paused(&delayed, &owner(), &sid, &run, !initially_paused)
+            });
+            // The delayed operation has loaded the old job and is validating
+            // source permissions. Cursor progress below must win permanently.
+            entered_rx.recv_timeout(Duration::from_secs(30)).unwrap();
+            let finished = (|| -> Result<_> {
+                if initially_paused {
+                    extraction::set_paused(&env.vault, &owner(), &sid, &run, false)?;
+                }
+                let mut completed = extraction::apply_next(&adapter, &run)?;
+                if applications == 2 {
+                    completed = extraction::apply_next(&adapter, &run)?;
+                }
+                Ok((completed, env.vault.pin_current().unwrap()))
+            })();
+            release_tx.send(()).unwrap();
+            let delayed_result = worker.join().unwrap();
+            let (completed, completed_pin) = finished.unwrap();
+            (delayed_result, completed, completed_pin)
+        });
+        assert_eq!(
+            completed.state,
+            if applications == 2 {
+                ExtractionState::Completed
+            } else {
+                ExtractionState::Ready
+            }
+        );
+        assert_eq!(completed.cursor, applications);
+        assert_eq!(
+            delayed_result.unwrap_err().code,
+            MemoryErrorCode::RevisionConflict
+        );
+        assert_eq!(env.vault.pin_current().unwrap(), completed_pin);
+        assert_eq!(
+            extraction::job(&env.vault, &owner(), &sid, &run).unwrap(),
+            completed
+        );
+        if applications == 2 {
+            assert_eq!(extraction::apply_next(&adapter, &run).unwrap(), completed);
+            assert_eq!(env.vault.pin_current().unwrap(), completed_pin);
+        } else {
+            // A fresh control after refreshing the job still works normally.
+            extraction::set_paused(&env.vault, &owner(), &sid, &run, true).unwrap();
+            extraction::set_paused(&env.vault, &owner(), &sid, &run, false).unwrap();
+            assert_eq!(
+                extraction::job(&env.vault, &owner(), &sid, &run).unwrap(),
+                completed
+            );
+        }
+        assert_eq!(http.calls.get(), 1);
+        assert!(
+            env.vault
+                .verify(&env.vault.pin_current().unwrap())
+                .unwrap()
+                .is_clean()
+        );
+    }
+}

@@ -422,11 +422,14 @@ pub fn set_paused(
     run: &ExtractionRunId,
     paused: bool,
 ) -> Result<()> {
+    owner(vault, actor)?;
+    // Pin before validating the job/sources. Taking a new head afterwards
+    // would let this old control overwrite progress made during validation.
+    let pin = vault.pin_current().map_err(|e| e.error)?;
     let previous = job(vault, actor, sid, run)?;
     if previous.state == ExtractionState::Completed {
         return Err(error(MemoryErrorCode::InvalidRequest));
     }
-    let pin = vault.pin_current().map_err(|e| e.error)?;
     let mut header: SessionRecord = read(vault, RecordKind::Session, sid.as_str())?;
     header
         .extraction_jobs

@@ -25,6 +25,8 @@ Deletion adds wire archives and response events to capsule/dispatch dependents. 
 
 An owner may close a locally unfinished unknown call through a read-only `plan_interruption` and exact-hash `confirm_interruption`, after stopping submissions/cancelling/joining its worker. The opaque ten-minute plan is scoped to the owner, trusted surface, local Vault/root and original admission/input. Confirmation atomically saves a local cancelled turn/ledger, preserving partial text, nullable usage, immutable admitted Dispatch and reservation floors. It cannot replace a saved legacy terminal/known result or permit old-input resend. A subsequent explicit user input may continue the Session. Local cancellation is not remote cancellation or billing evidence; host UI adoption remains separate.
 
+Extraction pause/resume controls pin before job/source validation, retaining that optimistic head through publication. A later cursor/control change returns `RevisionConflict` instead of silently adopting the new job view. Existing immutable extraction history separately prevents reopening completed jobs; no wire/storage state is added.
+
 ## Compatibility and remaining gates
 
 `SessionRecord.provider_invocations` and `extraction_jobs` are optional and omitted when empty, preserving existing Mock session serialization. Once populated, an older deny-unknown-fields Session reader cannot open them. Runtime must adopt the new Memory revision before enabling these native calls and must own cancellation/disable/lifecycle/UI integration. This change adds no page credential or HTTP command. There is no product Provider UI in this repository and no Runtime adoption evidence.
