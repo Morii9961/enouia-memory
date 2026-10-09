@@ -791,6 +791,7 @@ dependencies = [
  "enouia-memory-vault",
  "reqwest",
  "rustls",
+ "rustls-platform-verifier",
  "serde",
  "serde_json",
  "tokio",

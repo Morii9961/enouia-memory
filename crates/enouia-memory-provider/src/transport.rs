@@ -20,6 +20,32 @@ fn credential_text(secret: &SecretBytes) -> Result<&str> {
     Ok(credential)
 }
 
+fn native_client(timeout: Duration) -> Result<reqwest::Client> {
+    use rustls_platform_verifier::BuilderVerifierExt;
+    // Own the crypto provider without installing/inheriting a process default.
+    // Keep the same platform certificate/hostname verifier as pinned reqwest.
+    let mut tls = rustls::ClientConfig::builder_with_provider(std::sync::Arc::new(
+        rustls::crypto::ring::default_provider(),
+    ))
+    .with_safe_default_protocol_versions()
+    .map_err(|_| error(MemoryErrorCode::ProviderUnavailable))?
+    .with_platform_verifier()
+    .map_err(|_| error(MemoryErrorCode::ProviderUnavailable))?
+    .with_no_client_auth();
+    tls.alpn_protocols = vec![b"http/1.1".to_vec()];
+    reqwest::Client::builder()
+        .tls_backend_preconfigured(tls)
+        .http1_only()
+        .https_only(true)
+        .no_proxy()
+        .redirect(reqwest::redirect::Policy::none())
+        .retry(reqwest::retry::never())
+        .timeout(timeout)
+        .connect_timeout(timeout.min(Duration::from_secs(15)))
+        .build()
+        .map_err(|_| error(MemoryErrorCode::ProviderUnavailable))
+}
+
 pub trait Transport {
     /// Local execution-context validation only: no HTTP, credential reads or
     /// admission side effects. Existing/custom transports default to allowed.
@@ -113,12 +139,7 @@ impl Transport for HttpsTransport {
             .build()
             .map_err(|_| error(MemoryErrorCode::ProviderUnavailable))?;
         runtime.block_on(async {
-            // ring is explicitly pinned; reqwest does not enable another crypto provider.
-            let _ = rustls::crypto::ring::default_provider().install_default();
-            let client = reqwest::Client::builder().https_only(true).no_proxy()
-                .redirect(reqwest::redirect::Policy::none()).retry(reqwest::retry::never())
-                .timeout(timeout).connect_timeout(timeout.min(Duration::from_secs(15)))
-                .build().map_err(|_| error(MemoryErrorCode::ProviderUnavailable))?;
+            let client = native_client(timeout)?;
             let mut header = reqwest::header::HeaderValue::from_str(&match request.api {
                 Api::OpenAiResponses => format!("Bearer {credential}"),
                 Api::AnthropicMessages => credential.to_owned(),
@@ -153,5 +174,43 @@ impl Transport for HttpsTransport {
                 }
             }
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// This crate's separate unit-test process starts with no global crypto
+    /// provider. Build clients only: no requests, credentials or HTTP calls.
+    #[test]
+    fn native_client_neither_installs_nor_inherits_process_crypto_defaults() {
+        assert!(rustls::crypto::CryptoProvider::get_default().is_none());
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .unwrap();
+        runtime.block_on(async {
+            let client = native_client(Duration::from_secs(1)).unwrap();
+            assert!(rustls::crypto::CryptoProvider::get_default().is_none());
+            drop(client);
+
+            // A deliberately unusable synthetic host default must not alter
+            // this transport's client configuration or be overwritten by it.
+            let mut host = rustls::crypto::ring::default_provider();
+            host.cipher_suites.clear();
+            host.install_default().unwrap();
+            let installed = rustls::crypto::CryptoProvider::get_default()
+                .unwrap()
+                .clone();
+            let first = native_client(Duration::from_secs(1)).unwrap();
+            let second = native_client(Duration::from_secs(1)).unwrap();
+            assert!(std::sync::Arc::ptr_eq(
+                &installed,
+                rustls::crypto::CryptoProvider::get_default().unwrap()
+            ));
+            assert!(installed.cipher_suites.is_empty());
+            drop((first, second));
+        });
     }
 }
