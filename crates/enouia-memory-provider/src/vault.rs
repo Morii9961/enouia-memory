@@ -832,6 +832,7 @@ impl InvocationJournal for VaultAdapter<'_> {
         if state == InvocationState::Length
             && !dispatch.output.streaming
             && let Some(r) = response
+            && !r.text.is_empty()
         {
             session::append_output_with_guard(
                 self.vault,

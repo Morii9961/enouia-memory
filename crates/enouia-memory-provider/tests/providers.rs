@@ -1001,6 +1001,266 @@ fn streaming_reply(api: Api, complete: bool) -> Vec<u8> {
         .into_bytes()
 }
 #[test]
+fn both_streams_preserve_whitespace_and_ignore_empty_deltas() {
+    use enouia_memory_contract::{provider::FinishReason, record::RecordRef, session::EventKind};
+    for api in [Api::OpenAiResponses, Api::AnthropicMessages] {
+        for length in [false, true] {
+            for only_whitespace in [false, true] {
+                let env = Env::new("stream-whitespace");
+                let (capsule, input, policy, caps) = setup(&env, api, Sensitivity::Normal);
+                let pin = env.vault.pin_current().unwrap();
+                let enouia_memory_contract::record::AnyRecord::SessionEvent(user) = env
+                    .vault
+                    .read_parsed(
+                        &pin,
+                        &RecordRef::new(
+                            RecordKind::SessionEvent,
+                            input.as_str(),
+                            Revision::new(1).unwrap(),
+                        ),
+                    )
+                    .unwrap()
+                else {
+                    panic!("input")
+                };
+                // A blank owner input is still rejected without publication.
+                assert!(
+                    session::save_input(
+                        &env.vault,
+                        &owner(),
+                        &user.session_id,
+                        &user.branch_id,
+                        " \n\t",
+                        &RequestId::from_random(env.vault.random_id_bytes()),
+                        b"blank-input"
+                    )
+                    .is_err()
+                );
+                assert_eq!(env.vault.pin_current().unwrap(), pin);
+                let enabled = AtomicBool::new(true);
+                let adapter = VaultAdapter {
+                    vault: &env.vault,
+                    owner: owner(),
+                    input_event: input,
+                    enabled: &enabled,
+                    quota: Quota::default(),
+                };
+                let mut options = CallOptions::text(policy, 128);
+                options.streaming = true;
+                let call = adapter
+                    .prepare_saved(api, &capsule, &caps, Limits::default(), options)
+                    .unwrap();
+                let segments = if only_whitespace {
+                    vec![" ", "", "\n", "\t", "\r\n"]
+                } else {
+                    vec![" ", "合成", "", "\n", "\t答复", "\r\n"]
+                };
+                let text = segments.concat();
+                let mut events = match api {
+                    Api::OpenAiResponses => vec![],
+                    Api::AnthropicMessages => vec![
+                        json!({"type":"message_start","message":{"type":"message","role":"assistant","usage":{"input_tokens":100,"output_tokens":0}}}),
+                        json!({"type":"content_block_start","index":0,"content_block":{"type":"text","text":segments[0]}}),
+                    ],
+                };
+                for segment in &segments[usize::from(api == Api::AnthropicMessages)..] {
+                    events.push(match api {
+                        Api::OpenAiResponses => json!({"type":"response.output_text.delta","delta":segment}),
+                        Api::AnthropicMessages => json!({"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":segment}}),
+                    });
+                }
+                match api {
+                    Api::OpenAiResponses => {
+                        let mut response: serde_json::Value =
+                            serde_json::from_slice(&reply(api)).unwrap();
+                        response["output"][0]["content"][0]["text"] = json!(text);
+                        if length {
+                            response["status"] = json!("incomplete");
+                            response["incomplete_details"] = json!({"reason":"max_output_tokens"});
+                        }
+                        events.push(json!({"type":if length {"response.incomplete"} else {"response.completed"},"response":response}));
+                    }
+                    Api::AnthropicMessages => {
+                        events.extend([
+                            json!({"type":"content_block_stop","index":0}),
+                            json!({"type":"message_delta","delta":{"stop_reason":if length {"max_tokens"} else {"end_turn"}},"usage":{"output_tokens":4}}),
+                            json!({"type":"message_stop"}),
+                        ]);
+                    }
+                }
+                let http = FakeHttp {
+                    calls: Cell::new(0),
+                    bytes: events
+                        .iter()
+                        .map(|v| format!("event: {}\ndata: {v}\n\n", v["type"].as_str().unwrap()))
+                        .collect::<String>()
+                        .into_bytes(),
+                    fail: false,
+                };
+                let response = Client {
+                    transport: &http,
+                    secrets: &Secrets { missing: false },
+                    guard: &adapter,
+                    journal: &adapter,
+                }
+                .send(&call, &call.inspect().hash(), &NeverCancel)
+                .unwrap();
+                assert_eq!(response.text, text);
+                assert_eq!(
+                    response.finish,
+                    if length {
+                        FinishReason::Length
+                    } else {
+                        FinishReason::Completed
+                    }
+                );
+                let saved = adapter
+                    .saved_response(&call.dispatch().dispatch_id)
+                    .unwrap()
+                    .unwrap();
+                assert_eq!(saved.text, text);
+                assert_eq!(saved.finish, response.finish);
+                let pin = env.vault.pin_current().unwrap();
+                let chunks = session::events(&env.vault, &pin, &user.session_id, &user.branch_id)
+                    .unwrap()
+                    .into_iter()
+                    .filter(|e| e.kind == EventKind::AssistantChunk)
+                    .map(|e| session::text(&env.vault, &pin, &e).unwrap())
+                    .collect::<Vec<_>>();
+                assert_eq!(
+                    chunks,
+                    segments
+                        .iter()
+                        .filter(|s| !s.is_empty())
+                        .copied()
+                        .collect::<Vec<_>>()
+                );
+                assert_eq!(http.calls.get(), 1);
+                assert!(env.vault.verify(&pin).unwrap().is_clean());
+            }
+        }
+    }
+}
+
+#[test]
+fn empty_text_terminal_results_are_persisted_with_usage() {
+    use enouia_memory_contract::{provider::FinishReason, session::EventKind};
+    for api in [Api::OpenAiResponses, Api::AnthropicMessages] {
+        for streaming in [false, true] {
+            for length in [false, true] {
+                let env = Env::new("empty-provider-output");
+                let (capsule, input, policy, caps) = setup(&env, api, Sensitivity::Normal);
+                let enabled = AtomicBool::new(true);
+                let adapter = VaultAdapter {
+                    vault: &env.vault,
+                    owner: owner(),
+                    input_event: input.clone(),
+                    enabled: &enabled,
+                    quota: Quota::default(),
+                };
+                let mut options = CallOptions::text(policy, 128);
+                options.streaming = streaming;
+                let call = adapter
+                    .prepare_saved(api, &capsule, &caps, Limits::default(), options)
+                    .unwrap();
+                let before = env.vault.pin_current().unwrap();
+                assert!(
+                    session::append_output(
+                        &env.vault,
+                        &owner(),
+                        &input,
+                        EventKind::AssistantChunk,
+                        Some(""),
+                        b"empty-chunk"
+                    )
+                    .is_err()
+                );
+                assert_eq!(env.vault.pin_current().unwrap(), before);
+                let mut response: serde_json::Value = serde_json::from_slice(&reply(api)).unwrap();
+                match api {
+                    Api::OpenAiResponses => {
+                        response["output"] = json!([]);
+                        if length {
+                            response["status"] = json!("incomplete");
+                            response["incomplete_details"] = json!({"reason":"max_output_tokens"});
+                        }
+                    }
+                    Api::AnthropicMessages => {
+                        response["content"] = json!([]);
+                        response["stop_reason"] =
+                            json!(if length { "max_tokens" } else { "end_turn" });
+                    }
+                }
+                let body = if streaming {
+                    let events = match api {
+                        Api::OpenAiResponses => vec![
+                            json!({"type":"response.output_text.delta","delta":""}),
+                            json!({"type":if length { "response.incomplete" } else { "response.completed" },"response":response}),
+                        ],
+                        Api::AnthropicMessages => vec![
+                            json!({"type":"message_start","message":{"type":"message","role":"assistant","usage":{"input_tokens":100,"output_tokens":0}}}),
+                            json!({"type":"content_block_start","index":0,"content_block":{"type":"text","text":""}}),
+                            json!({"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":""}}),
+                            json!({"type":"content_block_stop","index":0}),
+                            json!({"type":"message_delta","delta":{"stop_reason":if length { "max_tokens" } else { "end_turn" }},"usage":{"output_tokens":4}}),
+                            json!({"type":"message_stop"}),
+                        ],
+                    };
+                    events
+                        .iter()
+                        .map(|v| format!("event: {}\ndata: {v}\n\n", v["type"].as_str().unwrap()))
+                        .collect::<String>()
+                        .into_bytes()
+                } else {
+                    serde_json::to_vec(&response).unwrap()
+                };
+                let http = FakeHttp {
+                    calls: Cell::new(0),
+                    bytes: body,
+                    fail: false,
+                };
+                let result = Client {
+                    transport: &http,
+                    secrets: &Secrets { missing: false },
+                    guard: &adapter,
+                    journal: &adapter,
+                }
+                .send(&call, &call.inspect().hash(), &NeverCancel)
+                .unwrap();
+                assert_eq!(result.text, "");
+                assert_eq!(
+                    result.finish,
+                    if length {
+                        FinishReason::Length
+                    } else {
+                        FinishReason::Completed
+                    }
+                );
+                let saved = adapter
+                    .saved_response(&call.dispatch().dispatch_id)
+                    .unwrap()
+                    .unwrap();
+                assert_eq!(saved.text, "");
+                assert_eq!(saved.finish, result.finish);
+                assert_eq!(saved.input_tokens, Some(100));
+                assert_eq!(saved.output_tokens, Some(4));
+                // One admission and one terminal, no invented/empty partial chunk.
+                let pin = env.vault.pin_current().unwrap();
+                assert_eq!(pin.sequence, before.sequence + 2);
+                assert!(
+                    !adapter
+                        .recover_local_outcome(&call.dispatch().dispatch_id)
+                        .unwrap()
+                );
+                assert!(!adapter.claim(&call).unwrap());
+                assert_eq!(http.calls.get(), 1);
+                assert!(env.vault.verify(&pin).unwrap().is_clean());
+            }
+        }
+    }
+}
+
+#[test]
 fn both_streams_persist_chunks_and_truncation_never_completes() {
     for api in [Api::OpenAiResponses, Api::AnthropicMessages] {
         for complete in [true, false] {

@@ -117,8 +117,10 @@ impl Decoder {
                 let text = v["delta"]
                     .as_str()
                     .ok_or_else(|| error(MemoryErrorCode::ProviderUnavailable))?;
-                on_text(text)?;
-                self.text.push_str(text);
+                if !text.is_empty() {
+                    on_text(text)?;
+                    self.text.push_str(text);
+                }
             }
             (Api::OpenAiResponses, "response.completed" | "response.incomplete") => {
                 let bytes = serde_json::to_vec(&v["response"])
@@ -174,8 +176,10 @@ impl Decoder {
                 let text = v["delta"]["text"]
                     .as_str()
                     .ok_or_else(|| error(MemoryErrorCode::ProviderUnavailable))?;
-                on_text(text)?;
-                self.text.push_str(text);
+                if !text.is_empty() {
+                    on_text(text)?;
+                    self.text.push_str(text);
+                }
             }
             (Api::AnthropicMessages, "content_block_stop") => {
                 if self.open_block.is_none() || v["index"].as_u64() != self.open_block {

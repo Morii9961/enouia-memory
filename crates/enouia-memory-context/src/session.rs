@@ -410,7 +410,12 @@ fn append(
     owner(vault, actor)?;
     if (kind.needs_content() != text.is_some()
         && !(kind == EventKind::TurnFailed && text.is_some()))
-        || text.is_some_and(|s| s.trim().is_empty())
+        || text.is_some_and(|s| {
+            // Output is exact Provider text, including whitespace or an empty
+            // terminal response. Empty chunks carry no content/progress.
+            kind == EventKind::UserMessage && s.trim().is_empty()
+                || kind == EventKind::AssistantChunk && s.is_empty()
+        })
     {
         return Err(invalid("session.content"));
     }
