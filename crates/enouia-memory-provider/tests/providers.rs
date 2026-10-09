@@ -1796,6 +1796,359 @@ fn terminal_metadata_cannot_bind_a_different_admission_or_invalid_state() {
 }
 
 #[test]
+fn owner_can_interrupt_an_unknown_call_locally_then_start_a_new_explicit_turn() {
+    use enouia_memory_contract::{
+        record::{AnyRecord, RecordRef},
+        session::EventKind,
+    };
+    for api in [Api::OpenAiResponses, Api::AnthropicMessages] {
+        let env = Env::new("owner-interrupt");
+        let (capsule, input, policy, caps) = setup(&env, api, Sensitivity::Normal);
+        let enabled = AtomicBool::new(true);
+        let adapter = VaultAdapter {
+            vault: &env.vault,
+            owner: owner(),
+            input_event: input.clone(),
+            enabled: &enabled,
+            quota: Quota::default(),
+        };
+        let mut options = CallOptions::text(policy.clone(), 128);
+        options.streaming = true;
+        let call = adapter
+            .prepare_saved(api, &capsule, &caps, Limits::default(), options)
+            .unwrap();
+        assert!(adapter.claim(&call).unwrap());
+        adapter.chunk(call.dispatch(), 1, "合成片段").unwrap();
+        let root = enouia_memory_vault::verify_data_root(
+            env.vault.managed_root().root(),
+            &enouia_memory_vault::RootPolicy::default(),
+        )
+        .unwrap();
+        let restored = enouia_memory_vault::Vault::open(
+            &root,
+            None,
+            env.clock.clone(),
+            std::sync::Arc::new(enouia_memory_vault::OsIdSource),
+            Default::default(),
+        )
+        .unwrap();
+        let recovered = VaultAdapter {
+            vault: &restored,
+            owner: owner(),
+            input_event: input.clone(),
+            enabled: &enabled,
+            quota: Quota::default(),
+        };
+        let before = restored.pin_current().unwrap();
+        let plan = recovered
+            .plan_interruption(
+                &call.dispatch().dispatch_id,
+                TrustedSurface::TrustedLocalCli,
+            )
+            .unwrap();
+        let view: serde_json::Value = serde_json::from_slice(plan.inspect()).unwrap();
+        assert_eq!(view["remote_outcome"], "unknown");
+        assert_eq!(view["old_input_resend_allowed"], false);
+        assert_eq!(view["partial_text_retained"], true);
+        assert!(!String::from_utf8_lossy(plan.inspect()).contains("合成片段"));
+        assert_eq!(restored.pin_current().unwrap(), before);
+        assert_eq!(
+            recovered
+                .confirm_interruption(&plan, TrustedSurface::TrustedLocalCli, &sha256(b"wrong"))
+                .unwrap_err()
+                .code,
+            MemoryErrorCode::PermissionDenied
+        );
+        assert_eq!(
+            recovered
+                .confirm_interruption(&plan, TrustedSurface::TrustedWindowsApp, &plan.hash())
+                .unwrap_err()
+                .code,
+            MemoryErrorCode::PermissionDenied
+        );
+        enabled.store(false, Ordering::SeqCst);
+        assert_eq!(
+            recovered
+                .plan_interruption(
+                    &call.dispatch().dispatch_id,
+                    TrustedSurface::TrustedLocalCli
+                )
+                .err()
+                .unwrap()
+                .code,
+            MemoryErrorCode::VaultLocked
+        );
+        assert_eq!(
+            recovered
+                .confirm_interruption(&plan, TrustedSurface::TrustedLocalCli, &plan.hash())
+                .unwrap_err()
+                .code,
+            MemoryErrorCode::VaultLocked
+        );
+        enabled.store(true, Ordering::SeqCst);
+        let wrong_owner = VaultAdapter {
+            vault: &restored,
+            owner: agent(),
+            input_event: input.clone(),
+            enabled: &enabled,
+            quota: Quota::default(),
+        };
+        assert_eq!(
+            wrong_owner
+                .confirm_interruption(&plan, TrustedSurface::TrustedLocalCli, &plan.hash())
+                .unwrap_err()
+                .code,
+            MemoryErrorCode::PermissionDenied
+        );
+        let other = Env::new("different-local-root");
+        let wrong_root = VaultAdapter {
+            vault: &other.vault,
+            owner: owner(),
+            input_event: input.clone(),
+            enabled: &enabled,
+            quota: Quota::default(),
+        };
+        assert_eq!(
+            wrong_root
+                .confirm_interruption(&plan, TrustedSurface::TrustedLocalCli, &plan.hash())
+                .unwrap_err()
+                .code,
+            MemoryErrorCode::PermissionDenied
+        );
+        env.clock.set(T0 + 600_001);
+        assert_eq!(
+            recovered
+                .confirm_interruption(&plan, TrustedSurface::TrustedLocalCli, &plan.hash())
+                .unwrap_err()
+                .code,
+            MemoryErrorCode::PermissionDenied
+        );
+        assert_eq!(restored.pin_current().unwrap(), before);
+        let fresh = recovered
+            .plan_interruption(
+                &call.dispatch().dispatch_id,
+                TrustedSurface::TrustedLocalCli,
+            )
+            .unwrap();
+        let terminal = recovered
+            .confirm_interruption(&fresh, TrustedSurface::TrustedLocalCli, &fresh.hash())
+            .unwrap();
+        let after = restored.pin_current().unwrap();
+        assert_eq!(after.sequence, before.sequence + 1);
+        assert_eq!(
+            recovered
+                .confirm_interruption(&fresh, TrustedSurface::TrustedLocalCli, &fresh.hash())
+                .unwrap(),
+            terminal
+        );
+        assert_eq!(restored.pin_current().unwrap(), after);
+        let row = recovered.invocations().unwrap().remove(0);
+        assert_eq!(row.state, InvocationState::Cancelled);
+        assert_eq!(row.error_code, Some(MemoryErrorCode::Cancelled));
+        assert_eq!(row.input_tokens, None);
+        assert_eq!(row.output_tokens, None);
+        assert_eq!(row.terminal_event_id, Some(terminal.clone()));
+        assert_eq!(row.reserved_tokens, call.estimated_input_tokens() + 128);
+        assert!(!recovered.claim(&call).unwrap());
+        assert!(
+            !recovered
+                .recover_local_outcome(&call.dispatch().dispatch_id)
+                .unwrap()
+        );
+        assert!(
+            recovered
+                .saved_response(&call.dispatch().dispatch_id)
+                .unwrap()
+                .is_none()
+        );
+        let AnyRecord::SessionEvent(user) = restored
+            .read_parsed(
+                &after,
+                &RecordRef::new(
+                    RecordKind::SessionEvent,
+                    input.as_str(),
+                    Revision::new(1).unwrap(),
+                ),
+            )
+            .unwrap()
+        else {
+            panic!("input")
+        };
+        let events = session::events(&restored, &after, &user.session_id, &user.branch_id).unwrap();
+        assert!(events.iter().any(|e| e.kind == EventKind::AssistantChunk
+            && session::text(&restored, &after, e).unwrap() == "合成片段"));
+        assert_eq!(events.last().unwrap().kind, EventKind::TurnCancelled);
+        let mut compile = CompileInput::local(
+            "新的明确合成输入",
+            owner(),
+            RequestId::from_random(restored.random_id_bytes()),
+        );
+        compile.session_id = Some(user.session_id.clone());
+        compile.branch_id = Some(user.branch_id.clone());
+        let next_input = session::save_input(
+            &restored,
+            &owner(),
+            &user.session_id,
+            &user.branch_id,
+            &compile.query,
+            &compile.request_id,
+            b"after-local-interruption",
+        )
+        .unwrap()
+        .id;
+        let (index, _) = enouia_memory_index::Index::rebuild(&restored).unwrap();
+        let capsule = compiler::compile_for_destination(
+            &restored,
+            &index,
+            &compile,
+            &Destination {
+                kind: DestinationKind::ExternalProvider,
+                provider_binding: Some(caps.binding.clone()),
+            },
+        )
+        .unwrap();
+        let mut next = VaultAdapter {
+            vault: &restored,
+            owner: owner(),
+            input_event: next_input,
+            enabled: &enabled,
+            quota: Quota::default(),
+        };
+        let prepared = next
+            .prepare_saved(
+                api,
+                &capsule.capsule.capsule_id,
+                &caps,
+                Limits::default(),
+                CallOptions::text(policy, 128),
+            )
+            .unwrap();
+        let http = FakeHttp {
+            calls: Cell::new(0),
+            bytes: reply(api),
+            fail: false,
+        };
+        next.quota.max_reserved_tokens =
+            prepared.estimated_input_tokens() + 128 + row.reserved_tokens - 1;
+        assert_eq!(
+            Client {
+                transport: &http,
+                secrets: &Secrets { missing: false },
+                guard: &next,
+                journal: &next
+            }
+            .send(&prepared, &prepared.inspect().hash(), &NeverCancel)
+            .unwrap_err()
+            .code,
+            MemoryErrorCode::BudgetExceeded
+        );
+        assert_eq!(http.calls.get(), 0);
+        next.quota = Quota::default();
+        Client {
+            transport: &http,
+            secrets: &Secrets { missing: false },
+            guard: &next,
+            journal: &next,
+        }
+        .send(&prepared, &prepared.inspect().hash(), &NeverCancel)
+        .unwrap();
+        assert_eq!(http.calls.get(), 1);
+        assert!(
+            restored
+                .verify(&restored.pin_current().unwrap())
+                .unwrap()
+                .is_clean()
+        );
+    }
+}
+
+#[test]
+fn interruption_cannot_replace_a_saved_legacy_response_or_known_result() {
+    for api in [Api::OpenAiResponses, Api::AnthropicMessages] {
+        let env = Env::new("interrupt-legacy-result");
+        let (capsule, input, policy, caps) = setup(&env, api, Sensitivity::Normal);
+        let enabled = AtomicBool::new(true);
+        let adapter = VaultAdapter {
+            vault: &env.vault,
+            owner: owner(),
+            input_event: input.clone(),
+            enabled: &enabled,
+            quota: Quota::default(),
+        };
+        let call = adapter
+            .prepare_saved(
+                api,
+                &capsule,
+                &caps,
+                Limits::default(),
+                CallOptions::text(policy, 128),
+            )
+            .unwrap();
+        assert!(adapter.claim(&call).unwrap());
+        let plan = adapter
+            .plan_interruption(
+                &call.dispatch().dispatch_id,
+                TrustedSurface::TrustedLocalCli,
+            )
+            .unwrap();
+        session::append_output(
+            &env.vault,
+            &owner(),
+            &input,
+            enouia_memory_contract::session::EventKind::AssistantCompleted,
+            Some("合成已保存答复"),
+            format!("provider-terminal:{}", call.dispatch().dispatch_id).as_bytes(),
+        )
+        .unwrap();
+        let pin = env.vault.pin_current().unwrap();
+        assert!(
+            adapter
+                .plan_interruption(
+                    &call.dispatch().dispatch_id,
+                    TrustedSurface::TrustedLocalCli
+                )
+                .is_err()
+        );
+        assert_eq!(
+            adapter
+                .confirm_interruption(&plan, TrustedSurface::TrustedLocalCli, &plan.hash())
+                .unwrap_err()
+                .code,
+            MemoryErrorCode::IdempotencyConflict
+        );
+        assert_eq!(env.vault.pin_current().unwrap(), pin);
+        assert!(
+            adapter
+                .recover_local_outcome(&call.dispatch().dispatch_id)
+                .unwrap()
+        );
+        assert_eq!(
+            adapter.invocations().unwrap()[0].state,
+            InvocationState::Completed
+        );
+        assert!(
+            adapter
+                .confirm_interruption(&plan, TrustedSurface::TrustedLocalCli, &plan.hash())
+                .is_err()
+        );
+        assert_eq!(
+            adapter
+                .saved_response(&call.dispatch().dispatch_id)
+                .unwrap()
+                .unwrap()
+                .text,
+            "合成已保存答复"
+        );
+        assert!(
+            env.vault
+                .verify(&env.vault.pin_current().unwrap())
+                .unwrap()
+                .is_clean()
+        );
+    }
+}
+
+#[test]
 fn wire_and_local_terminal_recovery_survive_reopen() {
     let env = Env::new("reopen");
     let api = Api::AnthropicMessages;

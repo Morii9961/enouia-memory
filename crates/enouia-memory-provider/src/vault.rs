@@ -150,6 +150,141 @@ impl CallOptions {
     }
 }
 
+/// Opaque, private owner confirmation for a local interruption only.
+pub struct InterruptionPlan {
+    owner: ActorRef,
+    surface: TrustedSurface,
+    vault_id: VaultId,
+    root: std::path::PathBuf,
+    invocation: Invocation,
+    expires: Timestamp,
+    bytes: Vec<u8>,
+}
+impl InterruptionPlan {
+    pub fn inspect(&self) -> &[u8] {
+        &self.bytes
+    }
+    pub fn hash(&self) -> enouia_memory_contract::hash::Sha256Hex {
+        sha256(&self.bytes)
+    }
+}
+
+impl VaultAdapter<'_> {
+    /// Read-only owner plan for closing a local unfinished turn. The host must
+    /// stop submissions, cancel and join workers first. This never contacts the
+    /// Provider, proves remote cancellation, or permits the old input to resend.
+    pub fn plan_interruption(
+        &self,
+        id: &DispatchId,
+        surface: TrustedSurface,
+    ) -> Result<InterruptionPlan> {
+        self.owner_check()?;
+        let invocation = self
+            .invocations()?
+            .into_iter()
+            .find(|row| &row.dispatch_id == id && row.input_event_id == self.input_event)
+            .ok_or_else(|| error(MemoryErrorCode::NotFound))?;
+        if invocation.state != InvocationState::OutcomeUnknown {
+            return Err(error(MemoryErrorCode::IdempotencyConflict));
+        }
+        let scope = IdempotencyScope {
+            principal_id: self.owner.actor_id.clone(),
+            operation_kind: OperationKind::SessionAppend,
+            key_hash: sha256(format!("provider-terminal:{id}").as_bytes()),
+        };
+        // A legacy published terminal must be recovered, never overwritten by
+        // a local interruption plan while its old ledger still says unknown.
+        if self
+            .vault
+            .find_receipt(&scope)
+            .map_err(|e| e.error)?
+            .is_some()
+        {
+            return Err(error(MemoryErrorCode::IdempotencyConflict));
+        }
+        let now = self.vault.now().map_err(|e| e.error)?;
+        let expires = now
+            .unix_ms()
+            .checked_add(600_000)
+            .and_then(Timestamp::from_unix_ms)
+            .ok_or_else(|| error(MemoryErrorCode::InvalidRequest))?;
+        let vault_id = self.vault.descriptor().vault_id.clone();
+        let bytes = bytes(&serde_json::json!({
+            "operation":"interrupt_local_turn",
+            "vault_id":vault_id,
+            "owner":self.owner,
+            "trusted_surface":surface,
+            "invocation":invocation,
+            "expires_at":expires,
+            "remote_outcome":"unknown",
+            "old_input_resend_allowed":false,
+            "partial_text_retained":true,
+        }))?;
+        self.owner_check()?;
+        Ok(InterruptionPlan {
+            owner: self.owner.clone(),
+            surface,
+            vault_id,
+            root: self.vault.managed_root().root().to_path_buf(),
+            invocation,
+            expires,
+            bytes,
+        })
+    }
+
+    pub fn confirm_interruption(
+        &self,
+        plan: &InterruptionPlan,
+        surface: TrustedSurface,
+        inspected_hash: &enouia_memory_contract::hash::Sha256Hex,
+    ) -> Result<EventId> {
+        self.owner_check()?;
+        if plan.owner != self.owner
+            || plan.surface != surface
+            || plan.vault_id != self.vault.descriptor().vault_id
+            || plan.root.as_path() != self.vault.managed_root().root()
+            || plan.invocation.input_event_id != self.input_event
+            || inspected_hash != &plan.hash()
+            || self.vault.now().map_err(|e| e.error)? > plan.expires
+        {
+            return Err(error(MemoryErrorCode::PermissionDenied));
+        }
+        let current = self
+            .invocations()?
+            .into_iter()
+            .find(|row| {
+                row.dispatch_id == plan.invocation.dispatch_id
+                    && row.input_event_id == self.input_event
+            })
+            .ok_or_else(|| error(MemoryErrorCode::NotFound))?;
+        if current.state == InvocationState::OutcomeUnknown && current != plan.invocation {
+            return Err(error(MemoryErrorCode::RevisionConflict));
+        }
+        // session::append_invocation_output already binds the original
+        // admission/input and refuses a learned outcome. Its terminal receipt
+        // handles identical replay, including a lost post-publication return.
+        self.owner_check()?;
+        session::append_invocation_output(
+            self.vault,
+            &self.owner,
+            &self.input_event,
+            EventKind::TurnCancelled,
+            None,
+            format!("provider-terminal:{}", plan.invocation.dispatch_id).as_bytes(),
+            None,
+            &session::InvocationCompletion {
+                dispatch_id: plan.invocation.dispatch_id.clone(),
+                state: InvocationState::Cancelled,
+                input_tokens: plan.invocation.input_tokens,
+                output_tokens: plan.invocation.output_tokens,
+                error_code: Some(MemoryErrorCode::Cancelled),
+            },
+        )
+        .map(|written| written.id)
+        .map_err(|e| e.error)
+    }
+}
+
 /// An owner-authenticated native handle. `enabled` is independent of Mock and
 /// must be turned off (and cancellation signalled) before native lock/close.
 pub struct VaultAdapter<'a> {
