@@ -1342,6 +1342,261 @@ fn fragmented_sse_preserves_utf8_and_rejects_missing_terminal() {
     assert!(incomplete.finish().is_err());
 }
 
+/// Documented Anthropic thinking shapes: always-on models default to
+/// `display: "omitted"`; summarized and safety-redacted blocks also occur.
+fn anthropic_thinking_events(reasoning: &str, stop: &str) -> Vec<serde_json::Value> {
+    vec![
+        json!({"type":"message_start","message":{"type":"message","role":"assistant","content":[],"stop_reason":null}}),
+        json!({"type":"content_block_start","index":0,"content_block":{"type":"thinking","thinking":"","signature":""}}),
+        json!({"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":reasoning}}),
+        json!({"type":"content_block_delta","index":0,"delta":{"type":"signature_delta","signature":"c3ludGhldGljLXNpZ25hdHVyZQ=="}}),
+        json!({"type":"content_block_stop","index":0}),
+        json!({"type":"content_block_start","index":1,"content_block":{"type":"redacted_thinking","data":"c3ludGhldGljLXJlZGFjdGVk"}}),
+        json!({"type":"content_block_stop","index":1}),
+        json!({"type":"ping"}),
+        json!({"type":"content_block_start","index":2,"content_block":{"type":"text","text":""}}),
+        json!({"type":"content_block_delta","index":2,"delta":{"type":"text_delta","text":"合成答复"}}),
+        json!({"type":"content_block_stop","index":2}),
+        json!({"type":"message_delta","delta":{"stop_reason":stop},"usage":{"input_tokens":100,"output_tokens":40}}),
+        json!({"type":"message_stop"}),
+    ]
+}
+fn anthropic_thinking_reply(reasoning: &str, stop: &str) -> Vec<u8> {
+    serde_json::to_vec(&json!({"type":"message","role":"assistant","content":[
+        {"type":"thinking","thinking":reasoning,"signature":"c3ludGhldGljLXNpZ25hdHVyZQ=="},
+        {"type":"redacted_thinking","data":"c3ludGhldGljLXJlZGFjdGVk"},
+        {"type":"text","text":"合成答复"}
+    ],"stop_reason":stop,"usage":{"input_tokens":100,"output_tokens":40}}))
+    .unwrap()
+}
+fn sse(events: &[serde_json::Value]) -> Vec<u8> {
+    events
+        .iter()
+        .map(|v| format!("event: {}\ndata: {v}\n\n", v["type"].as_str().unwrap()))
+        .collect::<String>()
+        .into_bytes()
+}
+#[test]
+fn anthropic_thinking_blocks_are_accepted_without_exposing_reasoning() {
+    use enouia_memory_contract::provider::FinishReason;
+    const REASONING: &str = "synthetic-reasoning-not-for-storage";
+    for (reasoning, stop, finish) in [
+        ("", "end_turn", FinishReason::Completed),
+        (REASONING, "end_turn", FinishReason::Completed),
+        (REASONING, "max_tokens", FinishReason::Length),
+        // Documented as a truncated response on 4.5+ models.
+        (
+            REASONING,
+            "model_context_window_exceeded",
+            FinishReason::Length,
+        ),
+    ] {
+        let mut decoder = Decoder::new(Api::AnthropicMessages);
+        let mut seen = String::new();
+        for byte in sse(&anthropic_thinking_events(reasoning, stop)) {
+            decoder
+                .push(&[byte], &mut |text| {
+                    seen.push_str(text);
+                    Ok(())
+                })
+                .unwrap();
+        }
+        let streamed = decoder.finish().unwrap();
+        assert_eq!(seen, "合成答复");
+        assert_eq!(streamed.text, "合成答复");
+        assert_eq!(streamed.finish, finish);
+        assert_eq!(
+            (streamed.input_tokens, streamed.output_tokens),
+            (Some(100), Some(40))
+        );
+        let whole = enouia_memory_provider::codec::decode(
+            Api::AnthropicMessages,
+            &anthropic_thinking_reply(reasoning, stop),
+        )
+        .unwrap();
+        assert_eq!(whole.text, "合成答复");
+        assert_eq!(whole.finish, finish);
+    }
+    // A refusal stays a failure: partial output is to be discarded.
+    let mut decoder = Decoder::new(Api::AnthropicMessages);
+    assert!(
+        decoder
+            .push(
+                &sse(&anthropic_thinking_events("", "refusal")),
+                &mut |_| Ok(())
+            )
+            .is_err()
+    );
+    assert!(
+        enouia_memory_provider::codec::decode(
+            Api::AnthropicMessages,
+            &anthropic_thinking_reply("", "refusal")
+        )
+        .is_err()
+    );
+    // Reasoning and text deltas cannot cross block kinds; redacted blocks
+    // take no deltas; other block kinds and malformed reasoning stay refused.
+    let base = anthropic_thinking_events("", "end_turn");
+    let replace = |index: usize, event: serde_json::Value| {
+        let mut events = base.clone();
+        events[index] = event;
+        events
+    };
+    let mut redacted_delta = base.clone();
+    redacted_delta.insert(
+        6,
+        json!({"type":"content_block_delta","index":1,"delta":{"type":"thinking_delta","thinking":""}}),
+    );
+    for events in [
+        replace(
+            2,
+            json!({"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"x"}}),
+        ),
+        replace(
+            9,
+            json!({"type":"content_block_delta","index":2,"delta":{"type":"thinking_delta","thinking":"x"}}),
+        ),
+        replace(
+            9,
+            json!({"type":"content_block_delta","index":2,"delta":{"type":"signature_delta","signature":"x"}}),
+        ),
+        replace(
+            2,
+            json!({"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":5}}),
+        ),
+        replace(
+            3,
+            json!({"type":"content_block_delta","index":0,"delta":{"type":"signature_delta"}}),
+        ),
+        replace(
+            1,
+            json!({"type":"content_block_start","index":0,"content_block":{"type":"thinking","thinking":5}}),
+        ),
+        replace(
+            5,
+            json!({"type":"content_block_start","index":1,"content_block":{"type":"redacted_thinking"}}),
+        ),
+        replace(
+            1,
+            json!({"type":"content_block_start","index":0,"content_block":{"type":"tool_use","id":"x","name":"x","input":{}}}),
+        ),
+        redacted_delta,
+    ] {
+        let mut decoder = Decoder::new(Api::AnthropicMessages);
+        let mut seen = String::new();
+        let result = decoder.push(&sse(&events), &mut |text| {
+            seen.push_str(text);
+            Ok(())
+        });
+        assert_eq!(
+            result.unwrap_err().code,
+            MemoryErrorCode::ProviderUnavailable
+        );
+        assert!(!seen.contains('x'));
+        assert!(decoder.finish().is_err());
+    }
+    for content in [
+        json!([{"type":"thinking","thinking":5,"signature":"x"},{"type":"text","text":"合成答复"}]),
+        json!([{"type":"thinking","thinking":""},{"type":"text","text":"合成答复"}]),
+        json!([{"type":"redacted_thinking"},{"type":"text","text":"合成答复"}]),
+        json!([{"type":"tool_use","id":"x","name":"x","input":{}},{"type":"text","text":"合成答复"}]),
+    ] {
+        let body = json!({"type":"message","role":"assistant","content":content,"stop_reason":"end_turn","usage":{"input_tokens":100,"output_tokens":40}});
+        assert!(
+            enouia_memory_provider::codec::decode(
+                Api::AnthropicMessages,
+                &serde_json::to_vec(&body).unwrap()
+            )
+            .is_err()
+        );
+    }
+}
+#[test]
+fn native_journal_saves_only_text_from_anthropic_thinking_replies() {
+    use enouia_memory_contract::{
+        record::{AnyRecord, RecordRef},
+        session::EventKind,
+    };
+    const REASONING: &str = "synthetic-reasoning-not-for-storage";
+    for streaming in [false, true] {
+        let api = Api::AnthropicMessages;
+        let env = Env::new("anthropic-thinking");
+        let (capsule, input, policy, caps) = setup(&env, api, Sensitivity::Normal);
+        let enabled = AtomicBool::new(true);
+        let adapter = VaultAdapter {
+            vault: &env.vault,
+            owner: owner(),
+            input_event: input.clone(),
+            enabled: &enabled,
+            quota: Quota::default(),
+        };
+        let mut options = CallOptions::text(policy, 128);
+        options.streaming = streaming;
+        let call = adapter
+            .prepare_saved(api, &capsule, &caps, Limits::default(), options)
+            .unwrap();
+        let http = FakeHttp {
+            calls: Cell::new(0),
+            bytes: if streaming {
+                sse(&anthropic_thinking_events(REASONING, "end_turn"))
+            } else {
+                anthropic_thinking_reply(REASONING, "end_turn")
+            },
+            fail: false,
+        };
+        let client = Client {
+            transport: &http,
+            secrets: &Secrets { missing: false },
+            guard: &adapter,
+            journal: &adapter,
+        };
+        let response = client
+            .send(&call, &call.inspect().hash(), &NeverCancel)
+            .unwrap();
+        assert_eq!(response.text, "合成答复");
+        let row = adapter.invocations().unwrap().remove(0);
+        assert_eq!(row.state, InvocationState::Completed);
+        assert_eq!((row.input_tokens, row.output_tokens), (Some(100), Some(40)));
+        let saved = adapter.saved_response(&row.dispatch_id).unwrap().unwrap();
+        assert_eq!(saved.text, "合成答复");
+        // No published event or content object carries the reasoning text.
+        let pin = env.vault.pin_current().unwrap();
+        assert!(
+            env.vault
+                .read_object(&pin, &sha256(REASONING.as_bytes()))
+                .is_err()
+        );
+        let AnyRecord::SessionEvent(user) = env
+            .vault
+            .read_parsed(
+                &pin,
+                &RecordRef::new(
+                    RecordKind::SessionEvent,
+                    input.as_str(),
+                    Revision::new(1).unwrap(),
+                ),
+            )
+            .unwrap()
+        else {
+            panic!("input")
+        };
+        let events = session::events(&env.vault, &pin, &user.session_id, &user.branch_id).unwrap();
+        let mut chunks = vec![];
+        for event in &events {
+            if let Ok(text) = session::text(&env.vault, &pin, event) {
+                assert!(!text.contains(REASONING));
+                if event.kind == EventKind::AssistantChunk {
+                    chunks.push(text);
+                }
+            }
+        }
+        let expected: &[&str] = if streaming { &["合成答复"] } else { &[] };
+        assert_eq!(chunks, expected);
+        assert_eq!(http.calls.get(), 1);
+        assert!(env.vault.verify(&pin).unwrap().is_clean());
+    }
+}
+
 fn streaming_reply(api: Api, complete: bool) -> Vec<u8> {
     let events = match api {
         Api::OpenAiResponses => vec![

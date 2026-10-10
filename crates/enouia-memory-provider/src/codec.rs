@@ -204,18 +204,24 @@ pub fn decode(api: Api, body: &[u8]) -> Result<ProviderResponse> {
                 .as_array()
                 .ok_or_else(|| error(MemoryErrorCode::ProviderUnavailable))?
             {
-                if part["type"] != "text" {
-                    return Err(error(MemoryErrorCode::ProviderUnavailable));
+                match part["type"].as_str() {
+                    Some("text") => text.push_str(
+                        part["text"]
+                            .as_str()
+                            .ok_or_else(|| error(MemoryErrorCode::ProviderUnavailable))?,
+                    ),
+                    // Reasoning from always-on thinking models is validated
+                    // but never returned or stored, like OpenAI reasoning items.
+                    Some("thinking")
+                        if part["thinking"].is_string() && part["signature"].is_string() => {}
+                    Some("redacted_thinking") if part["data"].is_string() => {}
+                    _ => return Err(error(MemoryErrorCode::ProviderUnavailable)),
                 }
-                text.push_str(
-                    part["text"]
-                        .as_str()
-                        .ok_or_else(|| error(MemoryErrorCode::ProviderUnavailable))?,
-                );
             }
             let finish = match v["stop_reason"].as_str() {
                 Some("end_turn" | "stop_sequence") => FinishReason::Completed,
-                Some("max_tokens") => FinishReason::Length,
+                // Documented as a truncated response, like max_tokens.
+                Some("max_tokens" | "model_context_window_exceeded") => FinishReason::Length,
                 _ => return Err(error(MemoryErrorCode::ProviderUnavailable)),
             };
             (finish, &v["usage"])

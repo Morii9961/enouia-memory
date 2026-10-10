@@ -11,6 +11,15 @@ use enouia_memory_contract::{
 use serde_json::{Value, json};
 
 pub const MAX_EVENT_BYTES: usize = 1024 * 1024;
+
+/// Anthropic content block kinds. Reasoning blocks are validated but their
+/// text, signatures and redacted data are never exposed or stored.
+#[derive(Clone, Copy, PartialEq)]
+enum Block {
+    Text,
+    Thinking,
+    RedactedThinking,
+}
 pub struct Decoder {
     api: Api,
     line: Vec<u8>,
@@ -25,7 +34,7 @@ pub struct Decoder {
     stop: Option<String>,
     started: bool,
     next_block: u64,
-    open_block: Option<u64>,
+    open_block: Option<(u64, Block)>,
     message_deltas_started: bool,
     failure: Option<MemoryError>,
 }
@@ -193,42 +202,64 @@ impl Decoder {
                 self.observed_usage = normalized;
             }
             (Api::AnthropicMessages, "content_block_start") => {
+                let content = &v["content_block"];
+                // Always-on thinking models emit reasoning blocks even when the
+                // request does not ask for thinking.
+                let block = match content["type"].as_str() {
+                    Some("text") => Block::Text,
+                    Some("thinking") if content["thinking"].is_string() => Block::Thinking,
+                    Some("redacted_thinking") if content["data"].is_string() => {
+                        Block::RedactedThinking
+                    }
+                    _ => return Err(error(MemoryErrorCode::ProviderUnavailable)),
+                };
                 if !self.started
-                    || v["content_block"]["type"] != "text"
                     || self.open_block.is_some()
                     || self.message_deltas_started
                     || v["index"].as_u64() != Some(self.next_block)
                 {
                     return Err(error(MemoryErrorCode::ProviderUnavailable));
                 }
-                self.open_block = Some(self.next_block);
+                self.open_block = Some((self.next_block, block));
                 self.next_block += 1;
-                let initial = v["content_block"]["text"]
-                    .as_str()
-                    .ok_or_else(|| error(MemoryErrorCode::ProviderUnavailable))?;
-                if !initial.is_empty() {
-                    on_text(initial)?;
-                    self.text.push_str(initial);
+                if block == Block::Text {
+                    let initial = content["text"]
+                        .as_str()
+                        .ok_or_else(|| error(MemoryErrorCode::ProviderUnavailable))?;
+                    if !initial.is_empty() {
+                        on_text(initial)?;
+                        self.text.push_str(initial);
+                    }
                 }
             }
             (Api::AnthropicMessages, "content_block_delta") => {
-                if !self.started
-                    || v["delta"]["type"] != "text_delta"
-                    || self.open_block.is_none()
-                    || v["index"].as_u64() != self.open_block
-                {
+                let Some((index, block)) = self.open_block else {
+                    return Err(error(MemoryErrorCode::ProviderUnavailable));
+                };
+                if !self.started || v["index"].as_u64() != Some(index) {
                     return Err(error(MemoryErrorCode::ProviderUnavailable));
                 }
-                let text = v["delta"]["text"]
-                    .as_str()
-                    .ok_or_else(|| error(MemoryErrorCode::ProviderUnavailable))?;
-                if !text.is_empty() {
-                    on_text(text)?;
-                    self.text.push_str(text);
+                let delta = &v["delta"];
+                match (block, delta["type"].as_str()) {
+                    (Block::Text, Some("text_delta")) => {
+                        let text = delta["text"]
+                            .as_str()
+                            .ok_or_else(|| error(MemoryErrorCode::ProviderUnavailable))?;
+                        if !text.is_empty() {
+                            on_text(text)?;
+                            self.text.push_str(text);
+                        }
+                    }
+                    (Block::Thinking, Some("thinking_delta")) if delta["thinking"].is_string() => {}
+                    (Block::Thinking, Some("signature_delta"))
+                        if delta["signature"].is_string() => {}
+                    // Redacted blocks have no documented deltas.
+                    _ => return Err(error(MemoryErrorCode::ProviderUnavailable)),
                 }
             }
             (Api::AnthropicMessages, "content_block_stop") => {
-                if self.open_block.is_none() || v["index"].as_u64() != self.open_block {
+                let open = self.open_block.map(|(index, _)| index);
+                if open.is_none() || v["index"].as_u64() != open {
                     return Err(error(MemoryErrorCode::ProviderUnavailable));
                 }
                 self.open_block = None;
@@ -285,7 +316,8 @@ impl Decoder {
                 }
                 let finish = match self.stop.as_deref() {
                     Some("end_turn" | "stop_sequence") => FinishReason::Completed,
-                    Some("max_tokens") => FinishReason::Length,
+                    // Documented as a truncated response, like max_tokens.
+                    Some("max_tokens" | "model_context_window_exceeded") => FinishReason::Length,
                     _ => return Err(error(MemoryErrorCode::ProviderUnavailable)),
                 };
                 let (input_tokens, output_tokens) = decode_usage(self.api, &self.usage)?;

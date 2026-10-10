@@ -45,6 +45,8 @@ Native response-head validation maps remote HTTP 401/403 to existing unauthentic
 
 Native response-head matching accepts ASCII case variation of the expected JSON/SSE media type, following the HTTP type/subtype rule. Other formats, wildcards and combined type lists remain refused. Native requests send one `Content-Type` and one `Accept` naming the expected JSON/SSE format. Content-Type is a singleton field: repeated response field lines, even identical ones, are refused as ambiguous after the existing 401/403 status classification, rather than trusting whichever line a parser reads first. Existing body decoders, failure codes, one-attempt semantics and wire/storage shapes remain unchanged.
 
+Anthropic `thinking` and `redacted_thinking` blocks, which always-on thinking models return without a request parameter, are validated in both decoders and skipped: reasoning text, signatures and redacted data are never exposed, chunked or stored, consistent with unsupported hidden reasoning storage. `model_context_window_exceeded` maps to `length` like `max_tokens`; `refusal` and other block kinds remain failures. No Core, wire or storage shape is added.
+
 Incremental SSE framing accepts LF, CRLF and standalone CR across callback boundaries, stripping one stream-leading UTF-8 BOM without altering text characters. Final blank-line and Provider-terminal validation, byte ceilings, permanent failure latching and one-attempt rules remain. These are event-stream framing rules, not browser reconnect/redirect/retry semantics. No Core, wire or storage shape is added.
 
 ## Compatibility and remaining gates
