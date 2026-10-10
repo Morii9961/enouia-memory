@@ -23,6 +23,19 @@ fn delete_with(name: &str, remove: impl FnOnce(&[u16]) -> Result<()>) -> Result<
     remove(&name)
 }
 
+fn write_with(
+    name: &str,
+    secret: &SecretBytes,
+    write: impl FnOnce(&mut [u16], &[u8]) -> Result<()>,
+) -> Result<()> {
+    let mut name = target(name)?;
+    // Refuse unusable native credentials before replacing a saved entry.
+    // Setup and transport share one rule; custom SecretStores stay opaque.
+    crate::transport::credential_text(secret)
+        .map_err(|_| error(MemoryErrorCode::InvalidRequest))?;
+    write(&mut name, secret.expose())
+}
+
 #[cfg(windows)]
 fn delete_result(os_error: Option<u32>) -> Result<()> {
     use windows_sys::Win32::Foundation::ERROR_NOT_FOUND;
@@ -103,42 +116,34 @@ impl CredentialStore {
     }
     /// Trusted native setup only; never call this using page IPC key material.
     pub fn write(&self, name: &str, secret: &SecretBytes) -> Result<()> {
-        let mut name = target(name)?;
-        if secret.expose().is_empty()
-            || secret.expose().len() > 4096
-            || secret
-                .expose()
-                .iter()
-                .any(|b| !b.is_ascii() || b.is_ascii_control())
-        {
-            return Err(error(MemoryErrorCode::InvalidRequest));
-        }
-        #[cfg(windows)]
-        {
-            use windows_sys::Win32::Security::Credentials::{
-                CRED_PERSIST_LOCAL_MACHINE, CRED_TYPE_GENERIC, CREDENTIALW, CredWriteW,
-            };
-            let credential = CREDENTIALW {
-                Type: CRED_TYPE_GENERIC,
-                TargetName: name.as_mut_ptr(),
-                CredentialBlobSize: secret.expose().len() as u32,
-                CredentialBlob: secret.expose().as_ptr().cast_mut(),
-                Persist: CRED_PERSIST_LOCAL_MACHINE,
-                ..Default::default()
-            };
-            // SAFETY: pointers remain valid for the synchronous Win32 call;
-            // credential manager copies bytes rather than taking ownership.
-            if unsafe { CredWriteW(&credential, 0) } == 0 {
-                Err(error(MemoryErrorCode::StorageFailed))
-            } else {
-                Ok(())
+        write_with(name, secret, |name, blob| {
+            #[cfg(windows)]
+            {
+                use windows_sys::Win32::Security::Credentials::{
+                    CRED_PERSIST_LOCAL_MACHINE, CRED_TYPE_GENERIC, CREDENTIALW, CredWriteW,
+                };
+                let credential = CREDENTIALW {
+                    Type: CRED_TYPE_GENERIC,
+                    TargetName: name.as_mut_ptr(),
+                    CredentialBlobSize: blob.len() as u32,
+                    CredentialBlob: blob.as_ptr().cast_mut(),
+                    Persist: CRED_PERSIST_LOCAL_MACHINE,
+                    ..Default::default()
+                };
+                // SAFETY: pointers remain valid for the synchronous Win32 call;
+                // credential manager copies bytes rather than taking ownership.
+                if unsafe { CredWriteW(&credential, 0) } == 0 {
+                    Err(error(MemoryErrorCode::StorageFailed))
+                } else {
+                    Ok(())
+                }
             }
-        }
-        #[cfg(not(windows))]
-        {
-            let _ = &mut name;
-            Err(error(MemoryErrorCode::ProviderUnavailable))
-        }
+            #[cfg(not(windows))]
+            {
+                let _ = (name, blob);
+                Err(error(MemoryErrorCode::ProviderUnavailable))
+            }
+        })
     }
 }
 
@@ -146,6 +151,100 @@ impl CredentialStore {
 mod tests {
     use super::*;
     use std::cell::Cell;
+
+    #[test]
+    fn credential_setup_refuses_spaces_before_the_driver_call() {
+        let calls = Cell::new(0);
+        for name in [
+            "Enouia.Memory.Provider.openai",
+            "Enouia.Memory.Provider.anthropic",
+        ] {
+            for value in [" ", " synthetic", "synthetic ", "synthetic credential"] {
+                let secret = SecretBytes::new(value.as_bytes().to_vec());
+                let result = write_with(name, &secret, |_, _| {
+                    calls.set(calls.get() + 1);
+                    Ok(())
+                });
+                assert_eq!(
+                    result.err().map(|e| e.code),
+                    Some(MemoryErrorCode::InvalidRequest)
+                );
+            }
+        }
+        assert_eq!(calls.get(), 0);
+    }
+
+    #[test]
+    fn credential_setup_validates_targets_bytes_and_size_without_os_access() {
+        let calls = Cell::new(0);
+        for name in [
+            "Enouia.Memory.Provider.openai",
+            "Enouia.Memory.Provider.anthropic",
+        ] {
+            let mut invalid = vec![vec![], vec![b'x'; 4097]];
+            for byte in 0..=u8::MAX {
+                if !byte.is_ascii_graphic() {
+                    invalid.push(vec![b'x', byte, b'y']);
+                }
+            }
+            for value in invalid {
+                let secret = SecretBytes::new(value);
+                assert_eq!(
+                    write_with(name, &secret, |_, _| {
+                        calls.set(calls.get() + 1);
+                        Ok(())
+                    })
+                    .unwrap_err()
+                    .code,
+                    MemoryErrorCode::InvalidRequest
+                );
+                // All these shapes are refused before the production driver.
+                assert_eq!(
+                    CredentialStore.write(name, &secret).unwrap_err().code,
+                    MemoryErrorCode::InvalidRequest
+                );
+            }
+            assert_eq!(calls.get(), 0);
+            for value in [vec![b'x'], (0x21..=0x7e).collect(), vec![b'x'; 4096]] {
+                let secret = SecretBytes::new(value.clone());
+                write_with(name, &secret, |target, blob| {
+                    assert_eq!(target.last(), Some(&0));
+                    assert_eq!(
+                        String::from_utf16(&target[..target.len() - 1]).unwrap(),
+                        name
+                    );
+                    assert_eq!(blob, value);
+                    Ok(())
+                })
+                .unwrap();
+                let failure = write_with(name, &secret, |_, _| {
+                    Err(error(MemoryErrorCode::StorageFailed))
+                })
+                .unwrap_err();
+                assert_eq!(failure.code, MemoryErrorCode::StorageFailed);
+                assert!(failure.retryable);
+            }
+        }
+        let valid = SecretBytes::new(b"synthetic-credential".to_vec());
+        for name in [
+            "",
+            "Enouia.Memory.Provider.*",
+            "Enouia.Memory.Provider.openai\0",
+            "enouia.memory.provider.openai",
+            "Enouia.Memory.Provider.anthropic ",
+        ] {
+            assert_eq!(
+                write_with(name, &valid, |_, _| {
+                    calls.set(calls.get() + 1);
+                    Ok(())
+                })
+                .unwrap_err()
+                .code,
+                MemoryErrorCode::PermissionDenied
+            );
+        }
+        assert_eq!(calls.get(), 0);
+    }
 
     #[test]
     fn credential_deletion_validates_exact_targets_before_any_driver_call() {
