@@ -105,6 +105,26 @@ impl HttpsTransport {
         }
         Ok(())
     }
+
+    /// Collapse the received Content-Type field lines into the one value
+    /// `validate_response_head` takes. RFC 9110 section 8.3 defines the
+    /// field as a single value; readers that pick different repeated lines
+    /// disagree about the body format. Absent, repeated or non-visible-ASCII
+    /// fields yield `None`, which the head check refuses after status.
+    pub fn single_content_type<'a>(fields: impl IntoIterator<Item = &'a [u8]>) -> Option<&'a str> {
+        let mut fields = fields.into_iter();
+        let (Some(value), None) = (fields.next(), fields.next()) else {
+            return None;
+        };
+        // Same byte rule as the pinned `HeaderValue::to_str`.
+        if !value
+            .iter()
+            .all(|&b| b == b'\t' || (0x20..0x7f).contains(&b))
+        {
+            return None;
+        }
+        std::str::from_utf8(value).ok()
+    }
 }
 impl Transport for HttpsTransport {
     fn preflight(&self) -> Result<()> {
@@ -157,8 +177,8 @@ impl Transport for HttpsTransport {
             let work = async {
                 let mut response = builder.send().await.map_err(|_| error(MemoryErrorCode::ProviderUnavailable))?;
                 // Error bodies may echo input/credentials; discard them entirely.
-                let content_type = response.headers().get(reqwest::header::CONTENT_TYPE)
-                    .and_then(|v| v.to_str().ok());
+                let content_type = Self::single_content_type(response.headers()
+                    .get_all(reqwest::header::CONTENT_TYPE).iter().map(|v| v.as_bytes()));
                 Self::validate_response_head(response.status().as_u16(), content_type, request.streaming)?;
                 while let Some(bytes) = response.chunk().await.map_err(|_| error(MemoryErrorCode::ProviderUnavailable))? {
                     if cancellation.is_cancelled() { return Err(error(MemoryErrorCode::Cancelled)); }
@@ -213,5 +233,81 @@ mod tests {
             assert!(installed.cipher_suites.is_empty());
             drop((first, second));
         });
+    }
+
+    /// Pinned hyper appends each received field line; `HeaderMap::get`
+    /// returns only the first, so a later contradicting line went unseen.
+    #[test]
+    fn repeated_content_type_lines_are_refused_after_status_classification() {
+        use reqwest::header::{CONTENT_TYPE, HeaderMap, HeaderValue};
+        fn lines(values: &[&[u8]]) -> HeaderMap {
+            let mut headers = HeaderMap::new();
+            for value in values {
+                headers.append(CONTENT_TYPE, HeaderValue::from_bytes(value).unwrap());
+            }
+            headers
+        }
+        fn received(headers: &HeaderMap) -> Option<&str> {
+            HttpsTransport::single_content_type(
+                headers.get_all(CONTENT_TYPE).iter().map(|v| v.as_bytes()),
+            )
+        }
+        for (streaming, expected, other) in [
+            (false, "application/json", "text/html"),
+            (true, "text/event-stream", "application/json"),
+        ] {
+            let mixed = lines(&[expected.as_bytes(), other.as_bytes()]);
+            // The hazard: first-line reads accept the expected format.
+            let first = mixed.get(CONTENT_TYPE).unwrap().to_str().ok();
+            HttpsTransport::validate_response_head(200, first, streaming).unwrap();
+
+            let single = lines(&[expected.as_bytes()]);
+            assert_eq!(received(&single), Some(expected));
+            HttpsTransport::validate_response_head(200, received(&single), streaming).unwrap();
+            for values in [
+                &[][..],
+                &[expected.as_bytes(), other.as_bytes()][..],
+                &[other.as_bytes(), expected.as_bytes()][..],
+                &[expected.as_bytes(), expected.as_bytes()][..],
+                &[expected.as_bytes(), b""][..],
+                &[b"", expected.as_bytes()][..],
+                &[expected.as_bytes(); 3][..],
+                &[&b"application/j\x80son"[..]][..],
+                &["application/jſon".as_bytes()][..],
+            ] {
+                let headers = lines(values);
+                assert_eq!(received(&headers), None);
+                for (status, code) in [
+                    (200, MemoryErrorCode::ProviderUnavailable),
+                    (401, MemoryErrorCode::Unauthenticated),
+                    (403, MemoryErrorCode::PermissionDenied),
+                    (429, MemoryErrorCode::ProviderUnavailable),
+                ] {
+                    assert_eq!(
+                        HttpsTransport::validate_response_head(
+                            status,
+                            received(&headers),
+                            streaming
+                        )
+                        .unwrap_err()
+                        .code,
+                        code
+                    );
+                }
+            }
+        }
+        // Tab and visible ASCII are the only accepted value bytes, matching
+        // the pinned `HeaderValue::to_str` used before this check.
+        assert_eq!(
+            HttpsTransport::single_content_type([&b"\tapplication/json; charset=utf-8\t"[..]]),
+            Some("\tapplication/json; charset=utf-8\t")
+        );
+        for value in [
+            &b"application/json\x7f"[..],
+            b"application/\x01json",
+            b"\xc3\xa9",
+        ] {
+            assert_eq!(HttpsTransport::single_content_type([value]), None);
+        }
     }
 }

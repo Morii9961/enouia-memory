@@ -4973,7 +4973,8 @@ fn native_media_types_ignore_ascii_case_without_accepting_other_formats() {
             sink: &mut dyn FnMut(&[u8]) -> Result<()>,
         ) -> Result<()> {
             self.calls.set(self.calls.get() + 1);
-            HttpsTransport::validate_response_head(200, Some(self.media), self.streaming)?;
+            let content_type = HttpsTransport::single_content_type([self.media.as_bytes()]);
+            HttpsTransport::validate_response_head(200, content_type, self.streaming)?;
             for bytes in self.bytes.chunks(3) {
                 sink(bytes)?;
             }
@@ -5092,7 +5093,7 @@ fn rejected_http_heads_keep_structured_failures_without_body_delivery_or_resend(
         calls: Cell<u64>,
         delivered: Cell<u64>,
         status: u16,
-        content_type: Option<&'static str>,
+        fields: &'static [&'static [u8]],
         streaming: bool,
     }
     impl Transport for HeadersHttp {
@@ -5105,7 +5106,9 @@ fn rejected_http_heads_keep_structured_failures_without_body_delivery_or_resend(
             sink: &mut dyn FnMut(&[u8]) -> Result<()>,
         ) -> Result<()> {
             self.calls.set(self.calls.get() + 1);
-            HttpsTransport::validate_response_head(self.status, self.content_type, self.streaming)?;
+            // Raw received field lines, as native HTTPS collects them.
+            let content_type = HttpsTransport::single_content_type(self.fields.iter().copied());
+            HttpsTransport::validate_response_head(self.status, content_type, self.streaming)?;
             // Native HTTPS applies this same head check before reading any
             // error body. Synthetic echoes must never reach persistence.
             self.delivered.set(self.delivered.get() + 1);
@@ -5120,24 +5123,47 @@ fn rejected_http_heads_keep_structured_failures_without_body_delivery_or_resend(
                 "application/json; charset=utf-8"
             };
             HttpsTransport::validate_response_head(200, Some(correct_media), streaming).unwrap();
-            let wrong_media = if streaming {
-                "application/json"
+            type Fields = &'static [&'static [u8]];
+            // `repeated` lines are ambiguous even when one or both match.
+            let (wrong, repeated): (Fields, [Fields; 3]) = if streaming {
+                (
+                    &[b"application/json"],
+                    [
+                        &[b"text/event-stream", b"text/html"],
+                        &[b"text/html", b"text/event-stream"],
+                        &[b"text/event-stream", b"text/event-stream"],
+                    ],
+                )
             } else {
-                "text/event-stream"
+                (
+                    &[b"text/event-stream"],
+                    [
+                        &[b"application/json", b"text/html"],
+                        &[b"text/html", b"application/json"],
+                        &[b"application/json", b"application/json"],
+                    ],
+                )
             };
-            for (status, content_type, code) in [
-                (401, Some("text/html"), MemoryErrorCode::Unauthenticated),
-                (403, None, MemoryErrorCode::PermissionDenied),
-                (429, None, MemoryErrorCode::ProviderUnavailable),
-                (503, None, MemoryErrorCode::ProviderUnavailable),
+            let mut cases: Vec<(u16, Fields, MemoryErrorCode)> = vec![
+                (401, &[b"text/html"], MemoryErrorCode::Unauthenticated),
+                (403, &[], MemoryErrorCode::PermissionDenied),
+                (429, &[], MemoryErrorCode::ProviderUnavailable),
+                (503, &[], MemoryErrorCode::ProviderUnavailable),
                 (
                     302,
-                    Some("application/json"),
+                    &[b"application/json"],
                     MemoryErrorCode::ProviderUnavailable,
                 ),
-                (200, Some("text/html"), MemoryErrorCode::ProviderUnavailable),
-                (200, Some(wrong_media), MemoryErrorCode::ProviderUnavailable),
-            ] {
+                (200, &[b"text/html"], MemoryErrorCode::ProviderUnavailable),
+                (200, &[b""], MemoryErrorCode::ProviderUnavailable),
+                (200, wrong, MemoryErrorCode::ProviderUnavailable),
+                // Remote 401/403 keep their classification before media.
+                (401, repeated[0], MemoryErrorCode::Unauthenticated),
+                (403, repeated[1], MemoryErrorCode::PermissionDenied),
+            ];
+            cases
+                .extend(repeated.map(|fields| (200, fields, MemoryErrorCode::ProviderUnavailable)));
+            for (status, fields, code) in cases {
                 let env = Env::new("http-head-outcome");
                 let (capsule, input, policy, caps) = setup(&env, api, Sensitivity::Normal);
                 let enabled = AtomicBool::new(true);
@@ -5157,7 +5183,7 @@ fn rejected_http_heads_keep_structured_failures_without_body_delivery_or_resend(
                     calls: Cell::new(0),
                     delivered: Cell::new(0),
                     status,
-                    content_type,
+                    fields,
                     streaming,
                 };
                 let client = Client {
