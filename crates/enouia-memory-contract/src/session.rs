@@ -80,6 +80,11 @@ pub struct SessionRecord {
     pub created_at: Timestamp,
     pub updated_at: Timestamp,
     pub extensions: Extensions,
+    /// MV-7 admission/outcome ledger. Missing means no external attempts.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub provider_invocations: Vec<crate::provider::Invocation>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub extraction_jobs: Vec<crate::extraction::ExtractionJob>,
 }
 
 impl SessionRecord {
@@ -110,6 +115,23 @@ impl SessionRecord {
             out.push(Violation::new("session.time_order", "/updated_at"));
         }
         validate_extensions(&self.extensions, "/extensions", &mut out);
+        let mut runs = BTreeSet::new();
+        for job in &self.extraction_jobs {
+            out.extend(job.validate());
+            if !runs.insert(&job.run_id) {
+                out.push(Violation::new("extraction.duplicate", "/extraction_jobs"));
+            }
+        }
+        let mut invocations = BTreeSet::new();
+        for invocation in &self.provider_invocations {
+            out.extend(invocation.validate());
+            if !invocations.insert(&invocation.dispatch_id) {
+                out.push(Violation::new(
+                    "invocation.duplicate",
+                    "/provider_invocations",
+                ));
+            }
+        }
         out
     }
 }

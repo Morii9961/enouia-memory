@@ -1,0 +1,306 @@
+{
+  "base": {
+    "run_id": "ext_00000001-0000-4000-8000-000000000001",
+    "input_event_id": "evt_00000001-0000-4000-8000-000000000001",
+    "input_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "prompt_version": "extract-text-1",
+    "binding": {
+      "provider": "openai",
+      "model": "synthetic-model",
+      "adapter_version": "text-http-1"
+    },
+    "subject_id": "sub_00000001-0000-4000-8000-000000000001",
+    "sources": [
+      {
+        "source": {
+          "source_id": "src_00000001-0000-4000-8000-000000000001",
+          "source_revision": 1
+        },
+        "content_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "start": 0,
+        "end": 48,
+        "snippet_hash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+      }
+    ],
+    "max_candidates": 2,
+    "max_pending": 500,
+    "state": "ready",
+    "cursor": 0,
+    "candidates": [],
+    "max_reserved_tokens": 100000,
+    "max_reserved_cost_microusd": null
+  },
+  "cases": [
+    {
+      "name": "context-prompt-v2",
+      "ops": [{"op": "set", "path": "/prompt_version", "value": "extract-text-2"}],
+      "schema": true,
+      "domain": true
+    },
+    {
+      "name": "unknown-prompt-version",
+      "ops": [{"op": "set", "path": "/prompt_version", "value": "extract-text-3"}],
+      "schema": false,
+      "domain": false
+    },
+    {
+      "name": "ready",
+      "ops": [],
+      "schema": true,
+      "domain": true
+    },
+    {
+      "name": "paused",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/state",
+          "value": "paused"
+        }
+      ],
+      "schema": true,
+      "domain": true
+    },
+    {
+      "name": "completed-with-suppressed",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/state",
+          "value": "completed"
+        },
+        {
+          "op": "set",
+          "path": "/cursor",
+          "value": 1
+        },
+        {
+          "op": "set",
+          "path": "/candidates",
+          "value": [
+            null
+          ]
+        }
+      ],
+      "schema": true,
+      "domain": true
+    },
+    {
+      "name": "anthropic",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/binding/provider",
+          "value": "anthropic"
+        }
+      ],
+      "schema": true,
+      "domain": true
+    },
+    {
+      "name": "unknown-provider",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/binding/provider",
+          "value": "unknown"
+        }
+      ],
+      "schema": false,
+      "domain": false
+    },
+    {
+      "name": "credential-field",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/api_key",
+          "value": "synthetic-only"
+        }
+      ],
+      "schema": false,
+      "domain": false
+    },
+    {
+      "name": "model-path",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/binding/model",
+          "value": "bad/model"
+        }
+      ],
+      "schema": false,
+      "domain": false
+    },
+    {
+      "name": "missing-sources",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/sources",
+          "value": []
+        }
+      ],
+      "schema": false,
+      "domain": false
+    },
+    {
+      "name": "zero-budget",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/max_candidates",
+          "value": 0
+        }
+      ],
+      "schema": false,
+      "domain": false
+    },
+    {
+      "name": "cursor-mismatch",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/cursor",
+          "value": 1
+        }
+      ],
+      "schema": true,
+      "domain": false
+    },
+    {
+      "name": "cursor-over-budget",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/max_candidates",
+          "value": 1
+        },
+        {
+          "op": "set",
+          "path": "/cursor",
+          "value": 2
+        },
+        {
+          "op": "set",
+          "path": "/candidates",
+          "value": [
+            null,
+            null
+          ]
+        }
+      ],
+      "schema": true,
+      "domain": false
+    },
+    {
+      "name": "empty-span",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/sources/0/end",
+          "value": 1
+        },
+        {
+          "op": "set",
+          "path": "/sources/0/start",
+          "value": 1
+        }
+      ],
+      "schema": true,
+      "domain": false
+    },
+    {
+      "name": "reversed-span",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/sources/0/start",
+          "value": 49
+        }
+      ],
+      "schema": true,
+      "domain": false
+    },
+    {
+      "name": "oversized-span",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/sources/0/end",
+          "value": 32769
+        }
+      ],
+      "schema": true,
+      "domain": false
+    },
+    {
+      "name": "total-span-budget",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/sources",
+          "value": [
+            {
+              "source": {
+                "source_id": "src_00000001-0000-4000-8000-000000000001",
+                "source_revision": 1
+              },
+              "content_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "start": 0,
+              "end": 32768,
+              "snippet_hash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+            },
+            {
+              "source": {
+                "source_id": "src_00000001-0000-4000-8000-000000000001",
+                "source_revision": 1
+              },
+              "content_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "start": 0,
+              "end": 32768,
+              "snippet_hash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+            },
+            {
+              "source": {
+                "source_id": "src_00000001-0000-4000-8000-000000000001",
+                "source_revision": 1
+              },
+              "content_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "start": 0,
+              "end": 1,
+              "snippet_hash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+            }
+          ]
+        }
+      ],
+      "schema": true,
+      "domain": false
+    },
+    {
+      "name": "zero-token-budget",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/max_reserved_tokens",
+          "value": 0
+        }
+      ],
+      "schema": false,
+      "domain": false
+    },
+    {
+      "name": "invalid-cost",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/max_reserved_cost_microusd",
+          "value": -1
+        }
+      ],
+      "schema": false,
+      "domain": false
+    }
+  ]
+}

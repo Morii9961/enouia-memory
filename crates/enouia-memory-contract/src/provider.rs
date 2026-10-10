@@ -227,3 +227,52 @@ pub struct ProviderResponse {
     pub input_tokens: Option<u64>,
     pub output_tokens: Option<u64>,
 }
+
+/// Durable MV-7 state in the owning Session header, without wire text or keys.
+/// DispatchRecord remains immutable. An admitted external Dispatch snapshot
+/// is OutcomeUnknown; this ledger records the subsequently learned outcome.
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum InvocationState {
+    OutcomeUnknown,
+    Completed,
+    Length,
+    Cancelled,
+    Failed,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Invocation {
+    pub dispatch_id: DispatchId,
+    pub input_event_id: crate::ids::EventId,
+    pub wire_hash: Sha256Hex,
+    pub wire_size_bytes: u64,
+    pub reserved_tokens: u64,
+    #[serde(deserialize_with = "crate::json::nullable")]
+    pub reserved_cost_microusd: Option<u64>,
+    pub state: InvocationState,
+    #[serde(deserialize_with = "crate::json::nullable")]
+    pub terminal_event_id: Option<crate::ids::EventId>,
+    #[serde(deserialize_with = "crate::json::nullable")]
+    pub input_tokens: Option<u64>,
+    #[serde(deserialize_with = "crate::json::nullable")]
+    pub output_tokens: Option<u64>,
+    #[serde(deserialize_with = "crate::json::nullable")]
+    pub error_code: Option<crate::error::MemoryErrorCode>,
+}
+impl Invocation {
+    pub fn validate(&self) -> Vec<Violation> {
+        let mut out = vec![];
+        if self.reserved_tokens == 0
+            || self.wire_size_bytes == 0
+            || self.wire_size_bytes > 2 * 1024 * 1024
+            || (self.state == InvocationState::OutcomeUnknown) != self.terminal_event_id.is_none()
+            || (self.state == InvocationState::Completed || self.state == InvocationState::Length)
+                && self.error_code.is_some()
+        {
+            out.push(Violation::new("invocation.state", "/provider_invocations"));
+        }
+        out
+    }
+}

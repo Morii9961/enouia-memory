@@ -252,12 +252,13 @@ fn impact(
 fn add_context_dependents(vault: &Vault, pin: &CommitPin, out: &mut PurgeImpact) -> Result<()> {
     use enouia_memory_contract::context::{ContextCapsule, ContextInspection, DispatchRecord};
     use enouia_memory_contract::session::{
-        CheckpointSourceRef, Coverage, EventKind, SessionCheckpoint, SessionEvent,
+        CheckpointSourceRef, Coverage, EventKind, SessionCheckpoint, SessionEvent, SessionRecord,
     };
     let capsules: Vec<ContextCapsule> = all_latest(vault, pin, RecordKind::Capsule)?;
     let inspections: Vec<ContextInspection> = all_latest(vault, pin, RecordKind::Inspection)?;
     let dispatches: Vec<DispatchRecord> = all_latest(vault, pin, RecordKind::Dispatch)?;
     let events: Vec<SessionEvent> = all_latest(vault, pin, RecordKind::SessionEvent)?;
+    let sessions: Vec<SessionRecord> = all_latest(vault, pin, RecordKind::Session)?;
     let checkpoints: Vec<SessionCheckpoint> = all_latest(vault, pin, RecordKind::Checkpoint)?;
     let mut targets: BTreeSet<(RecordKind, String)> = out
         .targets
@@ -304,7 +305,9 @@ fn add_context_dependents(vault: &Vault, pin: &CommitPin, out: &mut PurgeImpact)
                 e.request_id.as_ref() == Some(&capsule.request_id)
                     && matches!(
                         e.kind,
-                        EventKind::AssistantCompleted | EventKind::AssistantChunk
+                        EventKind::AssistantCompleted
+                            | EventKind::AssistantChunk
+                            | EventKind::TurnFailed
                     )
             }) {
                 targets.insert((RecordKind::SessionEvent, event.event_id.to_string()));
@@ -325,6 +328,16 @@ fn add_context_dependents(vault: &Vault, pin: &CommitPin, out: &mut PurgeImpact)
         // another event/dispatch; preview and purge include those references.
         for event in &events {
             if event
+                .source_refs
+                .iter()
+                .any(|r| targets.contains(&(RecordKind::Source, r.source_id.to_string())))
+            {
+                targets.insert((RecordKind::SessionEvent, event.event_id.to_string()));
+                if let Some(content) = &event.content_ref {
+                    hashes.insert(content.object_hash.clone());
+                }
+            }
+            if event
                 .content_ref
                 .as_ref()
                 .is_some_and(|c| hashes.contains(&c.object_hash))
@@ -339,6 +352,19 @@ fn add_context_dependents(vault: &Vault, pin: &CommitPin, out: &mut PurgeImpact)
                 .any(|m| hashes.contains(&m.content_hash))
             {
                 targets.insert((RecordKind::Dispatch, dispatch.dispatch_id.to_string()));
+            }
+        }
+        for session in &sessions {
+            for invocation in &session.provider_invocations {
+                if targets.contains(&(RecordKind::Dispatch, invocation.dispatch_id.to_string()))
+                    || targets.contains(&(
+                        RecordKind::SessionEvent,
+                        invocation.input_event_id.to_string(),
+                    ))
+                    || targets.contains(&(RecordKind::Session, session.session_id.to_string()))
+                {
+                    hashes.insert(invocation.wire_hash.clone());
+                }
             }
         }
         if targets.len() == previous {

@@ -16,6 +16,41 @@ pub fn fixture(relative: &str) -> Value {
     serde_json::from_str(&text).unwrap_or_else(|e| panic!("{relative}: {e}"))
 }
 
+/// Existing synthetic lifecycle plus one source-bound optional job.
+pub fn extraction_world() -> enouia_memory_contract::set::RecordSet {
+    use enouia_memory_contract::{
+        common::SourceRevisionRef, extraction::ExtractionJob, session::EventKind, set::RecordSet,
+    };
+    let mut world = RecordSet::from_value(&fixture("sets/lifecycle.json")).unwrap();
+    let source = world.sources[0].clone();
+    let input = world
+        .session_events
+        .iter_mut()
+        .find(|e| e.kind == EventKind::UserMessage)
+        .unwrap();
+    let reference = SourceRevisionRef {
+        source_id: source.source_id,
+        source_revision: source.revision,
+    };
+    input.source_refs = vec![reference.clone()];
+    let mut job: ExtractionJob =
+        serde_json::from_value(fixture("extraction-job-cases.json")["base"].clone()).unwrap();
+    job.input_event_id = input.event_id.clone();
+    job.input_hash = input.content_ref.as_ref().unwrap().object_hash.clone();
+    job.sources[0].source = reference;
+    job.sources[0].content_hash = source.content_hash;
+    job.sources[0].end = 1;
+    let sid = input.session_id.clone();
+    world
+        .sessions
+        .iter_mut()
+        .filter(|s| s.session_id == sid)
+        .max_by_key(|s| s.revision)
+        .unwrap()
+        .extraction_jobs = vec![job];
+    world
+}
+
 fn split(path: &str) -> (&str, &str) {
     path.rsplit_once('/').expect("pointer with parent")
 }

@@ -791,6 +791,38 @@ impl Vault {
         self.read_verified(&file, hash)
     }
 
+    /// A native consumer may impose a tighter allocation budget than the
+    /// import store. Reachability, purge barriers and hash checks are unchanged.
+    pub fn read_object_bounded(
+        &self,
+        pin: &CommitPin,
+        hash: &Sha256Hex,
+        max_bytes: usize,
+    ) -> Result<Vec<u8>> {
+        let commit = self.stored_commit(pin)?;
+        let item = self
+            .find_object(&commit, hash)?
+            .ok_or_else(Self::not_found)?;
+        if self.purged_for(&commit)?.object(hash) {
+            return Err(crate::purge::purged_error());
+        }
+        if item.size_bytes > max_bytes as u64 {
+            return Err(VaultError::new(
+                MemoryErrorCode::BudgetExceeded,
+                Fault::Contract(vec!["object.read_budget"]),
+            ));
+        }
+        let file = object_file_of(&item).ok_or_else(Self::corrupt_record)?;
+        let bytes = self
+            .root
+            .read_bounded(&file, max_bytes)?
+            .ok_or_else(Self::corrupt_record)?;
+        if &sha256(&bytes) != hash {
+            return Err(Self::corrupt_record());
+        }
+        Ok(bytes)
+    }
+
     /// Parse one cataloged revision (cached after its first verified read).
     pub(crate) fn record_at(
         &self,
@@ -1052,6 +1084,9 @@ impl Vault {
                     .is_some_and(|c| c.object_hash == object.hash),
                 AnyRecord::Dispatch(dispatch) => dispatch.messages.iter().any(|m| {
                     m.content_hash == object.hash && m.size_bytes == object.bytes.len() as u64
+                }),
+                AnyRecord::Session(session) => session.provider_invocations.iter().any(|i| {
+                    i.wire_hash == object.hash && i.wire_size_bytes == object.bytes.len() as u64
                 }),
                 _ => false,
             });

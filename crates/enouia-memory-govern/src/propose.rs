@@ -357,11 +357,23 @@ pub fn propose(
     origin: &Origin,
     key: &[u8],
 ) -> Result<Proposed> {
+    propose_on_head(vault, proposal, origin, key, None)
+}
+fn propose_on_head(
+    vault: &Vault,
+    proposal: &Proposal,
+    origin: &Origin,
+    key: &[u8],
+    required_head: Option<&CommitId>,
+) -> Result<Proposed> {
     if let Some(done) = replayed(vault, &origin.actor, key)? {
         return Ok(Proposed::Stored(done));
     }
     check_details(proposal.kind, proposal.proposed_type, &proposal.details)?;
     let pin = vault.pin_current()?;
+    if required_head.is_some_and(|id| id != &pin.commit_id) {
+        return Err(stale());
+    }
     let resolved: Resolved = resolve(vault, &pin, &proposal.evidence)?;
     let sensitivity = proposal.sensitivity.unwrap_or_else(|| resolved.strictest());
     if sensitivity < resolved.strictest() {
@@ -429,6 +441,74 @@ pub fn propose(
         Some(&pin.commit_id),
     )
     .map(Proposed::Stored)
+}
+
+/// Model extraction may not repeatedly reopen an identical reviewed claim
+/// against unchanged evidence. A materially changed source permits a new
+/// pending proposal; neither outcome accepts a canonical memory.
+pub fn propose_extracted(
+    vault: &Vault,
+    proposal: &Proposal,
+    origin: &Origin,
+    key: &[u8],
+    required_head: &CommitId,
+) -> Result<Option<Proposed>> {
+    if origin.kind != OriginKind::ModelExtraction || origin.extraction_run_id.is_none() {
+        return Err(invalid("extraction.origin"));
+    }
+    // Recovery retains the original candidate ID even if the owner reviewed
+    // it between proposal publication and the extraction cursor commit.
+    if let Some(done) = replayed(vault, &origin.actor, key)? {
+        return Ok(Some(Proposed::Stored(done)));
+    }
+    let pin = vault.pin_current()?;
+    if &pin.commit_id != required_head {
+        return Err(stale());
+    }
+    let resolved = resolve(vault, &pin, &proposal.evidence)?;
+    let hash = fingerprint(
+        proposal.kind,
+        proposal.proposed_type,
+        &proposal.content,
+        &proposal.details,
+        &proposal.target_memory_id,
+        &proposal.target_identity_id,
+    );
+    for candidate in all_latest::<CandidateRecord>(vault, &pin, RecordKind::Candidate)? {
+        if candidate.dedupe_fingerprint != hash
+            || !matches!(
+                candidate.status,
+                CandidateStatus::Rejected | CandidateStatus::Accepted | CandidateStatus::Merged
+            )
+        {
+            continue;
+        }
+        if candidate.evidence.len() != resolved.sources.len() {
+            continue;
+        }
+        let mut unchanged = true;
+        for (old, current) in candidate.evidence.iter().zip(&resolved.sources) {
+            let old_source: Option<enouia_memory_contract::source::SourceRecord> =
+                crate::util::revision(
+                    vault,
+                    &pin,
+                    RecordKind::Source,
+                    old.source_id.as_str(),
+                    old.source_revision,
+                )?;
+            if old.source_id != current.source_id
+                || old.evidence_class != current.evidence_class
+                || old_source.is_none_or(|s| s.content_hash != current.content_hash)
+            {
+                unchanged = false;
+                break;
+            }
+        }
+        if unchanged {
+            return Ok(None);
+        }
+    }
+    propose_on_head(vault, proposal, origin, key, Some(required_head)).map(Some)
 }
 
 /// Changes to a pending candidate; unset fields keep their value.

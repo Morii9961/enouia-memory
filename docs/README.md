@@ -40,6 +40,8 @@ The [background import read budget report](validation/MV-6-import-read-budget.md
 
 The [complete confirmation result replay report](validation/MV-6-confirm-result-replay.md) records a same-plan purge confirmation race and serializes confirmation through complete result-cache publication.
 
+The [MV-7 implementation report](validation/MV-7.md) and [native Provider guide](integration/PROVIDERS.md) record OpenAI/Anthropic text adapters, exact egress inspection, approval, durable outcomes and limits. Real smoke is deferred by the owner. Optional source-bound candidate extraction is implemented and inactive in the host; Runtime adoption remains pending.
+
 ## Import record (2026-09-28)
 
 The design package, the two prompts, and the review were written in this directory. They were moved unchanged from the repository root into the folders above, apart from the substitutions listed here. The unredacted originals are kept in the ignored `.local/originals/` with their SHA-256 values.

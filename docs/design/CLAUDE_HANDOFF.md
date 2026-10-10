@@ -1,5 +1,7 @@
 # 交给 Claude Opus 5.5 · Enouia Memory 实施交接
 
+> **MV-7 接续（2026-10-10）：** 当前已授权阶段和实现证据见 [Claude MV-7 交接](../handoff/CLAUDE_MV7_HANDOFF.md)。下面的旧 MV-0 主体保留为历史，不作为当前启动指令。
+
 > **仓库边界已更正（2026-09-28）。** 本文关于 Runtime 仓库（本地 checkout） 为实现仓库的安排已失效。Memory 改为 Memory 仓库（本地 checkout） 独立工程与 GitHub 仓库；下一步先按 [MV-0R 修正提示词](../handoff/CLAUDE_MV0_CORRECTION_PROMPT.md) 完成迁移及契约修复。正文保留为历史交接，不能覆盖用户的新要求。
 >
 > **MV-0R 已完成（2026-09-28）：** 迁移与 F1～F6 修正的结果、证据及 MV-1 入口见 [MV-0R 报告](../validation/MV-0R.md)。下一阶段只在用户明确授权后开始。

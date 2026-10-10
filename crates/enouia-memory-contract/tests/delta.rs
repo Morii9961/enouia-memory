@@ -189,6 +189,26 @@ fn scoped_validation_equals_whole_set_validation_for_every_single_record() {
 }
 
 #[test]
+fn optional_extraction_keeps_scoped_and_whole_validation_equal() {
+    let world = support::extraction_world();
+    let records = stored(&world);
+    for index in 0..records.len() {
+        let mut base = records.clone();
+        let delta = vec![base.remove(index)];
+        compare("extraction valid references", &world, &base, &delta);
+    }
+    let mut broken = world;
+    broken.sessions[0].extraction_jobs[0].sources[0].content_hash =
+        enouia_memory_contract::hash::sha256(b"changed-source-hash");
+    let records = stored(&broken);
+    for index in 0..records.len() {
+        let mut base = records.clone();
+        let delta = vec![base.remove(index)];
+        compare("extraction broken source hash", &broken, &base, &delta);
+    }
+}
+
+#[test]
 fn scoped_validation_equals_whole_set_validation_for_every_commit() {
     let mut checked = 0;
     for (name, world) in worlds() {

@@ -53,7 +53,7 @@
     {
       "path": "Cargo.toml",
       "role": "build",
-      "sha256": "2347a7f1990ca3f8e3b8c4acf96d768cb91f67e619b88fa571d9fc9aeab099aa"
+      "sha256": "48eac0b5781b035a3d27ead4be3aaa75a343f9519e16f3dd114c0e79b6bb1f84"
     },
     {
       "path": "apps/workspace/package.json",
@@ -276,5 +276,5 @@
       "sha256": "3603c1855d9f9ec9b3585143a0191508980b260b1ffd26c82b3e6f9b7223a75d"
     }
   ],
-  "aggregate": "ef2282cd0abf8aeb5598fda80ec96df5c372bd9b269e3f729a73540494582e77"
+  "aggregate": "f1a52c732445fe9ea0c5d5b33eaec3fd5fe7b9a71376ca3215e594f1792cf167"
 }

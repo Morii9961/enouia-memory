@@ -8,6 +8,7 @@ use enouia_memory_contract::hash::{Sha256Hex, sha256};
 use enouia_memory_contract::ids::*;
 use enouia_memory_contract::json::{Revision, SchemaVersion};
 use enouia_memory_contract::ports::{CommitOutcome, CommitPin, StagedObject};
+use enouia_memory_contract::provider::InvocationState;
 use enouia_memory_contract::record::{RecordKind, RecordRef};
 use enouia_memory_contract::session::*;
 use enouia_memory_vault::{
@@ -72,6 +73,8 @@ pub fn start(
     let sid = SessionId::from_random(vault.random_id_bytes());
     let bid = BranchId::from_random(vault.random_id_bytes());
     let session = SessionRecord {
+        provider_invocations: vec![],
+        extraction_jobs: vec![],
         schema_version: SchemaVersion,
         session_id: sid.clone(),
         revision: one(),
@@ -245,6 +248,38 @@ pub fn save_input(
         Some(text),
         Some(request),
         key,
+        None,
+        &[],
+        None,
+    )
+}
+
+/// Save a native extraction prompt with its real source dependencies. Body,
+/// source references and inherited sensitivity are published together.
+#[allow(clippy::too_many_arguments)]
+pub fn save_input_with_sources(
+    vault: &Vault,
+    actor: &ActorRef,
+    sid: &SessionId,
+    bid: &BranchId,
+    text: &str,
+    request: &RequestId,
+    key: &[u8],
+    sources: &[enouia_memory_contract::common::SourceRevisionRef],
+) -> Result<Written<EventId>> {
+    append(
+        vault,
+        actor,
+        sid,
+        bid,
+        EventKind::UserMessage,
+        None,
+        Some(text),
+        Some(request),
+        key,
+        None,
+        sources,
+        None,
     )
 }
 
@@ -257,6 +292,74 @@ pub fn append_output(
     kind: EventKind,
     text: Option<&str>,
     key: &[u8],
+) -> Result<Written<EventId>> {
+    append_output_with_guard(vault, actor, input, kind, text, key, None)
+}
+
+/// Provider publication barrier: commit against these epochs and inherit the
+/// strictest request evidence sensitivity. The writer checks the pinned head.
+#[derive(Clone, Copy)]
+pub struct OutputGuard {
+    pub policy_epoch: u64,
+    pub deletion_epoch: u64,
+    pub sensitivity: enouia_memory_contract::common::Sensitivity,
+}
+pub fn append_output_with_guard(
+    vault: &Vault,
+    actor: &ActorRef,
+    input: &EventId,
+    kind: EventKind,
+    text: Option<&str>,
+    key: &[u8],
+    guard: Option<OutputGuard>,
+) -> Result<Written<EventId>> {
+    append_output_impl(vault, actor, input, kind, text, key, guard, None)
+}
+
+/// Native result metadata published atomically with the terminal event. This
+/// is transport-neutral; it cannot create an admission or authorize a send.
+#[derive(Clone, Debug, Serialize)]
+pub struct InvocationCompletion {
+    pub dispatch_id: DispatchId,
+    pub state: InvocationState,
+    pub input_tokens: Option<u64>,
+    pub output_tokens: Option<u64>,
+    pub error_code: Option<enouia_memory_contract::MemoryErrorCode>,
+}
+
+#[allow(clippy::too_many_arguments)]
+pub fn append_invocation_output(
+    vault: &Vault,
+    actor: &ActorRef,
+    input: &EventId,
+    kind: EventKind,
+    text: Option<&str>,
+    key: &[u8],
+    guard: Option<OutputGuard>,
+    completion: &InvocationCompletion,
+) -> Result<Written<EventId>> {
+    append_output_impl(
+        vault,
+        actor,
+        input,
+        kind,
+        text,
+        key,
+        guard,
+        Some(completion),
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn append_output_impl(
+    vault: &Vault,
+    actor: &ActorRef,
+    input: &EventId,
+    kind: EventKind,
+    text: Option<&str>,
+    key: &[u8],
+    guard: Option<OutputGuard>,
+    completion: Option<&InvocationCompletion>,
 ) -> Result<Written<EventId>> {
     owner(vault, actor)?;
     if !matches!(
@@ -283,6 +386,9 @@ pub fn append_output(
         text,
         event.request_id.as_ref(),
         key,
+        guard,
+        &[],
+        completion,
     )
 }
 
@@ -297,14 +403,31 @@ fn append(
     text: Option<&str>,
     request: Option<&RequestId>,
     key: &[u8],
+    guard: Option<OutputGuard>,
+    sources: &[enouia_memory_contract::common::SourceRevisionRef],
+    completion: Option<&InvocationCompletion>,
 ) -> Result<Written<EventId>> {
     owner(vault, actor)?;
-    if kind.needs_content() != text.is_some() || text.is_some_and(|s| s.trim().is_empty()) {
+    if (kind.needs_content() != text.is_some()
+        && !(kind == EventKind::TurnFailed && text.is_some()))
+        || text.is_some_and(|s| {
+            // Output is exact Provider text, including whitespace or an empty
+            // terminal response. Empty chunks carry no content/progress.
+            kind == EventKind::UserMessage && s.trim().is_empty()
+                || kind == EventKind::AssistantChunk && s.is_empty()
+        })
+    {
         return Err(invalid("session.content"));
     }
-    let payload = sha256(&bytes(
-        &json!({"session":sid,"branch":bid,"kind":kind,"input":input,"text":text,"request":request}),
-    )?);
+    let mut logical =
+        json!({"session":sid,"branch":bid,"kind":kind,"input":input,"text":text,"request":request});
+    if !sources.is_empty() {
+        logical["sources"] = json!(sources);
+    }
+    if let Some(completion) = completion {
+        logical["invocation"] = json!(completion);
+    }
+    let payload = sha256(&bytes(&logical)?);
     if let Some((commit_id, receipt)) =
         replay(vault, actor, OperationKind::SessionAppend, key, &payload)?
     {
@@ -320,7 +443,27 @@ fn append(
         });
     }
     let pin = vault.pin_current()?;
+    if guard.is_some_and(|g| {
+        g.policy_epoch != pin.policy_epoch || g.deletion_epoch != pin.deletion_epoch
+    }) {
+        return Err(invalid("session.output_stale"));
+    }
     let mut session = get(vault, &pin, sid)?;
+    let mut sensitivity = session.sensitivity;
+    for source in sources {
+        let record = vault.read_parsed(
+            &pin,
+            &RecordRef::new(
+                RecordKind::Source,
+                source.source_id.as_str(),
+                source.source_revision,
+            ),
+        )?;
+        let enouia_memory_contract::record::AnyRecord::Source(record) = record else {
+            return Err(missing());
+        };
+        sensitivity = sensitivity.max(record.sensitivity);
+    }
     let branch_events = events(vault, &pin, sid, bid)?;
     let previous = branch_events.last();
     let turn = match input {
@@ -388,12 +531,42 @@ fn append(
         occurred_at: now.clone(),
         captured_at: now.clone(),
         content_ref: content_ref.clone(),
-        source_refs: vec![],
+        source_refs: sources.to_vec(),
         request_id: request.cloned(),
         delivery_state: kind.delivery_state(),
-        sensitivity: session.sensitivity,
+        sensitivity: guard.map_or(sensitivity, |g| sensitivity.max(g.sensitivity)),
         extensions: Default::default(),
     };
+    if let Some(completion) = completion {
+        let matches_kind = matches!(
+            (completion.state, kind),
+            (InvocationState::Completed, EventKind::AssistantCompleted)
+                | (
+                    InvocationState::Length | InvocationState::Failed,
+                    EventKind::TurnFailed
+                )
+                | (InvocationState::Cancelled, EventKind::TurnCancelled)
+        );
+        if !matches_kind {
+            return Err(invalid("session.invocation_terminal_kind"));
+        }
+        let row = session
+            .provider_invocations
+            .iter_mut()
+            .find(|r| r.dispatch_id == completion.dispatch_id && Some(&r.input_event_id) == input)
+            .ok_or_else(|| invalid("session.invocation_required"))?;
+        if row.state != InvocationState::OutcomeUnknown {
+            return Err(invalid("session.invocation_terminal"));
+        }
+        row.state = completion.state;
+        row.terminal_event_id = Some(id.clone());
+        row.input_tokens = completion.input_tokens;
+        row.output_tokens = completion.output_tokens;
+        row.error_code = completion.error_code;
+        if !row.validate().is_empty() {
+            return Err(invalid("session.invocation_metadata"));
+        }
+    }
     session.revision =
         Revision::new(session.revision.get() + 1).ok_or_else(|| invalid("number.out_of_range"))?;
     session.last_event_seq = sequence;

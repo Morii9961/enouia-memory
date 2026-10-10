@@ -270,6 +270,10 @@ The [full remember replay and target freshness acceptance](../validation/MV-6-fu
 
 - **Complete confirmation result replay (2026-10-06 follow-up).** Core holds its existing result-cache mutex through confirmation and optional file purge. Concurrent confirmation retries replay the complete first result instead of overwriting removal counters. Confirmations within one Core serialize; existing retryable-plan retention and status observation remain. See [confirmation evidence](../validation/MV-6-confirm-result-replay.md).
 
+### ADR-MEM-47 — Explicit text Provider dispatch (Adopted implementation; real activation pending)
+
+[Decision](047-explicit-provider-dispatch.md): native OpenAI Responses/Anthropic Messages adapters, owner-inspected egress policies and exact body approvals, bounded calls and no automatic resend, durable Session invocation ledger, derived sensitivity, and payload deletion. Existing Mock/page IPC remains unchanged. Runtime adoption and real-account smoke are separate gates; optional extraction is unimplemented.
+
 ## Relation to Enouia Runtime's register
 
 

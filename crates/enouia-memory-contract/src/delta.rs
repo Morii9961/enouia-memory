@@ -182,6 +182,14 @@ fn checkpoint_needs(checkpoint: &SessionCheckpoint) -> Vec<Need> {
     out
 }
 
+fn session_needs(session: &crate::session::SessionRecord) -> Vec<Need> {
+    let mut needs = vec![Need::SessionEvents(session.session_id.to_string())];
+    for job in &session.extraction_jobs {
+        needs.extend(job.sources.iter().map(|s| source_need(&s.source)));
+    }
+    needs
+}
+
 fn tombstone_needs(tombstone: &Tombstone) -> Vec<Need> {
     tombstone
         .targets
@@ -204,7 +212,7 @@ pub fn record_needs(record: &AnyRecord) -> Vec<Need> {
         AnyRecord::Review(review) => review_needs(review),
         AnyRecord::Checkpoint(checkpoint) => checkpoint_needs(checkpoint),
         AnyRecord::Tombstone(tombstone) => tombstone_needs(tombstone),
-        AnyRecord::Session(session) => vec![Need::SessionEvents(session.session_id.to_string())],
+        AnyRecord::Session(session) => session_needs(session),
         AnyRecord::SessionEvent(event) => vec![Need::SessionEvents(event.session_id.to_string())],
         AnyRecord::Capsule(capsule) => capsule_needs(capsule),
         _ => Vec::new(),
@@ -312,9 +320,7 @@ pub fn delta_needs(head: &RecordSet, delta: &[AnyRecord]) -> BTreeSet<Need> {
     head.tombstones
         .iter()
         .for_each(|t| extend(tombstone_needs(t)));
-    head.sessions
-        .iter()
-        .for_each(|s| extend(vec![Need::SessionEvents(s.session_id.to_string())]));
+    head.sessions.iter().for_each(|s| extend(session_needs(s)));
     // Saved context records remain small-kind documents. Their pinned commit
     // and bulk citations must be present when checking later dispatches too.
     for capsule in &head.capsules {

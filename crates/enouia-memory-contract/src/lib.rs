@@ -22,6 +22,7 @@ pub mod common;
 pub mod context;
 pub mod delta;
 pub mod error;
+pub mod extraction;
 pub mod foundation;
 pub mod hash;
 pub mod identity;
