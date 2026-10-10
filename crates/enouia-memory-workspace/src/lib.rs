@@ -13,8 +13,11 @@
 //! will authenticate the caller; until then the process boundary is the
 //! trust boundary.
 
+mod native;
 pub mod ops;
 pub mod views;
+
+pub use native::{CALL_TTL_MS, NativeDestination, NativeProvider};
 
 /// The caller scope every host checks before forwarding (ADR-MEM-45).
 pub use enouia_memory_contract::workspace::HostSurface;
@@ -234,6 +237,9 @@ struct Open {
     index: Arc<Mutex<Option<Index>>>,
     root: PathBuf,
     owner: ActorRef,
+    /// Native Provider access for this open Vault (ADR-MEM-48). Close and
+    /// lock turn it off before operations are cancelled and joined.
+    enabled: std::sync::atomic::AtomicBool,
 }
 
 enum Slot {
@@ -268,6 +274,8 @@ pub struct Workspace {
     last_backup: Mutex<Option<OperationId>>,
     /// Companion status reported by the shell (tray, hotkey, overlay).
     companion: Mutex<Value>,
+    /// Native Provider setup, plans and prepared calls (ADR-MEM-48).
+    native: native::Native,
 }
 
 fn base_name(path: &Path) -> String {
@@ -398,6 +406,7 @@ impl Workspace {
             companion: Mutex::new(
                 json!({"tray": "absent", "hotkey": {"state": "absent"}, "overlay": "absent"}),
             ),
+            native: native::Native::default(),
         }
     }
 
@@ -520,6 +529,7 @@ impl Workspace {
             index: Arc::new(Mutex::new(None)),
             root: root.to_path_buf(),
             owner,
+            enabled: native::enabled_flag(),
         }));
         Ok(())
     }
@@ -553,9 +563,17 @@ impl Workspace {
     /// `then` is the slot left behind (`Locked` or `Empty`).
     fn close(&self, then: Option<Slot>) {
         // Detach the Vault first, so no new command can start work on it
-        // while running operations are cancelled and joined.
-        *self.slot.lock().expect("slot") = then.unwrap_or(Slot::Empty);
+        // while running operations are cancelled and joined. Native Provider
+        // access ends before that, so a late result cannot publish.
+        let previous = std::mem::replace(
+            &mut *self.slot.lock().expect("slot"),
+            then.unwrap_or(Slot::Empty),
+        );
+        if let Slot::Open(open) = previous {
+            native::disable(&open.enabled);
+        }
         self.ops.close();
+        self.native.forget();
         self.plans.lock().expect("plans").clear();
         self.confirmed.lock().expect("confirmed").clear();
         self.started.lock().expect("started").clear();
@@ -766,6 +784,13 @@ impl Workspace {
                 })?)
             }
             Command::OperationList(_) => Done::of(json!({"items": self.ops.list()})),
+            Command::ProviderStatus(_) => Done::of(self.provider_status()?),
+            Command::EgressGrantPlan(a) => Done::of(self.egress_grant_plan(a)?),
+            Command::EgressRevokePlan(a) => Done::of(self.egress_revoke_plan(a)?),
+            Command::ProviderConfirm(a) => Done::of(self.provider_confirm(a)?),
+            Command::ExternalPrepare(a) => Done::of(self.external_prepare(a, key)?),
+            Command::ExternalSend(a) => self.external_send(a, key)?,
+            Command::ExternalInterruptPlan(a) => Done::of(self.external_interrupt_plan(a)?),
         })
     }
 
@@ -775,7 +800,7 @@ impl Workspace {
         let companion = self.companion.lock().expect("companion").clone();
         let fixed = [
             json!({"component": "core", "state": "healthy", "mode": "embedded"}),
-            json!({"component": "provider", "state": "unavailable", "mode": "local_mock_only"}),
+            self.provider_component(),
             json!({"component": "sync", "state": "unavailable", "mode": "not_configured_before_mv9"}),
             json!({"component": "activity", "state": "unavailable", "mode": "independent_not_managed"}),
         ];
@@ -1234,13 +1259,19 @@ impl Workspace {
         }))
     }
 
+    /// The Vault's genesis access policy. Owner egress grants are Policy
+    /// records too (ADR-MEM-48), so the first record is not enough.
     fn policy(&self, open: &Open) -> R<PolicyId> {
         let pin = open.vault.pin_current()?;
-        open.vault
-            .record_entries(&pin, RecordKind::Policy)?
-            .first()
-            .and_then(|e| PolicyId::parse(&e.record_id).ok())
-            .ok_or_else(|| fail(MemoryErrorCode::NotFound, "policy.missing"))
+        latest_records::<enouia_memory_contract::policy::PolicyRecord>(
+            &open.vault,
+            &pin,
+            RecordKind::Policy,
+        )?
+        .into_iter()
+        .find(|p| p.origin == enouia_memory_contract::policy::PolicyOrigin::GenesisDefault)
+        .map(|p| p.policy_id)
+        .ok_or_else(|| fail(MemoryErrorCode::NotFound, "policy.missing"))
     }
 
     /// The owner's exact words become a manual-assertion source.
@@ -1634,6 +1665,19 @@ impl Workspace {
         let pin = open.vault.pin_current()?;
         let turns = session::turns(&open.vault, &open.owner, &a.session_id, &a.branch_id)?;
         let events = session::events(&open.vault, &pin, &a.session_id, &a.branch_id)?;
+        let header: SessionRecord = parse(
+            &open.vault.read_record(
+                &pin,
+                &RecordRef::new(
+                    RecordKind::Session,
+                    a.session_id.as_str(),
+                    open.vault
+                        .record_entry(&pin, RecordKind::Session, a.session_id.as_str())?
+                        .ok_or_else(|| fail(MemoryErrorCode::NotFound, "session.missing"))?
+                        .revision,
+                ),
+            )?,
+        )?;
         let transcript: Vec<Value> = events
             .iter()
             .rev()
@@ -1680,6 +1724,7 @@ impl Workspace {
             "sessionId": a.session_id, "branchId": a.branch_id,
             "lastSavedEventId": events.last().map(|e| &e.event_id),
             "turns": turns, "transcript": transcript, "checkpoints": checkpoints,
+            "invocations": header.provider_invocations,
         }))
     }
 

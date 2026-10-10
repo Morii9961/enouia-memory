@@ -1,6 +1,6 @@
 # Native text Provider integration
 
-Implemented in `crates/enouia-memory-provider`; [ADR-MEM-47](../adr/047-explicit-provider-dispatch.md) defines the boundaries. This is a Rust native interface for a future host adapter. Existing workspace IPC, the reference shell and Runtime's current product UI have not been switched to real calls.
+Implemented in `crates/enouia-memory-provider`; [ADR-MEM-47](../adr/047-explicit-provider-dispatch.md) defines the boundaries. This is a Rust native interface. [ADR-MEM-48](../adr/048-workspace-native-provider-hosting.md) lets a workspace host opt in (see [Hosting in the workspace Core](#hosting-in-the-workspace-core)); the reference shell stays on Mock and Runtime's product UI has not been switched to real calls.
 
 ## Prepare and inspect
 
@@ -59,6 +59,18 @@ The Windows store targets are fixed: `Enouia.Memory.Provider.openai` and `Enouia
 For an explicit trusted native setup action, `CredentialStore::delete(name)` removes only one of those two exact generic credential entries. It validates the name before any OS call and never reads the stored key. Microsoft [CredDeleteW](https://learn.microsoft.com/en-us/windows/win32/api/wincred/nf-wincred-creddeletew) reports an absent target as `ERROR_NOT_FOUND`; success or confirmed absence both return `Ok`, making repeated removal idempotent. Other OS failures return the existing retryable local `StorageFailed`; the method does not retry automatically. Unsupported platforms return `ProviderUnavailable`, while invalid targets are always refused. If removing setup for an active adapter, stop submissions, cancel/join its workers and explicitly disable it before this native action; a worker may already hold a copied key. Local removal neither revokes the remote key nor cancels an admitted call, changes its ledger/reservation, or authorizes a resend. Keep this action out of page key material/automatic lock or disable handlers. The implementation is compiled and fake-driver tested only; no actual credential entry was read, written or removed during validation.
 
 The owner deferred real smoke calls. Both adapters are validated only with synthetic Vaults and fake transports. Optional candidate extraction is implemented as an explicit native flow and remains inactive until the host exposes and enables it. No MV-8 Host/MCP work starts here.
+
+## Hosting in the workspace Core
+
+A host that embeds `enouia-memory-workspace` does not call this crate's flow step by step. It calls `Workspace::set_native_provider(Some(NativeProvider { transport, secrets, destinations, quota, limits }))` from native code, and the Core runs the flow above behind seven page commands (ADR-MEM-48):
+
+1. `provider_status` lists the configured APIs, models and capabilities, plus owner grants. It never shows keys.
+2. `egress_grant_plan` / `egress_revoke_plan` hold a `PolicyPlan` and return its exact `inspection` bytes and `diffHash`. `provider_confirm` confirms by that hash. Grants cover all projects and Session/memory kinds up to `normal` or `private`, for Answer and ContinueSession.
+3. `external_prepare` saves the owner input, compiles a capsule for the configured destination and returns the exact HTTP `body`, `endpoint`, `wireHash`, input estimate and a single-use `callId` (15 minutes). It reads no credential and sends nothing.
+4. `external_send` takes the `callId` and the confirmed `wireHash`. The Core records the single-use Egress approval, then runs `Client::send` once on an operation worker (a plain thread, outside Tokio). Poll the operation. Cancelling it cancels the call. A keyed retry returns the same operation, and a consumed call cannot be reused.
+5. `session_detail.invocations` shows the ledger. For an unknown admission, `external_interrupt_plan` plus `provider_confirm` close the turn locally. This is refused while that dispatch's worker runs.
+
+Close and lock turn native access off before cancelling and joining workers, then forget plans and calls. A result arriving afterwards stays unknown. `set_native_provider(None)` removes the setup; it is refused (`provider.call_running`) while a send runs. Without a setup every external command answers `provider.not_configured`. Synthetic page-channel tests use fake transports/secrets only.
 
 ## Optional extraction
 

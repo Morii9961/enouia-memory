@@ -166,7 +166,8 @@ fn memory_govern_depends_only_on_contract_and_store() {
 
 /// The embedded Core that hosts consume (the reference shell, Runtime's
 /// adapter, later the MV-8 Host) depends only on this repository's domain
-/// crates and Serde. It stays transport-neutral (ADR-MEM-45).
+/// crates and Serde. It stays transport-neutral (ADR-MEM-45). The native
+/// Provider crate is hosted behind an injected setup (ADR-MEM-48).
 #[test]
 fn memory_workspace_depends_only_on_this_repository() {
     let manifest =
@@ -181,6 +182,7 @@ fn memory_workspace_depends_only_on_this_repository() {
             "enouia-memory-govern",
             "enouia-memory-import",
             "enouia-memory-index",
+            "enouia-memory-provider",
             "enouia-memory-vault",
             "serde",
             "serde_json"

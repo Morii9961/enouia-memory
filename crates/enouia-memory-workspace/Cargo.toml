@@ -10,6 +10,7 @@ enouia-memory-context = { path = "../enouia-memory-context" }
 enouia-memory-govern = { path = "../enouia-memory-govern" }
 enouia-memory-import = { path = "../enouia-memory-import" }
 enouia-memory-index = { path = "../enouia-memory-index" }
+enouia-memory-provider = { path = "../enouia-memory-provider" }
 enouia-memory-vault = { path = "../enouia-memory-vault" }
 serde.workspace = true
 serde_json.workspace = true
