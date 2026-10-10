@@ -1,7 +1,7 @@
 //! Inspector -> durable admission -> one attempt -> persisted stream/outcome.
 use crate::{
     Result,
-    codec::{Api, WireRequest, decode, encode},
+    codec::{Api, WireRequest, decode_observing, encode},
     egress::SendGuard,
     error,
     stream::Decoder,
@@ -212,12 +212,12 @@ impl Client<'_> {
             self.guard.check(&call.dispatch, false)?;
             Ok(())
         })();
-        let (input_tokens, output_tokens) = decoder.observed_usage();
+        let mut observed = decoder.observed_usage();
         let result = received.and_then(|()| {
             if call.wire.streaming {
                 decoder.finish()
             } else {
-                decode(call.wire.api, &body)
+                decode_observing(call.wire.api, &body, &mut observed)
             }
         });
         match result {
@@ -230,7 +230,7 @@ impl Client<'_> {
                 // A retryable transport error does not authorize an egress retry.
                 err.retryable = false;
                 self.journal
-                    .finish_failure(&call.dispatch, err, input_tokens, output_tokens)?;
+                    .finish_failure(&call.dispatch, err, observed.0, observed.1)?;
                 Err(err)
             }
         }

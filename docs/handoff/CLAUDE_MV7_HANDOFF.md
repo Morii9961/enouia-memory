@@ -50,7 +50,9 @@
 | `21881ea` | 凭据回归使用原生纯校验加无法联网的假 exchange；校验退化时也只能在假调用或 admission 断言上失败，不再意外向真实 API 发出请求。专项检查和严格 Clippy 通过，产品代码未改变。 |
 | `f8d85b9` | Anthropic `message_start.content` 必须为空数组；原先带有文本的起始内容会被丢弃后仍返回 Completed。错误形状现在永久失败；合法空文本终态仍保留用量，持久化失败不允许重发。官方协议、独立探针和完整 333 项合成回归支持本次修复。 |
 
-| 本提交（终态一致性） | 完整历史校验严格匹配 Completed/AssistantCompleted、Length 或 Failed/TurnFailed、Cancelled/TurnCancelled；4 个有效 Vault 历史和 16 项组合回归通过。完整 334 项合成检查及规定交叉验证通过。 |
+| `4d33d25` | 完整历史校验严格匹配 Completed/AssistantCompleted、Length 或 Failed/TurnFailed、Cancelled/TurnCancelled；4 个有效 Vault 历史和 16 项组合回归通过。完整 334 项合成检查及规定交叉验证通过。 |
+
+| 本提交（JSON refusal 用量） | Anthropic 非流式拒绝回复在失败 ledger 保留经过验证的 reported usage，包括缓存归一化；11 种真假消息/计数/transport 控制和后续更高用量限额验证通过。完整 335 项合成检查及规定交叉验证通过。 |
 
 MV-7.2 的 Memory 侧原生调用链已实现：外部目的地编译、精确请求体 inspection、站立策略及私密内容单次批准、凭据读取端口、持久化 admission、流式文本、原子终态、用量和限额、取消、关闭与恢复规则。OpenAI Responses 与 Anthropic Messages 均有合成接受路径。
 
@@ -78,13 +80,13 @@ Claude 随后审查原生传输与 SSE 路径，修复了非流式请求头重�
 
 此前待定的凭据形状收紧已经主人确认并实现（见提交表）。`malformed_native_credentials_do_not_consume_private_approval_or_admission` 已改为调用真实 `HttpsTransport` 的纯 preflight/凭据校验，并通过无法联网的假 exchange 验证 Client 的审批/admission 顺序；不再把合成凭据交给真实 exchange。因此即使形状或调用顺序校验退化，测试也只能记录假调用并失败。随后按路线图做了 MV-7.1 中不需要账户的官方文档核对（结果见 MV-7 报告），修复了 Anthropic thinking 块问题。账户能力、模型上限、tokenizer 和价格仍待真实调用核实。
 
-本轮已独立复现下一项缺口：Anthropic 非流式 HTTP 200 的 JSON refusal 带有合法 usage，但失败后的 ledger 把计数存为 unknown。后续应保留经过验证的计数，同时保持失败、禁止重发及 reservation 下限。探针仅用假 HTTP 和合成 Vault；当前尚未修复此项。
+本轮复现的非流式 JSON refusal 用量缺口已经修复并完整验证，见本地提交表。对流式计数累计/倒退/矛盾、终态失败锁存、凭据 setup/read/send 边界和 reservation 下限的复查没有证实其他必须修改的缺口。原有并发 checkpoint 在上一轮全仓检查曾触发有界 WriterBusy，精确隔离及完整重跑通过；最新 335 项完整检查没有失败。当前没有已证实且未修复的新增缺口。
 
 若没有证实新的 MV-7 缺口，不为消耗额度扩充无依据功能，也不转入 MV-8。Runtime 产品接入需主人给该仓库的明确工作范围；本仓库不添加到 Runtime checkout、crates、fixtures 或 target 的依赖。Activity & Usage 属于 Runtime，不在 Memory 中读取或实现。
 
 ## 验证和证据
 
-最近一次（ledger 终态一致性修复）的根目录检查全部通过：
+最近一次（JSON refusal 用量修复）的根目录检查全部通过：
 
 ```powershell
 $env:CARGO_NET_OFFLINE = 'true'
@@ -99,9 +101,11 @@ python tools/integration/runtime_surface.py
 
 Cargo 使用仓库 pin；Windows GNU linker/toolchain 须在 PATH 中。Python 使用已配置的 3.12 虚拟环境及 `tools/schema-check/requirements.txt` 的固定版本，不临时更换验证器。
 
+最新完整运行：335 Rust tests（60 Provider cases、60 Core cases），格式与严格 Clippy 通过。
+
 独立 Python 结果：36 schemas、53 valid records、117 record mutations、4,913 set records、51 IPC、63 workspace、46 store、8 invocation、19 extraction-job cases。Runtime manifest 与日志中的 aggregate 一致。合成证据不证明真实账户、账单、TLS handshake、Windows credential store 或实际宿主行为。
 
-本地 `.local/mv7-terminal-workspace-recheck.log`、`.local/mv7-terminal-clippy.log` 是忽略的运行输出，可能被下一次检查覆盖，不提交也不当成唯一证据。稳定入口为 MV-7 报告和对应提交的代码/测试。完整串行根目录检查约需 6～10 分钟，开始前为测试、修复、提交和交接预留额度。
+本地 `.local/mv7-json-usage-workspace-tests.log`、`.local/mv7-json-usage-clippy.log` 是忽略的运行输出，可能被下一次检查覆盖，不提交也不当成唯一证据。稳定入口为 MV-7 报告和对应提交的代码/测试。完整串行根目录检查约需 6～10 分钟，开始前为测试、修复、提交和交接预留额度。
 
 旧完整运行曾遇到现有 Core 并发测试的有界 writer/index 等待或有序释放超时。隔离复验和完整重跑通过；未因此改变产品代码或等待规则。单 harness worker 不关闭测试内明确的线程/进程竞争。遇到类似失败先保留输出并聚焦复验，不以局部通过代替新功能的完整验证，也不要未经诊断扩大修复范围。
 
@@ -111,7 +115,7 @@ Cargo 使用仓库 pin；Windows GNU linker/toolchain 须在 PATH 中。Python �
 
 提交只包含本任务文件，不带真实记忆、聊天、数据库、附件、凭据或 `.local/` 输出。Codex 实质参与的提交须按 `AGENTS.md` 保留 Codex co-author trailer；Claude 的新增贡献按其当前会话给出的 trailer 记录，不猜造身份，也不移除其他贡献者。
 
-停止时记录实际 HEAD、未提交范围、最后完整验证及未验证项。若新功能尚未完成完整检查，不称其已完成，不与已验证功能混淆；保留可恢复的修改和准确接续指令。没有新的明确授权，不 push、不创建 PR、不部署、不操作真实账户。
+2026-10-10 本轮按主人接近限额时停止并关机的要求进入收尾：所有 5 项修复独立本地提交，当前代码完成完整验证，未发送真实 HTTP，未操作实际凭据，也未 push。停止时记录实际 HEAD、未提交范围、最后完整验证及未验证项。若新功能尚未完成完整检查，不称其已完成，不与已验证功能混淆；保留可恢复的修改和准确接续指令。没有新的明确授权，不 push、不创建 PR、不部署、不操作真实账户。
 
 可供主人启动 Claude 时复制：
 

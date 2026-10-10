@@ -153,6 +153,15 @@ pub fn encode(api: Api, request: &ProviderRequest) -> Result<WireRequest> {
 }
 
 pub fn decode(api: Api, body: &[u8]) -> Result<ProviderResponse> {
+    decode_observing(api, body, &mut (None, None))
+}
+
+/// Keep validated message usage even when its stop reason refuses publication.
+pub(crate) fn decode_observing(
+    api: Api,
+    body: &[u8],
+    observed: &mut (Option<u64>, Option<u64>),
+) -> Result<ProviderResponse> {
     let v: Value =
         serde_json::from_slice(body).map_err(|_| error(MemoryErrorCode::ProviderUnavailable))?;
     let mut text = String::new();
@@ -194,7 +203,7 @@ pub fn decode(api: Api, body: &[u8]) -> Result<ProviderResponse> {
                     _ => return Err(error(MemoryErrorCode::ProviderUnavailable)),
                 }
             }
-            (finish, &v["usage"])
+            (finish, decode_usage(api, &v["usage"])?)
         }
         Api::AnthropicMessages => {
             if v["type"] != "message" || v["role"] != "assistant" {
@@ -218,16 +227,22 @@ pub fn decode(api: Api, body: &[u8]) -> Result<ProviderResponse> {
                     _ => return Err(error(MemoryErrorCode::ProviderUnavailable)),
                 }
             }
+            // Validate the complete usage tuple before retaining either count.
+            // The envelope/content above must also be valid; arbitrary error
+            // bodies with a usage-shaped field are not message evidence.
+            let counts = decode_usage(api, &v["usage"])?;
+            *observed = counts;
             let finish = match v["stop_reason"].as_str() {
                 Some("end_turn" | "stop_sequence") => FinishReason::Completed,
                 // Documented as a truncated response, like max_tokens.
                 Some("max_tokens" | "model_context_window_exceeded") => FinishReason::Length,
                 _ => return Err(error(MemoryErrorCode::ProviderUnavailable)),
             };
-            (finish, &v["usage"])
+            (finish, counts)
         }
     };
-    let (input_tokens, output_tokens) = decode_usage(api, usage)?;
+    let (input_tokens, output_tokens) = usage;
+    *observed = usage;
     Ok(ProviderResponse {
         text,
         finish,

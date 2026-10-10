@@ -5968,3 +5968,195 @@ fn sse_line_framing_preserves_text_and_completion_across_fragment_boundaries() {
     );
     assert!(decoder.finish().is_err());
 }
+
+#[test]
+fn failed_anthropic_json_keeps_valid_usage_without_completing_or_resending() {
+    use enouia_memory_contract::record::{AnyRecord, RecordRef};
+    let mut cases: Vec<_> = [
+        (
+            json!({"input_tokens":50000,"output_tokens":4}),
+            Some(50000),
+            Some(4),
+        ),
+        (
+            json!({"input_tokens":50000,"cache_creation_input_tokens":2,"cache_read_input_tokens":3,"output_tokens":4}),
+            Some(50005),
+            Some(4),
+        ),
+        (
+            json!({"input_tokens":0,"output_tokens":0}),
+            Some(0),
+            Some(0),
+        ),
+        (json!({"output_tokens":4}), None, Some(4)),
+        (serde_json::Value::Null, None, None),
+        (
+            json!({"input_tokens":50000,"output_tokens":"invalid"}),
+            None,
+            None,
+        ),
+    ].into_iter().map(|(usage, input, output)| (json!({"type":"message","role":"assistant","content":[],
+        "stop_reason":"refusal","usage":usage}), input, output, false)).collect();
+    let valid = json!({"type":"message","role":"assistant","content":[],"stop_reason":"refusal",
+        "usage":{"input_tokens":50000,"output_tokens":4}});
+    for (key, value) in [
+        ("type", json!("error")),
+        ("role", json!("user")),
+        ("content", serde_json::Value::Null),
+        ("content", json!([{"type":"text","text":42}])),
+    ] {
+        let mut body = valid.clone();
+        body[key] = value;
+        cases.push((body, None, None, false));
+    }
+    cases.push((valid, None, None, true));
+    for (body, expected_input, expected_output, transport_failure) in cases {
+        let env = Env::new("failed-json-usage");
+        let api = Api::AnthropicMessages;
+        let (capsule, input, policy, caps) = setup(&env, api, Sensitivity::Normal);
+        let enabled = AtomicBool::new(true);
+        let adapter = VaultAdapter {
+            vault: &env.vault,
+            owner: owner(),
+            input_event: input.clone(),
+            enabled: &enabled,
+            quota: Quota::default(),
+        };
+        let call = adapter
+            .prepare_saved(
+                api,
+                &capsule,
+                &caps,
+                Limits::default(),
+                CallOptions::text(policy.clone(), 128),
+            )
+            .unwrap();
+        let http = FakeHttp {
+            calls: Cell::new(0),
+            bytes: serde_json::to_vec(&body).unwrap(),
+            fail: transport_failure,
+        };
+        let client = Client {
+            transport: &http,
+            secrets: &Secrets { missing: false },
+            guard: &adapter,
+            journal: &adapter,
+        };
+        let failure = client
+            .send(&call, &call.inspect().hash(), &NeverCancel)
+            .unwrap_err();
+        assert_eq!(failure.code, MemoryErrorCode::ProviderUnavailable);
+        assert!(!failure.retryable);
+        let rows = adapter.invocations().unwrap();
+        assert_eq!(rows.len(), 1);
+        let row = &rows[0];
+        assert_eq!(row.state, InvocationState::Failed);
+        assert_eq!(
+            (row.input_tokens, row.output_tokens),
+            (expected_input, expected_output)
+        );
+        assert_eq!(
+            row.reserved_tokens,
+            call.estimated_input_tokens() + call.dispatch().output.max_output_tokens
+        );
+        let pin = env.vault.pin_current().unwrap();
+        let AnyRecord::SessionEvent(previous) = env
+            .vault
+            .read_parsed(
+                &pin,
+                &RecordRef::new(
+                    RecordKind::SessionEvent,
+                    input.as_str(),
+                    Revision::new(1).unwrap(),
+                ),
+            )
+            .unwrap()
+        else {
+            panic!("input");
+        };
+        let events =
+            session::events(&env.vault, &pin, &previous.session_id, &previous.branch_id).unwrap();
+        assert!(!events.iter().any(|event| matches!(
+            event.kind,
+            enouia_memory_contract::session::EventKind::AssistantCompleted
+                | enouia_memory_contract::session::EventKind::AssistantChunk
+        )));
+        assert_eq!(
+            client
+                .send(&call, &call.inspect().hash(), &NeverCancel)
+                .unwrap_err()
+                .code,
+            MemoryErrorCode::IdempotencyConflict
+        );
+        assert_eq!(http.calls.get(), 1);
+        assert_eq!(env.vault.pin_current().unwrap(), pin);
+        assert!(env.vault.verify(&pin).unwrap().is_clean());
+
+        // The failed body reports more than the old reservation. A distinct
+        // explicit next input must debit that known use before any exchange.
+        if expected_input.is_some_and(|count| count >= 50000) {
+            let mut compile = CompileInput::local(
+                "新的明确合成输入",
+                owner(),
+                RequestId::from_random(env.vault.random_id_bytes()),
+            );
+            compile.session_id = Some(previous.session_id.clone());
+            compile.branch_id = Some(previous.branch_id.clone());
+            let next_input = session::save_input(
+                &env.vault,
+                &owner(),
+                &previous.session_id,
+                &previous.branch_id,
+                &compile.query,
+                &compile.request_id,
+                b"after-failed-json",
+            )
+            .unwrap()
+            .id;
+            let (index, _) = enouia_memory_index::Index::rebuild(&env.vault).unwrap();
+            let next_capsule = compiler::compile_for_destination(
+                &env.vault,
+                &index,
+                &compile,
+                &Destination {
+                    kind: DestinationKind::ExternalProvider,
+                    provider_binding: Some(caps.binding.clone()),
+                },
+            )
+            .unwrap();
+            let mut next = VaultAdapter {
+                input_event: next_input,
+                ..adapter
+            };
+            let next_call = next
+                .prepare_saved(
+                    api,
+                    &next_capsule.capsule.capsule_id,
+                    &caps,
+                    Limits::default(),
+                    CallOptions::text(policy, 128),
+                )
+                .unwrap();
+            next.quota.max_reserved_tokens = row.reserved_tokens
+                + next_call.estimated_input_tokens()
+                + next_call.dispatch().output.max_output_tokens;
+            let before = env.vault.pin_current().unwrap();
+            assert_eq!(
+                Client {
+                    transport: &http,
+                    secrets: &Secrets { missing: false },
+                    guard: &next,
+                    journal: &next
+                }
+                .send(&next_call, &next_call.inspect().hash(), &NeverCancel)
+                .unwrap_err()
+                .code,
+                MemoryErrorCode::BudgetExceeded
+            );
+            assert_eq!(http.calls.get(), 1);
+            assert_eq!(env.vault.pin_current().unwrap(), before);
+            assert_eq!(next.invocations().unwrap().len(), 1);
+            assert!(env.vault.verify(&before).unwrap().is_clean());
+        }
+    }
+}
