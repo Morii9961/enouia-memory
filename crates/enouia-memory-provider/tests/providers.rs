@@ -2307,6 +2307,191 @@ fn terminal_metadata_cannot_bind_a_different_admission_or_invalid_state() {
 }
 
 #[test]
+fn invocation_snapshot_requires_the_exact_terminal_event_kind() {
+    use enouia_memory_contract::{
+        MemoryError,
+        foundation::ComponentId,
+        provider::{FinishReason, ProviderResponse},
+        record::RecordRef,
+        session::EventKind,
+        set::{RecordSet, validate_set},
+    };
+    for state in [
+        InvocationState::Completed,
+        InvocationState::Length,
+        InvocationState::Failed,
+        InvocationState::Cancelled,
+    ] {
+        let env = Env::new("invocation-terminal-snapshot");
+        let api = Api::OpenAiResponses;
+        let (capsule, input, policy, caps) = setup(&env, api, Sensitivity::Normal);
+        let enabled = AtomicBool::new(true);
+        let adapter = VaultAdapter {
+            vault: &env.vault,
+            owner: owner(),
+            input_event: input,
+            enabled: &enabled,
+            quota: Quota::default(),
+        };
+        let call = adapter
+            .prepare_saved(
+                api,
+                &capsule,
+                &caps,
+                Limits::default(),
+                CallOptions::text(policy, 128),
+            )
+            .unwrap();
+        // Journal-only fixtures: actual synthetic persistence, no transport or
+        // credentials. Each state first comes from the supported write entry.
+        assert!(adapter.claim(&call).unwrap());
+        if matches!(state, InvocationState::Completed | InvocationState::Length) {
+            adapter
+                .finish(
+                    call.dispatch(),
+                    Some(&ProviderResponse {
+                        text: "synthetic terminal".into(),
+                        finish: if state == InvocationState::Completed {
+                            FinishReason::Completed
+                        } else {
+                            FinishReason::Length
+                        },
+                        tool_requests: vec![],
+                        input_tokens: Some(10),
+                        output_tokens: Some(4),
+                    }),
+                    None,
+                )
+                .unwrap();
+        } else {
+            adapter
+                .finish_failure(
+                    call.dispatch(),
+                    MemoryError::new(
+                        if state == InvocationState::Cancelled {
+                            MemoryErrorCode::Cancelled
+                        } else {
+                            MemoryErrorCode::ProviderUnavailable
+                        },
+                        ComponentId::Provider,
+                    ),
+                    None,
+                    None,
+                )
+                .unwrap();
+        }
+        let pin = env.vault.pin_current().unwrap();
+        let mut set = RecordSet::default();
+        for kind in [
+            RecordKind::Source,
+            RecordKind::Attachment,
+            RecordKind::Project,
+            RecordKind::Memory,
+            RecordKind::Candidate,
+            RecordKind::Review,
+            RecordKind::Identity,
+            RecordKind::Session,
+            RecordKind::SessionEvent,
+            RecordKind::Checkpoint,
+            RecordKind::Tombstone,
+            RecordKind::PurgeReceipt,
+            RecordKind::Capsule,
+            RecordKind::Inspection,
+            RecordKind::Dispatch,
+            RecordKind::Approval,
+            RecordKind::Policy,
+            RecordKind::Import,
+        ] {
+            for entry in env.vault.record_entries(&pin, kind).unwrap() {
+                for revision in 1..=entry.revision.get() {
+                    set.push(
+                        env.vault
+                            .read_parsed(
+                                &pin,
+                                &RecordRef::new(
+                                    kind,
+                                    &entry.record_id,
+                                    Revision::new(revision).unwrap(),
+                                ),
+                            )
+                            .unwrap(),
+                    );
+                }
+            }
+        }
+        let mut cursor = pin.clone();
+        loop {
+            let manifest = env.vault.read_manifest(&cursor).unwrap();
+            let parent = manifest.parent_commit_id.clone();
+            set.commits.push(manifest);
+            let Some(commit_id) = parent else {
+                break;
+            };
+            cursor = enouia_memory_contract::ports::CommitPin {
+                commit_id,
+                sequence: cursor.sequence - 1,
+                policy_epoch: 0,
+                deletion_epoch: 0,
+            };
+        }
+        assert!(validate_set(&set).is_empty());
+        let latest = set
+            .sessions
+            .iter()
+            .enumerate()
+            .max_by_key(|(_, s)| s.revision)
+            .unwrap()
+            .0;
+        let terminal = set.sessions[latest].provider_invocations[0]
+            .terminal_event_id
+            .as_ref()
+            .unwrap();
+        let kind = set
+            .session_events
+            .iter()
+            .find(|e| &e.event_id == terminal)
+            .unwrap()
+            .kind;
+        for alternate in [
+            InvocationState::Completed,
+            InvocationState::Length,
+            InvocationState::Failed,
+            InvocationState::Cancelled,
+        ] {
+            let mut changed = set.clone();
+            let row = &mut changed.sessions[latest].provider_invocations[0];
+            row.state = alternate;
+            row.error_code = match alternate {
+                InvocationState::Failed => Some(MemoryErrorCode::ProviderUnavailable),
+                InvocationState::Cancelled => Some(MemoryErrorCode::Cancelled),
+                _ => None,
+            };
+            assert!(row.validate().is_empty());
+            let expected = matches!(
+                (alternate, kind),
+                (InvocationState::Completed, EventKind::AssistantCompleted)
+                    | (
+                        InvocationState::Length | InvocationState::Failed,
+                        EventKind::TurnFailed
+                    )
+                    | (InvocationState::Cancelled, EventKind::TurnCancelled)
+            );
+            let violations = validate_set(&changed);
+            assert_eq!(
+                !violations.iter().any(|v| v.rule == "invocation.terminal"),
+                expected,
+                "{alternate:?} must agree with {kind:?}: {violations:?}"
+            );
+            if expected {
+                assert!(violations.is_empty());
+            }
+        }
+        assert_eq!(env.vault.pin_current().unwrap(), pin);
+        assert!(env.vault.verify(&pin).unwrap().is_clean());
+    }
+}
+
+#[test]
 fn owner_can_interrupt_an_unknown_call_locally_then_start_a_new_explicit_turn() {
     use enouia_memory_contract::{
         record::{AnyRecord, RecordRef},

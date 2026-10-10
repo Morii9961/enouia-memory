@@ -54,6 +54,8 @@ For interrupted streams, `Decoder::observed_usage` exposes the last fully valida
 
 Anthropic streaming starts with an empty `message_start.message.content` array, as documented in the [official event flow](https://platform.claude.com/docs/en/build-with-claude/streaming). The decoder requires that array before accepting start usage; missing, malformed or nonempty content fails permanently instead of being silently dropped into a completed turn. Actual text and reasoning continue through their indexed content blocks, and valid empty-text terminals remain supported. Rechecked on 2026-10-10 with synthetic streams only.
 
+Cross-record Session validation enforces the journal's exact terminal pairing: completed invocations reference `AssistantCompleted`, length/failed reference `TurnFailed`, and cancelled reference `TurnCancelled`. Contradictory saved metadata is refused with the existing `invocation.terminal` rule. A host must surface the validation failure rather than reclassify or rewrite the saved outcome. No wire/storage shape changes.
+
 ## Credentials and resources
 
 The Windows store targets are fixed: `Enouia.Memory.Provider.openai` and `Enouia.Memory.Provider.anthropic`. Credential writes are native-only. Read/write/delete functions and HTTPS transport are implemented but deliberately not exercised with a real account in this implementation run. Keys do not enter page IPC, Session objects, fixtures or logs. Non-Windows native credential access is unsupported; another native SecretStore can implement the port.

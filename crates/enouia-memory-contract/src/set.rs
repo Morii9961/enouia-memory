@@ -1131,19 +1131,25 @@ fn check_sessions(set: &View, out: &mut Vec<Violation>) {
                 }
                 if let Some(terminal) = &invocation.terminal_event_id {
                     let terminal = by_id.get(terminal.as_str());
-                    let completed = invocation.state == crate::provider::InvocationState::Completed;
                     if terminal.is_none_or(|e| {
                         input.is_none_or(|i| {
                             e.turn_id != i.turn_id
                                 || e.session_id != i.session_id
                                 || e.sequence <= i.sequence
-                        }) || (e.kind == EventKind::AssistantCompleted) != completed
-                            || !matches!(
-                                e.kind,
+                        }) || !matches!(
+                            (invocation.state, e.kind),
+                            (
+                                crate::provider::InvocationState::Completed,
                                 EventKind::AssistantCompleted
-                                    | EventKind::TurnFailed
-                                    | EventKind::TurnCancelled
+                            ) | (
+                                crate::provider::InvocationState::Length
+                                    | crate::provider::InvocationState::Failed,
+                                EventKind::TurnFailed
+                            ) | (
+                                crate::provider::InvocationState::Cancelled,
+                                EventKind::TurnCancelled
                             )
+                        )
                     }) {
                         out.push(Violation::new(
                             "invocation.terminal",
