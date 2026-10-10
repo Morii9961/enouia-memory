@@ -189,6 +189,10 @@ impl Decoder {
                 if self.started
                     || v["message"]["type"] != "message"
                     || v["message"]["role"] != "assistant"
+                    // All content belongs to subsequent indexed blocks. An
+                    // initial payload would otherwise disappear from a valid
+                    // completed result. Require the documented empty array.
+                    || v["message"]["content"].as_array().is_none_or(|parts| !parts.is_empty())
                 {
                     return Err(error(MemoryErrorCode::ProviderUnavailable));
                 }

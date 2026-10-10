@@ -522,7 +522,7 @@ fn provider_usage_keeps_total_input_without_double_counting_cache_breakdowns() {
         );
     }
     let events = [
-        json!({"type":"message_start","message":{"type":"message","role":"assistant","usage":{"input_tokens":100,"cache_creation_input_tokens":20,"cache_read_input_tokens":30,"output_tokens":0}}}),
+        json!({"type":"message_start","message":{"type":"message","role":"assistant","content":[],"usage":{"input_tokens":100,"cache_creation_input_tokens":20,"cache_read_input_tokens":30,"output_tokens":0}}}),
         json!({"type":"message_delta","delta":{"stop_reason":"end_turn"},"usage":{"input_tokens":110,"cache_creation_input_tokens":25,"output_tokens":4}}),
         json!({"type":"message_delta","delta":{},"usage":{"cache_read_input_tokens":null,"output_tokens":5}}),
         json!({"type":"message_stop"}),
@@ -652,7 +652,7 @@ fn malformed_usage_fails_before_completed_publication_and_unknown_is_not_zero() 
 #[test]
 fn malformed_stream_metadata_fails_immediately_without_panic_or_later_overwrite() {
     use std::panic::{AssertUnwindSafe, catch_unwind};
-    let start = json!({"type":"message_start","message":{"type":"message","role":"assistant","usage":{"input_tokens":100,"output_tokens":0}}});
+    let start = json!({"type":"message_start","message":{"type":"message","role":"assistant","content":[],"usage":{"input_tokens":100,"output_tokens":0}}});
     let valid = json!({"type":"message_delta","delta":{"stop_reason":"end_turn"},"usage":{"output_tokens":4}});
     let stop = json!({"type":"message_stop"});
     let encode = |events: Vec<serde_json::Value>| {
@@ -1182,7 +1182,7 @@ fn admitted_crash_is_unknown_and_cannot_be_resent() {
 }
 #[test]
 fn sse_rejects_out_of_order_stops_and_errors_cannot_be_finished_or_resumed() {
-    let start = json!({"type":"message_start","message":{"type":"message","role":"assistant","usage":{"input_tokens":100,"output_tokens":0}}});
+    let start = json!({"type":"message_start","message":{"type":"message","role":"assistant","content":[],"usage":{"input_tokens":100,"output_tokens":0}}});
     let block =
         json!({"type":"content_block_start","index":0,"content_block":{"type":"text","text":""}});
     let block_end = json!({"type":"content_block_stop","index":0});
@@ -1238,7 +1238,7 @@ fn sse_rejects_out_of_order_stops_and_errors_cannot_be_finished_or_resumed() {
 #[test]
 fn anthropic_multiple_top_level_deltas_keep_stop_reason_and_cumulative_usage() {
     let events = [
-        json!({"type":"message_start","message":{"type":"message","role":"assistant","usage":{"input_tokens":100,"output_tokens":0}}}),
+        json!({"type":"message_start","message":{"type":"message","role":"assistant","content":[],"usage":{"input_tokens":100,"output_tokens":0}}}),
         json!({"type":"message_delta","delta":{"stop_reason":null},"usage":{"output_tokens":1}}),
         json!({"type":"message_delta","delta":{"stop_reason":"end_turn"},"usage":{"input_tokens":110,"output_tokens":4}}),
         json!({"type":"message_delta","delta":{"stop_reason":null},"usage":{"output_tokens":5}}),
@@ -1268,7 +1268,7 @@ fn anthropic_cumulative_usage_never_regresses_or_recovers_after_a_conflict() {
         "output_tokens",
     ] {
         let mut decoder = Decoder::new(Api::AnthropicMessages);
-        let start = json!({"type":"message_start","message":{"type":"message","role":"assistant","usage":{"input_tokens":5000,"cache_creation_input_tokens":2,"cache_read_input_tokens":3,"output_tokens":0}}});
+        let start = json!({"type":"message_start","message":{"type":"message","role":"assistant","content":[],"usage":{"input_tokens":5000,"cache_creation_input_tokens":2,"cache_read_input_tokens":3,"output_tokens":0}}});
         let known = json!({"type":"message_delta","delta":{},"usage":{"output_tokens":1000}});
         for event in [&start, &known, &known] {
             let bytes = format!("data: {event}\n\n");
@@ -1375,6 +1375,123 @@ fn sse(events: &[serde_json::Value]) -> Vec<u8> {
         .map(|v| format!("event: {}\ndata: {v}\n\n", v["type"].as_str().unwrap()))
         .collect::<String>()
         .into_bytes()
+}
+
+#[test]
+fn anthropic_initial_content_cannot_be_dropped_into_a_completed_turn() {
+    fn events(content: Option<serde_json::Value>) -> Vec<serde_json::Value> {
+        let mut message = json!({"type":"message","role":"assistant","usage":{"input_tokens":100,"output_tokens":0}});
+        if let Some(content) = content {
+            message["content"] = content;
+        }
+        vec![
+            json!({"type":"message_start","message":message}),
+            json!({"type":"message_delta","delta":{"stop_reason":"end_turn"},"usage":{"output_tokens":4}}),
+            json!({"type":"message_stop"}),
+        ]
+    }
+    for content in [
+        None,
+        Some(json!(null)),
+        Some(json!({})),
+        Some(json!("lost synthetic text")),
+        Some(json!([{"type":"text","text":"lost synthetic text"}])),
+        Some(json!([{"type":"thinking","thinking":"lost synthetic reasoning"}])),
+    ] {
+        let mut decoder = Decoder::new(Api::AnthropicMessages);
+        let mut chunks = Vec::new();
+        assert_eq!(
+            decoder
+                .push(&sse(&events(content)), &mut |text| {
+                    chunks.push(text.to_owned());
+                    Ok(())
+                })
+                .err()
+                .map(|e| e.code),
+            Some(MemoryErrorCode::ProviderUnavailable)
+        );
+        assert!(chunks.is_empty());
+        assert_eq!(decoder.observed_usage(), (None, None));
+        assert!(
+            decoder
+                .push(&sse(&events(Some(json!([])))), &mut |_| Ok(()))
+                .is_err()
+        );
+        assert!(decoder.finish().is_err());
+    }
+    let mut valid = Decoder::new(Api::AnthropicMessages);
+    valid
+        .push(&sse(&events(Some(json!([])))), &mut |_| Ok(()))
+        .unwrap();
+    let response = valid.finish().unwrap();
+    assert!(response.text.is_empty());
+    assert_eq!(
+        response.finish,
+        enouia_memory_contract::provider::FinishReason::Completed
+    );
+    assert_eq!(
+        (response.input_tokens, response.output_tokens),
+        (Some(100), Some(4))
+    );
+
+    let api = Api::AnthropicMessages;
+    let env = Env::new("anthropic-start-content");
+    let (capsule, input, policy, caps) = setup(&env, api, Sensitivity::Normal);
+    let enabled = AtomicBool::new(true);
+    let adapter = VaultAdapter {
+        vault: &env.vault,
+        owner: owner(),
+        input_event: input,
+        enabled: &enabled,
+        quota: Quota::default(),
+    };
+    let mut options = CallOptions::text(policy, 128);
+    options.streaming = true;
+    let call = adapter
+        .prepare_saved(api, &capsule, &caps, Limits::default(), options)
+        .unwrap();
+    let http = FakeHttp {
+        calls: Cell::new(0),
+        bytes: sse(&events(Some(json!([
+            {"type":"text","text":"lost synthetic text"}
+        ])))),
+        fail: false,
+    };
+    let client = Client {
+        transport: &http,
+        secrets: &Secrets { missing: false },
+        guard: &adapter,
+        journal: &adapter,
+    };
+    assert_eq!(
+        client
+            .send(&call, &call.inspect().hash(), &NeverCancel)
+            .unwrap_err()
+            .code,
+        MemoryErrorCode::ProviderUnavailable
+    );
+    let rows = adapter.invocations().unwrap();
+    assert_eq!(rows.len(), 1);
+    assert_eq!(rows[0].state, InvocationState::Failed);
+    assert_eq!(rows[0].input_tokens, None);
+    assert_eq!(rows[0].output_tokens, None);
+    assert!(
+        adapter
+            .saved_response(&call.dispatch().dispatch_id)
+            .unwrap()
+            .is_none()
+    );
+    let before = env.vault.pin_current().unwrap();
+    assert_eq!(
+        client
+            .send(&call, &call.inspect().hash(), &NeverCancel)
+            .unwrap_err()
+            .code,
+        MemoryErrorCode::IdempotencyConflict
+    );
+    assert_eq!(http.calls.get(), 1);
+    assert_eq!(env.vault.pin_current().unwrap(), before);
+    assert!(env.vault.verify(&before).unwrap().is_clean());
 }
 #[test]
 fn anthropic_thinking_blocks_are_accepted_without_exposing_reasoning() {
@@ -1604,7 +1721,7 @@ fn streaming_reply(api: Api, complete: bool) -> Vec<u8> {
             json!({"type":"response.completed","response":serde_json::from_slice::<serde_json::Value>(&reply(api)).unwrap()}),
         ],
         Api::AnthropicMessages => vec![
-            json!({"type":"message_start","message":{"type":"message","role":"assistant","usage":{"input_tokens":100,"output_tokens":0}}}),
+            json!({"type":"message_start","message":{"type":"message","role":"assistant","content":[],"usage":{"input_tokens":100,"output_tokens":0}}}),
             json!({"type":"content_block_start","index":0,"content_block":{"type":"text","text":""}}),
             json!({"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"合成答复"}}),
             json!({"type":"content_block_stop","index":0}),
@@ -1678,7 +1795,7 @@ fn both_streams_preserve_whitespace_and_ignore_empty_deltas() {
                 let mut events = match api {
                     Api::OpenAiResponses => vec![],
                     Api::AnthropicMessages => vec![
-                        json!({"type":"message_start","message":{"type":"message","role":"assistant","usage":{"input_tokens":100,"output_tokens":0}}}),
+                        json!({"type":"message_start","message":{"type":"message","role":"assistant","content":[],"usage":{"input_tokens":100,"output_tokens":0}}}),
                         json!({"type":"content_block_start","index":0,"content_block":{"type":"text","text":segments[0]}}),
                     ],
                 };
@@ -1817,7 +1934,7 @@ fn empty_text_terminal_results_are_persisted_with_usage() {
                             json!({"type":if length { "response.incomplete" } else { "response.completed" },"response":response}),
                         ],
                         Api::AnthropicMessages => vec![
-                            json!({"type":"message_start","message":{"type":"message","role":"assistant","usage":{"input_tokens":100,"output_tokens":0}}}),
+                            json!({"type":"message_start","message":{"type":"message","role":"assistant","content":[],"usage":{"input_tokens":100,"output_tokens":0}}}),
                             json!({"type":"content_block_start","index":0,"content_block":{"type":"text","text":""}}),
                             json!({"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":""}}),
                             json!({"type":"content_block_stop","index":0}),
@@ -4905,7 +5022,7 @@ fn failed_or_cancelled_streams_keep_validated_usage_for_later_token_admission() 
                     ]
                 }
                 Api::AnthropicMessages => vec![
-                    json!({"type":"message_start","message":{"type":"message","role":"assistant","usage":{"input_tokens":5000,"cache_creation_input_tokens":2,"cache_read_input_tokens":3,"output_tokens":0}}}),
+                    json!({"type":"message_start","message":{"type":"message","role":"assistant","content":[],"usage":{"input_tokens":5000,"cache_creation_input_tokens":2,"cache_read_input_tokens":3,"output_tokens":0}}}),
                     json!({"type":"content_block_start","index":0,"content_block":{"type":"text","text":"合成答复"}}),
                     json!({"type":"content_block_stop","index":0}),
                     json!({"type":"message_delta","delta":{"stop_reason":"end_turn"},"usage":{"output_tokens":1000}}),
