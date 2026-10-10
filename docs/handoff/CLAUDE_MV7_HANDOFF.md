@@ -26,7 +26,7 @@
 
 制作此交接前，功能改动均已提交，工作树干净。本文及其入口链接是后续文档改动；其提交不改变上述功能基线。接手首先重新检查目录、分支、HEAD、工作树和其他任务正在使用的文件；保留他人的修改，不重置、不覆盖、不清理其他工作树。
 
-最近六个功能分别提交：
+最近七个功能分别提交：
 
 | 提交 | 结果 |
 |---|---|
@@ -36,6 +36,7 @@
 | `fe48ebb` | 原生响应头按 ASCII 大小写无关规则匹配 JSON/SSE 类型；不接受其他格式、通配符、混合类型列表或 Unicode 仿形。 |
 | `1e1f685` | （Claude）重复 `Content-Type` 字段（含完全相同的重复）视为歧义并拒绝；401/403 分类、拒绝体零回调、保留 reservation 和不重发均不变。新增纯 `HttpsTransport::single_content_type` 供宿主离线 harness 使用，已记入 RUNTIME.md。 |
 | 本提交 | （Claude）非流式原生请求原先发送两条 `Content-Type: application/json`、没有 `Accept`（第二次 builder 调用误用 Content-Type，且 reqwest 追加同名字段）。现在每个请求只带一条 Content-Type 和一条与模式匹配的 Accept。只构造请求不发送，未做真实服务器验收。 |
+| 本提交（凭据） | （Claude，经主人确认）原生凭据须为可见 ASCII 且不含空格（0x21-0x7E），否则在 admission 前以不可重试的 `Unauthenticated` 本地拒绝。复现时未修复状态经真实 transport 向 OpenAI 固定端点发出过一次带合成凭据和合成请求体的 HTTPS 请求，详见 MV-7 报告；修复后不再联网。 |
 
 ## 已有能力与当前阶段
 
@@ -63,7 +64,7 @@ MV-7.1 的实际账户/模型能力、精确 tokenizer 和真实价格仍未确�
 
 Claude 随后审查原生传输与 SSE 路径，修复了非流式请求头重复 Content-Type 的问题（见提交表）。SSE 分帧、事件状态机、用量累计和日志持久化的审查未发现新的可复现缺口。
 
-待主人决定、未实现的候选：本地凭据形状检查（`credential_text`）只拒绝 ASCII 控制字符，含空格或非 ASCII 的凭据会通过检查并被 admission，随后作为畸形 Bearer/`x-api-key` 发出，远端 401 会消耗这次 admission。收紧为可见 ASCII 且不含空格属于新的策略选择（Anthropic 的 `x-api-key` 格式没有一手规范），因此未擅自实现。
+此前待定的凭据形状收紧已经主人确认并实现（见提交表）。注意：`malformed_native_credentials_do_not_consume_private_approval_or_admission` 使用真实 `HttpsTransport`，只能放入会在本地被拒绝的凭据形状，否则会真实联网。目前没有新的已证实候选。
 
 若没有证实新的 MV-7 缺口，不为消耗额度扩充无依据功能，也不转入 MV-8。Runtime 产品接入需主人给该仓库的明确工作范围；本仓库不添加到 Runtime checkout、crates、fixtures 或 target 的依赖。Activity & Usage 属于 Runtime，不在 Memory 中读取或实现。
 

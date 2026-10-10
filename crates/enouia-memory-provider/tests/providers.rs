@@ -4474,8 +4474,10 @@ fn malformed_native_credentials_do_not_consume_private_approval_or_admission() {
             .unwrap();
         let before = env.vault.pin_current().unwrap();
         let native = enouia_memory_provider::transport::HttpsTransport;
-        // Every shape is already refused by native HTTP before builder.send,
+        // Every shape is refused locally before any request is built,
         // independently of whether Client validates it before admission.
+        // Space and non-ASCII bytes are accepted by the pinned header type,
+        // so without this check they would be admitted and sent malformed.
         for secret in [
             vec![],
             vec![0xff],
@@ -4483,6 +4485,12 @@ fn malformed_native_credentials_do_not_consume_private_approval_or_admission() {
             vec![0],
             vec![0x7f],
             vec![b'x'; 4097],
+            b"synthetic credential".to_vec(),
+            b" synthetic-credential".to_vec(),
+            b"synthetic-credential ".to_vec(),
+            b"synthetic\tcredential".to_vec(),
+            "synthetic-crédential".as_bytes().to_vec(),
+            "synthetic\u{a0}credential".as_bytes().to_vec(),
         ] {
             let store = FixedSecret(secret.clone());
             let client = Client {

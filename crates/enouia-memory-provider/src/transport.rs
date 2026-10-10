@@ -11,9 +11,12 @@ use std::time::Duration;
 fn credential_text(secret: &SecretBytes) -> Result<&str> {
     let credential = std::str::from_utf8(secret.expose())
         .map_err(|_| error(MemoryErrorCode::Unauthenticated))?;
+    // Visible ASCII without space: the pinned header type also admits space
+    // and non-ASCII bytes, which would be sent as a malformed token after
+    // admission instead of being refused locally.
     if credential.is_empty()
         || credential.len() > 4096
-        || credential.bytes().any(|b| b.is_ascii_control())
+        || !credential.bytes().all(|b| b.is_ascii_graphic())
     {
         return Err(error(MemoryErrorCode::Unauthenticated));
     }
