@@ -18,15 +18,15 @@
 |---|---|
 | 仓库 | Enouia Memory，独立 Cargo workspace |
 | 分支 | `codex/mv7-native-providers` |
-| 最新已验证功能提交 | `1e1f685`（Claude 接手后首个功能提交；此前 Codex 为 `fe48ebb`） |
+| 最新已验证功能提交 | 见下方提交表最后一行（Claude 接手后；此前 Codex 为 `fe48ebb`） |
 | 本次 MV-7 起始基线 | `8197890` |
 | 工具链 | Rust `1.98.1`，`x86_64-pc-windows-gnu`；Python 3.12 / python-jsonschema `4.26.0` |
-| 最近完整验证 | 2026-10-10，327 项 Rust 测试通过，含 52 项 Provider 检查和 60 项 workspace Core 检查 |
+| 最近完整验证 | 2026-10-10，328 项 Rust 测试通过，含 53 项 Provider 检查和 60 项 workspace Core 检查 |
 | Runtime 接入面 aggregate | `f1a52c732445fe9ea0c5d5b33eaec3fd5fe7b9a71376ca3215e594f1792cf167` |
 
 制作此交接前，功能改动均已提交，工作树干净。本文及其入口链接是后续文档改动；其提交不改变上述功能基线。接手首先重新检查目录、分支、HEAD、工作树和其他任务正在使用的文件；保留他人的修改，不重置、不覆盖、不清理其他工作树。
 
-最近五个功能分别提交：
+最近六个功能分别提交：
 
 | 提交 | 结果 |
 |---|---|
@@ -35,6 +35,7 @@
 | `8d8281a` | `CredentialStore::delete` 增加可信原生设置的凭据移除入口；仅允许两个固定条目，成功或确认不存在可重复执行，其他系统错误明确返回。只做假调用验证，未操作实际凭据。 |
 | `fe48ebb` | 原生响应头按 ASCII 大小写无关规则匹配 JSON/SSE 类型；不接受其他格式、通配符、混合类型列表或 Unicode 仿形。 |
 | `1e1f685` | （Claude）重复 `Content-Type` 字段（含完全相同的重复）视为歧义并拒绝；401/403 分类、拒绝体零回调、保留 reservation 和不重发均不变。新增纯 `HttpsTransport::single_content_type` 供宿主离线 harness 使用，已记入 RUNTIME.md。 |
+| 本提交 | （Claude）非流式原生请求原先发送两条 `Content-Type: application/json`、没有 `Accept`（第二次 builder 调用误用 Content-Type，且 reqwest 追加同名字段）。现在每个请求只带一条 Content-Type 和一条与模式匹配的 Accept。只构造请求不发送，未做真实服务器验收。 |
 
 ## 已有能力与当前阶段
 
@@ -60,13 +61,15 @@ MV-7.1 的实际账户/模型能力、精确 tokenizer 和真实价格仍未确�
 
 交接中的重复 `Content-Type` 候选已证实并在 `1e1f685` 修复：锁定的 hyper 1.11.1 逐条 `append` 收到的字段，旧代码的 `headers().get` 只读第一条，因此 `application/json` 后接 `text/html` 会被当作 JSON 接受。证据只来自合成 header map 和假 transport，没有真实服务器响应头或 HTTPS 验收。
 
-目前没有新的已证实 Memory 侧候选。
+Claude 随后审查原生传输与 SSE 路径，修复了非流式请求头重复 Content-Type 的问题（见提交表）。SSE 分帧、事件状态机、用量累计和日志持久化的审查未发现新的可复现缺口。
+
+待主人决定、未实现的候选：本地凭据形状检查（`credential_text`）只拒绝 ASCII 控制字符，含空格或非 ASCII 的凭据会通过检查并被 admission，随后作为畸形 Bearer/`x-api-key` 发出，远端 401 会消耗这次 admission。收紧为可见 ASCII 且不含空格属于新的策略选择（Anthropic 的 `x-api-key` 格式没有一手规范），因此未擅自实现。
 
 若没有证实新的 MV-7 缺口，不为消耗额度扩充无依据功能，也不转入 MV-8。Runtime 产品接入需主人给该仓库的明确工作范围；本仓库不添加到 Runtime checkout、crates、fixtures 或 target 的依赖。Activity & Usage 属于 Runtime，不在 Memory 中读取或实现。
 
 ## 验证和证据
 
-最近 `1e1f685` 的根目录检查全部通过：
+最近一次（请求头修复）的根目录检查全部通过：
 
 ```powershell
 $env:CARGO_NET_OFFLINE = 'true'

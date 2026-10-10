@@ -46,6 +46,41 @@ fn native_client(timeout: Duration) -> Result<reqwest::Client> {
         .map_err(|_| error(MemoryErrorCode::ProviderUnavailable))
 }
 
+fn native_request(
+    client: &reqwest::Client,
+    request: &WireRequest,
+    credential: &str,
+) -> Result<reqwest::Request> {
+    let mut header = reqwest::header::HeaderValue::from_str(&match request.api {
+        Api::OpenAiResponses => format!("Bearer {credential}"),
+        Api::AnthropicMessages => credential.to_owned(),
+    })
+    .map_err(|_| error(MemoryErrorCode::Unauthenticated))?;
+    header.set_sensitive(true);
+    // `RequestBuilder::header` appends: set each singleton field exactly once.
+    let mut builder = client
+        .post(request.endpoint())
+        .header(reqwest::header::CONTENT_TYPE, "application/json")
+        .header(
+            reqwest::header::ACCEPT,
+            if request.streaming {
+                "text/event-stream"
+            } else {
+                "application/json"
+            },
+        )
+        .body(request.body.clone());
+    builder = match request.api {
+        Api::OpenAiResponses => builder.header(reqwest::header::AUTHORIZATION, header),
+        Api::AnthropicMessages => builder
+            .header("x-api-key", header)
+            .header("anthropic-version", ANTHROPIC_VERSION),
+    };
+    builder
+        .build()
+        .map_err(|_| error(MemoryErrorCode::ProviderUnavailable))
+}
+
 pub trait Transport {
     /// Local execution-context validation only: no HTTP, credential reads or
     /// admission side effects. Existing/custom transports default to allowed.
@@ -161,21 +196,9 @@ impl Transport for HttpsTransport {
             .map_err(|_| error(MemoryErrorCode::ProviderUnavailable))?;
         runtime.block_on(async {
             let client = native_client(timeout)?;
-            let mut header = reqwest::header::HeaderValue::from_str(&match request.api {
-                Api::OpenAiResponses => format!("Bearer {credential}"),
-                Api::AnthropicMessages => credential.to_owned(),
-            }).map_err(|_| error(MemoryErrorCode::Unauthenticated))?;
-            header.set_sensitive(true);
-            let mut builder = client.post(request.endpoint()).header(reqwest::header::CONTENT_TYPE, "application/json")
-                .header(if request.streaming {reqwest::header::ACCEPT} else {reqwest::header::CONTENT_TYPE},
-                    if request.streaming {"text/event-stream"} else {"application/json"})
-                .body(request.body.clone());
-            builder = match request.api {
-                Api::OpenAiResponses => builder.header(reqwest::header::AUTHORIZATION, header),
-                Api::AnthropicMessages => builder.header("x-api-key", header).header("anthropic-version", ANTHROPIC_VERSION),
-            };
+            let outgoing = native_request(&client, request, credential)?;
             let work = async {
-                let mut response = builder.send().await.map_err(|_| error(MemoryErrorCode::ProviderUnavailable))?;
+                let mut response = client.execute(outgoing).await.map_err(|_| error(MemoryErrorCode::ProviderUnavailable))?;
                 // Error bodies may echo input/credentials; discard them entirely.
                 let content_type = Self::single_content_type(response.headers()
                     .get_all(reqwest::header::CONTENT_TYPE).iter().map(|v| v.as_bytes()));
@@ -232,6 +255,75 @@ mod tests {
             ));
             assert!(installed.cipher_suites.is_empty());
             drop((first, second));
+        });
+    }
+
+    /// Pinned reqwest `RequestBuilder::header` appends, and client defaults
+    /// only fill absent names. Build (never send) the exact native head.
+    #[test]
+    fn native_requests_carry_one_content_type_and_the_expected_accept() {
+        use reqwest::header::{ACCEPT, AUTHORIZATION, CONTENT_TYPE, HeaderName};
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .unwrap();
+        runtime.block_on(async {
+            let client = native_client(Duration::from_secs(1)).unwrap();
+            for api in [Api::OpenAiResponses, Api::AnthropicMessages] {
+                for streaming in [false, true] {
+                    let wire = WireRequest {
+                        api,
+                        body: br#"{"synthetic":true}"#.to_vec(),
+                        binding: api.binding("synthetic-model").unwrap(),
+                        logical_hash: enouia_memory_contract::hash::sha256(b"synthetic"),
+                        streaming,
+                    };
+                    let outgoing = native_request(&client, &wire, "synthetic-credential").unwrap();
+                    assert_eq!(outgoing.method(), reqwest::Method::POST);
+                    assert_eq!(outgoing.url().as_str(), api.endpoint());
+                    assert_eq!(
+                        outgoing.body().and_then(|b| b.as_bytes()),
+                        Some(&wire.body[..])
+                    );
+                    let headers = outgoing.headers();
+                    let lines = |name: &HeaderName| -> Vec<&[u8]> {
+                        headers.get_all(name).iter().map(|v| v.as_bytes()).collect()
+                    };
+                    assert_eq!(lines(&CONTENT_TYPE), [b"application/json"]);
+                    let accept: &[u8] = if streaming {
+                        b"text/event-stream"
+                    } else {
+                        b"application/json"
+                    };
+                    assert_eq!(lines(&ACCEPT), [accept]);
+                    let (secret, absent, value) = match api {
+                        Api::OpenAiResponses => (
+                            AUTHORIZATION,
+                            HeaderName::from_static("x-api-key"),
+                            &b"Bearer synthetic-credential"[..],
+                        ),
+                        Api::AnthropicMessages => (
+                            HeaderName::from_static("x-api-key"),
+                            AUTHORIZATION,
+                            &b"synthetic-credential"[..],
+                        ),
+                    };
+                    assert_eq!(lines(&secret), [value]);
+                    assert!(headers.get(&secret).unwrap().is_sensitive());
+                    assert!(lines(&absent).is_empty());
+                    let version = HeaderName::from_static("anthropic-version");
+                    match api {
+                        Api::OpenAiResponses => assert!(lines(&version).is_empty()),
+                        Api::AnthropicMessages => {
+                            assert_eq!(lines(&version), [ANTHROPIC_VERSION.as_bytes()])
+                        }
+                    }
+                    assert_eq!(
+                        headers.len(),
+                        if api == Api::AnthropicMessages { 4 } else { 3 }
+                    );
+                }
+            }
         });
     }
 
