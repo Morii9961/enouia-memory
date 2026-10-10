@@ -65,7 +65,7 @@ MV-7.1 的实际账户/模型能力、精确 tokenizer 和真实价格仍未确�
 
 Claude 随后审查原生传输与 SSE 路径，修复了非流式请求头重复 Content-Type 的问题（见提交表）。SSE 分帧、事件状态机、用量累计和日志持久化的审查未发现新的可复现缺口。
 
-此前待定的凭据形状收紧已经主人确认并实现（见提交表）。注意：`malformed_native_credentials_do_not_consume_private_approval_or_admission` 使用真实 `HttpsTransport`，只能放入会在本地被拒绝的凭据形状，否则会真实联网。随后按路线图做了 MV-7.1 中不需要账户的官方文档核对（结果见 MV-7 报告），修复了 Anthropic thinking 块问题。账户能力、模型上限、tokenizer 和价格仍待真实调用核实。目前没有新的已证实候选。
+此前待定的凭据形状收紧已经主人确认并实现（见提交表）。`malformed_native_credentials_do_not_consume_private_approval_or_admission` 已改为调用真实 `HttpsTransport` 的纯 preflight/凭据校验，并通过无法联网的假 exchange 验证 Client 的审批/admission 顺序；不再把合成凭据交给真实 exchange。因此即使形状或调用顺序校验退化，测试也只能记录假调用并失败。随后按路线图做了 MV-7.1 中不需要账户的官方文档核对（结果见 MV-7 报告），修复了 Anthropic thinking 块问题。账户能力、模型上限、tokenizer 和价格仍待真实调用核实。
 
 若没有证实新的 MV-7 缺口，不为消耗额度扩充无依据功能，也不转入 MV-8。Runtime 产品接入需主人给该仓库的明确工作范围；本仓库不添加到 Runtime checkout、crates、fixtures 或 target 的依赖。Activity & Usage 属于 Runtime，不在 Memory 中读取或实现。
 

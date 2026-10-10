@@ -4698,6 +4698,31 @@ fn malformed_native_credentials_do_not_consume_private_approval_or_admission() {
             Ok(SecretBytes::new(self.0.clone()))
         }
     }
+    // Exercise the exact native guards with an exchange that cannot use HTTP.
+    // A credential/client regression must fail locally without contacting an API.
+    struct OfflineNative(Cell<u64>);
+    impl Transport for OfflineNative {
+        fn preflight(&self) -> Result<()> {
+            enouia_memory_provider::transport::HttpsTransport.preflight()
+        }
+        fn validate_secret(&self, secret: &SecretBytes) -> Result<()> {
+            enouia_memory_provider::transport::HttpsTransport.validate_secret(secret)
+        }
+        fn exchange(
+            &self,
+            _: &enouia_memory_provider::codec::WireRequest,
+            _: &SecretBytes,
+            _: &dyn Cancellation,
+            _: Duration,
+            _: &mut dyn FnMut(&[u8]) -> Result<()>,
+        ) -> Result<()> {
+            self.0.set(self.0.get() + 1);
+            Err(enouia_memory_contract::MemoryError::new(
+                MemoryErrorCode::Unauthenticated,
+                enouia_memory_contract::foundation::ComponentId::Provider,
+            ))
+        }
+    }
     for api in [Api::OpenAiResponses, Api::AnthropicMessages] {
         let env = Env::new("credential-shape-preflight");
         let (capsule, input, policy, caps) = setup(&env, api, Sensitivity::Private);
@@ -4729,10 +4754,10 @@ fn malformed_native_credentials_do_not_consume_private_approval_or_admission() {
             .unwrap();
         let before = env.vault.pin_current().unwrap();
         let native = enouia_memory_provider::transport::HttpsTransport;
-        // Every shape is refused locally before any request is built,
-        // independently of whether Client validates it before admission.
-        // Space and non-ASCII bytes are accepted by the pinned header type,
-        // so without this check they would be admitted and sent malformed.
+        let offline = OfflineNative(Cell::new(0));
+        // Space/non-ASCII bytes are accepted by the pinned header type. Never
+        // pass them to native exchange in a regression test: a broken shape
+        // guard would otherwise build and send a real request.
         for secret in [
             vec![],
             vec![0xff],
@@ -4749,7 +4774,7 @@ fn malformed_native_credentials_do_not_consume_private_approval_or_admission() {
         ] {
             let store = FixedSecret(secret.clone());
             let client = Client {
-                transport: &native,
+                transport: &offline,
                 secrets: &store,
                 guard: &adapter,
                 journal: &adapter,
@@ -4759,24 +4784,14 @@ fn malformed_native_credentials_do_not_consume_private_approval_or_admission() {
             assert!(!failure.retryable);
             assert!(adapter.invocations().unwrap().is_empty());
             assert_eq!(env.vault.pin_current().unwrap(), before);
-            let mut delivered = false;
             assert_eq!(
                 native
-                    .exchange(
-                        call.inspect(),
-                        &SecretBytes::new(secret),
-                        &NeverCancel,
-                        Duration::from_secs(1),
-                        &mut |_| {
-                            delivered = true;
-                            Ok(())
-                        }
-                    )
+                    .validate_secret(&SecretBytes::new(secret))
                     .unwrap_err()
                     .code,
                 MemoryErrorCode::Unauthenticated
             );
-            assert!(!delivered);
+            assert_eq!(offline.0.get(), 0);
             assert_eq!(env.vault.pin_current().unwrap(), before);
         }
         // A custom transport can support opaque/binary secret bytes. Its
