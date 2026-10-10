@@ -99,7 +99,8 @@ impl HttpsTransport {
         } else {
             "application/json"
         };
-        if media_type != expected {
+        // HTTP media type/subtype tokens are ASCII case-insensitive.
+        if !media_type.eq_ignore_ascii_case(expected) {
             return Err(error(MemoryErrorCode::ProviderUnavailable));
         }
         Ok(())

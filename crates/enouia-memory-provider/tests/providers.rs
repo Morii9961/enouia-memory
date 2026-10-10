@@ -4955,6 +4955,137 @@ fn extraction_application_requires_the_original_input_even_for_completed_replay(
     }
 }
 #[test]
+fn native_media_types_ignore_ascii_case_without_accepting_other_formats() {
+    use enouia_memory_provider::transport::HttpsTransport;
+    struct HeadHttp {
+        calls: Cell<u64>,
+        media: &'static str,
+        streaming: bool,
+        bytes: Vec<u8>,
+    }
+    impl Transport for HeadHttp {
+        fn exchange(
+            &self,
+            _: &WireRequest,
+            _: &SecretBytes,
+            _: &dyn Cancellation,
+            _: Duration,
+            sink: &mut dyn FnMut(&[u8]) -> Result<()>,
+        ) -> Result<()> {
+            self.calls.set(self.calls.get() + 1);
+            HttpsTransport::validate_response_head(200, Some(self.media), self.streaming)?;
+            for bytes in self.bytes.chunks(3) {
+                sink(bytes)?;
+            }
+            Ok(())
+        }
+    }
+    for streaming in [false, true] {
+        let variants = if streaming {
+            [
+                "text/event-stream",
+                "TEXT/EVENT-STREAM",
+                "Text/Event-Stream",
+                " Text/Event-Stream ; Charset=UTF-8",
+                "\tTEXT/EVENT-STREAM; charset=\"utf-8\"\t",
+            ]
+        } else {
+            [
+                "application/json",
+                "APPLICATION/JSON",
+                "Application/JSON",
+                " Application/Json ; Charset=UTF-8",
+                "\tAPPLICATION/JSON; charset=\"utf-8\"\t",
+            ]
+        };
+        for media in variants {
+            HttpsTransport::validate_response_head(200, Some(media), streaming).unwrap();
+        }
+        for media in [
+            "text/html",
+            "application/problem+json",
+            "application/*",
+            "text/*",
+            "application /json",
+            "text/event-stream-extra",
+            "application/json, text/event-stream",
+            "application/jſon",
+        ] {
+            assert_eq!(
+                HttpsTransport::validate_response_head(200, Some(media), streaming)
+                    .unwrap_err()
+                    .code,
+                MemoryErrorCode::ProviderUnavailable
+            );
+        }
+        let media = if streaming {
+            "Text/Event-Stream; Charset=UTF-8"
+        } else {
+            "Application/JSON; Charset=UTF-8"
+        };
+        for api in [Api::OpenAiResponses, Api::AnthropicMessages] {
+            let env = Env::new("media-case-acceptance");
+            let (capsule, input, policy, caps) = setup(&env, api, Sensitivity::Normal);
+            let enabled = AtomicBool::new(true);
+            let adapter = VaultAdapter {
+                vault: &env.vault,
+                owner: owner(),
+                input_event: input,
+                enabled: &enabled,
+                quota: Quota::default(),
+            };
+            let mut options = CallOptions::text(policy, 128);
+            options.streaming = streaming;
+            let call = adapter
+                .prepare_saved(api, &capsule, &caps, Limits::default(), options)
+                .unwrap();
+            let http = HeadHttp {
+                calls: Cell::new(0),
+                media,
+                streaming,
+                bytes: if streaming {
+                    streaming_reply(api, true)
+                } else {
+                    reply(api)
+                },
+            };
+            let client = Client {
+                transport: &http,
+                secrets: &Secrets { missing: false },
+                guard: &adapter,
+                journal: &adapter,
+            };
+            let response = client
+                .send(&call, &call.inspect().hash(), &NeverCancel)
+                .unwrap();
+            assert_eq!(response.text, "合成答复");
+            assert_eq!(
+                (response.input_tokens, response.output_tokens),
+                (Some(100), Some(4))
+            );
+            let row = adapter.invocations().unwrap().remove(0);
+            assert_eq!(row.state, InvocationState::Completed);
+            assert_eq!(row.error_code, None);
+            let saved = adapter.saved_response(&row.dispatch_id).unwrap().unwrap();
+            assert_eq!(saved.text, response.text);
+            assert_eq!(saved.finish, response.finish);
+            assert_eq!(saved.input_tokens, response.input_tokens);
+            assert_eq!(saved.output_tokens, response.output_tokens);
+            let before = env.vault.pin_current().unwrap();
+            assert_eq!(
+                client
+                    .send(&call, &call.inspect().hash(), &NeverCancel)
+                    .unwrap_err()
+                    .code,
+                MemoryErrorCode::IdempotencyConflict
+            );
+            assert_eq!(http.calls.get(), 1);
+            assert_eq!(env.vault.pin_current().unwrap(), before);
+            assert!(env.vault.verify(&before).unwrap().is_clean());
+        }
+    }
+}
+#[test]
 fn rejected_http_heads_keep_structured_failures_without_body_delivery_or_resend() {
     use enouia_memory_provider::transport::HttpsTransport;
     struct HeadersHttp {
