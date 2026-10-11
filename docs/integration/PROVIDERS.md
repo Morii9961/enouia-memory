@@ -70,6 +70,8 @@ A host that embeds `enouia-memory-workspace` does not call this crate's flow ste
 4. `external_send` takes the `callId` and the confirmed `wireHash`. The Core records the single-use Egress approval, then runs `Client::send` once on an operation worker (a plain thread, outside Tokio). Poll the operation. Cancelling it cancels the call. A keyed retry returns the same operation, and a consumed call cannot be reused.
 5. `session_detail.invocations` shows the ledger. For an unknown admission, `external_interrupt_plan` plus `provider_confirm` close the turn locally. This is refused while that dispatch's worker runs.
 
+Optional extraction is hosted too. `egress_grant_plan {extraction: true}` adds the Extraction purpose. `extraction_prepare` saves a job for one owner-selected source range (at most 32 KiB, owner subject) and returns its exact request; send it with `external_send`. Then `extraction_preview` shows each suggestion with its quote and complete selected text, `extraction_apply` publishes one pending candidate per call, and `extraction_pause` pauses or resumes publication.
+
 Close and lock turn native access off before cancelling and joining workers, then forget plans and calls. A result arriving afterwards stays unknown. `set_native_provider(None)` removes the setup; it is refused (`provider.call_running`) while a send runs. Without a setup every external command answers `provider.not_configured`. Synthetic page-channel tests use fake transports/secrets only.
 
 ## Optional extraction

@@ -10,8 +10,8 @@
 use crate::error::{ContractError, MemoryError, MemoryErrorCode, Violation};
 use crate::hash::Sha256Hex;
 use crate::ids::{
-    BranchId, CandidateId, CapsuleId, CommitId, DispatchId, EventId, ImportId, MemoryId,
-    OperationId, PolicyId, RequestId, SessionId, SourceId,
+    BranchId, CandidateId, CapsuleId, CommitId, DispatchId, EventId, ExtractionRunId, ImportId,
+    MemoryId, OperationId, PolicyId, RequestId, SessionId, SourceId,
 };
 use crate::json::{Revision, SchemaVersion};
 use serde::de::DeserializeOwned;
@@ -303,6 +303,8 @@ pub enum GrantSensitivity {
 pub struct GrantPlanArgs {
     pub apis: Vec<ExternalApi>,
     pub max_sensitivity: GrantSensitivity,
+    /// Also allow optional candidate extraction (MV-7.4).
+    pub extraction: bool,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -336,6 +338,37 @@ pub struct InterruptArgs {
     pub input_event_id: EventId,
     pub dispatch_id: DispatchId,
 }
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ExtractionPrepareArgs {
+    pub source_id: SourceId,
+    pub source_revision: Revision,
+    pub start_byte: u64,
+    pub end_byte: u64,
+    pub api: ExternalApi,
+    pub policy_id: PolicyId,
+    pub max_candidates: u64,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ExtractionArgs {
+    pub session_id: SessionId,
+    pub run_id: ExtractionRunId,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ExtractionPauseArgs {
+    pub session_id: SessionId,
+    pub run_id: ExtractionRunId,
+    pub paused: bool,
+}
+
+/// Selected source bytes per extraction, and candidates per response.
+pub const EXTRACTION_MAX_BYTES: u64 = 32 * 1024;
+pub const EXTRACTION_MAX_CANDIDATES: u64 = 32;
 
 /// Output ceiling a page may request for one external turn.
 pub const EXTERNAL_OUTPUT_MAX_TOKENS: u64 = 32_768;
@@ -387,10 +420,14 @@ pub enum Command {
     ExternalPrepare(ExternalPrepareArgs),
     ExternalSend(ExternalSendArgs),
     ExternalInterruptPlan(InterruptArgs),
+    ExtractionPrepare(ExtractionPrepareArgs),
+    ExtractionPreview(ExtractionArgs),
+    ExtractionApply(ExtractionArgs),
+    ExtractionPause(ExtractionPauseArgs),
 }
 
 /// Command names, in schema order.
-pub const COMMANDS: [&str; 43] = [
+pub const COMMANDS: [&str; 47] = [
     "workspace_status",
     "vault_open",
     "vault_create",
@@ -434,6 +471,10 @@ pub const COMMANDS: [&str; 43] = [
     "external_prepare",
     "external_send",
     "external_interrupt_plan",
+    "extraction_prepare",
+    "extraction_preview",
+    "extraction_apply",
+    "extraction_pause",
 ];
 
 /// Commands that can commit to the Vault and therefore carry an idempotency key.
@@ -453,6 +494,9 @@ pub fn is_write(command: &str) -> bool {
             | "provider_confirm"
             | "external_prepare"
             | "external_send"
+            | "extraction_prepare"
+            | "extraction_apply"
+            | "extraction_pause"
     )
 }
 
@@ -546,7 +590,9 @@ pub fn success_kind(command: &str) -> ResponseKind {
         "provider_status" => K::ProviderStatus,
         "egress_grant_plan" | "egress_revoke_plan" | "external_interrupt_plan" => K::ProviderPlan,
         "provider_confirm" => K::ProviderCommitted,
-        "external_prepare" => K::ExternalPrepared,
+        "external_prepare" | "extraction_prepare" => K::ExternalPrepared,
+        "extraction_preview" => K::ExtractionPreview,
+        "extraction_apply" | "extraction_pause" => K::ExtractionJob,
         _ => K::MemoryError,
     }
 }
@@ -757,6 +803,20 @@ pub fn parse_request(value: &Value) -> Result<(Request, Command), ContractError>
                 ));
             }
         }
+        Command::ExtractionPrepare(a) => {
+            if a.end_byte <= a.start_byte || a.end_byte - a.start_byte > EXTRACTION_MAX_BYTES {
+                out.push(Violation::new(
+                    "workspace.extraction_range",
+                    "/arguments/endByte",
+                ));
+            }
+            if a.max_candidates == 0 || a.max_candidates > EXTRACTION_MAX_CANDIDATES {
+                out.push(Violation::new(
+                    "workspace.extraction_candidates",
+                    "/arguments/maxCandidates",
+                ));
+            }
+        }
         Command::ExternalSend(a) if !is_plan_id(&a.call_id) => {
             out.push(Violation::new("workspace.plan_id", "/arguments/callId"));
         }
@@ -802,6 +862,8 @@ pub enum ResponseKind {
     ProviderPlan,
     ProviderCommitted,
     ExternalPrepared,
+    ExtractionPreview,
+    ExtractionJob,
 }
 
 /// An error as the page sees it: a contract code, whether a retry can help,

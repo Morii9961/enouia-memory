@@ -791,6 +791,10 @@ impl Workspace {
             Command::ExternalPrepare(a) => Done::of(self.external_prepare(a, key)?),
             Command::ExternalSend(a) => self.external_send(a, key)?,
             Command::ExternalInterruptPlan(a) => Done::of(self.external_interrupt_plan(a)?),
+            Command::ExtractionPrepare(a) => Done::of(self.extraction_prepare(a, key)?),
+            Command::ExtractionPreview(a) => Done::of(self.extraction_preview(a)?),
+            Command::ExtractionApply(a) => Done::of(self.extraction_apply(a)?),
+            Command::ExtractionPause(a) => Done::of(self.extraction_pause(a)?),
         })
     }
 
@@ -1725,6 +1729,7 @@ impl Workspace {
             "lastSavedEventId": events.last().map(|e| &e.event_id),
             "turns": turns, "transcript": transcript, "checkpoints": checkpoints,
             "invocations": header.provider_invocations,
+            "extractionJobs": header.extraction_jobs,
         }))
     }
 

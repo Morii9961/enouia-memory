@@ -21,8 +21,8 @@
 | 最新已验证功能提交 | 见下方提交表最后一行（Claude 接手后；此前 Codex 为 `fe48ebb`） |
 | 本次 MV-7 起始基线 | `8197890` |
 | 工具链 | Rust `1.98.1`，`x86_64-pc-windows-gnu`；Python 3.12 / python-jsonschema `4.26.0` |
-| 最近完整验证 | 2026-10-10，333 项 Rust 测试通过，含 55 项 Provider 检查和 63 项 workspace Core 检查 |
-| Runtime 接入面 aggregate | `90e8631374d89af61ecb82297cd4c56bbe5e31b843e45da0884f19324d484f03` |
+| 最近完整验证 | 2026-10-11，334 项 Rust 测试通过，含 55 项 Provider 检查和 64 项 workspace Core 检查 |
+| Runtime 接入面 aggregate | `5eb04c2bdb66950dcd6d59a84cf89a7e3976243cf3de8acd902e0db64346416e` |
 
 制作此交接前，功能改动均已提交，工作树干净。本文及其入口链接是后续文档改动；其提交不改变上述功能基线。接手首先重新检查目录、分支、HEAD、工作树和其他任务正在使用的文件；保留他人的修改，不重置、不覆盖、不清理其他工作树。
 
@@ -91,7 +91,7 @@ python tools/integration/runtime_surface.py
 
 Cargo 使用仓库 pin；Windows GNU linker/toolchain 须在 PATH 中。Python 使用已配置的 3.12 虚拟环境及 `tools/schema-check/requirements.txt` 的固定版本，不临时更换验证器。
 
-独立 Python 结果：36 schemas、53 valid records、117 record mutations、4,913 set records、51 IPC、76 workspace、46 store、8 invocation、19 extraction-job cases。Runtime manifest 与日志中的 aggregate 一致。合成证据不证明真实账户、账单、TLS handshake、Windows credential store 或实际宿主行为。
+独立 Python 结果：36 schemas、53 valid records、117 record mutations、4,913 set records、51 IPC、83 workspace、46 store、8 invocation、19 extraction-job cases。Runtime manifest 与日志中的 aggregate 一致。合成证据不证明真实账户、账单、TLS handshake、Windows credential store 或实际宿主行为。
 
 本地 `.local/mv7-workspace-tests.log`、`.local/mv7-clippy.log` 是忽略的运行输出，可能被下一次检查覆盖，不提交也不当成唯一证据。稳定入口为 MV-7 报告和对应提交的代码/测试。完整串行根目录检查约需 6～10 分钟，开始前为测试、修复、提交和交接预留额度。
 

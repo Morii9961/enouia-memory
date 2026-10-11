@@ -10,6 +10,7 @@
 //! cannot publish into a Vault the owner has closed.
 
 use super::*;
+use enouia_memory_contract::common::SourceRevisionRef;
 use enouia_memory_contract::context::{Destination, DestinationKind, Purpose};
 use enouia_memory_contract::ids::{EventId, VaultId};
 use enouia_memory_contract::policy::{PolicyOrigin, PolicyRecord, PolicyStatus, ResourceSelector};
@@ -18,6 +19,9 @@ use enouia_memory_contract::provider::{FinishReason, ProviderCapabilities};
 use enouia_memory_contract::workspace::{ExternalApi, GrantSensitivity};
 use enouia_memory_provider::client::{Client, Limits, PreparedCall};
 use enouia_memory_provider::codec::Api;
+use enouia_memory_provider::extraction::{
+    self, ExtractionApplication, ExtractionOptions, SourceSlice,
+};
 use enouia_memory_provider::policy::{self, PolicyPlan};
 use enouia_memory_provider::transport::Transport;
 use enouia_memory_provider::vault::{CallOptions, InterruptionPlan, Quota, VaultAdapter};
@@ -290,7 +294,15 @@ impl Workspace {
                     GrantSensitivity::Private => Sensitivity::Private,
                 },
             },
-            vec![Purpose::Answer, Purpose::ContinueSession],
+            if a.extraction {
+                vec![
+                    Purpose::Answer,
+                    Purpose::ContinueSession,
+                    Purpose::Extraction,
+                ]
+            } else {
+                vec![Purpose::Answer, Purpose::ContinueSession]
+            },
             &bindings,
         )
         .map_err(|e| memory(e, "provider.grant_plan"))?;
@@ -478,22 +490,48 @@ impl Workspace {
                 },
             )
             .map_err(|e| memory(e, "provider.prepare"))?;
+        let mut fields = Map::new();
+        fields.insert("capsuleId".into(), json!(compiled.capsule.capsule_id));
+        fields.insert(
+            "inspectionId".into(),
+            json!(compiled.inspection.inspection_id),
+        );
+        self.hold_call(prepared, input, &destination, a.output_tokens, fields)
+    }
+
+    /// Hold a prepared call for the owner's exact-body confirmation and
+    /// describe it to the page.
+    fn hold_call(
+        &self,
+        prepared: PreparedCall,
+        input: EventId,
+        destination: &NativeDestination,
+        output_tokens: u64,
+        mut fields: Map<String, Value>,
+    ) -> R<Value> {
         let wire = prepared.inspect();
         let body = String::from_utf8(wire.body().to_vec())
             .map_err(|_| fail(MemoryErrorCode::InvalidRequest, "provider.wire_text"))?;
         let call = plan_id(self.config.ids.as_ref());
-        let result = json!({
-            "callId": call, "inputEventId": input,
-            "capsuleId": compiled.capsule.capsule_id,
-            "inspectionId": compiled.inspection.inspection_id,
-            "dispatchId": prepared.dispatch().dispatch_id,
-            "api": api_name(api), "model": destination.capabilities.binding.model,
-            "endpoint": wire.endpoint(), "streaming": a.streaming,
-            "body": body, "wireHash": wire.hash(),
-            "estimatedInputTokens": prepared.estimated_input_tokens(),
-            "outputTokens": a.output_tokens,
-            "expiresInMs": CALL_TTL_MS,
-        });
+        for (key, value) in [
+            ("callId", json!(call)),
+            ("inputEventId", json!(input)),
+            ("dispatchId", json!(prepared.dispatch().dispatch_id)),
+            ("api", json!(api_name(destination.api))),
+            ("model", json!(destination.capabilities.binding.model)),
+            ("endpoint", json!(wire.endpoint())),
+            ("streaming", json!(prepared.dispatch().output.streaming)),
+            ("body", json!(body)),
+            ("wireHash", json!(wire.hash())),
+            (
+                "estimatedInputTokens",
+                json!(prepared.estimated_input_tokens()),
+            ),
+            ("outputTokens", json!(output_tokens)),
+            ("expiresInMs", json!(CALL_TTL_MS)),
+        ] {
+            fields.insert(key.into(), value);
+        }
         let now = self.now_ms();
         let mut calls = self.native.calls.lock().expect("external calls");
         calls.retain(|_, c| c.expires_ms > now);
@@ -505,7 +543,157 @@ impl Workspace {
                 expires_ms: now + CALL_TTL_MS,
             },
         );
-        Ok(result)
+        Ok(Value::Object(fields))
+    }
+
+    /// Save an owner-selected extraction job for one source range and build
+    /// its exact request. Sending uses `external_send` like any other call;
+    /// suggestions become pending review candidates only through
+    /// `extraction_apply` (MV-7.4).
+    pub(crate) fn extraction_prepare(
+        &self,
+        a: &wire::ExtractionPrepareArgs,
+        key: &str,
+    ) -> R<Value> {
+        let provider = self.native_provider()?;
+        let destination = Self::destination(&provider, api_of(a.api))?;
+        let open = self.open()?;
+        let subject = SubjectId::parse(&open.owner.actor_id.as_str().replacen("prn_", "sub_", 1))
+            .map_err(|_| fail(MemoryErrorCode::InvalidRequest, "workspace.subject"))?;
+        let options = ExtractionOptions {
+            api: destination.api,
+            model: destination.capabilities.binding.model.clone(),
+            subject_id: subject,
+            sources: vec![SourceSlice {
+                source: SourceRevisionRef {
+                    source_id: a.source_id.clone(),
+                    source_revision: a.source_revision,
+                },
+                start: a.start_byte,
+                end: a.end_byte,
+            }],
+            max_candidates: a.max_candidates,
+            max_pending: 500,
+            max_reserved_tokens: provider.quota.max_reserved_tokens,
+            max_reserved_cost_microusd: None,
+        };
+        let (session, run) = extraction::create(
+            &open.vault,
+            &open.owner,
+            &self.policy(&open)?,
+            &options,
+            format!("extraction\n{key}").as_bytes(),
+        )
+        .map_err(|e| memory(e, "provider.extraction_create"))?;
+        let job = extraction::job(&open.vault, &open.owner, &session, &run)
+            .map_err(|e| memory(e, "provider.extraction_job"))?;
+        let output_tokens = destination
+            .capabilities
+            .max_output_tokens
+            .unwrap_or(0)
+            .min(4096);
+        let adapter = self.adapter(&open, job.input_event_id.clone(), provider.quota);
+        let prepared = self.with_index(&open, |index| {
+            extraction::prepare(
+                &adapter,
+                index,
+                &run,
+                &destination.capabilities,
+                provider.limits.clone(),
+                CallOptions {
+                    egress_policy: a.policy_id.clone(),
+                    approval: None,
+                    streaming: false,
+                    output_tokens,
+                },
+            )
+            .map_err(|e| memory(e, "provider.extraction_prepare"))
+        })?;
+        let mut fields = Map::new();
+        fields.insert("sessionId".into(), json!(session));
+        fields.insert("runId".into(), json!(run));
+        self.hold_call(
+            prepared,
+            job.input_event_id,
+            &destination,
+            output_tokens,
+            fields,
+        )
+    }
+
+    fn extraction_adapter<'a>(
+        &self,
+        open: &'a Open,
+        a: &wire::ExtractionArgs,
+    ) -> R<VaultAdapter<'a>> {
+        let job = extraction::job(&open.vault, &open.owner, &a.session_id, &a.run_id)
+            .map_err(|e| memory(e, "provider.extraction_job"))?;
+        let quota = self
+            .native
+            .provider
+            .lock()
+            .expect("provider")
+            .as_ref()
+            .map(|p| p.quota)
+            .unwrap_or_default();
+        Ok(self.adapter(open, job.input_event_id, quota))
+    }
+
+    /// Validate the saved response and show each suggestion with its exact
+    /// quote and complete selected text. Writes nothing.
+    pub(crate) fn extraction_preview(&self, a: &wire::ExtractionArgs) -> R<Value> {
+        let open = self.open()?;
+        let adapter = self.extraction_adapter(&open, a)?;
+        let preview = extraction::preview(&adapter, &a.run_id)
+            .map_err(|e| memory(e, "provider.extraction_preview"))?;
+        let items: Vec<Value> = preview
+            .items
+            .iter()
+            .map(|i| {
+                let c = &i.citation;
+                json!({
+                    "responseIndex": i.response_index,
+                    "proposedType": i.proposal.proposed_type,
+                    "content": i.proposal.content,
+                    "quote": c.quote, "selectedText": c.selected_text,
+                    "sourceId": c.source.source_id, "sourceRevision": c.source.source_revision,
+                    "speakerRole": c.speaker_role, "evidenceClass": c.evidence_class,
+                    "occurredAt": c.occurred_at, "capturedAt": c.captured_at,
+                    "application": match i.application {
+                        ExtractionApplication::AwaitingCursor => "awaiting_cursor",
+                        ExtractionApplication::Suppressed => "suppressed",
+                        ExtractionApplication::CandidateRecorded => "candidate_recorded",
+                    },
+                    "candidate": i.current_candidate.as_ref().map(|r| json!({
+                        "candidateId": r.candidate_id, "revision": r.revision,
+                        "status": r.status, "content": r.proposed_content,
+                    })),
+                })
+            })
+            .collect();
+        Ok(json!({
+            "job": preview.job, "dispatchId": preview.dispatch_id,
+            "responseHash": preview.response_hash, "items": items,
+        }))
+    }
+
+    /// Publish at most one suggestion as a pending candidate. The page
+    /// repeats this until the job is completed; nothing is sent.
+    pub(crate) fn extraction_apply(&self, a: &wire::ExtractionArgs) -> R<Value> {
+        let open = self.open()?;
+        let adapter = self.extraction_adapter(&open, a)?;
+        let job = extraction::apply_next(&adapter, &a.run_id)
+            .map_err(|e| memory(e, "provider.extraction_apply"))?;
+        Ok(json!({"job": job}))
+    }
+
+    pub(crate) fn extraction_pause(&self, a: &wire::ExtractionPauseArgs) -> R<Value> {
+        let open = self.open()?;
+        extraction::set_paused(&open.vault, &open.owner, &a.session_id, &a.run_id, a.paused)
+            .map_err(|e| memory(e, "provider.extraction_pause"))?;
+        let job = extraction::job(&open.vault, &open.owner, &a.session_id, &a.run_id)
+            .map_err(|e| memory(e, "provider.extraction_job"))?;
+        Ok(json!({"job": job}))
     }
 
     /// The owner confirmed the exact wire body: record the single-use

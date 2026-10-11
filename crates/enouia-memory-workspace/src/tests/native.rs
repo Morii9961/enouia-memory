@@ -28,6 +28,8 @@ struct FakeHttp {
     hold: bool,
     entered: AtomicBool,
     bodies: Mutex<Vec<Vec<u8>>>,
+    /// Reply text instead of the default synthetic answer.
+    text: Mutex<Option<String>>,
 }
 
 impl Transport for FakeHttp {
@@ -51,12 +53,18 @@ impl Transport for FakeHttp {
                 ComponentId::Provider,
             ));
         }
+        let text = self
+            .text
+            .lock()
+            .unwrap()
+            .clone()
+            .unwrap_or_else(|| "合成外部答复".into());
         let reply = match request.binding().provider.as_str() {
             "openai" => json!({"status": "completed", "output": [{"type": "message",
-                "role": "assistant", "content": [{"type": "output_text", "text": "合成外部答复"}]}],
+                "role": "assistant", "content": [{"type": "output_text", "text": text}]}],
                 "usage": {"input_tokens": 90, "output_tokens": 6}}),
             _ => json!({"type": "message", "role": "assistant",
-                "content": [{"type": "text", "text": "合成外部答复"}], "stop_reason": "end_turn",
+                "content": [{"type": "text", "text": text}], "stop_reason": "end_turn",
                 "usage": {"input_tokens": 90, "output_tokens": 6}}),
         };
         for chunk in serde_json::to_vec(&reply).unwrap().chunks(7) {
@@ -105,7 +113,7 @@ fn configure(env: &Env, http: Arc<FakeHttp>) {
 fn grant(env: &Env) -> Value {
     let plan = env.ok(
         "egress_grant_plan",
-        json!({"apis": ["openai", "anthropic"], "maxSensitivity": "private"}),
+        json!({"apis": ["openai", "anthropic"], "maxSensitivity": "private", "extraction": true}),
     );
     assert_eq!(plan["kind"], "grant");
     let inspected: Value = serde_json::from_str(plan["inspection"].as_str().unwrap()).unwrap();
@@ -186,7 +194,7 @@ fn external_commands_refuse_until_the_host_configures_native_sending() {
     assert_eq!(provider["mode"], "local_mock_only");
     let refused = env.err(
         "egress_grant_plan",
-        json!({"apis": ["openai"], "maxSensitivity": "private"}),
+        json!({"apis": ["openai"], "maxSensitivity": "private", "extraction": false}),
     );
     assert_eq!(refused["code"], "provider_unavailable");
     assert_eq!(refused["rules"][0], "provider.not_configured");
@@ -373,6 +381,110 @@ fn lock_cancels_and_joins_a_running_send_and_the_owner_closes_it_locally() {
     // With no send running, the host can remove its native setup.
     env.ws.set_native_provider(None).unwrap();
     assert_eq!(env.ok("provider_status", json!({}))["configured"], false);
+    let verify = env.ok("vault_verify", json!({}));
+    assert_eq!(env.wait(&verify)["result"]["clean"], true);
+}
+
+#[test]
+fn extraction_suggestions_become_pending_candidates_one_at_a_time() {
+    let env = Env::new("native-extraction");
+    let http = Arc::new(FakeHttp::default());
+    configure(&env, http.clone());
+    let policy = grant(&env);
+    let statement = "合成偏好：周一开会，周五复盘。";
+    let remembered = env.ok(
+        "remember",
+        json!({"text": statement, "claimKey": "synthetic.meetings"}),
+    );
+    let prepared = env.ok(
+        "extraction_prepare",
+        json!({"sourceId": remembered["sourceId"], "sourceRevision": 1, "startByte": 0,
+            "endByte": statement.len(), "api": "openai", "policyId": policy, "maxCandidates": 2}),
+    );
+    let body = prepared["body"].as_str().unwrap();
+    assert!(body.contains("周一开会"), "{body}");
+    assert_eq!(prepared["wireHash"], json!(sha256(body.as_bytes())));
+    assert_eq!(http.calls.load(Ordering::SeqCst), 0);
+    *http.text.lock().unwrap() = Some(
+        json!({"candidates": [{"kind": "fact", "content": "合成：每周一开会",
+            "quote": "周一开会", "source_index": 0, "claim_key": "synthetic_monday"}]})
+        .to_string(),
+    );
+    let started = env.ok(
+        "external_send",
+        json!({"callId": prepared["callId"], "wireHash": prepared["wireHash"]}),
+    );
+    let done = env.wait(&started);
+    assert_eq!(done["state"], "succeeded", "{done}");
+    let job = json!({"sessionId": prepared["sessionId"], "runId": prepared["runId"]});
+    let before = env.ok("candidate_list", json!({"cursor": null, "limit": 100}));
+    let shown = env.ok("extraction_preview", job.clone());
+    assert_eq!(shown["items"].as_array().unwrap().len(), 1);
+    let item = &shown["items"][0];
+    assert_eq!(item["quote"], "周一开会");
+    assert_eq!(item["selectedText"], statement);
+    assert_eq!(item["application"], "awaiting_cursor");
+    assert_eq!(item["candidate"], Value::Null);
+    // Preview writes nothing.
+    assert_eq!(
+        env.ok("candidate_list", json!({"cursor": null, "limit": 100})),
+        before
+    );
+    // A paused job publishes nothing; resuming reads the same response.
+    let paused = env.ok(
+        "extraction_pause",
+        json!({"sessionId": prepared["sessionId"], "runId": prepared["runId"], "paused": true}),
+    );
+    assert_eq!(paused["job"]["state"], "paused");
+    let refused = env.err("extraction_apply", job.clone());
+    assert_ne!(refused["code"], Value::Null);
+    env.ok(
+        "extraction_pause",
+        json!({"sessionId": prepared["sessionId"], "runId": prepared["runId"], "paused": false}),
+    );
+    let mut state = Value::Null;
+    for _ in 0..3 {
+        state = env.ok("extraction_apply", job.clone())["job"].clone();
+        if state["state"] == "completed" {
+            break;
+        }
+    }
+    assert_eq!(state["state"], "completed", "{state}");
+    assert_eq!(state["candidates"].as_array().unwrap().len(), 1);
+    let candidate = state["candidates"][0].clone();
+    let after = env.ok("candidate_list", json!({"cursor": null, "limit": 100}));
+    let found = after["items"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|c| c["candidateId"] == candidate)
+        .unwrap_or_else(|| panic!("{after}"))
+        .clone();
+    assert_eq!(found["content"], "合成：每周一开会", "{found}");
+    // Completed replay writes nothing and sends nothing.
+    let head = env
+        .ws
+        .open()
+        .unwrap()
+        .vault
+        .pin_current()
+        .unwrap()
+        .commit_id;
+    assert_eq!(env.ok("extraction_apply", job.clone())["job"], state);
+    assert_eq!(
+        env.ws
+            .open()
+            .unwrap()
+            .vault
+            .pin_current()
+            .unwrap()
+            .commit_id,
+        head
+    );
+    let shown = env.ok("extraction_preview", job);
+    assert_eq!(shown["items"][0]["application"], "candidate_recorded");
+    assert_eq!(shown["items"][0]["candidate"]["status"], "pending");
+    assert_eq!(http.calls.load(Ordering::SeqCst), 1);
     let verify = env.ok("vault_verify", json!({}));
     assert_eq!(env.wait(&verify)["result"]["clean"], true);
 }

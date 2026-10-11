@@ -375,7 +375,8 @@
           "openai",
           "anthropic"
         ],
-        "maxSensitivity": "private"
+        "maxSensitivity": "private",
+        "extraction": true
       }
     },
     {
@@ -430,6 +431,52 @@
       "arguments": {
         "inputEventId": "evt_00000000-0000-4000-8000-000000000004",
         "dispatchId": "dsp_00000000-0000-4000-8000-000000000005"
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "requestId": "req_00000000-0000-4000-8000-00000000000c",
+      "command": "extraction_prepare",
+      "idempotencyKey": "synthetic-provider-key-0002",
+      "arguments": {
+        "sourceId": "src_00000000-0000-4000-8000-000000000007",
+        "sourceRevision": 1,
+        "startByte": 0,
+        "endByte": 120,
+        "api": "openai",
+        "policyId": "pol_00000000-0000-4000-8000-000000000003",
+        "maxCandidates": 8
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "requestId": "req_00000000-0000-4000-8000-00000000000c",
+      "command": "extraction_preview",
+      "idempotencyKey": null,
+      "arguments": {
+        "sessionId": "ses_00000000-0000-4000-8000-000000000001",
+        "runId": "ext_00000000-0000-4000-8000-000000000006"
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "requestId": "req_00000000-0000-4000-8000-00000000000c",
+      "command": "extraction_apply",
+      "idempotencyKey": "synthetic-provider-key-0002",
+      "arguments": {
+        "sessionId": "ses_00000000-0000-4000-8000-000000000001",
+        "runId": "ext_00000000-0000-4000-8000-000000000006"
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "requestId": "req_00000000-0000-4000-8000-00000000000c",
+      "command": "extraction_pause",
+      "idempotencyKey": "synthetic-provider-key-0002",
+      "arguments": {
+        "sessionId": "ses_00000000-0000-4000-8000-000000000001",
+        "runId": "ext_00000000-0000-4000-8000-000000000006",
+        "paused": true
       }
     }
   ],
@@ -761,6 +808,45 @@
       ],
       "schema": "reject",
       "rust_rule": "workspace.plan_id"
+    },
+    {
+      "id": "extraction-empty-range",
+      "base": 43,
+      "ops": [
+        {
+          "op": "set",
+          "path": "/arguments/endByte",
+          "value": 0
+        }
+      ],
+      "schema": "reject",
+      "rust_rule": "workspace.extraction_range"
+    },
+    {
+      "id": "extraction-range-over-ceiling",
+      "base": 43,
+      "ops": [
+        {
+          "op": "set",
+          "path": "/arguments/endByte",
+          "value": 32769
+        }
+      ],
+      "schema": "accept",
+      "rust_rule": "workspace.extraction_range"
+    },
+    {
+      "id": "extraction-too-many-candidates",
+      "base": 43,
+      "ops": [
+        {
+          "op": "set",
+          "path": "/arguments/maxCandidates",
+          "value": 33
+        }
+      ],
+      "schema": "reject",
+      "rust_rule": "workspace.extraction_candidates"
     }
   ],
   "valid_responses": [
