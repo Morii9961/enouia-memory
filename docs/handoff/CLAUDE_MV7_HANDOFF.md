@@ -23,7 +23,7 @@
 | 本次 MV-7 起始基线 | `8197890` |
 | 本次 Codex 接续基线 | `7c3ef41`；干净的本地 main 从旧 MV-6 版本快进到远端已合并主线后开始 |
 | 工具链 | Rust `1.98.1`，`x86_64-pc-windows-gnu`；Python 3.12 / python-jsonschema `4.26.0` |
-| 最近完整验证 | 2026-10-11，350 项 Rust 测试通过，含 75 项 Provider 检查和 60 项 workspace Core 检查；fmt、严格 Clippy、36-schema 独立交叉校验及 Runtime manifest 检查通过。 |
+| 最近完整验证 | 2026-10-11，352 项 Rust 测试通过，含 77 项 Provider 检查和 60 项 workspace Core 检查；fmt、严格 Clippy、36-schema 独立交叉校验及 Runtime manifest 检查通过。 |
 | Runtime 接入面 aggregate | `f1a52c732445fe9ea0c5d5b33eaec3fd5fe7b9a71376ca3215e594f1792cf167` |
 
 制作此交接前，功能改动均已提交，工作树干净。本文及其入口链接是后续文档改动；其提交不改变上述功能基线。接手首先重新检查目录、分支、HEAD、工作树和其他任务正在使用的文件；保留他人的修改，不重置、不覆盖、不清理其他工作树。
@@ -58,7 +58,8 @@
 | `693dc76` | Context 在 guarded 输出的同一 commit pin 上检查 input 对应抽取 job 的 Source 修订。12 种 pipeline、2 种直接 Core chunk 及 2 种历史回执情况通过；新过期输出拒绝，已发布精确回执、无内容失败记录和不可重发规则保留。完整 344 项检查及规定交叉验证通过。 |
 | `d3acc0b` | 多个 job 引用同一 input 时，活动 job 校验及 admission 以 InvalidRequest 拒绝歧义预算/来源路由，保留原档案。8 种歧义及 2 种独立 input 预算控制通过；完整 346 项检查及规定交叉验证通过。 |
 | `5cc47db` | 在 reservation 的同一 pin 上复核当前 pending 队列，prepare 后填满队列不再进入 exchange；审核后释放容量只允许尚未 admission 的 input 继续。6 种双 API 情况通过，完整 347 项及规定检查通过。 |
-| 本提交 | OpenAI failed 及三个拒绝的 incomplete 原因永久失败时保留合法 reported usage，兼容 nullable error；23 种 JSON、15 种 SSE 和十种持久化模式通过。完整 350 项及规定交叉验证通过。 |
+| `cdafc6f` | OpenAI failed 及三个拒绝的 incomplete 原因永久失败时保留合法 reported usage，兼容 nullable error；23 种 JSON、15 种 SSE 和十种持久化模式通过。完整 350 项及规定交叉验证通过。 |
+| 本提交 | OpenAI created/in_progress 中经过校验的 reported usage 在中断后保留，未知分量不擦除已有值；倒退或跨 Response 覆盖永久失败并保留原计数。48 种纯解码和 7 种持久化情况通过，完整 352 项及规定检查通过。 |
 
 MV-7.2 的 Memory 侧原生调用链已实现：外部目的地编译、精确请求体 inspection、站立策略及私密内容单次批准、凭据读取端口、持久化 admission、流式文本、原子终态、用量和限额、取消、关闭与恢复规则。OpenAI Responses 与 Anthropic Messages 均有合成接受路径。
 
@@ -96,13 +97,17 @@ Claude 随后审查原生传输与 SSE 路径，修复了非流式请求头重�
 
 OpenAI response.failed 及三个已知拒绝的 incomplete 终态用量缺口已经修复。nullable error 不被误当作无效 Response；23 种 JSON、15 种 SSE 和十种持久化模式及完整 350 项根目录检查通过。仍拒绝输出，只保留经过响应/计数校验的用量，不采信任意错误体。官方定义用于形状核对，不是真实模型证据。
 
-下一项已通过纯探针和两项修复前回归复现：response.created / response.in_progress 的 Response 报告 50000/4，随后流中断，现有 Decoder 和持久化 Failed 均丢失合法计数。官方示例的 usage 为 null；共享 Response 类型允许 usage，不能据此断言真实模型会在进度事件报告计数。候选修复仅保留已报告且验证通过的计数，并拒绝倒退/跨 Response 覆盖，不猜测实际用量。探针及未来回归目前在忽略的 .local 内，产品代码尚未修改。
+OpenAI 进度用量缺口已修复，48 种纯解码情况、7 种持久化模式及完整 352 项根目录检查通过。fmt、严格 Clippy、Python 交叉验证及 Runtime manifest 通过。计数只来自经过校验的 Response，可能是局部报告；官方 created/in_progress 示例 usage=null，共享类型允许 usage 不证明实际模型会在此时报告用量。
+
+两个后续抽取候选未证实需要修改：已 admission 后增加同 input 的 job，四种双 API/数组顺序的假调用仍按原 dispatch 完成，所有 job 的 Source 修订必须与同一 input 完全一致；删除现有 job 的合成迁移被 extraction.history 拒绝，不能借此绕过原限额。没有更改 Core 或历史约束。
+
+下一项已通过六种 JSON/SSE 独立假调用复现：成功 OpenAI Response 的 id=42、object=error 或 error 为数组仍保存 Completed 和 response。失败/进度路径已验证 identity/error，成功路径却没有同样校验。官方类型规定字符串 id 和固定 object=response，并允许 nullable/结构化 error。候选修复只统一已有的身份/error 校验，需要将最小成功 fixture 补齐为合成官方身份字段；目前尚未修改产品代码。
 
 若没有证实新的 MV-7 缺口，不为消耗额度扩充无依据功能，也不转入 MV-8。Runtime 产品接入需主人给该仓库的明确工作范围；本仓库不添加到 Runtime checkout、crates、fixtures 或 target 的依赖。Activity & Usage 属于 Runtime，不在 Memory 中读取或实现。
 
 ## 验证和证据
 
-最近一次（OpenAI 终态失败用量修复）的根目录检查全部通过：
+最近一次（OpenAI 进度用量修复）的根目录检查全部通过：
 
 ```powershell
 $env:CARGO_NET_OFFLINE = 'true'
@@ -117,11 +122,11 @@ python tools/integration/runtime_surface.py
 
 Cargo 使用仓库 pin；Windows GNU linker/toolchain 须在 PATH 中。Python 使用已配置的 3.12 虚拟环境及 `tools/schema-check/requirements.txt` 的固定版本，不临时更换验证器。
 
-最新完整运行：350 Rust tests（75 Provider cases、60 Core cases），格式与严格 Clippy 通过。
+最新完整运行：352 Rust tests（77 Provider cases、60 Core cases），格式与严格 Clippy 通过。
 
 独立 Python 结果：36 schemas、53 valid records、117 record mutations、4,913 set records、51 IPC、63 workspace、46 store、8 invocation、19 extraction-job cases。Runtime manifest 与日志中的 aggregate 一致。合成证据不证明真实账户、账单、TLS handshake、Windows credential store 或实际宿主行为。
 
-本地 `.local/mv7-openai-terminal-workspace-tests.log`、`.local/mv7-openai-terminal-clippy.log` 是忽略的运行输出，可能被下一次检查覆盖，不提交也不当成唯一证据。稳定入口为 MV-7 报告和对应提交的代码/测试。完整串行根目录检查约需 6～20 分钟，开始前为测试、修复、提交和交接预留额度。
+本地 `.local/mv7-openai-progress-workspace-tests.log`、`.local/mv7-openai-progress-clippy.log` 是忽略的运行输出，可能被下一次检查覆盖，不提交也不当成唯一证据。稳定入口为 MV-7 报告和对应提交的代码/测试。完整串行根目录检查约需 6～20 分钟，开始前为测试、修复、提交和交接预留额度。
 
 旧完整运行曾遇到现有 Core 并发测试的有界 writer/index 等待或有序释放超时。隔离复验和完整重跑通过；未因此改变产品代码或等待规则。单 harness worker 不关闭测试内明确的线程/进程竞争。遇到类似失败先保留输出并聚焦复验，不以局部通过代替新功能的完整验证，也不要未经诊断扩大修复范围。
 

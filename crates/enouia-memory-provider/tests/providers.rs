@@ -8035,3 +8035,382 @@ fn openai_terminal_failures_debit_reported_usage_without_delivery_or_resend() {
         assert!(env.vault.verify(&before).unwrap().is_clean());
     }
 }
+
+fn synthetic_openai_progress(kind: &str) -> serde_json::Value {
+    json!({"type":kind,"response":{
+        "id":"resp_synthetic_progress","object":"response","status":"in_progress",
+        "error":null,"output":[],"usage":{"input_tokens":50000,"output_tokens":4}
+    }})
+}
+
+#[test]
+fn openai_progress_usage_survives_interruptions_and_rejects_overwrites() {
+    for kind in ["response.created", "response.in_progress"] {
+        for mode in [
+            "error",
+            "truncated",
+            "missing",
+            "partial",
+            "increase",
+            "input_regression",
+            "output_regression",
+            "malformed",
+            "other_id",
+            "bad_status",
+            "failed_unknown",
+            "incomplete_unknown",
+            "future_metadata",
+        ] {
+            let mut decoder = Decoder::new(Api::OpenAiResponses);
+            let mut delivered = String::new();
+            let mut collect = |text: &str| {
+                delivered.push_str(text);
+                Ok(())
+            };
+            decoder
+                .push(&sse(&[synthetic_openai_progress(kind)]), &mut collect)
+                .unwrap();
+            assert_eq!(
+                decoder.observed_usage(),
+                (Some(50000), Some(4)),
+                "{kind}/{mode}"
+            );
+            let mut terminal = json!({"type":"response.completed","response":{
+                "id":"resp_synthetic_progress","object":"response","status":"completed",
+                "error":null,"output":[],"usage":null
+            }});
+            match mode {
+                "error" => {
+                    terminal =
+                        json!({"type":"error","usage":{"input_tokens":99999,"output_tokens":99999}})
+                }
+                "partial" => terminal["response"]["usage"] = json!({"output_tokens":8}),
+                "increase" => {
+                    terminal["response"]["usage"] = json!({"input_tokens":50001,"output_tokens":8})
+                }
+                "input_regression" => {
+                    terminal["response"]["usage"] = json!({"input_tokens":49999,"output_tokens":8})
+                }
+                "output_regression" => {
+                    terminal["response"]["usage"] = json!({"input_tokens":50001,"output_tokens":3})
+                }
+                "malformed" => {
+                    terminal["response"]["usage"] =
+                        json!({"input_tokens":50001,"output_tokens":"bad"})
+                }
+                "other_id" => terminal["response"]["id"] = json!("resp_other_synthetic"),
+                "bad_status" => terminal["response"]["status"] = json!("in_progress"),
+                "failed_unknown" => {
+                    terminal["type"] = json!("response.failed");
+                    terminal["response"]["status"] = json!("failed");
+                }
+                "incomplete_unknown" => {
+                    terminal["type"] = json!("response.incomplete");
+                    terminal["response"]["status"] = json!("incomplete");
+                    terminal["response"]["incomplete_details"] = json!({"reason":"content_filter"});
+                }
+                "future_metadata" => {
+                    decoder.push(&sse(&[json!({"type":"future.metadata","response":{"usage":{"input_tokens":1,"output_tokens":1}}})]), &mut collect).unwrap();
+                }
+                "missing" => {}
+                "truncated" => {
+                    assert_eq!(decoder.observed_usage(), (Some(50000), Some(4)));
+                    assert!(decoder.finish().is_err());
+                    continue;
+                }
+                _ => unreachable!(),
+            }
+            let result = decoder.push(&sse(&[terminal]), &mut collect);
+            if matches!(mode, "missing" | "partial" | "increase" | "future_metadata") {
+                result.unwrap();
+                let answer = decoder.finish().unwrap();
+                let expected = match mode {
+                    "partial" => (Some(50000), Some(8)),
+                    "increase" => (Some(50001), Some(8)),
+                    _ => (Some(50000), Some(4)),
+                };
+                assert_eq!((answer.input_tokens, answer.output_tokens), expected);
+            } else {
+                assert_eq!(
+                    result.unwrap_err().code,
+                    MemoryErrorCode::ProviderUnavailable
+                );
+                assert!(
+                    decoder
+                        .push(&streaming_reply(Api::OpenAiResponses, true), &mut collect)
+                        .is_err()
+                );
+                assert_eq!(decoder.observed_usage(), (Some(50000), Some(4)));
+                assert!(decoder.finish().is_err());
+            }
+            assert!(delivered.is_empty());
+        }
+        for field in ["id", "object", "status", "output", "usage", "error"] {
+            let mut event = synthetic_openai_progress(kind);
+            event["response"][field] = match field {
+                "id" => json!(""),
+                "object" => json!("error"),
+                "status" => json!("completed"),
+                "output" => json!([{"type":"function_call"}]),
+                "usage" => json!({"input_tokens":50000,"output_tokens":"bad"}),
+                "error" => json!({"code":"server_error","message":42}),
+                _ => unreachable!(),
+            };
+            let mut decoder = Decoder::new(Api::OpenAiResponses);
+            assert!(
+                decoder.push(&sse(&[event]), &mut |_| Ok(())).is_err(),
+                "{kind}/{field}"
+            );
+            assert_eq!(decoder.observed_usage(), (None, None));
+        }
+        for mode in [
+            "missing",
+            "null",
+            "queued",
+            "progress_regression",
+            "progress_other_id",
+        ] {
+            let mut decoder = Decoder::new(Api::OpenAiResponses);
+            let mut event = synthetic_openai_progress(kind);
+            if mode == "missing" {
+                event["response"].as_object_mut().unwrap().remove("usage");
+            }
+            if mode == "null" {
+                event["response"]["usage"] = serde_json::Value::Null;
+            }
+            if mode == "queued" {
+                event["response"]["status"] = json!("queued");
+            }
+            if matches!(mode, "progress_regression" | "progress_other_id") {
+                decoder
+                    .push(&sse(&[synthetic_openai_progress(kind)]), &mut |_| Ok(()))
+                    .unwrap();
+                if mode == "progress_regression" {
+                    event["response"]["usage"]["input_tokens"] = json!(49999);
+                } else {
+                    event["response"]["id"] = json!("resp_other_synthetic");
+                }
+            }
+            let result = decoder.push(&sse(&[event]), &mut |_| Ok(()));
+            if matches!(mode, "progress_regression" | "progress_other_id") {
+                assert!(result.is_err());
+                assert_eq!(decoder.observed_usage(), (Some(50000), Some(4)));
+            } else if mode == "queued" && kind == "response.in_progress" {
+                assert!(result.is_err());
+            } else {
+                result.unwrap();
+                assert_eq!(
+                    decoder.observed_usage(),
+                    if mode == "queued" {
+                        (Some(50000), Some(4))
+                    } else {
+                        (None, None)
+                    }
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn openai_progress_usage_is_durable_and_blocks_quota_bypass() {
+    for mode in [
+        "network",
+        "error",
+        "truncated",
+        "failed_unknown",
+        "completed_unknown",
+        "lower_usage",
+        "other_response",
+    ] {
+        let env = Env::new("openai-progress-usage");
+        let api = Api::OpenAiResponses;
+        let (capsule, input, policy, caps) = setup(&env, api, Sensitivity::Normal);
+        let enabled = AtomicBool::new(true);
+        let adapter = VaultAdapter {
+            vault: &env.vault,
+            owner: owner(),
+            input_event: input.clone(),
+            enabled: &enabled,
+            quota: Quota::default(),
+        };
+        let mut options = CallOptions::text(policy.clone(), 128);
+        options.streaming = true;
+        let call = adapter
+            .prepare_saved(api, &capsule, &caps, Limits::default(), options)
+            .unwrap();
+        let completed = mode == "completed_unknown";
+        let mut terminal = json!({"type":"response.completed","response":{
+            "id":"resp_synthetic_progress","object":"response","status":"completed",
+            "error":null,"output":[],"usage":null
+        }});
+        match mode {
+            "error" => {
+                terminal =
+                    json!({"type":"error","message":"Synthetic error body must stay private"})
+            }
+            "failed_unknown" => {
+                terminal["type"] = json!("response.failed");
+                terminal["response"]["status"] = json!("failed");
+            }
+            "lower_usage" => {
+                terminal["response"]["usage"] = json!({"input_tokens":49999,"output_tokens":4})
+            }
+            "other_response" => {
+                terminal["response"]["id"] = json!("resp_other_synthetic");
+                terminal["response"]["usage"] = json!({"input_tokens":70000,"output_tokens":4});
+            }
+            "network" | "truncated" | "completed_unknown" => {}
+            _ => unreachable!(),
+        }
+        let mut events = vec![synthetic_openai_progress("response.in_progress")];
+        if !matches!(mode, "network" | "truncated") {
+            events.push(terminal);
+        }
+        let http = FakeHttp {
+            calls: Cell::new(0),
+            bytes: sse(&events),
+            fail: mode == "network",
+        };
+        let client = Client {
+            transport: &http,
+            secrets: &Secrets { missing: false },
+            guard: &adapter,
+            journal: &adapter,
+        };
+        let result = client.send(&call, &call.inspect().hash(), &NeverCancel);
+        if completed {
+            let answer = result.unwrap();
+            assert_eq!(
+                (answer.input_tokens, answer.output_tokens),
+                (Some(50000), Some(4))
+            );
+            assert!(answer.text.is_empty());
+        } else {
+            let error = result.unwrap_err();
+            assert_eq!(error.code, MemoryErrorCode::ProviderUnavailable);
+            assert!(!error.retryable);
+        }
+        let rows = adapter.invocations().unwrap();
+        let row = &rows[0];
+        assert_eq!(rows.len(), 1);
+        assert_eq!(
+            row.state,
+            if completed {
+                InvocationState::Completed
+            } else {
+                InvocationState::Failed
+            }
+        );
+        assert_eq!(
+            (row.input_tokens, row.output_tokens),
+            (Some(50000), Some(4))
+        );
+        assert_eq!(
+            row.reserved_tokens,
+            call.estimated_input_tokens() + call.dispatch().output.max_output_tokens
+        );
+        assert_eq!(
+            adapter.saved_response(&row.dispatch_id).unwrap().is_some(),
+            completed
+        );
+        let pin = env.vault.pin_current().unwrap();
+        let enouia_memory_contract::record::AnyRecord::SessionEvent(previous) = env
+            .vault
+            .read_parsed(
+                &pin,
+                &enouia_memory_contract::record::RecordRef::new(
+                    RecordKind::SessionEvent,
+                    input.as_str(),
+                    Revision::new(1).unwrap(),
+                ),
+            )
+            .unwrap()
+        else {
+            panic!("input");
+        };
+        let events =
+            session::events(&env.vault, &pin, &previous.session_id, &previous.branch_id).unwrap();
+        assert_eq!(
+            events.iter().any(|event| event.kind
+                == enouia_memory_contract::session::EventKind::AssistantCompleted),
+            completed
+        );
+        for event in events.iter().filter(|event| event.content_ref.is_some()) {
+            let text = session::text(&env.vault, &pin, event).unwrap();
+            assert!(!text.contains("Synthetic error body must stay private"));
+            assert!(!text.contains("Synthetic failed final text must stay private"));
+        }
+        assert_eq!(
+            client
+                .send(&call, &call.inspect().hash(), &NeverCancel)
+                .unwrap_err()
+                .code,
+            MemoryErrorCode::IdempotencyConflict
+        );
+        assert_eq!(http.calls.get(), 1);
+        assert_eq!(env.vault.pin_current().unwrap(), pin);
+        let mut compile = CompileInput::local(
+            "新的明确合成输入",
+            owner(),
+            RequestId::from_random(env.vault.random_id_bytes()),
+        );
+        compile.session_id = Some(previous.session_id.clone());
+        compile.branch_id = Some(previous.branch_id.clone());
+        let next_input = session::save_input(
+            &env.vault,
+            &owner(),
+            &previous.session_id,
+            &previous.branch_id,
+            &compile.query,
+            &compile.request_id,
+            b"after-failed-openai",
+        )
+        .unwrap()
+        .id;
+        let (index, _) = enouia_memory_index::Index::rebuild(&env.vault).unwrap();
+        let next_capsule = compiler::compile_for_destination(
+            &env.vault,
+            &index,
+            &compile,
+            &Destination {
+                kind: DestinationKind::ExternalProvider,
+                provider_binding: Some(caps.binding.clone()),
+            },
+        )
+        .unwrap();
+        let mut next = VaultAdapter {
+            input_event: next_input,
+            ..adapter
+        };
+        let next_call = next
+            .prepare_saved(
+                api,
+                &next_capsule.capsule.capsule_id,
+                &caps,
+                Limits::default(),
+                CallOptions::text(policy, 128),
+            )
+            .unwrap();
+        next.quota.max_reserved_tokens = row.reserved_tokens
+            + next_call.estimated_input_tokens()
+            + next_call.dispatch().output.max_output_tokens;
+        let before = env.vault.pin_current().unwrap();
+        assert_eq!(
+            Client {
+                transport: &http,
+                secrets: &Secrets { missing: false },
+                guard: &next,
+                journal: &next
+            }
+            .send(&next_call, &next_call.inspect().hash(), &NeverCancel)
+            .unwrap_err()
+            .code,
+            MemoryErrorCode::BudgetExceeded
+        );
+        assert_eq!(http.calls.get(), 1);
+        assert_eq!(next.invocations().unwrap().len(), 1);
+        assert_eq!(env.vault.pin_current().unwrap(), before);
+        assert!(env.vault.verify(&before).unwrap().is_clean());
+    }
+}

@@ -178,16 +178,7 @@ pub(crate) fn decode_observing(
                 // arbitrary HTTP error body. Its error is nullable; validate
                 // an error when present and all supported output before
                 // retaining the complete tuple. Never expose terminal text.
-                if v["object"] != "response"
-                    || v["id"].as_str().is_none_or(str::is_empty)
-                    || !v["error"].is_null()
-                        && (v["error"]["code"].as_str().is_none_or(str::is_empty)
-                            || !v["error"]["message"].is_string())
-                {
-                    return Err(error(MemoryErrorCode::ProviderUnavailable));
-                }
-                openai_output_text(&v)?;
-                *observed = decode_usage(api, &v["usage"])?;
+                *observed = openai_reported_usage(&v)?;
                 return Err(error(MemoryErrorCode::ProviderUnavailable));
             }
             let finish = match v["status"].as_str() {
@@ -245,6 +236,21 @@ pub(crate) fn decode_observing(
         input_tokens,
         output_tokens,
     })
+}
+
+/// Validate Response identity, nullable error and supported output before usage.
+/// Callers separately constrain the event/status and admission identity.
+pub(crate) fn openai_reported_usage(response: &Value) -> Result<(Option<u64>, Option<u64>)> {
+    if response["object"] != "response"
+        || response["id"].as_str().is_none_or(str::is_empty)
+        || !response["error"].is_null()
+            && (response["error"]["code"].as_str().is_none_or(str::is_empty)
+                || !response["error"]["message"].is_string())
+    {
+        return Err(error(MemoryErrorCode::ProviderUnavailable));
+    }
+    openai_output_text(response)?;
+    decode_usage(Api::OpenAiResponses, &response["usage"])
 }
 
 fn openai_output_text(response: &Value) -> Result<String> {
