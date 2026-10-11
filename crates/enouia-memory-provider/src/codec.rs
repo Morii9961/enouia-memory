@@ -241,6 +241,11 @@ pub(crate) fn decode_observing(
 /// Validate Response identity, nullable error and supported output before usage.
 /// Callers separately constrain the event/status and admission identity.
 pub(crate) fn openai_reported_usage(response: &Value) -> Result<(Option<u64>, Option<u64>)> {
+    openai_output_text(response)?;
+    decode_usage(Api::OpenAiResponses, &response["usage"])
+}
+
+fn openai_output_text(response: &Value) -> Result<String> {
     if response["object"] != "response"
         || response["id"].as_str().is_none_or(str::is_empty)
         || !response["error"].is_null()
@@ -249,11 +254,6 @@ pub(crate) fn openai_reported_usage(response: &Value) -> Result<(Option<u64>, Op
     {
         return Err(error(MemoryErrorCode::ProviderUnavailable));
     }
-    openai_output_text(response)?;
-    decode_usage(Api::OpenAiResponses, &response["usage"])
-}
-
-fn openai_output_text(response: &Value) -> Result<String> {
     let mut text = String::new();
     for item in response["output"]
         .as_array()

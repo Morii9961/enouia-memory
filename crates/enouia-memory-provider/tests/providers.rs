@@ -83,7 +83,7 @@ impl Transport for FakeHttp {
 fn reply(api: Api) -> Vec<u8> {
     let v = match api {
         Api::OpenAiResponses => {
-            json!({"status":"completed","output":[{"type":"message","role":"assistant","content":[{"type":"output_text","text":"合成答复"}]}],"usage":{"input_tokens":100,"output_tokens":4}})
+            json!({"id":"resp_synthetic_reply","object":"response","error":null,"status":"completed","output":[{"type":"message","role":"assistant","content":[{"type":"output_text","text":"合成答复"}]}],"usage":{"input_tokens":100,"output_tokens":4}})
         }
         Api::AnthropicMessages => {
             json!({"type":"message","role":"assistant","content":[{"type":"text","text":"合成答复"}],"stop_reason":"end_turn","usage":{"input_tokens":100,"output_tokens":4}})
@@ -8412,5 +8412,240 @@ fn openai_progress_usage_is_durable_and_blocks_quota_bypass() {
         assert_eq!(next.invocations().unwrap().len(), 1);
         assert_eq!(env.vault.pin_current().unwrap(), before);
         assert!(env.vault.verify(&before).unwrap().is_clean());
+    }
+}
+
+fn synthetic_openai_identity_response(length: bool) -> serde_json::Value {
+    let mut response: serde_json::Value =
+        serde_json::from_slice(&reply(Api::OpenAiResponses)).unwrap();
+    response["id"] = json!("resp_synthetic_identity");
+    response["object"] = json!("response");
+    response["error"] = serde_json::Value::Null;
+    response["usage"] = json!({"input_tokens":50000,"output_tokens":4});
+    if length {
+        response["status"] = json!("incomplete");
+        response["incomplete_details"] = json!({"reason":"max_output_tokens"});
+    }
+    response
+}
+
+#[test]
+fn openai_success_requires_valid_response_identity_and_nullable_error() {
+    use enouia_memory_contract::provider::FinishReason;
+    use enouia_memory_provider::codec::decode;
+    for length in [false, true] {
+        let valid = synthetic_openai_identity_response(length);
+        let good = decode(Api::OpenAiResponses, &serde_json::to_vec(&valid).unwrap()).unwrap();
+        assert_eq!(
+            good.finish,
+            if length {
+                FinishReason::Length
+            } else {
+                FinishReason::Completed
+            }
+        );
+        assert_eq!(
+            (good.input_tokens, good.output_tokens),
+            (Some(50000), Some(4))
+        );
+        for malformed in [
+            "missing_id",
+            "null_id",
+            "number_id",
+            "empty_id",
+            "missing_object",
+            "null_object",
+            "wrong_object",
+            "array_error",
+            "empty_code",
+            "number_message",
+        ] {
+            let mut response = valid.clone();
+            match malformed {
+                "missing_id" => {
+                    response.as_object_mut().unwrap().remove("id");
+                }
+                "null_id" => response["id"] = serde_json::Value::Null,
+                "number_id" => response["id"] = json!(42),
+                "empty_id" => response["id"] = json!(""),
+                "missing_object" => {
+                    response.as_object_mut().unwrap().remove("object");
+                }
+                "null_object" => response["object"] = serde_json::Value::Null,
+                "wrong_object" => response["object"] = json!("error"),
+                "array_error" => response["error"] = json!(["Synthetic error body"]),
+                "empty_code" => {
+                    response["error"] = json!({"code":"","message":"Synthetic error body"})
+                }
+                "number_message" => response["error"] = json!({"code":"server_error","message":42}),
+                _ => unreachable!(),
+            }
+            assert_eq!(
+                decode(
+                    Api::OpenAiResponses,
+                    &serde_json::to_vec(&response).unwrap()
+                )
+                .unwrap_err()
+                .code,
+                MemoryErrorCode::ProviderUnavailable,
+                "{length}/{malformed}"
+            );
+            let mut decoder = Decoder::new(Api::OpenAiResponses);
+            let mut text = String::new();
+            let mut collect = |chunk: &str| {
+                text.push_str(chunk);
+                Ok(())
+            };
+            decoder
+                .push(
+                    &sse(&[json!({"type":"response.output_text.delta","delta":"合成答复"})]),
+                    &mut collect,
+                )
+                .unwrap();
+            let kind = if length {
+                "response.incomplete"
+            } else {
+                "response.completed"
+            };
+            assert_eq!(
+                decoder
+                    .push(
+                        &sse(&[json!({"type":kind,"response":response})]),
+                        &mut collect
+                    )
+                    .unwrap_err()
+                    .code,
+                MemoryErrorCode::ProviderUnavailable
+            );
+            assert_eq!(decoder.observed_usage(), (None, None));
+            assert!(
+                decoder
+                    .push(&streaming_reply(Api::OpenAiResponses, true), &mut collect)
+                    .is_err()
+            );
+            assert_eq!(decoder.observed_usage(), (None, None));
+            assert!(decoder.finish().is_err());
+            assert_eq!(text, "合成答复");
+        }
+    }
+}
+
+#[test]
+fn malformed_openai_success_envelopes_never_publish_or_authorize_resend() {
+    for streaming in [false, true] {
+        for length in [false, true] {
+            for malformed in ["id", "object", "error"] {
+                let env = Env::new("openai-success-identity");
+                let api = Api::OpenAiResponses;
+                let (capsule, input, policy, caps) = setup(&env, api, Sensitivity::Normal);
+                let enabled = AtomicBool::new(true);
+                let adapter = VaultAdapter {
+                    vault: &env.vault,
+                    owner: owner(),
+                    input_event: input.clone(),
+                    enabled: &enabled,
+                    quota: Quota::default(),
+                };
+                let mut options = CallOptions::text(policy, 128);
+                options.streaming = streaming;
+                let call = adapter
+                    .prepare_saved(api, &capsule, &caps, Limits::default(), options)
+                    .unwrap();
+                let mut response = synthetic_openai_identity_response(length);
+                response[malformed] = match malformed {
+                    "id" => json!(42),
+                    "object" => json!("error"),
+                    "error" => json!(["Synthetic error body must stay private"]),
+                    _ => unreachable!(),
+                };
+                let kind = if length {
+                    "response.incomplete"
+                } else {
+                    "response.completed"
+                };
+                let bytes = if streaming {
+                    sse(&[
+                        json!({"type":"response.output_text.delta","delta":"合成答复"}),
+                        json!({"type":kind,"response":response}),
+                    ])
+                } else {
+                    serde_json::to_vec(&response).unwrap()
+                };
+                let http = FakeHttp {
+                    calls: Cell::new(0),
+                    bytes,
+                    fail: false,
+                };
+                let client = Client {
+                    transport: &http,
+                    secrets: &Secrets { missing: false },
+                    guard: &adapter,
+                    journal: &adapter,
+                };
+                let error = client
+                    .send(&call, &call.inspect().hash(), &NeverCancel)
+                    .unwrap_err();
+                assert_eq!(error.code, MemoryErrorCode::ProviderUnavailable);
+                assert!(!error.retryable);
+                let rows = adapter.invocations().unwrap();
+                assert_eq!(rows.len(), 1);
+                let row = &rows[0];
+                assert_eq!(row.state, InvocationState::Failed);
+                assert_eq!((row.input_tokens, row.output_tokens), (None, None));
+                assert_eq!(
+                    row.reserved_tokens,
+                    call.estimated_input_tokens() + call.dispatch().output.max_output_tokens
+                );
+                assert!(adapter.saved_response(&row.dispatch_id).unwrap().is_none());
+                let before = env.vault.pin_current().unwrap();
+                let enouia_memory_contract::record::AnyRecord::SessionEvent(previous) = env
+                    .vault
+                    .read_parsed(
+                        &before,
+                        &enouia_memory_contract::record::RecordRef::new(
+                            RecordKind::SessionEvent,
+                            input.as_str(),
+                            Revision::new(1).unwrap(),
+                        ),
+                    )
+                    .unwrap()
+                else {
+                    panic!("input");
+                };
+                let events = session::events(
+                    &env.vault,
+                    &before,
+                    &previous.session_id,
+                    &previous.branch_id,
+                )
+                .unwrap();
+                assert!(!events.iter().any(|event| event.kind
+                    == enouia_memory_contract::session::EventKind::AssistantCompleted));
+                let chunks: Vec<_> = events
+                    .iter()
+                    .filter(|event| {
+                        event.kind == enouia_memory_contract::session::EventKind::AssistantChunk
+                    })
+                    .collect();
+                assert_eq!(chunks.len(), usize::from(streaming));
+                for event in events.iter().filter(|event| event.content_ref.is_some()) {
+                    assert!(
+                        !session::text(&env.vault, &before, event)
+                            .unwrap()
+                            .contains("Synthetic error body must stay private")
+                    );
+                }
+                assert_eq!(
+                    client
+                        .send(&call, &call.inspect().hash(), &NeverCancel)
+                        .unwrap_err()
+                        .code,
+                    MemoryErrorCode::IdempotencyConflict
+                );
+                assert_eq!(http.calls.get(), 1);
+                assert_eq!(env.vault.pin_current().unwrap(), before);
+                assert!(env.vault.verify(&before).unwrap().is_clean());
+            }
+        }
     }
 }
