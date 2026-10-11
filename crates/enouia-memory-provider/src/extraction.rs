@@ -140,6 +140,23 @@ fn source_text(vault: &Vault, source: &SourceRecord) -> Result<String> {
     }
     String::from_utf8(data).map_err(|_| error(MemoryErrorCode::InvalidRequest))
 }
+fn current_sources(
+    vault: &Vault,
+    pin: &enouia_memory_contract::ports::CommitPin,
+    selection: &[SourceSlice],
+) -> Result<()> {
+    for item in selection {
+        let entry = vault
+            .record_entry(pin, RecordKind::Source, item.source.source_id.as_str())
+            .map_err(|e| e.error)?
+            .ok_or_else(|| error(MemoryErrorCode::NotFound))?;
+        if entry.revision != item.source.source_revision {
+            return Err(error(MemoryErrorCode::RevisionConflict));
+        }
+    }
+    Ok(())
+}
+
 fn sources(
     vault: &Vault,
     actor: &ActorRef,
@@ -149,6 +166,9 @@ fn sources(
         return Err(error(MemoryErrorCode::InvalidRequest));
     }
     let pin = vault.pin_current().map_err(|e| e.error)?;
+    // Historical Source bytes remain valid archive material. They are not a
+    // current extraction selection after the Source has changed revision.
+    current_sources(vault, &pin, selection)?;
     let now = vault.now().map_err(|e| e.error)?;
     let mut policies = vec![];
     for entry in vault
@@ -231,7 +251,7 @@ fn sources(
         );
         sensitivity = sensitivity.max(record.sensitivity);
     }
-    vault
+    let fresh = vault
         .check_fresh(
             &pin,
             &saved
@@ -246,6 +266,12 @@ fn sources(
                 .collect::<Vec<_>>(),
         )
         .map_err(|e| e.error)?;
+    if fresh.policy_changed {
+        return Err(error(MemoryErrorCode::RevisionConflict));
+    }
+    // Recheck the current catalog after validation, including changes that
+    // do not bump a policy/deletion epoch. Unrelated commits remain allowed.
+    current_sources(vault, &fresh.head, selection)?;
     Ok((saved, data, sensitivity))
 }
 fn seed(key: &[u8]) -> [u8; 16] {

@@ -3424,6 +3424,319 @@ fn extraction_source(env: &Env) -> SourceId {
         .unwrap()
         .id
 }
+
+fn revise_synthetic_extraction_source(env: &Env, id: &SourceId, sensitivity: Sensitivity) {
+    use enouia_memory_contract::{
+        commit::OperationKind,
+        json::canonical_bytes,
+        ports::{CommitRequest, IdempotencyScope, StagedRecord},
+        record::{AnyRecord, RecordRef},
+    };
+    let pin = env.vault.pin_current().unwrap();
+    let AnyRecord::Source(mut source) = env
+        .vault
+        .read_parsed(
+            &pin,
+            &RecordRef::new(RecordKind::Source, id.as_str(), Revision::new(1).unwrap()),
+        )
+        .unwrap()
+    else {
+        panic!("source");
+    };
+    source.revision = Revision::new(2).unwrap();
+    source.sensitivity = sensitivity;
+    let bytes = canonical_bytes(&serde_json::to_value(&source).unwrap()).unwrap();
+    env.vault
+        .commit(CommitRequest {
+            commit_id: CommitId::from_random(env.vault.random_id_bytes()),
+            expected_commit_id: Some(pin.commit_id),
+            principal: owner(),
+            operation_kind: OperationKind::Migration,
+            idempotency: IdempotencyScope {
+                principal_id: owner().actor_id,
+                operation_kind: OperationKind::Migration,
+                key_hash: sha256(b"synthetic-extraction-source-revision"),
+            },
+            request_payload_hash: sha256(&bytes),
+            expected_revisions: vec![(RecordKind::Source, id.to_string(), Revision::new(1))],
+            records: vec![StagedRecord {
+                record_kind: RecordKind::Source,
+                record_id: id.to_string(),
+                revision: source.revision,
+                bytes,
+            }],
+            objects: vec![],
+        })
+        .unwrap();
+}
+
+#[test]
+fn extraction_refuses_obsolete_source_revisions_in_every_job_entry_point() {
+    use enouia_memory_contract::extraction::ExtractionState;
+    use enouia_memory_provider::extraction;
+    for state in [
+        ExtractionState::Ready,
+        ExtractionState::Paused,
+        ExtractionState::Completed,
+    ] {
+        for sensitivity in [Sensitivity::Normal, Sensitivity::HighlySensitive] {
+            let env = Env::new("extraction-obsolete-source");
+            let api = Api::OpenAiResponses;
+            let source = extraction_source(&env);
+            let policy = grant(&env, api);
+            let mut options = extraction_options(source.clone(), api);
+            let (sid, run) = extraction::create(
+                &env.vault,
+                &owner(),
+                &env.policy(),
+                &options,
+                b"obsolete-source-run",
+            )
+            .unwrap();
+            let current = extraction::job(&env.vault, &owner(), &sid, &run).unwrap();
+            let enabled = AtomicBool::new(true);
+            let adapter = VaultAdapter {
+                vault: &env.vault,
+                owner: owner(),
+                input_event: current.input_event_id.clone(),
+                enabled: &enabled,
+                quota: Quota::default(),
+            };
+            if state == ExtractionState::Paused {
+                extraction::set_paused(&env.vault, &owner(), &sid, &run, true).unwrap();
+            } else if state == ExtractionState::Completed {
+                let (index, _) = enouia_memory_index::Index::rebuild(&env.vault).unwrap();
+                let call = extraction::prepare(
+                    &adapter,
+                    &index,
+                    &run,
+                    &extraction_capabilities(&env, api),
+                    Limits::default(),
+                    CallOptions::text(policy.clone(), 1024),
+                )
+                .unwrap();
+                let mut body: serde_json::Value = serde_json::from_slice(&reply(api)).unwrap();
+                body["output"][0]["content"][0]["text"] =
+                    json!(json!({"candidates":[]}).to_string());
+                Client {
+                    transport: &FakeHttp {
+                        calls: Cell::new(0),
+                        bytes: serde_json::to_vec(&body).unwrap(),
+                        fail: false,
+                    },
+                    secrets: &Secrets { missing: false },
+                    guard: &adapter,
+                    journal: &adapter,
+                }
+                .send(&call, &call.inspect().hash(), &NeverCancel)
+                .unwrap();
+                assert_eq!(
+                    extraction::apply_next(&adapter, &run).unwrap().state,
+                    ExtractionState::Completed
+                );
+            }
+            let original = extraction::job(&env.vault, &owner(), &sid, &run).unwrap();
+            // An unrelated Session commit does not invalidate these sources.
+            session::start(
+                &env.vault,
+                &SessionStart {
+                    owner: owner(),
+                    surface: ClientSurface::Test,
+                    sensitivity: Sensitivity::Normal,
+                    policy_id: env.policy(),
+                },
+                b"unrelated-session",
+            )
+            .unwrap();
+            assert_eq!(
+                extraction::job(&env.vault, &owner(), &sid, &run).unwrap(),
+                original
+            );
+            let (index, _) = enouia_memory_index::Index::rebuild(&env.vault).unwrap();
+            revise_synthetic_extraction_source(&env, &source, sensitivity);
+            let changed = env.vault.pin_current().unwrap();
+            assert!(env.vault.verify(&changed).unwrap().is_clean());
+            assert_eq!(
+                extraction::job(&env.vault, &owner(), &sid, &run)
+                    .unwrap_err()
+                    .code,
+                MemoryErrorCode::RevisionConflict
+            );
+            for paused in [true, false] {
+                assert_eq!(
+                    extraction::set_paused(&env.vault, &owner(), &sid, &run, paused)
+                        .unwrap_err()
+                        .code,
+                    MemoryErrorCode::RevisionConflict
+                );
+            }
+            assert_eq!(
+                extraction::preview(&adapter, &run).unwrap_err().code,
+                MemoryErrorCode::RevisionConflict
+            );
+            assert_eq!(
+                extraction::apply_next(&adapter, &run).unwrap_err().code,
+                MemoryErrorCode::RevisionConflict
+            );
+            assert_eq!(
+                extraction::prepare(
+                    &adapter,
+                    &index,
+                    &run,
+                    &extraction_capabilities(&env, api),
+                    Limits::default(),
+                    CallOptions::text(policy, 1024)
+                )
+                .err()
+                .unwrap()
+                .code,
+                MemoryErrorCode::RevisionConflict
+            );
+            assert_eq!(
+                extraction::create(
+                    &env.vault,
+                    &owner(),
+                    &env.policy(),
+                    &options,
+                    b"obsolete-selection-new-run"
+                )
+                .unwrap_err()
+                .code,
+                MemoryErrorCode::RevisionConflict
+            );
+            assert_eq!(env.vault.pin_current().unwrap(), changed);
+            assert_eq!(
+                session::get(&env.vault, &changed, &sid)
+                    .unwrap()
+                    .extraction_jobs,
+                vec![original]
+            );
+            // Explicitly select the current version; never silently upgrade the
+            // old job. Highly sensitive sources remain ineligible for extraction.
+            options.sources[0].source.source_revision = Revision::new(2).unwrap();
+            let fresh = extraction::create(
+                &env.vault,
+                &owner(),
+                &env.policy(),
+                &options,
+                b"current-selection-new-run",
+            );
+            if sensitivity == Sensitivity::HighlySensitive {
+                assert_eq!(fresh.unwrap_err().code, MemoryErrorCode::PermissionDenied);
+                assert_eq!(env.vault.pin_current().unwrap(), changed);
+            } else {
+                let (new_sid, new_run) = fresh.unwrap();
+                assert_eq!(
+                    extraction::job(&env.vault, &owner(), &new_sid, &new_run)
+                        .unwrap()
+                        .sources[0]
+                        .source
+                        .source_revision,
+                    Revision::new(2).unwrap()
+                );
+            }
+            assert!(
+                env.vault
+                    .verify(&env.vault.pin_current().unwrap())
+                    .unwrap()
+                    .is_clean()
+            );
+        }
+    }
+}
+
+#[test]
+fn extraction_source_revision_changes_during_validation_refuse_the_old_snapshot() {
+    use enouia_memory_contract::foundation::Clock;
+    use enouia_memory_provider::extraction;
+    use std::sync::{Arc, Mutex, mpsc};
+    struct PauseClock(Mutex<Option<(mpsc::Sender<()>, mpsc::Receiver<()>)>>);
+    impl Clock for PauseClock {
+        fn now_unix_ms(&self) -> i64 {
+            if let Some((entered, release)) = self.0.lock().unwrap().take() {
+                entered.send(()).unwrap();
+                release.recv_timeout(Duration::from_secs(30)).unwrap();
+            }
+            T0
+        }
+    }
+    for change in [
+        "normal_revision",
+        "sensitive_revision",
+        "policy_epoch",
+        "unrelated_session",
+    ] {
+        let env = Env::new("extraction-source-change-race");
+        let source = extraction_source(&env);
+        let options = extraction_options(source.clone(), Api::OpenAiResponses);
+        let (sid, run) = extraction::create(
+            &env.vault,
+            &owner(),
+            &env.policy(),
+            &options,
+            b"source-change-race-run",
+        )
+        .unwrap();
+        let clock = Arc::new(PauseClock(Mutex::new(None)));
+        let root = enouia_memory_vault::verify_data_root(
+            env.vault.managed_root().root(),
+            &enouia_memory_vault::RootPolicy::default(),
+        )
+        .unwrap();
+        let delayed = enouia_memory_vault::Vault::open(
+            &root,
+            None,
+            clock.clone(),
+            Arc::new(enouia_memory_vault::OsIdSource),
+            enouia_memory_vault::VaultOptions::default(),
+        )
+        .unwrap();
+        let (entered_tx, entered_rx) = mpsc::channel();
+        let (release_tx, release_rx) = mpsc::channel();
+        *clock.0.lock().unwrap() = Some((entered_tx, release_rx));
+        let (result, changed) = std::thread::scope(|scope| {
+            let worker = scope.spawn(|| extraction::job(&delayed, &owner(), &sid, &run));
+            entered_rx.recv_timeout(Duration::from_secs(30)).unwrap();
+            match change {
+                "normal_revision" => {
+                    revise_synthetic_extraction_source(&env, &source, Sensitivity::Normal)
+                }
+                "sensitive_revision" => {
+                    revise_synthetic_extraction_source(&env, &source, Sensitivity::HighlySensitive)
+                }
+                "policy_epoch" => {
+                    grant(&env, Api::OpenAiResponses);
+                }
+                _ => {
+                    session::start(
+                        &env.vault,
+                        &SessionStart {
+                            owner: owner(),
+                            surface: ClientSurface::Test,
+                            sensitivity: Sensitivity::Normal,
+                            policy_id: env.policy(),
+                        },
+                        b"unrelated-validation-session",
+                    )
+                    .unwrap();
+                }
+            }
+            let changed = env.vault.pin_current().unwrap();
+            release_tx.send(()).unwrap();
+            (worker.join().unwrap(), changed)
+        });
+        if change == "unrelated_session" {
+            assert_eq!(
+                result.unwrap().sources[0].source.source_revision,
+                Revision::new(1).unwrap()
+            );
+        } else {
+            assert_eq!(result.unwrap_err().code, MemoryErrorCode::RevisionConflict);
+        }
+        assert_eq!(env.vault.pin_current().unwrap(), changed);
+        assert!(env.vault.verify(&changed).unwrap().is_clean());
+    }
+}
 fn extraction_reply(api: Api, invalid: bool) -> Vec<u8> {
     let claims = json!({"candidates":[
         {"kind":"fact","content":"合成用户偏好红色","quote":"偏好合成红色","source_index":0,"claim_key":"synthetic_red"},
