@@ -174,11 +174,14 @@ impl Decoder {
                 let bytes = serde_json::to_vec(&v["response"])
                     .map_err(|_| error(MemoryErrorCode::ProviderUnavailable))?;
                 let answer = decode(self.api, &bytes)?;
+                // The response and usage have been validated independently of
+                // the streamed text. Keep reported use for a failed admission
+                // even when the final text cannot be published as consistent.
+                self.observed_usage = (answer.input_tokens, answer.output_tokens);
                 // Terminal response must describe exactly the persisted stream.
                 if answer.text != self.text {
                     return Err(error(MemoryErrorCode::ProviderUnavailable));
                 }
-                self.observed_usage = (answer.input_tokens, answer.output_tokens);
                 self.terminal = Some(answer);
             }
             (Api::OpenAiResponses, "error" | "response.failed")

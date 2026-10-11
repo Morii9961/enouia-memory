@@ -1,6 +1,6 @@
 # Claude 接续：Enouia Memory · MV-7
 
-更新：2026-10-10。范围：Memory 仓库内的 MV-7 功能实现与合成验证。
+更新：2026-10-11。范围：Memory 仓库内的 MV-7 功能实现与合成验证。
 
 本文是提前准备的接续记录，不自行启动 Claude、其他任务、真实调用或发布。主人让 Claude 接手时，应先停止在同一工作树继续写入，避免两个任务同时修改同一功能。接手时以当前 Git 状态和适用的 `AGENTS.md` 为准；不要把本文的基线当成永远最新。
 
@@ -9,6 +9,7 @@
 - 主人已明确开始 MV-7，要求先完成功能，暂缓真实 smoke。当前只考虑 OpenAI 与 Anthropic；订阅所有权不证明 API 账户能力。
 - 每完成一个独立功能就提交一次。当前授权是本地提交，没有本任务的 push、PR、合并或发布授权。
 - 多个任务共用 Codex 限额。主人在本次 2026-10-10 接续中要求继续工作直至限额耗尽，覆盖此前约 25% 余量就停止新功能的约定；主人随后要求接近限额时停下工作，检查隔壁 Runtime 会话是否完成后关机，须为收尾保留额度。每一段仍须完成验证、保存和准确记录；不要自动使用重置额度或购买额度。Claude 使用自身会话的限制与归属规则。
+- 2026-10-11 主人要求第二天继续 MV-7 工作。昨日停工和关机已执行，不将那次关机指令延续为本轮自动关机安排；保持原有真实 smoke / Runtime / 发布 / MV-8 边界。
 - 不读取真实 API 凭据、私人历史、运行 Vault 或其他任务数据；不进行真实 Provider 请求、Runtime 激活或账户测试。
 - 继续 MV-7 不代表开始 MV-8。下一阶段必须由主人明确启动。
 
@@ -52,7 +53,9 @@
 
 | `4d33d25` | 完整历史校验严格匹配 Completed/AssistantCompleted、Length 或 Failed/TurnFailed、Cancelled/TurnCancelled；4 个有效 Vault 历史和 16 项组合回归通过。完整 334 项合成检查及规定交叉验证通过。 |
 
-| 本提交（JSON refusal 用量） | Anthropic 非流式拒绝回复在失败 ledger 保留经过验证的 reported usage，包括缓存归一化；11 种真假消息/计数/transport 控制和后续更高用量限额验证通过。完整 335 项合成检查及规定交叉验证通过。 |
+| `207450a` | Anthropic 非流式拒绝回复在失败 ledger 保留经过验证的 reported usage，包括缓存归一化；11 种真假消息/计数/transport 控制和后续更高用量限额验证通过。完整 335 项合成检查及规定交叉验证通过。 |
+
+| 本提交（2026-10-11 OpenAI 文本冲突） | Completed/incomplete 终态文本不一致仍永久失败，但保留已验证的 reported usage。6 种纯解码情况和两种持久化/后续限额情况通过，错误 event/status 仍不接受计数。完整 336 项检查通过。 |
 
 MV-7.2 的 Memory 侧原生调用链已实现：外部目的地编译、精确请求体 inspection、站立策略及私密内容单次批准、凭据读取端口、持久化 admission、流式文本、原子终态、用量和限额、取消、关闭与恢复规则。OpenAI Responses 与 Anthropic Messages 均有合成接受路径。
 
@@ -80,13 +83,13 @@ Claude 随后审查原生传输与 SSE 路径，修复了非流式请求头重�
 
 此前待定的凭据形状收紧已经主人确认并实现（见提交表）。`malformed_native_credentials_do_not_consume_private_approval_or_admission` 已改为调用真实 `HttpsTransport` 的纯 preflight/凭据校验，并通过无法联网的假 exchange 验证 Client 的审批/admission 顺序；不再把合成凭据交给真实 exchange。因此即使形状或调用顺序校验退化，测试也只能记录假调用并失败。随后按路线图做了 MV-7.1 中不需要账户的官方文档核对（结果见 MV-7 报告），修复了 Anthropic thinking 块问题。账户能力、模型上限、tokenizer 和价格仍待真实调用核实。
 
-本轮复现的非流式 JSON refusal 用量缺口已经修复并完整验证，见本地提交表。对流式计数累计/倒退/矛盾、终态失败锁存、凭据 setup/read/send 边界和 reservation 下限的复查没有证实其他必须修改的缺口。原有并发 checkpoint 在上一轮全仓检查曾触发有界 WriterBusy，精确隔离及完整重跑通过；最新 335 项完整检查没有失败。当前没有已证实且未修复的新增缺口。
+本轮复现的非流式 JSON refusal 用量缺口已经修复并完整验证，见本地提交表。对流式计数累计/倒退/矛盾、终态失败锁存、凭据 setup/read/send 边界和 reservation 下限的复查没有证实其他必须修改的缺口。原有并发 checkpoint 在上一轮全仓检查曾触发有界 WriterBusy，精确隔离及完整重跑通过；最新 335 项完整检查没有失败。2026-10-11 已复现并修复 OpenAI 终态文本冲突丢失合法计数的问题，完整 336 项验证没有失败。当前没有已证实且未修复的新增缺口；来源当前修订变化后的抽取读取行为正在用独立合成探针复查，尚不记作缺陷。
 
 若没有证实新的 MV-7 缺口，不为消耗额度扩充无依据功能，也不转入 MV-8。Runtime 产品接入需主人给该仓库的明确工作范围；本仓库不添加到 Runtime checkout、crates、fixtures 或 target 的依赖。Activity & Usage 属于 Runtime，不在 Memory 中读取或实现。
 
 ## 验证和证据
 
-最近一次（JSON refusal 用量修复）的根目录检查全部通过：
+最近一次（OpenAI 文本冲突用量修复）的根目录检查全部通过：
 
 ```powershell
 $env:CARGO_NET_OFFLINE = 'true'
@@ -101,11 +104,11 @@ python tools/integration/runtime_surface.py
 
 Cargo 使用仓库 pin；Windows GNU linker/toolchain 须在 PATH 中。Python 使用已配置的 3.12 虚拟环境及 `tools/schema-check/requirements.txt` 的固定版本，不临时更换验证器。
 
-最新完整运行：335 Rust tests（60 Provider cases、60 Core cases），格式与严格 Clippy 通过。
+最新完整运行：336 Rust tests（61 Provider cases、60 Core cases），格式与严格 Clippy 通过。
 
 独立 Python 结果：36 schemas、53 valid records、117 record mutations、4,913 set records、51 IPC、63 workspace、46 store、8 invocation、19 extraction-job cases。Runtime manifest 与日志中的 aggregate 一致。合成证据不证明真实账户、账单、TLS handshake、Windows credential store 或实际宿主行为。
 
-本地 `.local/mv7-json-usage-workspace-tests.log`、`.local/mv7-json-usage-clippy.log` 是忽略的运行输出，可能被下一次检查覆盖，不提交也不当成唯一证据。稳定入口为 MV-7 报告和对应提交的代码/测试。完整串行根目录检查约需 6～10 分钟，开始前为测试、修复、提交和交接预留额度。
+本地 `.local/mv7-openai-conflict-workspace-tests.log`、`.local/mv7-openai-conflict-clippy.log` 是忽略的运行输出，可能被下一次检查覆盖，不提交也不当成唯一证据。稳定入口为 MV-7 报告和对应提交的代码/测试。完整串行根目录检查约需 6～10 分钟，开始前为测试、修复、提交和交接预留额度。
 
 旧完整运行曾遇到现有 Core 并发测试的有界 writer/index 等待或有序释放超时。隔离复验和完整重跑通过；未因此改变产品代码或等待规则。单 harness worker 不关闭测试内明确的线程/进程竞争。遇到类似失败先保留输出并聚焦复验，不以局部通过代替新功能的完整验证，也不要未经诊断扩大修复范围。
 

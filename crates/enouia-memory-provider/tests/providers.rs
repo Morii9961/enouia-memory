@@ -4766,6 +4766,7 @@ fn openai_terminal_event_and_response_status_must_agree_before_publication() {
             MemoryErrorCode::ProviderUnavailable
         );
         assert_eq!(partial, "合成答复");
+        assert_eq!(decoder.observed_usage(), (None, None));
         let correct_terminal = json!({
             "type":if completed {"response.completed"} else {"response.incomplete"},
             "response":response,
@@ -4815,6 +4816,7 @@ fn openai_terminal_event_and_response_status_must_agree_before_publication() {
         );
         let row = adapter.invocations().unwrap().remove(0);
         assert_eq!(row.state, InvocationState::Failed);
+        assert_eq!((row.input_tokens, row.output_tokens), (None, None));
         assert_eq!(row.error_code, Some(MemoryErrorCode::ProviderUnavailable));
         assert!(adapter.saved_response(&row.dispatch_id).unwrap().is_none());
         let pin = env.vault.pin_current().unwrap();
@@ -5173,12 +5175,17 @@ fn failed_or_cancelled_streams_keep_validated_usage_for_later_token_admission() 
             "eof",
             "cancel",
             "malformed",
+            "completed_text_mismatch",
+            "incomplete_text_mismatch",
             "input_tokens",
             "output_tokens",
             "cache_creation_input_tokens",
             "cache_read_input_tokens",
         ] {
             if api != Api::AnthropicMessages && mode.ends_with("tokens") {
+                continue;
+            }
+            if api != Api::OpenAiResponses && mode.ends_with("text_mismatch") {
                 continue;
             }
             let env = Env::new("failed-stream-usage");
@@ -5201,9 +5208,19 @@ fn failed_or_cancelled_streams_keep_validated_usage_for_later_token_admission() 
                     let mut terminal: serde_json::Value =
                         serde_json::from_slice(&reply(api)).unwrap();
                     terminal["usage"] = json!({"input_tokens":5000,"output_tokens":1000});
+                    if mode.ends_with("text_mismatch") {
+                        terminal["output"][0]["content"][0]["text"] = json!("不一致的合成终态");
+                    }
+                    let terminal_kind = if mode == "incomplete_text_mismatch" {
+                        terminal["status"] = json!("incomplete");
+                        terminal["incomplete_details"] = json!({"reason":"max_output_tokens"});
+                        "response.incomplete"
+                    } else {
+                        "response.completed"
+                    };
                     vec![
                         json!({"type":"response.output_text.delta","delta":"合成答复"}),
-                        json!({"type":"response.completed","response":terminal}),
+                        json!({"type":terminal_kind,"response":terminal}),
                     ]
                 }
                 Api::AnthropicMessages => vec![
@@ -5387,6 +5404,63 @@ fn failed_or_cancelled_streams_keep_validated_usage_for_later_token_admission() 
             assert_eq!(never_sent.calls.get(), 0);
             assert_eq!(env.vault.pin_current().unwrap(), before);
             assert!(env.vault.verify(&before).unwrap().is_clean());
+        }
+    }
+}
+
+#[test]
+fn openai_text_mismatch_keeps_only_validated_terminal_usage_and_latches_failure() {
+    for completed in [true, false] {
+        for (usage, expected) in [
+            (
+                json!({"input_tokens":5000,"output_tokens":1000}),
+                (Some(5000), Some(1000)),
+            ),
+            (serde_json::Value::Null, (None, None)),
+            (
+                json!({"input_tokens":5000,"output_tokens":"invalid"}),
+                (None, None),
+            ),
+        ] {
+            let mut response: serde_json::Value =
+                serde_json::from_slice(&reply(Api::OpenAiResponses)).unwrap();
+            response["usage"] = usage;
+            response["output"][0]["content"][0]["text"] = json!("不一致的合成终态");
+            let kind = if completed {
+                "response.completed"
+            } else {
+                response["status"] = json!("incomplete");
+                response["incomplete_details"] = json!({"reason":"max_output_tokens"});
+                "response.incomplete"
+            };
+            let terminal = json!({"type":kind,"response":response});
+            let bytes = format!(
+                "data: {{\"type\":\"response.output_text.delta\",\"delta\":\"合成答复\"}}\n\ndata: {terminal}\n\n"
+            );
+            let mut decoder = Decoder::new(Api::OpenAiResponses);
+            let mut chunks = String::new();
+            assert_eq!(
+                decoder
+                    .push(bytes.as_bytes(), &mut |text| {
+                        chunks.push_str(text);
+                        Ok(())
+                    })
+                    .unwrap_err()
+                    .code,
+                MemoryErrorCode::ProviderUnavailable
+            );
+            assert_eq!(chunks, "合成答复");
+            assert_eq!(decoder.observed_usage(), expected);
+            response["output"][0]["content"][0]["text"] = json!("合成答复");
+            response["usage"] = json!({"input_tokens":6000,"output_tokens":2000});
+            let corrected = json!({"type":kind,"response":response});
+            assert!(
+                decoder
+                    .push(format!("data: {corrected}\n\n").as_bytes(), &mut |_| Ok(()))
+                    .is_err()
+            );
+            assert_eq!(decoder.observed_usage(), expected);
+            assert!(decoder.finish().is_err());
         }
     }
 }
