@@ -21,8 +21,8 @@
 | 最新已验证功能提交 | 见下方提交表最后一行（Claude 接手后；此前 Codex 为 `fe48ebb`） |
 | 本次 MV-7 起始基线 | `8197890` |
 | 工具链 | Rust `1.98.1`，`x86_64-pc-windows-gnu`；Python 3.12 / python-jsonschema `4.26.0` |
-| 最近完整验证 | 2026-10-10，330 项 Rust 测试通过，含 55 项 Provider 检查和 60 项 workspace Core 检查 |
-| Runtime 接入面 aggregate | `f1a52c732445fe9ea0c5d5b33eaec3fd5fe7b9a71376ca3215e594f1792cf167` |
+| 最近完整验证 | 2026-10-11，334 项 Rust 测试通过，含 55 项 Provider 检查和 64 项 workspace Core 检查 |
+| Runtime 接入面 aggregate | `5eb04c2bdb66950dcd6d59a84cf89a7e3976243cf3de8acd902e0db64346416e` |
 
 制作此交接前，功能改动均已提交，工作树干净。本文及其入口链接是后续文档改动；其提交不改变上述功能基线。接手首先重新检查目录、分支、HEAD、工作树和其他任务正在使用的文件；保留他人的修改，不重置、不覆盖、不清理其他工作树。
 
@@ -37,7 +37,8 @@
 | `1e1f685` | （Claude）重复 `Content-Type` 字段（含完全相同的重复）视为歧义并拒绝；401/403 分类、拒绝体零回调、保留 reservation 和不重发均不变。新增纯 `HttpsTransport::single_content_type` 供宿主离线 harness 使用，已记入 RUNTIME.md。 |
 | 本提交 | （Claude）非流式原生请求原先发送两条 `Content-Type: application/json`、没有 `Accept`（第二次 builder 调用误用 Content-Type，且 reqwest 追加同名字段）。现在每个请求只带一条 Content-Type 和一条与模式匹配的 Accept。只构造请求不发送，未做真实服务器验收。 |
 | 本提交（凭据） | （Claude，经主人确认）原生凭据须为可见 ASCII 且不含空格（0x21-0x7E），否则在 admission 前以不可重试的 `Unauthenticated` 本地拒绝。复现时未修复状态经真实 transport 向 OpenAI 固定端点发出过一次带合成凭据和合成请求体的 HTTPS 请求，详见 MV-7 报告；修复后不再联网。 |
-| 本提交（thinking） | （Claude，MV-7.1 官方文档核对）当前 Anthropic 模型默认开启 thinking（`display` 默认 `omitted`），纯文本请求也会先收到 `thinking` 块，可能还有 `redacted_thinking`。旧解码器会让每次这类回复失败。现在两种模式都校验并跳过推理块，不暴露、不保存；`model_context_window_exceeded` 视为 `Length`，`refusal` 仍为失败。依据是官方文档中的合成形状，不是真实模型输出。 |
+| `dfaa7c2` | （Claude，MV-7.1 官方文档核对）当前 Anthropic 模型默认开启 thinking（`display` 默认 `omitted`），纯文本请求也会先收到 `thinking` 块，可能还有 `redacted_thinking`。旧解码器会让每次这类回复失败。现在两种模式都校验并跳过推理块，不暴露、不保存；`model_context_window_exceeded` 视为 `Length`，`refusal` 仍为失败。依据是官方文档中的合成形状，不是真实模型输出。 |
+| 本提交（宿主） | （Claude，主人授权"需要 Runtime 协作就直接用"后）ADR-MEM-48：workspace Core 通过 `Workspace::set_native_provider` 接收宿主注入的 transport、secret store 和经主人核实的目的地；新增 7 条 workspace IPC 命令（授权/撤销计划、精确请求体准备、单次发送 operation、本地中断、状态），共 43 条。未注入时一律 `provider.not_configured`，参考外壳仍只用 Mock。关闭/锁定先关原生开关再 cancel/join。修正新 Session 取"第一条 Policy"的问题（授权也是 Policy 记录）。Provider crate 进入 Runtime 接入面。证据为假 transport/secret 的页面通道测试。 |
 
 ## 已有能力与当前阶段
 
@@ -47,7 +48,7 @@ MV-7.2 的 Memory 侧原生调用链已实现：外部目的地编译、精确�
 
 MV-7.4 的可选抽取已实现来源片段绑定、版本化提示、完整响应校验、原输入绑定、候选审核队列、暂停/恢复、拒绝项抑制、积压及预算限制。候选不能自动成为正式记忆；字面引用包含性不等于语义真实性。时间、分支不确定性、否定/限定上下文和真实用户偏好证据保留。
 
-MV-7.1 的实际账户/模型能力、精确 tokenizer 和真实价格仍未确认。MV-7.3 的双 Provider 真实受控验收按主人要求暂缓。Runtime 产品宿主接入、凭据设置入口、工作线程取消/join 和原生界面验收仍待做；workspace/reference UI 当前仍调用 Mock。因此不能称真实模型已接通、Runtime 已采用或 MV-7 阶段验收已完成。
+MV-7.1 的实际账户/模型能力、精确 tokenizer 和真实价格仍未确认。MV-7.3 的双 Provider 真实受控验收按主人要求暂缓。workspace Core 已能托管原生发送（ADR-MEM-48，工作线程取消/join 由 Core 负责）；参考外壳仍只用 Mock。Runtime 侧的 pin 更新、原生配置与凭据设置入口、产品界面和原生验收仍待做。因此不能称真实模型已接通、Runtime 已采用或 MV-7 阶段验收已完成。
 
 ## 必读入口与代码
 
@@ -66,6 +67,10 @@ MV-7.1 的实际账户/模型能力、精确 tokenizer 和真实价格仍未确�
 Claude 随后审查原生传输与 SSE 路径，修复了非流式请求头重复 Content-Type 的问题（见提交表）。SSE 分帧、事件状态机、用量累计和日志持久化的审查未发现新的可复现缺口。
 
 此前待定的凭据形状收紧已经主人确认并实现（见提交表）。注意：`malformed_native_credentials_do_not_consume_private_approval_or_admission` 使用真实 `HttpsTransport`，只能放入会在本地被拒绝的凭据形状，否则会真实联网。随后按路线图做了 MV-7.1 中不需要账户的官方文档核对（结果见 MV-7 报告），修复了 Anthropic thinking 块问题。账户能力、模型上限、tokenizer 和价格仍待真实调用核实。目前没有新的已证实候选。
+
+宿主接入（`3f1671b`，已推送到 `origin/codex/mv7-native-providers`）之后，下一步是 Runtime 采用切片，在 Runtime 的独立工作树里做，不碰正在进行的 Activity 工作：把 pin 从 `ff692cc` 更新到这个修订，并新增 `enouia-memory-provider` 依赖（Runtime 已锁定 reqwest 0.13.5、tokio 1.53.1、hyper 1.11.1，预计只新增 rustls/ring/verifier）；`client.ts` 的 WRITES 加上三条写命令；逐条采用 RUNTIME.md 中 `ff692cc` 之后的各行；用原生方式构造 `NativeProvider`（模型和能力由主人显式配置，不做推断）；补上 Sessions 界面（授权计划、精确请求体确认、operation、invocations、本地中断）。注意密钥录入：Windows `cmdkey` 把密码存成 UTF-16，`CredentialStore` 原样读出的字节含 NUL，会被本地形状检查拒绝（不会联网），所以需要原生录入入口，例如 `CredUIPromptForWindowsCredentialsW` 之后调用 `CredentialStore::write`（UTF-8），密钥不经过页面。
+
+2026-10-11 更新：Runtime 采用已在 Runtime 分支 `claude/memory-mv7-provider-host` 完成并推送（未合并 main）。`7963150` 把 pin 改到 `3f1671b`（43 条命令，接入面 `90e86313…`），默认真机 smoke 101/101；`9ae1039` 是 Runtime ADR-032，只有主人写了 `%APPDATA%\com.enouia.runtime\memory-providers.json` 才注入 `HttpsTransport`/`CredentialStore`，密钥只经 Windows 原生凭据对话框（`CredUIPromptForWindowsCredentialsW`）写入；`7ba612b` 在 Sessions 检查器里加了外部 Provider 面板。设置文件、原生凭据对话框、凭据写入和 HTTPS 都没有实际运行过。随后 Memory `8186aed` 把可选抽取（MV-7.4）也接入 workspace Core：授权时加 `extraction`，新增 4 条命令，共 47 条。Runtime `bfeb6aa` 把 pin 改到这个修订，并在来源查看器里加了“从这段提取建议”。抽取同样只用假 transport 验证过。两个仓库的分支合并与 MV-7 真实双 Provider 验收由主人决定。
 
 若没有证实新的 MV-7 缺口，不为消耗额度扩充无依据功能，也不转入 MV-8。Runtime 产品接入需主人给该仓库的明确工作范围；本仓库不添加到 Runtime checkout、crates、fixtures 或 target 的依赖。Activity & Usage 属于 Runtime，不在 Memory 中读取或实现。
 
@@ -86,7 +91,7 @@ python tools/integration/runtime_surface.py
 
 Cargo 使用仓库 pin；Windows GNU linker/toolchain 须在 PATH 中。Python 使用已配置的 3.12 虚拟环境及 `tools/schema-check/requirements.txt` 的固定版本，不临时更换验证器。
 
-独立 Python 结果：36 schemas、53 valid records、117 record mutations、4,913 set records、51 IPC、63 workspace、46 store、8 invocation、19 extraction-job cases。Runtime manifest 与日志中的 aggregate 一致。合成证据不证明真实账户、账单、TLS handshake、Windows credential store 或实际宿主行为。
+独立 Python 结果：36 schemas、53 valid records、117 record mutations、4,913 set records、51 IPC、83 workspace、46 store、8 invocation、19 extraction-job cases。Runtime manifest 与日志中的 aggregate 一致。合成证据不证明真实账户、账单、TLS handshake、Windows credential store 或实际宿主行为。
 
 本地 `.local/mv7-workspace-tests.log`、`.local/mv7-clippy.log` 是忽略的运行输出，可能被下一次检查覆盖，不提交也不当成唯一证据。稳定入口为 MV-7 报告和对应提交的代码/测试。完整串行根目录检查约需 6～10 分钟，开始前为测试、修复、提交和交接预留额度。
 

@@ -1,6 +1,6 @@
 # ADR-MEM-47 — Explicit text Provider dispatch
 
-Status: Adopted for the MV-7 implementation; real-account activation and acceptance remain pending.
+Status: Adopted for the MV-7 implementation; real-account activation and acceptance remain pending. Host integration: [ADR-MEM-48](048-workspace-native-provider-hosting.md) lets an opting-in workspace host send through this path.
 Date: 2026-10-08
 
 The owner authorized MV-7 functionality and deferred real smoke calls. This adds `enouia-memory-provider` in Memory. Runtime remains the local product UI owner; workspace IPC and the reference shell continue to use Mock. No implicit Provider switch, credential discovery, or subscription-based capability inference is added.

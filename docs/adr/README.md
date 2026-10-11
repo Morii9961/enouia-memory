@@ -274,6 +274,10 @@ The [full remember replay and target freshness acceptance](../validation/MV-6-fu
 
 [Decision](047-explicit-provider-dispatch.md): native OpenAI Responses/Anthropic Messages adapters, owner-inspected egress policies and exact body approvals, bounded calls and no automatic resend, durable Session invocation ledger, derived sensitivity, and payload deletion. Existing Mock/page IPC remains unchanged. Runtime adoption and real-account smoke are separate gates; optional extraction is unimplemented.
 
+### ADR-MEM-48 — Hosting native Provider dispatch in the workspace Core (Adopted implementation; real activation pending)
+
+[Decision](048-workspace-native-provider-hosting.md): the host injects a native transport, secret store and owner-verified destinations with `Workspace::set_native_provider`; seven workspace IPC commands cover grant/revocation plans, exact-body preparation, one-attempt sending as an operation and local interruption. Without the injection the Core stays Mock-only. Close/lock disable native access before joining workers. Amends ADR-MEM-47's "workspace stays on Mock" for hosts that opt in.
+
 ## Relation to Enouia Runtime's register
 
 

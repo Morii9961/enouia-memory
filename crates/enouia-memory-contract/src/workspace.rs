@@ -10,8 +10,8 @@
 use crate::error::{ContractError, MemoryError, MemoryErrorCode, Violation};
 use crate::hash::Sha256Hex;
 use crate::ids::{
-    BranchId, CandidateId, CapsuleId, CommitId, DispatchId, ImportId, MemoryId, OperationId,
-    RequestId, SessionId, SourceId,
+    BranchId, CandidateId, CapsuleId, CommitId, DispatchId, EventId, ExtractionRunId, ImportId,
+    MemoryId, OperationId, PolicyId, RequestId, SessionId, SourceId,
 };
 use crate::json::{Revision, SchemaVersion};
 use serde::de::DeserializeOwned;
@@ -279,6 +279,100 @@ pub struct OperationArgs {
     pub operation_id: OperationId,
 }
 
+/// A native text API the host configured (ADR-MEM-48). The model, its
+/// verified capabilities and the credential stay native; the page names the
+/// API only.
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ExternalApi {
+    Openai,
+    Anthropic,
+}
+
+/// The highest sensitivity a standing grant may cover. Highly sensitive
+/// content is never granted.
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum GrantSensitivity {
+    Normal,
+    Private,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct GrantPlanArgs {
+    pub apis: Vec<ExternalApi>,
+    pub max_sensitivity: GrantSensitivity,
+    /// Also allow optional candidate extraction (MV-7.4).
+    pub extraction: bool,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct PolicyArgs {
+    pub policy_id: PolicyId,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ExternalPrepareArgs {
+    pub session_id: SessionId,
+    pub branch_id: BranchId,
+    pub text: String,
+    pub api: ExternalApi,
+    pub policy_id: PolicyId,
+    pub streaming: bool,
+    pub output_tokens: u64,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ExternalSendArgs {
+    pub call_id: String,
+    pub wire_hash: Sha256Hex,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct InterruptArgs {
+    pub input_event_id: EventId,
+    pub dispatch_id: DispatchId,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ExtractionPrepareArgs {
+    pub source_id: SourceId,
+    pub source_revision: Revision,
+    pub start_byte: u64,
+    pub end_byte: u64,
+    pub api: ExternalApi,
+    pub policy_id: PolicyId,
+    pub max_candidates: u64,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ExtractionArgs {
+    pub session_id: SessionId,
+    pub run_id: ExtractionRunId,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ExtractionPauseArgs {
+    pub session_id: SessionId,
+    pub run_id: ExtractionRunId,
+    pub paused: bool,
+}
+
+/// Selected source bytes per extraction, and candidates per response.
+pub const EXTRACTION_MAX_BYTES: u64 = 32 * 1024;
+pub const EXTRACTION_MAX_CANDIDATES: u64 = 32;
+
+/// Output ceiling a page may request for one external turn.
+pub const EXTERNAL_OUTPUT_MAX_TOKENS: u64 = 32_768;
+
 /// Every command with its typed arguments.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "command", content = "arguments", rename_all = "snake_case")]
@@ -319,10 +413,21 @@ pub enum Command {
     OperationGet(OperationArgs),
     OperationCancel(OperationArgs),
     OperationList(Empty),
+    ProviderStatus(Empty),
+    EgressGrantPlan(GrantPlanArgs),
+    EgressRevokePlan(PolicyArgs),
+    ProviderConfirm(ConfirmArgs),
+    ExternalPrepare(ExternalPrepareArgs),
+    ExternalSend(ExternalSendArgs),
+    ExternalInterruptPlan(InterruptArgs),
+    ExtractionPrepare(ExtractionPrepareArgs),
+    ExtractionPreview(ExtractionArgs),
+    ExtractionApply(ExtractionArgs),
+    ExtractionPause(ExtractionPauseArgs),
 }
 
 /// Command names, in schema order.
-pub const COMMANDS: [&str; 36] = [
+pub const COMMANDS: [&str; 47] = [
     "workspace_status",
     "vault_open",
     "vault_create",
@@ -359,6 +464,17 @@ pub const COMMANDS: [&str; 36] = [
     "operation_get",
     "operation_cancel",
     "operation_list",
+    "provider_status",
+    "egress_grant_plan",
+    "egress_revoke_plan",
+    "provider_confirm",
+    "external_prepare",
+    "external_send",
+    "external_interrupt_plan",
+    "extraction_prepare",
+    "extraction_preview",
+    "extraction_apply",
+    "extraction_pause",
 ];
 
 /// Commands that can commit to the Vault and therefore carry an idempotency key.
@@ -375,6 +491,12 @@ pub fn is_write(command: &str) -> bool {
             | "session_ask"
             | "session_checkpoint"
             | "context_preview"
+            | "provider_confirm"
+            | "external_prepare"
+            | "external_send"
+            | "extraction_prepare"
+            | "extraction_apply"
+            | "extraction_pause"
     )
 }
 
@@ -382,7 +504,12 @@ pub fn is_write(command: &str) -> bool {
 pub fn is_long_running(command: &str) -> bool {
     matches!(
         command,
-        "import_start" | "import_resume" | "index_rebuild" | "vault_verify" | "backup_export"
+        "import_start"
+            | "import_resume"
+            | "index_rebuild"
+            | "vault_verify"
+            | "backup_export"
+            | "external_send"
     )
 }
 
@@ -460,6 +587,12 @@ pub fn success_kind(command: &str) -> ResponseKind {
         "restore_preview" => K::RestorePreview,
         "operation_get" | "operation_cancel" => K::OperationStatus,
         "operation_list" => K::OperationList,
+        "provider_status" => K::ProviderStatus,
+        "egress_grant_plan" | "egress_revoke_plan" | "external_interrupt_plan" => K::ProviderPlan,
+        "provider_confirm" => K::ProviderCommitted,
+        "external_prepare" | "extraction_prepare" => K::ExternalPrepared,
+        "extraction_preview" => K::ExtractionPreview,
+        "extraction_apply" | "extraction_pause" => K::ExtractionJob,
         _ => K::MemoryError,
     }
 }
@@ -648,6 +781,45 @@ pub fn parse_request(value: &Value) -> Result<(Request, Command), ContractError>
         Command::RestorePreview(a) => {
             check_token(&a.export_token, "/arguments/exportToken", &mut out)
         }
+        Command::EgressGrantPlan(a) => {
+            let mut apis = a.apis.clone();
+            apis.sort();
+            apis.dedup();
+            if a.apis.is_empty() || apis.len() != a.apis.len() {
+                out.push(Violation::new("workspace.provider_apis", "/arguments/apis"));
+            }
+        }
+        Command::ProviderConfirm(a) => {
+            if !is_plan_id(&a.plan_id) {
+                out.push(Violation::new("workspace.plan_id", "/arguments/planId"));
+            }
+        }
+        Command::ExternalPrepare(a) => {
+            check_text(&a.text, TEXT_MAX_CHARS, "/arguments/text", &mut out);
+            if a.output_tokens == 0 || a.output_tokens > EXTERNAL_OUTPUT_MAX_TOKENS {
+                out.push(Violation::new(
+                    "workspace.output_tokens",
+                    "/arguments/outputTokens",
+                ));
+            }
+        }
+        Command::ExtractionPrepare(a) => {
+            if a.end_byte <= a.start_byte || a.end_byte - a.start_byte > EXTRACTION_MAX_BYTES {
+                out.push(Violation::new(
+                    "workspace.extraction_range",
+                    "/arguments/endByte",
+                ));
+            }
+            if a.max_candidates == 0 || a.max_candidates > EXTRACTION_MAX_CANDIDATES {
+                out.push(Violation::new(
+                    "workspace.extraction_candidates",
+                    "/arguments/maxCandidates",
+                ));
+            }
+        }
+        Command::ExternalSend(a) if !is_plan_id(&a.call_id) => {
+            out.push(Violation::new("workspace.plan_id", "/arguments/callId"));
+        }
         _ => {}
     }
     if out.is_empty() {
@@ -686,6 +858,12 @@ pub enum ResponseKind {
     OperationList,
     Ack,
     MemoryError,
+    ProviderStatus,
+    ProviderPlan,
+    ProviderCommitted,
+    ExternalPrepared,
+    ExtractionPreview,
+    ExtractionJob,
 }
 
 /// An error as the page sees it: a contract code, whether a retry can help,

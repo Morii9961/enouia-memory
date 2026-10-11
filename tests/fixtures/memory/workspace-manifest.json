@@ -357,6 +357,127 @@
       "command": "operation_list",
       "idempotencyKey": null,
       "arguments": {}
+    },
+    {
+      "schemaVersion": 1,
+      "requestId": "req_00000000-0000-4000-8000-00000000000c",
+      "command": "provider_status",
+      "idempotencyKey": null,
+      "arguments": {}
+    },
+    {
+      "schemaVersion": 1,
+      "requestId": "req_00000000-0000-4000-8000-00000000000c",
+      "command": "egress_grant_plan",
+      "idempotencyKey": null,
+      "arguments": {
+        "apis": [
+          "openai",
+          "anthropic"
+        ],
+        "maxSensitivity": "private",
+        "extraction": true
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "requestId": "req_00000000-0000-4000-8000-00000000000c",
+      "command": "egress_revoke_plan",
+      "idempotencyKey": null,
+      "arguments": {
+        "policyId": "pol_00000000-0000-4000-8000-000000000003"
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "requestId": "req_00000000-0000-4000-8000-00000000000c",
+      "command": "provider_confirm",
+      "idempotencyKey": "synthetic-provider-key-0001",
+      "arguments": {
+        "planId": "pln_0123456789abcdef0123456789abcdef",
+        "diffHash": "0000000000000000000000000000000000000000000000000000000000000001"
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "requestId": "req_00000000-0000-4000-8000-00000000000c",
+      "command": "external_prepare",
+      "idempotencyKey": "synthetic-provider-key-0001",
+      "arguments": {
+        "sessionId": "ses_00000000-0000-4000-8000-000000000001",
+        "branchId": "br_00000000-0000-4000-8000-000000000002",
+        "text": "Synthetic external question",
+        "api": "anthropic",
+        "policyId": "pol_00000000-0000-4000-8000-000000000003",
+        "streaming": true,
+        "outputTokens": 1024
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "requestId": "req_00000000-0000-4000-8000-00000000000c",
+      "command": "external_send",
+      "idempotencyKey": "synthetic-provider-key-0001",
+      "arguments": {
+        "callId": "pln_0123456789abcdef0123456789abcdef",
+        "wireHash": "0000000000000000000000000000000000000000000000000000000000000001"
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "requestId": "req_00000000-0000-4000-8000-00000000000c",
+      "command": "external_interrupt_plan",
+      "idempotencyKey": null,
+      "arguments": {
+        "inputEventId": "evt_00000000-0000-4000-8000-000000000004",
+        "dispatchId": "dsp_00000000-0000-4000-8000-000000000005"
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "requestId": "req_00000000-0000-4000-8000-00000000000c",
+      "command": "extraction_prepare",
+      "idempotencyKey": "synthetic-provider-key-0002",
+      "arguments": {
+        "sourceId": "src_00000000-0000-4000-8000-000000000007",
+        "sourceRevision": 1,
+        "startByte": 0,
+        "endByte": 120,
+        "api": "openai",
+        "policyId": "pol_00000000-0000-4000-8000-000000000003",
+        "maxCandidates": 8
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "requestId": "req_00000000-0000-4000-8000-00000000000c",
+      "command": "extraction_preview",
+      "idempotencyKey": null,
+      "arguments": {
+        "sessionId": "ses_00000000-0000-4000-8000-000000000001",
+        "runId": "ext_00000000-0000-4000-8000-000000000006"
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "requestId": "req_00000000-0000-4000-8000-00000000000c",
+      "command": "extraction_apply",
+      "idempotencyKey": "synthetic-provider-key-0002",
+      "arguments": {
+        "sessionId": "ses_00000000-0000-4000-8000-000000000001",
+        "runId": "ext_00000000-0000-4000-8000-000000000006"
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "requestId": "req_00000000-0000-4000-8000-00000000000c",
+      "command": "extraction_pause",
+      "idempotencyKey": "synthetic-provider-key-0002",
+      "arguments": {
+        "sessionId": "ses_00000000-0000-4000-8000-000000000001",
+        "runId": "ext_00000000-0000-4000-8000-000000000006",
+        "paused": true
+      }
     }
   ],
   "invalid_requests": [
@@ -606,6 +727,126 @@
       ],
       "schema": "reject",
       "rust_rule": "shape"
+    },
+    {
+      "id": "grant-without-api",
+      "base": 37,
+      "ops": [
+        {
+          "op": "set",
+          "path": "/arguments/apis",
+          "value": []
+        }
+      ],
+      "schema": "reject",
+      "rust_rule": "workspace.provider_apis"
+    },
+    {
+      "id": "grant-repeated-api",
+      "base": 37,
+      "ops": [
+        {
+          "op": "set",
+          "path": "/arguments/apis",
+          "value": [
+            "openai",
+            "openai"
+          ]
+        }
+      ],
+      "schema": "reject",
+      "rust_rule": "workspace.provider_apis"
+    },
+    {
+      "id": "external-output-over-ceiling",
+      "base": 40,
+      "ops": [
+        {
+          "op": "set",
+          "path": "/arguments/outputTokens",
+          "value": 32769
+        }
+      ],
+      "schema": "reject",
+      "rust_rule": "workspace.output_tokens"
+    },
+    {
+      "id": "external-zero-output",
+      "base": 40,
+      "ops": [
+        {
+          "op": "set",
+          "path": "/arguments/outputTokens",
+          "value": 0
+        }
+      ],
+      "schema": "reject",
+      "rust_rule": "workspace.output_tokens"
+    },
+    {
+      "id": "external-send-without-key",
+      "base": 41,
+      "ops": [
+        {
+          "op": "set",
+          "path": "/idempotencyKey",
+          "value": null
+        }
+      ],
+      "schema": "reject",
+      "rust_rule": "ipc.idempotency_key"
+    },
+    {
+      "id": "external-send-bad-call",
+      "base": 41,
+      "ops": [
+        {
+          "op": "set",
+          "path": "/arguments/callId",
+          "value": "C:/calls/1"
+        }
+      ],
+      "schema": "reject",
+      "rust_rule": "workspace.plan_id"
+    },
+    {
+      "id": "extraction-empty-range",
+      "base": 43,
+      "ops": [
+        {
+          "op": "set",
+          "path": "/arguments/endByte",
+          "value": 0
+        }
+      ],
+      "schema": "reject",
+      "rust_rule": "workspace.extraction_range"
+    },
+    {
+      "id": "extraction-range-over-ceiling",
+      "base": 43,
+      "ops": [
+        {
+          "op": "set",
+          "path": "/arguments/endByte",
+          "value": 32769
+        }
+      ],
+      "schema": "accept",
+      "rust_rule": "workspace.extraction_range"
+    },
+    {
+      "id": "extraction-too-many-candidates",
+      "base": 43,
+      "ops": [
+        {
+          "op": "set",
+          "path": "/arguments/maxCandidates",
+          "value": 33
+        }
+      ],
+      "schema": "reject",
+      "rust_rule": "workspace.extraction_candidates"
     }
   ],
   "valid_responses": [
