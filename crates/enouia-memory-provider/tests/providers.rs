@@ -6547,3 +6547,381 @@ fn failed_anthropic_json_keeps_valid_usage_without_completing_or_resending() {
         }
     }
 }
+
+#[test]
+fn prepared_extraction_calls_refuse_changed_sources_before_secrets_or_admission() {
+    use enouia_memory_provider::{egress::SendGuard, extraction};
+    struct CountSecrets(Cell<u64>);
+    impl SecretStore for CountSecrets {
+        fn read(&self, _: &str) -> Result<SecretBytes> {
+            self.0.set(self.0.get() + 1);
+            Ok(SecretBytes::new(b"synthetic-secret".to_vec()))
+        }
+    }
+    for api in [Api::OpenAiResponses, Api::AnthropicMessages] {
+        for change in ["normal_revision", "sensitive_revision", "unrelated_session"] {
+            let env = Env::new("prepared-extraction-source-change");
+            let source = extraction_source(&env);
+            let policy = grant(&env, api);
+            let (sid, run) = extraction::create(
+                &env.vault,
+                &owner(),
+                &env.policy(),
+                &extraction_options(source.clone(), api),
+                b"prepared-source-change",
+            )
+            .unwrap();
+            let job = extraction::job(&env.vault, &owner(), &sid, &run).unwrap();
+            let enabled = AtomicBool::new(true);
+            let adapter = VaultAdapter {
+                vault: &env.vault,
+                owner: owner(),
+                input_event: job.input_event_id.clone(),
+                enabled: &enabled,
+                quota: Quota::default(),
+            };
+            let (index, _) = enouia_memory_index::Index::rebuild(&env.vault).unwrap();
+            let call = extraction::prepare(
+                &adapter,
+                &index,
+                &run,
+                &extraction_capabilities(&env, api),
+                Limits::default(),
+                CallOptions::text(policy, 1024),
+            )
+            .unwrap();
+            match change {
+                "normal_revision" => {
+                    revise_synthetic_extraction_source(&env, &source, Sensitivity::Normal)
+                }
+                "sensitive_revision" => {
+                    revise_synthetic_extraction_source(&env, &source, Sensitivity::HighlySensitive)
+                }
+                _ => {
+                    session::start(
+                        &env.vault,
+                        &SessionStart {
+                            owner: owner(),
+                            surface: ClientSurface::Test,
+                            sensitivity: Sensitivity::Normal,
+                            policy_id: env.policy(),
+                        },
+                        b"unrelated-prepared-session",
+                    )
+                    .unwrap();
+                }
+            }
+            let before = env.vault.pin_current().unwrap();
+            let secrets = CountSecrets(Cell::new(0));
+            let http = FakeHttp {
+                calls: Cell::new(0),
+                bytes: reply(api),
+                fail: false,
+            };
+            if change != "unrelated_session" {
+                for audit in [false, true] {
+                    assert_eq!(
+                        adapter.check(call.dispatch(), audit).unwrap_err().code,
+                        MemoryErrorCode::RevisionConflict
+                    );
+                }
+                assert_eq!(
+                    adapter.claim(&call).unwrap_err().code,
+                    MemoryErrorCode::RevisionConflict
+                );
+            }
+            let result = Client {
+                transport: &http,
+                secrets: &secrets,
+                guard: &adapter,
+                journal: &adapter,
+            }
+            .send(&call, &call.inspect().hash(), &NeverCancel);
+            if change == "unrelated_session" {
+                assert!(result.is_ok());
+                assert_eq!(secrets.0.get(), 1);
+                assert_eq!(http.calls.get(), 1);
+                assert_eq!(
+                    adapter.invocations().unwrap()[0].state,
+                    InvocationState::Completed
+                );
+            } else {
+                assert_eq!(result.unwrap_err().code, MemoryErrorCode::RevisionConflict);
+                assert_eq!(secrets.0.get(), 0);
+                assert_eq!(http.calls.get(), 0);
+                assert!(adapter.invocations().unwrap().is_empty());
+                assert_eq!(env.vault.pin_current().unwrap(), before);
+                assert_eq!(
+                    session::get(&env.vault, &before, &sid)
+                        .unwrap()
+                        .extraction_jobs,
+                    vec![job]
+                );
+            }
+            assert!(
+                env.vault
+                    .verify(&env.vault.pin_current().unwrap())
+                    .unwrap()
+                    .is_clean()
+            );
+        }
+    }
+}
+
+#[test]
+fn extraction_source_changes_stop_later_stream_chunks_and_terminal_publication() {
+    use enouia_memory_provider::extraction;
+    struct RevisingHttp<'a> {
+        env: &'a Env,
+        source: &'a SourceId,
+        api: Api,
+        terminal_received: bool,
+        calls: Cell<u64>,
+    }
+    impl Transport for RevisingHttp<'_> {
+        fn exchange(
+            &self,
+            _: &WireRequest,
+            _: &SecretBytes,
+            _: &dyn Cancellation,
+            _: Duration,
+            sink: &mut dyn FnMut(&[u8]) -> Result<()>,
+        ) -> Result<()> {
+            self.calls.set(self.calls.get() + 1);
+            let prefix = if self.terminal_received {
+                streaming_reply(self.api, true)
+            } else if self.api == Api::OpenAiResponses {
+                sse(&[json!({"type":"response.output_text.delta","delta":"合成答复"})])
+            } else {
+                sse(&[
+                    json!({"type":"message_start","message":{"type":"message","role":"assistant","content":[],"usage":{"input_tokens":100,"output_tokens":0}}}),
+                    json!({"type":"content_block_start","index":0,"content_block":{"type":"text","text":""}}),
+                    json!({"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"合成答复"}}),
+                ])
+            };
+            sink(&prefix)?;
+            revise_synthetic_extraction_source(self.env, self.source, Sensitivity::HighlySensitive);
+            if !self.terminal_received {
+                // This callback must be refused before decoding or saving text.
+                let delta = if self.api == Api::OpenAiResponses {
+                    json!({"type":"response.output_text.delta","delta":"must not be saved"})
+                } else {
+                    json!({"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"must not be saved"}})
+                };
+                sink(&sse(&[delta]))?;
+            }
+            Ok(())
+        }
+    }
+    for api in [Api::OpenAiResponses, Api::AnthropicMessages] {
+        for terminal_received in [true, false] {
+            let env = Env::new("extraction-stream-source-change");
+            let source = extraction_source(&env);
+            let policy = grant(&env, api);
+            let (sid, run) = extraction::create(
+                &env.vault,
+                &owner(),
+                &env.policy(),
+                &extraction_options(source.clone(), api),
+                b"stream-source-change",
+            )
+            .unwrap();
+            let job = extraction::job(&env.vault, &owner(), &sid, &run).unwrap();
+            let enabled = AtomicBool::new(true);
+            let adapter = VaultAdapter {
+                vault: &env.vault,
+                owner: owner(),
+                input_event: job.input_event_id.clone(),
+                enabled: &enabled,
+                quota: Quota::default(),
+            };
+            let (index, _) = enouia_memory_index::Index::rebuild(&env.vault).unwrap();
+            let mut options = CallOptions::text(policy, 1024);
+            options.streaming = true;
+            let call = extraction::prepare(
+                &adapter,
+                &index,
+                &run,
+                &extraction_capabilities(&env, api),
+                Limits::default(),
+                options,
+            )
+            .unwrap();
+            let http = RevisingHttp {
+                env: &env,
+                source: &source,
+                api,
+                terminal_received,
+                calls: Cell::new(0),
+            };
+            let client = Client {
+                transport: &http,
+                secrets: &Secrets { missing: false },
+                guard: &adapter,
+                journal: &adapter,
+            };
+            assert_eq!(
+                client
+                    .send(&call, &call.inspect().hash(), &NeverCancel)
+                    .unwrap_err()
+                    .code,
+                MemoryErrorCode::RevisionConflict
+            );
+            assert_eq!(http.calls.get(), 1);
+            let row = adapter.invocations().unwrap().remove(0);
+            assert_eq!(row.state, InvocationState::Failed);
+            // Retain only counts validated before the Source change.
+            let expected = if terminal_received {
+                (Some(100), Some(4))
+            } else if api == Api::AnthropicMessages {
+                (Some(100), Some(0))
+            } else {
+                (None, None)
+            };
+            assert_eq!((row.input_tokens, row.output_tokens), expected);
+            assert!(adapter.saved_response(&row.dispatch_id).unwrap().is_none());
+            let pin = env.vault.pin_current().unwrap();
+            let input = session::get(&env.vault, &pin, &sid).unwrap();
+            assert_eq!(input.extraction_jobs, vec![job]);
+            let events = session::events(&env.vault, &pin, &sid, &input.default_branch_id).unwrap();
+            assert!(
+                events
+                    .iter()
+                    .any(|e| e.kind == enouia_memory_contract::session::EventKind::AssistantChunk)
+            );
+            assert!(
+                !events
+                    .iter()
+                    .any(|e| e.kind
+                        == enouia_memory_contract::session::EventKind::AssistantCompleted)
+            );
+            for event in events
+                .iter()
+                .filter(|e| e.kind == enouia_memory_contract::session::EventKind::AssistantChunk)
+            {
+                assert!(
+                    !session::text(&env.vault, &pin, event)
+                        .unwrap()
+                        .contains("must not be saved")
+                );
+            }
+            assert!(
+                client
+                    .send(&call, &call.inspect().hash(), &NeverCancel)
+                    .is_err()
+            );
+            assert_eq!(http.calls.get(), 1);
+            assert_eq!(env.vault.pin_current().unwrap(), pin);
+            assert!(env.vault.verify(&pin).unwrap().is_clean());
+        }
+    }
+}
+
+#[test]
+fn extraction_send_guard_rechecks_source_changes_during_authorization() {
+    use enouia_memory_contract::foundation::Clock;
+    use enouia_memory_provider::{egress::SendGuard, extraction};
+    use std::sync::{Arc, Mutex, mpsc};
+    struct PauseClock(Mutex<Option<(mpsc::Sender<()>, mpsc::Receiver<()>)>>);
+    impl Clock for PauseClock {
+        fn now_unix_ms(&self) -> i64 {
+            if let Some((entered, release)) = self.0.lock().unwrap().take() {
+                entered.send(()).unwrap();
+                release.recv_timeout(Duration::from_secs(30)).unwrap();
+            }
+            T0
+        }
+    }
+    for change in ["normal_revision", "sensitive_revision", "unrelated_session"] {
+        let env = Env::new("extraction-egress-source-race");
+        let api = Api::OpenAiResponses;
+        let source = extraction_source(&env);
+        let policy = grant(&env, api);
+        let (sid, run) = extraction::create(
+            &env.vault,
+            &owner(),
+            &env.policy(),
+            &extraction_options(source.clone(), api),
+            b"egress-source-race",
+        )
+        .unwrap();
+        let job = extraction::job(&env.vault, &owner(), &sid, &run).unwrap();
+        let enabled = AtomicBool::new(true);
+        let adapter = VaultAdapter {
+            vault: &env.vault,
+            owner: owner(),
+            input_event: job.input_event_id.clone(),
+            enabled: &enabled,
+            quota: Quota::default(),
+        };
+        let (index, _) = enouia_memory_index::Index::rebuild(&env.vault).unwrap();
+        let call = extraction::prepare(
+            &adapter,
+            &index,
+            &run,
+            &extraction_capabilities(&env, api),
+            Limits::default(),
+            CallOptions::text(policy, 1024),
+        )
+        .unwrap();
+        let clock = Arc::new(PauseClock(Mutex::new(None)));
+        let root = enouia_memory_vault::verify_data_root(
+            env.vault.managed_root().root(),
+            &enouia_memory_vault::RootPolicy::default(),
+        )
+        .unwrap();
+        let delayed = enouia_memory_vault::Vault::open(
+            &root,
+            None,
+            clock.clone(),
+            Arc::new(enouia_memory_vault::OsIdSource),
+            enouia_memory_vault::VaultOptions::default(),
+        )
+        .unwrap();
+        let (entered_tx, entered_rx) = mpsc::channel();
+        let (release_tx, release_rx) = mpsc::channel();
+        *clock.0.lock().unwrap() = Some((entered_tx, release_rx));
+        let (result, changed) = std::thread::scope(|scope| {
+            let delayed_adapter = VaultAdapter {
+                vault: &delayed,
+                owner: owner(),
+                input_event: job.input_event_id.clone(),
+                enabled: &enabled,
+                quota: Quota::default(),
+            };
+            let worker = scope.spawn(move || delayed_adapter.check(call.dispatch(), false));
+            entered_rx.recv_timeout(Duration::from_secs(30)).unwrap();
+            match change {
+                "normal_revision" => {
+                    revise_synthetic_extraction_source(&env, &source, Sensitivity::Normal)
+                }
+                "sensitive_revision" => {
+                    revise_synthetic_extraction_source(&env, &source, Sensitivity::HighlySensitive)
+                }
+                _ => {
+                    session::start(
+                        &env.vault,
+                        &SessionStart {
+                            owner: owner(),
+                            surface: ClientSurface::Test,
+                            sensitivity: Sensitivity::Normal,
+                            policy_id: env.policy(),
+                        },
+                        b"unrelated-egress-session",
+                    )
+                    .unwrap();
+                }
+            }
+            let changed = env.vault.pin_current().unwrap();
+            release_tx.send(()).unwrap();
+            (worker.join().unwrap(), changed)
+        });
+        if change == "unrelated_session" {
+            result.unwrap();
+        } else {
+            assert_eq!(result.unwrap_err().code, MemoryErrorCode::RevisionConflict);
+        }
+        assert_eq!(env.vault.pin_current().unwrap(), changed);
+        assert!(env.vault.verify(&changed).unwrap().is_clean());
+    }
+}

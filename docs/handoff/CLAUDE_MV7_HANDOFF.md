@@ -57,7 +57,9 @@
 
 | `67dc75c` | Completed/incomplete 终态文本不一致仍永久失败，但保留已验证的 reported usage。6 种纯解码情况和两种持久化/后续限额情况通过，错误 event/status 仍不接受计数。完整 336 项检查通过。 |
 
-| 本提交（2026-10-11 抽取来源修订） | 抽取的创建、读取、暂停/恢复、预览、准备和应用入口拒绝过期来源修订；校验期间来源修订或策略 epoch 变化返回冲突，无关会话提交仍允许。6 种状态/敏感度情况和 4 种并发情况已通过，完整 338 项检查及规定交叉验证通过。旧任务不自动升级为新修订。 |
+| `2c3ab0e` | 抽取的创建、读取、暂停/恢复、预览、准备和应用入口拒绝过期来源修订；校验期间来源修订或策略 epoch 变化返回冲突，无关会话提交仍允许。6 种状态/敏感度情况和 4 种并发情况已通过，完整 338 项检查及规定交叉验证通过。旧任务不自动升级为新修订。 |
+
+| 本提交（2026-10-11 抽取发送检查） | 预先准备的抽取请求在发送授权后及 admission 使用的 head 上复核当前 Source 修订。6 种发送前情况、4 种流式变化和 3 种并发授权情况已通过，完整 341 项检查及规定交叉验证通过。不会撤回已交给 transport 的字节；局部输出事务的最后一道检查另见下一项。 |
 
 MV-7.2 的 Memory 侧原生调用链已实现：外部目的地编译、精确请求体 inspection、站立策略及私密内容单次批准、凭据读取端口、持久化 admission、流式文本、原子终态、用量和限额、取消、关闭与恢复规则。OpenAI Responses 与 Anthropic Messages 均有合成接受路径。
 
@@ -87,13 +89,15 @@ Claude 随后审查原生传输与 SSE 路径，修复了非流式请求头重�
 
 本轮复现的非流式 JSON refusal 用量缺口已经修复并完整验证，见本地提交表。对流式计数累计/倒退/矛盾、终态失败锁存、凭据 setup/read/send 边界和 reservation 下限的复查没有证实其他必须修改的缺口。原有并发 checkpoint 在上一轮全仓检查曾触发有界 WriterBusy，精确隔离及完整重跑通过；最新 335 项完整检查没有失败。2026-10-11 已复现并修复 OpenAI 终态文本冲突丢失合法计数的问题，完整 336 项验证没有失败。抽取入口的旧来源修订缺口也已复现和修复，完整 338 项检查没有失败。
 
-下一项已证实的缺口：先完成 `extraction::prepare` 再将当前 Source 改为新修订（包括 HighlySensitive），旧 PreparedCall 仍可通过 VaultAdapter 的发送检查。独立合成探针实际记录到一次假 exchange；没有真实 HTTP。应在发送检查和 admission 的当前 head 上复核抽取 provenance 的来源修订，并验证流式过程中变化会停止后续内容/完成回复。未修复前不能把抽取入口修订检查称为完整发送边界保障。保持其他用途的历史快照语义和无关提交控制；独立完成后验证并单独提交。
+预先准备请求的发送检查缺口已在当前工作中修复，完整 341 项检查及规定交叉验证通过。独立合成探针没有真实 HTTP；保持其他用途的历史快照语义和无关提交控制。
+
+下一项已证实的缺口是输出提交时机：在最后一次 SendGuard 之后、InvocationJournal 委托给真实 VaultAdapter 的 chunk/finish 之前合成改变 Source 修订，当前输出事务只检查 policy/deletion epoch。非流式 finish 会保存 Completed，然后 Client 最后的发送检查返回冲突。应在 Session 输出事务的同一 commit pin 上对该 input 的抽取 job 来源修订做检查；新输出必须拒绝，失败/未知终态和不可重发规则保留，已经发布的精确历史回执仍须可重放。独立 Journal 包装器仅注入来源变化，不伪造 Provider 输出或存储结果，所有 exchange 均为假调用。未修复前不能称已闭合整个抽取输出提交边界。
 
 若没有证实新的 MV-7 缺口，不为消耗额度扩充无依据功能，也不转入 MV-8。Runtime 产品接入需主人给该仓库的明确工作范围；本仓库不添加到 Runtime checkout、crates、fixtures 或 target 的依赖。Activity & Usage 属于 Runtime，不在 Memory 中读取或实现。
 
 ## 验证和证据
 
-最近一次（抽取入口来源修订修复）的根目录检查全部通过：
+最近一次（抽取发送检查修复）的根目录检查全部通过：
 
 ```powershell
 $env:CARGO_NET_OFFLINE = 'true'
@@ -108,11 +112,11 @@ python tools/integration/runtime_surface.py
 
 Cargo 使用仓库 pin；Windows GNU linker/toolchain 须在 PATH 中。Python 使用已配置的 3.12 虚拟环境及 `tools/schema-check/requirements.txt` 的固定版本，不临时更换验证器。
 
-最新完整运行：338 Rust tests（63 Provider cases、60 Core cases），格式与严格 Clippy 通过。
+最新完整运行：341 Rust tests（66 Provider cases、60 Core cases），格式与严格 Clippy 通过。
 
 独立 Python 结果：36 schemas、53 valid records、117 record mutations、4,913 set records、51 IPC、63 workspace、46 store、8 invocation、19 extraction-job cases。Runtime manifest 与日志中的 aggregate 一致。合成证据不证明真实账户、账单、TLS handshake、Windows credential store 或实际宿主行为。
 
-本地 `.local/mv7-source-revisions-workspace-tests.log`、`.local/mv7-source-revisions-clippy.log` 是忽略的运行输出，可能被下一次检查覆盖，不提交也不当成唯一证据。稳定入口为 MV-7 报告和对应提交的代码/测试。完整串行根目录检查约需 6～15 分钟，开始前为测试、修复、提交和交接预留额度。
+本地 `.local/mv7-source-egress-workspace-tests.log`、`.local/mv7-source-egress-clippy.log` 是忽略的运行输出，可能被下一次检查覆盖，不提交也不当成唯一证据。稳定入口为 MV-7 报告和对应提交的代码/测试。完整串行根目录检查约需 6～20 分钟，开始前为测试、修复、提交和交接预留额度。
 
 旧完整运行曾遇到现有 Core 并发测试的有界 writer/index 等待或有序释放超时。隔离复验和完整重跑通过；未因此改变产品代码或等待规则。单 harness worker 不关闭测试内明确的线程/进程竞争。遇到类似失败先保留输出并聚焦复验，不以局部通过代替新功能的完整验证，也不要未经诊断扩大修复范围。
 
