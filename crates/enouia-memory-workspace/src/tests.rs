@@ -2997,3 +2997,5 @@ fn an_import_cancelled_before_its_first_batch_is_resumable() {
     assert_eq!(resumed["state"], "succeeded", "{resumed}");
     assert_eq!(resumed["result"]["status"], "completed", "{resumed}");
 }
+
+mod native;

@@ -41,6 +41,7 @@ FILES = {
     "crates/enouia-memory-index/Cargo.toml": "build",
     "crates/enouia-memory-context/Cargo.toml": "build",
     "crates/enouia-memory-workspace/Cargo.toml": "build",
+    "crates/enouia-memory-provider/Cargo.toml": "build",
     # Reference shell: duties Runtime's adapter mirrors.
     "apps/workspace/src-tauri/Cargo.toml": "reference-shell",
     "apps/workspace/src-tauri/build.rs": "reference-shell",
@@ -52,6 +53,8 @@ FILES = {
 # Directories recorded completely: a new file there is a surface change.
 DIRECTORIES = {
     "crates/enouia-memory-workspace/src": "core",
+    # Native Provider dispatch the Core hosts (ADR-MEM-48).
+    "crates/enouia-memory-provider/src": "provider",
     "apps/workspace/src-tauri/src": "reference-shell",
     "apps/workspace/src-tauri/capabilities": "reference-shell",
     "apps/workspace/src": "reference-ui",

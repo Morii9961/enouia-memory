@@ -817,6 +817,7 @@ dependencies = [
  "enouia-memory-govern",
  "enouia-memory-import",
  "enouia-memory-index",
+ "enouia-memory-provider",
  "enouia-memory-vault",
  "serde",
  "serde_json",

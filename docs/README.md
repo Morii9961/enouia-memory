@@ -40,7 +40,7 @@ The [background import read budget report](validation/MV-6-import-read-budget.md
 
 The [complete confirmation result replay report](validation/MV-6-confirm-result-replay.md) records a same-plan purge confirmation race and serializes confirmation through complete result-cache publication.
 
-The [MV-7 implementation report](validation/MV-7.md) and [native Provider guide](integration/PROVIDERS.md) record OpenAI/Anthropic text adapters, exact egress inspection, approval, durable outcomes and limits. Real smoke is deferred by the owner. Optional source-bound candidate extraction is implemented and inactive in the host; Runtime adoption remains pending.
+The [MV-7 implementation report](validation/MV-7.md) and [native Provider guide](integration/PROVIDERS.md) record OpenAI/Anthropic text adapters, exact egress inspection, approval, durable outcomes and limits. [ADR-MEM-48](adr/048-workspace-native-provider-hosting.md) hosts native dispatch and optional extraction in the workspace Core. The inherited [real two-Provider smoke runbook](validation/MV-7-real-smoke.md) records Runtime adoption of the older Memory pin 8186aed (Runtime ADR-032); adoption of this combined hardening revision and the real MV-7 exit gate remain pending.
 
 ## Import record (2026-09-28)
 
