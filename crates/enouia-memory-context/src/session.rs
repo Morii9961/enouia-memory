@@ -2,6 +2,7 @@
 //! committed together; an unfinished turn remains unfinished after reopening.
 
 use crate::util::*;
+use enouia_memory_contract::MemoryErrorCode;
 use enouia_memory_contract::commit::{ObjectKind, OperationKind};
 use enouia_memory_contract::common::{ActorRef, ContentRef};
 use enouia_memory_contract::hash::{Sha256Hex, sha256};
@@ -12,7 +13,7 @@ use enouia_memory_contract::provider::InvocationState;
 use enouia_memory_contract::record::{RecordKind, RecordRef};
 use enouia_memory_contract::session::*;
 use enouia_memory_vault::{
-    Vault, VaultError,
+    Fault, Vault, VaultError,
     service::{SessionStart, Written},
 };
 use serde::{Deserialize, Serialize};
@@ -449,6 +450,27 @@ fn append(
         return Err(invalid("session.output_stale"));
     }
     let mut session = get(vault, &pin, sid)?;
+    if guard.is_some()
+        && let Some(job) = session
+            .extraction_jobs
+            .iter()
+            .find(|job| Some(&job.input_event_id) == input)
+    {
+        // Guard new extraction output on the same head used by its commit.
+        // Exact published receipts were recovered above; failure records have
+        // no output guard and can still close an interrupted admitted call.
+        for source in &job.sources {
+            let entry = vault
+                .record_entry(&pin, RecordKind::Source, source.source.source_id.as_str())?
+                .ok_or_else(missing)?;
+            if entry.revision != source.source.source_revision {
+                return Err(VaultError::new(
+                    MemoryErrorCode::RevisionConflict,
+                    Fault::Contract(vec!["session.extraction_source_stale"]),
+                ));
+            }
+        }
+    }
     let mut sensitivity = session.sensitivity;
     for source in sources {
         let record = vault.read_parsed(

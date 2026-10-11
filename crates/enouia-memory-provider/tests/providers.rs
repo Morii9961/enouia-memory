@@ -6925,3 +6925,387 @@ fn extraction_send_guard_rechecks_source_changes_during_authorization() {
         assert!(env.vault.verify(&changed).unwrap().is_clean());
     }
 }
+
+#[test]
+fn extraction_publication_rechecks_source_revisions_on_its_commit_head() {
+    use enouia_memory_contract::{MemoryError, provider::ProviderResponse};
+    use enouia_memory_provider::extraction;
+    struct RevisingJournal<'a, 'b> {
+        env: &'a Env,
+        adapter: &'a VaultAdapter<'b>,
+        source: &'a SourceId,
+        at_terminal: bool,
+        change: &'static str,
+        changed: Cell<bool>,
+    }
+    impl RevisingJournal<'_, '_> {
+        fn revise(&self) {
+            if !self.changed.replace(true) {
+                match self.change {
+                    "normal_revision" => revise_synthetic_extraction_source(
+                        self.env,
+                        self.source,
+                        Sensitivity::Normal,
+                    ),
+                    "sensitive_revision" => revise_synthetic_extraction_source(
+                        self.env,
+                        self.source,
+                        Sensitivity::HighlySensitive,
+                    ),
+                    _ => {
+                        session::start(
+                            &self.env.vault,
+                            &SessionStart {
+                                owner: owner(),
+                                surface: ClientSurface::Test,
+                                sensitivity: Sensitivity::Normal,
+                                policy_id: self.env.policy(),
+                            },
+                            b"unrelated-output-session",
+                        )
+                        .unwrap();
+                    }
+                }
+            }
+        }
+    }
+    impl InvocationJournal for RevisingJournal<'_, '_> {
+        fn claim(&self, call: &enouia_memory_provider::client::PreparedCall) -> Result<bool> {
+            self.adapter.claim(call)
+        }
+        fn chunk(&self, dispatch: &DispatchRecord, sequence: u64, text: &str) -> Result<()> {
+            if !self.at_terminal {
+                self.revise();
+            }
+            self.adapter.chunk(dispatch, sequence, text)
+        }
+        fn finish(
+            &self,
+            dispatch: &DispatchRecord,
+            response: Option<&ProviderResponse>,
+            failure: Option<MemoryError>,
+        ) -> Result<()> {
+            if self.at_terminal {
+                self.revise();
+            }
+            self.adapter.finish(dispatch, response, failure)
+        }
+        fn finish_failure(
+            &self,
+            dispatch: &DispatchRecord,
+            failure: MemoryError,
+            input_tokens: Option<u64>,
+            output_tokens: Option<u64>,
+        ) -> Result<()> {
+            self.adapter
+                .finish_failure(dispatch, failure, input_tokens, output_tokens)
+        }
+    }
+    for api in [Api::OpenAiResponses, Api::AnthropicMessages] {
+        for at_terminal in [true, false] {
+            for change in ["normal_revision", "sensitive_revision", "unrelated_session"] {
+                let env = Env::new("extraction-source-publication-race");
+                let source = extraction_source(&env);
+                let policy = grant(&env, api);
+                let (sid, run) = extraction::create(
+                    &env.vault,
+                    &owner(),
+                    &env.policy(),
+                    &extraction_options(source.clone(), api),
+                    b"source-publication-race",
+                )
+                .unwrap();
+                let job = extraction::job(&env.vault, &owner(), &sid, &run).unwrap();
+                let enabled = AtomicBool::new(true);
+                let adapter = VaultAdapter {
+                    vault: &env.vault,
+                    owner: owner(),
+                    input_event: job.input_event_id.clone(),
+                    enabled: &enabled,
+                    quota: Quota::default(),
+                };
+                let (index, _) = enouia_memory_index::Index::rebuild(&env.vault).unwrap();
+                let mut options = CallOptions::text(policy, 1024);
+                options.streaming = !at_terminal;
+                let call = extraction::prepare(
+                    &adapter,
+                    &index,
+                    &run,
+                    &extraction_capabilities(&env, api),
+                    Limits::default(),
+                    options,
+                )
+                .unwrap();
+                let http = FakeHttp {
+                    calls: Cell::new(0),
+                    bytes: if at_terminal {
+                        reply(api)
+                    } else {
+                        streaming_reply(api, true)
+                    },
+                    fail: false,
+                };
+                let journal = RevisingJournal {
+                    env: &env,
+                    adapter: &adapter,
+                    source: &source,
+                    at_terminal,
+                    change,
+                    changed: Cell::new(false),
+                };
+                let client = Client {
+                    transport: &http,
+                    secrets: &Secrets { missing: false },
+                    guard: &adapter,
+                    journal: &journal,
+                };
+                let result = client.send(&call, &call.inspect().hash(), &NeverCancel);
+                if change == "unrelated_session" {
+                    result.unwrap();
+                } else {
+                    assert_eq!(result.unwrap_err().code, MemoryErrorCode::RevisionConflict);
+                }
+                assert!(journal.changed.get());
+                assert_eq!(http.calls.get(), 1);
+                let rows = adapter.invocations().unwrap();
+                assert_eq!(rows.len(), 1);
+                assert_eq!(
+                    rows[0].state,
+                    if change == "unrelated_session" {
+                        InvocationState::Completed
+                    } else if at_terminal {
+                        InvocationState::OutcomeUnknown
+                    } else {
+                        InvocationState::Failed
+                    }
+                );
+                assert_eq!(
+                    adapter
+                        .saved_response(&rows[0].dispatch_id)
+                        .unwrap()
+                        .is_some(),
+                    change == "unrelated_session"
+                );
+                let pin = env.vault.pin_current().unwrap();
+                let header = session::get(&env.vault, &pin, &sid).unwrap();
+                assert_eq!(header.extraction_jobs, vec![job]);
+                let events =
+                    session::events(&env.vault, &pin, &sid, &header.default_branch_id).unwrap();
+                if change != "unrelated_session" {
+                    assert!(!events.iter().any(|e| matches!(
+                        e.kind,
+                        enouia_memory_contract::session::EventKind::AssistantChunk
+                            | enouia_memory_contract::session::EventKind::AssistantCompleted
+                    )));
+                }
+                assert!(
+                    client
+                        .send(&call, &call.inspect().hash(), &NeverCancel)
+                        .is_err()
+                );
+                assert_eq!(http.calls.get(), 1);
+                assert_eq!(env.vault.pin_current().unwrap(), pin);
+                assert!(env.vault.verify(&pin).unwrap().is_clean());
+            }
+        }
+    }
+}
+
+#[test]
+fn published_extraction_output_receipts_replay_after_later_source_revisions() {
+    use enouia_memory_provider::extraction;
+    for api in [Api::OpenAiResponses, Api::AnthropicMessages] {
+        let env = Env::new("extraction-output-receipt-replay");
+        let source = extraction_source(&env);
+        let policy = grant(&env, api);
+        let (sid, run) = extraction::create(
+            &env.vault,
+            &owner(),
+            &env.policy(),
+            &extraction_options(source.clone(), api),
+            b"output-receipt-replay",
+        )
+        .unwrap();
+        let job = extraction::job(&env.vault, &owner(), &sid, &run).unwrap();
+        let enabled = AtomicBool::new(true);
+        let adapter = VaultAdapter {
+            vault: &env.vault,
+            owner: owner(),
+            input_event: job.input_event_id,
+            enabled: &enabled,
+            quota: Quota::default(),
+        };
+        let (index, _) = enouia_memory_index::Index::rebuild(&env.vault).unwrap();
+        let mut options = CallOptions::text(policy, 1024);
+        options.streaming = true;
+        let call = extraction::prepare(
+            &adapter,
+            &index,
+            &run,
+            &extraction_capabilities(&env, api),
+            Limits::default(),
+            options,
+        )
+        .unwrap();
+        let http = FakeHttp {
+            calls: Cell::new(0),
+            bytes: streaming_reply(api, true),
+            fail: false,
+        };
+        let response = Client {
+            transport: &http,
+            secrets: &Secrets { missing: false },
+            guard: &adapter,
+            journal: &adapter,
+        }
+        .send(&call, &call.inspect().hash(), &NeverCancel)
+        .unwrap();
+        revise_synthetic_extraction_source(&env, &source, Sensitivity::HighlySensitive);
+        let before = env.vault.pin_current().unwrap();
+        let row = adapter.invocations().unwrap().remove(0);
+        // Native chunk entry points still enforce current authorization.
+        // The Core can recover the already-published exact receipt without
+        // producing new bytes or changing a completed invocation.
+        assert_eq!(
+            adapter
+                .chunk(call.dispatch(), 1, "合成答复")
+                .unwrap_err()
+                .code,
+            MemoryErrorCode::RevisionConflict
+        );
+        session::append_output_with_guard(
+            &env.vault,
+            &owner(),
+            &adapter.input_event,
+            enouia_memory_contract::session::EventKind::AssistantChunk,
+            Some("合成答复"),
+            format!("provider-chunk:{}:1", call.dispatch().dispatch_id).as_bytes(),
+            Some(session::OutputGuard {
+                policy_epoch: call.dispatch().egress.policy_epoch,
+                deletion_epoch: call.dispatch().egress.deletion_epoch,
+                sensitivity: Sensitivity::Normal,
+            }),
+        )
+        .unwrap();
+        adapter
+            .finish(call.dispatch(), Some(&response), None)
+            .unwrap();
+        assert_eq!(adapter.invocations().unwrap(), vec![row]);
+        assert_eq!(env.vault.pin_current().unwrap(), before);
+        assert_eq!(http.calls.get(), 1);
+        assert!(env.vault.verify(&before).unwrap().is_clean());
+    }
+}
+
+#[test]
+fn guarded_extraction_chunks_refuse_new_writes_but_recover_existing_receipts() {
+    use enouia_memory_provider::extraction;
+    for sensitivity in [Sensitivity::Normal, Sensitivity::HighlySensitive] {
+        let env = Env::new("extraction-core-chunk-revision");
+        let api = Api::OpenAiResponses;
+        let source = extraction_source(&env);
+        let policy = grant(&env, api);
+        let (sid, run) = extraction::create(
+            &env.vault,
+            &owner(),
+            &env.policy(),
+            &extraction_options(source.clone(), api),
+            b"core-chunk-revision",
+        )
+        .unwrap();
+        let job = extraction::job(&env.vault, &owner(), &sid, &run).unwrap();
+        let enabled = AtomicBool::new(true);
+        let adapter = VaultAdapter {
+            vault: &env.vault,
+            owner: owner(),
+            input_event: job.input_event_id.clone(),
+            enabled: &enabled,
+            quota: Quota::default(),
+        };
+        let (index, _) = enouia_memory_index::Index::rebuild(&env.vault).unwrap();
+        let call = extraction::prepare(
+            &adapter,
+            &index,
+            &run,
+            &extraction_capabilities(&env, api),
+            Limits::default(),
+            CallOptions::text(policy, 1024),
+        )
+        .unwrap();
+        assert!(adapter.claim(&call).unwrap());
+        let guard = session::OutputGuard {
+            policy_epoch: call.dispatch().egress.policy_epoch,
+            deletion_epoch: call.dispatch().egress.deletion_epoch,
+            sensitivity: Sensitivity::Normal,
+        };
+        let prefix = session::append_output_with_guard(
+            &env.vault,
+            &owner(),
+            &adapter.input_event,
+            enouia_memory_contract::session::EventKind::AssistantChunk,
+            Some("valid prefix"),
+            b"source-prefix-receipt",
+            Some(guard),
+        )
+        .unwrap();
+        revise_synthetic_extraction_source(&env, &source, sensitivity);
+        let changed = env.vault.pin_current().unwrap();
+        let replay = session::append_output_with_guard(
+            &env.vault,
+            &owner(),
+            &adapter.input_event,
+            enouia_memory_contract::session::EventKind::AssistantChunk,
+            Some("valid prefix"),
+            b"source-prefix-receipt",
+            Some(guard),
+        )
+        .unwrap();
+        assert_eq!(replay.id, prefix.id);
+        assert_eq!(env.vault.pin_current().unwrap(), changed);
+        assert_eq!(
+            session::append_output_with_guard(
+                &env.vault,
+                &owner(),
+                &adapter.input_event,
+                enouia_memory_contract::session::EventKind::AssistantChunk,
+                Some("must not be stored"),
+                b"source-new-chunk",
+                Some(guard)
+            )
+            .unwrap_err()
+            .error
+            .code,
+            MemoryErrorCode::RevisionConflict
+        );
+        assert_eq!(env.vault.pin_current().unwrap(), changed);
+        adapter
+            .finish_failure(
+                call.dispatch(),
+                enouia_memory_contract::MemoryError::new(
+                    MemoryErrorCode::ProviderUnavailable,
+                    enouia_memory_contract::foundation::ComponentId::Provider,
+                ),
+                None,
+                None,
+            )
+            .unwrap();
+        assert_eq!(
+            adapter.invocations().unwrap()[0].state,
+            InvocationState::Failed
+        );
+        let pin = env.vault.pin_current().unwrap();
+        let header = session::get(&env.vault, &pin, &sid).unwrap();
+        assert_eq!(header.extraction_jobs, vec![job]);
+        let chunks: Vec<_> = session::events(&env.vault, &pin, &sid, &header.default_branch_id)
+            .unwrap()
+            .into_iter()
+            .filter(|e| e.kind == enouia_memory_contract::session::EventKind::AssistantChunk)
+            .collect();
+        assert_eq!(chunks.len(), 1);
+        assert_eq!(
+            session::text(&env.vault, &pin, &chunks[0]).unwrap(),
+            "valid prefix"
+        );
+        assert!(env.vault.verify(&pin).unwrap().is_clean());
+    }
+}
