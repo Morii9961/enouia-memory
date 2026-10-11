@@ -123,7 +123,7 @@ impl Decoder {
         if raw.is_empty() {
             if !self.data.is_empty() {
                 let data = std::mem::take(&mut self.data);
-                let v: Value = serde_json::from_slice(&data)
+                let v: Value = crate::json::parse(&data)
                     .map_err(|_| error(MemoryErrorCode::ProviderUnavailable))?;
                 self.event(v, on_text)?;
             }

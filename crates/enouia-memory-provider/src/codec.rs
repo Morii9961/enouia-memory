@@ -163,7 +163,7 @@ pub(crate) fn decode_observing(
     observed: &mut (Option<u64>, Option<u64>),
 ) -> Result<ProviderResponse> {
     let v: Value =
-        serde_json::from_slice(body).map_err(|_| error(MemoryErrorCode::ProviderUnavailable))?;
+        crate::json::parse(body).map_err(|_| error(MemoryErrorCode::ProviderUnavailable))?;
     let mut text = String::new();
     let (finish, usage) = match api {
         Api::OpenAiResponses => {

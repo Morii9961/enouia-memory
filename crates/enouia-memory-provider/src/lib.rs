@@ -4,6 +4,7 @@ pub mod client;
 pub mod codec;
 pub mod egress;
 pub mod extraction;
+mod json;
 pub mod policy;
 pub mod stream;
 pub mod transport;

@@ -8649,3 +8649,207 @@ fn malformed_openai_success_envelopes_never_publish_or_authorize_resend() {
         }
     }
 }
+
+fn synthetic_duplicate_json(bytes: &[u8], mode: &str) -> Vec<u8> {
+    let raw = std::str::from_utf8(bytes).unwrap();
+    match mode {
+        "usage" => raw.replacen(
+            "\"usage\":",
+            "\"usage\":{\"input_tokens\":50000,\"output_tokens\":4},\"usage\":",
+            1,
+        ),
+        "escaped_usage" => raw.replacen(
+            "\"usage\":",
+            "\"\\u0075sage\":{\"input_tokens\":50000,\"output_tokens\":4},\"usage\":",
+            1,
+        ),
+        "tokens" => raw.replacen(
+            "\"input_tokens\":",
+            "\"input_tokens\":\"bad\",\"input_tokens\":",
+            1,
+        ),
+        "text" => raw.replacen("\"text\":", "\"text\":42,\"text\":", 1),
+        "metadata" => raw.replacen('{', "{\"metadata\":{\"ignored\":1,\"ignored\":2},", 1),
+        _ => unreachable!(),
+    }
+    .into_bytes()
+}
+
+#[test]
+fn duplicate_provider_json_is_refused_before_overwrite_and_latches_stream_failure() {
+    use enouia_memory_provider::codec::decode;
+    for api in [Api::OpenAiResponses, Api::AnthropicMessages] {
+        let mut control: serde_json::Value = serde_json::from_slice(&reply(api)).unwrap();
+        control["temperature"] = json!(0.7);
+        control["ignored_metadata"] =
+            json!({"negative":-1.5,"flag":true,"list":[null,"synthetic"]});
+        assert_eq!(
+            decode(api, &serde_json::to_vec(&control).unwrap())
+                .unwrap()
+                .text,
+            "合成答复"
+        );
+        for mode in ["usage", "escaped_usage", "tokens", "text", "metadata"] {
+            assert_eq!(
+                decode(api, &synthetic_duplicate_json(&reply(api), mode))
+                    .unwrap_err()
+                    .code,
+                MemoryErrorCode::ProviderUnavailable,
+                "{api:?}/{mode}"
+            );
+            let mut decoder = Decoder::new(api);
+            let mut text = String::new();
+            let mut collect = |chunk: &str| {
+                text.push_str(chunk);
+                Ok(())
+            };
+            assert_eq!(
+                decoder
+                    .push(
+                        &synthetic_duplicate_json(&streaming_reply(api, true), mode),
+                        &mut collect
+                    )
+                    .unwrap_err()
+                    .code,
+                MemoryErrorCode::ProviderUnavailable,
+                "{api:?}/{mode}"
+            );
+            let expected = if api == Api::AnthropicMessages && mode == "text" {
+                (Some(100), Some(0))
+            } else {
+                (None, None)
+            };
+            assert_eq!(decoder.observed_usage(), expected);
+            assert!(
+                decoder
+                    .push(&streaming_reply(api, true), &mut collect)
+                    .is_err()
+            );
+            assert_eq!(decoder.observed_usage(), expected);
+            assert!(decoder.finish().is_err());
+        }
+        let mut decoder = Decoder::new(api);
+        let (prior, next, expected) = match api {
+            Api::OpenAiResponses => (
+                synthetic_openai_progress("response.created"),
+                synthetic_openai_progress("response.in_progress"),
+                (Some(50000), Some(4)),
+            ),
+            Api::AnthropicMessages => (
+                json!({"type":"message_start","message":{"type":"message","role":"assistant","content":[],"usage":{"input_tokens":100,"output_tokens":4}}}),
+                json!({"type":"message_delta","delta":{},"usage":{"input_tokens":100,"output_tokens":4}}),
+                (Some(100), Some(4)),
+            ),
+        };
+        decoder.push(&sse(&[prior]), &mut |_| Ok(())).unwrap();
+        assert_eq!(decoder.observed_usage(), expected);
+        assert!(
+            decoder
+                .push(
+                    &synthetic_duplicate_json(&sse(&[next]), "usage"),
+                    &mut |_| Ok(())
+                )
+                .is_err()
+        );
+        assert_eq!(decoder.observed_usage(), expected);
+        assert!(decoder.finish().is_err());
+    }
+}
+
+#[test]
+fn duplicate_provider_usage_never_completes_or_resends_an_admitted_input() {
+    for api in [Api::OpenAiResponses, Api::AnthropicMessages] {
+        for streaming in [false, true] {
+            for mode in ["usage", "escaped_usage"] {
+                let env = Env::new("duplicate-provider-json");
+                let (capsule, input, policy, caps) = setup(&env, api, Sensitivity::Normal);
+                let enabled = AtomicBool::new(true);
+                let adapter = VaultAdapter {
+                    vault: &env.vault,
+                    owner: owner(),
+                    input_event: input.clone(),
+                    enabled: &enabled,
+                    quota: Quota::default(),
+                };
+                let mut options = CallOptions::text(policy, 128);
+                options.streaming = streaming;
+                let call = adapter
+                    .prepare_saved(api, &capsule, &caps, Limits::default(), options)
+                    .unwrap();
+                let valid = if streaming {
+                    streaming_reply(api, true)
+                } else {
+                    reply(api)
+                };
+                let http = FakeHttp {
+                    calls: Cell::new(0),
+                    bytes: synthetic_duplicate_json(&valid, mode),
+                    fail: false,
+                };
+                let client = Client {
+                    transport: &http,
+                    secrets: &Secrets { missing: false },
+                    guard: &adapter,
+                    journal: &adapter,
+                };
+                let error = client
+                    .send(&call, &call.inspect().hash(), &NeverCancel)
+                    .unwrap_err();
+                assert_eq!(error.code, MemoryErrorCode::ProviderUnavailable);
+                assert!(!error.retryable);
+                let rows = adapter.invocations().unwrap();
+                assert_eq!(rows.len(), 1);
+                let row = &rows[0];
+                assert_eq!(row.state, InvocationState::Failed);
+                assert_eq!((row.input_tokens, row.output_tokens), (None, None));
+                assert_eq!(
+                    row.reserved_tokens,
+                    call.estimated_input_tokens() + call.dispatch().output.max_output_tokens
+                );
+                assert!(adapter.saved_response(&row.dispatch_id).unwrap().is_none());
+                let before = env.vault.pin_current().unwrap();
+                let enouia_memory_contract::record::AnyRecord::SessionEvent(previous) = env
+                    .vault
+                    .read_parsed(
+                        &before,
+                        &enouia_memory_contract::record::RecordRef::new(
+                            RecordKind::SessionEvent,
+                            input.as_str(),
+                            Revision::new(1).unwrap(),
+                        ),
+                    )
+                    .unwrap()
+                else {
+                    panic!("input");
+                };
+                let events = session::events(
+                    &env.vault,
+                    &before,
+                    &previous.session_id,
+                    &previous.branch_id,
+                )
+                .unwrap();
+                assert!(!events.iter().any(|event| event.kind
+                    == enouia_memory_contract::session::EventKind::AssistantCompleted));
+                assert_eq!(
+                    events
+                        .iter()
+                        .filter(|event| event.kind
+                            == enouia_memory_contract::session::EventKind::AssistantChunk)
+                        .count(),
+                    usize::from(streaming && api == Api::OpenAiResponses)
+                );
+                assert_eq!(
+                    client
+                        .send(&call, &call.inspect().hash(), &NeverCancel)
+                        .unwrap_err()
+                        .code,
+                    MemoryErrorCode::IdempotencyConflict
+                );
+                assert_eq!(http.calls.get(), 1);
+                assert_eq!(env.vault.pin_current().unwrap(), before);
+                assert!(env.vault.verify(&before).unwrap().is_clean());
+            }
+        }
+    }
+}

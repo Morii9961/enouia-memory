@@ -19,11 +19,11 @@
 |---|---|
 | 仓库 | Enouia Memory，独立 Cargo workspace |
 | 分支 | `codex/mv7-provider-boundary-hardening`，本次接续的本地分支 |
-| 最新已验证功能提交 | 见下方接续表最后一行；已合并主线为 PR #6 的 `7c3ef41` |
+| 最新已验证功能提交 | 见下方接续表最后一行；本轮开始的已合并主线为 PR #6 的 `7c3ef41`。收尾只读核对发现远端 main 已前进到 `a62ca4d`，新批次尚未比较或整合，不能称当前分支已包含它。 |
 | 本次 MV-7 起始基线 | `8197890` |
 | 本次 Codex 接续基线 | `7c3ef41`；干净的本地 main 从旧 MV-6 版本快进到远端已合并主线后开始 |
 | 工具链 | Rust `1.98.1`，`x86_64-pc-windows-gnu`；Python 3.12 / python-jsonschema `4.26.0` |
-| 最近完整验证 | 2026-10-11，354 项 Rust 测试通过，含 79 项 Provider 检查和 60 项 workspace Core 检查；fmt、严格 Clippy、36-schema 独立交叉校验及 Runtime manifest 检查通过。 |
+| 最近完整验证 | 2026-10-11，358 项 Rust 测试通过，含 83 项 Provider 检查和 60 项 workspace Core 检查；fmt、严格 Clippy、36-schema 独立交叉校验及 Runtime manifest 检查通过。 |
 | Runtime 接入面 aggregate | `f1a52c732445fe9ea0c5d5b33eaec3fd5fe7b9a71376ca3215e594f1792cf167` |
 
 制作此交接前，功能改动均已提交，工作树干净。本文及其入口链接是后续文档改动；其提交不改变上述功能基线。接手首先重新检查目录、分支、HEAD、工作树和其他任务正在使用的文件；保留他人的修改，不重置、不覆盖、不清理其他工作树。
@@ -60,7 +60,8 @@
 | `5cc47db` | 在 reservation 的同一 pin 上复核当前 pending 队列，prepare 后填满队列不再进入 exchange；审核后释放容量只允许尚未 admission 的 input 继续。6 种双 API 情况通过，完整 347 项及规定检查通过。 |
 | `cdafc6f` | OpenAI failed 及三个拒绝的 incomplete 原因永久失败时保留合法 reported usage，兼容 nullable error；23 种 JSON、15 种 SSE 和十种持久化模式通过。完整 350 项及规定交叉验证通过。 |
 | `f54ae07` | OpenAI created/in_progress 中经过校验的 reported usage 在中断后保留，未知分量不擦除已有值；倒退或跨 Response 覆盖永久失败并保留原计数。48 种纯解码和 7 种持久化情况通过，完整 352 项及规定检查通过。 |
-| 本提交 | OpenAI Completed/Length 共享 failed/progress 的 identity/nullable error 校验；Malformed reply 不保存成功或新计数，成功 fixture 补齐合成官方身份字段。40 种纯负例、合法控制和 12 种持久化模式通过；完整 354 项及规定检查通过。 |
+| `37d403f` | OpenAI Completed/Length 共享 failed/progress 的 identity/nullable error 校验；Malformed reply 不保存成功或新计数，成功 fixture 补齐合成官方身份字段。40 种纯负例、合法控制和 12 种持久化模式通过；完整 354 项及规定检查通过。 |
+| 本提交 | 双 API 的 JSON body / SSE event 拒绝嵌套及转义后的重复成员，不选择首/末字段。两个 parser unit、20 种纯负例、合法 metadata/先前计数控制及八种持久化模式通过，完整 358 项及规定检查通过；根依赖未变。 |
 
 MV-7.2 的 Memory 侧原生调用链已实现：外部目的地编译、精确请求体 inspection、站立策略及私密内容单次批准、凭据读取端口、持久化 admission、流式文本、原子终态、用量和限额、取消、关闭与恢复规则。OpenAI Responses 与 Anthropic Messages 均有合成接受路径。
 
@@ -104,13 +105,17 @@ OpenAI 进度用量缺口已修复，48 种纯解码情况、7 种持久化模�
 
 成功 OpenAI Response 身份校验已修复，40 种纯负例、合法 JSON 控制、12 种持久化模式和完整 354 项根目录测试通过，规定检查全部通过。仅将既有 identity/error 校验移入共享输出解析，不新增输出类型；成功 fixture 的补齐不改变发送请求。Malformed Completed/Length 仍保留已接受的局部流文本、原 reservation 和不可重发规则，不采信非法响应计数。
 
-下一项已通过四种双 API/JSON/SSE 的独立假调用和两项修复前回归复现：同一对象两次 usage（第一组 50000/4、最后一组 100/4）被 serde_json::Value 默默选择最后一组，并保存 Completed。RFC 8259 是 SHOULD unique，不能写成规范禁止；这里选择拒绝歧义计数，不任选首项/末项。私有解析器的两个值兼容/转义重复字段/递归与完整输入检查已通过，私有 probe 增加了与仓库一致的固定 serde 依赖，根 Cargo 依赖和锁文件未改。产品代码尚未接入解析器。
+重复 JSON 成员缺口已修复，两个 parser unit、20 种纯负例、合法 metadata 和两种先前计数保留控制、八种持久化模式及完整 358 项根目录测试通过，规定检查全部通过。拒绝解码后相同的嵌套/转义字段，不选择 first/last，不将字符串中的 JSON 再解析。此前计数/局部文本与 reservation 保留；歧义事件不能完成或授权重发。RFC 8259 的 SHOULD unique 与适配器选择拒绝的策略已分别记录。根 Cargo 依赖及锁文件未变。
+
+当前没有尚未完成的已证实修复。下一轮先核对 Git、适用 AGENTS 和主人授权，再审查有证据的 MV-7 缺口；不要将本表的合成接受证据当成账户/账单、真实 HTTP/TLS 或 Runtime 产品宿主接受证明。真实 smoke、实际凭据操作、发布、Runtime 产品接入和 MV-8 仍未授权。
+
+2026-10-11 通过紧凑会话快照核对“继续 Enouia Runtime 工作”：会话为 idle，最新执行仍是 interrupted，最后评论为已验证/推送并开始收尾。此前已读取的保存/push 证据对应 64659d93e70eb8b6e1b7ff7ad8c7c833d53779b2；PR #29 当时仍为 draft，不能称该项目或真实验收全部完成。本仓库没有向该会话发送消息或写入 Runtime。
 
 若没有证实新的 MV-7 缺口，不为消耗额度扩充无依据功能，也不转入 MV-8。Runtime 产品接入需主人给该仓库的明确工作范围；本仓库不添加到 Runtime checkout、crates、fixtures 或 target 的依赖。Activity & Usage 属于 Runtime，不在 Memory 中读取或实现。
 
 ## 验证和证据
 
-最近一次（OpenAI 成功响应身份校验）的根目录检查全部通过：
+最近一次（双 Provider 重复 JSON 成员修复）的根目录检查全部通过：
 
 ```powershell
 $env:CARGO_NET_OFFLINE = 'true'
@@ -125,11 +130,11 @@ python tools/integration/runtime_surface.py
 
 Cargo 使用仓库 pin；Windows GNU linker/toolchain 须在 PATH 中。Python 使用已配置的 3.12 虚拟环境及 `tools/schema-check/requirements.txt` 的固定版本，不临时更换验证器。
 
-最新完整运行：354 Rust tests（79 Provider cases、60 Core cases），格式与严格 Clippy 通过。
+最新完整运行：358 Rust tests（83 Provider cases、60 Core cases），格式与严格 Clippy 通过。
 
 独立 Python 结果：36 schemas、53 valid records、117 record mutations、4,913 set records、51 IPC、63 workspace、46 store、8 invocation、19 extraction-job cases。Runtime manifest 与日志中的 aggregate 一致。合成证据不证明真实账户、账单、TLS handshake、Windows credential store 或实际宿主行为。
 
-本地 `.local/mv7-openai-identity-workspace-tests.log`、`.local/mv7-openai-identity-clippy.log` 是忽略的运行输出，可能被下一次检查覆盖，不提交也不当成唯一证据。稳定入口为 MV-7 报告和对应提交的代码/测试。完整串行根目录检查约需 6～20 分钟，开始前为测试、修复、提交和交接预留额度。
+本地 `.local/mv7-duplicate-json-workspace-tests.log`、`.local/mv7-duplicate-json-clippy.log` 是忽略的运行输出，可能被下一次检查覆盖，不提交也不当成唯一证据。稳定入口为 MV-7 报告和对应提交的代码/测试。完整串行根目录检查约需 6～20 分钟，开始前为测试、修复、提交和交接预留额度。
 
 旧完整运行曾遇到现有 Core 并发测试的有界 writer/index 等待或有序释放超时。隔离复验和完整重跑通过；未因此改变产品代码或等待规则。单 harness worker 不关闭测试内明确的线程/进程竞争。遇到类似失败先保留输出并聚焦复验，不以局部通过代替新功能的完整验证，也不要未经诊断扩大修复范围。
 
@@ -140,6 +145,8 @@ Cargo 使用仓库 pin；Windows GNU linker/toolchain 须在 PATH 中。Python �
 提交只包含本任务文件，不带真实记忆、聊天、数据库、附件、凭据或 `.local/` 输出。Codex 实质参与的提交须按 `AGENTS.md` 保留 Codex co-author trailer；Claude 的新增贡献按其当前会话给出的 trailer 记录，不猜造身份，也不移除其他贡献者。
 
 2026-10-10 本轮按主人接近限额时停止并关机的要求进入收尾：所有 5 项修复独立本地提交，当前代码完成完整验证，未发送真实 HTTP，未操作实际凭据，也未 push。停止时记录实际 HEAD、未提交范围、最后完整验证及未验证项。若新功能尚未完成完整检查，不称其已完成，不与已验证功能混淆；保留可恢复的修改和准确接续指令。没有新的明确授权，不 push、不创建 PR、不部署、不操作真实账户。
+
+2026-10-11 本轮十项 Memory 侧修复均独立验证并本地提交，最新完整 358 项及规定检查通过。没有 push、PR、真实 Provider 调用或 Runtime 写入；未开始 MV-8。关机授权的处理见本页“主人的授权与工作方式”：昨日那次已经执行，本轮不重复安排自动关机。
 
 可供主人启动 Claude 时复制：
 
