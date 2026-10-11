@@ -873,6 +873,14 @@ impl InvocationJournal for VaultAdapter<'_> {
         {
             return Err(error(MemoryErrorCode::Cancelled));
         }
+        if let Some(job) = job
+            && enouia_memory_govern::pending_candidates(self.vault, &pin)
+                .map_err(|e| e.error)?
+                .len() as u64
+                >= job.max_pending
+        {
+            return Err(error(MemoryErrorCode::BudgetExceeded));
+        }
         let token_limit = job.map_or(self.quota.max_reserved_tokens, |j| {
             self.quota.max_reserved_tokens.min(j.max_reserved_tokens)
         });

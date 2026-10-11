@@ -7610,3 +7610,165 @@ fn multiple_extraction_jobs_with_distinct_inputs_keep_their_own_budget_routes() 
         assert!(env.vault.verify(&before).unwrap().is_clean());
     }
 }
+
+#[test]
+fn prepared_extraction_admission_rechecks_the_current_pending_backlog() {
+    use enouia_memory_contract::candidate::ProposedType;
+    use enouia_memory_govern::{EvidenceSpec, Origin, Proposal, Proposed};
+    use enouia_memory_provider::extraction;
+    for api in [Api::OpenAiResponses, Api::AnthropicMessages] {
+        for scenario in ["full", "below", "reviewed"] {
+            let env = Env::new("extraction-admission-backlog");
+            let source = extraction_source(&env);
+            let policy = grant(&env, api);
+            let mut options = extraction_options(source.clone(), api);
+            options.max_pending = if scenario == "below" { 2 } else { 1 };
+            let (sid, run) = extraction::create(
+                &env.vault,
+                &owner(),
+                &env.policy(),
+                &options,
+                b"admission-backlog",
+            )
+            .unwrap();
+            let job = extraction::job(&env.vault, &owner(), &sid, &run).unwrap();
+            let enabled = AtomicBool::new(true);
+            let adapter = VaultAdapter {
+                vault: &env.vault,
+                owner: owner(),
+                input_event: job.input_event_id.clone(),
+                enabled: &enabled,
+                quota: Quota::default(),
+            };
+            let (index, _) = enouia_memory_index::Index::rebuild(&env.vault).unwrap();
+            let call = extraction::prepare(
+                &adapter,
+                &index,
+                &run,
+                &extraction_capabilities(&env, api),
+                Limits::default(),
+                CallOptions::text(policy.clone(), 1024),
+            )
+            .unwrap();
+            let proposal = Proposal::create(
+                ProposedType::Fact,
+                "Another synthetic pending claim",
+                json!({"claim_key":"other_pending"})
+                    .as_object()
+                    .unwrap()
+                    .clone(),
+                vec![EvidenceSpec::content(source, Revision::new(1).unwrap())],
+            );
+            let Proposed::Stored(candidate) = enouia_memory_govern::propose::propose(
+                &env.vault,
+                &proposal,
+                &Origin::owner(owner()),
+                b"fill-admission-backlog",
+            )
+            .unwrap() else {
+                panic!("new synthetic candidate");
+            };
+            let before = env.vault.pin_current().unwrap();
+            assert_eq!(
+                enouia_memory_govern::pending_candidates(&env.vault, &before)
+                    .unwrap()
+                    .len(),
+                1
+            );
+            let http = FakeHttp {
+                calls: Cell::new(0),
+                bytes: extraction_reply(api, false),
+                fail: false,
+            };
+            let client = Client {
+                transport: &http,
+                secrets: &Secrets { missing: false },
+                guard: &adapter,
+                journal: &adapter,
+            };
+            if scenario != "below" {
+                assert_eq!(
+                    extraction::prepare(
+                        &adapter,
+                        &index,
+                        &run,
+                        &extraction_capabilities(&env, api),
+                        Limits::default(),
+                        CallOptions::text(policy, 1024),
+                    )
+                    .err()
+                    .unwrap()
+                    .code,
+                    MemoryErrorCode::BudgetExceeded
+                );
+                assert_eq!(
+                    adapter.claim(&call).unwrap_err().code,
+                    MemoryErrorCode::BudgetExceeded
+                );
+                assert_eq!(
+                    client
+                        .send(&call, &call.inspect().hash(), &NeverCancel)
+                        .unwrap_err()
+                        .code,
+                    MemoryErrorCode::BudgetExceeded
+                );
+                assert_eq!(http.calls.get(), 0);
+                assert!(adapter.invocations().unwrap().is_empty());
+                assert_eq!(env.vault.pin_current().unwrap(), before);
+                assert_eq!(
+                    extraction::job(&env.vault, &owner(), &sid, &run).unwrap(),
+                    job
+                );
+                assert!(env.vault.verify(&before).unwrap().is_clean());
+                if scenario == "full" {
+                    continue;
+                }
+                let shown = enouia_memory_govern::plan(
+                    &env.vault,
+                    &[enouia_memory_govern::Decision::Reject {
+                        candidate_id: candidate.id,
+                        revision: Revision::new(1).unwrap(),
+                        reason_code: None,
+                    }],
+                    &owner(),
+                    TrustedSurface::TrustedLocalCli,
+                )
+                .unwrap();
+                enouia_memory_govern::confirm(
+                    &env.vault,
+                    &shown,
+                    &enouia_memory_govern::OwnerConfirmation {
+                        owner: owner(),
+                        surface: TrustedSurface::TrustedLocalCli,
+                    },
+                )
+                .unwrap();
+                assert!(
+                    enouia_memory_govern::pending_candidates(
+                        &env.vault,
+                        &env.vault.pin_current().unwrap()
+                    )
+                    .unwrap()
+                    .is_empty()
+                );
+            }
+            // A refused pre-admission call has not consumed its input. Once
+            // the owner frees capacity, the same inspected call can admit.
+            assert_eq!(
+                client
+                    .send(&call, &call.inspect().hash(), &NeverCancel)
+                    .unwrap()
+                    .finish,
+                enouia_memory_contract::provider::FinishReason::Completed
+            );
+            assert_eq!(http.calls.get(), 1);
+            assert_eq!(adapter.invocations().unwrap().len(), 1);
+            assert!(
+                env.vault
+                    .verify(&env.vault.pin_current().unwrap())
+                    .unwrap()
+                    .is_clean()
+            );
+        }
+    }
+}
