@@ -167,6 +167,29 @@ pub(crate) fn decode_observing(
     let mut text = String::new();
     let (finish, usage) = match api {
         Api::OpenAiResponses => {
+            if v["status"] == "failed"
+                || v["status"] == "incomplete"
+                    && matches!(
+                        v["incomplete_details"]["reason"].as_str(),
+                        Some("content_filter" | "max_messages" | "steered")
+                    )
+            {
+                // A rejected terminal Response can report usage, unlike an
+                // arbitrary HTTP error body. Its error is nullable; validate
+                // an error when present and all supported output before
+                // retaining the complete tuple. Never expose terminal text.
+                if v["object"] != "response"
+                    || v["id"].as_str().is_none_or(str::is_empty)
+                    || !v["error"].is_null()
+                        && (v["error"]["code"].as_str().is_none_or(str::is_empty)
+                            || !v["error"]["message"].is_string())
+                {
+                    return Err(error(MemoryErrorCode::ProviderUnavailable));
+                }
+                openai_output_text(&v)?;
+                *observed = decode_usage(api, &v["usage"])?;
+                return Err(error(MemoryErrorCode::ProviderUnavailable));
+            }
             let finish = match v["status"].as_str() {
                 Some("completed") => FinishReason::Completed,
                 Some("incomplete") if v["incomplete_details"]["reason"] == "max_output_tokens" => {
@@ -174,35 +197,7 @@ pub(crate) fn decode_observing(
                 }
                 _ => return Err(error(MemoryErrorCode::ProviderUnavailable)),
             };
-            for item in v["output"]
-                .as_array()
-                .ok_or_else(|| error(MemoryErrorCode::ProviderUnavailable))?
-            {
-                match item["type"].as_str() {
-                    Some("message") if item["role"] == "assistant" => {
-                        for part in item["content"]
-                            .as_array()
-                            .ok_or_else(|| error(MemoryErrorCode::ProviderUnavailable))?
-                        {
-                            match part["type"].as_str() {
-                                Some("output_text") => {
-                                    text.push_str(part["text"].as_str().ok_or_else(|| {
-                                        error(MemoryErrorCode::ProviderUnavailable)
-                                    })?)
-                                }
-                                Some("refusal") => {
-                                    text.push_str(part["refusal"].as_str().ok_or_else(|| {
-                                        error(MemoryErrorCode::ProviderUnavailable)
-                                    })?)
-                                }
-                                _ => return Err(error(MemoryErrorCode::ProviderUnavailable)),
-                            }
-                        }
-                    }
-                    Some("reasoning") => {}
-                    _ => return Err(error(MemoryErrorCode::ProviderUnavailable)),
-                }
-            }
+            text = openai_output_text(&v)?;
             (finish, decode_usage(api, &v["usage"])?)
         }
         Api::AnthropicMessages => {
@@ -252,6 +247,40 @@ pub(crate) fn decode_observing(
     })
 }
 
+fn openai_output_text(response: &Value) -> Result<String> {
+    let mut text = String::new();
+    for item in response["output"]
+        .as_array()
+        .ok_or_else(|| error(MemoryErrorCode::ProviderUnavailable))?
+    {
+        match item["type"].as_str() {
+            Some("message") if item["role"] == "assistant" => {
+                for part in item["content"]
+                    .as_array()
+                    .ok_or_else(|| error(MemoryErrorCode::ProviderUnavailable))?
+                {
+                    match part["type"].as_str() {
+                        Some("output_text") => text.push_str(
+                            part["text"]
+                                .as_str()
+                                .ok_or_else(|| error(MemoryErrorCode::ProviderUnavailable))?,
+                        ),
+                        Some("refusal") => text.push_str(
+                            part["refusal"]
+                                .as_str()
+                                .ok_or_else(|| error(MemoryErrorCode::ProviderUnavailable))?,
+                        ),
+                        _ => return Err(error(MemoryErrorCode::ProviderUnavailable)),
+                    }
+                }
+            }
+            Some("reasoning") => {}
+            _ => return Err(error(MemoryErrorCode::ProviderUnavailable)),
+        }
+    }
+    Ok(text)
+}
+
 /// Normalize only reported counts, without guessing missing usage or price.
 /// OpenAI cache details are a subset of input_tokens; Anthropic reports cache
 /// creation/read separately from uncached input. Nested creation details are
@@ -288,4 +317,90 @@ pub(crate) fn decode_usage(api: Api, usage: &Value) -> Result<(Option<u64>, Opti
         }
     }
     Ok((input, count("output_tokens")?))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn openai_terminal_failures_retain_only_validated_json_usage() {
+        let base = json!({"id":"resp_synthetic_failed","object":"response","status":"failed",
+            "error":{"code":"server_error","message":"Synthetic failure"},"output":[],
+            "usage":{"input_tokens":50000,"output_tokens":4}});
+        let mut cases = vec![(base.clone(), (Some(50000), Some(4)))];
+        let mut with_text = base.clone();
+        with_text["output"] = json!([{"type":"message","role":"assistant","content":[{"type":"output_text","text":"Failed output must not be delivered"}]}]);
+        cases.push((with_text, (Some(50000), Some(4))));
+        let mut nullable_error = base.clone();
+        nullable_error["error"] = Value::Null;
+        cases.push((nullable_error.clone(), (Some(50000), Some(4))));
+        for reason in ["content_filter", "max_messages", "steered"] {
+            let mut incomplete = nullable_error.clone();
+            incomplete["status"] = json!("incomplete");
+            incomplete["incomplete_details"] = json!({"reason":reason});
+            cases.push((incomplete, (Some(50000), Some(4))));
+        }
+        let mut incomplete = nullable_error;
+        incomplete["status"] = json!("incomplete");
+        incomplete["incomplete_details"] = json!({"reason":"unknown_reason"});
+        cases.push((incomplete.clone(), (None, None)));
+        incomplete["incomplete_details"] = json!({"reason":"content_filter"});
+        incomplete["usage"] = Value::Null;
+        cases.push((incomplete.clone(), (None, None)));
+        incomplete["usage"] = json!({"input_tokens":50000,"output_tokens":"bad"});
+        cases.push((incomplete, (None, None)));
+        for (usage, expected) in [
+            (
+                json!({"input_tokens":0,"output_tokens":0}),
+                (Some(0), Some(0)),
+            ),
+            (json!({"output_tokens":4}), (None, Some(4))),
+            (Value::Null, (None, None)),
+            (
+                json!({"input_tokens":50000,"output_tokens":"bad"}),
+                (None, None),
+            ),
+            (json!({"input_tokens":-1,"output_tokens":4}), (None, None)),
+            (json!([]), (None, None)),
+        ] {
+            let mut response = base.clone();
+            response["usage"] = usage;
+            cases.push((response, expected));
+        }
+        for (field, value) in [
+            ("status", json!("in_progress")),
+            ("object", json!("error")),
+            ("id", Value::Null),
+            ("error", json!([])),
+            ("error", json!({"code":42,"message":"Synthetic failure"})),
+            ("output", Value::Null),
+            (
+                "output",
+                json!([{"type":"message","role":"user","content":[]}]),
+            ),
+            (
+                "output",
+                json!([{"type":"message","role":"assistant","content":[{"type":"output_text","text":42}]}]),
+            ),
+        ] {
+            let mut response = base.clone();
+            response[field] = value;
+            cases.push((response, (None, None)));
+        }
+        for (response, expected) in cases {
+            let mut observed = (None, None);
+            assert_eq!(
+                decode_observing(
+                    Api::OpenAiResponses,
+                    &serde_json::to_vec(&response).unwrap(),
+                    &mut observed
+                )
+                .unwrap_err()
+                .code,
+                MemoryErrorCode::ProviderUnavailable
+            );
+            assert_eq!(observed, expected);
+        }
+    }
 }

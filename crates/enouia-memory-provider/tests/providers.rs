@@ -7772,3 +7772,266 @@ fn prepared_extraction_admission_rechecks_the_current_pending_backlog() {
         }
     }
 }
+
+fn synthetic_failed_openai_response() -> serde_json::Value {
+    json!({"id":"resp_synthetic_failed","object":"response","status":"failed",
+        "error":{"code":"server_error","message":"Synthetic error body must stay private"},
+        "output":[{"type":"message","role":"assistant","content":[{"type":"output_text","text":"Synthetic failed final text must stay private"}]}],
+        "usage":{"input_tokens":50000,"output_tokens":4}})
+}
+
+#[test]
+fn openai_terminal_failures_latch_and_retain_validated_stream_usage() {
+    let base = synthetic_failed_openai_response();
+    let mut cases = vec![(base.clone(), (Some(50000), Some(4)))];
+    for (field, value) in [
+        ("status", json!("completed")),
+        ("object", json!("error")),
+        ("error", json!({"code":"server_error","message":42})),
+        ("output", json!([{"type":"function_call"}])),
+        (
+            "usage",
+            json!({"input_tokens":50000,"output_tokens":"invalid"}),
+        ),
+    ] {
+        let mut response = base.clone();
+        response[field] = value;
+        cases.push((response, (None, None)));
+    }
+    let mut unknown = base;
+    unknown["usage"] = serde_json::Value::Null;
+    cases.push((unknown, (None, None)));
+    let mut cases: Vec<_> = cases
+        .into_iter()
+        .map(|(response, expected)| ("response.failed", response, expected))
+        .collect();
+    let mut nullable = synthetic_failed_openai_response();
+    nullable["error"] = serde_json::Value::Null;
+    cases.push(("response.failed", nullable.clone(), (Some(50000), Some(4))));
+    for reason in ["content_filter", "max_messages", "steered"] {
+        let mut incomplete = nullable.clone();
+        incomplete["status"] = json!("incomplete");
+        incomplete["incomplete_details"] = json!({"reason":reason});
+        cases.push(("response.incomplete", incomplete, (Some(50000), Some(4))));
+    }
+    let mut incomplete = nullable;
+    incomplete["status"] = json!("incomplete");
+    incomplete["incomplete_details"] = json!({"reason":"content_filter"});
+    cases.push(("response.failed", incomplete.clone(), (None, None)));
+    cases.push(("response.completed", incomplete.clone(), (None, None)));
+    incomplete["incomplete_details"] = json!({"reason":"unknown_reason"});
+    cases.push(("response.incomplete", incomplete.clone(), (None, None)));
+    incomplete["incomplete_details"] = json!({"reason":"content_filter"});
+    incomplete["usage"] = json!({"input_tokens":50000,"output_tokens":"bad"});
+    cases.push(("response.incomplete", incomplete, (None, None)));
+    for (kind, response, expected) in cases {
+        let mut decoder = Decoder::new(Api::OpenAiResponses);
+        let mut text = String::new();
+        let mut collect = |chunk: &str| {
+            text.push_str(chunk);
+            Ok(())
+        };
+        decoder
+            .push(
+                &sse(&[json!({"type":"response.output_text.delta","delta":"accepted partial"})]),
+                &mut collect,
+            )
+            .unwrap();
+        assert_eq!(
+            decoder
+                .push(
+                    &sse(&[json!({"type":kind,"response":response})]),
+                    &mut collect
+                )
+                .unwrap_err()
+                .code,
+            MemoryErrorCode::ProviderUnavailable
+        );
+        assert_eq!(decoder.observed_usage(), expected);
+        assert!(
+            decoder
+                .push(&streaming_reply(Api::OpenAiResponses, true), &mut collect)
+                .is_err()
+        );
+        assert_eq!(decoder.observed_usage(), expected);
+        assert!(decoder.finish().is_err());
+        assert_eq!(text, "accepted partial");
+    }
+}
+
+#[test]
+fn openai_terminal_failures_debit_reported_usage_without_delivery_or_resend() {
+    for (streaming, failure) in [false, true].into_iter().flat_map(|streaming| {
+        [
+            "failed",
+            "nullable_failed",
+            "content_filter",
+            "max_messages",
+            "steered",
+        ]
+        .map(move |failure| (streaming, failure))
+    }) {
+        let env = Env::new("failed-openai-usage");
+        let api = Api::OpenAiResponses;
+        let (capsule, input, policy, caps) = setup(&env, api, Sensitivity::Normal);
+        let enabled = AtomicBool::new(true);
+        let adapter = VaultAdapter {
+            vault: &env.vault,
+            owner: owner(),
+            input_event: input.clone(),
+            enabled: &enabled,
+            quota: Quota::default(),
+        };
+        let mut options = CallOptions::text(policy.clone(), 128);
+        options.streaming = streaming;
+        let call = adapter
+            .prepare_saved(api, &capsule, &caps, Limits::default(), options)
+            .unwrap();
+        let mut failed = synthetic_failed_openai_response();
+        if failure != "failed" {
+            failed["error"] = serde_json::Value::Null;
+        }
+        let kind = if matches!(failure, "failed" | "nullable_failed") {
+            "response.failed"
+        } else {
+            failed["status"] = json!("incomplete");
+            failed["incomplete_details"] = json!({"reason":failure});
+            "response.incomplete"
+        };
+        let bytes = if streaming {
+            sse(&[
+                json!({"type":"response.output_text.delta","delta":"accepted partial"}),
+                json!({"type":kind,"response":failed}),
+            ])
+        } else {
+            serde_json::to_vec(&failed).unwrap()
+        };
+        let http = FakeHttp {
+            calls: Cell::new(0),
+            bytes,
+            fail: false,
+        };
+        let client = Client {
+            transport: &http,
+            secrets: &Secrets { missing: false },
+            guard: &adapter,
+            journal: &adapter,
+        };
+        let error = client
+            .send(&call, &call.inspect().hash(), &NeverCancel)
+            .unwrap_err();
+        assert_eq!(error.code, MemoryErrorCode::ProviderUnavailable);
+        assert!(!error.retryable);
+        let rows = adapter.invocations().unwrap();
+        let row = &rows[0];
+        assert_eq!(rows.len(), 1);
+        assert_eq!(row.state, InvocationState::Failed);
+        assert_eq!(
+            (row.input_tokens, row.output_tokens),
+            (Some(50000), Some(4))
+        );
+        assert_eq!(
+            row.reserved_tokens,
+            call.estimated_input_tokens() + call.dispatch().output.max_output_tokens
+        );
+        assert!(adapter.saved_response(&row.dispatch_id).unwrap().is_none());
+        let pin = env.vault.pin_current().unwrap();
+        let enouia_memory_contract::record::AnyRecord::SessionEvent(previous) = env
+            .vault
+            .read_parsed(
+                &pin,
+                &enouia_memory_contract::record::RecordRef::new(
+                    RecordKind::SessionEvent,
+                    input.as_str(),
+                    Revision::new(1).unwrap(),
+                ),
+            )
+            .unwrap()
+        else {
+            panic!("input");
+        };
+        let events =
+            session::events(&env.vault, &pin, &previous.session_id, &previous.branch_id).unwrap();
+        assert!(
+            !events
+                .iter()
+                .any(|e| e.kind == enouia_memory_contract::session::EventKind::AssistantCompleted)
+        );
+        for event in events.iter().filter(|event| event.content_ref.is_some()) {
+            let text = session::text(&env.vault, &pin, event).unwrap();
+            assert!(!text.contains("Synthetic error body must stay private"));
+            assert!(!text.contains("Synthetic failed final text must stay private"));
+        }
+        assert_eq!(
+            client
+                .send(&call, &call.inspect().hash(), &NeverCancel)
+                .unwrap_err()
+                .code,
+            MemoryErrorCode::IdempotencyConflict
+        );
+        assert_eq!(http.calls.get(), 1);
+        assert_eq!(env.vault.pin_current().unwrap(), pin);
+        let mut compile = CompileInput::local(
+            "新的明确合成输入",
+            owner(),
+            RequestId::from_random(env.vault.random_id_bytes()),
+        );
+        compile.session_id = Some(previous.session_id.clone());
+        compile.branch_id = Some(previous.branch_id.clone());
+        let next_input = session::save_input(
+            &env.vault,
+            &owner(),
+            &previous.session_id,
+            &previous.branch_id,
+            &compile.query,
+            &compile.request_id,
+            b"after-failed-openai",
+        )
+        .unwrap()
+        .id;
+        let (index, _) = enouia_memory_index::Index::rebuild(&env.vault).unwrap();
+        let next_capsule = compiler::compile_for_destination(
+            &env.vault,
+            &index,
+            &compile,
+            &Destination {
+                kind: DestinationKind::ExternalProvider,
+                provider_binding: Some(caps.binding.clone()),
+            },
+        )
+        .unwrap();
+        let mut next = VaultAdapter {
+            input_event: next_input,
+            ..adapter
+        };
+        let next_call = next
+            .prepare_saved(
+                api,
+                &next_capsule.capsule.capsule_id,
+                &caps,
+                Limits::default(),
+                CallOptions::text(policy, 128),
+            )
+            .unwrap();
+        next.quota.max_reserved_tokens = row.reserved_tokens
+            + next_call.estimated_input_tokens()
+            + next_call.dispatch().output.max_output_tokens;
+        let before = env.vault.pin_current().unwrap();
+        assert_eq!(
+            Client {
+                transport: &http,
+                secrets: &Secrets { missing: false },
+                guard: &next,
+                journal: &next
+            }
+            .send(&next_call, &next_call.inspect().hash(), &NeverCancel)
+            .unwrap_err()
+            .code,
+            MemoryErrorCode::BudgetExceeded
+        );
+        assert_eq!(http.calls.get(), 1);
+        assert_eq!(next.invocations().unwrap().len(), 1);
+        assert_eq!(env.vault.pin_current().unwrap(), before);
+        assert!(env.vault.verify(&before).unwrap().is_clean());
+    }
+}

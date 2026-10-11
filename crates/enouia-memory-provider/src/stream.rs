@@ -1,7 +1,7 @@
 //! Bounded incremental SSE decoding. A closed socket is never completion.
 use crate::{
     Result,
-    codec::{Api, decode, decode_usage},
+    codec::{Api, decode_observing, decode_usage},
     error,
 };
 use enouia_memory_contract::{
@@ -173,7 +173,7 @@ impl Decoder {
                 }
                 let bytes = serde_json::to_vec(&v["response"])
                     .map_err(|_| error(MemoryErrorCode::ProviderUnavailable))?;
-                let answer = decode(self.api, &bytes)?;
+                let answer = decode_observing(self.api, &bytes, &mut self.observed_usage)?;
                 // The response and usage have been validated independently of
                 // the streamed text. Keep reported use for a failed admission
                 // even when the final text cannot be published as consistent.
@@ -184,8 +184,17 @@ impl Decoder {
                 }
                 self.terminal = Some(answer);
             }
-            (Api::OpenAiResponses, "error" | "response.failed")
-            | (Api::AnthropicMessages, "error") => {
+            (Api::OpenAiResponses, "response.failed") => {
+                if v["response"]["status"] == "failed" {
+                    let bytes = serde_json::to_vec(&v["response"])
+                        .map_err(|_| error(MemoryErrorCode::ProviderUnavailable))?;
+                    // Keep only validated usage from the failed Response;
+                    // no error body/output becomes a terminal response.
+                    let _ = decode_observing(self.api, &bytes, &mut self.observed_usage);
+                }
+                return Err(error(MemoryErrorCode::ProviderUnavailable));
+            }
+            (Api::OpenAiResponses, "error") | (Api::AnthropicMessages, "error") => {
                 return Err(error(MemoryErrorCode::ProviderUnavailable));
             }
             (Api::AnthropicMessages, "message_start") => {
