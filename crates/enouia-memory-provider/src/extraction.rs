@@ -411,9 +411,21 @@ pub fn job(
     let header: SessionRecord = read(vault, RecordKind::Session, sid.as_str())?;
     let job = header
         .extraction_jobs
-        .into_iter()
+        .iter()
         .find(|j| &j.run_id == run)
+        .cloned()
         .ok_or_else(|| error(MemoryErrorCode::NotFound))?;
+    if header
+        .extraction_jobs
+        .iter()
+        .filter(|j| j.input_event_id == job.input_event_id)
+        .count()
+        != 1
+    {
+        // One admitted input cannot be routed to multiple immutable jobs.
+        // Preserve the archive rather than silently choosing a budget/origin.
+        return Err(error(MemoryErrorCode::InvalidRequest));
+    }
     let input: SessionEvent = read(vault, RecordKind::SessionEvent, job.input_event_id.as_str())?;
     let pin = vault.pin_current().map_err(|e| e.error)?;
     if input.session_id != *sid

@@ -7309,3 +7309,304 @@ fn guarded_extraction_chunks_refuse_new_writes_but_recover_existing_receipts() {
         assert!(env.vault.verify(&pin).unwrap().is_clean());
     }
 }
+
+fn add_synthetic_extraction_job(
+    env: &Env,
+    sid: &SessionId,
+    cost: bool,
+    first: bool,
+    input: Option<EventId>,
+) -> ExtractionRunId {
+    use enouia_memory_contract::{
+        commit::OperationKind,
+        json::canonical_bytes,
+        ports::{CommitRequest, IdempotencyScope, StagedRecord},
+    };
+    let pin = env.vault.pin_current().unwrap();
+    let mut header = session::get(&env.vault, &pin, sid).unwrap();
+    let previous = header.revision;
+    let mut alias = header.extraction_jobs[0].clone();
+    alias.run_id = ExtractionRunId::from_random([93; 16]);
+    if let Some(input) = input {
+        let record = env
+            .vault
+            .read_parsed(
+                &pin,
+                &enouia_memory_contract::record::RecordRef::new(
+                    RecordKind::SessionEvent,
+                    input.as_str(),
+                    Revision::new(1).unwrap(),
+                ),
+            )
+            .unwrap();
+        let enouia_memory_contract::record::AnyRecord::SessionEvent(event) = record else {
+            panic!("input");
+        };
+        alias.input_hash = event.content_ref.unwrap().object_hash;
+        alias.input_event_id = input;
+    }
+    if cost {
+        alias.max_reserved_cost_microusd = Some(0);
+    } else {
+        alias.max_reserved_tokens = 1;
+    }
+    let run = alias.run_id.clone();
+    if first {
+        header.extraction_jobs.insert(0, alias);
+    } else {
+        header.extraction_jobs.push(alias);
+    }
+    header.revision = Revision::new(previous.get() + 1).unwrap();
+    header.updated_at = env.vault.now().unwrap();
+    env.vault
+        .commit(CommitRequest {
+            commit_id: CommitId::from_random(env.vault.random_id_bytes()),
+            expected_commit_id: Some(pin.commit_id),
+            principal: owner(),
+            operation_kind: OperationKind::Migration,
+            idempotency: IdempotencyScope {
+                principal_id: owner().actor_id,
+                operation_kind: OperationKind::Migration,
+                key_hash: sha256(b"synthetic-shared-input-job"),
+            },
+            request_payload_hash: sha256(b"synthetic-shared-input-job"),
+            expected_revisions: vec![(RecordKind::Session, sid.to_string(), Some(previous))],
+            records: vec![StagedRecord {
+                record_kind: RecordKind::Session,
+                record_id: sid.to_string(),
+                revision: header.revision,
+                bytes: canonical_bytes(&serde_json::to_value(header).unwrap()).unwrap(),
+            }],
+            objects: vec![],
+        })
+        .unwrap();
+    run
+}
+
+#[test]
+fn shared_input_extraction_jobs_refuse_ambiguous_budgets_without_changing_the_archive() {
+    use enouia_memory_provider::extraction;
+    for api in [Api::OpenAiResponses, Api::AnthropicMessages] {
+        for cost in [false, true] {
+            for first in [false, true] {
+                let env = Env::new("extraction-shared-input-budget");
+                let source = extraction_source(&env);
+                let policy = grant(&env, api);
+                let (sid, run) = extraction::create(
+                    &env.vault,
+                    &owner(),
+                    &env.policy(),
+                    &extraction_options(source, api),
+                    b"shared-input-budget",
+                )
+                .unwrap();
+                let job = extraction::job(&env.vault, &owner(), &sid, &run).unwrap();
+                let enabled = AtomicBool::new(true);
+                let adapter = VaultAdapter {
+                    vault: &env.vault,
+                    owner: owner(),
+                    input_event: job.input_event_id,
+                    enabled: &enabled,
+                    quota: Quota::default(),
+                };
+                let (index, _) = enouia_memory_index::Index::rebuild(&env.vault).unwrap();
+                // Prepare while the graph is unambiguous, then change the
+                // archive so admission must recheck rather than trust prepare.
+                let call = extraction::prepare(
+                    &adapter,
+                    &index,
+                    &run,
+                    &extraction_capabilities(&env, api),
+                    Limits::default(),
+                    CallOptions::text(policy.clone(), 1024),
+                )
+                .unwrap();
+                let alias = add_synthetic_extraction_job(&env, &sid, cost, first, None);
+                let before = env.vault.pin_current().unwrap();
+                let saved = session::get(&env.vault, &before, &sid).unwrap();
+                assert!(env.vault.verify(&before).unwrap().is_clean());
+                for selected in [&run, &alias] {
+                    assert_eq!(
+                        extraction::job(&env.vault, &owner(), &sid, selected)
+                            .unwrap_err()
+                            .code,
+                        MemoryErrorCode::InvalidRequest
+                    );
+                    assert_eq!(
+                        extraction::prepare(
+                            &adapter,
+                            &index,
+                            selected,
+                            &extraction_capabilities(&env, api),
+                            Limits::default(),
+                            CallOptions::text(policy.clone(), 1024)
+                        )
+                        .err()
+                        .unwrap()
+                        .code,
+                        MemoryErrorCode::InvalidRequest
+                    );
+                    assert_eq!(
+                        extraction::preview(&adapter, selected).unwrap_err().code,
+                        MemoryErrorCode::InvalidRequest
+                    );
+                    assert_eq!(
+                        extraction::apply_next(&adapter, selected).unwrap_err().code,
+                        MemoryErrorCode::InvalidRequest
+                    );
+                    assert_eq!(
+                        extraction::set_paused(&env.vault, &owner(), &sid, selected, true)
+                            .unwrap_err()
+                            .code,
+                        MemoryErrorCode::InvalidRequest
+                    );
+                }
+                assert_eq!(
+                    adapter.claim(&call).unwrap_err().code,
+                    MemoryErrorCode::InvalidRequest
+                );
+                let http = FakeHttp {
+                    calls: Cell::new(0),
+                    bytes: reply(api),
+                    fail: false,
+                };
+                let client = Client {
+                    transport: &http,
+                    secrets: &Secrets { missing: false },
+                    guard: &adapter,
+                    journal: &adapter,
+                };
+                assert_eq!(
+                    client
+                        .send(&call, &call.inspect().hash(), &NeverCancel)
+                        .unwrap_err()
+                        .code,
+                    MemoryErrorCode::InvalidRequest
+                );
+                assert_eq!(http.calls.get(), 0);
+                assert!(adapter.invocations().unwrap().is_empty());
+                assert_eq!(env.vault.pin_current().unwrap(), before);
+                assert_eq!(session::get(&env.vault, &before, &sid).unwrap(), saved);
+                assert!(env.vault.verify(&before).unwrap().is_clean());
+            }
+        }
+    }
+}
+
+#[test]
+fn multiple_extraction_jobs_with_distinct_inputs_keep_their_own_budget_routes() {
+    use enouia_memory_provider::extraction;
+    for api in [Api::OpenAiResponses, Api::AnthropicMessages] {
+        let env = Env::new("extraction-distinct-input-budgets");
+        let source = extraction_source(&env);
+        let policy = grant(&env, api);
+        let (sid, run) = extraction::create(
+            &env.vault,
+            &owner(),
+            &env.policy(),
+            &extraction_options(source, api),
+            b"distinct-input-budget",
+        )
+        .unwrap();
+        let job = extraction::job(&env.vault, &owner(), &sid, &run).unwrap();
+        let enabled = AtomicBool::new(true);
+        let adapter = VaultAdapter {
+            vault: &env.vault,
+            owner: owner(),
+            input_event: job.input_event_id.clone(),
+            enabled: &enabled,
+            quota: Quota::default(),
+        };
+        let (index, _) = enouia_memory_index::Index::rebuild(&env.vault).unwrap();
+        let call = extraction::prepare(
+            &adapter,
+            &index,
+            &run,
+            &extraction_capabilities(&env, api),
+            Limits::default(),
+            CallOptions::text(policy.clone(), 1024),
+        )
+        .unwrap();
+        drop(index);
+        let http = FakeHttp {
+            calls: Cell::new(0),
+            bytes: reply(api),
+            fail: false,
+        };
+        Client {
+            transport: &http,
+            secrets: &Secrets { missing: false },
+            guard: &adapter,
+            journal: &adapter,
+        }
+        .send(&call, &call.inspect().hash(), &NeverCancel)
+        .unwrap();
+        let pin = env.vault.pin_current().unwrap();
+        let header = session::get(&env.vault, &pin, &sid).unwrap();
+        let input = session::events(&env.vault, &pin, &sid, &header.default_branch_id)
+            .unwrap()
+            .into_iter()
+            .find(|e| e.event_id == job.input_event_id)
+            .unwrap();
+        // Keep the control's second request small so the fixed historical
+        // context budget does not omit it after the earlier long prompt.
+        let text = "Extract facts from the selected synthetic source.";
+        let next_input = session::save_input_with_sources(
+            &env.vault,
+            &owner(),
+            &sid,
+            &header.default_branch_id,
+            text,
+            &RequestId::from_random([37; 16]),
+            b"distinct-job-input",
+            &input.source_refs,
+        )
+        .unwrap();
+        let next_run =
+            add_synthetic_extraction_job(&env, &sid, false, false, Some(next_input.id.clone()));
+        assert_eq!(
+            extraction::job(&env.vault, &owner(), &sid, &run).unwrap(),
+            job
+        );
+        assert_eq!(
+            extraction::job(&env.vault, &owner(), &sid, &next_run)
+                .unwrap()
+                .max_reserved_tokens,
+            1
+        );
+        let next_adapter = VaultAdapter {
+            vault: &env.vault,
+            owner: owner(),
+            input_event: next_input.id,
+            enabled: &enabled,
+            quota: Quota::default(),
+        };
+        let (index, _) = enouia_memory_index::Index::rebuild(&env.vault).unwrap();
+        let next_call = extraction::prepare(
+            &next_adapter,
+            &index,
+            &next_run,
+            &extraction_capabilities(&env, api),
+            Limits::default(),
+            CallOptions::text(policy, 1024),
+        )
+        .unwrap();
+        let before = env.vault.pin_current().unwrap();
+        assert_eq!(
+            Client {
+                transport: &http,
+                secrets: &Secrets { missing: false },
+                guard: &next_adapter,
+                journal: &next_adapter
+            }
+            .send(&next_call, &next_call.inspect().hash(), &NeverCancel)
+            .unwrap_err()
+            .code,
+            MemoryErrorCode::BudgetExceeded
+        );
+        assert_eq!(http.calls.get(), 1);
+        assert_eq!(next_adapter.invocations().unwrap().len(), 1);
+        assert_eq!(env.vault.pin_current().unwrap(), before);
+        assert!(env.vault.verify(&before).unwrap().is_clean());
+    }
+}

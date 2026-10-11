@@ -853,10 +853,16 @@ impl InvocationJournal for VaultAdapter<'_> {
                 sum.checked_add(r.reserved_tokens.max(known))
             })
             .ok_or_else(|| error(MemoryErrorCode::BudgetExceeded))?;
-        let job = header
+        let mut jobs = header
             .extraction_jobs
             .iter()
-            .find(|j| j.input_event_id == input.event_id);
+            .filter(|j| j.input_event_id == input.event_id);
+        let job = jobs.next();
+        if jobs.next().is_some() {
+            // Budget and origin cannot be resolved by array order. This check
+            // also protects calls prepared before an ambiguous archive update.
+            return Err(error(MemoryErrorCode::InvalidRequest));
+        }
         if job.is_some_and(|job| {
             job.binding != call.wire.binding || capsule.purpose != Purpose::Extraction
         }) {
