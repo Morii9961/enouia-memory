@@ -290,6 +290,10 @@ The [full remember replay and target freshness acceptance](../validation/MV-6-fu
 
 [Decision](051-history-review-and-explicit-supersession.md): compare completed saved Fact/Preference suggestions by exact topic keys while retaining dates, source context, branch relationships, original suggestions and current owner edits/status. Repeat/difference hints do not select a current truth. The owner chooses a pending candidate, active target revision and business time to obtain a read-only Supersede draft; publication uses a head-bound proposal and ordinary trusted plan/confirmation. No new persistence, wire command, automatic acceptance or topic summary. [Evidence](../validation/MV-7-history-review.md).
 
+### ADR-MEM-52 — Source-linked topic briefs (Adopted, MV-7-H2c)
+
+[Decision](052-source-linked-topic-briefs.md): retain per-run selected source coverage, uncited/zero-candidate slices and response/application metadata. Produce a bounded Chinese Markdown navigation brief in memory, with exact topic filtering, source-linked original suggestions and separate current candidates. Imported text stays fenced JSON data. Extraction rendering supplies source text once while retaining stored Turn text and dependencies; path/secret guards remain. This does not synthesize or approve topic summaries. [Evidence](../validation/MV-7-topic-briefs.md).
+
 ## Relation to Enouia Runtime's register
 
 
