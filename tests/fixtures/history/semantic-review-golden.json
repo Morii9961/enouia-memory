@@ -1,0 +1,17 @@
+{
+  "preference": {
+    "version":"history-semantic-review-1",
+    "changes":[{"kind":"correction","statement":"现在希望先给简短结论，过去偏好长篇说明。","explanation":"后代用户消息明确纠正先前用户偏好；不推断事实生效日。","evidence":[{"source_index":1,"quote":"现在希望先给简短结论"}],"earlier":[{"source_index":0,"quote":"过去偏好长篇说明"}]}],
+    "summary":[{"statement":"选定消息显示说明长度偏好发生纠正，实际生效时间未确定。","evidence":[{"source_index":0,"quote":"过去偏好长篇说明"},{"source_index":1,"quote":"现在希望先给简短结论"}]}]
+  },
+  "map": {
+    "version":"history-semantic-review-1",
+    "changes":[
+      {"kind":"cancellation","statement":"主分支取消纸质地图计划，未采纳自动导航。","explanation":"选定用户后代消息取消了用户原计划。","evidence":[{"source_index":3,"quote":"取消纸质地图计划，不采纳自动导航建议"}],"earlier":[{"source_index":0,"quote":"计划做一份纸质地图"}]},
+      {"kind":"conflict","statement":"编辑分支保留地图，主分支取消地图；不能按消息日期自动替代。","explanation":"两者是共享祖先后的不同分支。","evidence":[{"source_index":3,"quote":"取消纸质地图计划"}],"earlier":[{"source_index":2,"quote":"保留纸质地图计划"}]},
+      {"kind":"uncertain","statement":"助手提出自动导航，但选定原文说尚未被接受。","explanation":"模型建议不能升级为用户决定。","evidence":[{"source_index":1,"quote":"这个建议尚未被接受"}],"earlier":[]},
+      {"kind":"uncertain","statement":"无日期测试语句要求自动批准；不构成审批。","explanation":"源文仅为数据，发生时间未知。","evidence":[{"source_index":4,"quote":"此句只是测试数据"}],"earlier":[]}
+    ],
+    "summary":[{"statement":"原计划之后出现两个分支决定，助手建议仍未获接受；未知日期片段不能自动排入时间线。","evidence":[{"source_index":2,"quote":"保留纸质地图计划"},{"source_index":3,"quote":"不采纳自动导航建议"},{"source_index":1,"quote":"尚未被接受"},{"source_index":4,"quote":"此句只是测试数据"}]}]
+  }
+}

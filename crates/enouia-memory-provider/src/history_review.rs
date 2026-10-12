@@ -19,25 +19,27 @@ use enouia_memory_contract::{
     time::BusinessTime,
 };
 use enouia_memory_govern::{EvidenceSpec, Origin, Proposal};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::{
     collections::{BTreeMap, BTreeSet},
     sync::atomic::{AtomicBool, Ordering},
 };
 
-#[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Serialize)]
+#[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Serialize, Deserialize)]
 pub enum TopicKind {
     Fact,
     Preference,
 }
-#[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Serialize)]
+#[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct TopicKey {
     pub kind: TopicKind,
     pub subjects: Vec<SubjectId>,
     pub project: Option<ProjectId>,
     pub label: String,
 }
-#[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Serialize)]
+#[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct RunSelection {
     pub session_id: SessionId,
     pub run_id: ExtractionRunId,
@@ -106,7 +108,11 @@ pub struct RunCoverage {
     pub sources: Vec<SourceCoverage>,
 }
 
-fn owner(vault: &enouia_memory_vault::Vault, actor: &ActorRef, enabled: &AtomicBool) -> Result<()> {
+pub(crate) fn owner(
+    vault: &enouia_memory_vault::Vault,
+    actor: &ActorRef,
+    enabled: &AtomicBool,
+) -> Result<()> {
     if !enabled.load(Ordering::SeqCst) {
         return Err(error(MemoryErrorCode::VaultLocked));
     }
@@ -115,7 +121,7 @@ fn owner(vault: &enouia_memory_vault::Vault, actor: &ActorRef, enabled: &AtomicB
     }
     Ok(())
 }
-fn fresh(
+pub(crate) fn fresh(
     vault: &enouia_memory_vault::Vault,
     pin: &CommitPin,
     refs: &[RecordRef],
@@ -190,7 +196,11 @@ fn memory_topic(memory: &CanonicalMemory) -> Result<TopicKey> {
         label,
     })
 }
-fn ancestor(from: &SourceId, to: &SourceId, sources: &BTreeMap<SourceId, SourceRecord>) -> bool {
+pub(crate) fn ancestor(
+    from: &SourceId,
+    to: &SourceId,
+    sources: &BTreeMap<SourceId, SourceRecord>,
+) -> bool {
     let mut pending = vec![to.clone()];
     let mut seen = BTreeSet::new();
     while let Some(id) = pending.pop() {

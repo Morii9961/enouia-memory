@@ -294,6 +294,10 @@ The [full remember replay and target freshness acceptance](../validation/MV-6-fu
 
 [Decision](052-source-linked-topic-briefs.md): retain per-run selected source coverage, uncited/zero-candidate slices and response/application metadata. Produce a bounded Chinese Markdown navigation brief in memory, with exact topic filtering, source-linked original suggestions and separate current candidates. Imported text stays fenced JSON data. Extraction rendering supplies source text once while retaining stored Turn text and dependencies; path/secret guards remain. This does not synthesize or approve topic summaries. [Evidence](../validation/MV-7-topic-briefs.md).
 
+### ADR-MEM-53 — Source-bound semantic history review (Adopted, MV-7-H2d)
+
+[Decision](053-source-bound-semantic-history-review.md): persist an exact-topic, source-linked ordinary Session task; explicitly prepare/send through existing native Provider admission with an AnalysisGuard. Whole-response validation resolves exact quotes for proposed changes and summary points. Corrections/cancellations require user evidence and directed source ancestry; derived interpretations never publish or approve memories. Latest source revisions, immutable original responses, uncited coverage and replay remain explicit. [Evidence](../validation/MV-7-semantic-review.md).
+
 ## Relation to Enouia Runtime's register
 
 
