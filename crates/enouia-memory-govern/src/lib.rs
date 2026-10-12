@@ -23,7 +23,7 @@ mod util;
 pub use evidence::EvidenceSpec;
 pub use propose::{
     CandidateEdit, Origin, Proposal, Proposed, edit_candidate, pending_candidates, propose,
-    withdraw,
+    propose_at_head, withdraw,
 };
 pub use review::{Decision, OwnerConfirmation, ReviewPlan, confirm, plan};
 pub use view::{Canonical, canonical_memories};
