@@ -1,5 +1,7 @@
 # Enouia Memory · 总体架构
 
+> **v1.3 覆盖范围：** 下文图和 Windows 根/锁/事务描述记录现有本地底座。最终拓扑、权威位置和单主迁移改由 [云端主库设计](CLOUD_PRIMARY_AND_HISTORY.md) 与 ADR-MEM-49 定义：云端主库，本地初始化、副本和恢复。MV-8/9 先验证平台端口与主权契约，再迁移，不能把现有 NTFS 验证当云端证据。
+
 版本：设计包 v1.0 / 2026-09-28。本文负责组件、存储权威和事务；字段以 [DATA_MODEL](DATA_MODEL.md) 为准，安全策略以 [PRIVACY_RECOVERY](PRIVACY_RECOVERY.md) 为准。
 
 ## 1. 与既有 Runtime 的关系

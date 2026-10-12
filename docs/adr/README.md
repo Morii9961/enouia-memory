@@ -8,7 +8,7 @@ These come from [design/DECISIONS_AND_SOURCES](../design/DECISIONS_AND_SOURCES.m
 
 | ID | Decision | Status |
 |---|---|---|
-| ADR-MEM-01 | Local Primary; single owner, several principals | Adopted |
+| ADR-MEM-01 | Local Primary; single owner, several principals | Local-primary target superseded by ADR-MEM-49; current local implementation retained |
 | ADR-MEM-02 | Raw / Canonical / Candidates / Session / Index layers | Adopted |
 | ADR-MEM-03 | Canonical JSON, Identity Markdown, rebuildable index | Adopted |
 | ADR-MEM-04 | Immutable revisions + commit catalog + single `CURRENT` | Adopted (contract); behavior in MV-1 |
@@ -22,7 +22,7 @@ These come from [design/DECISIONS_AND_SOURCES](../design/DECISIONS_AND_SOURCES.m
 | ADR-MEM-12 | Activity is independent | Adopted (Activity stays in Runtime) |
 | ADR-MEM-13 | ACL / verified volume protection + restic backup | Direction recorded; gated before real data |
 | ADR-MEM-14 | Raw immutable by default; owner deletion is the exception | Adopted (contract); purge in MV-3 |
-| ADR-MEM-15 | Gateway at-least-once + local idempotency | Deferred (MV-9) |
+| ADR-MEM-15 | Gateway at-least-once + local idempotency | Gateway-only target superseded by ADR-MEM-49; event reliability retained |
 | ADR-MEM-16 | Encrypted device replica ≠ server-computable subset | Deferred (MV-10) |
 | ADR-MEM-17 | Single primary; offline edits become candidates | Deferred (MV-10) |
 | ADR-MEM-18 | Adapters open only after measurement | Adopted |
@@ -277,6 +277,10 @@ The [full remember replay and target freshness acceptance](../validation/MV-6-fu
 ### ADR-MEM-48 — Hosting native Provider dispatch in the workspace Core (Adopted implementation; real activation pending)
 
 [Decision](048-workspace-native-provider-hosting.md): the host injects a native transport, secret store and owner-verified destinations with `Workspace::set_native_provider`; seven workspace IPC commands cover grant/revocation plans, exact-body preparation, one-attempt sending as an operation and local interruption. Without the injection the Core stays Mock-only. Close/lock disable native access before joining workers. Amends ADR-MEM-47's "workspace stays on Mock" for hosts that opt in.
+
+### ADR-MEM-49 — Cloud primary and historical initialization (Adopted direction; H1 implemented)
+
+[Full decision](049-cloud-primary-and-history-initialization.md) and [design v1.3](../design/CLOUD_PRIMARY_AND_HISTORY.md). Target one cloud primary with local initialization, offline copies and independent encrypted recovery. H1 implements only a pure read-only history planner and a synthetic example. This changes future Host/cloud/replica targets, not current workspace IPC, storage, approval or Provider behavior. Cloud trust scope, actual data/calls/deployment and automatic acceptance remain unactivated. Later MV stages still need explicit starts.
 
 ## Relation to Enouia Runtime's register
 

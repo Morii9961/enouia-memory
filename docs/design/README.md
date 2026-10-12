@@ -1,4 +1,6 @@
-# Enouia Memory · 架构设计包 v1.2
+# Enouia Memory · 架构设计包 v1.3
+
+> **v1.3（2026-10-11，ADR-MEM-49）：** Morii 要求沿云端主库、完整历史初始化与 MCP 记忆循环继续开发。当前目标与阶段出口以 [云端主库与历史初始化](CLOUD_PRIMARY_AND_HISTORY.md) 为准；它替代旧文的本地主库、VPS 仅跳板及有限服务副本目标。现有本地实现继续工作，本次只实现 MV-7-H1 离线规划；不激活云端、真实历史或下一个 MV 阶段。
 
 > **v1.1 修订（2026-09-28，MV-0R）：** Enouia Memory 在本仓库 [Morii9961/enouia-memory](https://github.com/Morii9961/enouia-memory) 独立开发（ADR-MEM-19）。原设计中“把实现放进 Runtime 工作区”的安排已失效，MV-0 草稿已迁入本仓库并按 [独立审核](../reviews/MV0_REVIEW_AND_REPO_CORRECTION.md) 修正 F1～F6，结果见 [MV-0R 报告](../validation/MV-0R.md) 与 [ADR 登记簿](../adr/README.md)。本版只修改工程归属、数据根与阶段入口；v1.0 原文可在 Git 历史（提交 da0d1e3）中查看。下文“本轮核对范围”记录最初设计包的范围。
 
@@ -6,7 +8,7 @@
 
 设计日期：2026-09-28。设计负责人：Enouia（本轮由 Codex 完成）；后续实现交接对象：用户指定的 Claude Opus 5.5。
 
-**本设计把 Memory Vault 放到 Runtime 的首要基础设施位置：先保存可恢复的历史，再建立经审核的记忆，最后接入 Windows、模型、MCP 与 VPS。** 本目录只包含设计文档；没有实现、真实历史导入、部署或数据上传。
+**先保存可恢复的历史，再建立经审核的记忆，再接通模型、MCP 与云端主服务。** 本目录只包含设计文档；代码与验证证据在本仓库其他目录，文档目标不等于能力已实现。本轮没有真实历史导入、部署或数据上传。
 
 这里的 v1.0 是文档版本，不代表软件已经发布，也不改写 Runtime Architecture v0.3、Memory schema v1 或 ActivityData v1 的版本含义。
 
@@ -15,6 +17,7 @@
 | 文档 | 回答的问题 | 主要读者 |
 |---|---|---|
 | [PRODUCT_VISION](PRODUCT_VISION.md) | Enouia 要保住什么，什么才算完成 | Morii、实现者 |
+| [CLOUD_PRIMARY_AND_HISTORY](CLOUD_PRIMARY_AND_HISTORY.md) | 云端主库、完整初始化、MCP 循环及新版 v1 门槛 | Morii、所有实现者 |
 | [MEMORY_ARCHITECTURE](MEMORY_ARCHITECTURE.md) | 模块、真相源、进程、目录与事务如何组成整体 | 架构与存储实现者 |
 | [DATA_MODEL](DATA_MODEL.md) | 记忆、来源、时间、版本、候选和会话的精确语义 | 契约实现者 |
 | [IMPORT_REVIEW](IMPORT_REVIEW.md) | 如何无损接收历史、提取候选并安全确认 | 导入与审核实现者 |
@@ -30,14 +33,14 @@ Morii 可以先读愿景、总架构和实施计划。Claude 在实现前须读�
 
 ## 已作出的关键选择
 
-1. 本地 Vault 是 Memory 域权威源；Activity 保持独立数据根、调度和公开契约。
+1. 当前实现以本地 Vault 为权威；最终目标改为云端单主，本地初始化、离线副本与备份。Activity 保持独立。
 2. 原始字节、已审核记录、操作历史、会话均保存为可恢复文件；SQLite 和向量仅作可重建索引。
 3. Canonical 使用版本化 JSON，Identity 使用 Markdown；人工可读不等于所有文件都可绕过审核直接编辑。
 4. 单写者、不可变修订、事务清单及一个 CURRENT 指针共同提交，避免“几次单文件替换”冒充跨文件事务。
 5. 模型和外部 Agent 只能提出候选；正式提交必须有可验证的用户确认。
 6. 优先级、敏感度、事实时效性独立；旧事实可以正确描述过去，却不足以证明今天的状态。
 7. 先离线 Mock 闭环，再 Windows 最小记忆界面，再真实 Provider / MCP；完整桌面 Companion 随后扩展。v1.2：Windows 界面由 Runtime 客户端承载（嵌入固定修订的 `enouia-memory-workspace`），本仓库 `apps/workspace` 为参考外壳。
-8. VPS 先做可替换的网关和持久队列；加密备份、加密设备副本、可供服务器计算的有限副本是三种不同能力。
+8. VPS 的最终职责改为完整记忆主服务；备份与离线副本继续独立。部署、服务明文信任及单主迁移在对应阶段验证，不能从已选方向推断已启用。
 
 ## 本轮核对范围
 

@@ -2,6 +2,8 @@
 
 All project documentation lives under `docs/`.
 
+Current route (2026-10-11): [cloud primary, historical initialization and MCP cycle](design/CLOUD_PRIMARY_AND_HISTORY.md), [ADR-MEM-49](adr/049-cloud-primary-and-history-initialization.md), and the [MV-7-H1 offline planning report](validation/MV-7-history-planning.md). The local implementation remains; no cloud activation follows from this direction update.
+
 | Folder | Content | Status |
 |---|---|---|
 | [design/](design/README.md) | Memory design package v1.2 (Chinese): vision, architecture, data model, import/review, context, interfaces, privacy/recovery, plan, acceptance, decisions, handoff | Target specification. v1.1 corrects repository ownership, the data root and the MV-0R entry; v1.2 records that Runtime hosts the local frontend (ADR-MEM-45); v1.0 is in Git history (`da0d1e3`) |

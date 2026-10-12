@@ -1,5 +1,7 @@
 # Runtime integration (ADR-MEM-45)
 
+2026-10-11 target amendment: [ADR-MEM-49](../adr/049-cloud-primary-and-history-initialization.md) targets a cloud primary, local initialization/copies and independent recovery. The current embedded Core, 47-command workspace IPC and Runtime adapter remain. H1 adds only an offline history-planning library/example; a future Host/cloud client migration must be versioned and adopted explicitly, rather than inferred from this design change.
+
 Enouia Runtime ([Morii9961/enouia-runtime](https://github.com/Morii9961/enouia-runtime)) is the Windows client. It hosts Memory's local frontend by embedding `enouia-memory-workspace` at a pinned Git revision behind its own adapter. This repository keeps the domain, the contracts, the data rules, the reference shell, the CLI, and every cloud stage. This page is the handoff. It covers what Runtime consumes, what each side owns, how a change here reaches Runtime, and the compatibility log.
 
 The Runtime-side counterpart is Runtime [ADR-025](https://github.com/Morii9961/enouia-runtime/blob/main/docs/adr/025-enouia-memory-integration.md) with its [integration guide](https://github.com/Morii9961/enouia-runtime/blob/main/docs/MEMORY_INTEGRATION_v1.md). Runtime records the pinned revision in `docs/integration/memory-pin.json`.

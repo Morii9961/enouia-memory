@@ -10,6 +10,7 @@
 pub mod audit;
 pub mod chatgpt;
 pub mod detect;
+pub mod history;
 pub mod locate;
 pub mod markdown;
 pub mod parsed;
