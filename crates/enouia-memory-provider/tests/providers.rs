@@ -1,5 +1,8 @@
 //! Isolated synthetic Vaults and fake byte transports. No credentials or HTTP.
 
+#[path = "cases/history_review.rs"]
+mod history_review_cases;
+
 #[test]
 fn history_batches_keep_completed_or_failed_attempts_and_purge_dependencies() {
     use enouia_memory_contract::{

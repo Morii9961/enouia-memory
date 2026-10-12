@@ -5,6 +5,7 @@ pub mod codec;
 pub mod egress;
 pub mod extraction;
 pub mod history;
+pub mod history_review;
 pub mod policy;
 pub mod stream;
 pub mod transport;

@@ -286,6 +286,10 @@ The [full remember replay and target freshness acceptance](../validation/MV-6-fu
 
 [Decision](050-archived-history-extraction-batches.md): bind explicitly selected H1 batches to archived bytes, adapter and current source revisions; save a source-linked coordinator input, then create existing extraction jobs with distinct replay keys. Reopening/cancellation/publication failure reuse those jobs without a transport call. A changed plan under the same owner key conflicts. Child invocation failures and unknown outcomes remain visible and never authorize resending. No new Session fields, record kinds, wire commands or automatic acceptance. [Evidence](../validation/MV-7-history-binding.md).
 
+### ADR-MEM-51 — History review and explicit supersession (Adopted, MV-7-H2b)
+
+[Decision](051-history-review-and-explicit-supersession.md): compare completed saved Fact/Preference suggestions by exact topic keys while retaining dates, source context, branch relationships, original suggestions and current owner edits/status. Repeat/difference hints do not select a current truth. The owner chooses a pending candidate, active target revision and business time to obtain a read-only Supersede draft; publication uses a head-bound proposal and ordinary trusted plan/confirmation. No new persistence, wire command, automatic acceptance or topic summary. [Evidence](../validation/MV-7-history-review.md).
+
 ## Relation to Enouia Runtime's register
 
 

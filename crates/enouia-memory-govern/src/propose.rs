@@ -359,6 +359,18 @@ pub fn propose(
 ) -> Result<Proposed> {
     propose_on_head(vault, proposal, origin, key, None)
 }
+/// Store a pending proposal only on the inspected head. An already committed
+/// idempotency receipt may be replayed after that head has moved; it performs
+/// no new write. Owner acceptance still requires a separate plan/confirmation.
+pub fn propose_at_head(
+    vault: &Vault,
+    proposal: &Proposal,
+    origin: &Origin,
+    key: &[u8],
+    required_head: &CommitId,
+) -> Result<Proposed> {
+    propose_on_head(vault, proposal, origin, key, Some(required_head))
+}
 fn propose_on_head(
     vault: &Vault,
     proposal: &Proposal,

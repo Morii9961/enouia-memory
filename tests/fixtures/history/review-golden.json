@@ -1,0 +1,32 @@
+{
+  "note": "Controlled fake claims, not model-quality evidence. Batch indices refer to initialization-synthetic with messages_per_batch=2.",
+  "runs": [
+    {"batch":0,"candidates":[
+      {"kind":"preference","content":"过去偏好长篇说明。","quote":"过去偏好长篇说明","source_index":0,"scope":"explanation","strength":"tentative"},
+      {"kind":"preference","content":"现在希望先给简短结论。","quote":"现在希望先给简短结论","source_index":1,"scope":"explanation","strength":"tentative"}
+    ]},
+    {"batch":1,"candidates":[
+      {"kind":"fact","content":"计划做纸质地图。","quote":"计划做一份纸质地图","source_index":0,"claim_key":"map"},
+      {"kind":"fact","content":"助手建议自动导航，尚未接受。","quote":"建议把地图改成自动导航应用","source_index":1,"claim_key":"navigation"}
+    ]},
+    {"batch":2,"candidates":[
+      {"kind":"fact","content":"编辑分支保留地图。","quote":"保留纸质地图计划","source_index":1,"claim_key":"map"}
+    ]},
+    {"batch":3,"candidates":[
+      {"kind":"fact","content":"计划做纸质地图。","quote":"计划做一份纸质地图","source_index":0,"claim_key":"map"}
+    ]},
+    {"batch":4,"candidates":[
+      {"kind":"fact","content":"主分支取消地图且未采纳导航。","quote":"取消纸质地图计划，不采纳自动导航建议","source_index":1,"claim_key":"map"}
+    ]},
+    {"batch":5,"candidates":[
+      {"kind":"fact","content":"无日期测试语句，不构成审批。","quote":"此句只是测试数据","source_index":0,"claim_key":"map"}
+    ]}
+  ],
+  "expected": {
+    "explanation_count":2,
+    "map_count":5,
+    "navigation_count":1,
+    "map_pairs":10,
+    "repeat_pairs":1
+  }
+}
