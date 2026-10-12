@@ -4,7 +4,7 @@
 
 > **当前路线 v1.3（2026-10-11）：** [ADR-MEM-49](../adr/049-cloud-primary-and-history-initialization.md) 确认云端主库目标；新版 v1 门槛和激活决定见 [完整路线](CLOUD_PRIMARY_AND_HISTORY.md)。本次领取 MV-7-H1（设计对齐、只读历史处理规划、合成样例），不自动启动 MV-8。MV-7-H2 才接入可恢复批量抽取和跨时间候选；当前真实双 Provider 出口仍 pending。
 
-> **2026-10-12 接续：** H1/H2a 已通过 PR #8 合并（`ef4ff4b`），H2b 对比/显式替代草案已通过 PR #9 合并（`88e1e18`），见 [H2b 报告](../validation/MV-7-history-review.md)。H2c 增加带覆盖范围的来源导航回顾和完整多行来源呈现，见 [ADR-MEM-52](../adr/052-source-linked-topic-briefs.md) 和 [报告](../validation/MV-7-topic-briefs.md)。语义变化判断、主题摘要与真实规模/模型验收仍未完成，MV-8 未启动。
+> **2026-10-12 接续：** H1/H2a、H2b 和 H2c 已分别通过 PR #8/#9/#10 合并，main 基线为 `18a1b52`。H2d 增加带来源的原生语义变化/主题摘要审核任务，见 [ADR-MEM-53](../adr/053-source-bound-semantic-history-review.md) 和 [报告](../validation/MV-7-semantic-review.md)。结构与证据门槛已用受控假响应验证，真实语义质量、漏提和全量尺度仍未验收；MV-8 未启动。
 
 ## 1. 实施纪律与版本关系
 

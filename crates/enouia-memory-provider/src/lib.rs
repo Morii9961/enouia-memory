@@ -6,6 +6,7 @@ pub mod egress;
 pub mod extraction;
 pub mod history;
 pub mod history_review;
+pub mod history_semantic;
 pub mod policy;
 pub mod stream;
 pub mod transport;
