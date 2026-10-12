@@ -1,0 +1,185 @@
+{
+  "schema_version": "history-quality-1",
+  "cases": [
+    {
+      "case_id": "faithful-cancellation",
+      "evidence_mode": "synthetic",
+      "reviewer": "synthetic_fixture",
+      "native_task_input_sha256": null,
+      "source_file": "initialization-synthetic.json",
+      "messages": [
+        {
+          "conversation_id": "synthetic-project",
+          "message_id": "u2"
+        }
+      ],
+      "scope_value_sha256": "926ff00c02f9355a15d88a0c8d458ccd2914047af21817bb63b8895547a621df",
+      "response_value_sha256": "a121848e0709b5a596866e3b2a13899c9201f5a9199bfda560d34a78549e9f56",
+      "response": {
+        "version": "history-semantic-review-1",
+        "changes": [
+          {
+            "kind": "new_information",
+            "statement": "主分支取消纸质地图，未采纳导航。",
+            "explanation": "选定用户消息保留了取消及未采纳的限定。",
+            "evidence": [
+              {
+                "source_index": 0,
+                "quote": "取消纸质地图计划，不采纳自动导航建议"
+              }
+            ],
+            "earlier": []
+          }
+        ],
+        "summary": []
+      },
+      "required_units": [
+        "map_cancelled",
+        "navigation_not_adopted"
+      ],
+      "item_judgments": [
+        {
+          "path": "/changes/0/statement",
+          "verdict": "supported",
+          "reason": "保留取消和未采纳两项。",
+          "evidence": [
+            {
+              "source_index": 0,
+              "quote": "取消纸质地图计划，不采纳自动导航建议"
+            }
+          ]
+        },
+        {
+          "path": "/changes/0/explanation",
+          "verdict": "supported",
+          "reason": "用户原文确有两个限定。",
+          "evidence": [
+            {
+              "source_index": 0,
+              "quote": "主分支后续决定"
+            }
+          ]
+        }
+      ],
+      "unit_judgments": [
+        {
+          "unit_id": "map_cancelled",
+          "status": "observed",
+          "paths": [
+            "/changes/0/statement"
+          ],
+          "reason": "陈述保留取消。"
+        },
+        {
+          "unit_id": "navigation_not_adopted",
+          "status": "observed",
+          "paths": [
+            "/changes/0/statement"
+          ],
+          "reason": "陈述保留未采纳。"
+        }
+      ]
+    },
+    {
+      "case_id": "valid-quote-lost-negation",
+      "evidence_mode": "synthetic",
+      "reviewer": "synthetic_fixture",
+      "native_task_input_sha256": null,
+      "source_file": "initialization-synthetic.json",
+      "messages": [
+        {
+          "conversation_id": "synthetic-project",
+          "message_id": "u2"
+        }
+      ],
+      "scope_value_sha256": "926ff00c02f9355a15d88a0c8d458ccd2914047af21817bb63b8895547a621df",
+      "response_value_sha256": "af7e1205e08b117e290acda1a4b55613a51f02ce47aeb223deb77b59dca9192e",
+      "response": {
+        "version": "history-semantic-review-1",
+        "changes": [
+          {
+            "kind": "new_information",
+            "statement": "用户采纳了自动导航。",
+            "explanation": "回答没有报告地图计划的取消。",
+            "evidence": [
+              {
+                "source_index": 0,
+                "quote": "取消纸质地图计划，不采纳自动导航建议"
+              }
+            ],
+            "earlier": []
+          }
+        ],
+        "summary": []
+      },
+      "required_units": [
+        "map_cancelled",
+        "navigation_not_adopted"
+      ],
+      "item_judgments": [
+        {
+          "path": "/changes/0/statement",
+          "verdict": "contradicted",
+          "reason": "精确引文含不采纳，陈述反转否定。",
+          "evidence": [
+            {
+              "source_index": 0,
+              "quote": "不采纳自动导航建议"
+            }
+          ]
+        },
+        {
+          "path": "/changes/0/explanation",
+          "verdict": "supported",
+          "reason": "此回答确实遗漏取消；不能因此把关键单元算已覆盖。",
+          "evidence": [
+            {
+              "source_index": 0,
+              "quote": "取消纸质地图计划"
+            }
+          ]
+        }
+      ],
+      "unit_judgments": [
+        {
+          "unit_id": "map_cancelled",
+          "status": "missing",
+          "paths": [],
+          "reason": "陈述未保留取消。"
+        },
+        {
+          "unit_id": "navigation_not_adopted",
+          "status": "missing",
+          "paths": [],
+          "reason": "陈述反转未采纳。"
+        }
+      ]
+    },
+    {
+      "case_id": "empty-awaits-review",
+      "evidence_mode": "synthetic",
+      "reviewer": "synthetic_fixture",
+      "native_task_input_sha256": null,
+      "source_file": "initialization-synthetic.json",
+      "messages": [
+        {
+          "conversation_id": "synthetic-project",
+          "message_id": "u2"
+        }
+      ],
+      "scope_value_sha256": "926ff00c02f9355a15d88a0c8d458ccd2914047af21817bb63b8895547a621df",
+      "response_value_sha256": "c7cfdab165f802ea338a388e37aa6f9327f0078af12fda8c293e5eb64a2cc230",
+      "response": {
+        "version": "history-semantic-review-1",
+        "changes": [],
+        "summary": []
+      },
+      "required_units": [
+        "map_cancelled",
+        "navigation_not_adopted"
+      ],
+      "item_judgments": [],
+      "unit_judgments": []
+    }
+  ]
+}

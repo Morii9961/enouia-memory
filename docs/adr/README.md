@@ -298,6 +298,10 @@ The [full remember replay and target freshness acceptance](../validation/MV-6-fu
 
 [Decision](053-source-bound-semantic-history-review.md): persist an exact-topic, source-linked ordinary Session task; explicitly prepare/send through existing native Provider admission with an AnalysisGuard. Whole-response validation resolves exact quotes for proposed changes and summary points. Corrections/cancellations require user evidence and directed source ancestry; derived interpretations never publish or approve memories. Latest source revisions, immutable original responses, uncited coverage and replay remain explicit. [Evidence](../validation/MV-7-semantic-review.md).
 
+### ADR-MEM-54 — Offline history quality assessment (Adopted, MV-7-H2e)
+
+[Decision](054-history-quality-assessment-harness.md): calculate item faithfulness and required-unit coverage from explicit human judgments bound to selected source/response JSON hashes. Keep contradicted/unsupported, missing and unknown/unreviewed separate; native validation and overall model quality remain unclaimed. Synthetic positive/negative/pending cases calibrate the evaluator. No Core, wire, persistence or Runtime adoption change. [Evidence](../validation/MV-7-quality-assessment.md).
+
 ## Relation to Enouia Runtime's register
 
 
