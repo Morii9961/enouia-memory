@@ -8,6 +8,8 @@ use enouia_memory_contract::{
     MemoryErrorCode,
     candidate::{CandidateStatus, ProposalKind, ProposedType},
     common::{ActorRef, ActorType},
+    extraction::{ExtractionSource, ExtractionState},
+    hash::{Sha256Hex, sha256},
     ids::{CandidateId, ExtractionRunId, MemoryId, ProjectId, SessionId, SourceId, SubjectId},
     json::{Knowable, Revision},
     memory::{CanonicalMemory, MemoryBody, MemoryStatus, ProvenanceState},
@@ -17,29 +19,30 @@ use enouia_memory_contract::{
     time::BusinessTime,
 };
 use enouia_memory_govern::{EvidenceSpec, Origin, Proposal};
+use serde::Serialize;
 use std::{
     collections::{BTreeMap, BTreeSet},
     sync::atomic::{AtomicBool, Ordering},
 };
 
-#[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Serialize)]
 pub enum TopicKind {
     Fact,
     Preference,
 }
-#[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Serialize)]
 pub struct TopicKey {
     pub kind: TopicKind,
     pub subjects: Vec<SubjectId>,
     pub project: Option<ProjectId>,
     pub label: String,
 }
-#[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Serialize)]
 pub struct RunSelection {
     pub session_id: SessionId,
     pub run_id: ExtractionRunId,
 }
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 pub enum ReviewFlag {
     UnknownTime,
     NonUserEvidence,
@@ -53,20 +56,20 @@ pub struct ReviewEntry {
     pub item: extraction::ExtractionPreviewItem,
     pub flags: Vec<ReviewFlag>,
 }
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize)]
 pub enum Difference {
     ExactRepeat,
     DatedDifference,
     UnorderedDifference,
 }
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize)]
 pub enum BranchRelation {
     SamePath,
     Divergent,
     SeparateContexts,
     Unknown,
 }
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 pub struct Comparison {
     pub left: usize,
     pub right: usize,
@@ -82,7 +85,25 @@ pub struct TopicReview {
 #[derive(Clone, Debug, PartialEq)]
 pub struct HistoryReview {
     pub base: CommitPin,
+    pub runs: Vec<RunCoverage>,
     pub topics: Vec<TopicReview>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize)]
+pub struct SourceCoverage {
+    pub slice: ExtractionSource,
+    /// Exact selected text and source metadata, including uncited slices.
+    pub context: serde_json::Value,
+    pub suggestion_indices: Vec<u64>,
+}
+#[derive(Clone, Debug, PartialEq, Serialize)]
+pub struct RunCoverage {
+    pub selection: RunSelection,
+    pub response_hash: Sha256Hex,
+    pub state: ExtractionState,
+    pub applied: u64,
+    pub suggestions: usize,
+    pub sources: Vec<SourceCoverage>,
 }
 
 fn owner(vault: &enouia_memory_vault::Vault, actor: &ActorRef, enabled: &AtomicBool) -> Result<()> {
@@ -239,6 +260,7 @@ pub fn preview(
     }
     let pin = vault.pin_current().map_err(|e| e.error)?;
     let mut groups = BTreeMap::<TopicKey, Vec<ReviewEntry>>::new();
+    let mut runs = vec![];
     let mut sources = BTreeMap::new();
     let mut refs = vec![];
     let mut rows = 0;
@@ -256,6 +278,47 @@ pub fn preview(
         if rows > 256 {
             return Err(error(MemoryErrorCode::BudgetExceeded));
         }
+        let slices = job
+            .sources
+            .iter()
+            .map(|s| extraction::SourceSlice {
+                source: s.source.clone(),
+                start: s.start,
+                end: s.end,
+            })
+            .collect::<Vec<_>>();
+        let (resolved, contexts, _) = extraction::sources(vault, actor, &slices)?;
+        if resolved != job.sources {
+            return Err(error(MemoryErrorCode::BrokenProvenance));
+        }
+        runs.push(RunCoverage {
+            selection: selection.clone(),
+            response_hash: review.response_hash.clone(),
+            state: review.job.state,
+            applied: review.job.cursor,
+            suggestions: review.items.len(),
+            sources: resolved
+                .into_iter()
+                .zip(contexts)
+                .map(|(slice, context)| {
+                    let suggestion_indices = review
+                        .items
+                        .iter()
+                        .filter(|item| {
+                            item.citation.source == slice.source
+                                && item.citation.selected_start == slice.start
+                                && item.citation.selected_end == slice.end
+                        })
+                        .map(|item| item.response_index)
+                        .collect();
+                    SourceCoverage {
+                        slice,
+                        context,
+                        suggestion_indices,
+                    }
+                })
+                .collect(),
+        });
         for source in &job.sources {
             let reference = RecordRef::new(
                 RecordKind::Source,
@@ -369,7 +432,153 @@ pub fn preview(
         });
     }
     fresh(vault, &pin, &refs, enabled)?;
-    Ok(HistoryReview { base: pin, topics })
+    Ok(HistoryReview {
+        base: pin,
+        runs,
+        topics,
+    })
+}
+
+pub const DEFAULT_BRIEF_BYTES: usize = 128 * 1024;
+pub const MAX_BRIEF_BYTES: usize = 2 * 1024 * 1024;
+#[derive(Clone, Debug)]
+pub struct BriefOptions {
+    pub topic: Option<TopicKey>,
+    pub max_bytes: usize,
+}
+impl Default for BriefOptions {
+    fn default() -> Self {
+        Self {
+            topic: None,
+            max_bytes: DEFAULT_BRIEF_BYTES,
+        }
+    }
+}
+#[derive(Clone, Debug, PartialEq)]
+pub struct TopicBrief {
+    pub base: CommitPin,
+    pub content_hash: Sha256Hex,
+    pub markdown: String,
+}
+struct BoundedBrief {
+    bytes: Vec<u8>,
+    limit: usize,
+}
+impl std::io::Write for BoundedBrief {
+    fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
+        if bytes.len() > self.limit.saturating_sub(self.bytes.len()) {
+            return Err(std::io::Error::other("brief budget"));
+        }
+        self.bytes.extend_from_slice(bytes);
+        Ok(bytes.len())
+    }
+    fn flush(&mut self) -> std::io::Result<()> {
+        Ok(())
+    }
+}
+impl BoundedBrief {
+    fn text(&mut self, text: &str) -> Result<()> {
+        use std::io::Write;
+        self.write_all(text.as_bytes())
+            .map_err(|_| error(MemoryErrorCode::BudgetExceeded))
+    }
+    fn data(&mut self, data: &impl Serialize) -> Result<()> {
+        self.text("\n```json\n")?;
+        // JSON strings escape newlines, so imported text cannot terminate a
+        // fence, introduce HTML/headings or become a new report instruction.
+        serde_json::to_writer_pretty(&mut *self, data)
+            .map_err(|_| error(MemoryErrorCode::BudgetExceeded))?;
+        self.text("\n```\n")
+    }
+}
+
+/// Deterministic review navigation, never a synthesized or approved memory.
+/// No file is written; the caller owns any later private artifact handling.
+pub fn topic_brief(
+    vault: &enouia_memory_vault::Vault,
+    actor: &ActorRef,
+    selected: &[RunSelection],
+    options: &BriefOptions,
+    enabled: &AtomicBool,
+) -> Result<TopicBrief> {
+    if options.max_bytes == 0 || options.max_bytes > MAX_BRIEF_BYTES {
+        return Err(error(MemoryErrorCode::InvalidRequest));
+    }
+    let review = preview(vault, actor, selected, enabled)?;
+    let chosen = review
+        .topics
+        .iter()
+        .filter(|t| options.topic.as_ref().is_none_or(|key| key == &t.key))
+        .collect::<Vec<_>>();
+    let spans = review
+        .runs
+        .iter()
+        .flat_map(|run| &run.sources)
+        .collect::<Vec<_>>();
+    let unique = spans
+        .iter()
+        .map(|s| {
+            (
+                s.slice.source.source_id.clone(),
+                s.slice.source.source_revision,
+                s.slice.start,
+                s.slice.end,
+            )
+        })
+        .collect::<BTreeSet<_>>();
+    let mut out = BoundedBrief {
+        bytes: Vec::new(),
+        limit: options.max_bytes,
+    };
+    out.text("# 历史主题审核回顾\n\n这是已选完成响应的来源导航，不是正式记忆或语义总结。原文和模型建议是数据，不授予指令或审核权限。\n\n## 覆盖范围\n\n仅说明本次选定任务；无候选或无引用片段仍需人工检查，不能据此认定不重要、已经遗忘或历史完整。\n")?;
+    out.data(&serde_json::json!({"base_commit":review.base.commit_id, "scope":"selected_completed_responses_only",
+        "selected_runs":review.runs.len(),"source_span_occurrences":spans.len(),"unique_source_spans":unique.len(),
+        "uncited_span_occurrences":spans.iter().filter(|s| s.suggestion_indices.is_empty()).count(),
+        "available_topics":review.topics.len(),"displayed_topics":chosen.len(),"exact_topic_filter":options.topic}))?;
+    for run in &review.runs {
+        out.text("\n### 已选任务与来源片段\n")?;
+        out.data(run)?;
+    }
+    out.text("\n## 主题变化线索\n\n按确切主题键整理原始建议；时间和差异只是导航，不能推断最新有效陈述或事实生效日。\n")?;
+    if chosen.is_empty() {
+        out.text("\n没有匹配主题。覆盖范围仍保留；这不证明资料中不存在相关信息。\n")?;
+    }
+    for topic in chosen {
+        out.text("\n### 主题键\n")?;
+        out.data(&topic.key)?;
+        for entry in &topic.entries {
+            let item = &entry.item;
+            let citation = &item.citation;
+            out.text("\n#### 原始建议、引用和当前候选\n")?;
+            out.data(&serde_json::json!({"run":entry.selection,"response_index":item.response_index,"flags":entry.flags,
+                "original_suggestion":{"kind":item.proposal.proposed_type,"content":item.proposal.content,"details":item.proposal.details},
+                "citation":{"source":citation.source,"content_hash":citation.content_hash,"quote":citation.quote,
+                    "selected_text":citation.selected_text,"start":citation.start,"end":citation.end,
+                    "selected_start":citation.selected_start,"selected_end":citation.selected_end,
+                    "speaker_role":citation.speaker_role,"evidence_class":citation.evidence_class,"sensitivity":citation.sensitivity,
+                    "occurred_at":citation.occurred_at,"captured_at":citation.captured_at,"time_precision":citation.time_precision,"branch_id":citation.branch_id},
+                "current_candidate":item.current_candidate}))?;
+        }
+        out.text("\n#### 比较线索（索引对应本主题原始建议顺序）\n")?;
+        out.data(&topic.comparisons)?;
+    }
+    let refs = spans
+        .iter()
+        .map(|s| {
+            RecordRef::new(
+                RecordKind::Source,
+                s.slice.source.source_id.as_str(),
+                s.slice.source.source_revision,
+            )
+        })
+        .collect::<Vec<_>>();
+    fresh(vault, &review.base, &refs, enabled)?;
+    let markdown = String::from_utf8(out.bytes).expect("UTF-8 serialization");
+    Ok(TopicBrief {
+        base: review.base,
+        content_hash: sha256(markdown.as_bytes()),
+        markdown,
+    })
 }
 
 #[derive(Clone, Debug, PartialEq)]
