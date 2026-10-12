@@ -140,7 +140,7 @@ fn source_text(vault: &Vault, source: &SourceRecord) -> Result<String> {
     }
     String::from_utf8(data).map_err(|_| error(MemoryErrorCode::InvalidRequest))
 }
-fn sources(
+pub(crate) fn sources(
     vault: &Vault,
     actor: &ActorRef,
     selection: &[SourceSlice],
@@ -248,7 +248,7 @@ fn sources(
         .map_err(|e| e.error)?;
     Ok((saved, data, sensitivity))
 }
-fn seed(key: &[u8]) -> [u8; 16] {
+pub(crate) fn seed(key: &[u8]) -> [u8; 16] {
     let hash = sha256(key);
     let text = hash.as_str().as_bytes();
     fn nibble(b: u8) -> u8 {

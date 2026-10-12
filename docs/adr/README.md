@@ -282,6 +282,10 @@ The [full remember replay and target freshness acceptance](../validation/MV-6-fu
 
 [Full decision](049-cloud-primary-and-history-initialization.md) and [design v1.3](../design/CLOUD_PRIMARY_AND_HISTORY.md). Target one cloud primary with local initialization, offline copies and independent encrypted recovery. H1 implements only a pure read-only history planner and a synthetic example. This changes future Host/cloud/replica targets, not current workspace IPC, storage, approval or Provider behavior. Cloud trust scope, actual data/calls/deployment and automatic acceptance remain unactivated. Later MV stages still need explicit starts.
 
+### ADR-MEM-50 — Archived history extraction batches (Adopted, MV-7-H2a)
+
+[Decision](050-archived-history-extraction-batches.md): bind explicitly selected H1 batches to archived bytes, adapter and current source revisions; save a source-linked coordinator input, then create existing extraction jobs with distinct replay keys. Reopening/cancellation/publication failure reuse those jobs without a transport call. A changed plan under the same owner key conflicts. Child invocation failures and unknown outcomes remain visible and never authorize resending. No new Session fields, record kinds, wire commands or automatic acceptance. [Evidence](../validation/MV-7-history-binding.md).
+
 ## Relation to Enouia Runtime's register
 
 

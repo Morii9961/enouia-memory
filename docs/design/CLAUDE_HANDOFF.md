@@ -1,5 +1,7 @@
 # 交给 Claude Opus 5.5 · Enouia Memory 实施交接
 
+> **2026-10-12，H2a：** H1 已推送为 `5035c2e`；H2a 的来源绑定、协调计划/子任务恢复证据及下一片边界见 [报告](../validation/MV-7-history-binding.md)。保留显式批次选择、原 key/options、逐子任务请求审核和调用结果；不能把 ready/next_batch 当重发授权。完整跨时间提炼与主题回顾仍待做。
+
 > **2026-10-11 路线接续：** 先读 [设计包 v1.3](CLOUD_PRIMARY_AND_HISTORY.md)、[ADR-MEM-49](../adr/049-cloud-primary-and-history-initialization.md) 和 [H1 报告](../validation/MV-7-history-planning.md)。旧交接中的本地主库和 VPS 仅网关目标已修订；现有嵌入式 Core 及 MV-7 真实验收边界仍有效。H1 完成不启动 H2、MV-8 或部署。
 
 > **MV-7 接续（2026-10-10）：** 当前已授权阶段和实现证据见 [Claude MV-7 交接](../handoff/CLAUDE_MV7_HANDOFF.md)。下面的旧 MV-0 主体保留为历史，不作为当前启动指令。

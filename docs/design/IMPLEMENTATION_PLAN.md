@@ -4,6 +4,8 @@
 
 > **当前路线 v1.3（2026-10-11）：** [ADR-MEM-49](../adr/049-cloud-primary-and-history-initialization.md) 确认云端主库目标；新版 v1 门槛和激活决定见 [完整路线](CLOUD_PRIMARY_AND_HISTORY.md)。本次领取 MV-7-H1（设计对齐、只读历史处理规划、合成样例），不自动启动 MV-8。MV-7-H2 才接入可恢复批量抽取和跨时间候选；当前真实双 Provider 出口仍 pending。
 
+> **2026-10-12 接续：** H1 已提交并推送到开发分支（`5035c2e`）。H2a 已实现归档来源/修订绑定、协调计划及现有抽取子任务的恢复重放，见 [报告](../validation/MV-7-history-binding.md) 和 [ADR-MEM-50](../adr/050-archived-history-extraction-batches.md)。H2 的跨批语义、主题回顾与真实规模/模型验收仍未完成，MV-8 未启动。
+
 ## 1. 实施纪律与版本关系
 
 本计划采用 MV-* 编号，避免与 Runtime 已有 M0、A1/A2/A3、B1～B5 混淆。MV-0 对齐契约，MV-1/3/4 细化原 A1，MV-5 对应原 A2，MV-6 对应原 A3，MV-2 将原先后置的历史导入前移。Activity Track B 继续按其独立计划推进，不被 Memory 重排或偷偷扩展。

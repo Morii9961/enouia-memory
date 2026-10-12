@@ -1,4 +1,264 @@
 //! Isolated synthetic Vaults and fake byte transports. No credentials or HTTP.
+
+#[test]
+fn history_batches_keep_completed_or_failed_attempts_and_purge_dependencies() {
+    use enouia_memory_contract::{
+        commit::{DeleteMode, DeleteScope},
+        extraction::ExtractionState,
+    };
+    use enouia_memory_govern::{Canonical, Decision, Origin, OwnerConfirmation, Proposed};
+    use enouia_memory_import::{ImportOptions, history::HistoryLimits, import_file};
+    use enouia_memory_provider::{
+        extraction,
+        history::{HistoryOptions, materialize},
+    };
+    const EXPORT: &[u8] =
+        include_bytes!("../../../tests/fixtures/history/initialization-synthetic.json");
+    for api in [Api::OpenAiResponses, Api::AnthropicMessages] {
+        for fail in [false, true] {
+            let env = Env::new("history-explicit-attempt");
+            let file = env.root.join("synthetic-history.json");
+            std::fs::write(&file, EXPORT).unwrap();
+            let mut import_options = ImportOptions::new(owner(), "synthetic", env.policy());
+            import_options.sensitivity = Sensitivity::Normal;
+            let imported = import_file(&env.vault, &file, &import_options, &NeverCancel).unwrap();
+            let options = HistoryOptions {
+                import_id: imported.import_id,
+                local_policy: env.policy(),
+                history_limits: HistoryLimits {
+                    messages_per_batch: 2,
+                    ..HistoryLimits::default()
+                },
+                batch_indices: vec![4],
+                api,
+                model: "synthetic-model".into(),
+                subject_id: SubjectId::parse("sub_00000001-0000-4000-8000-000000000001").unwrap(),
+                max_candidates: 2,
+                max_pending: 500,
+                max_reserved_tokens: 100_000,
+                max_reserved_cost_microusd: None,
+            };
+            let initial = materialize(
+                &env.vault,
+                &owner(),
+                &options,
+                b"history-attempt",
+                &NeverCancel,
+            )
+            .unwrap();
+            let child = &initial.batches[0];
+            let policy = grant(&env, api);
+            let enabled = AtomicBool::new(true);
+            let adapter = VaultAdapter {
+                vault: &env.vault,
+                owner: owner(),
+                input_event: child.input_event_id.clone(),
+                enabled: &enabled,
+                quota: Quota::default(),
+            };
+            let (index, _) = enouia_memory_index::Index::rebuild(&env.vault).unwrap();
+            let call = extraction::prepare(
+                &adapter,
+                &index,
+                &child.run_id,
+                &extraction_capabilities(&env, api),
+                Limits::default(),
+                CallOptions::text(policy, 1024),
+            )
+            .unwrap();
+            let quote = "取消纸质地图计划，不采纳自动导航建议";
+            let claims = json!({"candidates":[{"kind":"fact","content":"合成项目已取消地图计划，也未采纳导航建议。",
+                "quote":quote,"source_index":1,"claim_key":"synthetic_cancelled_map"}]});
+            let mut wire: serde_json::Value = serde_json::from_slice(&reply(api)).unwrap();
+            if api == Api::OpenAiResponses {
+                wire["output"][0]["content"][0]["text"] = json!(claims.to_string());
+            } else {
+                wire["content"][0]["text"] = json!(claims.to_string());
+            }
+            let http = FakeHttp {
+                calls: Cell::new(0),
+                bytes: serde_json::to_vec(&wire).unwrap(),
+                fail,
+            };
+            let client = Client {
+                transport: &http,
+                secrets: &Secrets { missing: false },
+                guard: &adapter,
+                journal: &adapter,
+            };
+            assert_eq!(
+                client
+                    .send(&call, &call.inspect().hash(), &NeverCancel)
+                    .is_err(),
+                fail
+            );
+            if !fail {
+                let preview = extraction::preview(&adapter, &child.run_id).unwrap();
+                assert_eq!(preview.items[0].citation.quote, quote);
+                assert!(
+                    preview.items[0]
+                        .citation
+                        .selected_text
+                        .contains("主分支后续决定")
+                );
+                assert_eq!(
+                    preview.items[0]
+                        .citation
+                        .occurred_at
+                        .as_ref()
+                        .unwrap()
+                        .as_str(),
+                    "2026-01-01T00:00:00.000Z"
+                );
+                assert_eq!(
+                    extraction::apply_next(&adapter, &child.run_id)
+                        .unwrap()
+                        .state,
+                    ExtractionState::Completed
+                );
+                assert!(
+                    enouia_memory_govern::canonical_memories(
+                        &env.vault,
+                        &env.vault.pin_current().unwrap(),
+                        Canonical::Active
+                    )
+                    .unwrap()
+                    .is_empty()
+                );
+            }
+            let before_replay = env.vault.pin_current().unwrap();
+            let replay = materialize(
+                &env.vault,
+                &owner(),
+                &options,
+                b"history-attempt",
+                &NeverCancel,
+            )
+            .unwrap();
+            assert_eq!(
+                replay.batches[0].invocation_state,
+                Some(if fail {
+                    InvocationState::Failed
+                } else {
+                    InvocationState::Completed
+                })
+            );
+            assert_eq!(
+                replay.batches[0].state,
+                if fail {
+                    ExtractionState::Ready
+                } else {
+                    ExtractionState::Completed
+                }
+            );
+            assert_eq!(replay.next_batch, if fail { Some(4) } else { None });
+            assert_eq!(env.vault.pin_current().unwrap(), before_replay);
+            assert!(
+                client
+                    .send(&call, &call.inspect().hash(), &NeverCancel)
+                    .is_err()
+            );
+            assert_eq!(
+                http.calls.get(),
+                1,
+                "materialization did not resend the saved attempt"
+            );
+            if !fail {
+                let candidate =
+                    enouia_memory_govern::pending_candidates(&env.vault, &before_replay)
+                        .unwrap()
+                        .remove(0);
+                let accepted = enouia_memory_govern::plan(
+                    &env.vault,
+                    &[Decision::Accept {
+                        candidate_id: candidate.candidate_id,
+                        revision: candidate.revision,
+                    }],
+                    &owner(),
+                    TrustedSurface::TrustedLocalCli,
+                )
+                .unwrap();
+                enouia_memory_govern::confirm(
+                    &env.vault,
+                    &accepted,
+                    &OwnerConfirmation {
+                        owner: owner(),
+                        surface: TrustedSurface::TrustedLocalCli,
+                    },
+                )
+                .unwrap();
+                let memory = enouia_memory_govern::canonical_memories(
+                    &env.vault,
+                    &env.vault.pin_current().unwrap(),
+                    Canonical::Active,
+                )
+                .unwrap()
+                .remove(0);
+                let deletion = enouia_memory_govern::delete::delete_proposal(
+                    &memory,
+                    DeleteMode::Purge,
+                    DeleteScope::WithDependents,
+                );
+                let Proposed::Stored(delete_candidate) = enouia_memory_govern::propose(
+                    &env.vault,
+                    &deletion,
+                    &Origin::owner(owner()),
+                    b"delete-history-source",
+                )
+                .unwrap() else {
+                    panic!("candidate")
+                };
+                let shown = enouia_memory_govern::plan(
+                    &env.vault,
+                    &[Decision::Accept {
+                        candidate_id: delete_candidate.id,
+                        revision: Revision::new(1).unwrap(),
+                    }],
+                    &owner(),
+                    TrustedSurface::TrustedLocalCli,
+                )
+                .unwrap();
+                enouia_memory_govern::confirm(
+                    &env.vault,
+                    &shown,
+                    &OwnerConfirmation {
+                        owner: owner(),
+                        surface: TrustedSurface::TrustedLocalCli,
+                    },
+                )
+                .unwrap();
+                enouia_memory_govern::delete::complete_purge(
+                    &env.vault,
+                    &shown.ids[0].delete_id,
+                    &owner(),
+                    b"purge-history-source",
+                )
+                .unwrap();
+                let pin = env.vault.pin_current().unwrap();
+                assert_eq!(
+                    env.vault
+                        .read_object(&pin, &initial.plan_hash)
+                        .unwrap_err()
+                        .error
+                        .code,
+                    MemoryErrorCode::IntentionallyPurged
+                );
+                assert!(
+                    materialize(
+                        &env.vault,
+                        &owner(),
+                        &options,
+                        b"history-attempt",
+                        &NeverCancel
+                    )
+                    .is_err()
+                );
+                assert_eq!(env.vault.pin_current().unwrap(), pin);
+                assert!(env.vault.verify(&pin).unwrap().is_clean());
+            }
+        }
+    }
+}
 #[path = "../../enouia-memory-context/tests/support/mod.rs"]
 mod support;
 use enouia_memory_context::{CompileInput, compiler, session};
