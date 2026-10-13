@@ -32,6 +32,25 @@ def read_json(path, limit):
 
 
 def scope_for(case, root):
+    if "source_scope" in case:
+        require(case.get("scope_kind") == "native_selected_spans_v1"
+                and "source_file" not in case and "messages" not in case, "ambiguous native scope")
+        selected = case["source_scope"]
+        require(isinstance(selected, list) and 0 < len(selected) <= 16, "source selection budget")
+        require(len(json.dumps(selected, ensure_ascii=False).encode()) <= 128 * 1024, "native scope budget")
+        seen = set()
+        for item in selected:
+            ref, span, text = item["source"], item["selection"], item["text"]
+            start, end = span["start"], span["end"]
+            require(isinstance(text, str) and type(start) is int and type(end) is int
+                    and 0 <= start < end and end - start == len(text.encode()), "native span")
+            require(item["snippet_hash"] == hashlib.sha256(text.encode()).hexdigest(), "native snippet binding")
+            require(isinstance(ref["source_id"], str) and type(ref["source_revision"]) is int
+                    and ref["source_revision"] > 0, "native source ref")
+            key = (ref["source_id"], ref["source_revision"], start, end)
+            require(key not in seen, "duplicate native span")
+            seen.add(key)
+        return selected
     target = (root / case["source_file"]).resolve()
     require(target.is_relative_to(root.resolve()), "source outside suite directory")
     raw = read_json(target, 2 * 1024 * 1024)
@@ -67,11 +86,13 @@ def assess(case, scope):
     require(case["scope_value_sha256"] == digest(scope), "scope judgment binding changed")
     require(case["response_value_sha256"] == digest(case["response"]), "response judgment binding changed")
     require(case["evidence_mode"] in ("synthetic", "owner_selected"), "evidence mode")
-    require(case["reviewer"] in ("synthetic_fixture", "owner"), "reviewer")
+    require(case["reviewer"] in ("synthetic_fixture", "owner", "pending"), "reviewer")
+    if case["reviewer"] == "pending":
+        require(case["item_judgments"] == [] and case["unit_judgments"] == [], "pending reviewer cannot judge")
     if case["evidence_mode"] == "synthetic":
-        require(case["reviewer"] == "synthetic_fixture", "synthetic fixture is not owner acceptance")
+        require(case["reviewer"] in ("synthetic_fixture", "pending"), "synthetic fixture is not owner acceptance")
     if case["evidence_mode"] == "owner_selected":
-        require(case["reviewer"] == "owner" and isinstance(case.get("native_task_input_sha256"), str)
+        require(case["reviewer"] in ("owner", "pending") and isinstance(case.get("native_task_input_sha256"), str)
                 and len(case["native_task_input_sha256"]) == 64
                 and all(c in "0123456789abcdef" for c in case["native_task_input_sha256"]), "native sample binding required")
     paths = item_paths(case["response"])
@@ -85,7 +106,7 @@ def assess(case, scope):
         for evidence in review["evidence"]:
             i, quote = evidence["source_index"], evidence["quote"]
             require(type(i) is int and 0 <= i < len(scope), "review evidence index")
-            text = "\n".join(p for p in scope[i]["node"]["message"]["content"]["parts"] if isinstance(p, str))
+            text = scope[i]["text"] if case.get("scope_kind") == "native_selected_spans_v1" else "\n".join(p for p in scope[i]["node"]["message"]["content"]["parts"] if isinstance(p, str))
             require(isinstance(quote, str) and quote.strip() and quote in text, "review quote not in source")
         verdicts[path] = verdict
     units = case["required_units"]
