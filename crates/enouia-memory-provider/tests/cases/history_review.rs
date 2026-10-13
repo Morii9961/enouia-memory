@@ -1,7 +1,9 @@
 use super::*;
 use enouia_memory_contract::{
     candidate::{CandidateRecord, CandidateStatus},
+    common::{ActorType, TimePrecision},
     memory::MemoryStatus,
+    source::ConfirmationMethod,
     time::{BusinessTime, Timestamp},
 };
 use enouia_memory_govern::{CandidateEdit, Canonical, Decision, OwnerConfirmation, Proposed};
@@ -10,6 +12,7 @@ use enouia_memory_provider::{
     extraction,
     history::{HistoryOptions, HistoryProgress, materialize},
     history_review::{self, BranchRelation, Difference, ReviewFlag, RunSelection},
+    history_semantic_proposal::{self, DraftAction, OwnerSelection},
 };
 
 // Streaming segmentation already has dedicated codec tests. One chunk keeps
@@ -1624,6 +1627,75 @@ fn semantic_source_purge_erases_bound_input_and_refuses_saved_analysis() {
     )
     .unwrap()
     .remove(0);
+    let semantic = VaultAdapter {
+        vault: &env.vault,
+        owner: owner(),
+        input_event: task.input_event_id.clone(),
+        enabled: &enabled,
+        quota: Quota::default(),
+    };
+    let review = history_semantic::preview(&semantic, &task).unwrap();
+    let selection = choice(&review, 0);
+    let draft = history_semantic_proposal::draft(&semantic, &task, &selection).unwrap();
+    let Proposed::Stored(derived) = enouia_memory_govern::propose_at_head(
+        &env.vault,
+        &draft.proposal,
+        &draft.origin,
+        b"derived-before-purge",
+        &draft.base.commit_id,
+    )
+    .unwrap() else {
+        panic!("stored")
+    };
+    // A later edit removes all original evidence/text; purge must still find
+    // the earlier revision without deleting an unrelated pending proposal.
+    let unrelated_source = env
+        .vault
+        .record_manual_assertion(
+            &enouia_memory_vault::service::ManualAssertionInput {
+                text: "无关的合成主人输入。".into(),
+                operator: owner(),
+                trusted_surface: TrustedSurface::TrustedLocalCli,
+                confirmation: ConfirmationMethod::TypedConfirmation,
+                sensitivity: Sensitivity::Normal,
+                access_policy_id: env.policy(),
+                time_precision: TimePrecision::Millisecond,
+            },
+            b"unrelated-purge-control",
+        )
+        .unwrap()
+        .id;
+    let safe_evidence = vec![enouia_memory_govern::EvidenceSpec::content(
+        unrelated_source.clone(),
+        Revision::new(1).unwrap(),
+    )];
+    enouia_memory_govern::edit_candidate(
+        &env.vault,
+        &derived.id,
+        Revision::new(1).unwrap(),
+        &CandidateEdit {
+            content: Some("无关的当前候选文本。".into()),
+            evidence: Some(safe_evidence.clone()),
+            reason: Some("edited synthetic candidate".into()),
+            ..CandidateEdit::default()
+        },
+        &owner(),
+        b"edit-away-original-evidence",
+    )
+    .unwrap();
+    let mut safe = draft.proposal.clone();
+    safe.content = "应保留的无关提案。".into();
+    safe.reason = "unrelated synthetic control".into();
+    safe.evidence = safe_evidence;
+    let Proposed::Stored(unrelated) = enouia_memory_govern::propose(
+        &env.vault,
+        &safe,
+        &draft.origin,
+        b"unrelated-pending-control",
+    )
+    .unwrap() else {
+        panic!("stored")
+    };
     let proposal = enouia_memory_govern::delete::delete_proposal(
         &memory,
         DeleteMode::Purge,
@@ -1680,7 +1752,50 @@ fn semantic_source_purge_erases_bound_input_and_refuses_saved_analysis() {
             .code,
         MemoryErrorCode::IntentionallyPurged
     );
+    assert_eq!(
+        env.vault
+            .read_record(
+                &pin,
+                &enouia_memory_contract::record::RecordRef::new(
+                    RecordKind::Candidate,
+                    derived.id.as_str(),
+                    Revision::new(2).unwrap(),
+                )
+            )
+            .unwrap_err()
+            .error
+            .code,
+        MemoryErrorCode::IntentionallyPurged
+    );
+    assert!(
+        env.vault
+            .read_record(
+                &pin,
+                &enouia_memory_contract::record::RecordRef::new(
+                    RecordKind::Candidate,
+                    unrelated.id.as_str(),
+                    Revision::new(1).unwrap(),
+                )
+            )
+            .is_ok()
+    );
     assert!(history_semantic::preview(&semantic, &task).is_err());
+    assert!(history_semantic_proposal::draft(&semantic, &task, &selection).is_err());
+    assert_eq!(
+        env.vault
+            .read_revision(
+                &pin,
+                &enouia_memory_contract::record::RecordRef::new(
+                    RecordKind::Candidate,
+                    derived.id.as_str(),
+                    Revision::new(1).unwrap(),
+                )
+            )
+            .unwrap_err()
+            .error
+            .code,
+        MemoryErrorCode::IntentionallyPurged
+    );
     assert!(
         history_semantic::create(&env.vault, &owner(), &options, b"purge-semantic", &enabled)
             .is_err()
@@ -1762,4 +1877,315 @@ fn semantic_preference_cannot_promote_a_model_only_claim() {
         MemoryErrorCode::InvalidRequest
     );
     assert_eq!(env.vault.pin_current().unwrap(), pin);
+}
+
+fn choice(review: &history_semantic::SemanticPreview, index: usize) -> OwnerSelection {
+    OwnerSelection {
+        dispatch_id: review.dispatch_id.clone(),
+        response_hash: review.response_hash.clone(),
+        change_index: index,
+        content: review.changes[index].statement.clone(),
+        action: DraftAction::Create,
+    }
+}
+
+#[test]
+fn semantic_proposal_draft_keeps_model_attribution_and_only_publishes_pending() {
+    use enouia_memory_contract::candidate::OriginKind;
+    for api in [Api::OpenAiResponses, Api::AnthropicMessages] {
+        let env = Env::new("semantic-proposal-model-evidence");
+        let policy = grant(&env, api);
+        let options = semantic_options(&env, api, vec![1, 2, 4, 5], "map", policy.clone());
+        let enabled = AtomicBool::new(true);
+        let task =
+            history_semantic::create(&env.vault, &owner(), &options, b"draft-analysis", &enabled)
+                .unwrap();
+        semantic_send(&env, api, &task, policy, &semantic_golden()["map"], false);
+        let adapter = VaultAdapter {
+            vault: &env.vault,
+            owner: owner(),
+            input_event: task.input_event_id.clone(),
+            enabled: &enabled,
+            quota: Quota::default(),
+        };
+        let review = history_semantic::preview(&adapter, &task).unwrap();
+        let mut selected = choice(&review, 2);
+        selected.content = "主人选定提案：助手建议自动导航，尚未获接受。".into();
+        let draft = history_semantic_proposal::draft(&adapter, &task, &selected).unwrap();
+        assert_eq!(env.vault.pin_current().unwrap(), review.base);
+        let mut conflict = choice(&review, 1);
+        let conflict_draft = history_semantic_proposal::draft(&adapter, &task, &conflict).unwrap();
+        assert_eq!(
+            conflict_draft.proposal.details.as_ref().unwrap()["epistemic_status"],
+            "disputed"
+        );
+        conflict.action = DraftAction::Supersede {
+            target: enouia_memory_contract::ids::MemoryId::from_random([8; 16]),
+            revision: Revision::new(1).unwrap(),
+            effective_from: BusinessTime::Unknown,
+        };
+        assert!(history_semantic_proposal::draft(&adapter, &task, &conflict).is_err());
+        assert_eq!(draft.origin.kind, OriginKind::OwnerManual);
+        assert_eq!(draft.origin.actor, owner());
+        assert!(draft.origin.extraction_run_id.is_none());
+        assert!(draft.origin.confidence.is_none());
+        assert_eq!(draft.proposal.effective_from, None);
+        assert_eq!(draft.proposal.sensitivity, Some(Sensitivity::Normal));
+        assert_eq!(
+            draft.proposal.details.as_ref().unwrap()["epistemic_status"],
+            "uncertain"
+        );
+        let reason: serde_json::Value = serde_json::from_str(&draft.proposal.reason).unwrap();
+        assert_eq!(reason["model_statement"], review.changes[2].statement);
+        assert_eq!(reason["model_explanation"], review.changes[2].explanation);
+        assert_eq!(reason["task"]["input_hash"], json!(task.input_hash));
+        assert_eq!(reason["response_hash"], json!(review.response_hash));
+        assert_eq!(reason["evidence"][0]["evidence_class"], "model_claim");
+        assert_eq!(
+            reason["evidence"][0]["quote"],
+            review.changes[2].evidence[0].quote
+        );
+        for invalid in 0..5 {
+            let mut bad = choice(&review, 2);
+            match invalid {
+                0 => bad.response_hash = sha256(b"uninspected response"),
+                1 => {
+                    bad.dispatch_id = enouia_memory_contract::ids::DispatchId::from_random([9; 16])
+                }
+                2 => bad.change_index = 99,
+                3 => bad.content = " ".into(),
+                _ => bad.content = format!("sk-{}", "a".repeat(24)),
+            }
+            assert!(history_semantic_proposal::draft(&adapter, &task, &bad).is_err());
+            assert_eq!(env.vault.pin_current().unwrap(), review.base);
+        }
+        enabled.store(false, Ordering::SeqCst);
+        assert_eq!(
+            history_semantic_proposal::draft(&adapter, &task, &selected)
+                .unwrap_err()
+                .code,
+            MemoryErrorCode::VaultLocked
+        );
+        enabled.store(true, Ordering::SeqCst);
+        let mut wrong = VaultAdapter {
+            vault: &env.vault,
+            owner: owner(),
+            input_event: task.input_event_id.clone(),
+            enabled: &enabled,
+            quota: Quota::default(),
+        };
+        wrong.owner.actor_type = ActorType::System;
+        assert_eq!(
+            history_semantic_proposal::draft(&wrong, &task, &selected)
+                .unwrap_err()
+                .code,
+            MemoryErrorCode::PermissionDenied
+        );
+        let Proposed::Stored(written) = enouia_memory_govern::propose_at_head(
+            &env.vault,
+            &draft.proposal,
+            &draft.origin,
+            b"chosen-model-draft",
+            &draft.base.commit_id,
+        )
+        .unwrap() else {
+            panic!("stored")
+        };
+        let published = env.vault.pin_current().unwrap();
+        let Proposed::Stored(replayed) = enouia_memory_govern::propose_at_head(
+            &env.vault,
+            &draft.proposal,
+            &draft.origin,
+            b"chosen-model-draft",
+            &draft.base.commit_id,
+        )
+        .unwrap() else {
+            panic!("replay")
+        };
+        assert_eq!(written.id, replayed.id);
+        assert_eq!(env.vault.pin_current().unwrap(), published);
+        assert!(
+            enouia_memory_govern::propose_at_head(
+                &env.vault,
+                &draft.proposal,
+                &draft.origin,
+                b"stale-new-key",
+                &draft.base.commit_id
+            )
+            .is_err()
+        );
+        let pending = enouia_memory_govern::pending_candidates(&env.vault, &published).unwrap();
+        assert_eq!(pending.len(), 1);
+        assert_eq!(pending[0].status, CandidateStatus::Pending);
+        assert_eq!(
+            pending[0].evidence[0].evidence_class,
+            enouia_memory_contract::common::EvidenceClass::ModelClaim
+        );
+        assert_eq!(pending[0].reason, draft.proposal.reason);
+        assert!(
+            enouia_memory_govern::canonical_memories(&env.vault, &published, Canonical::Active)
+                .unwrap()
+                .is_empty()
+        );
+        assert!(env.vault.verify(&published).unwrap().is_clean());
+    }
+}
+
+#[test]
+fn semantic_proposal_supersession_needs_current_target_and_explicit_business_time() {
+    for api in [Api::OpenAiResponses, Api::AnthropicMessages] {
+        let env = Env::new("semantic-proposal-supersession");
+        let policy = grant(&env, api);
+        let options = semantic_options(&env, api, vec![0], "explanation", policy.clone());
+        let enabled = AtomicBool::new(true);
+        let original = &options.selected[0];
+        let job =
+            extraction::job(&env.vault, &owner(), &original.session_id, &original.run_id).unwrap();
+        let original_adapter = VaultAdapter {
+            vault: &env.vault,
+            owner: owner(),
+            input_event: job.input_event_id,
+            enabled: &enabled,
+            quota: Quota::default(),
+        };
+        extraction::apply_next(&original_adapter, &original.run_id).unwrap();
+        let old =
+            enouia_memory_govern::pending_candidates(&env.vault, &env.vault.pin_current().unwrap())
+                .unwrap()
+                .remove(0);
+        accept(&env, &old);
+        let target = enouia_memory_govern::canonical_memories(
+            &env.vault,
+            &env.vault.pin_current().unwrap(),
+            Canonical::Active,
+        )
+        .unwrap()
+        .remove(0);
+        let task = history_semantic::create(
+            &env.vault,
+            &owner(),
+            &options,
+            b"supersede-analysis",
+            &enabled,
+        )
+        .unwrap();
+        semantic_send(
+            &env,
+            api,
+            &task,
+            policy,
+            &semantic_golden()["preference"],
+            false,
+        );
+        let adapter = VaultAdapter {
+            vault: &env.vault,
+            owner: owner(),
+            input_event: task.input_event_id.clone(),
+            enabled: &enabled,
+            quota: Quota::default(),
+        };
+        let review = history_semantic::preview(&adapter, &task).unwrap();
+        let effective = BusinessTime::Known(Timestamp::parse("2026-02-03T00:00:00.000Z").unwrap());
+        let mut selected = choice(&review, 0);
+        selected.content = "先给简短结论，细节按需。".into();
+        selected.action = DraftAction::Supersede {
+            target: target.memory_id.clone(),
+            revision: target.revision,
+            effective_from: effective.clone(),
+        };
+        let draft = history_semantic_proposal::draft(&adapter, &task, &selected).unwrap();
+        assert_eq!(env.vault.pin_current().unwrap(), review.base);
+        selected.action = DraftAction::Supersede {
+            target: target.memory_id.clone(),
+            revision: target.revision,
+            effective_from: BusinessTime::Unknown,
+        };
+        assert_eq!(
+            history_semantic_proposal::draft(&adapter, &task, &selected)
+                .unwrap()
+                .proposal
+                .effective_from,
+            Some(BusinessTime::Unknown)
+        );
+        assert_eq!(draft.proposal.effective_from, Some(effective.clone()));
+        assert_eq!(
+            draft.proposal.kind,
+            enouia_memory_contract::candidate::ProposalKind::Supersede
+        );
+        assert_eq!(
+            draft.proposal.details.as_ref().unwrap()["strength"],
+            "tentative"
+        );
+        assert_eq!(draft.proposal.evidence.len(), 2);
+        selected.action = DraftAction::Supersede {
+            target: target.memory_id.clone(),
+            revision: Revision::new(2).unwrap(),
+            effective_from: effective.clone(),
+        };
+        assert!(history_semantic_proposal::draft(&adapter, &task, &selected).is_err());
+        let Proposed::Stored(written) = enouia_memory_govern::propose_at_head(
+            &env.vault,
+            &draft.proposal,
+            &draft.origin,
+            b"chosen-supersession",
+            &draft.base.commit_id,
+        )
+        .unwrap() else {
+            panic!("stored")
+        };
+        let pin = env.vault.pin_current().unwrap();
+        assert_eq!(
+            enouia_memory_govern::canonical_memories(&env.vault, &pin, Canonical::Active).unwrap()
+                [0]
+            .memory_id,
+            target.memory_id
+        );
+        let candidate = enouia_memory_govern::pending_candidates(&env.vault, &pin)
+            .unwrap()
+            .into_iter()
+            .find(|c| c.candidate_id == written.id)
+            .unwrap();
+        accept(&env, &candidate);
+        let pin = env.vault.pin_current().unwrap();
+        let current = enouia_memory_govern::canonical_memories(&env.vault, &pin, Canonical::Active)
+            .unwrap()
+            .remove(0);
+        assert_eq!(current.content, draft.proposal.content);
+        assert_eq!(current.supersedes[0].effective_from, effective);
+        assert!(env.vault.verify(&pin).unwrap().is_clean());
+    }
+}
+
+#[test]
+fn semantic_proposal_does_not_turn_uncertain_model_only_text_into_a_preference() {
+    let env = Env::new("semantic-draft-model-preference");
+    let api = Api::OpenAiResponses;
+    let policy = grant(&env, api);
+    let options = semantic_options(&env, api, vec![0, 1], "explanation", policy.clone());
+    let enabled = AtomicBool::new(true);
+    let task = history_semantic::create(
+        &env.vault,
+        &owner(),
+        &options,
+        b"uncertain-model-pref",
+        &enabled,
+    )
+    .unwrap();
+    let output = json!({"version":history_semantic::VERSION,"changes":[{"kind":"uncertain","statement":"助手建议，不能确定用户偏好。","explanation":"仅有模型证据。","evidence":[{"source_index":3,"quote":"建议把地图改成自动导航应用"}],"earlier":[]}],"summary":[]});
+    semantic_send(&env, api, &task, policy, &output, false);
+    let adapter = VaultAdapter {
+        vault: &env.vault,
+        owner: owner(),
+        input_event: task.input_event_id.clone(),
+        enabled: &enabled,
+        quota: Quota::default(),
+    };
+    let review = history_semantic::preview(&adapter, &task).unwrap();
+    assert_eq!(
+        history_semantic_proposal::draft(&adapter, &task, &choice(&review, 0))
+            .unwrap_err()
+            .code,
+        MemoryErrorCode::InvalidRequest
+    );
+    assert_eq!(env.vault.pin_current().unwrap(), review.base);
 }

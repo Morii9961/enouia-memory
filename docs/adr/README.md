@@ -302,6 +302,10 @@ The [full remember replay and target freshness acceptance](../validation/MV-6-fu
 
 [Decision](054-history-quality-assessment-harness.md): calculate item faithfulness and required-unit coverage from explicit human judgments bound to selected source/response JSON hashes. Keep contradicted/unsupported, missing and unknown/unreviewed separate; native validation and overall model quality remain unclaimed. Synthetic positive/negative/pending cases calibrate the evaluator. No Core, wire, persistence or Runtime adoption change. [Evidence](../validation/MV-7-quality-assessment.md).
 
+### ADR-MEM-55 — Owner-selected semantic proposal drafts (Adopted, MV-7-H2f)
+
+[Decision](055-owner-selected-semantic-proposal-drafts.md): bind explicit owner choices to saved semantic responses, retain model attribution and original evidence classes in ordinary pending proposals, and require current exact-topic targets and explicit business time for correction/cancellation drafts. Drafting never writes/sends/confirms. Source purge also removes dependent candidate text. [Evidence](../validation/MV-7-semantic-proposal-drafts.md).
+
 ## Relation to Enouia Runtime's register
 
 
