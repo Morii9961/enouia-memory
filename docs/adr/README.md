@@ -314,6 +314,10 @@ The [full remember replay and target freshness acceptance](../validation/MV-6-fu
 
 [Decision](057-native-quality-review-bundles.md): generate bounded private assessment suites in memory from validated saved semantic tasks, preserve native selected spans/uncited coverage, and match offline JSON value hashes. Pending reviewers have no judgments or acceptance claim; offline metadata stays unauthenticated. [Evidence](../validation/MV-7-quality-bundles.md).
 
+### ADR-MEM-58 — Selected-source lineage input (Adopted, MV-7-H2i)
+
+[Decision](058-selected-source-lineage-input.md): optionally include bounded direct parent indices from selected Source revisions, preserve missing/unknown ancestry and legacy tasks, and separate native Request IDs. Normal native validation and explicit sending remain required. [Evidence](../validation/MV-7-semantic-lineage.md).
+
 ## Relation to Enouia Runtime's register
 
 

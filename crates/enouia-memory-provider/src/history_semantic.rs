@@ -16,7 +16,7 @@ use enouia_memory_contract::{
     extraction::ExtractionSource,
     hash::{Sha256Hex, sha256},
     ids::*,
-    json::Revision,
+    json::{Knowable, Revision},
     ports::CommitPin,
     provider::{InvocationState, ProviderCapabilities},
     record::{AnyRecord, RecordKind, RecordRef},
@@ -45,6 +45,16 @@ pub struct AnalysisOptions {
     pub model: String,
     pub local_policy: PolicyId,
 }
+/// Direct parent edges within the selected spans only. Missing parents are not
+/// fetched; known empty parents and unknown provenance remain distinguishable.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct SelectedLineage {
+    source_index: usize,
+    parent_source_indices: Vec<usize>,
+    unselected_parent_count: Option<usize>,
+}
+const LINEAGE_INSTRUCTION: &str = " selected_lineage contains direct parent edges between selected sources only. A null unselected_parent_count means parents are unknown; a positive count means parent sources are outside selection and their content was not fetched. Only a path of listed edges proves ancestry. Shared branch IDs or timestamps alone never prove an edge. This metadata does not prove truth, acceptance or business effective time.";
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct AnalysisTask {
     pub session_id: SessionId,
@@ -96,6 +106,8 @@ struct Plan {
     sources: Vec<ExtractionSource>,
     contexts: Vec<Value>,
     suggestions: Vec<Value>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    selected_lineage: Option<Vec<SelectedLineage>>,
 }
 fn api(binding: &ProviderBinding) -> Result<Api> {
     match binding.provider.as_str() {
@@ -109,6 +121,7 @@ fn plan(
     actor: &ActorRef,
     options: &AnalysisOptions,
     enabled: &AtomicBool,
+    include_lineage: bool,
 ) -> Result<Plan> {
     let review = history_review::preview(vault, actor, &options.selected, enabled)?;
     let topic = review
@@ -166,15 +179,55 @@ fn plan(
             source_spans: run.sources.len(),
         })
         .collect();
+    let selected_lineage = if include_lineage {
+        let mut lineage = Vec::with_capacity(sources.len());
+        for (source_index, slice) in sources.iter().enumerate() {
+            let AnyRecord::Source(source) = vault
+                .read_parsed(&review.base, &source_ref(slice))
+                .map_err(|e| e.error)?
+            else {
+                return Err(error(MemoryErrorCode::BrokenProvenance));
+            };
+            let (parent_source_indices, unselected_parent_count) = match source.parent_source_ids {
+                Knowable::Known(parents) => {
+                    let indices = sources
+                        .iter()
+                        .enumerate()
+                        .filter(|(_, s)| parents.contains(&s.source.source_id))
+                        .map(|(index, _)| index)
+                        .collect();
+                    let missing = parents
+                        .iter()
+                        .filter(|id| !sources.iter().any(|s| &s.source.source_id == *id))
+                        .count();
+                    (indices, Some(missing))
+                }
+                Knowable::Unknown => (vec![], None),
+            };
+            lineage.push(SelectedLineage {
+                source_index,
+                parent_source_indices,
+                unselected_parent_count,
+            });
+        }
+        Some(lineage)
+    } else {
+        None
+    };
     let result = Plan {
         version: VERSION.into(),
-        task: TASK.into(),
+        task: if include_lineage {
+            format!("{TASK}{LINEAGE_INSTRUCTION}")
+        } else {
+            TASK.into()
+        },
         binding: options.api.binding(&options.model)?,
         topic: options.topic.clone(),
         runs,
         sources,
         contexts,
         suggestions,
+        selected_lineage,
     };
     if bytes(&result)?.len() > MAX_TASK_BYTES {
         return Err(error(MemoryErrorCode::BudgetExceeded));
@@ -199,11 +252,33 @@ pub fn create(
     key: &[u8],
     enabled: &AtomicBool,
 ) -> Result<AnalysisTask> {
+    create_inner(vault, actor, options, key, enabled, false)
+}
+/// Opt in to bounded native selected-source ancestry metadata. Existing tasks
+/// keep their original bytes and keys; this creates a separate analysis task.
+/// No parent content is fetched and no Provider call is authorized or sent.
+pub fn create_with_lineage(
+    vault: &Vault,
+    actor: &ActorRef,
+    options: &AnalysisOptions,
+    key: &[u8],
+    enabled: &AtomicBool,
+) -> Result<AnalysisTask> {
+    create_inner(vault, actor, options, key, enabled, true)
+}
+fn create_inner(
+    vault: &Vault,
+    actor: &ActorRef,
+    options: &AnalysisOptions,
+    key: &[u8],
+    enabled: &AtomicBool,
+    include_lineage: bool,
+) -> Result<AnalysisTask> {
     history_review::owner(vault, actor, enabled)?;
     if key.is_empty() || key.len() > 256 {
         return Err(error(MemoryErrorCode::InvalidRequest));
     }
-    let plan = plan(vault, actor, options, enabled)?;
+    let plan = plan(vault, actor, options, enabled, include_lineage)?;
     let text = String::from_utf8(bytes(&plan)?).expect("JSON UTF-8");
     // Sensitivity comes from verified Sources, never model-supplied metadata.
     let pin = vault.pin_current().map_err(|e| e.error)?;
@@ -223,7 +298,12 @@ pub fn create(
         &plan.sources.iter().map(source_ref).collect::<Vec<_>>(),
         enabled,
     )?;
-    let prefix = format!("history-semantic:{}", sha256(key));
+    let namespace = if include_lineage {
+        "history-semantic-lineage-1"
+    } else {
+        "history-semantic"
+    };
+    let prefix = format!("{namespace}:{}", sha256(key));
     let (sid, bid) = session::start(
         vault,
         &SessionStart {
@@ -236,7 +316,14 @@ pub fn create(
     )
     .map_err(|e| e.error)?
     .id;
-    let request = RequestId::from_random(extraction::seed(key));
+    // Request IDs also own durable compiler/dispatch keys across Sessions.
+    // Preserve legacy derivation while keeping opt-in requests disjoint.
+    let request_key = if include_lineage {
+        prefix.as_bytes()
+    } else {
+        key
+    };
+    let request = RequestId::from_random(extraction::seed(request_key));
     history_review::owner(vault, actor, enabled)?;
     let input = session::save_input_with_sources(
         vault,
@@ -282,7 +369,12 @@ fn load(adapter: &VaultAdapter<'_>, task: &AnalysisTask) -> Result<Plan> {
     let stored: Plan =
         serde_json::from_str(&text).map_err(|_| error(MemoryErrorCode::InvalidRequest))?;
     if stored.version != VERSION
-        || stored.task != TASK
+        || stored.task
+            != if stored.selected_lineage.is_some() {
+                format!("{TASK}{LINEAGE_INSTRUCTION}")
+            } else {
+                TASK.into()
+            }
         || input.source_refs
             != stored
                 .sources
@@ -305,7 +397,14 @@ fn load(adapter: &VaultAdapter<'_>, task: &AnalysisTask) -> Result<Plan> {
         model: stored.binding.model.clone(),
         local_policy: header.policy_id,
     };
-    if plan(adapter.vault, &adapter.owner, &options, adapter.enabled)? != stored {
+    if plan(
+        adapter.vault,
+        &adapter.owner,
+        &options,
+        adapter.enabled,
+        stored.selected_lineage.is_some(),
+    )? != stored
+    {
         return Err(error(MemoryErrorCode::RevisionConflict));
     }
     history_review::fresh(

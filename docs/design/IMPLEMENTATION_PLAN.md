@@ -10,6 +10,8 @@
 
 ## 1. 实施纪律与版本关系
 
+> **2026-10-13，H2i：** main 基线 `9f0d7e5`。可选原生语义任务提供所选来源的直接父索引与缺失/未知标记，见 [ADR-MEM-58](../adr/058-selected-source-lineage-input.md) 与 [报告](../validation/MV-7-semantic-lineage.md)。旧任务保持兼容；不补读未选来源、外发或批准，真实质量与产品采用仍 pending，MV-8 未启动。
+
 > **2026-10-13，H2h：** main 基线 `6f6b0c4`。只读原生评审材料与离线质量工具已衔接，见 [ADR-MEM-57](../adr/057-native-quality-review-bundles.md) 与 [报告](../validation/MV-7-quality-bundles.md)。待审材料不构成判断/验收，不导出、不外发、不批准。真实质量和产品采用仍待完成，MV-8 未启动。
 
 > **2026-10-13，H2g：** main 基线 `82ca5eb`。新增绑定主人选择的原生发布和回执恢复，见 [ADR-MEM-56](../adr/056-bound-semantic-proposal-publication.md) 与 [报告](../validation/MV-7-semantic-publication.md)。只写待审候选，不外发或批准正式记忆；Runtime 产品采用、真实质量和主人验收仍 pending，MV-8 未启动。
