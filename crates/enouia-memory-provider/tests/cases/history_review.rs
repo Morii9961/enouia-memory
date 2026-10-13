@@ -2586,3 +2586,133 @@ fn semantic_publication_recovers_before_and_after_current_without_resending() {
         assert!(recovered.verify(&pin).unwrap().is_clean());
     }
 }
+
+#[test]
+fn quality_bundle_keeps_native_spans_and_unreviewed_claims_without_writes() {
+    use enouia_memory_provider::history_quality::{self, EvidenceMode, QualityOptions};
+    for api in [Api::OpenAiResponses, Api::AnthropicMessages] {
+        let env = Env::new("native-quality-bundle");
+        let policy = grant(&env, api);
+        let options = semantic_options(&env, api, vec![0], "explanation", policy.clone());
+        let enabled = AtomicBool::new(true);
+        let task = history_semantic::create(
+            &env.vault,
+            &owner(),
+            &options,
+            b"quality-analysis",
+            &enabled,
+        )
+        .unwrap();
+        semantic_send(
+            &env,
+            api,
+            &task,
+            policy,
+            &semantic_golden()["preference"],
+            false,
+        );
+        let adapter = VaultAdapter {
+            vault: &env.vault,
+            owner: owner(),
+            input_event: task.input_event_id.clone(),
+            enabled: &enabled,
+            quota: Quota::default(),
+        };
+        let opts = QualityOptions {
+            case_id: "synthetic-native-preference".into(),
+            required_units: vec!["偏好长度的纠正".into(), "未推断生效时间".into()],
+            evidence_mode: EvidenceMode::Synthetic,
+        };
+        let pin = env.vault.pin_current().unwrap();
+        let bundle = history_quality::build(&adapter, &task, &opts).unwrap();
+        assert_eq!(bundle.base, pin);
+        assert_eq!(env.vault.pin_current().unwrap(), pin);
+        let case = &bundle.suite["cases"][0];
+        assert_eq!(case["reviewer"], "pending");
+        assert_eq!(case["item_judgments"], json!([]));
+        assert_eq!(case["unit_judgments"], json!([]));
+        assert_eq!(case["native_task_input_sha256"], json!(task.input_hash));
+        assert_eq!(case["response"], semantic_golden()["preference"]);
+        let review = history_semantic::preview(&adapter, &task).unwrap();
+        let scope = case["source_scope"].as_array().unwrap();
+        assert_eq!(scope.len(), review.unique_source_spans);
+        for (a, b) in scope.iter().zip(&review.source_coverage) {
+            assert_eq!(a["text"], b.context["text"]);
+            assert_eq!(a["source"], json!(b.slice.source));
+            assert_eq!(a["snippet_hash"], json!(b.slice.snippet_hash));
+        }
+        assert!(
+            enouia_memory_govern::pending_candidates(&env.vault, &pin)
+                .unwrap()
+                .is_empty()
+        );
+        // Explicit synthetic test artifact only; production build returns memory.
+        if api == Api::OpenAiResponses && std::env::var_os("ENOU_TEST_QUALITY_BUNDLE").is_some() {
+            let target = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+                .join("../..")
+                .join(".local/mv7-h2h-quality-suite.json");
+            std::fs::write(target, serde_json::to_vec_pretty(&bundle.suite).unwrap()).unwrap();
+        }
+        enabled.store(false, Ordering::SeqCst);
+        assert_eq!(
+            history_quality::build(&adapter, &task, &opts)
+                .err()
+                .unwrap()
+                .code,
+            MemoryErrorCode::VaultLocked
+        );
+    }
+}
+
+#[test]
+fn quality_bundle_keeps_empty_response_coverage_and_pending_owner_review() {
+    use enouia_memory_provider::history_quality::{self, EvidenceMode, QualityOptions};
+    let env = Env::new("empty-native-quality-bundle");
+    let api = Api::AnthropicMessages;
+    let policy = grant(&env, api);
+    let options = semantic_options(&env, api, vec![0], "explanation", policy.clone());
+    let enabled = AtomicBool::new(true);
+    let task = history_semantic::create(
+        &env.vault,
+        &owner(),
+        &options,
+        b"empty-quality-analysis",
+        &enabled,
+    )
+    .unwrap();
+    semantic_send(
+        &env,
+        api,
+        &task,
+        policy,
+        &json!({"version":history_semantic::VERSION,"changes":[],"summary":[]}),
+        false,
+    );
+    let adapter = VaultAdapter {
+        vault: &env.vault,
+        owner: owner(),
+        input_event: task.input_event_id.clone(),
+        enabled: &enabled,
+        quota: Quota::default(),
+    };
+    let opts = QualityOptions {
+        case_id: "synthetic-empty-owner-declaration".into(),
+        required_units: vec!["待审核的重要单元".into()],
+        evidence_mode: EvidenceMode::OwnerSelected,
+    };
+    let pin = env.vault.pin_current().unwrap();
+    let bundle = history_quality::build(&adapter, &task, &opts).unwrap();
+    let case = &bundle.suite["cases"][0];
+    assert_eq!(case["evidence_mode"], "owner_selected");
+    assert_eq!(case["reviewer"], "pending");
+    assert_eq!(case["source_scope"].as_array().unwrap().len(), 2);
+    assert!(
+        case["source_scope"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|s| s["cited_by_response"] == false)
+    );
+    assert_eq!(case["response"]["changes"], json!([]));
+    assert_eq!(env.vault.pin_current().unwrap(), pin);
+}

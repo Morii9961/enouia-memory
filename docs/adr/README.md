@@ -310,6 +310,10 @@ The [full remember replay and target freshness acceptance](../validation/MV-6-fu
 
 [Decision](056-bound-semantic-proposal-publication.md): native publication binds the complete owner choice to existing durable receipts; changed committed keys conflict, replay returns the winning candidate ID, and recovery revalidates sources/current candidate after owner review or reopening. DuplicateOf stays a non-write result. Trusted confirmation remains separate. [Evidence](../validation/MV-7-semantic-publication.md).
 
+### ADR-MEM-57 — Native quality review bundles (Adopted, MV-7-H2h)
+
+[Decision](057-native-quality-review-bundles.md): generate bounded private assessment suites in memory from validated saved semantic tasks, preserve native selected spans/uncited coverage, and match offline JSON value hashes. Pending reviewers have no judgments or acceptance claim; offline metadata stays unauthenticated. [Evidence](../validation/MV-7-quality-bundles.md).
+
 ## Relation to Enouia Runtime's register
 
 
