@@ -8,4 +8,4 @@ Python 工具支持 native_selected_spans_v1 内联片段，拒绝同时指定�
 
 合成 Rust 材料通过 Python 读取并核对两种 JSON 值 hash：3 个陈述/解释/摘要项目保持 unreviewed，两个重要单元保持 unknown，支持比例 null，review_required；不构成质量通过。另有空回答保留来源覆盖与 pending-owner 声明的合成检查。测试输出只写忽略的本地验证区，生产 helper 不导出。
 
-完整实现检查待记录；前片默认并行 Workspace 写锁/调度稳定性仍未解决，本片不改 Workspace 或放宽超时。真实模型、个人历史、实际忠实性/漏提、规模/费用、Runtime 产品采用和主人验收仍 pending。状态快照未刷新。
+完整实现检查已通过：离线 pinned toolchain 的 fmt、逐例全仓库 Rust 379 项测试、Clippy -D warnings，Python 12 项、独立 python-jsonschema 与 Runtime surface 核对均 exit 0；结果保存于忽略的本地 mv7-h2h-check-results.json。前片默认并行 Workspace 写锁/调度稳定性仍未解决，本片不改 Workspace 或放宽超时。真实模型、个人历史、实际忠实性/漏提、规模/费用、Runtime 产品采用和主人验收仍 pending。状态快照未刷新。
