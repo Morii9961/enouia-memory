@@ -12,7 +12,7 @@
 
 治理修复按所有候选修订的 Source 依赖计算 WithDependents 清理范围。当前候选改写为无关内容不能隐藏旧引文；主人在既有删除预览中看到扩大的候选范围，再确认清除。其他正式记忆沿用既有 broken-provenance 处理。
 
-默认并行全量有两项既有 Workspace 测试失败：concurrent_context_session_checkpoint_replays_the_published_id 遇到 WriterBusy；full_session_ask_replays_an_input_published_while_the_call_is_paused 未满足五秒内第一条调用完成的前提。单独复测分别在 0.44 秒和 0.56 秒通过。未修改 Workspace 实现或放宽超时；默认并行稳定性仍未解决。逐例全量复测结果待执行结束后记录，用例内部的并发线程保留。
+默认并行全量有两项既有 Workspace 测试失败：concurrent_context_session_checkpoint_replays_the_published_id 遇到 WriterBusy；full_session_ask_replays_an_input_published_while_the_call_is_paused 未满足五秒内第一条调用完成的前提。单独复测分别在 0.44 秒和 0.56 秒通过。未修改 Workspace 实现或放宽超时；默认并行稳定性仍未解决。随后从根目录设置 RUST_TEST_THREADS=1 执行完整 cargo test --workspace --locked，374 项通过、0 失败、退出码 0；这隔离不同用例，用例内部的并发线程保留。完整日志保存于忽略的本地验证区。
 
 Rust 1.98.1 离线 fmt、严格 Clippy 已通过；独立 python-jsonschema 4.26.0 交叉检查 OK（36 schemas、53 valid records、117 record cases、4913 set records、51 IPC、83 workspace、46 store、8 invocation、19 extraction）。Runtime checker 通过，aggregate 为 `d97a45909df371aa94c02e6a2d58a8548c8d15227078575fb28b5b0607156ae1`。14 个本片公开文件、90 个本地链接、公开路径/credential 形状及 git diff --check 通过，两份状态快照 hash 未变。未安装依赖。
 
