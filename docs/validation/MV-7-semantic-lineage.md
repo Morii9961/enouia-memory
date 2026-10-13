@@ -6,6 +6,8 @@
 
 旧 create 的任务内容、键和 Request ID 推导保持原样。新 helper 的 Session/input 和 Request ID 都使用独立键空间；不可复用旧请求的批准。首次针对检查发现仅分开 Session 键仍产生 Request ID 冲突，已补齐独立推导并重测。恢复复核仍重算完整计划，模型输出仍经过原生引用、用户证据与实际所选父链检查。
 
-验证待完整记录：双 Provider 新旧任务共存、直接父链和分支、重复打开、缺失父来源、权限/锁及无候选写入；来源修订后发送前拒绝同时覆盖两种 helper。完整检查进行后记录结果。默认并行 Workspace 稳定性沿既有报告保持 pending；不放宽超时。
+验证记录：双 Provider 新旧任务共存、直接父链和分支、重复打开、缺失父来源、权限/锁及无候选写入的两项针对检查 exit 0。fmt、Clippy -D warnings、Python 12 项、独立 python-jsonschema、Runtime surface 和公开内容检查均 exit 0。全仓库逐例 Rust 检查尚未完成：按主人先前的近额度停工/关机要求，在五小时使用量约 91% 时中止；不能计为全量通过。来源修订后发送前拒绝的两种 helper 扩展检查仍须随全量复跑确认。默认并行 Workspace 稳定性沿既有报告保持 pending；不放宽超时。
 
 不发送真实请求、不导入个人历史、不开启新 MV 阶段。Runtime 产品采用、真实语义忠实性/漏提和主人验收仍 pending；状态快照未刷新。
+
+续做位置：PR #17 保持草稿，功能提交 `d9f21ba` 已推送；先从仓库根以 pinned toolchain 和 RUST_TEST_THREADS=1 复跑完整 cargo test --workspace --locked，再核对检查结果、更新本报告/PR 后决定合并。忽略的本地 mv7-h2i-check-results.json 与 workspace-tests.log 保留此次中止证据。不要把 H2h 的 379 项全量证据当作本片完整检查。
