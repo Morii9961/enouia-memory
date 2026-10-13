@@ -10,6 +10,8 @@
 
 ## 1. 实施纪律与版本关系
 
+> **2026-10-13，H2g：** main 基线 `82ca5eb`。新增绑定主人选择的原生发布和回执恢复，见 [ADR-MEM-56](../adr/056-bound-semantic-proposal-publication.md) 与 [报告](../validation/MV-7-semantic-publication.md)。只写待审候选，不外发或批准正式记忆；Runtime 产品采用、真实质量和主人验收仍 pending，MV-8 未启动。
+
 本计划采用 MV-* 编号，避免与 Runtime 已有 M0、A1/A2/A3、B1～B5 混淆。MV-0 对齐契约，MV-1/3/4 细化原 A1，MV-5 对应原 A2，MV-6 对应原 A3，MV-2 将原先后置的历史导入前移。Activity Track B 继续按其独立计划推进，不被 Memory 重排或偷偷扩展。
 
 每个工作包完成后给出变更、证据、未实现项和下一步，再停在用户授权的阶段边界。用户可以明确授权连续多个阶段；未授权时不自动进入下一阶段。现有仓库的提交、co-author、测试约定照当时 AGENTS.md 执行；真实导入、Provider 外发、远端部署和生产切换不能由“代码已写完”自动触发。

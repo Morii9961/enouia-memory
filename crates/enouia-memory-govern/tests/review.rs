@@ -89,6 +89,121 @@ fn review_of(env: &Env, outcome: &CommitOutcome) -> ReviewRecord {
 }
 
 #[test]
+fn bound_publication_race_returns_the_winning_id_or_payload_conflict() {
+    use enouia_memory_contract::ports::IdSource;
+    use std::sync::{
+        Arc, Mutex,
+        atomic::{AtomicBool, Ordering},
+        mpsc,
+    };
+    use std::time::Duration;
+    struct PausedIds {
+        first: AtomicBool,
+        ready: mpsc::Sender<()>,
+        release: Mutex<mpsc::Receiver<()>>,
+    }
+    impl IdSource for PausedIds {
+        fn random_16(&self) -> [u8; 16] {
+            if !self.first.swap(true, Ordering::SeqCst) {
+                self.ready.send(()).unwrap();
+                self.release
+                    .lock()
+                    .unwrap()
+                    .recv_timeout(Duration::from_secs(30))
+                    .unwrap();
+            }
+            enouia_memory_vault::OsIdSource.random_16()
+        }
+    }
+    for changed in [false, true] {
+        let env = Env::new("bound-publication-race");
+        let source = env.statement("合成的绑定发布请求。");
+        let proposal = fact(&source, "bound_publication", "合成的绑定发布请求。");
+        let mut losing = proposal.clone();
+        if changed {
+            losing.content = "另一条合成发布请求。".into();
+        }
+        let origin = Origin::owner(owner());
+        let payload = sha256(b"synthetic-owner-choice");
+        let losing_payload = if changed {
+            sha256(b"different-owner-choice")
+        } else {
+            payload.clone()
+        };
+        let base = env.pin();
+        let (ready_tx, ready_rx) = mpsc::channel();
+        let (release_tx, release_rx) = mpsc::channel();
+        let root = enouia_memory_vault::verify_data_root(
+            env.vault.managed_root().root(),
+            &enouia_memory_vault::RootPolicy::default(),
+        )
+        .unwrap();
+        let paused = enouia_memory_vault::Vault::open(
+            &root,
+            None,
+            env.clock.clone(),
+            Arc::new(PausedIds {
+                first: AtomicBool::new(false),
+                ready: ready_tx,
+                release: Mutex::new(release_rx),
+            }),
+            enouia_memory_vault::VaultOptions::default(),
+        )
+        .unwrap();
+        std::thread::scope(|scope| {
+            let second = scope.spawn(|| {
+                enouia_memory_govern::propose_bound_at_head(
+                    &paused,
+                    &losing,
+                    &origin,
+                    b"shared-operation",
+                    &losing_payload,
+                    &base.commit_id,
+                )
+            });
+            ready_rx.recv_timeout(Duration::from_secs(30)).unwrap();
+            let first = enouia_memory_govern::propose_bound_at_head(
+                &env.vault,
+                &proposal,
+                &origin,
+                b"shared-operation",
+                &payload,
+                &base.commit_id,
+            );
+            release_tx.send(()).unwrap();
+            let second = second.join().unwrap();
+            let Proposed::Stored(written) = first.unwrap() else {
+                panic!("stored")
+            };
+            if changed {
+                assert_eq!(
+                    second.unwrap_err().code(),
+                    MemoryErrorCode::IdempotencyConflict
+                );
+            } else {
+                let Proposed::Stored(replayed) = second.unwrap() else {
+                    panic!("replayed")
+                };
+                assert_eq!(written.id, replayed.id);
+                assert!(matches!(replayed.outcome, CommitOutcome::Replayed { .. }));
+            }
+            let pin = env.pin();
+            assert_eq!(pin.sequence, base.sequence + 1);
+            assert_eq!(
+                pending_candidates(&env.vault, &pin).unwrap()[0].candidate_id,
+                written.id
+            );
+            assert!(
+                canonical_memories(&env.vault, &pin, Canonical::Active)
+                    .unwrap()
+                    .is_empty()
+            );
+            env.assert_history_valid();
+        });
+    }
+}
+
+#[test]
 fn m01_only_accepted_candidates_reach_the_canonical_view() {
     let env = Env::new("m01");
     let said = env.statement("（合成）我用 VS Code 写代码。");

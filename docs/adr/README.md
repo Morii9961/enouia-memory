@@ -306,6 +306,10 @@ The [full remember replay and target freshness acceptance](../validation/MV-6-fu
 
 [Decision](055-owner-selected-semantic-proposal-drafts.md): bind explicit owner choices to saved semantic responses, retain model attribution and original evidence classes in ordinary pending proposals, and require current exact-topic targets and explicit business time for correction/cancellation drafts. Drafting never writes/sends/confirms. Source purge also removes dependent candidate text. [Evidence](../validation/MV-7-semantic-proposal-drafts.md).
 
+### ADR-MEM-56 — Bound semantic proposal publication (Adopted, MV-7-H2g)
+
+[Decision](056-bound-semantic-proposal-publication.md): native publication binds the complete owner choice to existing durable receipts; changed committed keys conflict, replay returns the winning candidate ID, and recovery revalidates sources/current candidate after owner review or reopening. DuplicateOf stays a non-write result. Trusted confirmation remains separate. [Evidence](../validation/MV-7-semantic-publication.md).
+
 ## Relation to Enouia Runtime's register
 
 

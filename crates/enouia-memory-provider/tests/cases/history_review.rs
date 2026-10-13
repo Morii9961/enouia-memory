@@ -1637,12 +1637,12 @@ fn semantic_source_purge_erases_bound_input_and_refuses_saved_analysis() {
     let review = history_semantic::preview(&semantic, &task).unwrap();
     let selection = choice(&review, 0);
     let draft = history_semantic_proposal::draft(&semantic, &task, &selection).unwrap();
-    let Proposed::Stored(derived) = enouia_memory_govern::propose_at_head(
-        &env.vault,
-        &draft.proposal,
-        &draft.origin,
-        b"derived-before-purge",
+    let Proposed::Stored(derived) = history_semantic_proposal::publish(
+        &semantic,
+        &task,
+        &selection,
         &draft.base.commit_id,
+        b"derived-before-purge",
     )
     .unwrap() else {
         panic!("stored")
@@ -1781,6 +1781,16 @@ fn semantic_source_purge_erases_bound_input_and_refuses_saved_analysis() {
     );
     assert!(history_semantic::preview(&semantic, &task).is_err());
     assert!(history_semantic_proposal::draft(&semantic, &task, &selection).is_err());
+    assert!(
+        history_semantic_proposal::publish(
+            &semantic,
+            &task,
+            &selection,
+            &draft.base.commit_id,
+            b"derived-before-purge"
+        )
+        .is_err()
+    );
     assert_eq!(
         env.vault
             .read_revision(
@@ -2123,12 +2133,19 @@ fn semantic_proposal_supersession_needs_current_target_and_explicit_business_tim
             effective_from: effective.clone(),
         };
         assert!(history_semantic_proposal::draft(&adapter, &task, &selected).is_err());
-        let Proposed::Stored(written) = enouia_memory_govern::propose_at_head(
-            &env.vault,
-            &draft.proposal,
-            &draft.origin,
-            b"chosen-supersession",
+        let mut native_choice = choice(&review, 0);
+        native_choice.content = draft.proposal.content.clone();
+        native_choice.action = DraftAction::Supersede {
+            target: target.memory_id.clone(),
+            revision: target.revision,
+            effective_from: effective.clone(),
+        };
+        let Proposed::Stored(written) = history_semantic_proposal::publish(
+            &adapter,
+            &task,
+            &native_choice,
             &draft.base.commit_id,
+            b"chosen-supersession",
         )
         .unwrap() else {
             panic!("stored")
@@ -2152,6 +2169,18 @@ fn semantic_proposal_supersession_needs_current_target_and_explicit_business_tim
             .remove(0);
         assert_eq!(current.content, draft.proposal.content);
         assert_eq!(current.supersedes[0].effective_from, effective);
+        let Proposed::Stored(replayed) = history_semantic_proposal::publish(
+            &adapter,
+            &task,
+            &native_choice,
+            &draft.base.commit_id,
+            b"chosen-supersession",
+        )
+        .unwrap() else {
+            panic!("replayed")
+        };
+        assert_eq!(replayed.id, written.id);
+        assert_eq!(env.vault.pin_current().unwrap(), pin);
         assert!(env.vault.verify(&pin).unwrap().is_clean());
     }
 }
@@ -2188,4 +2217,372 @@ fn semantic_proposal_does_not_turn_uncertain_model_only_text_into_a_preference()
         MemoryErrorCode::InvalidRequest
     );
     assert_eq!(env.vault.pin_current().unwrap(), review.base);
+}
+
+fn reopen_semantic(
+    env: &Env,
+    faults: enouia_memory_vault::fault::Faults,
+) -> enouia_memory_vault::Vault {
+    let root = enouia_memory_vault::verify_data_root(
+        env.vault.managed_root().root(),
+        &enouia_memory_vault::RootPolicy::default(),
+    )
+    .unwrap();
+    enouia_memory_vault::Vault::open(
+        &root,
+        None,
+        env.clock.clone(),
+        std::sync::Arc::new(enouia_memory_vault::OsIdSource),
+        enouia_memory_vault::VaultOptions {
+            faults,
+            ..Default::default()
+        },
+    )
+    .unwrap()
+}
+
+#[test]
+fn semantic_publication_binds_choices_and_replays_after_review_and_reopen() {
+    for api in [Api::OpenAiResponses, Api::AnthropicMessages] {
+        let env = Env::new("semantic-publication-bound");
+        let policy = grant(&env, api);
+        let options = semantic_options(&env, api, vec![0], "explanation", policy.clone());
+        let enabled = AtomicBool::new(true);
+        let task = history_semantic::create(
+            &env.vault,
+            &owner(),
+            &options,
+            b"publish-analysis",
+            &enabled,
+        )
+        .unwrap();
+        semantic_send(
+            &env,
+            api,
+            &task,
+            policy,
+            &semantic_golden()["preference"],
+            false,
+        );
+        let adapter = VaultAdapter {
+            vault: &env.vault,
+            owner: owner(),
+            input_event: task.input_event_id.clone(),
+            enabled: &enabled,
+            quota: Quota::default(),
+        };
+        let review = history_semantic::preview(&adapter, &task).unwrap();
+        let selection = choice(&review, 0);
+        let Proposed::Stored(written) = history_semantic_proposal::publish(
+            &adapter,
+            &task,
+            &selection,
+            &review.base.commit_id,
+            b"explicit-publish",
+        )
+        .unwrap() else {
+            panic!("stored")
+        };
+        let pin = env.vault.pin_current().unwrap();
+        assert_eq!(pin.sequence, review.base.sequence + 1);
+        let mut changed = choice(&review, 0);
+        changed.content = "另一条主人选择的提案文本。".into();
+        assert_eq!(
+            history_semantic_proposal::publish(
+                &adapter,
+                &task,
+                &changed,
+                &pin.commit_id,
+                b"explicit-publish"
+            )
+            .unwrap_err()
+            .code,
+            MemoryErrorCode::IdempotencyConflict
+        );
+        changed = choice(&review, 0);
+        changed.action = DraftAction::Supersede {
+            target: enouia_memory_contract::ids::MemoryId::from_random([8; 16]),
+            revision: Revision::new(1).unwrap(),
+            effective_from: BusinessTime::Unknown,
+        };
+        assert_eq!(
+            history_semantic_proposal::publish(
+                &adapter,
+                &task,
+                &changed,
+                &pin.commit_id,
+                b"explicit-publish"
+            )
+            .unwrap_err()
+            .code,
+            MemoryErrorCode::IdempotencyConflict
+        );
+        assert_eq!(env.vault.pin_current().unwrap(), pin);
+        assert!(
+            matches!(history_semantic_proposal::publish(&adapter,&task,&selection,&pin.commit_id,b"duplicate-no-write").unwrap(),Proposed::DuplicateOf(ref id) if id==&written.id)
+        );
+        assert_eq!(env.vault.pin_current().unwrap(), pin);
+        assert_eq!(
+            history_semantic_proposal::publish(
+                &adapter,
+                &task,
+                &selection,
+                &review.base.commit_id,
+                b"new-on-stale-head"
+            )
+            .unwrap_err()
+            .code,
+            MemoryErrorCode::RevisionConflict
+        );
+        enabled.store(false, Ordering::SeqCst);
+        assert_eq!(
+            history_semantic_proposal::publish(
+                &adapter,
+                &task,
+                &selection,
+                &pin.commit_id,
+                b"explicit-publish"
+            )
+            .unwrap_err()
+            .code,
+            MemoryErrorCode::VaultLocked
+        );
+        enabled.store(true, Ordering::SeqCst);
+        if api == Api::OpenAiResponses {
+            let second_task = history_semantic::create(
+                &env.vault,
+                &owner(),
+                &options,
+                b"another-publish-analysis",
+                &enabled,
+            )
+            .unwrap();
+            semantic_send(
+                &env,
+                api,
+                &second_task,
+                grant(&env, api),
+                &semantic_golden()["preference"],
+                false,
+            );
+            let second = VaultAdapter {
+                vault: &env.vault,
+                owner: owner(),
+                input_event: second_task.input_event_id.clone(),
+                enabled: &enabled,
+                quota: Quota::default(),
+            };
+            let second_review = history_semantic::preview(&second, &second_task).unwrap();
+            let second_pin = env.vault.pin_current().unwrap();
+            assert_eq!(
+                history_semantic_proposal::publish(
+                    &second,
+                    &second_task,
+                    &choice(&second_review, 0),
+                    &second_pin.commit_id,
+                    b"explicit-publish"
+                )
+                .unwrap_err()
+                .code,
+                MemoryErrorCode::IdempotencyConflict
+            );
+            assert_eq!(env.vault.pin_current().unwrap(), second_pin);
+        }
+        enouia_memory_govern::edit_candidate(
+            &env.vault,
+            &written.id,
+            Revision::new(1).unwrap(),
+            &CandidateEdit {
+                content: Some("主人在待审队列中另行修改。".into()),
+                ..Default::default()
+            },
+            &owner(),
+            b"owner-edit-published",
+        )
+        .unwrap();
+        let pending =
+            enouia_memory_govern::pending_candidates(&env.vault, &env.vault.pin_current().unwrap())
+                .unwrap()
+                .remove(0);
+        accept(&env, &pending);
+        let pin = env.vault.pin_current().unwrap();
+        let reopened = reopen_semantic(&env, enouia_memory_vault::fault::Faults::none());
+        let restored = VaultAdapter {
+            vault: &reopened,
+            owner: owner(),
+            input_event: task.input_event_id.clone(),
+            enabled: &enabled,
+            quota: Quota::default(),
+        };
+        let Proposed::Stored(replayed) = history_semantic_proposal::publish(
+            &restored,
+            &task,
+            &selection,
+            &review.base.commit_id,
+            b"explicit-publish",
+        )
+        .unwrap() else {
+            panic!("replayed")
+        };
+        assert_eq!(written.id, replayed.id);
+        assert!(matches!(
+            replayed.outcome,
+            enouia_memory_contract::ports::CommitOutcome::Replayed { .. }
+        ));
+        assert_eq!(reopened.pin_current().unwrap(), pin);
+        let active = enouia_memory_govern::canonical_memories(&reopened, &pin, Canonical::Active)
+            .unwrap()
+            .remove(0);
+        assert_eq!(active.content, "主人在待审队列中另行修改。");
+        assert!(
+            enouia_memory_govern::pending_candidates(&reopened, &pin)
+                .unwrap()
+                .is_empty()
+        );
+        assert!(reopened.verify(&pin).unwrap().is_clean());
+        let mut raw: serde_json::Value = serde_json::from_slice(include_bytes!(
+            "../../../../tests/fixtures/history/initialization-synthetic.json"
+        ))
+        .unwrap();
+        // Unrelated project evidence may change without invalidating this
+        // preference task; selected preference evidence must invalidate it.
+        raw[0]["mapping"]["u1"]["message"]["content"]["parts"][0] =
+            json!("合成修订后的偏好证据，旧任务不得继续使用。");
+        let revised = env.root.join("synthetic-revised-after-publication.json");
+        std::fs::write(&revised, serde_json::to_vec(&raw).unwrap()).unwrap();
+        let mut import = ImportOptions::new(owner(), "synthetic", env.policy());
+        import.sensitivity = Sensitivity::Normal;
+        import_file(&reopened, &revised, &import, &NeverCancel).unwrap();
+        let unrelated_pin = reopened.pin_current().unwrap();
+        let Proposed::Stored(still_same) = history_semantic_proposal::publish(
+            &restored,
+            &task,
+            &selection,
+            &review.base.commit_id,
+            b"explicit-publish",
+        )
+        .unwrap() else {
+            panic!("replayed")
+        };
+        assert_eq!(still_same.id, written.id);
+        assert_eq!(reopened.pin_current().unwrap(), unrelated_pin);
+        raw[1]["mapping"]["p2"]["message"]["content"]["parts"][0] =
+            json!("合成修订后的选定偏好证据，旧任务不得继续使用。");
+        std::fs::write(&revised, serde_json::to_vec(&raw).unwrap()).unwrap();
+        import_file(&reopened, &revised, &import, &NeverCancel).unwrap();
+        let revised_pin = reopened.pin_current().unwrap();
+        assert_eq!(
+            history_semantic_proposal::publish(
+                &restored,
+                &task,
+                &selection,
+                &review.base.commit_id,
+                b"explicit-publish"
+            )
+            .unwrap_err()
+            .code,
+            MemoryErrorCode::RevisionConflict
+        );
+        assert_eq!(reopened.pin_current().unwrap(), revised_pin);
+    }
+}
+
+#[test]
+fn semantic_publication_recovers_before_and_after_current_without_resending() {
+    use enouia_memory_vault::fault::{FaultAction, FaultPoint, Faults};
+    for point in [FaultPoint::BeforeCurrent, FaultPoint::AfterCurrent] {
+        let env = Env::new("semantic-publication-lost-response");
+        let api = Api::OpenAiResponses;
+        let policy = grant(&env, api);
+        let options = semantic_options(&env, api, vec![0], "explanation", policy.clone());
+        let enabled = AtomicBool::new(true);
+        let task = history_semantic::create(
+            &env.vault,
+            &owner(),
+            &options,
+            b"fault-publish-analysis",
+            &enabled,
+        )
+        .unwrap();
+        semantic_send(
+            &env,
+            api,
+            &task,
+            policy,
+            &semantic_golden()["preference"],
+            false,
+        );
+        let adapter = VaultAdapter {
+            vault: &env.vault,
+            owner: owner(),
+            input_event: task.input_event_id.clone(),
+            enabled: &enabled,
+            quota: Quota::default(),
+        };
+        let review = history_semantic::preview(&adapter, &task).unwrap();
+        let selection = choice(&review, 0);
+        let faults = Faults::armed();
+        faults.arm(point, 1, FaultAction::Fail(112));
+        let faulted = reopen_semantic(&env, faults);
+        let interrupted = VaultAdapter {
+            vault: &faulted,
+            owner: owner(),
+            input_event: task.input_event_id.clone(),
+            enabled: &enabled,
+            quota: Quota::default(),
+        };
+        assert!(
+            history_semantic_proposal::publish(
+                &interrupted,
+                &task,
+                &selection,
+                &review.base.commit_id,
+                b"recover-publication"
+            )
+            .is_err()
+        );
+        let recovered = reopen_semantic(&env, Faults::none());
+        let restored = VaultAdapter {
+            vault: &recovered,
+            owner: owner(),
+            input_event: task.input_event_id.clone(),
+            enabled: &enabled,
+            quota: Quota::default(),
+        };
+        let Proposed::Stored(written) = history_semantic_proposal::publish(
+            &restored,
+            &task,
+            &selection,
+            &review.base.commit_id,
+            b"recover-publication",
+        )
+        .unwrap() else {
+            panic!("stored")
+        };
+        assert_eq!(
+            matches!(
+                written.outcome,
+                enouia_memory_contract::ports::CommitOutcome::Replayed { .. }
+            ),
+            point == FaultPoint::AfterCurrent
+        );
+        let pin = recovered.pin_current().unwrap();
+        assert_eq!(pin.sequence, review.base.sequence + 1);
+        assert_eq!(
+            enouia_memory_govern::pending_candidates(&recovered, &pin).unwrap()[0].candidate_id,
+            written.id
+        );
+        assert_eq!(
+            history_semantic::preview(&restored, &task)
+                .unwrap()
+                .response_hash,
+            review.response_hash
+        );
+        assert!(
+            enouia_memory_govern::canonical_memories(&recovered, &pin, Canonical::Active)
+                .unwrap()
+                .is_empty()
+        );
+        assert!(recovered.verify(&pin).unwrap().is_clean());
+    }
 }
