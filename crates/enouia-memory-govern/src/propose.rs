@@ -9,6 +9,7 @@
 use crate::evidence::{EvidenceSpec, Resolved, resolve};
 use crate::util::{Result, all_latest, invalid, latest, next, one, staged, stale};
 use crate::view::{Canonical, canonical_memories};
+use enouia_memory_contract::MemoryErrorCode;
 use enouia_memory_contract::candidate::{
     CandidateConflict, CandidateRecord, CandidateStatus, OriginKind, ProposalKind, ProposedType,
 };
@@ -305,6 +306,12 @@ fn scope(actor: &ActorRef, key: &[u8]) -> IdempotencyScope {
     }
 }
 
+#[derive(Default)]
+struct PublicationBinding<'a> {
+    head: Option<&'a CommitId>,
+    payload: Option<&'a Sha256Hex>,
+}
+
 fn commit_candidate(
     vault: &Vault,
     actor: &ActorRef,
@@ -312,32 +319,60 @@ fn commit_candidate(
     candidate: &Value,
     id: &CandidateId,
     revision: Revision,
-    expected_head: Option<&CommitId>,
+    binding: PublicationBinding<'_>,
 ) -> Result<Written<CandidateId>> {
     let (_, record): (CandidateRecord, _) =
         staged(RecordKind::Candidate, id.as_str(), revision, candidate)?;
     let expected = revision.get().checked_sub(1).and_then(Revision::new);
     let outcome = vault.commit(CommitRequest {
         commit_id: CommitId::from_random(vault.random_id_bytes()),
-        expected_commit_id: expected_head.cloned(),
+        expected_commit_id: binding.head.cloned(),
         principal: actor.clone(),
         operation_kind: OperationKind::CandidatePropose,
         idempotency: scope(actor, key),
-        request_payload_hash: sha256(&record.bytes),
+        request_payload_hash: binding
+            .payload
+            .cloned()
+            .unwrap_or_else(|| sha256(&record.bytes)),
         expected_revisions: vec![(RecordKind::Candidate, id.to_string(), expected)],
         records: vec![record],
         objects: Vec::new(),
     })?;
+    // Stable bound payloads allow concurrent equal requests with independently
+    // allocated IDs to replay. Return the published ID, never the losing ID.
+    let published = match &outcome {
+        enouia_memory_contract::ports::CommitOutcome::Replayed { receipt, .. } => receipt
+            .records
+            .iter()
+            .find(|r| r.record_kind == RecordKind::Candidate)
+            .and_then(|r| CandidateId::parse(&r.record_id).ok())
+            .ok_or_else(|| enouia_memory_vault::VaultError::corrupt("receipt"))?,
+        _ => id.clone(),
+    };
     Ok(Written {
         outcome,
-        id: id.clone(),
+        id: published,
     })
 }
 
 fn replayed(vault: &Vault, actor: &ActorRef, key: &[u8]) -> Result<Option<Written<CandidateId>>> {
-    let Some((commit_id, _, receipt)) = vault.find_receipt(&scope(actor, key))? else {
+    replayed_payload(vault, actor, key, None)
+}
+fn replayed_payload(
+    vault: &Vault,
+    actor: &ActorRef,
+    key: &[u8],
+    payload: Option<&Sha256Hex>,
+) -> Result<Option<Written<CandidateId>>> {
+    let Some((commit_id, stored, receipt)) = vault.find_receipt(&scope(actor, key))? else {
         return Ok(None);
     };
+    if payload.is_some_and(|expected| expected != &stored) {
+        return Err(enouia_memory_vault::VaultError::new(
+            MemoryErrorCode::IdempotencyConflict,
+            enouia_memory_vault::Fault::IdempotencyConflict,
+        ));
+    }
     let id = receipt
         .records
         .iter()
@@ -357,7 +392,7 @@ pub fn propose(
     origin: &Origin,
     key: &[u8],
 ) -> Result<Proposed> {
-    propose_on_head(vault, proposal, origin, key, None)
+    propose_on_head(vault, proposal, origin, key, PublicationBinding::default())
 }
 /// Store a pending proposal only on the inspected head. An already committed
 /// idempotency receipt may be replayed after that head has moved; it performs
@@ -369,21 +404,71 @@ pub fn propose_at_head(
     key: &[u8],
     required_head: &CommitId,
 ) -> Result<Proposed> {
-    propose_on_head(vault, proposal, origin, key, Some(required_head))
+    propose_on_head(
+        vault,
+        proposal,
+        origin,
+        key,
+        PublicationBinding {
+            head: Some(required_head),
+            payload: None,
+        },
+    )
+}
+
+fn bound_key(key: &[u8]) -> Result<Vec<u8>> {
+    if key.is_empty() || key.len() > 256 {
+        return Err(invalid("proposal.bound_key"));
+    }
+    Ok([b"bound-proposal-1:".as_slice(), key].concat())
+}
+/// Low-level native receipt lookup. The authenticated caller computes the
+/// stable payload hash and must recheck permissions/deletion before delivery.
+/// This namespace is separate from legacy record-byte proposal receipts.
+pub fn replay_bound_proposal(
+    vault: &Vault,
+    actor: &ActorRef,
+    key: &[u8],
+    payload: &Sha256Hex,
+) -> Result<Option<Written<CandidateId>>> {
+    replayed_payload(vault, actor, &bound_key(key)?, Some(payload))
+}
+/// Publish against an inspected head with a caller-computed exact-request
+/// binding, excluding generated IDs/times/head. Equal requests replay the
+/// original ID; changed payloads conflict even after an unrelated head advance.
+/// DuplicateOf performs no write and has no durable receipt or new provenance.
+pub fn propose_bound_at_head(
+    vault: &Vault,
+    proposal: &Proposal,
+    origin: &Origin,
+    key: &[u8],
+    payload: &Sha256Hex,
+    required_head: &CommitId,
+) -> Result<Proposed> {
+    propose_on_head(
+        vault,
+        proposal,
+        origin,
+        &bound_key(key)?,
+        PublicationBinding {
+            head: Some(required_head),
+            payload: Some(payload),
+        },
+    )
 }
 fn propose_on_head(
     vault: &Vault,
     proposal: &Proposal,
     origin: &Origin,
     key: &[u8],
-    required_head: Option<&CommitId>,
+    binding: PublicationBinding<'_>,
 ) -> Result<Proposed> {
-    if let Some(done) = replayed(vault, &origin.actor, key)? {
+    if let Some(done) = replayed_payload(vault, &origin.actor, key, binding.payload)? {
         return Ok(Proposed::Stored(done));
     }
     check_details(proposal.kind, proposal.proposed_type, &proposal.details)?;
     let pin = vault.pin_current()?;
-    if required_head.is_some_and(|id| id != &pin.commit_id) {
+    if binding.head.is_some_and(|id| id != &pin.commit_id) {
         return Err(stale());
     }
     let resolved: Resolved = resolve(vault, &pin, &proposal.evidence)?;
@@ -450,7 +535,10 @@ fn propose_on_head(
         &candidate,
         &id,
         one(),
-        Some(&pin.commit_id),
+        PublicationBinding {
+            head: Some(&pin.commit_id),
+            payload: binding.payload,
+        },
     )
     .map(Proposed::Stored)
 }
@@ -520,7 +608,17 @@ pub fn propose_extracted(
             return Ok(None);
         }
     }
-    propose_on_head(vault, proposal, origin, key, Some(required_head)).map(Some)
+    propose_on_head(
+        vault,
+        proposal,
+        origin,
+        key,
+        PublicationBinding {
+            head: Some(required_head),
+            payload: None,
+        },
+    )
+    .map(Some)
 }
 
 /// Changes to a pending candidate; unset fields keep their value.
@@ -612,7 +710,15 @@ pub fn edit_candidate(
     ));
     value["revision"] = json!(next(expected).get());
     value["updated_at"] = json!(vault.now()?);
-    commit_candidate(vault, actor, key, &value, id, next(expected), None)
+    commit_candidate(
+        vault,
+        actor,
+        key,
+        &value,
+        id,
+        next(expected),
+        PublicationBinding::default(),
+    )
 }
 
 /// The proposer (or the owner) withdraws a pending candidate. Withdrawn is
@@ -633,7 +739,15 @@ pub fn withdraw(
     value["status"] = json!("withdrawn");
     value["revision"] = json!(next(expected).get());
     value["updated_at"] = json!(vault.now()?);
-    commit_candidate(vault, actor, key, &value, id, next(expected), None)
+    commit_candidate(
+        vault,
+        actor,
+        key,
+        &value,
+        id,
+        next(expected),
+        PublicationBinding::default(),
+    )
 }
 
 /// The review queue: every candidate whose latest revision is pending,

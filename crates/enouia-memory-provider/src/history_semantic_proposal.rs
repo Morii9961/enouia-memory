@@ -1,15 +1,16 @@
 //! Owner-selected drafts from validated saved semantic responses. This module
-//! never sends, writes, or confirms; ordinary governance publishes the draft.
+//! Drafting never writes; explicit publication uses ordinary governance and
+//! bound receipts. Neither path sends or confirms a canonical memory.
 use crate::{
     Result, error, history_review,
-    history_semantic::{self, AnalysisTask, ChangeKind},
-    vault::{VaultAdapter, read},
+    history_semantic::{self, AnalysisTask, ChangeKind, ReviewedChange, SemanticPreview},
+    vault::{VaultAdapter, bytes, read},
 };
 use enouia_memory_contract::{
     MemoryErrorCode,
-    candidate::{ProposalKind, ProposedType},
+    candidate::{CandidateRecord, ProposalKind, ProposedType},
     hash::{Sha256Hex, sha256},
-    ids::{DispatchId, MemoryId},
+    ids::{CommitId, DispatchId, MemoryId},
     json::Revision,
     memory::{MemoryStatus, ProvenanceState},
     ports::CommitPin,
@@ -18,13 +19,15 @@ use enouia_memory_contract::{
     source::SourceRecord,
     time::BusinessTime,
 };
-use enouia_memory_govern::{Canonical, EvidenceSpec, Origin, Proposal};
+use enouia_memory_govern::{Canonical, EvidenceSpec, Origin, Proposal, Proposed};
+use serde::Serialize;
 use serde_json::json;
 use std::collections::BTreeSet;
 
 pub const VERSION: &str = "history-semantic-proposal-1";
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
 pub enum DraftAction {
     Create,
     /// A correction/cancellation still needs an explicit current target and
@@ -38,6 +41,7 @@ pub enum DraftAction {
 
 /// Bind the owner's choice to the inspected response. Content must be supplied
 /// explicitly, whether retaining or editing the model statement.
+#[derive(Serialize)]
 pub struct OwnerSelection {
     pub dispatch_id: DispatchId,
     pub response_hash: Sha256Hex,
@@ -55,12 +59,10 @@ pub struct ProposalDraft {
     pub origin: Origin,
 }
 
-pub fn draft(
-    adapter: &VaultAdapter<'_>,
-    task: &AnalysisTask,
+fn selected<'a>(
+    review: &'a SemanticPreview,
     selection: &OwnerSelection,
-) -> Result<ProposalDraft> {
-    let review = history_semantic::preview(adapter, task)?;
+) -> Result<&'a ReviewedChange> {
     if selection.dispatch_id != review.dispatch_id
         || selection.response_hash != review.response_hash
         || selection.content.trim().is_empty()
@@ -70,10 +72,19 @@ pub fn draft(
     {
         return Err(error(MemoryErrorCode::InvalidRequest));
     }
-    let change = review
+    review
         .changes
         .get(selection.change_index)
-        .ok_or_else(|| error(MemoryErrorCode::InvalidRequest))?;
+        .ok_or_else(|| error(MemoryErrorCode::InvalidRequest))
+}
+
+pub fn draft(
+    adapter: &VaultAdapter<'_>,
+    task: &AnalysisTask,
+    selection: &OwnerSelection,
+) -> Result<ProposalDraft> {
+    let review = history_semantic::preview(adapter, task)?;
+    let change = selected(&review, selection)?;
     let (kind, mut details) = match review.topic.kind {
         history_review::TopicKind::Fact => {
             (ProposedType::Fact, json!({"claim_key":review.topic.label}))
@@ -205,4 +216,68 @@ pub fn draft(
         proposal,
         origin: Origin::owner(adapter.owner.clone()),
     })
+}
+
+/// Explicitly publish one owner choice, never a batch or a canonical memory.
+/// The host must serialize this with lock/close lifecycle operations. A replay
+/// revalidates the saved analysis and current candidate before returning its
+/// original receipt, including after owner edits/review or supersession.
+pub fn publish(
+    adapter: &VaultAdapter<'_>,
+    task: &AnalysisTask,
+    selection: &OwnerSelection,
+    required_head: &CommitId,
+    key: &[u8],
+) -> Result<Proposed> {
+    if key.is_empty() || key.len() > 256 {
+        return Err(error(MemoryErrorCode::InvalidRequest));
+    }
+    let review = history_semantic::preview(adapter, task)?;
+    selected(&review, selection)?;
+    let payload = sha256(&bytes(&json!({"version":"history-semantic-publication-1",
+        "task":{"session_id":task.session_id,"input_event_id":task.input_event_id,"input_hash":task.input_hash},
+        "choice":selection}))?);
+    // Keep the caller operation key global within this feature: reusing it
+    // for another task/choice conflicts rather than silently creating a job.
+    let key = format!("history-semantic-publish-1:{}", sha256(key));
+    if let Some(done) = enouia_memory_govern::replay_bound_proposal(
+        adapter.vault,
+        &adapter.owner,
+        key.as_bytes(),
+        &payload,
+    )
+    .map_err(|e| e.error)?
+    {
+        let candidate: CandidateRecord =
+            read(adapter.vault, RecordKind::Candidate, done.id.as_str())?;
+        let mut refs = review
+            .source_coverage
+            .iter()
+            .map(|c| {
+                RecordRef::new(
+                    RecordKind::Source,
+                    c.slice.source.source_id.as_str(),
+                    c.slice.source.source_revision,
+                )
+            })
+            .collect::<Vec<_>>();
+        refs.push(RecordRef::new(
+            RecordKind::Candidate,
+            done.id.as_str(),
+            candidate.revision,
+        ));
+        history_review::fresh(adapter.vault, &review.base, &refs, adapter.enabled)?;
+        return Ok(Proposed::Stored(done));
+    }
+    let draft = draft(adapter, task, selection)?;
+    history_review::owner(adapter.vault, &adapter.owner, adapter.enabled)?;
+    enouia_memory_govern::propose_bound_at_head(
+        adapter.vault,
+        &draft.proposal,
+        &draft.origin,
+        key.as_bytes(),
+        &payload,
+        required_head,
+    )
+    .map_err(|e| e.error)
 }
