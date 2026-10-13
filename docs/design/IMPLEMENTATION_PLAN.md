@@ -6,6 +6,8 @@
 
 > **2026-10-12 接续：** H1～H2d 已通过 PR #8～#11 合并，main 基线为 `00afd8a`。H2e 增加离线人工质量评估工具及正/负/待审合成校准，见 [ADR-MEM-54](../adr/054-history-quality-assessment-harness.md) 和 [报告](../validation/MV-7-quality-assessment.md)。结构与证据门槛、评估流程已经合成验证；真实语义质量、漏提和全量尺度仍未验收，MV-8 未启动。
 
+> **2026-10-13 接续：** H2e 与续做交接已合并，main 基线 `d0dd537`。H2f 增加主人显式选定的语义提案草案及来源删除时的候选历史清理，见 [ADR-MEM-55](../adr/055-owner-selected-semantic-proposal-drafts.md) 和 [报告](../validation/MV-7-semantic-proposal-drafts.md)。沿用待审提案与可信审核；helper 不发送、不写入、不批准。真实质量、Runtime 产品采用与主人验收仍未完成，MV-8 未启动。
+
 ## 1. 实施纪律与版本关系
 
 本计划采用 MV-* 编号，避免与 Runtime 已有 M0、A1/A2/A3、B1～B5 混淆。MV-0 对齐契约，MV-1/3/4 细化原 A1，MV-5 对应原 A2，MV-6 对应原 A3，MV-2 将原先后置的历史导入前移。Activity Track B 继续按其独立计划推进，不被 Memory 重排或偷偷扩展。

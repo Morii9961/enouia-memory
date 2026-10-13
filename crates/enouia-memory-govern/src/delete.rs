@@ -232,6 +232,39 @@ fn impact(
         out.shared_raw.push((hash.clone(), others));
         out.object_hashes.push(hash.clone());
     }
+    // Candidate content/reason can retain derived text and exact quotes even
+    // when it does not target the memory being deleted. Follow every revision
+    // of its evidence: an owner edit must not hide an older sensitive version.
+    for candidate in all_latest::<CandidateRecord>(vault, pin, RecordKind::Candidate)? {
+        let candidate_id = candidate.candidate_id.as_str();
+        if Some(candidate_id) == exclude {
+            continue;
+        }
+        for r in 1..=candidate.revision.get() {
+            let old: Option<CandidateRecord> = revision(
+                vault,
+                pin,
+                RecordKind::Candidate,
+                candidate_id,
+                enouia_memory_contract::json::Revision::new(r).expect("revision"),
+            )?;
+            if old.is_some_and(|c| {
+                c.evidence
+                    .iter()
+                    .any(|e| affected.contains(e.source_id.as_str()))
+            }) {
+                if !out
+                    .targets
+                    .iter()
+                    .any(|(kind, id, _)| *kind == RecordKind::Candidate && id == candidate_id)
+                {
+                    out.targets
+                        .push((RecordKind::Candidate, candidate_id.to_owned(), None));
+                }
+                break;
+            }
+        }
+    }
     for other in crate::view::canonical_memories(vault, pin, crate::view::Canonical::AllStatuses)? {
         if other.memory_id.as_str() != id
             && other

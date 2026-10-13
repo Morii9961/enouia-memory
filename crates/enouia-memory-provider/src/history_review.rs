@@ -180,7 +180,7 @@ fn topic(
         label,
     })
 }
-fn memory_topic(memory: &CanonicalMemory) -> Result<TopicKey> {
+pub(crate) fn memory_topic(memory: &CanonicalMemory) -> Result<TopicKey> {
     let (kind, label) = match &memory.body {
         MemoryBody::Fact(f) => (TopicKind::Fact, f.claim_key.clone()),
         MemoryBody::Preference(p) => (TopicKind::Preference, p.scope.clone()),
