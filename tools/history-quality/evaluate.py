@@ -6,6 +6,7 @@ from pathlib import Path
 
 VERSION = "history-quality-1"
 DEFAULT = Path(__file__).resolve().parents[2] / "tests/fixtures/history/quality-cases.json"
+MAX_ANALYSIS_INPUT_BYTES = 64 * 1024
 
 
 def digest(value):
@@ -18,10 +19,7 @@ def require(condition, message):
         raise ValueError(message)
 
 
-def read_json(path, limit):
-    with path.open("rb") as stream:
-        data = stream.read(limit + 1)
-    require(len(data) <= limit, "input budget")
+def parse_json(data):
     def unique_object(pairs):
         value = {}
         for key, item in pairs:
@@ -29,6 +27,43 @@ def read_json(path, limit):
             value[key] = item
         return value
     return json.loads(data, object_pairs_hook=unique_object)
+
+
+def read_json(path, limit):
+    with path.open("rb") as stream:
+        data = stream.read(limit + 1)
+    require(len(data) <= limit, "input budget")
+    return parse_json(data)
+
+
+def analysis_input_status(case, scope):
+    if "native_task_input_text" not in case:
+        return "not_included"
+    require(case.get("scope_kind") == "native_selected_spans_v1", "analysis input needs native scope")
+    text = case["native_task_input_text"]
+    require(isinstance(text, str), "analysis input text")
+    raw = text.encode("utf-8")
+    require(0 < len(raw) <= MAX_ANALYSIS_INPUT_BYTES, "analysis input budget")
+    require(hashlib.sha256(raw).hexdigest() == case.get("native_task_input_sha256"),
+            "analysis input binding changed")
+    body = parse_json(text)
+    require(isinstance(body, dict) and body.get("version") == "history-semantic-review-1"
+            and isinstance(body.get("task"), str) and body["task"].strip()
+            and all(isinstance(body.get(field), list) for field in ("sources", "contexts", "suggestions", "runs"))
+            and all(isinstance(body.get(field), dict) for field in ("binding", "topic")), "analysis input shape")
+    require(len(body["sources"]) == len(body["contexts"]) == len(scope), "analysis input scope size")
+    for index, (source, context, selected) in enumerate(zip(body["sources"], body["contexts"], scope)):
+        require(isinstance(source, dict) and isinstance(context, dict)
+                and digest(source.get("source")) == digest(selected["source"])
+                and type(source.get("start")) is int and source["start"] == selected["selection"]["start"]
+                and type(source.get("end")) is int and source["end"] == selected["selection"]["end"]
+                and source.get("content_hash") == selected.get("content_hash")
+                and source.get("snippet_hash") == selected["snippet_hash"]
+                and type(context.get("source_index")) is int and context["source_index"] == index
+                and context.get("text") == selected["text"]
+                and all(digest(context.get(field)) == digest(selected.get(field))
+                        for field in ("speaker_role", "evidence_class", "source_context")), "analysis input scope changed")
+    return "included_hash_and_scope_matched"
 
 
 def scope_for(case, root):
@@ -85,6 +120,7 @@ def item_paths(response):
 def assess(case, scope):
     require(case["scope_value_sha256"] == digest(scope), "scope judgment binding changed")
     require(case["response_value_sha256"] == digest(case["response"]), "response judgment binding changed")
+    input_status = analysis_input_status(case, scope)
     require(case["evidence_mode"] in ("synthetic", "owner_selected"), "evidence mode")
     require(case["reviewer"] in ("synthetic_fixture", "owner", "pending"), "reviewer")
     if case["reviewer"] == "pending":
@@ -132,7 +168,8 @@ def assess(case, scope):
     status = "issues_found" if issues else "review_required" if unresolved else "supported_in_review"
     return {"case_id": case["case_id"], "evidence_mode": case["evidence_mode"], "reviewer": case["reviewer"],
             "scope_value_sha256": digest(scope), "response_value_sha256": digest(case["response"]),
-            "native_task_input_sha256": case.get("native_task_input_sha256"), "review_status": status,
+            "native_task_input_sha256": case.get("native_task_input_sha256"), "analysis_input_inspection": input_status,
+            "review_status": status,
             "items": counts, "required_units": coverage, "adjudicated_item_count": adjudicated,
             "supported_fraction_of_adjudicated_items": counts["supported"] / adjudicated if adjudicated else None,
             "observed_fraction_of_required_units": coverage["observed"] / len(units),

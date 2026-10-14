@@ -7,8 +7,9 @@ use crate::{
 use enouia_memory_contract::{
     MemoryErrorCode,
     hash::{Sha256Hex, sha256},
+    json::Revision,
     ports::CommitPin,
-    record::{RecordKind, RecordRef},
+    record::{AnyRecord, RecordKind, RecordRef},
 };
 use serde_json::{Value, json};
 use std::collections::BTreeSet;
@@ -45,6 +46,23 @@ pub fn build(
     task: &AnalysisTask,
     options: &QualityOptions,
 ) -> Result<QualityBundle> {
+    build_inner(adapter, task, options, false)
+}
+/// Include the exact saved analysis input for private offline inspection.
+/// This is opt-in; it never saves a file, sends a request or fills judgments.
+pub fn build_with_analysis_input(
+    adapter: &VaultAdapter<'_>,
+    task: &AnalysisTask,
+    options: &QualityOptions,
+) -> Result<QualityBundle> {
+    build_inner(adapter, task, options, true)
+}
+fn build_inner(
+    adapter: &VaultAdapter<'_>,
+    task: &AnalysisTask,
+    options: &QualityOptions,
+    include_analysis_input: bool,
+) -> Result<QualityBundle> {
     if options.case_id.trim().is_empty()
         || options.case_id.len() > 128
         || options.required_units.is_empty()
@@ -74,7 +92,7 @@ pub fn build(
         "evidence_class":c.context["evidence_class"],"source_context":c.context["source_context"],
         "cited_by_response":c.cited_by_response,
     })).collect());
-    let suite = json!({"schema_version":"history-quality-1","cases":[{
+    let mut suite = json!({"schema_version":"history-quality-1","cases":[{
         "case_id":options.case_id,"evidence_mode":match options.evidence_mode {EvidenceMode::Synthetic=>"synthetic",EvidenceMode::OwnerSelected=>"owner_selected"},
         "reviewer":"pending","scope_kind":"native_selected_spans_v1","source_scope":scope,
         "scope_value_sha256":value_hash(&scope)?,"response":response,"response_value_sha256":value_hash(&response)?,
@@ -83,6 +101,30 @@ pub fn build(
         "native_builder_validation":"passed_at_build",
         "required_units":options.required_units,"item_judgments":[],"unit_judgments":[],
     }]});
+    if include_analysis_input {
+        let AnyRecord::SessionEvent(input) = adapter
+            .vault
+            .read_parsed(
+                &review.base,
+                &RecordRef::new(
+                    RecordKind::SessionEvent,
+                    task.input_event_id.as_str(),
+                    Revision::new(1).expect("first revision"),
+                ),
+            )
+            .map_err(|e| e.error)?
+        else {
+            return Err(error(MemoryErrorCode::BrokenProvenance));
+        };
+        let text = enouia_memory_context::session::text(adapter.vault, &review.base, &input)
+            .map_err(|e| e.error)?;
+        if text.len() > history_semantic::MAX_TASK_BYTES
+            || sha256(text.as_bytes()) != task.input_hash
+        {
+            return Err(error(MemoryErrorCode::InvalidRequest));
+        }
+        suite["cases"][0]["native_task_input_text"] = json!(text);
+    }
     if bytes(&suite)?.len() > MAX_BUNDLE_BYTES {
         return Err(error(MemoryErrorCode::BudgetExceeded));
     }

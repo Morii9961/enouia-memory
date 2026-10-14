@@ -318,6 +318,10 @@ The [full remember replay and target freshness acceptance](../validation/MV-6-fu
 
 [Decision](058-selected-source-lineage-input.md): optionally include bounded direct parent indices from selected Source revisions, preserve missing/unknown ancestry and legacy tasks, and separate native Request IDs. Normal native validation and explicit sending remain required. [Evidence](../validation/MV-7-semantic-lineage.md).
 
+### ADR-MEM-59 — Opt-in analysis input in private quality bundles (Adopted, MV-7-H2j)
+
+[Decision](059-quality-bundle-analysis-input.md): optionally retain exact bounded native analysis input with private pending review material. The offline evaluator checks input hash and selected scope agreement without authenticating metadata, re-running native validation or judging model quality. [Evidence](../validation/MV-7-quality-input.md).
+
 ## Relation to Enouia Runtime's register
 
 
