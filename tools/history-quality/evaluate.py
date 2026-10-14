@@ -2,11 +2,13 @@
 import argparse
 import hashlib
 import json
+import math
 from pathlib import Path
 
 VERSION = "history-quality-1"
 DEFAULT = Path(__file__).resolve().parents[2] / "tests/fixtures/history/quality-cases.json"
 MAX_ANALYSIS_INPUT_BYTES = 64 * 1024
+MAX_JSON_DEPTH = 128
 
 
 def digest(value):
@@ -20,13 +22,44 @@ def require(condition, message):
 
 
 def parse_json(data):
+    if isinstance(data, (bytes, bytearray)):
+        data = data.decode(json.detect_encoding(data), "surrogatepass")
+    depth, quoted, escaped = 0, False, False
+    for char in data:
+        if quoted:
+            if escaped:
+                escaped = False
+            elif char == "\\":
+                escaped = True
+            elif char == '"':
+                quoted = False
+        elif char == '"':
+            quoted = True
+        elif char in "[{":
+            depth += 1
+            require(depth <= MAX_JSON_DEPTH, "JSON nesting budget")
+        elif char in "]}":
+            depth -= 1
+
     def unique_object(pairs):
         value = {}
         for key, item in pairs:
             require(key not in value, "duplicate JSON key")
             value[key] = item
         return value
-    return json.loads(data, object_pairs_hook=unique_object)
+    def finite_float(text):
+        value = float(text)
+        require(math.isfinite(value), "non-finite JSON number")
+        return value
+
+    def reject_constant(_text):
+        raise ValueError("non-finite JSON number")
+
+    try:
+        return json.loads(data, object_pairs_hook=unique_object,
+                          parse_float=finite_float, parse_constant=reject_constant)
+    except RecursionError as exc:
+        raise ValueError("JSON nesting budget") from exc
 
 
 def read_json(path, limit):
@@ -89,17 +122,27 @@ def scope_for(case, root):
     target = (root / case["source_file"]).resolve()
     require(target.is_relative_to(root.resolve()), "source outside suite directory")
     raw = read_json(target, 2 * 1024 * 1024)
+    require(isinstance(raw, list), "source archive shape")
+    require(all(isinstance(conversation, dict) for conversation in raw), "source conversation shape")
     selected = []
     require(0 < len(case["messages"]) <= 16, "source selection budget")
     seen = set()
     for ref in case["messages"]:
+        require(isinstance(ref, dict)
+                and all(isinstance(ref.get(field), str) and ref[field]
+                        for field in ("conversation_id", "message_id")), "source message ref")
         key = (ref["conversation_id"], ref["message_id"])
         require(key not in seen, "duplicate source message")
         seen.add(key)
         conversations = [c for c in raw if c.get("id") == key[0]]
         require(len(conversations) == 1, "unknown/ambiguous conversation")
-        node = conversations[0]["mapping"].get(key[1])
+        mapping = conversations[0].get("mapping")
+        require(isinstance(mapping, dict), "source mapping shape")
+        node = mapping.get(key[1])
         require(node is not None, "unknown source message")
+        require(isinstance(node, dict) and isinstance(node.get("message"), dict)
+                and isinstance(node["message"].get("content"), dict)
+                and isinstance(node["message"]["content"].get("parts"), list), "selected message shape")
         selected.append({"conversation_id": key[0], "message_id": key[1], "node": node})
     return selected
 

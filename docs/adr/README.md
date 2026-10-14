@@ -322,6 +322,10 @@ The [full remember replay and target freshness acceptance](../validation/MV-6-fu
 
 [Decision](059-quality-bundle-analysis-input.md): optionally retain exact bounded native analysis input with private pending review material. The offline evaluator checks input hash and selected scope agreement without authenticating metadata, re-running native validation or judging model quality. [Evidence](../validation/MV-7-quality-input.md).
 
+### ADR-MEM-60 — Bounded strict JSON for offline quality assessment (Adopted, MV-7-H2k)
+
+[Decision](060-bounded-quality-json-reader.md): reject non-finite/overflowing numbers and over-depth JSON before assessment, retain encoding and quoted-text compatibility, and validate legacy archive/message shapes. Malformed input yields ordinary diagnostics without metrics or tracebacks. [Evidence](../validation/MV-7-quality-json.md).
+
 ## Relation to Enouia Runtime's register
 
 
