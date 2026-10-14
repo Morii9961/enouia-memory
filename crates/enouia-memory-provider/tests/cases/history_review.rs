@@ -3,6 +3,7 @@ use enouia_memory_contract::{
     candidate::{CandidateRecord, CandidateStatus},
     common::{ActorType, TimePrecision},
     memory::MemoryStatus,
+    record::{AnyRecord, RecordRef},
     source::ConfirmationMethod,
     time::{BusinessTime, Timestamp},
 };
@@ -1263,6 +1264,36 @@ fn semantic_lineage_preserves_legacy_tasks_and_direct_branch_edges_after_reopen(
         let new =
             history_semantic::create_with_lineage(&env.vault, &owner(), &options, key, &enabled)
                 .unwrap();
+        // Legacy keys accept arbitrary bytes, including the opt-in namespace.
+        // A different owner key must not recreate the opt-in Request ID.
+        let alias_key = format!("history-semantic-lineage-1:{}", sha256(key));
+        let alias = history_semantic::create(
+            &env.vault,
+            &owner(),
+            &options,
+            alias_key.as_bytes(),
+            &enabled,
+        )
+        .unwrap();
+        let request_of = |task: &history_semantic::AnalysisTask| {
+            let pin = env.vault.pin_current().unwrap();
+            let AnyRecord::SessionEvent(input) = env
+                .vault
+                .read_parsed(
+                    &pin,
+                    &RecordRef {
+                        record_kind: RecordKind::SessionEvent,
+                        record_id: task.input_event_id.to_string(),
+                        revision: Revision::new(1).unwrap(),
+                    },
+                )
+                .unwrap()
+            else {
+                panic!("saved analysis input")
+            };
+            input.request_id
+        };
+        assert_ne!(request_of(&alias), request_of(&new));
         assert_ne!(old.session_id, new.session_id);
         assert_ne!(old.input_hash, new.input_hash);
         let old_input = analysis_input(&env.vault, &old);
@@ -1307,7 +1338,7 @@ fn semantic_lineage_preserves_legacy_tasks_and_direct_branch_edges_after_reopen(
         );
         new_input["task"] = old_input["task"].clone();
         assert_eq!(new_input, old_input);
-        for task in [&old, &new] {
+        for task in [&old, &new, &alias] {
             semantic_send(
                 &env,
                 api,
@@ -1328,7 +1359,18 @@ fn semantic_lineage_preserves_legacy_tasks_and_direct_branch_edges_after_reopen(
                 .unwrap(),
             new
         );
-        for task in [&old, &new] {
+        assert_eq!(
+            history_semantic::create(
+                &reopened,
+                &owner(),
+                &options,
+                alias_key.as_bytes(),
+                &enabled,
+            )
+            .unwrap(),
+            alias
+        );
+        for task in [&old, &new, &alias] {
             let adapter = VaultAdapter {
                 vault: &reopened,
                 owner: owner(),

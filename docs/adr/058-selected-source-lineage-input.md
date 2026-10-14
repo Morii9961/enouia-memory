@@ -9,6 +9,13 @@ request derivation and reopening unchanged. Separate session/input keys and
 Request IDs for the new helper, even when the owner supplies the same operation
 key. Output remains history-semantic-review-1; no wire/storage schema changes.
 
+The new Request ID hashes a domain longer than the maximum 256-byte owner key,
+followed by its namespace and key hash. A legacy key can imitate a textual
+namespace, so the namespace alone cannot separate the two hash-input domains.
+Legacy derivation stays unchanged. This corrects the unmerged H2i helper;
+synthetic tasks created with its earlier derivation must be recreated with a
+fresh owner key, never silently rebound or resent.
+
 selected_lineage has one row per selected source span: source_index,
 parent_source_indices and nullable unselected_parent_count. Read only the selected
 Source revisions at the reviewed pin. Emit direct edges to selected spans; do not
