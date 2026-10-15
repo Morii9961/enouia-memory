@@ -1,5 +1,11 @@
 # MV-7 质量链路持续工作接续
 
+## 2026-10-15 离线集合边界修正
+
+当前分支 codex/history-quality-collection-shapes，基于 PR #20 的 `ce93561`。修复离线评估将空对象/字符串当作数组、将对象键当作 observed 路径及非字符串身份的结构缺口；已保留失败复现，见 [报告](../validation/MV-7-quality-collections.md) 和 [ADR-MEM-61](../adr/061-quality-collection-shapes.md)。28 项 Python、默认并行 Rust 384 项及 required checks exit 0；合法校准和 Rust 合成私有套件的完整报告与旧版一致。无 Rust/接入面/依赖变更，原 manifest aggregate 不变。
+
+主人再次要求继续并推送新更新；本片沿用验证、提交、推送及草稿 PR 的工作流。不要把合法格式、supported_in_review 或 CLI exit 0 当作原生认证、全局质量/主人验收。旧有序屏障故障仍待出现时依据 trace 定位，已有成功材料不需无目标反复运行。真实资料/Provider、Runtime 激活、MV-8 和状态快照均未动。
+
 ## 2026-10-15 接续结果
 
 分支 codex/workspace-contention-fixtures 基于下述 `e37c186`。已完成三个低层 Context 夹具的精确 WriterBusy 有界重试，真实合成写锁证明忙时不发布、原键恢复只写一次并可重放；其他错误和三次上限有回归。默认并行完整 Rust 384 项、Workspace 66 项及 required checks exit 0，见 [本片报告](../validation/MV-7-workspace-contention.md)。Runtime watched tests 的 manifest 已更新，产品适配和生产重试策略不变。

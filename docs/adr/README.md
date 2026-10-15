@@ -326,6 +326,10 @@ The [full remember replay and target freshness acceptance](../validation/MV-6-fu
 
 [Decision](060-bounded-quality-json-reader.md): reject non-finite/overflowing numbers and over-depth JSON before assessment, retain encoding and quoted-text compatibility, and validate legacy archive/message shapes. Malformed input yields ordinary diagnostics without metrics or tracebacks. [Evidence](../validation/MV-7-quality-json.md).
 
+### ADR-MEM-61 — Explicit collection shapes before offline assessment (Adopted, MV-7)
+
+[Decision](061-quality-collection-shapes.md): require array/object shapes and nonblank string case identities before offline metrics; reject truthiness/iteration substitutes without coercion or partial CLI output. Valid scoring and unknown states remain unchanged. [Evidence](../validation/MV-7-quality-collections.md).
+
 ## Relation to Enouia Runtime's register
 
 

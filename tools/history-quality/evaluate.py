@@ -148,11 +148,15 @@ def scope_for(case, root):
 
 
 def item_paths(response):
-    require(response["version"] == "history-semantic-review-1", "response version")
+    require(isinstance(response, dict), "response shape")
+    require(response.get("version") == "history-semantic-review-1", "response version")
+    require(all(isinstance(response.get(field), list) for field in ("changes", "summary")),
+            "response collections must be arrays")
     require(len(response["changes"]) <= 16 and len(response["summary"]) <= 8, "response budget")
     result = {}
     for section, fields in [("changes", ("statement", "explanation")), ("summary", ("statement",))]:
         for i, item in enumerate(response[section]):
+            require(isinstance(item, dict), "response item shape")
             for field in fields:
                 text = item[field]
                 require(isinstance(text, str) and 0 < len(text.encode()) <= 4096, "statement budget")
@@ -161,6 +165,9 @@ def item_paths(response):
 
 
 def assess(case, scope):
+    require(isinstance(case, dict), "case shape")
+    require(all(isinstance(case.get(field), list) for field in ("item_judgments", "unit_judgments")),
+            "review collections must be arrays")
     require(case["scope_value_sha256"] == digest(scope), "scope judgment binding changed")
     require(case["response_value_sha256"] == digest(case["response"]), "response judgment binding changed")
     input_status = analysis_input_status(case, scope)
@@ -177,12 +184,15 @@ def assess(case, scope):
     paths = item_paths(case["response"])
     verdicts = {}
     for review in case["item_judgments"]:
+        require(isinstance(review, dict), "item judgment shape")
         path, verdict = review["path"], review["verdict"]
-        require(path in paths and path not in verdicts, "invalid/duplicate reviewed path")
+        require(isinstance(path, str) and path in paths and path not in verdicts, "invalid/duplicate reviewed path")
         require(verdict in ("supported", "contradicted", "unsupported", "uncertain"), "item verdict")
         require(isinstance(review["reason"], str) and review["reason"].strip(), "review reason required")
-        require(0 < len(review["evidence"]) <= 4, "review evidence required")
+        require(isinstance(review["evidence"], list) and 0 < len(review["evidence"]) <= 4,
+                "review evidence required")
         for evidence in review["evidence"]:
+            require(isinstance(evidence, dict), "review evidence shape")
             i, quote = evidence["source_index"], evidence["quote"]
             require(type(i) is int and 0 <= i < len(scope), "review evidence index")
             text = scope[i]["text"] if case.get("scope_kind") == "native_selected_spans_v1" else "\n".join(p for p in scope[i]["node"]["message"]["content"]["parts"] if isinstance(p, str))
@@ -193,6 +203,9 @@ def assess(case, scope):
             and len(set(units)) == len(units), "required units")
     unit_states = {}
     for judgment in case["unit_judgments"]:
+        require(isinstance(judgment, dict), "unit judgment shape")
+        require(isinstance(judgment.get("paths"), list)
+                and all(isinstance(path, str) for path in judgment["paths"]), "unit paths must be arrays of strings")
         unit, status = judgment["unit_id"], judgment["status"]
         require(unit in units and unit not in unit_states, "invalid/duplicate unit")
         require(status in ("observed", "missing", "unknown"), "unit status")
@@ -222,8 +235,10 @@ def assess(case, scope):
 def evaluate(path):
     path = Path(path)
     suite = read_json(path, 512 * 1024)
-    require(suite["schema_version"] == VERSION, "suite version")
-    cases = suite["cases"]
+    require(isinstance(suite, dict) and suite.get("schema_version") == VERSION, "suite version")
+    cases = suite.get("cases")
+    require(isinstance(cases, list) and all(isinstance(case, dict) for case in cases), "cases shape")
+    require(all(isinstance(case.get("case_id"), str) and case["case_id"].strip() for case in cases), "case identity")
     require(0 < len(cases) <= 32 and len({c["case_id"] for c in cases}) == len(cases), "case budget/identity")
     return {"schema_version": VERSION, "suite_value_sha256": digest(suite), "native_validation": "not_rerun",
             "overall_model_quality": None, "cases": [assess(c, scope_for(c, path.parent)) for c in cases]}

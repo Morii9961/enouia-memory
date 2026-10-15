@@ -27,6 +27,66 @@ class AssessmentTests(unittest.TestCase):
         self.assertEqual(result["cases"][2]["required_units"]["unknown"], 2)
         self.assertIsNone(result["overall_model_quality"])
 
+    def test_response_collections_must_be_arrays_even_when_empty(self):
+        original = self.native_case()
+        for field in ("changes", "summary"):
+            for value in ({}, ""):
+                with self.subTest(field=field, value=value):
+                    case = copy.deepcopy(original)
+                    case["response"][field] = value
+                    case["response_value_sha256"] = evaluate.digest(case["response"])
+                    with self.assertRaisesRegex(ValueError, "response collections"):
+                        evaluate.assess(case, case["source_scope"])
+
+    def test_review_collections_must_be_arrays_even_when_empty(self):
+        for field in ("item_judgments", "unit_judgments"):
+            for value in ({}, ""):
+                with self.subTest(field=field, value=value):
+                    case = copy.deepcopy(self.case)
+                    case[field] = value
+                    with self.assertRaisesRegex(ValueError, "review collections"):
+                        evaluate.assess(case, self.scope)
+
+    def test_unit_paths_must_be_arrays_for_every_status(self):
+        for status, paths in [("observed", {"/changes/0/statement": None}),
+                              ("missing", {}), ("unknown", False), ("unknown", "")]:
+            with self.subTest(status=status, paths=paths):
+                case = copy.deepcopy(self.case)
+                case["unit_judgments"][0].update(status=status, paths=paths)
+                with self.assertRaisesRegex(ValueError, "unit paths"):
+                    evaluate.assess(case, self.scope)
+
+    def test_suite_cases_and_identity_have_explicit_shapes(self):
+        for identity in ("", " ", True, 1, None, [], {}):
+            with self.subTest(identity=identity):
+                suite = copy.deepcopy(self.suite)
+                suite["cases"][0]["case_id"] = identity
+                with patch("evaluate.read_json", return_value=suite):
+                    with self.assertRaisesRegex(ValueError, "case identity"):
+                        evaluate.evaluate(evaluate.DEFAULT)
+        for cases in ({}, "", [None]):
+            with self.subTest(cases=cases), patch("evaluate.read_json", return_value={
+                    "schema_version": evaluate.VERSION, "cases": cases}):
+                with self.assertRaisesRegex(ValueError, "cases shape"):
+                    evaluate.evaluate(evaluate.DEFAULT)
+
+    def test_malformed_response_collection_cli_emits_no_metrics(self):
+        case = self.native_case()
+        valid = copy.deepcopy(case)
+        case["case_id"] += "-invalid"
+        case["response"]["changes"] = {}
+        case["response_value_sha256"] = evaluate.digest(case["response"])
+        with tempfile.TemporaryDirectory(prefix="synthetic-quality-collections-") as directory:
+            suite = Path(directory) / "synthetic-suite.json"
+            suite.write_text(json.dumps({"schema_version": evaluate.VERSION, "cases": [valid, case]},
+                                        ensure_ascii=False), encoding="utf-8")
+            result = subprocess.run([sys.executable, str(Path(evaluate.__file__)), "--suite", str(suite)],
+                                    capture_output=True, text=True, timeout=10)
+        self.assertEqual(result.returncode, 1)
+        self.assertEqual(result.stdout, "")
+        self.assertIn("invalid evaluation input: response collections", result.stderr)
+        self.assertNotIn("Traceback", result.stderr)
+
     def test_changed_response_invalidates_judgments(self):
         self.case["response"]["changes"][0]["statement"] = "改写后尚未审核。"
         with self.assertRaisesRegex(ValueError, "response judgment binding"):
