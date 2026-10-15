@@ -1,5 +1,9 @@
 # MV-7 质量链路持续工作接续
 
+## 2026-10-15 合成批次边界与恢复
+
+当前分支 codex/history-batch-boundaries，基于 PR #23 的 `422399d`。为既有 H2a 增加三项原生合成验证：32 批在第 16 批后取消并重新打开恢复，33 批拒绝；15 条新消息加前文保持完整；32 个分支共 512 个片段引用超出协调元数据预算时不发布 Session。默认并行完整 Rust 387 项（history 13）及 required checks 全部 exit 0，见 [报告](../validation/MV-7-batch-boundaries.md)。数量和字节预算必须同时满足，不能据此承诺 32 个满批或真实全量规模。生产实现、契约、依赖和 Runtime surface 均未改；真实语义质量、Runtime 采用、主人验收及旧屏障故障仍未完成，状态快照未刷新。继续沿用提交、推送和草稿 PR 流程，不自动合并或进入下一阶段。
+
 ## 2026-10-15 合成谱系结构修正
 
 当前分支 codex/history-quality-lineage-shape，基于 PR #22 的 `c251125`。修正矩阵检查仅凭 selected_lineage 字段存在即接受的缺口；检查原生行字段、完整唯一的来源索引、父索引范围/唯一性和可为空的未选父数量，见 [报告](../validation/MV-7-matrix-lineage-shape.md)。39 项 Python、默认并行 Rust 384 项、八份原生合成产物兼容及 required checks 均通过；已保留修正前 13 个失败子例。生产 Rust/契约/依赖/接入面未改，快照未刷新。继续采用提交、推送、草稿 PR 流程；结构合格仍不认证父链或真实质量，真实资料/Provider、Runtime 激活、MV-8 和主人验收仍待独立工作。
