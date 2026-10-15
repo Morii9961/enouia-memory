@@ -14,4 +14,6 @@
 
 继续核对了有序夹具的暂停点：整条 session_ask 在 save_input 的 TurnId 分配处暂停，位于 commit 及写锁获取之前；完成通知在整个 page call 返回后发出。后续 compiled 在索引锁内执行，旧日志没有记录阶段耗时，不能据此归因。现在记录调用线程的开始、分配暂停/恢复、返回及主线程屏障阶段的毫秒时序，仅失败时输出；两个工作线程均先 join，再传播 panic。没有请求/记忆内容，也没有调度隔离或生产修复。后续故障可分辨未就绪、未恢复、未返回或工作线程 panic。
 
+补充一次定向较高并发诊断：cargo test -p enouia-memory-workspace --lib --locked -- --test-threads=64，66 项通过、0 失败、7.13 秒，exit 0 保存于 mv7-contention-pressure-64-exit.json，日志 mv7-contention-pressure-64.log。仍未复现旧有序超时；该结果只覆盖这一合成运行，不是任意负载稳定性或故障根因结论。
+
 初版接入面 aggregate 为 `ac15437a5c3a74b62d71f63c4519aaede5d630c9e9b7ab342b96a58ec0702111`；补充失败诊断后为 `42acddadc5686b962d6ae3d8a755b009f9c158fef1f95c65a95ff6f25e43de44`，仍为 47 commands。补充诊断后重新执行默认并行全量 Rust：384 项通过、0 失败，Workspace 66 项、6.29 秒，exit 0 已独立保存于 mv7-contention-trace-full-exit.json（日志 mv7-contention-trace-full.log）；fmt --check、严格 Clippy（mv7-contention-trace-clippy.log、mv7-contention-trace-clippy-exit.json）、Runtime checker 和公开检查通过。36-schema 检查沿用本轮此前证据，schema 输入没有变化。结果为本地 mv7-contention-trace-check-results.json。有序超时未再次触发，失败输出路径没有本轮实跑故障证据，原因仍未定位。变更仅在 watched tests；[Runtime 记录](../integration/RUNTIME.md)说明没有产品适配动作，采用这些合成夹具可更新 pin。真实历史/模型质量、Runtime 产品采用和主人验收仍待独立工作；状态快照未刷新，MV-8 未开始。
