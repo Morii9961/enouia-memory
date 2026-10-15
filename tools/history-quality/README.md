@@ -9,6 +9,16 @@ python tools/history-quality/evaluate.py
 
 默认只读仓库内的 [合成套件](../../tests/fixtures/history/quality-cases.json) 和它明确选定的来源文件。不会访问网络、凭据或查找私人历史。报告写到标准输出；退出码 0 只表示生成了报告，不能当作质量通过。
 
+## 扩展语义校准
+
+[扩展合成题集](../../tests/fixtures/history/semantic-calibration-cases.json) 另有 10 个预设回答及判定，复用同一份合成来源，覆盖过去/当前偏好、分支区别、助手建议与用户决定、未知日期、遗漏及未定现状。它不改变默认三例，也不调用模型；判定属于 synthetic_fixture，不是主人审核。
+
+```powershell
+python tools/history-quality/evaluate.py --suite tests/fixtures/history/semantic-calibration-cases.json
+```
+
+其中“只说未采纳导航，遗漏取消地图”的例子，陈述支持比例为 1，但关键单元覆盖为 1/2，状态仍为 issues_found；“当前项目状态未定”的例子，有一项 supported、一项 uncertain 和一个 unknown 单元，已判定项支持比例也为 1，状态仍为 review_required。比例、判完与否和覆盖必须一起看，不能用一项满分代替质量通过。十例的预设判定只校准计算和字段展示，不验证模型能否识别这些问题，见 [报告](../../docs/validation/MV-7-semantic-calibration.md)。
+
 ## 原生合成组合检查
 
 现有 Rust 假 Provider 用例可显式导出 OpenAI/Anthropic × 无/有所选谱系 × 旧/完整输入 builder 的八份合成套件及清单，放在忽略的本地目录。没有开启该测试环境变量时不生成这些文件，生产 builder 仍只返回内存材料。
