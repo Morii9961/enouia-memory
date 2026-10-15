@@ -1637,6 +1637,7 @@ fn concurrent_purge_confirm_replays_one_complete_result() {
         ready: ready_tx,
         releases: Mutex::new(vec![a_rx, b_rx]),
         seq: SequentialIdSource::new(0xe000),
+        trace: Arc::new(RaceTrace::new()),
     });
     let ws = Workspace::new(Config {
         clock: env.clock.clone(),
@@ -1717,6 +1718,7 @@ fn closing_during_purge_waits_for_the_complete_response_and_expires_replay() {
             ready: ready_tx,
             releases: Mutex::new(vec![release_rx]),
             seq: SequentialIdSource::new(0xf000),
+            trace: Arc::new(RaceTrace::new()),
         });
         let ws = Workspace::new(Config {
             clock: env.clock.clone(),
@@ -2486,6 +2488,37 @@ struct HeldIds {
     ready: std::sync::mpsc::Sender<()>,
     releases: Mutex<Vec<std::sync::mpsc::Receiver<()>>>,
     seq: SequentialIdSource,
+    trace: Arc<RaceTrace>,
+}
+
+// Failure-only diagnostics name synchronization phases, never request content.
+struct RaceTrace {
+    started: std::time::Instant,
+    phases: Mutex<Vec<(u128, std::thread::ThreadId, &'static str)>>,
+}
+
+impl RaceTrace {
+    fn new() -> Self {
+        Self {
+            started: std::time::Instant::now(),
+            phases: Mutex::new(vec![]),
+        }
+    }
+
+    fn mark(&self, phase: &'static str) {
+        self.phases.lock().unwrap().push((
+            self.started.elapsed().as_millis(),
+            std::thread::current().id(),
+            phase,
+        ));
+    }
+
+    fn report(&self) -> String {
+        format!(
+            "race phases (elapsed ms, thread, phase): {:?}",
+            self.phases.lock().unwrap()
+        )
+    }
 }
 
 #[test]
@@ -2740,8 +2773,14 @@ impl IdSource for HeldIds {
                 .is_ok()
         {
             let release = self.releases.lock().unwrap().pop().unwrap();
+            self.trace.mark("allocation_paused");
             self.ready.send(()).unwrap();
-            release.recv_timeout(Duration::from_secs(10)).unwrap();
+            release
+                .recv_timeout(Duration::from_secs(10))
+                .unwrap_or_else(|error| {
+                    panic!("allocation release: {error}; {}", self.trace.report())
+                });
+            self.trace.mark("allocation_resumed");
         }
         self.seq.random_16()
     }
@@ -2767,6 +2806,7 @@ fn with_concurrent_allocations_at(
     let (ready_tx, ready_rx) = std::sync::mpsc::channel();
     let (a_tx, a_rx) = std::sync::mpsc::channel();
     let (b_tx, b_rx) = std::sync::mpsc::channel();
+    let trace = Arc::new(RaceTrace::new());
     let ids = Arc::new(HeldIds {
         armed: AtomicU64::new(0),
         skip_per_thread,
@@ -2774,6 +2814,7 @@ fn with_concurrent_allocations_at(
         ready: ready_tx,
         releases: Mutex::new(vec![a_rx, b_rx]),
         seq: SequentialIdSource::new(0xd000),
+        trace: trace.clone(),
     });
     let ws = Workspace::new(Config {
         clock: env.clock.clone(),
@@ -2784,7 +2825,9 @@ fn with_concurrent_allocations_at(
     let (finished_tx, finished_rx) = std::sync::mpsc::channel();
     let values = std::thread::scope(|scope| {
         let run = || {
+            trace.mark("call_started");
             let value = work(&ws);
+            trace.mark("call_returned");
             finished_tx.send(()).unwrap();
             value
         };
@@ -2792,9 +2835,22 @@ fn with_concurrent_allocations_at(
         let second = scope.spawn(run);
         let both_ready = ready_rx.recv_timeout(Duration::from_secs(5)).is_ok()
             && ready_rx.recv_timeout(Duration::from_secs(5)).is_ok();
+        trace.mark(if both_ready {
+            "both_ready"
+        } else {
+            "ready_timeout"
+        });
         let _ = b_tx.send(());
+        trace.mark("first_released");
         let first_finished =
             !ordered_release || finished_rx.recv_timeout(Duration::from_secs(5)).is_ok();
+        if ordered_release {
+            trace.mark(if first_finished {
+                "first_finished"
+            } else {
+                "finish_timeout"
+            });
+        }
         let between = if ordered_release && first_finished {
             Some(std::panic::catch_unwind(std::panic::AssertUnwindSafe(
                 || after_first(&ws),
@@ -2803,17 +2859,27 @@ fn with_concurrent_allocations_at(
             None
         };
         let _ = a_tx.send(());
-        let results = (first.join().unwrap(), second.join().unwrap());
+        trace.mark("second_released");
+        // Join both callers even if one panics, retaining their original panic
+        // output alongside the barrier trace instead of losing the phase data.
+        let first = first.join();
+        let second = second.join();
+        let results = (
+            first.unwrap_or_else(|_| panic!("first worker panicked; {}", trace.report())),
+            second.unwrap_or_else(|_| panic!("second worker panicked; {}", trace.report())),
+        );
         if let Some(Err(panic)) = between {
             std::panic::resume_unwind(panic);
         }
         assert!(
             both_ready,
-            "both calls must pass the initial receipt lookup before publication"
+            "both calls must pass the initial receipt lookup before publication; {}",
+            trace.report()
         );
         assert!(
             first_finished,
-            "the first call must finish before the second resumes"
+            "the first call must finish before the second resumes; {}",
+            trace.report()
         );
         results
     });
