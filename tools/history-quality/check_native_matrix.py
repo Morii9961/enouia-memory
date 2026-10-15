@@ -28,9 +28,20 @@ def lineage_shape(body):
     require(seen == set(range(count)), "matrix lineage shape")
 
 
+def contained_path(root, filename, kind):
+    try:
+        path = (root / filename).resolve()
+        inside = path.is_relative_to(root.resolve())
+    except RuntimeError as exc:
+        raise ValueError("matrix path resolution failed") from exc
+    require(inside, f"matrix {kind} outside root")
+    return path
+
+
 def check(root):
     root = Path(root)
-    manifest = read_json(root / "manifest.json", 16 * 1024)
+    manifest_path = contained_path(root, "manifest.json", "manifest")
+    manifest = read_json(manifest_path, 16 * 1024)
     require(isinstance(manifest, dict) and manifest.get("version") == "native-quality-matrix-1",
             "matrix version")
     rows = manifest.get("cases")
@@ -45,8 +56,7 @@ def check(root):
         require(key in expected and key not in suites, "matrix identity")
         filename = f'{key[0]}-{"lineage" if key[1] else "plain"}-{"complete" if key[2] else "legacy"}.json'
         require(row.get("file") == filename, "matrix filename")
-        path = (root / filename).resolve()
-        require(path.is_relative_to(root.resolve()), "matrix file outside root")
+        path = contained_path(root, filename, "file")
         suite = read_json(path, 512 * 1024)
         report = evaluate(path)
         require(digest(suite) == report["suite_value_sha256"], "matrix fixture changed during reading")
