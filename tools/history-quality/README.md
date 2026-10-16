@@ -85,6 +85,20 @@ python tools/history-quality/review.py --suite .local/mv7-quality-review-practic
 
 这是既有合成材料的固定练习判断，不能挪用到其他来源。修改后分别运行 evaluate.py 和 review.py，二者都显式传入同一份练习套件。结果应为支持 1、未审 2，关键单元出现 1、未知 1；已判定项支持比例虽为 1，状态仍为 review_required，整体模型质量仍为 null。没有填的判断继续未审，不要为消除 unknown 而猜测；只有实际检查后才能补写。原始 pending 套件和原生声明均不因练习变成主人验收。
 
+### 核对评审修订
+
+填写上述练习后，可以核对原始待审套件与练习副本的差异：
+
+```powershell
+python tools/history-quality/compare_reviews.py --before .local/mv7-quality-native-matrix/anthropic-lineage-complete.json --after .local/mv7-quality-review-practice.json
+```
+
+两份完整套件先分别验证，比较用的快照必须与其验证 hash 一致。只有 reviewer、item_judgments、unit_judgments 可变；案例集合、来源、回答、关键单元、原生声明及额外元数据变化时，整份对比拒绝。即使两份各自合法、hash 均已更新，也不能将材料变化冒充评审修订。案例和判断数组只调整顺序时，不算判断编辑。
+
+UTF-8 JSON 报告给出新增/修改/撤回的回答路径、关键单元序号及前后计数。before_index、after_index 和 unit_indices 均从 0 开始；单元序号对应套件 required_units 的固定顺序。输出不复写案例名、关键单元名称、来源、回答、理由、引文或完整输入；位置和 hash 仍是评审元数据，不保证匿名或可公开。上面的部分评审应显示一个新增回答路径和单元 0，后续状态仍为 review_required。
+
+工具只读，不合并、不回写、不导入 Markdown，也不把撤回判断或计数变化称为质量提升；reviewer 始终只是已验证格式的声明。报告上限 128 KiB，输入错误或材料变化时 stdout 为空；native_validation 仍为 not_rerun、overall_model_quality 为 null。详见 [ADR-MEM-63](../../docs/adr/063-offline-review-revision-comparison.md) 和 [验证记录](../../docs/validation/MV-7-review-revision-comparison.md)。
+
 ## 判定步骤
 
 合成组合检查对 `selected_lineage` 检查行数组、所选来源索引的完整唯一覆盖、父索引的范围/唯一性，以及非负整数或 null 的未选父数量；不接受布尔值替代整数、空标记或额外行字段。未知父数量仍保留 null。这只确认原生格式的结构，不验证边的事实、不补读父来源或认证父链。

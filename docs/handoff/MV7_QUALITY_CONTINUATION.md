@@ -1,5 +1,9 @@
 # MV-7 质量链路持续工作接续
 
+## 2026-10-16 只读评审修订核对
+
+分支 codex/history-quality-review-delta，基于 PR #28 的 `483f765`。按 ADR-MEM-63 新增显式前后套件对比：只有评审字段可变，来源、回答、关键单元及原生声明改动时整份拒绝；输出判断位置和前后状态，不复写原文或判定理由，不回写、不认定质量提升。七项新增使 Python 总数为 61，实际 Rust 合成材料与部分评审练习的 CLI 衔接通过，两个未审和一个未知保持，见 [报告](../validation/MV-7-review-revision-comparison.md)。默认并行 Rust 387 项及全部 required checks exit 0，公开内容检查通过；无生产 Rust、Runtime surface、真实资料/调用、MV-8 或状态快照改动。继续沿用提交、推送及草稿 PR 流程。
+
 ## 2026-10-16 计数报告 UTF-8 输出
 
 分支 codex/history-quality-utf8-report，基于 PR #27 的 `7e51341`。复现合法中文/表情案例名在 ASCII/GBK 标准输出编码下被 CLI 拒绝，而 API 可用；改为完整验证、序列化和 UTF-8 编码后输出 bytes。两项新增使 Python 总数为 54，受限编码及后例非法时零 stdout 的回归通过，原版两个失败子例已保存；11 份合成套件、22 个案例的完整 JSON 值与旧版一致，见 [报告](../validation/MV-7-quality-report-utf8.md)。默认并行 Rust 387 项及全部 required checks exit 0，公开内容检查通过；计数和原生语义不变，真实材料/调用、Runtime、MV-8、状态快照均未动。继续沿用提交、推送及草稿 PR 流程。

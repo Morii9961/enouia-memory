@@ -334,6 +334,10 @@ The [full remember replay and target freshness acceptance](../validation/MV-6-fu
 
 [Decision](062-offline-quality-review-worksheet.md): render an explicitly selected, validated quality suite as a bounded private Markdown worksheet, with selected sources, response paths, required units, existing judgments and optional structured task input. Preserve pending/unknown states; no auto-grading, file save, Provider or Runtime UI. [Evidence](../validation/MV-7-quality-review-worksheet.md).
 
+### ADR-MEM-63 — Offline review revision comparison (Adopted, MV-7)
+
+[Decision](063-offline-review-revision-comparison.md): compare explicitly selected, fully validated review revisions while binding all non-review input; report added/edited/removed judgment locations and before/after states without repeating source or judgment text. No merge, auto-grading or approval. [Evidence](../validation/MV-7-review-revision-comparison.md).
+
 ## Relation to Enouia Runtime's register
 
 
