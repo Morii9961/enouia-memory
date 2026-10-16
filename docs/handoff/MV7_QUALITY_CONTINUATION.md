@@ -2,6 +2,8 @@
 
 ## 2026-10-16 只读人工评审稿
 
+实现 `a8cba28` 已推送并建立草稿 PR #27，base 为 PR #26 分支；本地、origin 与 GitHub head 已核对一致。随后补充原生合成材料的部分评审练习：只填一个支持项和一个已出现单元，计数报告与评审稿一致，两个未审与一个未知仍使状态保持 review_required；原始 pending 材料及原生绑定未改。README 提供可照做的步骤，完整记录见下述报告，真实判断与验收仍未执行。
+
 当前分支 codex/history-quality-review-worksheet，基于 PR #26 的 `c4df13e`。按 ADR-MEM-62 增加显式 --suite 的只读 Markdown 评审稿，将选定来源、回答路径、关键单元和已有判断放在同一案例中；中文计数只翻译已有结果，不代判，pending/unknown/null 保留。默认 512 KiB、最大 2 MiB，UTF-8 字节超限或材料变更时整份拒绝。六项新增使 Python 总数为 52，纯合成预览字节核对通过；默认并行 Rust 387 项及全部 required checks exit 0，公开内容检查通过，见 [报告](../validation/MV-7-quality-review-worksheet.md)。输出含原文，属于私有材料，工具不保存、不外发、不写记忆；生产 Rust、Runtime surface 和状态快照未改，真实质量与主人验收仍待完成。继续沿用验证、提交、推送和草稿 PR 流程。
 
 ## 2026-10-16 普通来源路径解析补充

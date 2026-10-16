@@ -49,6 +49,40 @@ python tools/history-quality/check_native_matrix.py --root .local/mv7-quality-na
 
 普通评估入口的 source_file、套件目录以及矩阵路径遇到解析循环时，返回普通输入错误；来源读取不会在循环解析失败后继续。
 
+### 用原生合成材料练习评审
+
+上述合成组合生成完毕后，可复制其中一份作为练习，保留原始 pending 材料：
+
+```powershell
+Copy-Item .local/mv7-quality-native-matrix/anthropic-lineage-complete.json .local/mv7-quality-review-practice.json
+python tools/history-quality/review.py --suite .local/mv7-quality-review-practice.json
+```
+
+在 JSON 套件的首个 case 中填写判断；Markdown 只是只读对照稿，不会回写或导入判断。合成练习将 reviewer 设为 synthetic_fixture；不要写 owner。保持来源、回答、任务输入、原生绑定和相应 hash 不变。例如只评完偏好纠正的陈述，可填写以下三个字段：
+
+```json
+{
+  "reviewer": "synthetic_fixture",
+  "item_judgments": [{
+    "path": "/changes/0/statement",
+    "verdict": "supported",
+    "reason": "合成练习：陈述保留过去长篇与现在先给简短结论两项限定。",
+    "evidence": [
+      {"source_index": 0, "quote": "过去偏好长篇说明"},
+      {"source_index": 1, "quote": "现在希望先给简短结论"}
+    ]
+  }],
+  "unit_judgments": [{
+    "unit_id": "偏好长度的纠正",
+    "status": "observed",
+    "paths": ["/changes/0/statement"],
+    "reason": "合成练习：已支持的陈述呈现偏好纠正。"
+  }]
+}
+```
+
+这是既有合成材料的固定练习判断，不能挪用到其他来源。修改后分别运行 evaluate.py 和 review.py，二者都显式传入同一份练习套件。结果应为支持 1、未审 2，关键单元出现 1、未知 1；已判定项支持比例虽为 1，状态仍为 review_required，整体模型质量仍为 null。没有填的判断继续未审，不要为消除 unknown 而猜测；只有实际检查后才能补写。原始 pending 套件和原生声明均不因练习变成主人验收。
+
 ## 判定步骤
 
 合成组合检查对 `selected_lineage` 检查行数组、所选来源索引的完整唯一覆盖、父索引的范围/唯一性，以及非负整数或 null 的未选父数量；不接受布尔值替代整数、空标记或额外行字段。未知父数量仍保留 null。这只确认原生格式的结构，不验证边的事实、不补读父来源或认证父链。
