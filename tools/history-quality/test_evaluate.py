@@ -132,6 +132,22 @@ class AssessmentTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "native sample binding"):
             evaluate.assess(self.case, self.scope)
 
+    def test_legacy_source_resolution_loops_fail_before_reading(self):
+        root = evaluate.DEFAULT.parent
+        target = root / self.case["source_file"]
+        original_resolve = Path.resolve
+        for blocked in (root, target):
+            def resolve(path, *args, **kwargs):
+                if path == blocked:
+                    raise RuntimeError("synthetic source resolution loop")
+                return original_resolve(path, *args, **kwargs)
+
+            with self.subTest(path=blocked.name), patch.object(Path, "resolve", resolve), patch(
+                    "evaluate.read_json") as read:
+                with self.assertRaisesRegex(ValueError, "source path resolution"):
+                    evaluate.scope_for(self.case, root)
+                read.assert_not_called()
+
     def test_duplicate_json_keys_are_refused(self):
         with patch("pathlib.Path.open", return_value=BytesIO(b'{"case_id":"first","case_id":"second"}')):
             from pathlib import Path
