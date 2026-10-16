@@ -1,5 +1,9 @@
 # MV-7 质量链路持续工作接续
 
+## 2026-10-16 只读人工评审稿
+
+当前分支 codex/history-quality-review-worksheet，基于 PR #26 的 `c4df13e`。按 ADR-MEM-62 增加显式 --suite 的只读 Markdown 评审稿，将选定来源、回答路径、关键单元和已有判断放在同一案例中；中文计数只翻译已有结果，不代判，pending/unknown/null 保留。默认 512 KiB、最大 2 MiB，UTF-8 字节超限或材料变更时整份拒绝。六项新增使 Python 总数为 52，纯合成预览字节核对通过；默认并行 Rust 387 项及全部 required checks exit 0，公开内容检查通过，见 [报告](../validation/MV-7-quality-review-worksheet.md)。输出含原文，属于私有材料，工具不保存、不外发、不写记忆；生产 Rust、Runtime surface 和状态快照未改，真实质量与主人验收仍待完成。继续沿用验证、提交、推送和草稿 PR 流程。
+
 ## 2026-10-16 普通来源路径解析补充
 
 仍在 codex/history-matrix-manifest-boundary，基于已推送的 `8c87b83` 继续更新草稿 PR #26。普通 evaluate.py 的来源文件/套件目录解析循环现转为读取前的普通输入错误；新增一项、两个位置的回归，完整 Python 46 项通过。默认/扩展校准及八份原生合成材料共十份报告、21 个案例，与旧版完整 JSON 值一致，见 [报告](../validation/MV-7-matrix-manifest-boundary.md)。上次补充全量没有最终退出记录，不作为通过；本次独立补跑默认并行 Rust 387 项、fmt、严格 Clippy 均 exit 0，其余同版必需检查也已通过，结果已保存。仍保留 Windows 实际链接未验证的限制，不更改生产 Rust、Runtime 接入面或状态快照。
