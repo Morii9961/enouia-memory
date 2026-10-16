@@ -1,5 +1,9 @@
 # MV-7 质量链路持续工作接续
 
+## 2026-10-16 计数报告 UTF-8 输出
+
+分支 codex/history-quality-utf8-report，基于 PR #27 的 `7e51341`。复现合法中文/表情案例名在 ASCII/GBK 标准输出编码下被 CLI 拒绝，而 API 可用；改为完整验证、序列化和 UTF-8 编码后输出 bytes。两项新增使 Python 总数为 54，受限编码及后例非法时零 stdout 的回归通过，原版两个失败子例已保存；11 份合成套件、22 个案例的完整 JSON 值与旧版一致，见 [报告](../validation/MV-7-quality-report-utf8.md)。默认并行 Rust 387 项及全部 required checks exit 0，公开内容检查通过；计数和原生语义不变，真实材料/调用、Runtime、MV-8、状态快照均未动。继续沿用提交、推送及草稿 PR 流程。
+
 ## 2026-10-16 只读人工评审稿
 
 实现 `a8cba28` 已推送并建立草稿 PR #27，base 为 PR #26 分支；本地、origin 与 GitHub head 已核对一致。随后补充原生合成材料的部分评审练习：只填一个支持项和一个已出现单元，计数报告与评审稿一致，两个未审与一个未知仍使状态保持 review_required；原始 pending 材料及原生绑定未改。README 提供可照做的步骤，完整记录见下述报告，真实判断与验收仍未执行。

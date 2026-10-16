@@ -1,6 +1,7 @@
 import copy
 import json
 import hashlib
+import os
 import subprocess
 import sys
 import tempfile
@@ -91,6 +92,44 @@ class AssessmentTests(unittest.TestCase):
         self.case["response"]["changes"][0]["statement"] = "改写后尚未审核。"
         with self.assertRaisesRegex(ValueError, "response judgment binding"):
             evaluate.assess(self.case, self.scope)
+
+    def test_cli_report_is_utf8_under_restricted_console_encodings(self):
+        case = self.native_case()
+        case["case_id"] = "合成评审🌱"
+        with tempfile.TemporaryDirectory(prefix="synthetic-quality-utf8-") as directory:
+            suite = Path(directory) / "synthetic-suite.json"
+            suite.write_text(json.dumps({"schema_version": evaluate.VERSION, "cases": [case]},
+                                        ensure_ascii=False), encoding="utf-8")
+            expected = evaluate.evaluate(suite)
+            for encoding in ("ascii", "cp936"):
+                with self.subTest(encoding=encoding):
+                    result = subprocess.run(
+                        [sys.executable, str(Path(evaluate.__file__)), "--suite", str(suite)],
+                        env=dict(os.environ, PYTHONIOENCODING=encoding + ":strict"),
+                        capture_output=True, timeout=10)
+                    self.assertEqual(result.returncode, 0, result.stderr)
+                    self.assertEqual(result.stderr, b"")
+                    self.assertEqual(json.loads(result.stdout.decode("utf-8")), expected)
+                    self.assertTrue(result.stdout.endswith(b"\n"))
+                    self.assertIn(case["case_id"].encode("utf-8"), result.stdout)
+
+    def test_cli_invalid_second_case_emits_no_utf8_report(self):
+        valid = self.native_case()
+        valid["case_id"] = "合成评审🌱"
+        invalid = copy.deepcopy(valid)
+        invalid["case_id"] += "-invalid"
+        invalid["scope_value_sha256"] = "0" * 64
+        with tempfile.TemporaryDirectory(prefix="synthetic-quality-utf8-invalid-") as directory:
+            suite = Path(directory) / "synthetic-suite.json"
+            suite.write_text(json.dumps({"schema_version": evaluate.VERSION, "cases": [valid, invalid]},
+                                        ensure_ascii=False), encoding="utf-8")
+            result = subprocess.run(
+                [sys.executable, str(Path(evaluate.__file__)), "--suite", str(suite)],
+                env=dict(os.environ, PYTHONIOENCODING="ascii:strict"), capture_output=True, timeout=10)
+        self.assertEqual(result.returncode, 1)
+        self.assertEqual(result.stdout, b"")
+        self.assertIn(b"scope judgment binding changed", result.stderr)
+        self.assertNotIn(b"Traceback", result.stderr)
 
     def test_changed_source_invalidates_judgments(self):
         changed = copy.deepcopy(self.scope)
