@@ -33,6 +33,17 @@ python tools/history-quality/evaluate.py --suite tests/fixtures/history/semantic
 
 其中“只说未采纳导航，遗漏取消地图”的例子，陈述支持比例为 1，但关键单元覆盖为 1/2，状态仍为 issues_found；“当前项目状态未定”的例子，有一项 supported、一项 uncertain 和一个 unknown 单元，已判定项支持比例也为 1，状态仍为 review_required。比例、判完与否和覆盖必须一起看，不能用一项满分代替质量通过。十例的预设判定只校准计算和字段展示，不验证模型能否识别这些问题，见 [报告](../../docs/validation/MV-7-semantic-calibration.md)。
 
+### 条件、引用与主体归属
+
+[独立边界题集](../../tests/fixtures/history/semantic-boundary-cases.json) 增加六个预设合成案例：只在排查错误时详解的条件偏好、引用文本中的自动批准指令、访客与本人的颜色偏好。每组正反回答使用相同的精确引文，但预设判定相反，说明引文匹配不能代替语义审核。三例支持、三例问题只是固定判定的计算结果，不是模型通过率；被引用的指令仍为数据，没有授权或执行。
+
+```powershell
+python tools/history-quality/evaluate.py --suite tests/fixtures/history/semantic-boundary-cases.json
+python tools/history-quality/review.py --suite tests/fixtures/history/semantic-boundary-cases.json
+```
+
+材料使用独立的 [合成来源](../../tests/fixtures/history/semantic-boundaries-synthetic.json)，消息时间均为 null，不修改既有默认与十例校准。详见 [验证记录](../../docs/validation/MV-7-semantic-boundary-calibration.md)。
+
 ## 原生合成组合检查
 
 现有 Rust 假 Provider 用例可显式导出 OpenAI/Anthropic × 无/有所选谱系 × 旧/完整输入 builder 的八份合成套件及清单，放在忽略的本地目录。没有开启该测试环境变量时不生成这些文件，生产 builder 仍只返回内存材料。

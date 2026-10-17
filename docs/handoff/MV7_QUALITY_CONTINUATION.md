@@ -1,5 +1,9 @@
 # MV-7 质量链路持续工作接续
 
+## 2026-10-16 条件、引用和主体归属校准
+
+分支 codex/history-semantic-boundaries，基于 PR #29 的 `cd5b49e`。沿用 ADR-MEM-54，新增独立合成来源与六例显式校准：条件偏好、引用指令、访客/本人偏好各一组正反例，同源同引文也不能代替语义判断。两项新增使完整 Python 为 63，计数报告与评审稿逐例衔接通过，原有来源/套件及工具实现未改，见 [报告](../validation/MV-7-semantic-boundary-calibration.md)。默认并行 Rust 387 项及全部 required checks exit 0，公开内容检查通过。三支持/三问题均为预设标签，不是模型质量；无真实资料/调用、Runtime、MV-8 或状态快照改动。继续沿用提交、推送与草稿 PR 流程。
+
 ## 2026-10-16 只读评审修订核对
 
 实现 `34442df` 已推送为草稿 PR #29，base 为 codex/history-quality-utf8-report；本地、origin 及 GitHub head 已核对一致。新增命令的显式调用和零基索引说明在工具 README。忽略的 mv7-review-delta-results.json 汇总各项 exit 0，native-summary 记录真实 Rust 合成产物到固定练习判断的衔接；不能据此声称真实模型或主人验收。后续可检查条件限定、引用指令和主体归属的校准覆盖：当前十例扩展集没有专门的条件限定正/负配对，尚未新增相关材料，也没有改动既有来源及判定。无需无目标重复既有成功材料；继续实现时保留所有阶段和真实调用边界。
