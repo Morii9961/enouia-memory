@@ -1,6 +1,10 @@
 import copy
 import json
 import hashlib
+import subprocess
+import sys
+import tempfile
+from pathlib import Path
 from io import BytesIO
 import unittest
 from unittest.mock import patch
@@ -73,6 +77,97 @@ class AssessmentTests(unittest.TestCase):
             from pathlib import Path
             with self.assertRaisesRegex(ValueError, "duplicate JSON key"):
                 evaluate.read_json(Path("synthetic-duplicate.json"), 1000)
+
+    def test_nonfinite_and_overflowing_json_numbers_are_refused(self):
+        for number in ("NaN", "Infinity", "-Infinity", "1e400", "-1e400"):
+            with self.subTest(number=number):
+                with self.assertRaisesRegex(ValueError, "non-finite JSON number"):
+                    evaluate.parse_json('{"number":' + number + '}')
+        self.assertEqual(evaluate.parse_json('{"number":1.25,"zero":-0.0,"unknown":null}'),
+                         {"number": 1.25, "zero": -0.0, "unknown": None})
+
+    def test_json_depth_budget_ignores_quoted_and_escaped_brackets(self):
+        limit = 128
+        self.assertIsInstance(evaluate.parse_json("[" * limit + "0" + "]" * limit), list)
+        with self.assertRaisesRegex(ValueError, "JSON nesting budget"):
+            evaluate.parse_json("[" * (limit + 1) + "0" + "]" * (limit + 1))
+        text = 'Synthetic quoted " text: ' + "[{]}" * 1000 + "\\"
+        encoded = json.dumps({"text": text}, ensure_ascii=False)
+        for data in (encoded, encoded.encode("utf-8"), encoded.encode("utf-16"), encoded.encode("utf-32")):
+            self.assertEqual(evaluate.parse_json(data), {"text": text})
+        with self.assertRaisesRegex(ValueError, "duplicate JSON key"):
+            evaluate.parse_json(r'{"value":1,"\u0076alue":2}')
+
+    def test_embedded_nonfinite_analysis_input_is_not_structurally_accepted(self):
+        case = self.native_analysis_case()
+        body = json.loads(case["native_task_input_text"])
+        body["extra_number"] = float("nan")
+        case["native_task_input_text"] = json.dumps(body, ensure_ascii=False)
+        case["native_task_input_sha256"] = hashlib.sha256(case["native_task_input_text"].encode()).hexdigest()
+        with self.assertRaisesRegex(ValueError, "non-finite JSON number"):
+            evaluate.assess(case, case["source_scope"])
+
+    def test_deep_embedded_input_cli_refuses_without_metrics_or_traceback(self):
+        case = self.native_analysis_case()
+        text = case["native_task_input_text"]
+        case["native_task_input_text"] = text[:-1] + ',"extra_deep":' + "[" * 4096 + "0" + "]" * 4096 + "}"
+        case["native_task_input_sha256"] = hashlib.sha256(case["native_task_input_text"].encode()).hexdigest()
+        with tempfile.TemporaryDirectory(prefix="synthetic-quality-json-") as directory:
+            suite = Path(directory) / "synthetic-suite.json"
+            suite.write_text(json.dumps({"schema_version": evaluate.VERSION, "cases": [case]}, ensure_ascii=False),
+                             encoding="utf-8")
+            result = subprocess.run([sys.executable, str(Path(evaluate.__file__)), "--suite", str(suite)],
+                                    capture_output=True, text=True, timeout=10)
+        self.assertEqual(result.returncode, 1)
+        self.assertEqual(result.stdout, "")
+        self.assertIn("invalid evaluation input: JSON nesting budget", result.stderr)
+        self.assertNotIn("Traceback", result.stderr)
+
+    def test_legacy_source_scope_refuses_malformed_shapes(self):
+        ref = self.case["messages"][0]
+        examples = [({"malformed": True}, "source archive shape"),
+                    ([1], "source conversation shape"),
+                    ([{"id": ref["conversation_id"], "mapping": []}], "source mapping shape"),
+                    ([{"id": ref["conversation_id"], "mapping": {ref["message_id"]: True}}], "selected message shape"),
+                    ([{"id": ref["conversation_id"], "mapping": {ref["message_id"]:
+                      {"message": {"content": {"parts": "not an array"}}}}}], "selected message shape")]
+        for raw, error in examples:
+            with self.subTest(raw=raw), patch("evaluate.read_json", return_value=raw):
+                with self.assertRaisesRegex(ValueError, error):
+                    evaluate.scope_for(self.case, evaluate.DEFAULT.parent)
+
+    def test_legacy_source_scope_preserves_attachment_metadata(self):
+        conversations = {}
+        for original in self.scope:
+            node = copy.deepcopy(original["node"])
+            node["message"]["content"]["parts"].append({"synthetic_attachment": {"missing": True}})
+            conversation = conversations.setdefault(original["conversation_id"],
+                                                     {"id": original["conversation_id"], "mapping": {}})
+            conversation["mapping"][original["message_id"]] = node
+        with patch("evaluate.read_json", return_value=list(conversations.values())):
+            scope = evaluate.scope_for(self.case, evaluate.DEFAULT.parent)
+        self.assertEqual(scope[0]["node"]["message"]["content"]["parts"][-1],
+                         {"synthetic_attachment": {"missing": True}})
+        self.case["scope_value_sha256"] = evaluate.digest(scope)
+        self.assertEqual(evaluate.assess(self.case, scope)["review_status"], "supported_in_review")
+
+    def test_malformed_legacy_source_cli_refuses_without_traceback(self):
+        case = copy.deepcopy(self.case)
+        ref = case["messages"][0]
+        case["source_file"] = "synthetic-source.json"
+        with tempfile.TemporaryDirectory(prefix="synthetic-quality-shape-") as directory:
+            root = Path(directory)
+            (root / case["source_file"]).write_text(json.dumps([{"id": ref["conversation_id"], "mapping": []}]),
+                                                   encoding="utf-8")
+            suite = root / "synthetic-suite.json"
+            suite.write_text(json.dumps({"schema_version": evaluate.VERSION, "cases": [case]}, ensure_ascii=False),
+                             encoding="utf-8")
+            result = subprocess.run([sys.executable, str(Path(evaluate.__file__)), "--suite", str(suite)],
+                                    capture_output=True, text=True, timeout=10)
+        self.assertEqual(result.returncode, 1)
+        self.assertEqual(result.stdout, "")
+        self.assertIn("invalid evaluation input: source mapping shape", result.stderr)
+        self.assertNotIn("Traceback", result.stderr)
 
     def native_case(self):
         text="合成的选定片段。\n保留条件。"
