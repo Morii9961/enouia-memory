@@ -123,3 +123,48 @@ class NativeMatrixTests(unittest.TestCase):
                 self.manifest()
                 with self.assertRaisesRegex(ValueError, error):
                     check_native_matrix.check(self.root)
+
+    def replace_lineage(self, value):
+        full = next(r for r in self.rows if r["lineage"] and r["include_input"])
+        legacy = next(r for r in self.rows if r["api"] == full["api"] and r["lineage"] and not r["include_input"])
+        suite = evaluate.read_json(self.root / full["file"], 512 * 1024)
+        body = json.loads(suite["cases"][0]["native_task_input_text"])
+        body["selected_lineage"] = value
+        self.input_text(suite["cases"][0], body)
+        self.write_suite(full, suite)
+        reduced = copy.deepcopy(suite)
+        reduced["cases"][0].pop("native_task_input_text")
+        self.write_suite(legacy, reduced)
+        self.manifest()
+
+    def test_lineage_marker_requires_complete_row_array(self):
+        for value in (None, "", {}, []):
+            with self.subTest(value=value):
+                self.replace_lineage(value)
+                with self.assertRaisesRegex(ValueError, "lineage shape"):
+                    check_native_matrix.check(self.root)
+
+    def test_lineage_rows_require_strict_indices_and_parent_metadata(self):
+        base = {"source_index": 0, "parent_source_indices": [], "unselected_parent_count": None}
+        examples = [([base, base], "lineage shape")]
+        for field, value in [("source_index", True), ("source_index", 1),
+                             ("parent_source_indices", [True]), ("parent_source_indices", [1]),
+                             ("parent_source_indices", [0, 0]), ("unselected_parent_count", True),
+                             ("unselected_parent_count", -1), ("extra", None)]:
+            row = copy.deepcopy(base)
+            row[field] = value
+            examples.append(([row], "lineage shape"))
+        for value, error in examples:
+            with self.subTest(value=value):
+                self.replace_lineage(value)
+                with self.assertRaisesRegex(ValueError, error):
+                    check_native_matrix.check(self.root)
+
+    def test_unknown_and_unselected_parent_counts_remain_valid(self):
+        for count in (None, 0, 2):
+            with self.subTest(count=count):
+                self.replace_lineage([{"source_index": 0, "parent_source_indices": [],
+                                      "unselected_parent_count": count}])
+                report = check_native_matrix.check(self.root)
+                self.assertIsNone(report["overall_model_quality"])
+                self.assertEqual(report["native_validation"], "not_rerun")

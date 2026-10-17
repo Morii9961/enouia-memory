@@ -25,6 +25,8 @@ python tools/history-quality/check_native_matrix.py --root .local/mv7-quality-na
 
 ## 判定步骤
 
+合成组合检查对 `selected_lineage` 检查行数组、所选来源索引的完整唯一覆盖、父索引的范围/唯一性，以及非负整数或 null 的未选父数量；不接受布尔值替代整数、空标记或额外行字段。未知父数量仍保留 null。这只确认原生格式的结构，不验证边的事实、不补读父来源或认证父链。
+
 输入读取统一限制 JSON 容器嵌套深度为 128；字符串中的括号、引号及转义不参与深度计数。NaN、Infinity、-Infinity 与浮点转换溢出一律拒绝，重复键规则保留。合法 UTF-8/16/32 字节输入继续兼容。旧式来源文件须是会话对象数组，选定 mapping/message/content/parts 结构须可读取；合法混合文本和附件元数据原样保留，不下载或解释附件。非法结构只返回普通错误，不输出部分指标或 traceback。
 
 1. 固定选定来源消息、原生任务及保存的模型响应。来源选择限 16 条，套件限 32 个 case；来源 JSON 限 2 MiB，套件限 512 KiB。`source_file` 必须在套件目录内，不能跨目录或借符号链接越界。
