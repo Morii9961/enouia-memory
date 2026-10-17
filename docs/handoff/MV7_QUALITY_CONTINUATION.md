@@ -1,5 +1,9 @@
 # MV-7 质量链路持续工作接续
 
+## 2026-10-16 完整输入谱系格式一致性
+
+分支 codex/history-analysis-lineage-shape，基于已推送 PR #31 的 `ecf5a94`。复现普通完整输入接受矩阵会拒绝的非法谱系；按 ADR-MEM-64 把既有 helper 移入 evaluator 共用，三个 CLI 一并收紧。旧/无谱系缺失字段和 null 未知父数量保留，不认证父链。两项新增、原版 14 个失败子例已保存，修正后完整 Python 65 项通过，13 套/29 例合法完整报告与基线相同，八份矩阵兼容通过，见 [报告](../validation/MV-7-analysis-lineage-shape.md)。10 月 17 日收尾核对同版已完成 Rust 388 项与全部 required checks exit 0，公开内容检查通过；无生产 Rust、Runtime 接入面、真实资料/调用、MV-8 或状态快照变更。
+
 ## 2026-10-16 相同输入的任务身份隔离
 
 分支 codex/history-semantic-task-identity，基于已推送 PR #30 的 `bc6baa6`。新增一个原生合成用例，覆盖两家 Fake Provider × 旧/谱系任务：相同 input hash、不同 Session/输入事件，重开 Vault 后交叉 guard/adapter、伪造 Session/hash 均在假凭据读取、传输和 admission 前拒绝，提交不变；正确配对各完成一次假调用，材料仍待审且无判断。定向及默认并行 Rust 388 项（Provider 79）、Python 63 项和全部 required checks exit 0，公开内容检查通过，见 [报告](../validation/MV-7-semantic-task-identity.md)。不改生产策略、Runtime 接入面或状态快照；继续提交、推送及草稿 PR 流程。

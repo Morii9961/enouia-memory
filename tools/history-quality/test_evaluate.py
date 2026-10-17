@@ -357,6 +357,63 @@ class AssessmentTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "analysis input binding"):
             evaluate.assess(case, case["source_scope"])
 
+    def test_saved_analysis_checks_optional_lineage_shape_and_preserves_unknowns(self):
+        original = self.native_analysis_case()
+        body = json.loads(original["native_task_input_text"])
+        row = body["selected_lineage"][0]
+        invalid = [None, [], {}, True, [dict(row, source_index=True)],
+                   [dict(row, parent_source_indices=[True])],
+                   [dict(row, parent_source_indices=[1])],
+                   [dict(row, unselected_parent_count=True)],
+                   [dict(row, unselected_parent_count=-1)], [dict(row, extra=0)], [row, row]]
+        for value in invalid:
+            with self.subTest(value=value):
+                case = copy.deepcopy(original)
+                changed = copy.deepcopy(body)
+                changed["selected_lineage"] = value
+                case["native_task_input_text"] = json.dumps(changed, ensure_ascii=False)
+                case["native_task_input_sha256"] = hashlib.sha256(case["native_task_input_text"].encode()).hexdigest()
+                with self.assertRaisesRegex(ValueError, "lineage shape"):
+                    evaluate.assess(case, case["source_scope"])
+        for included in (True, False):
+            case = copy.deepcopy(original)
+            changed = copy.deepcopy(body)
+            if not included:
+                changed.pop("selected_lineage")
+            case["native_task_input_text"] = json.dumps(changed, ensure_ascii=False)
+            case["native_task_input_sha256"] = hashlib.sha256(case["native_task_input_text"].encode()).hexdigest()
+            snapshot = copy.deepcopy(case)
+            result = evaluate.assess(case, case["source_scope"])
+            self.assertEqual(result["analysis_input_inspection"], "included_hash_and_scope_matched")
+            self.assertEqual(result["review_status"], "review_required")
+            self.assertEqual(case, snapshot)
+
+    def test_bad_analysis_lineage_refuses_all_cli_consumers_without_partial_output(self):
+        good = self.native_analysis_case()
+        second = copy.deepcopy(good)
+        second["case_id"] += "-second"
+        bad = copy.deepcopy(second)
+        body = json.loads(bad["native_task_input_text"])
+        body["selected_lineage"] = None
+        bad["native_task_input_text"] = json.dumps(body, ensure_ascii=False)
+        bad["native_task_input_sha256"] = hashlib.sha256(bad["native_task_input_text"].encode()).hexdigest()
+        with tempfile.TemporaryDirectory(prefix="synthetic-analysis-lineage-") as directory:
+            before, after = (Path(directory) / name for name in ("before.json", "after.json"))
+            for path, cases in ((before, [good, second]), (after, [good, bad])):
+                path.write_text(json.dumps({"schema_version": evaluate.VERSION, "cases": cases},
+                                           ensure_ascii=False), encoding="utf-8")
+            scripts = Path(evaluate.__file__).parent
+            commands = [("evaluate.py", "--suite", str(after)), ("review.py", "--suite", str(after)),
+                        ("compare_reviews.py", "--before", str(before), "--after", str(after))]
+            for script, *arguments in commands:
+                with self.subTest(script=script):
+                    result = subprocess.run([sys.executable, str(scripts / script), *arguments],
+                                            capture_output=True, timeout=10)
+                    self.assertEqual(result.returncode, 1)
+                    self.assertEqual(result.stdout, b"")
+                    self.assertIn(b"lineage shape", result.stderr)
+                    self.assertNotIn(b"Traceback", result.stderr)
+
     def test_analysis_input_refuses_duplicate_keys_wrong_shape_and_non_native_scope(self):
         case = self.native_analysis_case()
         original = case["native_task_input_text"]
