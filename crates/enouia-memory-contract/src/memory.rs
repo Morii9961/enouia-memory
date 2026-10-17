@@ -200,6 +200,9 @@ pub struct CanonicalMemory {
     pub tags: Vec<String>,
     pub source_id: crate::ids::SourceId,
     pub evidence: Vec<EvidenceRef>,
+    /// Known recorded dependencies, separate from supporting evidence.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub context_source_refs: Vec<SourceRevisionRef>,
     pub epistemic_status: EpistemicStatus,
     /// Advisory model estimate. Never approval, never a security or truth signal.
     #[serde(deserialize_with = "crate::json::nullable")]
@@ -312,6 +315,11 @@ impl CanonicalMemory {
         if self.evidence.is_empty() {
             out.push(Violation::new("memory.evidence_required", "/evidence"));
         }
+        crate::common::validate_context_sources(
+            &self.context_source_refs,
+            "/context_source_refs",
+            &mut out,
+        );
         if !self.evidence.iter().any(|e| e.source_id == self.source_id) {
             out.push(Violation::new("memory.primary_source", "/source_id"));
         }

@@ -85,11 +85,34 @@ fn complete(
     policy: PolicyId,
     apply: bool,
 ) -> RunSelection {
+    complete_selection(
+        env,
+        api,
+        &RunSelection {
+            session_id: child.session_id.clone(),
+            run_id: child.run_id.clone(),
+        },
+        &child.input_event_id,
+        claims,
+        policy,
+        apply,
+    )
+}
+
+fn complete_selection(
+    env: &Env,
+    api: Api,
+    selected: &RunSelection,
+    input: &EventId,
+    claims: &serde_json::Value,
+    policy: PolicyId,
+    apply: bool,
+) -> RunSelection {
     let enabled = AtomicBool::new(true);
     let adapter = VaultAdapter {
         vault: &env.vault,
         owner: owner(),
-        input_event: child.input_event_id.clone(),
+        input_event: input.clone(),
         enabled: &enabled,
         quota: Quota::default(),
     };
@@ -97,7 +120,7 @@ fn complete(
     let call = extraction::prepare(
         &adapter,
         &index,
-        &child.run_id,
+        &selected.run_id,
         &extraction_capabilities(env, api),
         Limits::default(),
         CallOptions::text(policy, 1024),
@@ -149,13 +172,10 @@ fn complete(
         .unwrap();
     if apply {
         for _ in claims["candidates"].as_array().unwrap() {
-            extraction::apply_next(&adapter, &child.run_id).unwrap();
+            extraction::apply_next(&adapter, &selected.run_id).unwrap();
         }
     }
-    RunSelection {
-        session_id: child.session_id.clone(),
-        run_id: child.run_id.clone(),
-    }
+    selected.clone()
 }
 fn accept(env: &Env, candidate: &CandidateRecord) {
     let shown = enouia_memory_govern::plan(
@@ -1933,10 +1953,15 @@ fn semantic_source_purge_erases_bound_input_and_refuses_saved_analysis() {
         b"edit-away-original-evidence",
     )
     .unwrap();
-    let mut safe = draft.proposal.clone();
-    safe.content = "应保留的无关提案。".into();
+    // This control is independently authored from the new synthetic source,
+    // not a copy of the model draft and its recorded context dependencies.
+    let mut safe = enouia_memory_govern::Proposal::create(
+        draft.proposal.proposed_type,
+        "应保留的无关提案。",
+        draft.proposal.details.clone().unwrap(),
+        safe_evidence,
+    );
     safe.reason = "unrelated synthetic control".into();
-    safe.evidence = safe_evidence;
     let Proposed::Stored(unrelated) = enouia_memory_govern::propose(
         &env.vault,
         &safe,
@@ -2146,6 +2171,358 @@ fn choice(review: &history_semantic::SemanticPreview, index: usize) -> OwnerSele
         change_index: index,
         content: review.changes[index].statement.clone(),
         action: DraftAction::Create,
+    }
+}
+
+#[test]
+fn semantic_proposal_tracks_uncited_context_sensitivity_and_purge() {
+    use enouia_memory_contract::candidate::ProposedType;
+    use enouia_memory_contract::commit::{DeleteMode, DeleteScope};
+    use enouia_memory_govern::{EvidenceSpec, Origin, Proposal};
+
+    for api in [Api::OpenAiResponses, Api::AnthropicMessages] {
+        let env = Env::new("semantic-independent-context");
+        let policy = grant(&env, api);
+        let public_text = "偏好合成红色，并倾向合成蓝色。";
+        let context_text = "合成上下文：这是未被回答引用的普通敏感度说明。";
+        let source = |text: &str, sensitivity, key: &[u8]| {
+            env.vault
+                .record_manual_assertion(
+                    &enouia_memory_vault::service::ManualAssertionInput {
+                        text: text.into(),
+                        operator: owner(),
+                        trusted_surface: TrustedSurface::TrustedLocalCli,
+                        confirmation: ConfirmationMethod::TypedConfirmation,
+                        sensitivity,
+                        access_policy_id: env.policy(),
+                        time_precision: TimePrecision::Millisecond,
+                    },
+                    key,
+                )
+                .unwrap()
+                .id
+        };
+        let public = source(public_text, Sensitivity::Public, b"public-context-control");
+        let uncited = source(
+            context_text,
+            Sensitivity::Normal,
+            b"uncited-context-control",
+        );
+        let mut extraction = extraction_options(public.clone(), api);
+        extraction.sources.push(extraction::SourceSlice {
+            source: enouia_memory_contract::common::SourceRevisionRef {
+                source_id: uncited.clone(),
+                source_revision: Revision::new(1).unwrap(),
+            },
+            start: 0,
+            end: context_text.len() as u64,
+        });
+        let (sid, run) = extraction::create(
+            &env.vault,
+            &owner(),
+            &env.policy(),
+            &extraction,
+            b"independent-context-extraction",
+        )
+        .unwrap();
+        let job = extraction::job(&env.vault, &owner(), &sid, &run).unwrap();
+        let selected = complete_selection(
+            &env,
+            api,
+            &RunSelection {
+                session_id: sid,
+                run_id: run,
+            },
+            &job.input_event_id,
+            &json!({"candidates":[{
+                "kind":"fact", "content":"合成用户偏好红色", "quote":"偏好合成红色",
+                "source_index":0, "claim_key":"synthetic_red",
+            }]}),
+            policy.clone(),
+            false,
+        );
+        let enabled = AtomicBool::new(true);
+        let reviewed = history_review::preview(
+            &env.vault,
+            &owner(),
+            std::slice::from_ref(&selected),
+            &enabled,
+        )
+        .unwrap();
+        let options = AnalysisOptions {
+            selected: vec![selected],
+            topic: reviewed.topics[0].key.clone(),
+            api,
+            model: "synthetic-model".into(),
+            local_policy: env.policy(),
+        };
+        let task = history_semantic::create(
+            &env.vault,
+            &owner(),
+            &options,
+            b"independent-context-analysis",
+            &enabled,
+        )
+        .unwrap();
+        semantic_send(
+            &env,
+            api,
+            &task,
+            policy,
+            &json!({
+                "version":history_semantic::VERSION, "changes":[{
+                    "kind":"new_information", "statement":"合成用户偏好红色。",
+                    "explanation":"选定的公开合成片段记录了红色偏好。",
+                    "evidence":[{"source_index":0,"quote":"偏好合成红色"}], "earlier":[],
+                }], "summary":[],
+            }),
+            false,
+        );
+        let adapter = VaultAdapter {
+            vault: &env.vault,
+            owner: owner(),
+            input_event: task.input_event_id.clone(),
+            enabled: &enabled,
+            quota: Quota::default(),
+        };
+        let review = history_semantic::preview(&adapter, &task).unwrap();
+        assert_eq!(review.source_coverage.len(), 2);
+        assert_eq!(review.source_coverage[1].slice.source.source_id, uncited);
+        assert!(!review.source_coverage[1].cited_by_response);
+        assert!(
+            review.changes[0]
+                .evidence
+                .iter()
+                .all(|c| c.source.source_id == public)
+        );
+        let selection = choice(&review, 0);
+        let draft = history_semantic_proposal::draft(&adapter, &task, &selection).unwrap();
+        assert_eq!(draft.proposal.sensitivity, Some(Sensitivity::Normal));
+        let Proposed::Stored(derived) = history_semantic_proposal::publish(
+            &adapter,
+            &task,
+            &selection,
+            &draft.base.commit_id,
+            b"independent-context-derived",
+        )
+        .unwrap() else {
+            panic!("stored");
+        };
+
+        let derived_candidate =
+            enouia_memory_govern::pending_candidates(&env.vault, &env.vault.pin_current().unwrap())
+                .unwrap()
+                .into_iter()
+                .find(|c| c.candidate_id == derived.id)
+                .unwrap();
+        assert!(
+            derived_candidate
+                .evidence
+                .iter()
+                .all(|e| e.source_id == public)
+        );
+        assert!(
+            derived_candidate
+                .context_source_refs
+                .iter()
+                .any(|r| r.source_id == uncited)
+        );
+        accept(&env, &derived_candidate);
+        let derived_memory = enouia_memory_govern::canonical_memories(
+            &env.vault,
+            &env.vault.pin_current().unwrap(),
+            Canonical::Active,
+        )
+        .unwrap()
+        .remove(0);
+        assert!(
+            derived_memory
+                .context_source_refs
+                .iter()
+                .any(|r| r.source_id == uncited)
+        );
+        let (index, _) = enouia_memory_index::Index::rebuild(&env.vault).unwrap();
+        let compiled = compiler::compile(
+            &env.vault,
+            &index,
+            &enouia_memory_context::CompileInput::local(
+                "合成用户偏好红色",
+                owner(),
+                RequestId::from_random([0xe2; 16]),
+            ),
+        )
+        .unwrap();
+        let item = compiled
+            .capsule
+            .memory_items()
+            .find(|m| m.memory_id == derived_memory.memory_id)
+            .unwrap();
+        assert!(item.evidence.iter().all(|r| r.source_id == public));
+        assert!(
+            compiled
+                .capsule
+                .provenance
+                .iter()
+                .any(|r| r.source_id == uncited)
+        );
+        let anchor = Proposal::create(
+            ProposedType::Fact,
+            "合成上下文删除锚点。",
+            json!({"claim_key":"synthetic_uncited_context", "subject_ids":[extraction.subject_id],
+                   "project_id":null, "epistemic_status":"uncertain"})
+            .as_object()
+            .unwrap()
+            .clone(),
+            vec![EvidenceSpec::content(
+                uncited.clone(),
+                Revision::new(1).unwrap(),
+            )],
+        );
+        let Proposed::Stored(anchor) = enouia_memory_govern::propose(
+            &env.vault,
+            &anchor,
+            &Origin::owner(owner()),
+            b"uncited-context-anchor",
+        )
+        .unwrap() else {
+            panic!("stored");
+        };
+        let candidate =
+            enouia_memory_govern::pending_candidates(&env.vault, &env.vault.pin_current().unwrap())
+                .unwrap()
+                .into_iter()
+                .find(|c| c.candidate_id == anchor.id)
+                .unwrap();
+        accept(&env, &candidate);
+        let memory = enouia_memory_govern::canonical_memories(
+            &env.vault,
+            &env.vault.pin_current().unwrap(),
+            Canonical::Active,
+        )
+        .unwrap()
+        .into_iter()
+        .find(|m| m.content == "合成上下文删除锚点。")
+        .unwrap();
+        let deletion = enouia_memory_govern::delete::delete_proposal(
+            &memory,
+            DeleteMode::Purge,
+            DeleteScope::WithDependents,
+        );
+        let Proposed::Stored(deletion) = enouia_memory_govern::propose(
+            &env.vault,
+            &deletion,
+            &Origin::owner(owner()),
+            b"uncited-context-delete",
+        )
+        .unwrap() else {
+            panic!("stored");
+        };
+        let plan = enouia_memory_govern::plan(
+            &env.vault,
+            &[Decision::Accept {
+                candidate_id: deletion.id,
+                revision: Revision::new(1).unwrap(),
+            }],
+            &owner(),
+            TrustedSurface::TrustedLocalCli,
+        )
+        .unwrap();
+        enouia_memory_govern::confirm(
+            &env.vault,
+            &plan,
+            &OwnerConfirmation {
+                owner: owner(),
+                surface: TrustedSurface::TrustedLocalCli,
+            },
+        )
+        .unwrap();
+        enouia_memory_govern::delete::complete_purge(
+            &env.vault,
+            &plan.ids[0].delete_id,
+            &owner(),
+            b"uncited-context-purge",
+        )
+        .unwrap();
+        let pin = env.vault.pin_current().unwrap();
+        assert_eq!(
+            env.vault
+                .read_record(
+                    &pin,
+                    &RecordRef::new(
+                        RecordKind::Capsule,
+                        compiled.capsule.capsule_id.as_str(),
+                        Revision::new(1).unwrap()
+                    )
+                )
+                .unwrap_err()
+                .error
+                .code,
+            MemoryErrorCode::IntentionallyPurged
+        );
+        let remaining =
+            enouia_memory_govern::canonical_memories(&env.vault, &pin, Canonical::AllStatuses)
+                .unwrap()
+                .into_iter()
+                .find(|m| m.memory_id == derived_memory.memory_id)
+                .unwrap();
+        assert!(
+            remaining
+                .context_source_refs
+                .iter()
+                .any(|r| r.source_id == uncited)
+        );
+        drop(index);
+        let (fresh_index, _) = enouia_memory_index::Index::rebuild(&env.vault).unwrap();
+        let after = compiler::compile(
+            &env.vault,
+            &fresh_index,
+            &enouia_memory_context::CompileInput::local(
+                "合成用户偏好红色",
+                owner(),
+                RequestId::from_random([0xe3; 16]),
+            ),
+        );
+        // The existing compiler fails closed when its latest-record scan
+        // encounters the purged anchor. It must not return a reusable capsule.
+        assert_eq!(
+            after.err().unwrap().error.code,
+            MemoryErrorCode::IntentionallyPurged
+        );
+        assert!(
+            env.vault
+                .read_record(
+                    &pin,
+                    &RecordRef::new(
+                        RecordKind::Source,
+                        public.as_str(),
+                        Revision::new(1).unwrap()
+                    )
+                )
+                .is_ok()
+        );
+        assert_eq!(
+            env.vault
+                .read_object(&pin, &task.input_hash)
+                .unwrap_err()
+                .error
+                .code,
+            MemoryErrorCode::IntentionallyPurged
+        );
+        assert_eq!(
+            env.vault
+                .read_revision(
+                    &pin,
+                    &RecordRef::new(
+                        RecordKind::Candidate,
+                        derived.id.as_str(),
+                        Revision::new(1).unwrap()
+                    )
+                )
+                .unwrap_err()
+                .error
+                .code,
+            MemoryErrorCode::IntentionallyPurged
+        );
     }
 }
 

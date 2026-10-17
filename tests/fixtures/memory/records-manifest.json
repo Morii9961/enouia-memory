@@ -1773,6 +1773,52 @@
       ],
       "rust_rule": "source.locator_kind",
       "schema": "reject"
+    },
+    {
+      "base": "records/candidate-context-dependencies.json",
+      "covers": "recorded context references must be unique",
+      "id": "candidate-context-duplicate",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/context_source_refs",
+          "value": [
+            {
+              "source_id": "src_00000001-0000-4000-8000-000000000001",
+              "source_revision": 1
+            },
+            {
+              "source_id": "src_00000001-0000-4000-8000-000000000001",
+              "source_revision": 1
+            }
+          ]
+        }
+      ],
+      "rust_rule": "context_sources.budget_or_duplicate",
+      "schema": "reject"
+    },
+    {
+      "base": "records/memory-context-dependencies.json",
+      "covers": "recorded context references must be unique",
+      "id": "memory-context-duplicate",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/context_source_refs",
+          "value": [
+            {
+              "source_id": "src_00000001-0000-4000-8000-000000000001",
+              "source_revision": 1
+            },
+            {
+              "source_id": "src_00000001-0000-4000-8000-000000000001",
+              "source_revision": 1
+            }
+          ]
+        }
+      ],
+      "rust_rule": "context_sources.budget_or_duplicate",
+      "schema": "reject"
     }
   ],
   "valid": [
@@ -2040,6 +2086,16 @@
       "file": "records/tombstone.json",
       "kind": "tombstone",
       "schema": "memory/tombstone-v1.schema.json"
+    },
+    {
+      "file": "records/candidate-context-dependencies.json",
+      "kind": "candidate",
+      "schema": "memory/candidate-v1.schema.json"
+    },
+    {
+      "file": "records/memory-context-dependencies.json",
+      "kind": "memory",
+      "schema": "memory/memory-v1.schema.json"
     }
   ]
 }

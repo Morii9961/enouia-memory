@@ -209,6 +209,15 @@ pub struct SourceRevisionRef {
     pub source_revision: Revision,
 }
 
+/// Recorded derivation dependencies, never additional supporting evidence.
+pub fn validate_context_sources(refs: &[SourceRevisionRef], path: &str, out: &mut Vec<Violation>) {
+    if refs.len() > 128
+        || refs.iter().collect::<std::collections::BTreeSet<_>>().len() != refs.len()
+    {
+        out.push(Violation::new("context_sources.budget_or_duplicate", path));
+    }
+}
+
 /// Physical content referenced by hash (session content, dispatch messages).
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]

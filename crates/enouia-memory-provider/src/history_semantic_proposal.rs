@@ -124,6 +124,13 @@ pub fn draft(
         details.as_object().expect("details").clone(),
         evidence,
     );
+    proposal.context_source_refs = review
+        .source_coverage
+        .iter()
+        .map(|c| c.slice.source.clone())
+        .collect::<BTreeSet<_>>()
+        .into_iter()
+        .collect();
     // The model saw all selected spans, including uncited context. Do not
     // downgrade sensitivity merely because its answer cites a public snippet.
     let mut strictest = enouia_memory_contract::common::Sensitivity::Public;

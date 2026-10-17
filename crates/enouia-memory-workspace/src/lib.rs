@@ -1475,6 +1475,7 @@ impl Workspace {
             details: None,
             evidence: vec![EvidenceSpec::content(source.clone(), one())],
             reason: "owner_correction".into(),
+            context_source_refs: vec![],
             sensitivity: None,
             target_memory_id: Some(a.memory_id.clone()),
             target_identity_id: None,

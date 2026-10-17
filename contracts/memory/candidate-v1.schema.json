@@ -294,6 +294,15 @@
     },
     "extensions": {
       "$ref": "common-v1.schema.json#/$defs/extensions"
+    },
+    "context_source_refs": {
+      "description": "Recorded input dependencies, not supporting evidence or a completeness claim. Legacy absence is allowed.",
+      "type": "array",
+      "maxItems": 128,
+      "uniqueItems": true,
+      "items": {
+        "$ref": "common-v1.schema.json#/$defs/sourceRevisionRef"
+      }
     }
   },
   "allOf": [

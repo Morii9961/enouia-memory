@@ -224,6 +224,7 @@ fn identity_change(
         details: Some(details),
         evidence: vec![EvidenceSpec::content(source.clone(), rev(1))],
         reason: "identity change".into(),
+        context_source_refs: vec![],
         sensitivity: None,
         target_memory_id: None,
         target_identity_id: target.map(|(id, _)| id.clone()),

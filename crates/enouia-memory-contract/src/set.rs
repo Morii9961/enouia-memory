@@ -502,6 +502,7 @@ fn check_evidence(set: &View, out: &mut Vec<Violation>) {
     struct Derived<'a> {
         target: RecordRef,
         evidence: &'a [crate::common::EvidenceRef],
+        context: &'a [SourceRevisionRef],
         sensitivity: Sensitivity,
         content: &'a str,
         approval: Option<&'a crate::ids::ApprovalId>,
@@ -513,6 +514,7 @@ fn check_evidence(set: &View, out: &mut Vec<Violation>) {
         .map(|m| Derived {
             target: RecordRef::new(RecordKind::Memory, m.memory_id.as_str(), m.revision),
             evidence: &m.evidence,
+            context: &m.context_source_refs,
             sensitivity: m.sensitivity,
             content: &m.content,
             approval: m.declassification_approval_id.as_ref(),
@@ -521,6 +523,7 @@ fn check_evidence(set: &View, out: &mut Vec<Violation>) {
         .chain(set.candidates.iter().map(|c| Derived {
             target: RecordRef::new(RecordKind::Candidate, c.candidate_id.as_str(), c.revision),
             evidence: &c.evidence,
+            context: &c.context_source_refs,
             sensitivity: c.sensitivity,
             content: &c.proposed_content,
             approval: c.declassification_approval_id.as_ref(),
@@ -555,6 +558,14 @@ fn check_evidence(set: &View, out: &mut Vec<Violation>) {
             }
             if !item.locator.within(&source.locator) {
                 out.push(Violation::new("evidence.locator_mismatch", path.clone()));
+            }
+        }
+        for reference in record.context {
+            cited.insert(reference.clone());
+            if let Some(source) = set.source(reference) {
+                source_levels.push(source.sensitivity);
+            } else if !record.broken {
+                out.push(Violation::new("context_sources.unresolved", path.clone()));
             }
         }
         if derived_sensitivity_ok(record.sensitivity, source_levels.iter().copied(), false) {
@@ -1786,7 +1797,7 @@ fn check_context(set: &View, out: &mut Vec<Violation>) {
                     item.memory_id.to_string(),
                 ));
             }
-            for reference in &item.evidence {
+            for reference in item.evidence.iter().chain(&memory.context_source_refs) {
                 let listed = capsule.provenance.iter().any(|p| {
                     p.source_id == reference.source_id
                         && p.source_revision == reference.source_revision

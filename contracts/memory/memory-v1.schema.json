@@ -246,6 +246,15 @@
         },
         "claim_key": {
           "$ref": "common-v1.schema.json#/$defs/label"
+        },
+        "context_source_refs": {
+          "description": "Recorded input dependencies, not supporting evidence or a completeness claim. Legacy absence is allowed.",
+          "type": "array",
+          "maxItems": 128,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "common-v1.schema.json#/$defs/sourceRevisionRef"
+          }
         }
       }
     },
@@ -499,6 +508,15 @@
             "explicit",
             "tentative"
           ]
+        },
+        "context_source_refs": {
+          "description": "Recorded input dependencies, not supporting evidence or a completeness claim. Legacy absence is allowed.",
+          "type": "array",
+          "maxItems": 128,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "common-v1.schema.json#/$defs/sourceRevisionRef"
+          }
         }
       }
     },
@@ -763,6 +781,15 @@
         "summary": {
           "type": "string",
           "minLength": 1
+        },
+        "context_source_refs": {
+          "description": "Recorded input dependencies, not supporting evidence or a completeness claim. Legacy absence is allowed.",
+          "type": "array",
+          "maxItems": 128,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "common-v1.schema.json#/$defs/sourceRevisionRef"
+          }
         }
       }
     },
@@ -1103,6 +1130,15 @@
               }
             }
           }
+        },
+        "context_source_refs": {
+          "description": "Recorded input dependencies, not supporting evidence or a completeness claim. Legacy absence is allowed.",
+          "type": "array",
+          "maxItems": 128,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "common-v1.schema.json#/$defs/sourceRevisionRef"
+          }
         }
       }
     },
@@ -1432,6 +1468,15 @@
                 "$ref": "common-v1.schema.json#/$defs/timestampOrNull"
               }
             }
+          }
+        },
+        "context_source_refs": {
+          "description": "Recorded input dependencies, not supporting evidence or a completeness claim. Legacy absence is allowed.",
+          "type": "array",
+          "maxItems": 128,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "common-v1.schema.json#/$defs/sourceRevisionRef"
           }
         }
       }
