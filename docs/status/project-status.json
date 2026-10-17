@@ -1,0 +1,186 @@
+{
+  "schema_version": "1.0",
+  "project_id": "enouia.memory",
+  "project_name": "Enouia Memory",
+  "snapshot_at": "2026-10-17T16:34:42+08:00",
+  "source": {
+    "branch": "codex/history-context-dependencies",
+    "commit_sha": "a8ba24c4d75842b3d057d4667622d606c2bafd7b",
+    "basis": [
+      "docs/design/IMPLEMENTATION_PLAN.md",
+      "docs/design/CLOUD_PRIMARY_AND_HISTORY.md",
+      "docs/design/ACCEPTANCE.md",
+      "docs/adr/049-cloud-primary-and-history-initialization.md",
+      "docs/adr/065-recorded-context-source-dependencies.md",
+      "docs/validation/MV-7-analysis-lineage-shape.md（前序完整验证）",
+      "docs/validation/MV-7-semantic-context-dependencies.md（定向证据；最终全量被中断、Clippy 未完成）",
+      "docs/handoff/CLAUDE_MV7_HANDOFF_20261017.md",
+      "docs/integration/RUNTIME.md；docs/integration/runtime-surface.json",
+      "enouia.runtime:docs/integration/memory-pin.json（只读核对：8186aed861af08cf7a2c5d8c912a24eae51b4d66；非运行状态证明）",
+      "Git codex/history-context-dependencies@a8ba24c4d75842b3d057d4667622d606c2bafd7b",
+      "本次仅生成元数据，未运行测试；Morii 最后要求停止测试、快速交付"
+    ],
+    "tests_rerun": false
+  },
+  "stage": "development",
+  "summary": "MV-7 历史提炼与上下文依赖修复已有代码及合成证据；按 Morii 要求停止测试后交付，最终全量与 Clippy 未完成。真实质量、Runtime 新版采用及日常使用验收待完成；云端单主目标已定，MV-8 未启动。",
+  "overall_progress": null,
+  "milestones": [
+    {
+      "id": "local_storage",
+      "title": "本地写入、存储与恢复基础（MV-1；合成数据范围）",
+      "status": "done",
+      "evidence_level": "existing_test",
+      "evidence_refs": [
+        "docs/validation/MV-1.md",
+        "docs/validation/MV-6-current-status.md"
+      ],
+      "human_acceptance": "not_required"
+    },
+    {
+      "id": "memory_management",
+      "title": "本地检索、审核、更新与生命周期基础（MV-3/4；合成数据范围）",
+      "status": "done",
+      "evidence_level": "existing_test",
+      "evidence_refs": [
+        "docs/validation/MV-3.md",
+        "docs/validation/MV-4.md",
+        "docs/validation/MV-5.md#2. Acceptance items",
+        "docs/validation/MV-6-current-status.md"
+      ],
+      "human_acceptance": "not_required"
+    },
+    {
+      "id": "local_conversation",
+      "title": "本地对话选取相关记忆与重启接续（MV-5；模拟模型范围）",
+      "status": "done",
+      "evidence_level": "existing_test",
+      "evidence_refs": [
+        "docs/validation/MV-5.md",
+        "docs/validation/MV-6-current-status.md"
+      ],
+      "human_acceptance": "not_required"
+    },
+    {
+      "id": "real_provider",
+      "title": "真实双模型调用与来源片段候选提炼验收（MV-7）",
+      "status": "in_progress",
+      "evidence_level": "existing_test",
+      "evidence_refs": [
+        "docs/validation/MV-7.md",
+        "docs/validation/MV-7-real-smoke.md（尚未执行）",
+        "docs/validation/MV-7-semantic-context-dependencies.md（仅 Fake Provider）"
+      ],
+      "human_acceptance": "pending"
+    },
+    {
+      "id": "runtime_integration",
+      "title": "Runtime 接口采用与完整实际联动验收（MV-6/7）",
+      "status": "in_progress",
+      "evidence_level": "repository",
+      "evidence_refs": [
+        "docs/integration/RUNTIME.md（ADR-MEM-65 采用要求）",
+        "docs/integration/runtime-surface.json",
+        "enouia.runtime:docs/integration/memory-pin.json（只读记录仍为 8186aed；47 条命令，实际运行未核对）"
+      ],
+      "human_acceptance": "pending"
+    },
+    {
+      "id": "long_running_safety",
+      "title": "长期运行与真实数据的独立备份、恢复和故障安全验收",
+      "status": "in_progress",
+      "evidence_level": "existing_test",
+      "evidence_refs": [
+        "docs/validation/MV-1.md#6. Not done, or pending",
+        "docs/validation/MV-6-current-status.md#Verification and publication",
+        "docs/design/ACCEPTANCE.md（V09、B01、B03）"
+      ],
+      "human_acceptance": "pending"
+    },
+    {
+      "id": "history_initialization",
+      "title": "完整历史初始化、跨时间整理与回忆质量验收",
+      "status": "in_progress",
+      "evidence_level": "existing_test",
+      "evidence_refs": [
+        "docs/design/CLOUD_PRIMARY_AND_HISTORY.md",
+        "docs/validation/MV-7-analysis-lineage-shape.md",
+        "docs/handoff/MV7_QUALITY_CONTINUATION.md",
+        "docs/validation/MV-7-semantic-context-dependencies.md"
+      ],
+      "human_acceptance": "pending"
+    },
+    {
+      "id": "cloud_mcp",
+      "title": "云端常驻主库、MCP 读写及自动记忆与遗忘规则",
+      "status": "not_started",
+      "evidence_level": "repository",
+      "evidence_refs": [
+        "docs/adr/049-cloud-primary-and-history-initialization.md",
+        "docs/design/CLOUD_PRIMARY_AND_HISTORY.md（目标已确认；MV-8 及激活尚未开始）"
+      ],
+      "human_acceptance": "pending"
+    },
+    {
+      "id": "daily_use_v1",
+      "title": "Morii 日常对话中可可靠使用的 v1 记忆系统",
+      "status": "blocked",
+      "evidence_level": "repository",
+      "evidence_refs": [
+        "docs/design/ACCEPTANCE.md",
+        "docs/validation/MV-7-real-smoke.md（尚未执行）",
+        "docs/validation/MV-7-semantic-context-dependencies.md（最终检查不完整；旧依赖未回填）"
+      ],
+      "human_acceptance": "pending"
+    },
+    {
+      "id": "context_dependencies",
+      "title": "上下文依赖传播与清除加固（代码已交付，最终全量检查未完成）",
+      "status": "in_progress",
+      "evidence_level": "existing_test",
+      "evidence_refs": [
+        "docs/adr/065-recorded-context-source-dependencies.md",
+        "docs/validation/MV-7-semantic-context-dependencies.md"
+      ],
+      "human_acceptance": "pending"
+    }
+  ],
+  "blockers": [
+    {
+      "title": "最终全量检查未完成，真实质量和日常使用尚未验收",
+      "impact": "Morii 要求停止测试后快速交付；仅引用此前定向及独立检查，不能宣称 required checks 全通过。真实模型、完整初始化质量和长期恢复证据仍不足。"
+    },
+    {
+      "title": "Runtime 尚未记录采用新契约；旧依赖未回填",
+      "impact": "只读 pin 仍为 8186aed；旧严格读者不能读取带 context_source_refs 的记录。旧记录无字段不证明没有上下文依赖；其他正式派生记忆保留原文，本例清除后重新编译报 IntentionallyPurged。"
+    }
+  ],
+  "next_actions": [
+    {
+      "title": "指定 Claude 接手范围与验证要求",
+      "priority": "P0",
+      "result": "先核对交接和 Git 状态；Morii 决定是否补齐被停止的最终检查，不自行重启测试。"
+    },
+    {
+      "title": "安排 Runtime 采用与宿主验证",
+      "priority": "P1",
+      "result": "单独授权后更新固定 Core 与匹配契约，验证带上下文依赖记录及清除提示。"
+    },
+    {
+      "title": "决定真实样本、受控调用和后续阶段",
+      "priority": "P2",
+      "result": "Morii 选择信任／资料／备份与验收范围；阶段逐项启动，当前仍不进入 MV-8。"
+    }
+  ],
+  "needs_morii": [
+    {
+      "decision": "Claude 下一工作包及验证范围是什么，是否另行恢复最终全量与 Clippy？当前已按要求停止测试。"
+    },
+    {
+      "decision": "何时让 Runtime 采用新 Core／契约并验证旧记录及清除后行为？"
+    },
+    {
+      "decision": "真实历史样本、Provider 调用、服务信任、备份恢复和自动接受规则采用什么范围？均待 Morii 决定，云端单主目标本身已确认。"
+    }
+  ]
+}
