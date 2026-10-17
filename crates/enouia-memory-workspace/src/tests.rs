@@ -1637,6 +1637,7 @@ fn concurrent_purge_confirm_replays_one_complete_result() {
         ready: ready_tx,
         releases: Mutex::new(vec![a_rx, b_rx]),
         seq: SequentialIdSource::new(0xe000),
+        trace: Arc::new(RaceTrace::new()),
     });
     let ws = Workspace::new(Config {
         clock: env.clock.clone(),
@@ -1717,6 +1718,7 @@ fn closing_during_purge_waits_for_the_complete_response_and_expires_replay() {
             ready: ready_tx,
             releases: Mutex::new(vec![release_rx]),
             seq: SequentialIdSource::new(0xf000),
+            trace: Arc::new(RaceTrace::new()),
         });
         let ws = Workspace::new(Config {
             clock: env.clock.clone(),
@@ -2486,6 +2488,144 @@ struct HeldIds {
     ready: std::sync::mpsc::Sender<()>,
     releases: Mutex<Vec<std::sync::mpsc::Receiver<()>>>,
     seq: SequentialIdSource,
+    trace: Arc<RaceTrace>,
+}
+
+// Failure-only diagnostics name synchronization phases, never request content.
+struct RaceTrace {
+    started: std::time::Instant,
+    phases: Mutex<Vec<(u128, std::thread::ThreadId, &'static str)>>,
+}
+
+impl RaceTrace {
+    fn new() -> Self {
+        Self {
+            started: std::time::Instant::now(),
+            phases: Mutex::new(vec![]),
+        }
+    }
+
+    fn mark(&self, phase: &'static str) {
+        self.phases.lock().unwrap().push((
+            self.started.elapsed().as_millis(),
+            std::thread::current().id(),
+            phase,
+        ));
+    }
+
+    fn report(&self) -> String {
+        format!(
+            "race phases (elapsed ms, thread, phase): {:?}",
+            self.phases.lock().unwrap()
+        )
+    }
+}
+
+#[test]
+fn context_input_writer_busy_leaves_the_original_key_replayable() {
+    let env = Env::new("context-input-writer-busy");
+    let created = env.ok("session_new", json!({}));
+    let sid = enouia_memory_contract::ids::SessionId::parse(created["sessionId"].as_str().unwrap())
+        .unwrap();
+    let bid = enouia_memory_contract::ids::BranchId::parse(created["branchId"].as_str().unwrap())
+        .unwrap();
+    let request = RequestId::parse("req_00000000-0000-4000-8000-000000000099").unwrap();
+    let open = env.ws.open().unwrap();
+    let before = open.vault.pin_current().unwrap();
+    let save = || {
+        session::save_input(
+            &open.vault,
+            &open.owner,
+            &sid,
+            &bid,
+            "Synthetic busy input",
+            &request,
+            b"synthetic-busy-input",
+        )
+    };
+    let writer = std::fs::OpenOptions::new()
+        .read(true)
+        .write(true)
+        .open(env.base.join("vault/vault/LOCK"))
+        .unwrap();
+    writer.try_lock().unwrap();
+    let mut writer = Some(writer);
+    let mut attempts = 0;
+    let published = with_context_writer_retry(|| {
+        attempts += 1;
+        let result = save();
+        if attempts == 1 {
+            let busy = result.as_ref().unwrap_err();
+            assert_eq!(busy.code(), MemoryErrorCode::Busy);
+            assert_eq!(busy.fault, enouia_memory_vault::Fault::WriterBusy);
+            assert!(busy.error.retryable);
+            assert_eq!(
+                open.vault.pin_current().unwrap().commit_id,
+                before.commit_id
+            );
+            drop(writer.take());
+        }
+        result
+    })
+    .unwrap();
+    assert_eq!(attempts, 2);
+    let after = open.vault.pin_current().unwrap();
+    assert_eq!(save().unwrap().id, published.id);
+    assert_eq!(open.vault.pin_current().unwrap().commit_id, after.commit_id);
+    assert_eq!(
+        session::events(&open.vault, &after, &sid, &bid)
+            .unwrap()
+            .len(),
+        1
+    );
+}
+
+// Test callers retain the exact Context operation/key across a transient lock
+// failure. This is not a production retry policy or a Provider-send wrapper.
+fn with_context_writer_retry<T>(
+    mut work: impl FnMut() -> Result<T, enouia_memory_vault::VaultError>,
+) -> Result<T, enouia_memory_vault::VaultError> {
+    for attempt in 0..3 {
+        let result = work();
+        let retry = result.as_ref().is_err_and(|error| {
+            error.code() == MemoryErrorCode::Busy
+                && error.fault == enouia_memory_vault::Fault::WriterBusy
+                && error.error.retryable
+        });
+        if !retry || attempt == 2 {
+            return result;
+        }
+        std::thread::sleep(Duration::from_millis(5));
+    }
+    unreachable!("bounded Context retry returns on its final attempt")
+}
+
+#[test]
+fn context_writer_retry_preserves_other_errors_and_has_a_fixed_limit() {
+    use enouia_memory_vault::{Fault, VaultError};
+    let busy = VaultError::new(MemoryErrorCode::Busy, Fault::WriterBusy);
+    let mut nonretryable = busy.clone();
+    nonretryable.error.retryable = false;
+    for (error, expected_attempts) in [
+        (busy, 3),
+        (nonretryable, 1),
+        (VaultError::new(MemoryErrorCode::Busy, Fault::HeadMoved), 1),
+        (
+            VaultError::new(
+                MemoryErrorCode::IdempotencyConflict,
+                Fault::IdempotencyConflict,
+            ),
+            1,
+        ),
+    ] {
+        let mut attempts = 0;
+        let result = with_context_writer_retry::<()>(|| {
+            attempts += 1;
+            Err(error.clone())
+        });
+        assert_eq!(result.unwrap_err(), error);
+        assert_eq!(attempts, expected_attempts);
+    }
 }
 
 #[test]
@@ -2523,44 +2663,50 @@ fn check_concurrent_context_session_write(kind: &str) {
         let open = ws.open().unwrap();
         match kind {
             "input" => serde_json::to_value(
-                session::save_input(
-                    &open.vault,
-                    &open.owner,
-                    &sid,
-                    &bid,
-                    "Synthetic concurrent input",
-                    &request,
-                    b"synthetic-context-race",
-                )
+                with_context_writer_retry(|| {
+                    session::save_input(
+                        &open.vault,
+                        &open.owner,
+                        &sid,
+                        &bid,
+                        "Synthetic concurrent input",
+                        &request,
+                        b"synthetic-context-race",
+                    )
+                })
                 .unwrap()
                 .id,
             )
             .unwrap(),
             "fork" => serde_json::to_value(
-                session::fork(
-                    &open.vault,
-                    &open.owner,
-                    &sid,
-                    &at,
-                    b"synthetic-context-race",
-                )
+                with_context_writer_retry(|| {
+                    session::fork(
+                        &open.vault,
+                        &open.owner,
+                        &sid,
+                        &at,
+                        b"synthetic-context-race",
+                    )
+                })
                 .unwrap()
                 .id,
             )
             .unwrap(),
             _ => serde_json::to_value(
-                session::checkpoint(
-                    &open.vault,
-                    &open.owner,
-                    &sid,
-                    &bid,
-                    &session::CheckpointInput {
-                        summary: "Synthetic concurrent checkpoint".into(),
-                        decisions: vec![],
-                        open_loops: vec![],
-                    },
-                    b"synthetic-context-race",
-                )
+                with_context_writer_retry(|| {
+                    session::checkpoint(
+                        &open.vault,
+                        &open.owner,
+                        &sid,
+                        &bid,
+                        &session::CheckpointInput {
+                            summary: "Synthetic concurrent checkpoint".into(),
+                            decisions: vec![],
+                            open_loops: vec![],
+                        },
+                        b"synthetic-context-race",
+                    )
+                })
                 .unwrap()
                 .id,
             )
@@ -2627,8 +2773,14 @@ impl IdSource for HeldIds {
                 .is_ok()
         {
             let release = self.releases.lock().unwrap().pop().unwrap();
+            self.trace.mark("allocation_paused");
             self.ready.send(()).unwrap();
-            release.recv_timeout(Duration::from_secs(10)).unwrap();
+            release
+                .recv_timeout(Duration::from_secs(10))
+                .unwrap_or_else(|error| {
+                    panic!("allocation release: {error}; {}", self.trace.report())
+                });
+            self.trace.mark("allocation_resumed");
         }
         self.seq.random_16()
     }
@@ -2654,6 +2806,7 @@ fn with_concurrent_allocations_at(
     let (ready_tx, ready_rx) = std::sync::mpsc::channel();
     let (a_tx, a_rx) = std::sync::mpsc::channel();
     let (b_tx, b_rx) = std::sync::mpsc::channel();
+    let trace = Arc::new(RaceTrace::new());
     let ids = Arc::new(HeldIds {
         armed: AtomicU64::new(0),
         skip_per_thread,
@@ -2661,6 +2814,7 @@ fn with_concurrent_allocations_at(
         ready: ready_tx,
         releases: Mutex::new(vec![a_rx, b_rx]),
         seq: SequentialIdSource::new(0xd000),
+        trace: trace.clone(),
     });
     let ws = Workspace::new(Config {
         clock: env.clock.clone(),
@@ -2671,7 +2825,9 @@ fn with_concurrent_allocations_at(
     let (finished_tx, finished_rx) = std::sync::mpsc::channel();
     let values = std::thread::scope(|scope| {
         let run = || {
+            trace.mark("call_started");
             let value = work(&ws);
+            trace.mark("call_returned");
             finished_tx.send(()).unwrap();
             value
         };
@@ -2679,9 +2835,22 @@ fn with_concurrent_allocations_at(
         let second = scope.spawn(run);
         let both_ready = ready_rx.recv_timeout(Duration::from_secs(5)).is_ok()
             && ready_rx.recv_timeout(Duration::from_secs(5)).is_ok();
+        trace.mark(if both_ready {
+            "both_ready"
+        } else {
+            "ready_timeout"
+        });
         let _ = b_tx.send(());
+        trace.mark("first_released");
         let first_finished =
             !ordered_release || finished_rx.recv_timeout(Duration::from_secs(5)).is_ok();
+        if ordered_release {
+            trace.mark(if first_finished {
+                "first_finished"
+            } else {
+                "finish_timeout"
+            });
+        }
         let between = if ordered_release && first_finished {
             Some(std::panic::catch_unwind(std::panic::AssertUnwindSafe(
                 || after_first(&ws),
@@ -2690,17 +2859,27 @@ fn with_concurrent_allocations_at(
             None
         };
         let _ = a_tx.send(());
-        let results = (first.join().unwrap(), second.join().unwrap());
+        trace.mark("second_released");
+        // Join both callers even if one panics, retaining their original panic
+        // output alongside the barrier trace instead of losing the phase data.
+        let first = first.join();
+        let second = second.join();
+        let results = (
+            first.unwrap_or_else(|_| panic!("first worker panicked; {}", trace.report())),
+            second.unwrap_or_else(|_| panic!("second worker panicked; {}", trace.report())),
+        );
         if let Some(Err(panic)) = between {
             std::panic::resume_unwind(panic);
         }
         assert!(
             both_ready,
-            "both calls must pass the initial receipt lookup before publication"
+            "both calls must pass the initial receipt lookup before publication; {}",
+            trace.report()
         );
         assert!(
             first_finished,
-            "the first call must finish before the second resumes"
+            "the first call must finish before the second resumes; {}",
+            trace.report()
         );
         results
     });
