@@ -3,6 +3,7 @@ use enouia_memory_contract::{
     candidate::{CandidateRecord, CandidateStatus},
     common::{ActorType, TimePrecision},
     memory::MemoryStatus,
+    record::{AnyRecord, RecordRef},
     source::ConfirmationMethod,
     time::{BusinessTime, Timestamp},
 };
@@ -1228,6 +1229,248 @@ fn semantic_golden() -> serde_json::Value {
     .unwrap()
 }
 
+fn analysis_input(vault: &enouia_memory_vault::Vault, task: &AnalysisTask) -> serde_json::Value {
+    let pin = vault.pin_current().unwrap();
+    let enouia_memory_contract::record::AnyRecord::SessionEvent(event) = vault
+        .read_parsed(
+            &pin,
+            &enouia_memory_contract::record::RecordRef::new(
+                RecordKind::SessionEvent,
+                task.input_event_id.as_str(),
+                Revision::new(1).unwrap(),
+            ),
+        )
+        .unwrap()
+    else {
+        panic!("input event")
+    };
+    let text = enouia_memory_context::session::text(vault, &pin, &event).unwrap();
+    assert_eq!(
+        enouia_memory_contract::hash::sha256(text.as_bytes()),
+        task.input_hash
+    );
+    serde_json::from_str(&text).unwrap()
+}
+
+#[test]
+fn semantic_lineage_preserves_legacy_tasks_and_direct_branch_edges_after_reopen() {
+    for api in [Api::OpenAiResponses, Api::AnthropicMessages] {
+        let env = Env::new("semantic-lineage-branches");
+        let policy = grant(&env, api);
+        let options = semantic_options(&env, api, vec![1, 2, 4, 5], "map", policy.clone());
+        let enabled = AtomicBool::new(true);
+        let key = b"same-owner-analysis-key";
+        let old = history_semantic::create(&env.vault, &owner(), &options, key, &enabled).unwrap();
+        let new =
+            history_semantic::create_with_lineage(&env.vault, &owner(), &options, key, &enabled)
+                .unwrap();
+        // Legacy keys accept arbitrary bytes, including the opt-in namespace.
+        // A different owner key must not recreate the opt-in Request ID.
+        let alias_key = format!("history-semantic-lineage-1:{}", sha256(key));
+        let alias = history_semantic::create(
+            &env.vault,
+            &owner(),
+            &options,
+            alias_key.as_bytes(),
+            &enabled,
+        )
+        .unwrap();
+        let request_of = |task: &history_semantic::AnalysisTask| {
+            let pin = env.vault.pin_current().unwrap();
+            let AnyRecord::SessionEvent(input) = env
+                .vault
+                .read_parsed(
+                    &pin,
+                    &RecordRef {
+                        record_kind: RecordKind::SessionEvent,
+                        record_id: task.input_event_id.to_string(),
+                        revision: Revision::new(1).unwrap(),
+                    },
+                )
+                .unwrap()
+            else {
+                panic!("saved analysis input")
+            };
+            input.request_id
+        };
+        assert_ne!(request_of(&alias), request_of(&new));
+        assert_ne!(old.session_id, new.session_id);
+        assert_ne!(old.input_hash, new.input_hash);
+        let old_input = analysis_input(&env.vault, &old);
+        let mut new_input = analysis_input(&env.vault, &new);
+        assert!(old_input.get("selected_lineage").is_none());
+        let lineage = new_input
+            .as_object_mut()
+            .unwrap()
+            .remove("selected_lineage")
+            .unwrap();
+        let contexts = new_input["contexts"].as_array().unwrap();
+        let find = |text: &str| {
+            contexts
+                .iter()
+                .position(|c| c["text"].as_str().unwrap().contains(text))
+                .unwrap()
+        };
+        let original = find("计划做一份纸质地图");
+        let assistant = find("建议把地图改成自动导航应用");
+        let edit = find("另一个编辑分支");
+        let cancel = find("主分支后续决定");
+        assert_eq!(lineage[original]["parent_source_indices"], json!([]));
+        assert_eq!(lineage[original]["unselected_parent_count"], 0);
+        assert_eq!(
+            lineage[assistant]["parent_source_indices"],
+            json!([original])
+        );
+        assert_eq!(lineage[edit]["parent_source_indices"], json!([assistant]));
+        assert_eq!(lineage[cancel]["parent_source_indices"], json!([assistant]));
+        assert!(
+            !lineage[edit]["parent_source_indices"]
+                .as_array()
+                .unwrap()
+                .contains(&json!(cancel))
+        );
+        assert_eq!(lineage.as_array().unwrap().len(), contexts.len());
+        assert!(
+            new_input["task"]
+                .as_str()
+                .unwrap()
+                .starts_with(old_input["task"].as_str().unwrap())
+        );
+        new_input["task"] = old_input["task"].clone();
+        assert_eq!(new_input, old_input);
+        for task in [&old, &new, &alias] {
+            semantic_send(
+                &env,
+                api,
+                task,
+                policy.clone(),
+                &semantic_golden()["map"],
+                false,
+            );
+        }
+        let pin = env.vault.pin_current().unwrap();
+        let reopened = reopen_semantic(&env, Default::default());
+        assert_eq!(
+            history_semantic::create(&reopened, &owner(), &options, key, &enabled).unwrap(),
+            old
+        );
+        assert_eq!(
+            history_semantic::create_with_lineage(&reopened, &owner(), &options, key, &enabled)
+                .unwrap(),
+            new
+        );
+        assert_eq!(
+            history_semantic::create(
+                &reopened,
+                &owner(),
+                &options,
+                alias_key.as_bytes(),
+                &enabled,
+            )
+            .unwrap(),
+            alias
+        );
+        for task in [&old, &new, &alias] {
+            let adapter = VaultAdapter {
+                vault: &reopened,
+                owner: owner(),
+                input_event: task.input_event_id.clone(),
+                enabled: &enabled,
+                quota: Quota::default(),
+            };
+            assert_eq!(
+                history_semantic::preview(&adapter, task)
+                    .unwrap()
+                    .changes
+                    .len(),
+                4
+            );
+        }
+        assert!(
+            history_semantic::create_with_lineage(
+                &reopened,
+                &agent(),
+                &options,
+                b"agent-lineage",
+                &enabled
+            )
+            .is_err()
+        );
+        enabled.store(false, Ordering::SeqCst);
+        assert_eq!(
+            history_semantic::create_with_lineage(
+                &reopened,
+                &owner(),
+                &options,
+                b"locked-lineage",
+                &enabled
+            )
+            .unwrap_err()
+            .code,
+            MemoryErrorCode::VaultLocked
+        );
+        assert_eq!(reopened.pin_current().unwrap(), pin);
+        assert!(
+            enouia_memory_govern::pending_candidates(&reopened, &pin)
+                .unwrap()
+                .is_empty()
+        );
+    }
+}
+
+#[test]
+fn semantic_lineage_marks_selection_gaps_without_fetching_parent_text() {
+    let env = Env::new("semantic-lineage-gap");
+    let api = Api::OpenAiResponses;
+    let policy = grant(&env, api);
+    let options = semantic_options(&env, api, vec![2], "map", policy.clone());
+    let enabled = AtomicBool::new(true);
+    let task = history_semantic::create_with_lineage(
+        &env.vault,
+        &owner(),
+        &options,
+        b"gap-lineage",
+        &enabled,
+    )
+    .unwrap();
+    let input = analysis_input(&env.vault, &task);
+    assert_eq!(input["sources"].as_array().unwrap().len(), 2);
+    assert_eq!(
+        input["selected_lineage"][0]["parent_source_indices"],
+        json!([])
+    );
+    assert_eq!(input["selected_lineage"][0]["unselected_parent_count"], 1);
+    assert_eq!(
+        input["selected_lineage"][1]["parent_source_indices"],
+        json!([0])
+    );
+    assert!(!input.to_string().contains("计划做一份纸质地图"));
+    semantic_send(
+        &env,
+        api,
+        &task,
+        policy,
+        &json!({"version":history_semantic::VERSION,"changes":[],"summary":[]}),
+        false,
+    );
+    let adapter = VaultAdapter {
+        vault: &env.vault,
+        owner: owner(),
+        input_event: task.input_event_id.clone(),
+        enabled: &enabled,
+        quota: Quota::default(),
+    };
+    let pin = env.vault.pin_current().unwrap();
+    assert_eq!(
+        history_semantic::preview(&adapter, &task)
+            .unwrap()
+            .source_coverage
+            .len(),
+        2
+    );
+    assert_eq!(env.vault.pin_current().unwrap(), pin);
+}
+
 #[test]
 fn semantic_review_preserves_pref_changes_map_branches_unknown_time_and_summary_cites() {
     for api in [Api::OpenAiResponses, Api::AnthropicMessages] {
@@ -1521,68 +1764,74 @@ fn semantic_task_keeps_failed_attempts_empty_coverage_and_lock_boundaries() {
 
 #[test]
 fn semantic_task_blocks_uncited_source_revision_changes_before_send() {
-    let env = Env::new("semantic-uncited-revision");
-    let api = Api::OpenAiResponses;
-    let policy = grant(&env, api);
-    let options = semantic_options(&env, api, vec![2], "map", policy.clone());
-    let enabled = AtomicBool::new(true);
-    let task = history_semantic::create(&env.vault, &owner(), &options, b"revision-task", &enabled)
+    for include_lineage in [false, true] {
+        let env = Env::new("semantic-uncited-revision");
+        let api = Api::OpenAiResponses;
+        let policy = grant(&env, api);
+        let options = semantic_options(&env, api, vec![2], "map", policy.clone());
+        let enabled = AtomicBool::new(true);
+        let create_task = if include_lineage {
+            history_semantic::create_with_lineage
+        } else {
+            history_semantic::create
+        };
+        let task = create_task(&env.vault, &owner(), &options, b"revision-task", &enabled).unwrap();
+        let adapter = VaultAdapter {
+            vault: &env.vault,
+            owner: owner(),
+            input_event: task.input_event_id.clone(),
+            enabled: &enabled,
+            quota: Quota::default(),
+        };
+        let (index, _) = enouia_memory_index::Index::rebuild(&env.vault).unwrap();
+        let call = history_semantic::prepare(
+            &adapter,
+            &task,
+            &index,
+            &extraction_capabilities(&env, api),
+            Limits::default(),
+            CallOptions::text(policy, 1024),
+        )
         .unwrap();
-    let adapter = VaultAdapter {
-        vault: &env.vault,
-        owner: owner(),
-        input_event: task.input_event_id.clone(),
-        enabled: &enabled,
-        quota: Quota::default(),
-    };
-    let (index, _) = enouia_memory_index::Index::rebuild(&env.vault).unwrap();
-    let call = history_semantic::prepare(
-        &adapter,
-        &task,
-        &index,
-        &extraction_capabilities(&env, api),
-        Limits::default(),
-        CallOptions::text(policy, 1024),
-    )
-    .unwrap();
-    // Revise the preceding assistant slice, which has no suggestion in batch 2,
-    // through the importer instead of bypassing Vault record rules.
-    let mut raw: serde_json::Value = serde_json::from_slice(include_bytes!(
-        "../../../../tests/fixtures/history/initialization-synthetic.json"
-    ))
-    .unwrap();
-    raw[0]["mapping"]["a1"]["message"]["content"]["parts"][0] =
-        json!("建议把地图改成自动导航应用。合成修订：仍未获接受。");
-    let file = env.root.join("synthetic-revised.json");
-    std::fs::write(&file, serde_json::to_vec(&raw).unwrap()).unwrap();
-    let mut import_options = ImportOptions::new(owner(), "synthetic", env.policy());
-    import_options.sensitivity = Sensitivity::Normal;
-    import_file(&env.vault, &file, &import_options, &NeverCancel).unwrap();
-    let guard = AnalysisGuard {
-        adapter: &adapter,
-        task: &task,
-    };
-    let http = SemanticHttp {
-        bytes: reply(api),
-        calls: Cell::new(0),
-        fail: false,
-    };
-    let client = Client {
-        transport: &http,
-        secrets: &Secrets { missing: false },
-        guard: &guard,
-        journal: &adapter,
-    };
-    let pin = env.vault.pin_current().unwrap();
-    assert_eq!(
-        client
-            .send(&call, &call.inspect().hash(), &NeverCancel)
-            .unwrap_err()
-            .code,
-        MemoryErrorCode::RevisionConflict
-    );
-    assert_eq!(http.calls.get(), 0);
-    assert_eq!(env.vault.pin_current().unwrap(), pin);
+        // Revise the preceding assistant slice, which has no suggestion in batch 2,
+        // through the importer instead of bypassing Vault record rules.
+        let mut raw: serde_json::Value = serde_json::from_slice(include_bytes!(
+            "../../../../tests/fixtures/history/initialization-synthetic.json"
+        ))
+        .unwrap();
+        raw[0]["mapping"]["a1"]["message"]["content"]["parts"][0] =
+            json!("建议把地图改成自动导航应用。合成修订：仍未获接受。");
+        let file = env.root.join("synthetic-revised.json");
+        std::fs::write(&file, serde_json::to_vec(&raw).unwrap()).unwrap();
+        let mut import_options = ImportOptions::new(owner(), "synthetic", env.policy());
+        import_options.sensitivity = Sensitivity::Normal;
+        import_file(&env.vault, &file, &import_options, &NeverCancel).unwrap();
+        let guard = AnalysisGuard {
+            adapter: &adapter,
+            task: &task,
+        };
+        let http = SemanticHttp {
+            bytes: reply(api),
+            calls: Cell::new(0),
+            fail: false,
+        };
+        let client = Client {
+            transport: &http,
+            secrets: &Secrets { missing: false },
+            guard: &guard,
+            journal: &adapter,
+        };
+        let pin = env.vault.pin_current().unwrap();
+        assert_eq!(
+            client
+                .send(&call, &call.inspect().hash(), &NeverCancel)
+                .unwrap_err()
+                .code,
+            MemoryErrorCode::RevisionConflict
+        );
+        assert_eq!(http.calls.get(), 0);
+        assert_eq!(env.vault.pin_current().unwrap(), pin);
+    }
 }
 
 #[test]
