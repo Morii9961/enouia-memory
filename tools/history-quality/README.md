@@ -23,6 +23,8 @@ python tools/history-quality/evaluate.py
 
 ## 证据与激活
 
+输入集合必须使用 JSON 数组：cases、changes/summary、item_judgments/unit_judgments、评审 evidence 和每个单元的 paths。case、回答项、判断和证据项为对象，case_id 为非空白字符串，paths 中每项为字符串。空对象、空字符串、布尔值或对象键不能代替数组/身份；工具不自动转换。任一 case 格式错误时整套退出 1，不输出前面合法 case 的部分指标。这些结构门槛不改变合法套件的评分或未知状态。
+
 可选的 history_quality::build_with_analysis_input 还会返回 native_task_input_text，保留模型实际看到的完整分析输入及原始 UTF-8 hash，包括版本化指令、原建议和谱系元数据。旧 build 输出不变。额外输入仍受 64 KiB 任务预算和 256 KiB 套件预算限制，保存/导出由宿主另行处理，只有私有套件包含原文。
 
 离线工具对可选原文检查精确 hash、JSON 形状、重复键及所选来源/片段/文本/角色/上下文的一致性。报告的 analysis_input_inspection 为 included_hash_and_scope_matched，旧套件为 not_included；报告不复写输入原文。这些是结构检查，不认证提交者、不查 Vault、不证明父链真实性，native_validation 仍为 not_rerun，reviewer、人工判断和整体模型质量规则不变。
