@@ -338,6 +338,10 @@ The [full remember replay and target freshness acceptance](../validation/MV-6-fu
 
 [Decision](063-offline-review-revision-comparison.md): compare explicitly selected, fully validated review revisions while binding all non-review input; report added/edited/removed judgment locations and before/after states without repeating source or judgment text. No merge, auto-grading or approval. [Evidence](../validation/MV-7-review-revision-comparison.md).
 
+### ADR-MEM-64 — Saved-analysis lineage shape (Adopted, MV-7)
+
+[Decision](064-analysis-input-lineage-shape.md): share the existing native-matrix lineage structure gate with the ordinary evaluator for optional saved complete input; preserve missing legacy metadata and null unknowns. Shape checking does not authenticate ancestry or model quality. [Evidence](../validation/MV-7-analysis-lineage-shape.md).
+
 ## Relation to Enouia Runtime's register
 
 

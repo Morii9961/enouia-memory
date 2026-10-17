@@ -70,6 +70,26 @@ def read_json(path, limit):
     return parse_json(data)
 
 
+def lineage_shape(body):
+    count = len(body["sources"])
+    rows = body["selected_lineage"]
+    require(isinstance(rows, list) and len(rows) == count, "analysis lineage shape")
+    seen = set()
+    for row in rows:
+        require(isinstance(row, dict) and set(row) == {
+            "source_index", "parent_source_indices", "unselected_parent_count"}, "analysis lineage shape")
+        index = row["source_index"]
+        require(type(index) is int and 0 <= index < count and index not in seen, "analysis lineage shape")
+        parents = row["parent_source_indices"]
+        require(isinstance(parents, list) and len(parents) <= count
+                and all(type(parent) is int and 0 <= parent < count for parent in parents)
+                and len(set(parents)) == len(parents), "analysis lineage shape")
+        missing = row["unselected_parent_count"]
+        require(missing is None or (type(missing) is int and missing >= 0), "analysis lineage shape")
+        seen.add(index)
+    require(seen == set(range(count)), "analysis lineage shape")
+
+
 def analysis_input_status(case, scope):
     if "native_task_input_text" not in case:
         return "not_included"
@@ -97,6 +117,8 @@ def analysis_input_status(case, scope):
                 and context.get("text") == selected["text"]
                 and all(digest(context.get(field)) == digest(selected.get(field))
                         for field in ("speaker_role", "evidence_class", "source_context")), "analysis input scope changed")
+    if "selected_lineage" in body:
+        lineage_shape(body)
     return "included_hash_and_scope_matched"
 
 

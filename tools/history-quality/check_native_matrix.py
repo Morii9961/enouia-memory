@@ -5,27 +5,7 @@ import itertools
 import json
 from pathlib import Path
 
-from evaluate import digest, evaluate, parse_json, read_json, require
-
-
-def lineage_shape(body):
-    count = len(body["sources"])
-    rows = body["selected_lineage"]
-    require(isinstance(rows, list) and len(rows) == count, "matrix lineage shape")
-    seen = set()
-    for row in rows:
-        require(isinstance(row, dict) and set(row) == {
-            "source_index", "parent_source_indices", "unselected_parent_count"}, "matrix lineage shape")
-        index = row["source_index"]
-        require(type(index) is int and 0 <= index < count and index not in seen, "matrix lineage shape")
-        parents = row["parent_source_indices"]
-        require(isinstance(parents, list) and len(parents) <= count
-                and all(type(parent) is int and 0 <= parent < count for parent in parents)
-                and len(set(parents)) == len(parents), "matrix lineage shape")
-        missing = row["unselected_parent_count"]
-        require(missing is None or (type(missing) is int and missing >= 0), "matrix lineage shape")
-        seen.add(index)
-    require(seen == set(range(count)), "matrix lineage shape")
+from evaluate import digest, evaluate, lineage_shape, parse_json, read_json, require
 
 
 def contained_path(root, filename, kind):
