@@ -1,4 +1,6 @@
 //! Only synthetic archived exports and isolated Vaults. No HTTP/secrets.
+#[path = "cases/history_scale.rs"]
+mod history_scale;
 #[path = "../../enouia-memory-context/tests/support/mod.rs"]
 mod support;
 use enouia_memory_contract::{
