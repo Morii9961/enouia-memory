@@ -118,6 +118,83 @@ class AssessmentTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,"quote not in source"):
             evaluate.assess(case,case["source_scope"])
 
+    def native_analysis_case(self):
+        case = self.native_case()
+        selected = case["source_scope"][0]
+        selected["content_hash"] = selected["snippet_hash"]
+        case["scope_value_sha256"] = evaluate.digest(case["source_scope"])
+        body = {"version": "history-semantic-review-1", "task": "Synthetic analysis instructions.",
+                "sources": [{"source": selected["source"], "start": selected["selection"]["start"],
+                             "end": selected["selection"]["end"], "content_hash": selected["content_hash"],
+                             "snippet_hash": selected["snippet_hash"]}],
+                "contexts": [{"source_index": 0, "text": selected["text"]}],
+                "suggestions": [], "runs": [], "binding": {}, "topic": {},
+                "selected_lineage": [{"source_index": 0, "parent_source_indices": [],
+                                      "unselected_parent_count": None}]}
+        text = json.dumps(body, ensure_ascii=False, separators=(",", ":"))
+        case["native_task_input_text"] = text
+        case["native_task_input_sha256"] = hashlib.sha256(text.encode()).hexdigest()
+        return case
+
+    def test_analysis_input_is_exact_hash_bound_but_does_not_judge(self):
+        case = self.native_analysis_case()
+        result = evaluate.assess(case, case["source_scope"])
+        self.assertEqual(result["analysis_input_inspection"], "included_hash_and_scope_matched")
+        self.assertEqual(result["review_status"], "review_required")
+        self.assertIsNone(result["supported_fraction_of_adjudicated_items"])
+        self.assertEqual(result["required_units"]["unknown"], len(case["required_units"]))
+        case["native_task_input_text"] += " "
+        with self.assertRaisesRegex(ValueError, "analysis input binding"):
+            evaluate.assess(case, case["source_scope"])
+
+    def test_analysis_input_refuses_duplicate_keys_wrong_shape_and_non_native_scope(self):
+        case = self.native_analysis_case()
+        original = case["native_task_input_text"]
+        duplicate = original.replace('"selected_lineage":', '"version":"other","selected_lineage":')
+        for text, error in [(duplicate, "duplicate JSON key"), ("[]", "analysis input shape"),
+                            ('{"version":"other"}', "analysis input shape")]:
+            with self.subTest(text=text):
+                bad = copy.deepcopy(case)
+                bad["native_task_input_text"] = text
+                bad["native_task_input_sha256"] = hashlib.sha256(text.encode()).hexdigest()
+                with self.assertRaisesRegex(ValueError, error):
+                    evaluate.assess(bad, bad["source_scope"])
+        case["scope_kind"] = "other"
+        with self.assertRaisesRegex(ValueError, "needs native scope"):
+            evaluate.assess(case, case["source_scope"])
+
+    def test_analysis_input_cannot_disagree_with_selected_assessment_scope(self):
+        case = self.native_analysis_case()
+        original = json.loads(case["native_task_input_text"])
+        for field, value in [("text", "Different synthetic input."), ("source_index", True),
+                             ("speaker_role", "assistant")]:
+            with self.subTest(field=field):
+                body = copy.deepcopy(original)
+                body["contexts"][0][field] = value
+                bad = copy.deepcopy(case)
+                bad["native_task_input_text"] = json.dumps(body, ensure_ascii=False)
+                bad["native_task_input_sha256"] = hashlib.sha256(bad["native_task_input_text"].encode()).hexdigest()
+                with self.assertRaisesRegex(ValueError, "analysis input scope"):
+                    evaluate.assess(bad, bad["source_scope"])
+        body = copy.deepcopy(original)
+        body["sources"][0]["source"]["source_revision"] = True
+        bad = copy.deepcopy(case)
+        bad["native_task_input_text"] = json.dumps(body, ensure_ascii=False)
+        bad["native_task_input_sha256"] = hashlib.sha256(bad["native_task_input_text"].encode()).hexdigest()
+        with self.assertRaisesRegex(ValueError, "analysis input scope"):
+            evaluate.assess(bad, bad["source_scope"])
+
+    def test_analysis_input_budget_counts_utf8_bytes_and_legacy_suites_stay_readable(self):
+        case = self.native_analysis_case()
+        legacy = copy.deepcopy(case)
+        legacy.pop("native_task_input_text")
+        case["native_task_input_text"] = "合成" * (evaluate.MAX_ANALYSIS_INPUT_BYTES // 4)
+        case["native_task_input_sha256"] = hashlib.sha256(case["native_task_input_text"].encode()).hexdigest()
+        with self.assertRaisesRegex(ValueError, "analysis input budget"):
+            evaluate.assess(case, case["source_scope"])
+        self.assertEqual(evaluate.assess(legacy, legacy["source_scope"])["analysis_input_inspection"],
+                         "not_included")
+
 
 if __name__ == "__main__":
     unittest.main()

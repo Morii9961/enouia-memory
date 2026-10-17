@@ -15,6 +15,7 @@ use enouia_memory_provider::{
     history_review::{self, BranchRelation, Difference, ReviewFlag, RunSelection},
     history_semantic_proposal::{self, DraftAction, OwnerSelection},
 };
+use serde_json::Value;
 
 // Streaming segmentation already has dedicated codec tests. One chunk keeps
 // these multi-run governance fixtures from writing thousands of ledger deltas.
@@ -2964,4 +2965,103 @@ fn quality_bundle_keeps_empty_response_coverage_and_pending_owner_review() {
     );
     assert_eq!(case["response"]["changes"], json!([]));
     assert_eq!(env.vault.pin_current().unwrap(), pin);
+}
+
+#[test]
+fn quality_bundle_optionally_keeps_exact_saved_analysis_input_without_writes() {
+    use enouia_memory_provider::history_quality::{self, EvidenceMode, QualityOptions};
+    for api in [Api::OpenAiResponses, Api::AnthropicMessages] {
+        for include_lineage in [false, true] {
+            let env = Env::new("quality-analysis-input");
+            let policy = grant(&env, api);
+            let options = semantic_options(&env, api, vec![0], "explanation", policy.clone());
+            let enabled = AtomicBool::new(true);
+            let create = if include_lineage {
+                history_semantic::create_with_lineage
+            } else {
+                history_semantic::create
+            };
+            let task = create(&env.vault, &owner(), &options, b"quality-input", &enabled).unwrap();
+            semantic_send(
+                &env,
+                api,
+                &task,
+                policy,
+                &semantic_golden()["preference"],
+                false,
+            );
+            let adapter = VaultAdapter {
+                vault: &env.vault,
+                owner: owner(),
+                input_event: task.input_event_id.clone(),
+                enabled: &enabled,
+                quota: Quota::default(),
+            };
+            let opts = QualityOptions {
+                case_id: "synthetic-analysis-input".into(),
+                required_units: vec!["偏好长度的纠正".into(), "未推断生效时间".into()],
+                evidence_mode: EvidenceMode::Synthetic,
+            };
+            let pin = env.vault.pin_current().unwrap();
+            let legacy = history_quality::build(&adapter, &task, &opts).unwrap();
+            let bundle =
+                history_quality::build_with_analysis_input(&adapter, &task, &opts).unwrap();
+            let text = bundle.suite["cases"][0]["native_task_input_text"]
+                .as_str()
+                .unwrap();
+            assert_eq!(sha256(text.as_bytes()), task.input_hash);
+            assert_eq!(
+                serde_json::from_str::<Value>(text).unwrap(),
+                analysis_input(&env.vault, &task)
+            );
+            assert_eq!(
+                serde_json::from_str::<Value>(text)
+                    .unwrap()
+                    .get("selected_lineage")
+                    .is_some(),
+                include_lineage
+            );
+            let mut reduced = bundle.suite.clone();
+            reduced["cases"][0]
+                .as_object_mut()
+                .unwrap()
+                .remove("native_task_input_text");
+            assert_eq!(reduced, legacy.suite, "legacy suite stays unchanged");
+            assert_ne!(bundle.suite_value_sha256, legacy.suite_value_sha256);
+            assert_eq!(
+                history_quality::build_with_analysis_input(&adapter, &task, &opts)
+                    .unwrap()
+                    .suite,
+                bundle.suite
+            );
+            assert_eq!(bundle.base, pin);
+            assert_eq!(env.vault.pin_current().unwrap(), pin);
+            assert!(
+                enouia_memory_govern::pending_candidates(&env.vault, &pin)
+                    .unwrap()
+                    .is_empty()
+            );
+            if api == Api::OpenAiResponses
+                && include_lineage
+                && std::env::var_os("ENOU_TEST_QUALITY_ANALYSIS_INPUT").is_some()
+            {
+                let target = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+                    .join("../..")
+                    .join(".local/mv7-h2j-quality-input-suite.json");
+                std::fs::write(target, serde_json::to_vec_pretty(&bundle.suite).unwrap()).unwrap();
+            }
+            let mut forged = task.clone();
+            forged.input_hash = sha256(b"synthetic changed task hash");
+            assert!(history_quality::build_with_analysis_input(&adapter, &forged, &opts).is_err());
+            enabled.store(false, Ordering::SeqCst);
+            assert_eq!(
+                history_quality::build_with_analysis_input(&adapter, &task, &opts)
+                    .err()
+                    .unwrap()
+                    .code,
+                MemoryErrorCode::VaultLocked
+            );
+            assert_eq!(env.vault.pin_current().unwrap(), pin);
+        }
+    }
 }

@@ -21,6 +21,10 @@ python tools/history-quality/evaluate.py
 
 ## 证据与激活
 
+可选的 history_quality::build_with_analysis_input 还会返回 native_task_input_text，保留模型实际看到的完整分析输入及原始 UTF-8 hash，包括版本化指令、原建议和谱系元数据。旧 build 输出不变。额外输入仍受 64 KiB 任务预算和 256 KiB 套件预算限制，保存/导出由宿主另行处理，只有私有套件包含原文。
+
+离线工具对可选原文检查精确 hash、JSON 形状、重复键及所选来源/片段/文本/角色/上下文的一致性。报告的 analysis_input_inspection 为 included_hash_and_scope_matched，旧套件为 not_included；报告不复写输入原文。这些是结构检查，不认证提交者、不查 Vault、不证明父链真实性，native_validation 仍为 not_rerun，reviewer、人工判断和整体模型质量规则不变。
+
 原生宿主可调用 history_quality::build，从明确选择的已完成语义任务返回一份内存中的套件。它使用 native_selected_spans_v1 内联作用域，保留选定原文、Source 修订/片段 hash、角色、时间/分支上下文和未引用覆盖；不伪造原始会话/消息 ID，不自行写文件。宿主对任何保存/导出单独处理。单 case 上限 256 KiB，关键单元由主人预先提供，最多 32 个。
 
 生成的 reviewer 固定为 pending，item_judgments/unit_judgments 都为空；空模型回答也保留全部选定来源及未审的重要单元。pending 不允许附带判断；填写后须将 reviewer 改为 owner 或 synthetic_fixture。scope_value_sha256/response_value_sha256 用紧凑 UTF-8 JSON 值 hash，原生任务与响应原文 hash 另列，不混作同一种绑定。CLI 检查内联片段的范围与 hash，但不会访问 Vault 或认证 native_builder_validation 声明；native_validation 仍为 not_rerun。

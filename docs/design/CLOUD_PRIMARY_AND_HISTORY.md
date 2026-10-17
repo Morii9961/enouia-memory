@@ -72,6 +72,8 @@ H2h 将保存的语义任务转换为私有待审质量材料：只返回内存�
 
 H2i 的可选语义输入提供所选来源间的直接父索引，明确未选父来源数量和未知关系；不补读缺失正文，不能用日期或分支 ID 补造父链。新旧任务使用独立请求键，旧任务保持兼容。见 [报告](../validation/MV-7-semantic-lineage.md)；原生引用/父链检查和真实质量验收仍分开。
 
+H2j 可选地把原生分析输入原文纳入私有待审套件，保留版本化指令、原建议和选定谱系信息；旧 builder 输出不变。离线工具核对精确 UTF-8 hash 及所选来源作用域，判断仍为空、未知状态保留。输入 hash 与作用域一致不证明谱系真实性、模型忠实性或主人批准。见 [报告](../validation/MV-7-quality-input.md)。
+
 ## 3. MCP 的回忆与记录循环
 
 最小工具继续采用 `memory_search`、`memory_read`、`memory_source`、`context_get`、`memory_propose`、`session_checkpoint`，权限沿现有语义拆分。回答前先搜索，需要时读取有界来源；出现新长期信息后回传带来源的候选，服务检查重复、时效、冲突和范围，再进入审核。未知来源的客户端提交保持 `agent_submission / partial`，不能伪装用户原话。

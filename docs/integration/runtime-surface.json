@@ -250,7 +250,7 @@
     {
       "path": "crates/enouia-memory-provider/src/history_quality.rs",
       "role": "provider",
-      "sha256": "c49d3413f51de138940484dcd7e362cfa231ed44465d5f2ea1f07cf62473221f"
+      "sha256": "a0ee8c9c1c26811ee810f5af603a90433a046c04758ef4a7a9d928acfe03ce33"
     },
     {
       "path": "crates/enouia-memory-provider/src/history_review.rs",
@@ -378,5 +378,5 @@
       "sha256": "3603c1855d9f9ec9b3585143a0191508980b260b1ffd26c82b3e6f9b7223a75d"
     }
   ],
-  "aggregate": "87901de47e760bdb3cc38a0753c40039b82d87d4719e6fac218387bfa5cc8363"
+  "aggregate": "deb63c9f1796f776a9fb7657243719317f99b87dbe01b3f01a2654fc9410a371"
 }
