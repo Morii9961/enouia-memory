@@ -5,6 +5,7 @@ import json
 import tempfile
 from pathlib import Path
 import unittest
+from unittest.mock import patch
 
 import check_native_matrix
 import evaluate
@@ -54,6 +55,57 @@ class NativeMatrixTests(unittest.TestCase):
         self.assertEqual(report["fixtures_checked"], 8)
         self.assertIsNone(report["overall_model_quality"])
         self.assertEqual(report["native_validation"], "not_rerun")
+
+    def test_resolved_manifest_outside_root_is_rejected_before_reading(self):
+        manifest = self.root / "manifest.json"
+        original_resolve = Path.resolve
+        # Model a link target without requiring Windows symlink privilege.
+        with tempfile.TemporaryDirectory(prefix="synthetic-outside-matrix-") as directory:
+            outside = original_resolve(Path(directory) / "manifest.json")
+
+            def resolve(path, *args, **kwargs):
+                return outside if path == manifest else original_resolve(path, *args, **kwargs)
+
+            with patch.object(Path, "resolve", resolve), patch(
+                    "check_native_matrix.read_json", wraps=evaluate.read_json) as read:
+                with self.assertRaisesRegex(ValueError, "manifest outside root"):
+                    check_native_matrix.check(self.root)
+                read.assert_not_called()
+
+    def test_in_root_resolved_manifest_is_the_file_read(self):
+        manifest = self.root / "manifest.json"
+        target = self.root / "synthetic-linked-manifest.json"
+        target.write_bytes(manifest.read_bytes())
+        manifest.write_text("{}", encoding="utf-8")
+        original_resolve = Path.resolve
+        resolved_target = original_resolve(target)
+
+        def resolve(path, *args, **kwargs):
+            return resolved_target if path == manifest else original_resolve(path, *args, **kwargs)
+
+        with patch.object(Path, "resolve", resolve), patch(
+                "check_native_matrix.read_json", wraps=evaluate.read_json) as read:
+            report = check_native_matrix.check(self.root)
+            self.assertEqual(read.call_args_list[0].args[0], resolved_target)
+            self.assertEqual(report["fixtures_checked"], 8)
+            self.assertEqual(report["native_validation"], "not_rerun")
+            self.assertIsNone(report["overall_model_quality"])
+
+    def test_resolution_loops_are_normal_input_errors_before_file_reading(self):
+        original_resolve = Path.resolve
+        for name, expected_reads in (("manifest.json", 0), (self.rows[0]["file"], 1)):
+            blocked = self.root / name
+
+            def resolve(path, *args, **kwargs):
+                if path == blocked:
+                    raise RuntimeError("synthetic resolution loop")
+                return original_resolve(path, *args, **kwargs)
+
+            with self.subTest(file=name), patch.object(Path, "resolve", resolve), patch(
+                    "check_native_matrix.read_json", wraps=evaluate.read_json) as read:
+                with self.assertRaisesRegex(ValueError, "matrix path resolution"):
+                    check_native_matrix.check(self.root)
+                self.assertEqual(read.call_count, expected_reads)
 
     def test_partial_and_duplicate_combinations_are_refused(self):
         original = copy.deepcopy(self.rows)

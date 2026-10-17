@@ -119,8 +119,12 @@ def scope_for(case, root):
             require(key not in seen, "duplicate native span")
             seen.add(key)
         return selected
-    target = (root / case["source_file"]).resolve()
-    require(target.is_relative_to(root.resolve()), "source outside suite directory")
+    try:
+        target = (root / case["source_file"]).resolve()
+        inside = target.is_relative_to(root.resolve())
+    except RuntimeError as exc:
+        raise ValueError("source path resolution failed") from exc
+    require(inside, "source outside suite directory")
     raw = read_json(target, 2 * 1024 * 1024)
     require(isinstance(raw, list), "source archive shape")
     require(all(isinstance(conversation, dict) for conversation in raw), "source conversation shape")

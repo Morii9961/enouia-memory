@@ -33,6 +33,10 @@ python tools/history-quality/check_native_matrix.py --root .local/mv7-quality-na
 
 检查器只读取明确给出的合成目录和固定文件名；验证八种组合齐全、Rust 声明的套件哈希与 Python 一致、旧/完整材料只相差输入原文、实际 Provider 绑定/谱系模式及待审/未知状态保留。配对采用规范 JSON 哈希比较，不把 1 与 true 等不同 JSON 类型混同。开始生成时先置空清单，失败运行不能留下上一轮完整清单。检查清单是测试材料，哈希声明不认证原生来源；输出仍为 native_validation=not_rerun、review_required、整体模型质量 null。它不读取 Vault、不调用模型、不判断实际语义质量，详见 [验证报告](../../docs/validation/MV-7-native-quality-matrix.md)。
 
+清单 manifest.json 与八份套件一样，先解析实际目标并核对其位于选定根目录内，再读取解析后的文件；目录外的清单目标在读取前拒绝。目录内的解析目标仍可用，清单保持 16 KiB 上限，见 [边界验证](../../docs/validation/MV-7-matrix-manifest-boundary.md)。
+
+普通评估入口的 source_file、套件目录以及矩阵路径遇到解析循环时，返回普通输入错误；来源读取不会在循环解析失败后继续。
+
 ## 判定步骤
 
 合成组合检查对 `selected_lineage` 检查行数组、所选来源索引的完整唯一覆盖、父索引的范围/唯一性，以及非负整数或 null 的未选父数量；不接受布尔值替代整数、空标记或额外行字段。未知父数量仍保留 null。这只确认原生格式的结构，不验证边的事实、不补读父来源或认证父链。

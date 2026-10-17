@@ -1,5 +1,13 @@
 # MV-7 质量链路持续工作接续
 
+## 2026-10-16 普通来源路径解析补充
+
+仍在 codex/history-matrix-manifest-boundary，基于已推送的 `8c87b83` 继续更新草稿 PR #26。普通 evaluate.py 的来源文件/套件目录解析循环现转为读取前的普通输入错误；新增一项、两个位置的回归，完整 Python 46 项通过。默认/扩展校准及八份原生合成材料共十份报告、21 个案例，与旧版完整 JSON 值一致，见 [报告](../validation/MV-7-matrix-manifest-boundary.md)。上次补充全量没有最终退出记录，不作为通过；本次独立补跑默认并行 Rust 387 项、fmt、严格 Clippy 均 exit 0，其余同版必需检查也已通过，结果已保存。仍保留 Windows 实际链接未验证的限制，不更改生产 Rust、Runtime 接入面或状态快照。
+
+## 2026-10-15 合成清单目录边界
+
+当前分支 codex/history-matrix-manifest-boundary，基于 PR #25 的 `c301ba8`。补上清单 manifest.json 的解析目标范围检查，目录外目标读取前拒绝，目录内目标读取解析后的文件；解析循环转为普通输入错误，16 KiB 预算保留，见 [报告](../validation/MV-7-matrix-manifest-boundary.md)。旧版清单两项回归分别失败/报错，循环解析两个子例报 RuntimeError；修正后完整 Python 45 项、默认并行 Rust 387 项及全部 required checks exit 0，八份既有 Rust 合成材料兼容检查通过。当前 Windows 符号链接探针返回 1314，链接证据来自可控 Path.resolve 模拟，实际链接验收未完成。生产 Rust/契约/接入面与状态快照未改；继续沿用验证、提交、推送和草稿 PR 流程。
+
 ## 2026-10-15 语义校准题集扩展
 
 当前分支 codex/history-semantic-calibration，基于 PR #24 的 `8ed2297`。新增十个预设合成回答/判定，覆盖偏好时态、分支、助手建议、未知日期、忠实但遗漏及现状未定，见 [报告](../validation/MV-7-semantic-calibration.md)。42 项 Python、默认并行完整 Rust 387 项及全部 required checks exit 0。支持比例为 1 的遗漏例仍为 issues_found，含 uncertain/unknown 的例子仍为 review_required；四个支持、五个问题、一个待审仅为预设计算结果，不是模型通过率。默认三例和 evaluator 生产逻辑未改，Runtime surface 与快照保持原样，真实模型/资料、主人验收及下一阶段未启动。继续沿用验证、提交、推送和草稿 PR 流程。
