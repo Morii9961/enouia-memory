@@ -9,6 +9,18 @@ python tools/history-quality/evaluate.py
 
 默认只读仓库内的 [合成套件](../../tests/fixtures/history/quality-cases.json) 和它明确选定的来源文件。不会访问网络、凭据或查找私人历史。报告写到标准输出；退出码 0 只表示生成了报告，不能当作质量通过。
 
+## 只读人工评审稿
+
+需要对照原文与回答时，显式选择套件生成一份 Markdown 评审稿：
+
+```powershell
+python tools/history-quality/review.py --suite tests/fixtures/history/quality-cases.json
+```
+
+评审稿把选定来源、回答、逐项路径、关键单元及已有判断放在同一案例下，并用中文汇总已有计数。没有判断的地方保持 null，未知项仍为 unknown；不代判、不修改原套件、不写记忆。可选完整分析输入只展示 JSON 结构视图，原始 UTF-8 hash 另列，不冒充原始字节排版或原生认证。
+
+原文、身份、陈述和理由均放在 JSON 代码块内，不成为 Markdown 标题或操作指令。工具先验证完整套件，并复核实际展示的套件和来源 hash；读取期间发生变化会拒绝。默认 UTF-8 输出上限 512 KiB，`--max-bytes` 可明确调至不超过 2097152；输入错误或超限时整个文档拒绝，标准输出为空。输出含选定原文，属于私有材料，保存或重定向由调用者明确处理；命令本身不保存文件、不读 Vault、不外发。详见 [ADR-MEM-62](../../docs/adr/062-offline-quality-review-worksheet.md) 和 [验证报告](../../docs/validation/MV-7-quality-review-worksheet.md)。
+
 ## 扩展语义校准
 
 [扩展合成题集](../../tests/fixtures/history/semantic-calibration-cases.json) 另有 10 个预设回答及判定，复用同一份合成来源，覆盖过去/当前偏好、分支区别、助手建议与用户决定、未知日期、遗漏及未定现状。它不改变默认三例，也不调用模型；判定属于 synthetic_fixture，不是主人审核。
@@ -36,6 +48,40 @@ python tools/history-quality/check_native_matrix.py --root .local/mv7-quality-na
 清单 manifest.json 与八份套件一样，先解析实际目标并核对其位于选定根目录内，再读取解析后的文件；目录外的清单目标在读取前拒绝。目录内的解析目标仍可用，清单保持 16 KiB 上限，见 [边界验证](../../docs/validation/MV-7-matrix-manifest-boundary.md)。
 
 普通评估入口的 source_file、套件目录以及矩阵路径遇到解析循环时，返回普通输入错误；来源读取不会在循环解析失败后继续。
+
+### 用原生合成材料练习评审
+
+上述合成组合生成完毕后，可复制其中一份作为练习，保留原始 pending 材料：
+
+```powershell
+Copy-Item .local/mv7-quality-native-matrix/anthropic-lineage-complete.json .local/mv7-quality-review-practice.json
+python tools/history-quality/review.py --suite .local/mv7-quality-review-practice.json
+```
+
+在 JSON 套件的首个 case 中填写判断；Markdown 只是只读对照稿，不会回写或导入判断。合成练习将 reviewer 设为 synthetic_fixture；不要写 owner。保持来源、回答、任务输入、原生绑定和相应 hash 不变。例如只评完偏好纠正的陈述，可填写以下三个字段：
+
+```json
+{
+  "reviewer": "synthetic_fixture",
+  "item_judgments": [{
+    "path": "/changes/0/statement",
+    "verdict": "supported",
+    "reason": "合成练习：陈述保留过去长篇与现在先给简短结论两项限定。",
+    "evidence": [
+      {"source_index": 0, "quote": "过去偏好长篇说明"},
+      {"source_index": 1, "quote": "现在希望先给简短结论"}
+    ]
+  }],
+  "unit_judgments": [{
+    "unit_id": "偏好长度的纠正",
+    "status": "observed",
+    "paths": ["/changes/0/statement"],
+    "reason": "合成练习：已支持的陈述呈现偏好纠正。"
+  }]
+}
+```
+
+这是既有合成材料的固定练习判断，不能挪用到其他来源。修改后分别运行 evaluate.py 和 review.py，二者都显式传入同一份练习套件。结果应为支持 1、未审 2，关键单元出现 1、未知 1；已判定项支持比例虽为 1，状态仍为 review_required，整体模型质量仍为 null。没有填的判断继续未审，不要为消除 unknown 而猜测；只有实际检查后才能补写。原始 pending 套件和原生声明均不因练习变成主人验收。
 
 ## 判定步骤
 

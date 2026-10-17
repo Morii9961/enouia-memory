@@ -330,6 +330,10 @@ The [full remember replay and target freshness acceptance](../validation/MV-6-fu
 
 [Decision](061-quality-collection-shapes.md): require array/object shapes and nonblank string case identities before offline metrics; reject truthiness/iteration substitutes without coercion or partial CLI output. Valid scoring and unknown states remain unchanged. [Evidence](../validation/MV-7-quality-collections.md).
 
+### ADR-MEM-62 — Offline quality review worksheet (Adopted, MV-7)
+
+[Decision](062-offline-quality-review-worksheet.md): render an explicitly selected, validated quality suite as a bounded private Markdown worksheet, with selected sources, response paths, required units, existing judgments and optional structured task input. Preserve pending/unknown states; no auto-grading, file save, Provider or Runtime UI. [Evidence](../validation/MV-7-quality-review-worksheet.md).
+
 ## Relation to Enouia Runtime's register
 
 
