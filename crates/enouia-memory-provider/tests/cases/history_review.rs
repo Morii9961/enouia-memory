@@ -2838,6 +2838,155 @@ fn semantic_publication_recovers_before_and_after_current_without_resending() {
 }
 
 #[test]
+fn semantic_tasks_with_equal_input_hashes_keep_identity_after_reopen() {
+    use enouia_memory_provider::history_quality::{self, EvidenceMode, QualityOptions};
+
+    struct CountSecrets(Cell<u64>);
+    impl SecretStore for CountSecrets {
+        fn read(&self, target: &str) -> Result<SecretBytes> {
+            self.0.set(self.0.get() + 1);
+            Secrets { missing: false }.read(target)
+        }
+    }
+
+    for api in [Api::OpenAiResponses, Api::AnthropicMessages] {
+        for include_lineage in [false, true] {
+            let env = Env::new("semantic-equal-input-identity");
+            let policy = grant(&env, api);
+            let options = semantic_options(&env, api, vec![0], "explanation", policy.clone());
+            let enabled = AtomicBool::new(true);
+            let create = if include_lineage {
+                history_semantic::create_with_lineage
+            } else {
+                history_semantic::create
+            };
+            let left = create(&env.vault, &owner(), &options, b"identity-left", &enabled).unwrap();
+            let right =
+                create(&env.vault, &owner(), &options, b"identity-right", &enabled).unwrap();
+            assert_eq!(left.input_hash, right.input_hash);
+            assert_ne!(left.session_id, right.session_id);
+            assert_ne!(left.input_event_id, right.input_event_id);
+
+            let reopened = reopen_semantic(&env, enouia_memory_vault::fault::Faults::none());
+            let adapter = VaultAdapter {
+                vault: &reopened,
+                owner: owner(),
+                input_event: left.input_event_id.clone(),
+                enabled: &enabled,
+                quota: Quota::default(),
+            };
+            let other = VaultAdapter {
+                vault: &reopened,
+                owner: owner(),
+                input_event: right.input_event_id.clone(),
+                enabled: &enabled,
+                quota: Quota::default(),
+            };
+            let (index, _) = enouia_memory_index::Index::rebuild(&reopened).unwrap();
+            let call = history_semantic::prepare(
+                &adapter,
+                &left,
+                &index,
+                &extraction_capabilities(&env, api),
+                Limits::default(),
+                CallOptions::text(policy, 1024),
+            )
+            .unwrap();
+            let mut wrong_session = left.clone();
+            wrong_session.session_id = right.session_id.clone();
+            let mut wrong_hash = left.clone();
+            wrong_hash.input_hash = sha256(b"synthetic-forged-input");
+            let secrets = CountSecrets(Cell::new(0));
+            let mut wire: Value = serde_json::from_slice(&reply(api)).unwrap();
+            let text = semantic_golden()["preference"].to_string();
+            if api == Api::OpenAiResponses {
+                wire["output"][0]["content"][0]["text"] = json!(text);
+            } else {
+                wire["content"][0]["text"] = json!(text);
+            }
+            let http = SemanticHttp {
+                bytes: serde_json::to_vec(&wire).unwrap(),
+                calls: Cell::new(0),
+                fail: false,
+            };
+            let pin = reopened.pin_current().unwrap();
+            for (guard_adapter, task, expected) in [
+                (&other, &right, MemoryErrorCode::PermissionDenied),
+                (&adapter, &right, MemoryErrorCode::PermissionDenied),
+                (&adapter, &wrong_session, MemoryErrorCode::PermissionDenied),
+                (&adapter, &wrong_hash, MemoryErrorCode::InvalidRequest),
+            ] {
+                let guard = AnalysisGuard {
+                    adapter: guard_adapter,
+                    task,
+                };
+                let client = Client {
+                    transport: &http,
+                    secrets: &secrets,
+                    guard: &guard,
+                    journal: &adapter,
+                };
+                assert_eq!(
+                    client
+                        .send(&call, &call.inspect().hash(), &NeverCancel)
+                        .unwrap_err()
+                        .code,
+                    expected
+                );
+                assert_eq!(secrets.0.get(), 0);
+                assert_eq!(http.calls.get(), 0);
+                assert!(adapter.invocations().unwrap().is_empty());
+                assert!(other.invocations().unwrap().is_empty());
+                assert_eq!(reopened.pin_current().unwrap(), pin);
+            }
+            let quality = QualityOptions {
+                case_id: "synthetic-identity-review".into(),
+                required_units: vec!["偏好纠正".into(), "未推断生效时间".into()],
+                evidence_mode: EvidenceMode::Synthetic,
+            };
+            for (task, expected) in [
+                (&wrong_session, MemoryErrorCode::PermissionDenied),
+                (&wrong_hash, MemoryErrorCode::InvalidRequest),
+            ] {
+                assert_eq!(
+                    history_quality::build_with_analysis_input(&adapter, task, &quality)
+                        .err()
+                        .unwrap()
+                        .code,
+                    expected
+                );
+                assert_eq!(reopened.pin_current().unwrap(), pin);
+            }
+            let guard = AnalysisGuard {
+                adapter: &adapter,
+                task: &left,
+            };
+            Client {
+                transport: &http,
+                secrets: &secrets,
+                guard: &guard,
+                journal: &adapter,
+            }
+            .send(&call, &call.inspect().hash(), &NeverCancel)
+            .unwrap();
+            assert_eq!(secrets.0.get(), 1);
+            assert_eq!(http.calls.get(), 1);
+            assert_eq!(adapter.invocations().unwrap().len(), 1);
+            assert!(other.invocations().unwrap().is_empty());
+            let review = history_semantic::preview(&adapter, &left).unwrap();
+            assert_eq!(review.task, left);
+            let completed = reopened.pin_current().unwrap();
+            let bundle =
+                history_quality::build_with_analysis_input(&adapter, &left, &quality).unwrap();
+            assert_eq!(bundle.suite["cases"][0]["reviewer"], "pending");
+            assert_eq!(bundle.suite["cases"][0]["item_judgments"], json!([]));
+            assert_eq!(bundle.suite["cases"][0]["unit_judgments"], json!([]));
+            assert_eq!(reopened.pin_current().unwrap(), completed);
+        }
+    }
+}
+
+#[test]
 fn quality_bundle_keeps_native_spans_and_unreviewed_claims_without_writes() {
     use enouia_memory_provider::history_quality::{self, EvidenceMode, QualityOptions};
     for api in [Api::OpenAiResponses, Api::AnthropicMessages] {
