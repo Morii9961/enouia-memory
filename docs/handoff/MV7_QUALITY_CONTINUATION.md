@@ -1,5 +1,9 @@
 # MV-7 质量链路持续工作接续
 
+## 2026-10-15 语义校准题集扩展
+
+当前分支 codex/history-semantic-calibration，基于 PR #24 的 `8ed2297`。新增十个预设合成回答/判定，覆盖偏好时态、分支、助手建议、未知日期、忠实但遗漏及现状未定，见 [报告](../validation/MV-7-semantic-calibration.md)。42 项 Python、默认并行完整 Rust 387 项及全部 required checks exit 0。支持比例为 1 的遗漏例仍为 issues_found，含 uncertain/unknown 的例子仍为 review_required；四个支持、五个问题、一个待审仅为预设计算结果，不是模型通过率。默认三例和 evaluator 生产逻辑未改，Runtime surface 与快照保持原样，真实模型/资料、主人验收及下一阶段未启动。继续沿用验证、提交、推送和草稿 PR 流程。
+
 ## 2026-10-15 合成批次边界与恢复
 
 当前分支 codex/history-batch-boundaries，基于 PR #23 的 `422399d`。为既有 H2a 增加三项原生合成验证：32 批在第 16 批后取消并重新打开恢复，33 批拒绝；15 条新消息加前文保持完整；32 个分支共 512 个片段引用超出协调元数据预算时不发布 Session。默认并行完整 Rust 387 项（history 13）及 required checks 全部 exit 0，见 [报告](../validation/MV-7-batch-boundaries.md)。数量和字节预算必须同时满足，不能据此承诺 32 个满批或真实全量规模。生产实现、契约、依赖和 Runtime surface 均未改；真实语义质量、Runtime 采用、主人验收及旧屏障故障仍未完成，状态快照未刷新。继续沿用提交、推送和草稿 PR 流程，不自动合并或进入下一阶段。

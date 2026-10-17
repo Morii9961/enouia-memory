@@ -1,0 +1,808 @@
+{
+  "schema_version": "history-quality-1",
+  "cases": [
+    {
+      "case_id": "preference-history-faithful",
+      "evidence_mode": "synthetic",
+      "reviewer": "synthetic_fixture",
+      "native_task_input_sha256": null,
+      "source_file": "initialization-synthetic.json",
+      "messages": [
+        {
+          "conversation_id": "synthetic-preference",
+          "message_id": "p1"
+        },
+        {
+          "conversation_id": "synthetic-preference",
+          "message_id": "p2"
+        }
+      ],
+      "response": {
+        "version": "history-semantic-review-1",
+        "changes": [],
+        "summary": [
+          {
+            "statement": "合成角色过去偏好长篇说明，现在希望先给简短结论。",
+            "evidence": [
+              {
+                "source_index": 0,
+                "quote": "过去偏好长篇说明"
+              },
+              {
+                "source_index": 1,
+                "quote": "现在希望先给简短结论"
+              }
+            ]
+          },
+          {
+            "statement": "选定原文没有说明偏好改变的事实生效日期。",
+            "evidence": [
+              {
+                "source_index": 1,
+                "quote": "合成角色纠正偏好"
+              }
+            ]
+          }
+        ]
+      },
+      "required_units": [
+        "past_long_preference",
+        "current_short_conclusion",
+        "effective_date_unknown"
+      ],
+      "item_judgments": [
+        {
+          "path": "/summary/0/statement",
+          "verdict": "supported",
+          "reason": "分别保留过去和现在的偏好，没有反转时间方向。",
+          "evidence": [
+            {
+              "source_index": 0,
+              "quote": "过去偏好长篇说明"
+            },
+            {
+              "source_index": 1,
+              "quote": "现在希望先给简短结论"
+            }
+          ]
+        },
+        {
+          "path": "/summary/1/statement",
+          "verdict": "supported",
+          "reason": "p2 的消息时间不等于偏好生效日期；原文没有给出该日期。",
+          "evidence": [
+            {
+              "source_index": 1,
+              "quote": "合成角色纠正偏好"
+            }
+          ]
+        }
+      ],
+      "unit_judgments": [
+        {
+          "unit_id": "past_long_preference",
+          "status": "observed",
+          "paths": [
+            "/summary/0/statement"
+          ],
+          "reason": "过去的偏好明确保留。"
+        },
+        {
+          "unit_id": "current_short_conclusion",
+          "status": "observed",
+          "paths": [
+            "/summary/0/statement"
+          ],
+          "reason": "当前的简短结论偏好明确保留。"
+        },
+        {
+          "unit_id": "effective_date_unknown",
+          "status": "observed",
+          "paths": [
+            "/summary/1/statement"
+          ],
+          "reason": "没有从消息时间补造生效日期。"
+        }
+      ],
+      "scope_value_sha256": "b7b01eef8ef61d482829efd72a767e1432cb4d34a6861a8236eecb89d1d4cc0c",
+      "response_value_sha256": "bed74ae0e06dde93de8e7826791ad688ff3a7d4024adb0c9932526c9302d9386"
+    },
+    {
+      "case_id": "preference-history-reversed",
+      "evidence_mode": "synthetic",
+      "reviewer": "synthetic_fixture",
+      "native_task_input_sha256": null,
+      "source_file": "initialization-synthetic.json",
+      "messages": [
+        {
+          "conversation_id": "synthetic-preference",
+          "message_id": "p1"
+        },
+        {
+          "conversation_id": "synthetic-preference",
+          "message_id": "p2"
+        }
+      ],
+      "response": {
+        "version": "history-semantic-review-1",
+        "changes": [],
+        "summary": [
+          {
+            "statement": "合成角色过去偏好简短结论，现在改为长篇说明。",
+            "evidence": [
+              {
+                "source_index": 0,
+                "quote": "过去偏好长篇说明"
+              },
+              {
+                "source_index": 1,
+                "quote": "现在希望先给简短结论"
+              }
+            ]
+          }
+        ]
+      },
+      "required_units": [
+        "past_long_preference",
+        "current_short_conclusion",
+        "effective_date_unknown"
+      ],
+      "item_judgments": [
+        {
+          "path": "/summary/0/statement",
+          "verdict": "contradicted",
+          "reason": "两个时态下的偏好都与选定原文相反；引文精确仍不支持该陈述。",
+          "evidence": [
+            {
+              "source_index": 0,
+              "quote": "过去偏好长篇说明"
+            },
+            {
+              "source_index": 1,
+              "quote": "现在希望先给简短结论"
+            }
+          ]
+        }
+      ],
+      "unit_judgments": [
+        {
+          "unit_id": "past_long_preference",
+          "status": "missing",
+          "paths": [],
+          "reason": "回答没有正确保留该关键单元。"
+        },
+        {
+          "unit_id": "current_short_conclusion",
+          "status": "missing",
+          "paths": [],
+          "reason": "回答没有正确保留该关键单元。"
+        },
+        {
+          "unit_id": "effective_date_unknown",
+          "status": "missing",
+          "paths": [],
+          "reason": "回答没有正确保留该关键单元。"
+        }
+      ],
+      "scope_value_sha256": "b7b01eef8ef61d482829efd72a767e1432cb4d34a6861a8236eecb89d1d4cc0c",
+      "response_value_sha256": "9cba2ffaaa6b33078caf4a51af1ad4c97ab3d2604a248e5afd5848fa97ff4cd0"
+    },
+    {
+      "case_id": "branch-decisions-kept-separate",
+      "evidence_mode": "synthetic",
+      "reviewer": "synthetic_fixture",
+      "native_task_input_sha256": null,
+      "source_file": "initialization-synthetic.json",
+      "messages": [
+        {
+          "conversation_id": "synthetic-project",
+          "message_id": "edit"
+        },
+        {
+          "conversation_id": "synthetic-project",
+          "message_id": "u2"
+        }
+      ],
+      "response": {
+        "version": "history-semantic-review-1",
+        "changes": [],
+        "summary": [
+          {
+            "statement": "另一编辑分支保留纸质地图；主分支取消地图，并未采纳自动导航建议。",
+            "evidence": [
+              {
+                "source_index": 0,
+                "quote": "另一个编辑分支：保留纸质地图计划"
+              },
+              {
+                "source_index": 1,
+                "quote": "主分支后续决定：取消纸质地图计划，不采纳自动导航建议"
+              }
+            ]
+          }
+        ]
+      },
+      "required_units": [
+        "edited_branch_retains_map",
+        "main_branch_cancels_map",
+        "navigation_not_adopted"
+      ],
+      "item_judgments": [
+        {
+          "path": "/summary/0/statement",
+          "verdict": "supported",
+          "reason": "陈述按原文标注保留两处分支决定及未采纳限定，没有合成全项目结论。",
+          "evidence": [
+            {
+              "source_index": 0,
+              "quote": "另一个编辑分支：保留纸质地图计划"
+            },
+            {
+              "source_index": 1,
+              "quote": "主分支后续决定：取消纸质地图计划，不采纳自动导航建议"
+            }
+          ]
+        }
+      ],
+      "unit_judgments": [
+        {
+          "unit_id": "edited_branch_retains_map",
+          "status": "observed",
+          "paths": [
+            "/summary/0/statement"
+          ],
+          "reason": "该分支或未采纳限定在陈述中明确保留。"
+        },
+        {
+          "unit_id": "main_branch_cancels_map",
+          "status": "observed",
+          "paths": [
+            "/summary/0/statement"
+          ],
+          "reason": "该分支或未采纳限定在陈述中明确保留。"
+        },
+        {
+          "unit_id": "navigation_not_adopted",
+          "status": "observed",
+          "paths": [
+            "/summary/0/statement"
+          ],
+          "reason": "该分支或未采纳限定在陈述中明确保留。"
+        }
+      ],
+      "scope_value_sha256": "cf9ef13657f9dceef4a0b82f3902d1d2d7905b33b94307ca0880a251cde03537",
+      "response_value_sha256": "e9acba4f98b7c7ffe4e8ecf568196561a8b27542a0fdebad58f3ffa9ec2c0b93"
+    },
+    {
+      "case_id": "branch-decisions-flattened",
+      "evidence_mode": "synthetic",
+      "reviewer": "synthetic_fixture",
+      "native_task_input_sha256": null,
+      "source_file": "initialization-synthetic.json",
+      "messages": [
+        {
+          "conversation_id": "synthetic-project",
+          "message_id": "edit"
+        },
+        {
+          "conversation_id": "synthetic-project",
+          "message_id": "u2"
+        }
+      ],
+      "response": {
+        "version": "history-semantic-review-1",
+        "changes": [],
+        "summary": [
+          {
+            "statement": "项目的所有分支都已经取消纸质地图计划。",
+            "evidence": [
+              {
+                "source_index": 0,
+                "quote": "另一个编辑分支：保留纸质地图计划"
+              },
+              {
+                "source_index": 1,
+                "quote": "主分支后续决定：取消纸质地图计划，不采纳自动导航建议"
+              }
+            ]
+          }
+        ]
+      },
+      "required_units": [
+        "edited_branch_retains_map",
+        "main_branch_cancels_map",
+        "navigation_not_adopted"
+      ],
+      "item_judgments": [
+        {
+          "path": "/summary/0/statement",
+          "verdict": "contradicted",
+          "reason": "编辑分支明确保留地图，不能把主分支的取消扩展到所有分支。",
+          "evidence": [
+            {
+              "source_index": 0,
+              "quote": "另一个编辑分支：保留纸质地图计划"
+            },
+            {
+              "source_index": 1,
+              "quote": "主分支后续决定：取消纸质地图计划，不采纳自动导航建议"
+            }
+          ]
+        }
+      ],
+      "unit_judgments": [
+        {
+          "unit_id": "edited_branch_retains_map",
+          "status": "missing",
+          "paths": [],
+          "reason": "错误的全分支结论不能提供已支持的覆盖路径。"
+        },
+        {
+          "unit_id": "main_branch_cancels_map",
+          "status": "missing",
+          "paths": [],
+          "reason": "错误的全分支结论不能提供已支持的覆盖路径。"
+        },
+        {
+          "unit_id": "navigation_not_adopted",
+          "status": "missing",
+          "paths": [],
+          "reason": "错误的全分支结论不能提供已支持的覆盖路径。"
+        }
+      ],
+      "scope_value_sha256": "cf9ef13657f9dceef4a0b82f3902d1d2d7905b33b94307ca0880a251cde03537",
+      "response_value_sha256": "89c0d7626330fc5391b2884f6290b98f741f443d5118a1e981ca643f7527ef9a"
+    },
+    {
+      "case_id": "assistant-proposal-kept-as-proposal",
+      "evidence_mode": "synthetic",
+      "reviewer": "synthetic_fixture",
+      "native_task_input_sha256": null,
+      "source_file": "initialization-synthetic.json",
+      "messages": [
+        {
+          "conversation_id": "synthetic-project",
+          "message_id": "u1"
+        },
+        {
+          "conversation_id": "synthetic-project",
+          "message_id": "a1"
+        }
+      ],
+      "response": {
+        "version": "history-semantic-review-1",
+        "changes": [],
+        "summary": [
+          {
+            "statement": "用户计划做纸质地图；助手建议改为自动导航应用，该建议尚未被接受。",
+            "evidence": [
+              {
+                "source_index": 0,
+                "quote": "计划做一份纸质地图"
+              },
+              {
+                "source_index": 1,
+                "quote": "建议把地图改成自动导航应用。这个建议尚未被接受"
+              }
+            ]
+          }
+        ]
+      },
+      "required_units": [
+        "owner_paper_map_plan",
+        "assistant_navigation_proposal",
+        "proposal_not_accepted"
+      ],
+      "item_judgments": [
+        {
+          "path": "/summary/0/statement",
+          "verdict": "supported",
+          "reason": "分别保留用户计划、助手建议及其未获接受状态。",
+          "evidence": [
+            {
+              "source_index": 0,
+              "quote": "计划做一份纸质地图"
+            },
+            {
+              "source_index": 1,
+              "quote": "建议把地图改成自动导航应用。这个建议尚未被接受"
+            }
+          ]
+        }
+      ],
+      "unit_judgments": [
+        {
+          "unit_id": "owner_paper_map_plan",
+          "status": "observed",
+          "paths": [
+            "/summary/0/statement"
+          ],
+          "reason": "角色、计划或未接受状态明确保留。"
+        },
+        {
+          "unit_id": "assistant_navigation_proposal",
+          "status": "observed",
+          "paths": [
+            "/summary/0/statement"
+          ],
+          "reason": "角色、计划或未接受状态明确保留。"
+        },
+        {
+          "unit_id": "proposal_not_accepted",
+          "status": "observed",
+          "paths": [
+            "/summary/0/statement"
+          ],
+          "reason": "角色、计划或未接受状态明确保留。"
+        }
+      ],
+      "scope_value_sha256": "7d94058be1a75144f4201645b39b4c7d151d17750dc56e62eea48d9c80a3d61c",
+      "response_value_sha256": "81c8543d9b6dee01e7e4dce3cfed98d117a510a9e47d26069637825363eb8438"
+    },
+    {
+      "case_id": "assistant-proposal-promoted-to-owner-decision",
+      "evidence_mode": "synthetic",
+      "reviewer": "synthetic_fixture",
+      "native_task_input_sha256": null,
+      "source_file": "initialization-synthetic.json",
+      "messages": [
+        {
+          "conversation_id": "synthetic-project",
+          "message_id": "u1"
+        },
+        {
+          "conversation_id": "synthetic-project",
+          "message_id": "a1"
+        }
+      ],
+      "response": {
+        "version": "history-semantic-review-1",
+        "changes": [],
+        "summary": [
+          {
+            "statement": "用户已经决定把项目改成自动导航应用。",
+            "evidence": [
+              {
+                "source_index": 0,
+                "quote": "计划做一份纸质地图"
+              },
+              {
+                "source_index": 1,
+                "quote": "建议把地图改成自动导航应用。这个建议尚未被接受"
+              }
+            ]
+          }
+        ]
+      },
+      "required_units": [
+        "owner_paper_map_plan",
+        "assistant_navigation_proposal",
+        "proposal_not_accepted"
+      ],
+      "item_judgments": [
+        {
+          "path": "/summary/0/statement",
+          "verdict": "contradicted",
+          "reason": "改做导航只是助手的建议，原文明确说尚未被接受。",
+          "evidence": [
+            {
+              "source_index": 0,
+              "quote": "计划做一份纸质地图"
+            },
+            {
+              "source_index": 1,
+              "quote": "建议把地图改成自动导航应用。这个建议尚未被接受"
+            }
+          ]
+        }
+      ],
+      "unit_judgments": [
+        {
+          "unit_id": "owner_paper_map_plan",
+          "status": "missing",
+          "paths": [],
+          "reason": "把助手建议升级为用户决定，未正确覆盖该单元。"
+        },
+        {
+          "unit_id": "assistant_navigation_proposal",
+          "status": "missing",
+          "paths": [],
+          "reason": "把助手建议升级为用户决定，未正确覆盖该单元。"
+        },
+        {
+          "unit_id": "proposal_not_accepted",
+          "status": "missing",
+          "paths": [],
+          "reason": "把助手建议升级为用户决定，未正确覆盖该单元。"
+        }
+      ],
+      "scope_value_sha256": "7d94058be1a75144f4201645b39b4c7d151d17750dc56e62eea48d9c80a3d61c",
+      "response_value_sha256": "1ba69c4395b42c9d3483b08f54d39e86e43c53ca40218d46bfcc5ba6c5af6833"
+    },
+    {
+      "case_id": "unknown-source-date-preserved",
+      "evidence_mode": "synthetic",
+      "reviewer": "synthetic_fixture",
+      "native_task_input_sha256": null,
+      "source_file": "initialization-synthetic.json",
+      "messages": [
+        {
+          "conversation_id": "synthetic-undated",
+          "message_id": "n1"
+        }
+      ],
+      "response": {
+        "version": "history-semantic-review-1",
+        "changes": [],
+        "summary": [
+          {
+            "statement": "选定消息的陈述日期未知。",
+            "evidence": [
+              {
+                "source_index": 0,
+                "quote": "不知道哪天说的"
+              }
+            ]
+          }
+        ]
+      },
+      "required_units": [
+        "source_date_unknown"
+      ],
+      "item_judgments": [
+        {
+          "path": "/summary/0/statement",
+          "verdict": "supported",
+          "reason": "原文明确表示日期未知，节点 create_time 为 null，没有可确认日期。",
+          "evidence": [
+            {
+              "source_index": 0,
+              "quote": "不知道哪天说的"
+            }
+          ]
+        }
+      ],
+      "unit_judgments": [
+        {
+          "unit_id": "source_date_unknown",
+          "status": "observed",
+          "paths": [
+            "/summary/0/statement"
+          ],
+          "reason": "保留未知日期。"
+        }
+      ],
+      "scope_value_sha256": "b092fa114b94894111e1505d5bcb017f926231f31ab48e67791935ee3e3bd955",
+      "response_value_sha256": "b16e1f470fa505a34b817279408cd535fec03acb89ce72d641ea6fb3a7488654"
+    },
+    {
+      "case_id": "unknown-source-date-invented",
+      "evidence_mode": "synthetic",
+      "reviewer": "synthetic_fixture",
+      "native_task_input_sha256": null,
+      "source_file": "initialization-synthetic.json",
+      "messages": [
+        {
+          "conversation_id": "synthetic-undated",
+          "message_id": "n1"
+        }
+      ],
+      "response": {
+        "version": "history-semantic-review-1",
+        "changes": [],
+        "summary": [
+          {
+            "statement": "这条消息是在 2024 年 1 月 1 日作出的决定。",
+            "evidence": [
+              {
+                "source_index": 0,
+                "quote": "不知道哪天说的"
+              }
+            ]
+          }
+        ]
+      },
+      "required_units": [
+        "source_date_unknown"
+      ],
+      "item_judgments": [
+        {
+          "path": "/summary/0/statement",
+          "verdict": "unsupported",
+          "reason": "日期未知，给出的具体日期在所选材料中没有支持；缺乏支持不等于已有相反日期。",
+          "evidence": [
+            {
+              "source_index": 0,
+              "quote": "不知道哪天说的"
+            }
+          ]
+        }
+      ],
+      "unit_judgments": [
+        {
+          "unit_id": "source_date_unknown",
+          "status": "missing",
+          "paths": [],
+          "reason": "回答补造日期，未保留未知。"
+        }
+      ],
+      "scope_value_sha256": "b092fa114b94894111e1505d5bcb017f926231f31ab48e67791935ee3e3bd955",
+      "response_value_sha256": "8e249e2ed8bc43f202fc9543b5e1128dc0971667b881e9e44d95f5b3a9fee482"
+    },
+    {
+      "case_id": "faithful-summary-omits-cancellation",
+      "evidence_mode": "synthetic",
+      "reviewer": "synthetic_fixture",
+      "native_task_input_sha256": null,
+      "source_file": "initialization-synthetic.json",
+      "messages": [
+        {
+          "conversation_id": "synthetic-project",
+          "message_id": "u2"
+        }
+      ],
+      "response": {
+        "version": "history-semantic-review-1",
+        "changes": [],
+        "summary": [
+          {
+            "statement": "主分支未采纳自动导航建议。",
+            "evidence": [
+              {
+                "source_index": 0,
+                "quote": "不采纳自动导航建议"
+              }
+            ]
+          }
+        ]
+      },
+      "required_units": [
+        "map_cancelled",
+        "navigation_not_adopted"
+      ],
+      "item_judgments": [
+        {
+          "path": "/summary/0/statement",
+          "verdict": "supported",
+          "reason": "这一陈述与原文一致，但它没有提到取消地图，不能用正确比例掩盖遗漏。",
+          "evidence": [
+            {
+              "source_index": 0,
+              "quote": "不采纳自动导航建议"
+            }
+          ]
+        }
+      ],
+      "unit_judgments": [
+        {
+          "unit_id": "map_cancelled",
+          "status": "missing",
+          "paths": [],
+          "reason": "取消地图属于预先列出的关键内容，但回答未报告。"
+        },
+        {
+          "unit_id": "navigation_not_adopted",
+          "status": "observed",
+          "paths": [
+            "/summary/0/statement"
+          ],
+          "reason": "未采纳导航正确保留。"
+        }
+      ],
+      "scope_value_sha256": "926ff00c02f9355a15d88a0c8d458ccd2914047af21817bb63b8895547a621df",
+      "response_value_sha256": "ab3c6175528314933bf4dcb09d13c901aaf6f0b2d0b6a33e18bc7738844e91d7"
+    },
+    {
+      "case_id": "branch-current-state-unresolved",
+      "evidence_mode": "synthetic",
+      "reviewer": "synthetic_fixture",
+      "native_task_input_sha256": null,
+      "source_file": "initialization-synthetic.json",
+      "messages": [
+        {
+          "conversation_id": "synthetic-project",
+          "message_id": "edit"
+        },
+        {
+          "conversation_id": "synthetic-project",
+          "message_id": "u2"
+        }
+      ],
+      "response": {
+        "version": "history-semantic-review-1",
+        "changes": [],
+        "summary": [
+          {
+            "statement": "项目目前仍保留纸质地图计划。",
+            "evidence": [
+              {
+                "source_index": 0,
+                "quote": "另一个编辑分支：保留纸质地图计划"
+              },
+              {
+                "source_index": 1,
+                "quote": "主分支后续决定：取消纸质地图计划，不采纳自动导航建议"
+              }
+            ]
+          },
+          {
+            "statement": "选定记录存在保留地图与取消地图的两个分支。",
+            "evidence": [
+              {
+                "source_index": 0,
+                "quote": "另一个编辑分支：保留纸质地图计划"
+              },
+              {
+                "source_index": 1,
+                "quote": "主分支后续决定：取消纸质地图计划，不采纳自动导航建议"
+              }
+            ]
+          }
+        ]
+      },
+      "required_units": [
+        "retention_branch",
+        "cancellation_branch",
+        "current_project_state"
+      ],
+      "item_judgments": [
+        {
+          "path": "/summary/0/statement",
+          "verdict": "uncertain",
+          "reason": "这两条历史分支记载不足以确认项目当前状态；不凭消息日期选出全项目现状。",
+          "evidence": [
+            {
+              "source_index": 0,
+              "quote": "另一个编辑分支：保留纸质地图计划"
+            },
+            {
+              "source_index": 1,
+              "quote": "主分支后续决定：取消纸质地图计划，不采纳自动导航建议"
+            }
+          ]
+        },
+        {
+          "path": "/summary/1/statement",
+          "verdict": "supported",
+          "reason": "这一点可由两个带分支限定的原文确认。",
+          "evidence": [
+            {
+              "source_index": 0,
+              "quote": "另一个编辑分支：保留纸质地图计划"
+            },
+            {
+              "source_index": 1,
+              "quote": "主分支后续决定：取消纸质地图计划，不采纳自动导航建议"
+            }
+          ]
+        }
+      ],
+      "unit_judgments": [
+        {
+          "unit_id": "retention_branch",
+          "status": "observed",
+          "paths": [
+            "/summary/1/statement"
+          ],
+          "reason": "分支记载存在，未断言是全项目现状。"
+        },
+        {
+          "unit_id": "cancellation_branch",
+          "status": "observed",
+          "paths": [
+            "/summary/1/statement"
+          ],
+          "reason": "另一分支的取消保留。"
+        },
+        {
+          "unit_id": "current_project_state",
+          "status": "unknown",
+          "paths": [],
+          "reason": "当前状态仍未确认，不按缺失或已覆盖计。"
+        }
+      ],
+      "scope_value_sha256": "cf9ef13657f9dceef4a0b82f3902d1d2d7905b33b94307ca0880a251cde03537",
+      "response_value_sha256": "eb6ce212393de84a6aa2912cca06b471def374b7849ff6871ee61b7a8560f4e8"
+    }
+  ]
+}
