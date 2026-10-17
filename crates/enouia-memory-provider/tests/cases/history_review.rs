@@ -2970,6 +2970,21 @@ fn quality_bundle_keeps_empty_response_coverage_and_pending_owner_review() {
 #[test]
 fn quality_bundle_optionally_keeps_exact_saved_analysis_input_without_writes() {
     use enouia_memory_provider::history_quality::{self, EvidenceMode, QualityOptions};
+    let matrix_root = std::env::var_os("ENOU_TEST_QUALITY_MATRIX").map(|_| {
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../..")
+            .join(".local/mv7-quality-native-matrix")
+    });
+    let mut matrix = vec![];
+    if let Some(root) = &matrix_root {
+        std::fs::create_dir_all(root).unwrap();
+        // A partial/failed run cannot leave an earlier complete manifest.
+        std::fs::write(
+            root.join("manifest.json"),
+            br#"{"version":"native-quality-matrix-1","cases":[]}"#,
+        )
+        .unwrap();
+    }
     for api in [Api::OpenAiResponses, Api::AnthropicMessages] {
         for include_lineage in [false, true] {
             let env = Env::new("quality-analysis-input");
@@ -3050,6 +3065,26 @@ fn quality_bundle_optionally_keeps_exact_saved_analysis_input_without_writes() {
                     .join(".local/mv7-h2j-quality-input-suite.json");
                 std::fs::write(target, serde_json::to_vec_pretty(&bundle.suite).unwrap()).unwrap();
             }
+            if let Some(root) = &matrix_root {
+                let api_name = if api == Api::OpenAiResponses {
+                    "openai"
+                } else {
+                    "anthropic"
+                };
+                for (kind, exported) in [("legacy", &legacy), ("complete", &bundle)] {
+                    let file = format!(
+                        "{api_name}-{}-{kind}.json",
+                        if include_lineage { "lineage" } else { "plain" }
+                    );
+                    std::fs::write(
+                        root.join(&file),
+                        serde_json::to_vec_pretty(&exported.suite).unwrap(),
+                    )
+                    .unwrap();
+                    matrix.push(json!({"file":file,"api":api_name,"lineage":include_lineage,
+                        "include_input":kind=="complete","suite_value_sha256":exported.suite_value_sha256}));
+                }
+            }
             let mut forged = task.clone();
             forged.input_hash = sha256(b"synthetic changed task hash");
             assert!(history_quality::build_with_analysis_input(&adapter, &forged, &opts).is_err());
@@ -3063,5 +3098,13 @@ fn quality_bundle_optionally_keeps_exact_saved_analysis_input_without_writes() {
             );
             assert_eq!(env.vault.pin_current().unwrap(), pin);
         }
+    }
+    if let Some(root) = &matrix_root {
+        std::fs::write(
+            root.join("manifest.json"),
+            serde_json::to_vec_pretty(&json!({"version":"native-quality-matrix-1","cases":matrix}))
+                .unwrap(),
+        )
+        .unwrap();
     }
 }

@@ -1,5 +1,11 @@
 # MV-7 质量链路持续工作接续
 
+## 2026-10-15 原生质量合成组合验证
+
+当前分支 codex/history-quality-native-matrix，基于 PR #21 的 `9b25145`。新增 opt-in Rust 测试产物和标准库 Python 检查器，覆盖两家 Fake Provider × 无/有谱系 × 旧/完整 builder 的八种组合，见 [报告](../validation/MV-7-native-quality-matrix.md)。36 项 Python、默认并行 Rust 384 项及 required checks exit 0；八份新生成 Rust 合成产物的哈希、Provider/谱系标记和新旧材料配对均通过。所有产物在忽略目录；生产 builder、契约/依赖和 Runtime 接入面未改。
+
+继续沿用验证、提交、推送、草稿 PR 工作流。矩阵清单是合成测试材料，不认证原生来源或提交者，不给出模型质量，native_validation 仍为 not_rerun；主人验收和旧屏障故障仍未完成。真实资料/Provider 调用、Runtime 激活、MV-8 和状态快照不在本片动作内。
+
 ## 2026-10-15 离线集合边界修正
 
 当前分支 codex/history-quality-collection-shapes，基于 PR #20 的 `ce93561`。修复离线评估将空对象/字符串当作数组、将对象键当作 observed 路径及非字符串身份的结构缺口；已保留失败复现，见 [报告](../validation/MV-7-quality-collections.md) 和 [ADR-MEM-61](../adr/061-quality-collection-shapes.md)。28 项 Python、默认并行 Rust 384 项及 required checks exit 0；合法校准和 Rust 合成私有套件的完整报告与旧版一致。无 Rust/接入面/依赖变更，原 manifest aggregate 不变。

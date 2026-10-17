@@ -3,11 +3,25 @@
 这个工具统计已经填写的审核判断，不自动理解或评分中文陈述。先用合成校准集运行：
 
 ```powershell
-python -m unittest discover -s tools/history-quality -p test_evaluate.py
+python -m unittest discover -s tools/history-quality -p 'test_*.py'
 python tools/history-quality/evaluate.py
 ```
 
 默认只读仓库内的 [合成套件](../../tests/fixtures/history/quality-cases.json) 和它明确选定的来源文件。不会访问网络、凭据或查找私人历史。报告写到标准输出；退出码 0 只表示生成了报告，不能当作质量通过。
+
+## 原生合成组合检查
+
+现有 Rust 假 Provider 用例可显式导出 OpenAI/Anthropic × 无/有所选谱系 × 旧/完整输入 builder 的八份合成套件及清单，放在忽略的本地目录。没有开启该测试环境变量时不生成这些文件，生产 builder 仍只返回内存材料。
+
+```powershell
+$env:CARGO_NET_OFFLINE = 'true'
+$env:ENOU_TEST_QUALITY_MATRIX = '1'
+cargo test -p enouia-memory-provider --test providers --locked quality_bundle_optionally_keeps_exact_saved_analysis_input_without_writes
+Remove-Item Env:ENOU_TEST_QUALITY_MATRIX
+python tools/history-quality/check_native_matrix.py --root .local/mv7-quality-native-matrix
+```
+
+检查器只读取明确给出的合成目录和固定文件名；验证八种组合齐全、Rust 声明的套件哈希与 Python 一致、旧/完整材料只相差输入原文、实际 Provider 绑定/谱系模式及待审/未知状态保留。配对采用规范 JSON 哈希比较，不把 1 与 true 等不同 JSON 类型混同。开始生成时先置空清单，失败运行不能留下上一轮完整清单。检查清单是测试材料，哈希声明不认证原生来源；输出仍为 native_validation=not_rerun、review_required、整体模型质量 null。它不读取 Vault、不调用模型、不判断实际语义质量，详见 [验证报告](../../docs/validation/MV-7-native-quality-matrix.md)。
 
 ## 判定步骤
 
