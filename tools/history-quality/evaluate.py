@@ -3,6 +3,7 @@ import argparse
 import hashlib
 import json
 import math
+import sys
 from pathlib import Path
 
 VERSION = "history-quality-1"
@@ -253,6 +254,8 @@ if __name__ == "__main__":
     parser.add_argument("--suite", type=Path, default=DEFAULT)
     args = parser.parse_args()
     try:
-        print(json.dumps(evaluate(args.suite), ensure_ascii=False, indent=2))
+        report = (json.dumps(evaluate(args.suite), ensure_ascii=False, indent=2) + "\n").encode("utf-8")
     except (ValueError, KeyError, TypeError, OSError) as exc:
         parser.exit(1, f"invalid evaluation input: {exc}\n")
+    # A report is UTF-8 data, independent of the Windows console code page.
+    sys.stdout.buffer.write(report)

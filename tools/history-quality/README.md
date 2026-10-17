@@ -9,6 +9,8 @@ python tools/history-quality/evaluate.py
 
 默认只读仓库内的 [合成套件](../../tests/fixtures/history/quality-cases.json) 和它明确选定的来源文件。不会访问网络、凭据或查找私人历史。报告写到标准输出；退出码 0 只表示生成了报告，不能当作质量通过。
 
+evaluate.py 的 JSON 报告与 review.py 的 Markdown 均以 UTF-8 字节输出，与终端代码页及 PYTHONIOENCODING 无关；重定向和管道接收方应按 UTF-8 解码。终端字体或解码设置仍会影响屏幕显示。合法中文、表情案例名不会因 GBK/ASCII 输出编码被当作输入错误；完整输入验证及序列化完成后才输出，非法后续案例不会留下前面案例的半份报告。见 [编码修正记录](../../docs/validation/MV-7-quality-report-utf8.md)。
+
 ## 只读人工评审稿
 
 需要对照原文与回答时，显式选择套件生成一份 Markdown 评审稿：
