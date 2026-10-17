@@ -298,6 +298,17 @@ fn source_refs(evidence: &[EvidenceRef]) -> Vec<Value> {
         .collect()
 }
 
+fn carry_context(
+    value: &mut Value,
+    old: &[enouia_memory_contract::common::SourceRevisionRef],
+    added: &[enouia_memory_contract::common::SourceRevisionRef],
+) {
+    let refs: BTreeSet<_> = old.iter().chain(added).cloned().collect();
+    if !refs.is_empty() {
+        value["context_source_refs"] = json!(refs);
+    }
+}
+
 pub(crate) fn reference(kind: RecordKind, id: &str, rev: Revision) -> Value {
     json!({"record_kind": kind, "record_id": id, "revision": rev.get()})
 }
@@ -383,6 +394,7 @@ fn new_memory(
     for (key, field) in fixed.as_object().expect("object") {
         map.insert(key.clone(), field.clone());
     }
+    carry_context(&mut value, &[], &candidate.context_source_refs);
     Ok(value)
 }
 
@@ -459,6 +471,11 @@ fn decide(
                     ));
                     let mut value = revised(ctx, &memory, review_id);
                     value["evidence"] = json!(union(memory.evidence.clone(), &candidate.evidence));
+                    carry_context(
+                        &mut value,
+                        &memory.context_source_refs,
+                        &candidate.context_source_refs,
+                    );
                     value["sensitivity"] = json!(memory.sensitivity.max(candidate.sensitivity));
                     results.push(reference(
                         RecordKind::Memory,
@@ -484,6 +501,11 @@ fn decide(
                     let mut value = serde_json::to_value(&other).expect("candidate");
                     value["revision"] = json!(next(other_rev).get());
                     value["evidence"] = json!(union(other.evidence.clone(), &candidate.evidence));
+                    carry_context(
+                        &mut value,
+                        &other.context_source_refs,
+                        &candidate.context_source_refs,
+                    );
                     value["sensitivity"] = json!(other.sensitivity.max(candidate.sensitivity));
                     value["updated_at"] = json!(ctx.now);
                     let _: (CandidateRecord, StagedRecord) = staged(
@@ -582,6 +604,11 @@ fn decide(
                         }
                         value["evidence"] =
                             json!(union(memory.evidence.clone(), &candidate.evidence));
+                        carry_context(
+                            &mut value,
+                            &memory.context_source_refs,
+                            &candidate.context_source_refs,
+                        );
                         value["sensitivity"] = json!(memory.sensitivity.max(candidate.sensitivity));
                     }
                     results.push(reference(

@@ -1,5 +1,9 @@
 # MV-7 质量链路持续工作接续
 
+## 2026-10-17 上下文依赖与人工交接
+
+分支 `codex/history-context-dependencies`，基于 PR #32 的 `a2b77bd`。ADR-MEM-65 将已选上下文与支持证据分开保存，补齐敏感度、审核、编译和候选清除依赖；见[验证报告](../validation/MV-7-semantic-context-dependencies.md)及[Claude 交接](CLAUDE_MV7_HANDOFF_20261017.md)。此前定向与独立检查证据已保存；Morii 最后要求免测试快速交付，最终全量 Rust 被中断、严格 Clippy 未完成，不宣称全套通过。旧依赖不回填，其他正式记忆按既有策略保留原文，本例清除后编译返回 `IntentionallyPurged`。Runtime 需采用新 Core／契约，本轮未激活；标准 Dashboard 快照按主人本轮请求单独生成，只引用保存证据。完成提交、推送和草稿 PR 后停止，不开启下一片。
+
 ## 2026-10-16 完整输入谱系格式一致性
 
 分支 codex/history-analysis-lineage-shape，基于已推送 PR #31 的 `ecf5a94`。复现普通完整输入接受矩阵会拒绝的非法谱系；按 ADR-MEM-64 把既有 helper 移入 evaluator 共用，三个 CLI 一并收紧。旧/无谱系缺失字段和 null 未知父数量保留，不认证父链。两项新增、原版 14 个失败子例已保存，修正后完整 Python 65 项通过，13 套/29 例合法完整报告与基线相同，八份矩阵兼容通过，见 [报告](../validation/MV-7-analysis-lineage-shape.md)。10 月 17 日收尾核对同版已完成 Rust 388 项与全部 required checks exit 0，公开内容检查通过；无生产 Rust、Runtime 接入面、真实资料/调用、MV-8 或状态快照变更。

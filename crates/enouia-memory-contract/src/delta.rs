@@ -207,8 +207,16 @@ fn tombstone_needs(tombstone: &Tombstone) -> Vec<Need> {
 /// references are not listed: small kinds are always loaded completely.
 pub fn record_needs(record: &AnyRecord) -> Vec<Need> {
     match record {
-        AnyRecord::Memory(memory) => evidence_needs(memory.evidence.iter()),
-        AnyRecord::Candidate(candidate) => evidence_needs(candidate.evidence.iter()),
+        AnyRecord::Memory(memory) => {
+            let mut needs = evidence_needs(memory.evidence.iter());
+            needs.extend(memory.context_source_refs.iter().map(source_need));
+            needs
+        }
+        AnyRecord::Candidate(candidate) => {
+            let mut needs = evidence_needs(candidate.evidence.iter());
+            needs.extend(candidate.context_source_refs.iter().map(source_need));
+            needs
+        }
         AnyRecord::Review(review) => review_needs(review),
         AnyRecord::Checkpoint(checkpoint) => checkpoint_needs(checkpoint),
         AnyRecord::Tombstone(tombstone) => tombstone_needs(tombstone),
@@ -307,12 +315,16 @@ pub fn delta_needs(head: &RecordSet, delta: &[AnyRecord]) -> BTreeSet<Need> {
             needs.extend(own);
         }
     };
-    head.memories
-        .iter()
-        .for_each(|m| extend(evidence_needs(m.evidence.iter())));
-    head.candidates
-        .iter()
-        .for_each(|c| extend(evidence_needs(c.evidence.iter())));
+    head.memories.iter().for_each(|m| {
+        let mut own = evidence_needs(m.evidence.iter());
+        own.extend(m.context_source_refs.iter().map(source_need));
+        extend(own);
+    });
+    head.candidates.iter().for_each(|c| {
+        let mut own = evidence_needs(c.evidence.iter());
+        own.extend(c.context_source_refs.iter().map(source_need));
+        extend(own);
+    });
     head.reviews.iter().for_each(|r| extend(review_needs(r)));
     head.checkpoints
         .iter()

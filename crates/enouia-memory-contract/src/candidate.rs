@@ -96,6 +96,9 @@ pub struct CandidateRecord {
     #[serde(deserialize_with = "crate::json::nullable")]
     pub proposed_details: Option<serde_json::Map<String, Value>>,
     pub evidence: Vec<EvidenceRef>,
+    /// Recorded context dependencies; absence does not prove no dependency.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub context_source_refs: Vec<SourceRevisionRef>,
     pub source_id: SourceId,
     pub reason: String,
     pub origin_kind: OriginKind,
@@ -134,6 +137,17 @@ pub struct CandidateRecord {
 impl CandidateRecord {
     pub fn validate(&self) -> Vec<Violation> {
         let mut out = Vec::new();
+        crate::common::validate_context_sources(
+            &self.context_source_refs,
+            "/context_source_refs",
+            &mut out,
+        );
+        if self.proposed_type == ProposedType::Identity && !self.context_source_refs.is_empty() {
+            out.push(Violation::new(
+                "candidate.context_scope",
+                "/context_source_refs",
+            ));
+        }
         let kind = self.proposal_kind;
         let targets_memory = matches!(
             kind,

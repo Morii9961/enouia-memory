@@ -265,7 +265,7 @@
     {
       "path": "crates/enouia-memory-provider/src/history_semantic_proposal.rs",
       "role": "provider",
-      "sha256": "a3667d19cc14154bb3653bb166fbd5aef8ee9197e30385cdb114011bb5247ab5"
+      "sha256": "922bc02e2732a3147b65684bdf1484fb5d3705acc1dd72db1c520b1f95e8d728"
     },
     {
       "path": "crates/enouia-memory-provider/src/lib.rs",
@@ -310,7 +310,7 @@
     {
       "path": "crates/enouia-memory-workspace/src/lib.rs",
       "role": "core",
-      "sha256": "56455d5e7a377c27830d6bd6644cb3d3751706fe18ff8ae966b0f7aa6515a8f2"
+      "sha256": "fb2f1952d29518ad6ace4bdb831aab190e33ba137f08708b643fb1a19171e915"
     },
     {
       "path": "crates/enouia-memory-workspace/src/native.rs",
@@ -378,5 +378,5 @@
       "sha256": "3603c1855d9f9ec9b3585143a0191508980b260b1ffd26c82b3e6f9b7223a75d"
     }
   ],
-  "aggregate": "42acddadc5686b962d6ae3d8a755b009f9c158fef1f95c65a95ff6f25e43de44"
+  "aggregate": "2c1c064082dc14ea9d14387f982c50cd31855b301d534dfa78908f02a1cfd9d1"
 }

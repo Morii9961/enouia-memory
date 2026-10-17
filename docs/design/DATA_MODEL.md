@@ -2,6 +2,8 @@
 
 版本：设计包 v1.0 / 2026-09-28。本文是字段语义规范，不含实现代码或可执行 Schema；MV-0 将它转为机器契约与合成 fixtures。未列出的未来业务字段放入有命名空间的 extensions，不静默改写既有字段。
 
+2026-10-17，[ADR-MEM-65](../adr/065-recorded-context-source-dependencies.md)：CandidateRecord 与 CanonicalMemory 可带 context_source_refs，独立记录模型实际读取上下文的来源修订依赖，最多 128 个且唯一。它们不作为支持证据、批准、独立印证或完整性证明；旧记录缺失仅表示未记录，不能断言没有依赖。空列表写出时省略以保持旧格式；有值的新记录需要支持该字段的 reader。治理、敏感度、编译资源与清除闭包必须处理这些依赖，不能塞入不参与安全决策的 extensions。仅实现合成验证，不自动迁移真实库。
+
 ## 1. 统一规则
 
 内部 ID 使用带类型前缀的随机 UUID，不把时间、标题、路径或来源账号编码进 ID。相同对象的重试靠幂等键识别，不靠随机 ID 碰巧一致。原始平台 ID 保留为不透明字符串，与 provider、account_scope、conversation_id 组成命名空间；不同账号同名 message ID 不合并。

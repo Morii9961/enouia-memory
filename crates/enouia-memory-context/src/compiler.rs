@@ -680,13 +680,26 @@ fn compile_with_purpose(
                 break;
             };
             let mut evidence = vec![];
-            for e in &m.evidence {
+            let sources = m
+                .evidence
+                .iter()
+                .map(|e| {
+                    (
+                        SourceRevisionRef {
+                            source_id: e.source_id.clone(),
+                            source_revision: e.source_revision,
+                        },
+                        true,
+                    )
+                })
+                .chain(m.context_source_refs.iter().cloned().map(|r| (r, false)));
+            for (reference, supports_content) in sources {
                 let source = read::<SourceRecord>(
                     vault,
                     &pin,
                     RecordKind::Source,
-                    e.source_id.as_str(),
-                    e.source_revision,
+                    reference.source_id.as_str(),
+                    reference.source_revision,
                 );
                 let Ok(source) = source else {
                     limit(&mut capsule, Limitation::BrokenProvenanceOmitted);
@@ -709,10 +722,12 @@ fn compile_with_purpose(
                     okay = false;
                     break;
                 }
-                evidence.push(SourceRevisionRef {
-                    source_id: source.source_id.clone(),
-                    source_revision: source.revision,
-                });
+                if supports_content {
+                    evidence.push(SourceRevisionRef {
+                        source_id: source.source_id.clone(),
+                        source_revision: source.revision,
+                    });
+                }
                 if !next.provenance.iter().any(|p| {
                     p.source_id == source.source_id && p.source_revision == source.revision
                 }) {

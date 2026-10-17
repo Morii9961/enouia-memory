@@ -491,6 +491,91 @@ fn m07_contradictions_become_a_visible_conflict_group() {
 }
 
 #[test]
+fn review_preserves_context_dependencies_through_merges_and_revision() {
+    use enouia_memory_contract::common::SourceRevisionRef;
+    let env = Env::new("review-context-dependencies");
+    let cited = env.statement("（合成）被引用的事实。");
+    let contexts: Vec<_> = (0..3)
+        .map(|i| SourceRevisionRef {
+            source_id: env.statement(&format!("（合成）上下文 {i}。")),
+            source_revision: rev(1),
+        })
+        .collect();
+    let publish = |key: &str, context: &SourceRevisionRef| {
+        let mut proposal = fact(&cited, key, &format!("（合成）{key}"));
+        proposal.context_source_refs = vec![context.clone()];
+        env.tick();
+        let Proposed::Stored(written) =
+            propose(&env.vault, &proposal, &Origin::owner(owner()), &env.key()).unwrap()
+        else {
+            panic!("stored")
+        };
+        written.id
+    };
+    let a = publish("context-a", &contexts[0]);
+    let b = publish("context-b", &contexts[1]);
+    decide(
+        &env,
+        &[Decision::Merge {
+            candidate_id: b,
+            revision: rev(1),
+            into: MergeTarget::Candidate {
+                candidate_id: a.clone(),
+            },
+        }],
+    );
+    let merged = candidate(&env, &a);
+    assert_eq!(merged.context_source_refs.len(), 2);
+    assert_eq!(merged.evidence.len(), 1);
+    decide(&env, &[accept(&a, 2)]);
+    let memory = canonical_memories(&env.vault, &env.pin(), Canonical::Active)
+        .unwrap()
+        .remove(0);
+    let c = publish("context-c", &contexts[2]);
+    decide(
+        &env,
+        &[Decision::Merge {
+            candidate_id: c,
+            revision: rev(1),
+            into: MergeTarget::Memory {
+                memory_id: memory.memory_id.clone(),
+            },
+        }],
+    );
+    let memory = canonical_memories(&env.vault, &env.pin(), Canonical::Active)
+        .unwrap()
+        .remove(0);
+    assert_eq!(memory.context_source_refs.len(), 3);
+    let mut revision = fact(
+        &cited,
+        "context-revised",
+        "（合成）修订后仍保留上下文依赖。",
+    );
+    revision.kind = ProposalKind::Revise;
+    revision.target_memory_id = Some(memory.memory_id.clone());
+    revision.expected_revision = Some(memory.revision);
+    revision.context_source_refs = vec![contexts[0].clone()];
+    env.tick();
+    let Proposed::Stored(written) =
+        propose(&env.vault, &revision, &Origin::owner(owner()), &env.key()).unwrap()
+    else {
+        panic!("stored")
+    };
+    decide(&env, &[accept(&written.id, 1)]);
+    let memory = canonical_memories(&env.vault, &env.pin(), Canonical::Active)
+        .unwrap()
+        .remove(0);
+    assert_eq!(memory.context_source_refs.len(), 3);
+    assert!(
+        contexts
+            .iter()
+            .all(|r| memory.context_source_refs.contains(r))
+    );
+    assert_eq!(memory.evidence.len(), 1);
+    env.assert_history_valid();
+}
+
+#[test]
 fn duplicates_merges_and_undoing_a_wrong_acceptance() {
     let env = Env::new("merge");
     let said = env.statement("（合成）我喜欢安静的咖啡馆。");

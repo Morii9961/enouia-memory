@@ -74,6 +74,8 @@ pub struct Proposal {
     /// Memory (or identity) fields, validated when a review writes them.
     pub details: Option<Map<String, Value>>,
     pub evidence: Vec<EvidenceSpec>,
+    /// Non-evidence input dependencies. They still constrain sensitivity/purge.
+    pub context_source_refs: Vec<enouia_memory_contract::common::SourceRevisionRef>,
     pub reason: String,
     /// Defaults to the strictest cited source; a lower level is refused.
     pub sensitivity: Option<Sensitivity>,
@@ -98,6 +100,7 @@ impl Proposal {
             content: content.to_owned(),
             details: Some(details),
             evidence,
+            context_source_refs: vec![],
             reason: "proposed".to_owned(),
             sensitivity: None,
             target_memory_id: None,
@@ -472,8 +475,20 @@ fn propose_on_head(
         return Err(stale());
     }
     let resolved: Resolved = resolve(vault, &pin, &proposal.evidence)?;
-    let sensitivity = proposal.sensitivity.unwrap_or_else(|| resolved.strictest());
-    if sensitivity < resolved.strictest() {
+    let mut strictest = resolved.strictest();
+    for reference in &proposal.context_source_refs {
+        let source: enouia_memory_contract::source::SourceRecord = crate::util::revision(
+            vault,
+            &pin,
+            RecordKind::Source,
+            reference.source_id.as_str(),
+            reference.source_revision,
+        )?
+        .ok_or_else(|| invalid("context_sources.unresolved"))?;
+        strictest = strictest.max(source.sensitivity);
+    }
+    let sensitivity = proposal.sensitivity.unwrap_or(strictest);
+    if sensitivity < strictest {
         return Err(invalid("sensitivity.downgrade"));
     }
     check_target(vault, &pin, proposal)?;
@@ -493,7 +508,7 @@ fn propose_on_head(
     }
     let now = vault.now()?;
     let id = CandidateId::from_random(vault.random_id_bytes());
-    let candidate = json!({
+    let mut candidate = json!({
         "schema_version": 1,
         "candidate_id": id,
         "revision": 1,
@@ -524,6 +539,9 @@ fn propose_on_head(
         "updated_at": now,
         "extensions": {},
     });
+    if !proposal.context_source_refs.is_empty() {
+        candidate["context_source_refs"] = json!(proposal.context_source_refs);
+    }
     // The pending fingerprint lookup must remain valid through publication.
     // A different-key writer can otherwise publish the same fingerprint
     // between this snapshot and our commit. The existing head precondition
@@ -689,6 +707,7 @@ pub fn edit_candidate(
         content: content.clone(),
         details: details.clone(),
         evidence: Vec::new(),
+        context_source_refs: candidate.context_source_refs.clone(),
         reason: String::new(),
         sensitivity: None,
         target_memory_id: candidate.target_memory_id.clone(),

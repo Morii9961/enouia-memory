@@ -342,6 +342,10 @@ The [full remember replay and target freshness acceptance](../validation/MV-6-fu
 
 [Decision](064-analysis-input-lineage-shape.md): share the existing native-matrix lineage structure gate with the ordinary evaluator for optional saved complete input; preserve missing legacy metadata and null unknowns. Shape checking does not authenticate ancestry or model quality. [Evidence](../validation/MV-7-analysis-lineage-shape.md).
 
+### ADR-MEM-65 — Recorded context source dependencies (Adopted, MV-7)
+
+[Decision](065-recorded-context-source-dependencies.md): record selected context dependencies separately from supporting evidence, propagate them through governance/compilation and source purge; explicit optional storage fields preserve legacy reads without claiming complete legacy lineage. [Evidence](../validation/MV-7-semantic-context-dependencies.md).
+
 ## Relation to Enouia Runtime's register
 
 

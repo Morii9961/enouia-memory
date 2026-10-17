@@ -75,6 +75,7 @@ pub fn delete_proposal(memory: &CanonicalMemory, mode: DeleteMode, scope: Delete
             cited.source_revision,
         )],
         reason: "owner delete request".into(),
+        context_source_refs: vec![],
         sensitivity: None,
         target_memory_id: Some(memory.memory_id.clone()),
         target_identity_id: None,
@@ -164,6 +165,12 @@ fn impact(
         for e in &old.evidence {
             sources.insert((e.source_id.to_string(), e.source_revision.get()));
         }
+        for reference in &old.context_source_refs {
+            sources.insert((
+                reference.source_id.to_string(),
+                reference.source_revision.get(),
+            ));
+        }
         if let Some((review, _)) =
             latest::<ReviewRecord>(vault, pin, RecordKind::Review, old.review_id.as_str())?
         {
@@ -252,6 +259,9 @@ fn impact(
                 c.evidence
                     .iter()
                     .any(|e| affected.contains(e.source_id.as_str()))
+                    || c.context_source_refs
+                        .iter()
+                        .any(|r| affected.contains(r.source_id.as_str()))
             }) {
                 if !out
                     .targets
@@ -267,10 +277,14 @@ fn impact(
     }
     for other in crate::view::canonical_memories(vault, pin, crate::view::Canonical::AllStatuses)? {
         if other.memory_id.as_str() != id
-            && other
+            && (other
                 .evidence
                 .iter()
                 .any(|e| affected.contains(e.source_id.as_str()))
+                || other
+                    .context_source_refs
+                    .iter()
+                    .any(|r| affected.contains(r.source_id.as_str())))
         {
             out.losing_provenance.push(other.memory_id.clone());
         }
