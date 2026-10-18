@@ -265,6 +265,9 @@ def prepare(root, output):
         elif seed["type"] == "episode":
             details.update(occurred_start=boundary(valid["from"]), occurred_end=boundary(valid["until"], True),
                 occurred_precision=valid["precision"] if valid["from"] else "unknown", participants=subjects, summary=seed["content"])
+            # An event ending is not the end of the claim's validity. Native
+            # current recall would otherwise expire every dated episode.
+            details.update(valid_from=None, valid_until=None)
         elif seed["type"] == "project_state":
             project_subject = next((s for s in seed["subjects"] if s.lower() not in ["morii", "enouia"]), seed["title"])
             details.update(new_project={"display_name": project_subject, "aliases": []},

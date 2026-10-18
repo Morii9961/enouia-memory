@@ -27,7 +27,9 @@ bootstrap library; it is not silently declared fully imported into the Vault.
 Native IDs use UUID v4; subjects shared within one package use the same ID.
 Each separately prepared package receives new internal subject/item IDs.
 Business dates retain inclusive local calendar boundaries, unknown times stay
-null, and the message observation time is separate. Non-real contexts are
+null, and the message observation time is separate. Episode dates map to
+`occurred_start`/`occurred_end`, while claim validity stays null: an event's end
+does not make the memory expire from later ordinary recall. Non-real contexts are
 explicit in the candidate content and tags. Detailed epistemic, date and recall
 annotations remain in the saved reason and imported provenance document.
 

@@ -82,6 +82,7 @@ fn check_full_remember_replay(skip: usize, ordered: bool, conflict: bool) {
             assert_eq!(excerpt["error"], Value::Null, "{excerpt}");
             assert_eq!(excerpt["result"]["excerpt"], text);
             assert_eq!(excerpt["result"]["untrusted"], true);
+            assert_eq!(excerpt["result"]["evidenceClass"], "user_statement");
             if conflict {
                 let refused = responses
                     .iter()

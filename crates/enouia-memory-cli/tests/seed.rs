@@ -4,6 +4,9 @@ use serde_json::{Value, json};
 use std::io::{BufRead, Write};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
+use std::sync::atomic::{AtomicU64, Ordering};
+
+static COUNTER: AtomicU64 = AtomicU64::new(0);
 
 fn cli(args: &[&str]) -> (bool, Value) {
     let output = Command::new(env!("CARGO_BIN_EXE_enouia-memory"))
@@ -24,7 +27,11 @@ impl Drop for Fixture {
     }
 }
 fn fixture() -> (Fixture, String, String, Value) {
-    let root = std::env::temp_dir().join(format!("enouia-seed-{}", std::process::id()));
+    let root = std::env::temp_dir().join(format!(
+        "enouia-seed-{}-{}",
+        std::process::id(),
+        COUNTER.fetch_add(1, Ordering::SeqCst)
+    ));
     std::fs::create_dir_all(&root).unwrap();
     let root = std::fs::canonicalize(root).unwrap();
     let root = PathBuf::from(root.to_string_lossy().trim_start_matches(r"\\?\"));
@@ -46,6 +53,62 @@ fn fixture() -> (Fixture, String, String, Value) {
         file.display().to_string(),
         package,
     )
+}
+
+#[test]
+fn past_episode_occurrence_can_be_recalled_without_historical_mode() {
+    let (_fixture, vault, file, mut package) = fixture();
+    let text = "# Synthetic\nSynthetic past trip happened in 2020.\n";
+    std::fs::write(Path::new(&file).parent().unwrap().join("source.md"), text).unwrap();
+    package["inputs"][0]["sha256"] = json!(sha256(text.as_bytes()));
+    let seed = &mut package["seeds"][0];
+    seed["seed_id"] = json!("synthetic-past-trip");
+    seed["proposed_type"] = json!("episode");
+    seed["content"] = json!("Synthetic past trip happened in 2020.");
+    seed["details"] = json!({"title":"Synthetic past trip","valid_from":null,"valid_until":null,
+        "occurred_start":"2020-01-01T00:00:00.000Z","occurred_end":"2020-01-01T23:59:59.999Z",
+        "occurred_precision":"day","participants":[],"summary":"Synthetic past trip happened in 2020."});
+    seed["evidence"][0]["locator"]["end"] = json!(text.len());
+    seed["evidence"][0]["content_hash"] = json!(sha256(text.as_bytes()));
+    std::fs::write(&file, serde_json::to_vec(&package).unwrap()).unwrap();
+    let (ok, preview) = cli(&["seed-preview", &file]);
+    assert!(ok, "{preview}");
+    assert!(cli(&["init", &vault, "--confirm-new-vault"]).0);
+    let (ok, receipt) = cli(&[
+        "seed-stage",
+        &vault,
+        &file,
+        "--sha256",
+        preview["package_sha256"].as_str().unwrap(),
+        "--confirm-stage",
+    ]);
+    assert!(ok, "{receipt}");
+    let id = receipt["candidates"][0]["candidate_id"].as_str().unwrap();
+    let mut child = Command::new(env!("CARGO_BIN_EXE_enouia-memory"))
+        .args(["review", &vault, id, "1", "accept"])
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .spawn()
+        .unwrap();
+    let mut line = String::new();
+    let mut stdout = std::io::BufReader::new(child.stdout.take().unwrap());
+    stdout.read_line(&mut line).unwrap();
+    let plan: Value = serde_json::from_str(&line).unwrap();
+    writeln!(
+        child.stdin.take().unwrap(),
+        "{}",
+        plan["confirm_code"].as_str().unwrap()
+    )
+    .unwrap();
+    let remaining = stdout.lines().collect::<Result<Vec<_>, _>>().unwrap();
+    assert!(child.wait().unwrap().success(), "{remaining:?}");
+    let (ok, found) = cli(&["search", &vault, "past trip"]);
+    assert!(ok, "{found}");
+    assert_eq!(
+        found["items"].as_array().unwrap().len(),
+        1,
+        "past occurrence must not expire claim validity"
+    );
 }
 
 #[test]

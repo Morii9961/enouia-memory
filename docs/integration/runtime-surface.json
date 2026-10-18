@@ -145,7 +145,7 @@
     {
       "path": "apps/workspace/src/App.tsx",
       "role": "reference-ui",
-      "sha256": "63a60545fe1ec9cbf9b992d94178cd0d09fb3cbaa48d827e49db2050c3de2b1b"
+      "sha256": "c695f9c095fa3e8ecb299ae8091193a62661cec4f3e9eb20051003011d24eeb1"
     },
     {
       "path": "apps/workspace/src/Overlay.tsx",
@@ -310,7 +310,7 @@
     {
       "path": "crates/enouia-memory-workspace/src/lib.rs",
       "role": "core",
-      "sha256": "fb2f1952d29518ad6ace4bdb831aab190e33ba137f08708b643fb1a19171e915"
+      "sha256": "0dab52b23141d7d8415b6bd251285d6ba4543db20d802d9792cf4fbff14827b8"
     },
     {
       "path": "crates/enouia-memory-workspace/src/native.rs",
@@ -325,7 +325,7 @@
     {
       "path": "crates/enouia-memory-workspace/src/tests.rs",
       "role": "core",
-      "sha256": "d287816be680eefc8b121ee13addbc9c87afdf8c5e95a88a43000146d9e5352c"
+      "sha256": "c618d0b9e77300dbcb5e922143213572e3cc5841c36ae07cbd2fcfadb8c5386a"
     },
     {
       "path": "crates/enouia-memory-workspace/src/tests/native.rs",
@@ -335,7 +335,7 @@
     {
       "path": "crates/enouia-memory-workspace/src/views.rs",
       "role": "core",
-      "sha256": "f0a7868cec86b439b271330788c5acc48b1e616066c8bcbbb4bf981ec1f424b2"
+      "sha256": "a8ef988743bb9e508dfc3a4df55774ddddc3b7ab13e5c05a5528a369561d7cf3"
     },
     {
       "path": "rust-toolchain.toml",
@@ -378,5 +378,5 @@
       "sha256": "3603c1855d9f9ec9b3585143a0191508980b260b1ffd26c82b3e6f9b7223a75d"
     }
   ],
-  "aggregate": "2c1c064082dc14ea9d14387f982c50cd31855b301d534dfa78908f02a1cfd9d1"
+  "aggregate": "f1d99344c596ba71d4f1c6d0abcc288a8284def4dcf5aec70b4e1ca3e997fff9"
 }

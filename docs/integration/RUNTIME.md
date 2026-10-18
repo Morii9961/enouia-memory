@@ -120,6 +120,14 @@ What remains:
 
 ## Compatibility log
 
+The 2026-10-18 candidate inspection extension adds result fields only:
+`candidate_list.items[].contextSources` holds recorded dependency IDs and
+revisions separately from `evidence`; citations additionally expose
+`evidenceClass`, and `source_excerpt.evidenceClass` reports the saved source's
+classification. Dependencies carry no citation relationship or availability
+claim. An empty array means none were recorded; a legacy missing field means
+the Core did not report this information. Neither proves complete reading.
+
 Each row records the surface aggregate printed by `tools/integration/runtime_surface.py`. The newest row is last.
 
 | Date | Surface aggregate | Change | Runtime follow-up |
@@ -194,3 +202,4 @@ Each row records the surface aggregate printed by `tools/integration/runtime_sur
 | 2026-10-15 | `ac15437a5c3a74b62d71f63c4519aaede5d630c9e9b7ab342b96a58ec0702111` | Workspace test-only change: bounded exact WriterBusy retry for three synthetic Context race callers, real writer-lock recovery/replay regression and error/attempt-limit checks. Two callers, original operation keys, 5/10 second race barriers and production Core are unchanged; 47 commands. | No product adapter change or activation is required. A host adopting the test suite at a new pin can retain these synthetic fixture checks. This helper does not define production retry behavior or authorize a Provider resend. Historical ordered-barrier timing failures remain unresolved; passing one run does not establish load-independent stability. |
 | 2026-10-15 | `42acddadc5686b962d6ae3d8a755b009f9c158fef1f95c65a95ff6f25e43de44` | Workspace race fixtures retain per-thread start/pause/resume/return and barrier phases with elapsed milliseconds. Failure diagnostics include the trace; both workers are joined before propagating a worker panic. Synchronization, deadlines, production logic and 47 commands remain unchanged. | Test-suite diagnostics only, with no request or memory content. No product adapter action is required. Ordered timing failures still need captured failure evidence; phase instrumentation and passing runs do not prove a scheduling fix. |
 | 2026-10-17 | `2c1c064082dc14ea9d14387f982c50cd31855b301d534dfa78908f02a1cfd9d1` | ADR-MEM-65: optional bounded `context_source_refs` on Candidate/CanonicalMemory; native semantic proposals record selected context separately from supporting evidence. Review carries dependencies; validation, sensitivity, Context provenance/freshness and purge honor them. 47-command IPC unchanged. New readers accept legacy absence; older strict readers reject records with the populated field. | Adopt the pinned Core and matching record schemas before opening Vaults written with populated dependencies; preserve the field in record handling and show deletion impact without relabeling context as citations. No Runtime checkout, pin or activation changed here. Legacy dependencies are not backfilled; synthetic evidence is not live acceptance. |
+| 2026-10-18 | `f1d99344c596ba71d4f1c6d0abcc288a8284def4dcf5aec70b4e1ca3e997fff9` | Additive result fields: candidate rows expose `contextSources` separately, cited evidence exposes `evidenceClass`, and source excerpts report their saved `evidenceClass`. Reference review offers explicit context-source reads. No request, command, record schema or Provider change; 47 commands. | Bump the pin to adopt the result fields. Render dependencies separately from citations; read exact selected revisions only on request, preserve attribution and untrusted text handling, and distinguish legacy missing information from an empty recorded list. Do not infer availability, corroboration, approval or complete reading history. Existing hosts may ignore the additive fields until adoption. |

@@ -55,8 +55,10 @@ class Preparation(unittest.TestCase):
             seed = package["seeds"][0]
             self.assertEqual(uuid.UUID(seed["details"]["subject_ids"][0][4:]).version, 4)
             self.assertIn("fictional_character", seed["content"])
-            self.assertEqual(seed["details"]["valid_from"], "2026-01-17T16:00:00.000Z")
-            self.assertEqual(seed["details"]["valid_until"], "2026-01-18T15:59:59.999Z")
+            self.assertIsNone(seed["details"]["valid_from"])
+            self.assertIsNone(seed["details"]["valid_until"])
+            self.assertEqual(seed["details"]["occurred_start"], "2026-01-17T16:00:00.000Z")
+            self.assertEqual(seed["details"]["occurred_end"], "2026-01-18T15:59:59.999Z")
             self.assertTrue(seed["context"])
             with zipfile.ZipFile(root / "a/sources-private.zip") as archive:
                 source = json.loads(archive.read("conversations.json"))[0]

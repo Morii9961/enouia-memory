@@ -4,6 +4,10 @@
 portable bootstrap to the native Vault and Runtime review workflow. It remains
 within MV-7; it does not start MV-8, cloud hosting or automatic approval.
 
+This records the first staging checkpoint. The subsequent
+[context review and episode correction](MV-7-seed-review-context.md) records
+the additive Core results, current full-suite pass and later private revisions.
+
 ## Implementation
 
 The [preparer and runbook](../../tools/seed-stage/README.md) verify the selected
