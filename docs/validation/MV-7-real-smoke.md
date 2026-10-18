@@ -4,7 +4,7 @@
 
 代码基线（2026-10-17 更新）：Memory `56bc5eb`（main，含 PR #17～#33 与 ADR-MEM-65），Runtime `07584cb`（main，pin `56bc5eb`）。本页最初按 Memory `a9d61c5`、Runtime `36c6542`（pin `8186aed`）编写；之后的改动没有改变下列按钮和提示文字，只增加了“Reload settings”。执行时以届时的 main 构建为准，并在执行记录里写下实际使用的提交。
 
-`07584cb` 构建的执行前检查（合成 Vault）：`--forget-only` 16/16、`--session-writes-only` 21/21、`--context-only` 19/19。默认 smoke 两次都停在快速搜索结果等待；改用今天下午曾通过 101/101 的分支构建重跑，也在快速搜索重开时失去焦点，归为桌面焦点争用，未定位具体原因。`--sessions-only` 在 `07584cb`、分支构建和 pin 更新前的 `372d6d1` 上都停在“newer session B detail delivered”（5/6），是 Runtime 既有问题，与本次 pin 无关。真实验收用到的 Sessions 发送路径由 `--session-writes-only` 覆盖；若执行时切换会话后详情一直停在“Reading the session”，记下来并重新选择该会话。
+`07584cb` 构建的执行前检查（合成 Vault）：`--forget-only` 16/16、`--session-writes-only` 21/21、`--context-only` 19/19。默认 smoke 两次都停在快速搜索结果等待；改用今天下午曾通过 101/101 的分支构建重跑，也在快速搜索重开时失去焦点，归为桌面焦点争用，未定位具体原因。`--sessions-only` 在 `07584cb`、分支构建和 pin 更新前的 `372d6d1` 上都停在“newer session B detail delivered”（5/6），与本次 pin 无关。原因是该测试模式过时：Runtime 读取会话期间会禁用会话列表，测试却在读取中点另一个会话。已在 Runtime PR #81 中更新测试，产品行为不变，更新后 21/21。执行时会话列表在读取完成前点不动属于预期。
 
 ## 原则
 
