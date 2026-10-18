@@ -42,6 +42,23 @@ Every host (the reference shell, Runtime's adapter, a test harness) must:
 9. **One Core per Vault.** The Core enforces this (ADR-MEM-46): a second embedded Core gets `busy` / `workspace.vault_in_use`, which is not retryable. Tell the owner the Vault is open in another app.
 10. **Keep Provider setup native (ADR-MEM-48).** Only native code calls `set_native_provider`, with destinations whose models and capabilities the owner verified; never infer them from a subscription. Read, write and remove keys only natively (`CredentialStore`), never through the page or logs. Before changing setup or removing a key, cancel running `external_send` operations, wait for them to end, then call `set_native_provider(None)`; `busy` / `provider.call_running` means a send is still running. Show the exact `external_prepare` body before the owner confirms `external_send`. Show unknown/failed/length outcomes from `session_detail.invocations`, and never resend; a new attempt needs a new owner input.
 
+## Private seed staging
+
+The offline [seed staging bridge](../../tools/seed-stage/README.md) imports an
+explicitly selected portable bootstrap through the existing native import and
+pending-proposal transactions. Runtime opens the selected Vault and uses its
+existing Candidate inbox, exact source readers and trusted review dialog. No
+new IPC command, Core API, schema or Provider activation is introduced; the
+surface aggregate remains unchanged. Use a pin with ADR-MEM-65 record support
+before opening candidates carrying `context_source_refs` (the current recorded
+Runtime pin is `56bc5eb8b08fb80cd6df892bf53d200ff23afc4c`).
+
+Portable provenance/recall annotations remain available in the saved proposal
+reason, imported documents and exact review plan. They do not create a new
+native default-recall policy, owner approval or permission to dispatch data.
+Personal acceptance and independent encrypted recovery remain separate from
+staging and from synthetic frontend checks.
+
 ## Routing a change to Runtime
 
 `docs/integration/runtime-surface.json` lists every file Runtime depends on:

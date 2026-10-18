@@ -2,6 +2,11 @@
 
 All project documentation lives under `docs/`.
 
+The [MV-7 private seed staging report](validation/MV-7-private-seed-staging.md)
+and [operator runbook](../tools/seed-stage/README.md) cover the offline portable
+bootstrap bridge into native pending candidates, local recovery evidence and
+the existing Runtime owner-review workflow. Staging does not approve memories.
+
 Current route (2026-10-11): [cloud primary, historical initialization and MCP cycle](design/CLOUD_PRIMARY_AND_HISTORY.md), [ADR-MEM-49](adr/049-cloud-primary-and-history-initialization.md), and the [MV-7-H1 offline planning report](validation/MV-7-history-planning.md). The local implementation remains; no cloud activation follows from this direction update.
 
 The [MV-7-H2a archived-source binding report](validation/MV-7-history-binding.md) and [ADR-MEM-50](adr/050-archived-history-extraction-batches.md) record offline coordinator/child recovery, immutable plan replay, source revisions, cancellation and deletion propagation. This is not full-history semantic or live Provider acceptance.

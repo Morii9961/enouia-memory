@@ -92,6 +92,7 @@ fn memory_cli_depends_only_on_this_repository() {
             "enouia-memory-import",
             "enouia-memory-index",
             "enouia-memory-vault",
+            "serde",
             "serde_json"
         ]
     );
