@@ -440,3 +440,140 @@ fn revised_imported_source_blocks_old_plan_even_with_a_new_key() {
         assert_eq!(env.vault.pin_current().unwrap(), pin);
     }
 }
+#[test]
+fn read_only_history_inspection_keeps_partial_jobs_and_replays_without_writes() {
+    use enouia_memory_provider::history::inspect;
+    let env = Env::new("history-inspect-partial");
+    let options = options(&env, EXPORT, vec![0, 3, 4]);
+    let before = env.vault.pin_current().unwrap();
+    let empty = inspect(&env.vault, &owner(), &options, b"inspect-key").unwrap();
+    assert!(empty.coordinator_session_id.is_none() && empty.coordinator_input_id.is_none());
+    assert_eq!(empty.missing_batches, vec![0, 3, 4]);
+    assert_eq!(env.vault.pin_current().unwrap(), before);
+    assert_eq!(
+        materialize(
+            &env.vault,
+            &owner(),
+            &options,
+            b"inspect-key",
+            &CancelAfterFirstJob(&env.vault)
+        )
+        .unwrap_err()
+        .code,
+        MemoryErrorCode::Cancelled
+    );
+    let partial_head = env.vault.pin_current().unwrap();
+    let partial = inspect(&env.vault, &owner(), &options, b"inspect-key").unwrap();
+    assert!(partial.coordinator_session_id.is_some() && partial.coordinator_input_id.is_some());
+    assert_eq!(partial.batches.len(), 1);
+    assert_eq!(partial.missing_batches, vec![3, 4]);
+    assert_eq!(env.vault.pin_current().unwrap(), partial_head);
+    let reopened = reopen(&env, enouia_memory_vault::fault::Faults::default());
+    assert_eq!(
+        inspect(&reopened, &owner(), &options, b"inspect-key").unwrap(),
+        partial
+    );
+    let done = materialize(&reopened, &owner(), &options, b"inspect-key", &NeverCancel).unwrap();
+    assert_eq!(done.batches[0], partial.batches[0]);
+    let done_head = reopened.pin_current().unwrap();
+    let observed = inspect(&reopened, &owner(), &options, b"inspect-key").unwrap();
+    assert!(observed.missing_batches.is_empty());
+    assert_eq!(observed.batches, done.batches);
+    assert_eq!(observed.plan_hash, done.plan_hash);
+    assert_eq!(reopened.pin_current().unwrap(), done_head);
+}
+
+#[test]
+fn read_only_history_inspection_refuses_changed_request_and_preserves_paused_state() {
+    use enouia_memory_provider::history::inspect;
+    let env = Env::new("history-inspect-conflict");
+    let mut options = options(&env, EXPORT, vec![0, 3]);
+    let done = materialize(
+        &env.vault,
+        &owner(),
+        &options,
+        b"inspect-conflict",
+        &NeverCancel,
+    )
+    .unwrap();
+    extraction::set_paused(
+        &env.vault,
+        &owner(),
+        &done.batches[0].session_id,
+        &done.batches[0].run_id,
+        true,
+    )
+    .unwrap();
+    let pin = env.vault.pin_current().unwrap();
+    let state = inspect(&env.vault, &owner(), &options, b"inspect-conflict").unwrap();
+    assert_eq!(state.batches[0].state, ExtractionState::Paused);
+    options.batch_indices.swap(0, 1);
+    assert_eq!(
+        inspect(&env.vault, &owner(), &options, b"inspect-conflict")
+            .unwrap_err()
+            .code,
+        MemoryErrorCode::IdempotencyConflict
+    );
+    assert_eq!(env.vault.pin_current().unwrap(), pin);
+    let mut actor = owner();
+    actor.actor_type = ActorType::Agent;
+    assert_eq!(
+        inspect(&env.vault, &actor, &options, b"inspect-conflict")
+            .unwrap_err()
+            .code,
+        MemoryErrorCode::PermissionDenied
+    );
+    assert_eq!(env.vault.pin_current().unwrap(), pin);
+}
+
+#[test]
+fn read_only_history_inspection_recognizes_unpublished_child_and_lost_response() {
+    use enouia_memory_provider::history::inspect;
+    use enouia_memory_vault::fault::{FaultAction, FaultPoint, Faults};
+    for point in [FaultPoint::BeforeCurrent, FaultPoint::AfterCurrent] {
+        let env = Env::new("history-inspect-publication");
+        let options = options(&env, EXPORT, vec![0, 3]);
+        let faults = Faults::armed();
+        let interrupted = reopen(&env, faults.clone());
+        faults.arm(point, 5, FaultAction::Fail(112));
+        assert!(
+            materialize(
+                &interrupted,
+                &owner(),
+                &options,
+                b"inspect-publication",
+                &NeverCancel
+            )
+            .is_err()
+        );
+        drop(interrupted);
+        let recovered = reopen(&env, Faults::default());
+        let pin = recovered.pin_current().unwrap();
+        let state = inspect(&recovered, &owner(), &options, b"inspect-publication").unwrap();
+        assert_eq!(
+            state.batches.len(),
+            if point == FaultPoint::BeforeCurrent {
+                0
+            } else {
+                1
+            }
+        );
+        assert_eq!(state.batches.len() + state.missing_batches.len(), 2);
+        assert_eq!(recovered.pin_current().unwrap(), pin);
+        let completed = materialize(
+            &recovered,
+            &owner(),
+            &options,
+            b"inspect-publication",
+            &NeverCancel,
+        )
+        .unwrap();
+        assert_eq!(completed.batches.len(), 2);
+        assert!(
+            inspect(&recovered, &owner(), &options, b"inspect-publication")
+                .unwrap()
+                .missing_batches
+                .is_empty()
+        );
+    }
+}

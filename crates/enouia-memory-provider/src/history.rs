@@ -13,13 +13,14 @@ use crate::{
 use enouia_memory_context::session;
 use enouia_memory_contract::{
     MemoryErrorCode,
+    commit::OperationKind,
     common::{ActorRef, ActorType, Sensitivity, SourceRevisionRef},
     extraction::{ExtractionSource, ExtractionState},
     foundation::Cancellation,
     hash::{Sha256Hex, sha256},
     ids::{EventId, ExtractionRunId, ImportId, PolicyId, RequestId, SessionId, SubjectId},
     import::{ImportManifest, ImportStatus},
-    ports::CommitPin,
+    ports::{CommitPin, IdempotencyScope},
     provider::InvocationState,
     record::{AnyRecord, RecordKind, RecordRef},
     session::{ClientSurface, SessionRecord},
@@ -29,6 +30,7 @@ use enouia_memory_import::{
     detect::{Detection, detect},
     history::{HistoryLimits, HistoryPlanError, MessageRef, plan_history},
     locate::resolve,
+    pipeline::NeverCancel,
     zip::ZipLimits,
 };
 use enouia_memory_vault::{Vault, service::SessionStart};
@@ -104,16 +106,22 @@ fn slices(batch: &BoundBatch) -> Vec<SourceSlice> {
         .collect()
 }
 
-/// Materialize offline. Retain the original key/options to resume after a
-/// cancellation/crash; a changed plan under that key is refused. Existing jobs
-/// retain their own state, cursor and failed/unknown invocation ledger.
-pub fn materialize(
+struct PreparedHistory {
+    text: String,
+    plan_hash: Sha256Hex,
+    input_object_hash: Sha256Hex,
+    batches: Vec<BoundBatch>,
+    sensitivity: Sensitivity,
+    dependencies: BTreeSet<SourceRevisionRef>,
+}
+
+fn prepare(
     vault: &Vault,
     actor: &ActorRef,
     options: &HistoryOptions,
     key: &[u8],
     cancel: &dyn Cancellation,
-) -> Result<HistoryProgress> {
+) -> Result<PreparedHistory> {
     if actor.actor_type != ActorType::Owner || actor != &vault.descriptor().created_by {
         return Err(error(MemoryErrorCode::PermissionDenied));
     }
@@ -262,6 +270,45 @@ pub fn materialize(
     if cancel.is_cancelled() {
         return Err(error(MemoryErrorCode::Cancelled));
     }
+    Ok(PreparedHistory {
+        text,
+        plan_hash,
+        input_object_hash: manifest.input_object_hash,
+        batches,
+        sensitivity,
+        dependencies,
+    })
+}
+
+/// Validate all selected current sources and metadata bounds without writing.
+/// The selected maximum sensitivity is inherited by atomic task admission.
+pub fn validate_selection(
+    vault: &Vault,
+    actor: &ActorRef,
+    options: &HistoryOptions,
+    key: &[u8],
+) -> Result<Sensitivity> {
+    Ok(prepare(vault, actor, options, key, &NeverCancel)?.sensitivity)
+}
+
+/// Materialize offline. Retain the original key/options to resume after a
+/// cancellation/crash; a changed plan under that key is refused. Existing jobs
+/// retain their own state, cursor and failed/unknown invocation ledger.
+pub fn materialize(
+    vault: &Vault,
+    actor: &ActorRef,
+    options: &HistoryOptions,
+    key: &[u8],
+    cancel: &dyn Cancellation,
+) -> Result<HistoryProgress> {
+    let PreparedHistory {
+        text,
+        plan_hash,
+        input_object_hash,
+        batches,
+        sensitivity,
+        dependencies,
+    } = prepare(vault, actor, options, key, cancel)?;
     let (sid, bid) = session::start(
         vault,
         &SessionStart {
@@ -337,11 +384,171 @@ pub fn materialize(
     Ok(HistoryProgress {
         coordinator_session_id: sid,
         coordinator_input_id: event,
-        input_object_hash: manifest.input_object_hash,
+        input_object_hash,
         plan_hash,
         batches: progress,
         next_batch,
     })
+}
+
+/// Read-only reconstruction, including a coordinator whose input or children
+/// were not published. Missing jobs are explicit; this never repairs or sends.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct HistoryInspection {
+    pub coordinator_session_id: Option<SessionId>,
+    pub coordinator_input_id: Option<EventId>,
+    pub input_object_hash: Sha256Hex,
+    pub plan_hash: Sha256Hex,
+    pub batches: Vec<HistoryBatchProgress>,
+    pub missing_batches: Vec<usize>,
+}
+
+fn receipt_record(
+    vault: &Vault,
+    actor: &ActorRef,
+    key: &[u8],
+    kind: RecordKind,
+) -> Result<Option<RecordRef>> {
+    let Some((_, _, receipt)) = vault
+        .find_receipt(&IdempotencyScope {
+            principal_id: actor.actor_id.clone(),
+            operation_kind: OperationKind::SessionAppend,
+            key_hash: sha256(key),
+        })
+        .map_err(|e| e.error)?
+    else {
+        return Ok(None);
+    };
+    receipt
+        .records
+        .into_iter()
+        .find(|r| r.record_kind == kind)
+        .map(Some)
+        .ok_or_else(|| error(MemoryErrorCode::BrokenProvenance))
+}
+
+/// Recompute exact selected source bindings under current policy, then inspect
+/// only ordinary durable receipts/jobs. There is no cancellation, write,
+/// Provider transport or secret-store port on this path.
+pub fn inspect(
+    vault: &Vault,
+    actor: &ActorRef,
+    options: &HistoryOptions,
+    key: &[u8],
+) -> Result<HistoryInspection> {
+    let pin = vault.pin_current().map_err(|e| e.error)?;
+    let prepared = prepare(vault, actor, options, key, &NeverCancel)?;
+    let mut result = HistoryInspection {
+        coordinator_session_id: None,
+        coordinator_input_id: None,
+        input_object_hash: prepared.input_object_hash,
+        plan_hash: prepared.plan_hash,
+        batches: vec![],
+        missing_batches: options.batch_indices.clone(),
+    };
+    if let Some(reference) = receipt_record(
+        vault,
+        actor,
+        format!("history-session:{}", sha256(key)).as_bytes(),
+        RecordKind::Session,
+    )? {
+        let AnyRecord::Session(header) =
+            read_at(vault, &pin, RecordKind::Session, &reference.record_id)?
+        else {
+            return Err(error(MemoryErrorCode::BrokenProvenance));
+        };
+        if !header.participants.contains(actor)
+            || header.policy_id != options.local_policy
+            || header.sensitivity != prepared.sensitivity
+        {
+            return Err(error(MemoryErrorCode::IdempotencyConflict));
+        }
+        result.coordinator_session_id = Some(header.session_id.clone());
+        if let Some(reference) = receipt_record(
+            vault,
+            actor,
+            format!("history-input:{}", sha256(key)).as_bytes(),
+            RecordKind::SessionEvent,
+        )? {
+            let AnyRecord::SessionEvent(event) =
+                vault.read_parsed(&pin, &reference).map_err(|e| e.error)?
+            else {
+                return Err(error(MemoryErrorCode::BrokenProvenance));
+            };
+            let content = event
+                .content_ref
+                .as_ref()
+                .ok_or_else(|| error(MemoryErrorCode::BrokenProvenance))?;
+            let data = vault
+                .read_object_bounded(&pin, &content.object_hash, MAX_PLAN_BYTES)
+                .map_err(|e| e.error)?;
+            if event.session_id != header.session_id
+                || event.actor != *actor
+                || event.request_id.as_ref() != Some(&RequestId::from_random(extraction::seed(key)))
+                || content.size_bytes != data.len() as u64
+                || sha256(&data) != content.object_hash
+                || data != prepared.text.as_bytes()
+            {
+                return Err(error(MemoryErrorCode::IdempotencyConflict));
+            }
+            result.coordinator_input_id = Some(event.event_id);
+            for batch in prepared.batches {
+                let child_key = format!(
+                    "history-child:{}:{}:{}",
+                    sha256(key),
+                    result.plan_hash,
+                    batch.index
+                );
+                let Some(reference) = receipt_record(
+                    vault,
+                    actor,
+                    format!("extract-session:{}", sha256(child_key.as_bytes())).as_bytes(),
+                    RecordKind::Session,
+                )?
+                else {
+                    continue;
+                };
+                let AnyRecord::Session(child) =
+                    read_at(vault, &pin, RecordKind::Session, &reference.record_id)?
+                else {
+                    return Err(error(MemoryErrorCode::BrokenProvenance));
+                };
+                let run = ExtractionRunId::from_random(extraction::seed(child_key.as_bytes()));
+                if !child.extraction_jobs.iter().any(|j| j.run_id == run) {
+                    continue;
+                }
+                let job = extraction::job(vault, actor, &child.session_id, &run)?;
+                if job.sources != batch.sources
+                    || job.binding != options.api.binding(&options.model)?
+                    || job.subject_id != options.subject_id
+                    || job.max_candidates != options.max_candidates
+                    || job.max_pending != options.max_pending
+                    || job.max_reserved_tokens != options.max_reserved_tokens
+                    || job.max_reserved_cost_microusd != options.max_reserved_cost_microusd
+                {
+                    return Err(error(MemoryErrorCode::BrokenProvenance));
+                }
+                result.missing_batches.retain(|index| *index != batch.index);
+                result.batches.push(HistoryBatchProgress {
+                    batch_index: batch.index,
+                    session_id: child.session_id,
+                    run_id: run,
+                    input_event_id: job.input_event_id.clone(),
+                    state: job.state,
+                    applied: job.cursor,
+                    invocation_state: child
+                        .provider_invocations
+                        .iter()
+                        .find(|i| i.input_event_id == job.input_event_id)
+                        .map(|i| i.state),
+                });
+            }
+        }
+    }
+    if vault.pin_current().map_err(|e| e.error)?.commit_id != pin.commit_id {
+        return Err(error(MemoryErrorCode::RevisionConflict));
+    }
+    Ok(result)
 }
 
 fn archived(vault: &Vault, pin: &CommitPin, manifest: &ImportManifest) -> Result<Vec<u8>> {

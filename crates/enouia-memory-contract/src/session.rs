@@ -85,6 +85,13 @@ pub struct SessionRecord {
     pub provider_invocations: Vec<crate::provider::Invocation>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub extraction_jobs: Vec<crate::extraction::ExtractionJob>,
+    /// Atomic local history request admission. Missing on pre-H2 sessions.
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::history::deserialize_admission"
+    )]
+    pub history_materialization: Option<crate::history::HistoryMaterialization>,
 }
 
 impl SessionRecord {
@@ -115,6 +122,9 @@ impl SessionRecord {
             out.push(Violation::new("session.time_order", "/updated_at"));
         }
         validate_extensions(&self.extensions, "/extensions", &mut out);
+        if let Some(admission) = &self.history_materialization {
+            out.extend(admission.validate());
+        }
         let mut runs = BTreeSet::new();
         for job in &self.extraction_jobs {
             out.extend(job.validate());

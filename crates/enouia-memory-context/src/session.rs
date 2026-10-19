@@ -46,10 +46,39 @@ pub fn start(
     input: &SessionStart,
     key: &[u8],
 ) -> Result<Written<(SessionId, BranchId)>> {
+    start_inner(vault, input, key, None)
+}
+
+/// Persist an exact local history request in the first Session commit. A lost
+/// response cannot leave an unbound stub or permit changed options on replay.
+pub fn start_history_materialization(
+    vault: &Vault,
+    input: &SessionStart,
+    key: &[u8],
+    admission: &enouia_memory_contract::history::HistoryMaterialization,
+) -> Result<Written<(SessionId, BranchId)>> {
+    if !admission.validate().is_empty()
+        || key.is_empty()
+        || key.len() > 256
+        || admission.submission_key_hash != sha256(key)
+    {
+        return Err(invalid("history.admission_bounds"));
+    }
+    start_inner(vault, input, key, Some(admission))
+}
+
+fn start_inner(
+    vault: &Vault,
+    input: &SessionStart,
+    key: &[u8],
+    admission: Option<&enouia_memory_contract::history::HistoryMaterialization>,
+) -> Result<Written<(SessionId, BranchId)>> {
     owner(vault, &input.owner)?;
-    let payload = sha256(&bytes(
-        &json!({"start": input.owner, "surface": input.surface, "sensitivity": input.sensitivity, "policy": input.policy_id}),
-    )?);
+    let mut logical = json!({"start": input.owner, "surface": input.surface, "sensitivity": input.sensitivity, "policy": input.policy_id});
+    if let Some(admission) = admission {
+        logical["history_materialization"] = json!(admission);
+    }
+    let payload = sha256(&bytes(&logical)?);
     if let Some((commit_id, receipt)) = replay(
         vault,
         &input.owner,
@@ -69,12 +98,19 @@ pub fn start(
         });
     }
     let pin = vault.pin_current()?;
+    if admission.is_some_and(|a| a.preview_commit_id != pin.commit_id) {
+        return Err(VaultError::new(
+            enouia_memory_contract::MemoryErrorCode::RevisionConflict,
+            enouia_memory_vault::Fault::HeadMoved,
+        ));
+    }
     let now = vault.now()?;
     let sid = SessionId::from_random(vault.random_id_bytes());
     let bid = BranchId::from_random(vault.random_id_bytes());
     let session = SessionRecord {
         provider_invocations: vec![],
         extraction_jobs: vec![],
+        history_materialization: admission.cloned(),
         schema_version: SchemaVersion,
         session_id: sid.clone(),
         revision: one(),
