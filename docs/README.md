@@ -2,6 +2,8 @@
 
 All project documentation lives under `docs/`.
 
+2026-10-19: the [read-only history host interface](integration/HISTORY.md) exposes selected archived history planning through the embedded Workspace, with source/commit binding and lifecycle/permission/deletion checks ([ADR-MEM-66](adr/066-read-only-history-planning-host.md), [validation](validation/MV-7-history-host.md)). Runtime adoption and subsequent batch/extraction UI remain separate; workspace IPC still has 47 commands.
+
 Current route (2026-10-11): [cloud primary, historical initialization and MCP cycle](design/CLOUD_PRIMARY_AND_HISTORY.md), [ADR-MEM-49](adr/049-cloud-primary-and-history-initialization.md), and the [MV-7-H1 offline planning report](validation/MV-7-history-planning.md). The local implementation remains; no cloud activation follows from this direction update.
 
 The [MV-7-H2a archived-source binding report](validation/MV-7-history-binding.md) and [ADR-MEM-50](adr/050-archived-history-extraction-batches.md) record offline coordinator/child recovery, immutable plan replay, source revisions, cancellation and deletion propagation. This is not full-history semantic or live Provider acceptance.

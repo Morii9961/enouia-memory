@@ -346,6 +346,10 @@ The [full remember replay and target freshness acceptance](../validation/MV-6-fu
 
 [Decision](065-recorded-context-source-dependencies.md): record selected context dependencies separately from supporting evidence, propagate them through governance/compilation and source purge; explicit optional storage fields preserve legacy reads without claiming complete legacy lineage. [Evidence](../validation/MV-7-semantic-context-dependencies.md).
 
+### ADR-MEM-66 — Read-only history planning host entry (Adopted, MV-7)
+
+[Decision](066-read-only-history-planning-host.md): expose bounded archived history observations through an optional Workspace native host method, binding Vault/commit/import/source revisions and preserving caller scope, deletion, policy and lifecycle checks. The 47-command page protocol is unchanged. [Runtime contract](../integration/HISTORY.md), [evidence](../validation/MV-7-history-host.md).
+
 ## Relation to Enouia Runtime's register
 
 

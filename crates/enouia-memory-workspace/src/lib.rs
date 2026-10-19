@@ -13,6 +13,7 @@
 //! will authenticate the caller; until then the process boundary is the
 //! trust boundary.
 
+pub mod history;
 mod native;
 pub mod ops;
 pub mod views;

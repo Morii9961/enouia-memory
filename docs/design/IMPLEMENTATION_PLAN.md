@@ -2,6 +2,8 @@
 
 原始计划：设计包 v1.0 / 2026-09-28；v1.3 路线修订：2026-10-11。本文定义阶段与出口；实际进度以对应 validation 报告为准。
 
+> **2026-10-19 接续：** 当前 MV-7 范围增加 [只读历史规划宿主入口](../integration/HISTORY.md)，供 Runtime 后续采用；绑定归档、当前提交及来源修订，返回有界覆盖、缺口和批次摘要。页面仍为47条命令，未接入产品 UI、批次写入或真实提炼，不启动 MV-8。见 [ADR-MEM-66](../adr/066-read-only-history-planning-host.md) 和[验证报告](../validation/MV-7-history-host.md)。
+
 > **当前路线 v1.3（2026-10-11）：** [ADR-MEM-49](../adr/049-cloud-primary-and-history-initialization.md) 确认云端主库目标；新版 v1 门槛和激活决定见 [完整路线](CLOUD_PRIMARY_AND_HISTORY.md)。本次领取 MV-7-H1（设计对齐、只读历史处理规划、合成样例），不自动启动 MV-8。MV-7-H2 才接入可恢复批量抽取和跨时间候选；当前真实双 Provider 出口仍 pending。
 
 > **2026-10-12 接续：** H1～H2d 已通过 PR #8～#11 合并，main 基线为 `00afd8a`。H2e 增加离线人工质量评估工具及正/负/待审合成校准，见 [ADR-MEM-54](../adr/054-history-quality-assessment-harness.md) 和 [报告](../validation/MV-7-quality-assessment.md)。结构与证据门槛、评估流程已经合成验证；真实语义质量、漏提和全量尺度仍未验收，MV-8 未启动。
