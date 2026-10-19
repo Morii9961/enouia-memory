@@ -155,3 +155,26 @@ fn host_surfaces_scope_requests_by_native_identity_only() {
         assert!(!HostSurface::QuickSearch.allows(&packet), "{packet}");
     }
 }
+
+#[test]
+fn reference_client_write_catalog_matches_core() {
+    let text = std::fs::read_to_string(
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../apps/workspace/src/api.ts"),
+    )
+    .unwrap();
+    let block = text
+        .split_once("const WRITES = new Set([")
+        .unwrap()
+        .1
+        .split_once("]);")
+        .unwrap()
+        .0;
+    let declared: Vec<_> = block.split('"').skip(1).step_by(2).collect();
+    assert_eq!(
+        declared.len(),
+        COMMANDS.iter().filter(|n| is_write(n)).count()
+    );
+    for name in COMMANDS {
+        assert_eq!(declared.contains(&name), is_write(name), "{name}");
+    }
+}

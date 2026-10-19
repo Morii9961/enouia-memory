@@ -14,6 +14,7 @@
 //! trust boundary.
 
 mod history;
+mod materialization;
 mod native;
 pub mod ops;
 pub mod views;
@@ -766,6 +767,10 @@ impl Workspace {
             Command::ImportResume(a) => self.import_resume(a, key)?,
             Command::ImportList(_) => Done::of(self.import_list()?),
             Command::HistoryPlan(a) => Done::of(self.history_plan(a)?),
+            Command::HistoryMaterialize(a) => self.history_materialize(a, key)?,
+            Command::HistoryTaskList(a) => Done::of(self.history_task_list(a)?),
+            Command::HistoryTaskGet(a) => Done::of(self.history_task_get(a)?),
+            Command::HistoryResume(a) => self.history_resume(a, key)?,
             Command::SessionList(_) => Done::of(self.session_list()?),
             Command::SessionDetail(a) => Done::of(self.session_detail(a)?),
             Command::SessionNew(_) => Done::of(self.session_new(key)?),

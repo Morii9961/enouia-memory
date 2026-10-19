@@ -492,6 +492,59 @@
         "cursor": null,
         "limit": null
       }
+    },
+    {
+      "schemaVersion": 1,
+      "requestId": "req_00000000-0000-4000-8000-00000000000c",
+      "command": "history_materialize",
+      "idempotencyKey": "synthetic-history-task-key",
+      "arguments": {
+        "importId": "imp_00000003-0000-4000-8000-000000000003",
+        "importRevision": 1,
+        "inputObjectHash": "1fd075315c5791f8ef6ca8ae96c822120a7566c5a4921b659d68ca6a7f5c82f2",
+        "planHash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "previewCommitId": "cmt_000000c9-0000-4000-8000-0000000000c9",
+        "messagesPerBatch": 2,
+        "maxPathReferences": 1000,
+        "batchIndices": [
+          1,
+          0
+        ],
+        "maxCandidates": 8,
+        "maxPending": 100,
+        "maxReservedTokens": 10000,
+        "maxReservedCostMicrousd": null,
+        "api": "openai",
+        "model": "synthetic-history-model"
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "requestId": "req_00000000-0000-4000-8000-00000000000c",
+      "command": "history_task_list",
+      "idempotencyKey": null,
+      "arguments": {
+        "cursor": null,
+        "limit": 20
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "requestId": "req_00000000-0000-4000-8000-00000000000c",
+      "command": "history_task_get",
+      "idempotencyKey": null,
+      "arguments": {
+        "taskId": "ses_00000000-0000-4000-8000-000000000001"
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "requestId": "req_00000000-0000-4000-8000-00000000000c",
+      "command": "history_resume",
+      "idempotencyKey": "synthetic-history-task-key",
+      "arguments": {
+        "taskId": "ses_00000000-0000-4000-8000-000000000001"
+      }
     }
   ],
   "invalid_requests": [
@@ -926,6 +979,227 @@
       ],
       "schema": "reject",
       "rust_rule": "workspace.history_page_limit"
+    },
+    {
+      "id": "history_materialize_batchIndices_33",
+      "base": 48,
+      "ops": [
+        {
+          "op": "set",
+          "path": "/arguments/batchIndices",
+          "value": []
+        }
+      ],
+      "schema": "reject",
+      "rust_rule": "history.admission_bounds"
+    },
+    {
+      "id": "history_materialize_batchIndices_34",
+      "base": 48,
+      "ops": [
+        {
+          "op": "set",
+          "path": "/arguments/batchIndices",
+          "value": [
+            0,
+            0
+          ]
+        }
+      ],
+      "schema": "reject",
+      "rust_rule": "history.admission_bounds"
+    },
+    {
+      "id": "history_materialize_batchIndices_35",
+      "base": 48,
+      "ops": [
+        {
+          "op": "set",
+          "path": "/arguments/batchIndices",
+          "value": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20,
+            21,
+            22,
+            23,
+            24,
+            25,
+            26,
+            27,
+            28,
+            29,
+            30,
+            31,
+            32
+          ]
+        }
+      ],
+      "schema": "reject",
+      "rust_rule": "history.admission_bounds"
+    },
+    {
+      "id": "history_materialize_batchIndices_36",
+      "base": 48,
+      "ops": [
+        {
+          "op": "set",
+          "path": "/arguments/batchIndices",
+          "value": [
+            100000
+          ]
+        }
+      ],
+      "schema": "reject",
+      "rust_rule": "history.admission_bounds"
+    },
+    {
+      "id": "history_materialize_messagesPerBatch_37",
+      "base": 48,
+      "ops": [
+        {
+          "op": "set",
+          "path": "/arguments/messagesPerBatch",
+          "value": 0
+        }
+      ],
+      "schema": "reject",
+      "rust_rule": "history.admission_bounds"
+    },
+    {
+      "id": "history_materialize_maxPathReferences_38",
+      "base": 48,
+      "ops": [
+        {
+          "op": "set",
+          "path": "/arguments/maxPathReferences",
+          "value": 100001
+        }
+      ],
+      "schema": "reject",
+      "rust_rule": "history.admission_bounds"
+    },
+    {
+      "id": "history_materialize_model_39",
+      "base": 48,
+      "ops": [
+        {
+          "op": "set",
+          "path": "/arguments/model",
+          "value": "bad model"
+        }
+      ],
+      "schema": "reject",
+      "rust_rule": "history.admission_bounds"
+    },
+    {
+      "id": "history_materialize_maxCandidates_40",
+      "base": 48,
+      "ops": [
+        {
+          "op": "set",
+          "path": "/arguments/maxCandidates",
+          "value": 33
+        }
+      ],
+      "schema": "reject",
+      "rust_rule": "history.admission_bounds"
+    },
+    {
+      "id": "history_materialize_maxPending_41",
+      "base": 48,
+      "ops": [
+        {
+          "op": "set",
+          "path": "/arguments/maxPending",
+          "value": 501
+        }
+      ],
+      "schema": "reject",
+      "rust_rule": "history.admission_bounds"
+    },
+    {
+      "id": "history_materialize_maxReservedTokens_42",
+      "base": 48,
+      "ops": [
+        {
+          "op": "set",
+          "path": "/arguments/maxReservedTokens",
+          "value": 0
+        }
+      ],
+      "schema": "reject",
+      "rust_rule": "history.admission_bounds"
+    },
+    {
+      "id": "history_materialize_maxReservedTokens_43",
+      "base": 48,
+      "ops": [
+        {
+          "op": "set",
+          "path": "/arguments/maxReservedTokens",
+          "value": 9007199254740992
+        }
+      ],
+      "schema": "reject",
+      "rust_rule": "number.out_of_range"
+    },
+    {
+      "id": "history_materialize_maxReservedCostMicrousd_44",
+      "base": 48,
+      "ops": [
+        {
+          "op": "set",
+          "path": "/arguments/maxReservedCostMicrousd",
+          "value": 9007199254740992
+        }
+      ],
+      "schema": "reject",
+      "rust_rule": "number.out_of_range"
+    },
+    {
+      "id": "history_materialize_no_subjectId",
+      "base": 48,
+      "ops": [
+        {
+          "op": "set",
+          "path": "/arguments/subjectId",
+          "value": "sub_00000000-0000-4000-8000-000000000001"
+        }
+      ],
+      "schema": "reject",
+      "rust_rule": "shape"
+    },
+    {
+      "id": "history_materialize_no_path",
+      "base": 48,
+      "ops": [
+        {
+          "op": "set",
+          "path": "/arguments/path",
+          "value": "synthetic.txt"
+        }
+      ],
+      "schema": "reject",
+      "rust_rule": "shape"
     }
   ],
   "valid_responses": [
@@ -1002,6 +1276,54 @@
         "result": {
           "readOnly": true
         },
+        "error": null
+      }
+    },
+    {
+      "command": "history_materialize",
+      "message": {
+        "schemaVersion": 1,
+        "requestId": "req_00000000-0000-4000-8000-00000000000c",
+        "kind": "operation_started",
+        "vaultCommitId": null,
+        "operationId": "op_00000000-0000-4000-8000-000000000001",
+        "result": {},
+        "error": null
+      }
+    },
+    {
+      "command": "history_task_list",
+      "message": {
+        "schemaVersion": 1,
+        "requestId": "req_00000000-0000-4000-8000-00000000000c",
+        "kind": "history_task_list",
+        "vaultCommitId": null,
+        "operationId": null,
+        "result": {},
+        "error": null
+      }
+    },
+    {
+      "command": "history_task_get",
+      "message": {
+        "schemaVersion": 1,
+        "requestId": "req_00000000-0000-4000-8000-00000000000c",
+        "kind": "history_task",
+        "vaultCommitId": null,
+        "operationId": null,
+        "result": {},
+        "error": null
+      }
+    },
+    {
+      "command": "history_resume",
+      "message": {
+        "schemaVersion": 1,
+        "requestId": "req_00000000-0000-4000-8000-00000000000c",
+        "kind": "operation_started",
+        "vaultCommitId": null,
+        "operationId": "op_00000000-0000-4000-8000-000000000001",
+        "result": {},
         "error": null
       }
     }

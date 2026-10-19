@@ -234,6 +234,32 @@ pub struct HistoryPlanArgs {
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct HistoryMaterializeArgs {
+    pub import_id: ImportId,
+    pub import_revision: Revision,
+    pub input_object_hash: Sha256Hex,
+    pub plan_hash: Sha256Hex,
+    pub preview_commit_id: CommitId,
+    pub messages_per_batch: u32,
+    pub max_path_references: u32,
+    pub batch_indices: Vec<u32>,
+    pub api: ExternalApi,
+    pub model: String,
+    pub max_candidates: u64,
+    pub max_pending: u64,
+    pub max_reserved_tokens: u64,
+    #[serde(deserialize_with = "crate::json::nullable")]
+    pub max_reserved_cost_microusd: Option<u64>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct HistoryTaskArgs {
+    pub task_id: SessionId,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct SessionArgs {
     pub session_id: SessionId,
     pub branch_id: BranchId,
@@ -441,10 +467,14 @@ pub enum Command {
     ExtractionApply(ExtractionArgs),
     ExtractionPause(ExtractionPauseArgs),
     HistoryPlan(HistoryPlanArgs),
+    HistoryMaterialize(HistoryMaterializeArgs),
+    HistoryTaskList(PageArgs),
+    HistoryTaskGet(HistoryTaskArgs),
+    HistoryResume(HistoryTaskArgs),
 }
 
 /// Command names, in schema order.
-pub const COMMANDS: [&str; 48] = [
+pub const COMMANDS: [&str; 52] = [
     "workspace_status",
     "vault_open",
     "vault_create",
@@ -493,6 +523,10 @@ pub const COMMANDS: [&str; 48] = [
     "extraction_apply",
     "extraction_pause",
     "history_plan",
+    "history_materialize",
+    "history_task_list",
+    "history_task_get",
+    "history_resume",
 ];
 
 /// Commands that can commit to the Vault and therefore carry an idempotency key.
@@ -515,6 +549,8 @@ pub fn is_write(command: &str) -> bool {
             | "extraction_prepare"
             | "extraction_apply"
             | "extraction_pause"
+            | "history_materialize"
+            | "history_resume"
     )
 }
 
@@ -528,6 +564,8 @@ pub fn is_long_running(command: &str) -> bool {
             | "vault_verify"
             | "backup_export"
             | "external_send"
+            | "history_materialize"
+            | "history_resume"
     )
 }
 
@@ -612,6 +650,8 @@ pub fn success_kind(command: &str) -> ResponseKind {
         "extraction_preview" => K::ExtractionPreview,
         "extraction_apply" | "extraction_pause" => K::ExtractionJob,
         "history_plan" => K::HistoryPlan,
+        "history_task_list" => K::HistoryTaskList,
+        "history_task_get" => K::HistoryTask,
         _ => K::MemoryError,
     }
 }
@@ -782,6 +822,36 @@ pub fn parse_request(value: &Value) -> Result<(Request, Command), ContractError>
             check_alias(&a.account_alias, &mut out);
         }
         Command::ImportResume(a) => check_alias(&a.account_alias, &mut out),
+        Command::HistoryTaskList(a) => {
+            check_cursor(a.cursor.as_ref(), &mut out);
+            check_limit(a.limit, &mut out);
+        }
+        Command::HistoryMaterialize(a) => {
+            if !(1..=15).contains(&a.messages_per_batch)
+                || !(1..=100_000).contains(&a.max_path_references)
+                || a.batch_indices.is_empty()
+                || a.batch_indices.len() > 32
+                || a.batch_indices.iter().any(|n| *n >= 100_000)
+                || a.batch_indices
+                    .iter()
+                    .collect::<std::collections::BTreeSet<_>>()
+                    .len()
+                    != a.batch_indices.len()
+                || a.model.is_empty()
+                || a.model.len() > 160
+                || !a
+                    .model
+                    .bytes()
+                    .all(|b| b.is_ascii_alphanumeric() || b"-_.:".contains(&b))
+                || !(1..=32).contains(&a.max_candidates)
+                || !(1..=500).contains(&a.max_pending)
+                || !(1..=9_007_199_254_740_991).contains(&a.max_reserved_tokens)
+                || a.max_reserved_cost_microusd
+                    .is_some_and(|n| n > 9_007_199_254_740_991)
+            {
+                out.push(Violation::new("history.admission_bounds", "/arguments"));
+            }
+        }
         Command::HistoryPlan(a) => {
             check_cursor(a.cursor.as_ref(), &mut out);
             if a.messages_per_batch == 0 || a.messages_per_batch > HISTORY_MAX_MESSAGES_PER_BATCH {
@@ -907,6 +977,8 @@ pub enum ResponseKind {
     ExtractionPreview,
     ExtractionJob,
     HistoryPlan,
+    HistoryTaskList,
+    HistoryTask,
 }
 
 /// An error as the page sees it: a contract code, whether a retry can help,

@@ -170,7 +170,7 @@ impl Workspace {
         .map_err(|f| f.0)
     }
 
-    fn native_provider(&self) -> R<Arc<NativeProvider>> {
+    pub(super) fn native_provider(&self) -> R<Arc<NativeProvider>> {
         self.native
             .provider
             .lock()
@@ -179,7 +179,7 @@ impl Workspace {
             .ok_or_else(not_configured)
     }
 
-    fn destination(provider: &NativeProvider, api: Api) -> R<NativeDestination> {
+    pub(super) fn destination(provider: &NativeProvider, api: Api) -> R<NativeDestination> {
         provider
             .destinations
             .iter()

@@ -468,3 +468,275 @@ fn history_plan_never_revives_raw_after_a_source_dependency_is_purged() {
     assert_eq!(response["kind"], "memory_error");
     assert!(response["result"].is_null());
 }
+// Every port is a trap: local H2 admission, status and resume must not touch it.
+struct NoHistoryPorts;
+impl enouia_memory_contract::ports::SecretStore for NoHistoryPorts {
+    fn read(
+        &self,
+        _: &str,
+    ) -> Result<enouia_memory_contract::ports::SecretBytes, enouia_memory_contract::MemoryError>
+    {
+        panic!("local history tasks must never read credentials")
+    }
+}
+impl enouia_memory_provider::transport::Transport for NoHistoryPorts {
+    fn exchange(
+        &self,
+        _: &enouia_memory_provider::codec::WireRequest,
+        _: &enouia_memory_contract::ports::SecretBytes,
+        _: &dyn enouia_memory_contract::foundation::Cancellation,
+        _: Duration,
+        _: &mut dyn FnMut(&[u8]) -> Result<(), enouia_memory_contract::MemoryError>,
+    ) -> Result<(), enouia_memory_contract::MemoryError> {
+        panic!("local history tasks must never send")
+    }
+}
+fn local_model(env: &Env) {
+    use enouia_memory_contract::provider::{Capability, ProviderCapabilities, TokenCounting};
+    use enouia_memory_provider::codec::Api;
+    env.ws
+        .set_native_provider(Some(NativeProvider {
+            transport: Arc::new(NoHistoryPorts),
+            secrets: Arc::new(NoHistoryPorts),
+            destinations: vec![NativeDestination {
+                api: Api::OpenAiResponses,
+                capabilities: ProviderCapabilities {
+                    schema_version: enouia_memory_contract::json::SchemaVersion,
+                    binding: Api::OpenAiResponses.binding("synthetic-model").unwrap(),
+                    text_input: Capability::Supported,
+                    image_input: Capability::Unsupported,
+                    streaming: Capability::Unsupported,
+                    tool_calling: Capability::Unsupported,
+                    cancellation: Capability::Supported,
+                    token_counting: TokenCounting::Estimated,
+                    context_window_tokens: Some(128000),
+                    max_output_tokens: Some(4096),
+                    verified_at: Some(env.ws.open().unwrap().vault.now().unwrap()),
+                },
+            }],
+            quota: enouia_memory_provider::vault::Quota::default(),
+            limits: enouia_memory_provider::client::Limits::default(),
+        }))
+        .unwrap();
+}
+fn local_args(env: &Env, import: &Value) -> Value {
+    let plan = env.ok("history_plan", args(import));
+    json!({"importId":import["importId"],"importRevision":import["revision"],
+        "inputObjectHash":plan["identity"]["inputObjectHash"],"planHash":plan["planHash"],
+        "previewCommitId":plan["identity"]["commitId"],"messagesPerBatch":2,"maxPathReferences":1000,
+        "batchIndices":[1,0],"api":"openai","model":"synthetic-model","maxCandidates":2,
+        "maxPending":100,"maxReservedTokens":10000,"maxReservedCostMicrousd":null})
+}
+fn local_keyed(env: &Env, args: &Value, key: &str) -> Value {
+    let reply = env.send_keyed("history_materialize", args.clone(), key);
+    assert!(reply["error"].is_null(), "{reply}");
+    let done = env.wait(&reply["result"]);
+    assert_eq!(done["state"], "succeeded", "{done}");
+    done["result"].clone()
+}
+#[test]
+fn local_tasks_replay_after_reopen_and_status_never_creates_or_sends() {
+    let env = Env::new("history-local-replay");
+    let import = imported(&env, RAW);
+    local_model(&env);
+    let args = local_args(&env, &import);
+    let first = local_keyed(&env, &args, "synthetic-local-history-key");
+    assert_eq!(first["materializationComplete"], true);
+    assert_eq!(first["batches"][0]["batchIndex"], 1);
+    assert_eq!(first["batches"][1]["batchIndex"], 0);
+    assert!(
+        first["batches"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|b| b["state"] == "ready" && b["invocationState"].is_null() && b["applied"] == 0)
+    );
+    let open = env.ws.open().unwrap();
+    let head = open.vault.pin_current().unwrap();
+    assert_eq!(
+        open.vault
+            .record_entries(&head, RecordKind::Session)
+            .unwrap()
+            .len(),
+        4
+    );
+    for kind in [
+        RecordKind::Candidate,
+        RecordKind::Memory,
+        RecordKind::Dispatch,
+    ] {
+        assert!(open.vault.record_entries(&head, kind).unwrap().is_empty());
+    }
+    assert_eq!(
+        local_keyed(&env, &args, "synthetic-local-history-key"),
+        first
+    );
+    let list = env.ok("history_task_list", json!({"cursor":null,"limit":20}));
+    assert_eq!(list["items"].as_array().unwrap().len(), 1);
+    assert_eq!(list["items"][0]["taskId"], first["taskId"]);
+    let detail = env.ok("history_task_get", json!({"taskId":first["taskId"]}));
+    assert_eq!(detail, first);
+    assert_eq!(open.vault.pin_current().unwrap(), head);
+    let mut changed = args.clone();
+    changed["batchIndices"] = json!([0, 1]);
+    assert_eq!(
+        env.send_keyed(
+            "history_materialize",
+            changed.clone(),
+            "synthetic-local-history-key"
+        )["error"]["code"],
+        "idempotency_conflict"
+    );
+    assert_eq!(
+        env.send_keyed(
+            "history_materialize",
+            args.clone(),
+            "synthetic-fresh-stale-key"
+        )["error"]["code"],
+        "revision_conflict"
+    );
+    env.ws.shutdown();
+    env.ws.open_root(&env.base.join("vault")).unwrap();
+    env.ws.set_native_provider(None).unwrap();
+    assert_eq!(
+        local_keyed(&env, &args, "synthetic-local-history-key")["taskId"],
+        first["taskId"]
+    );
+    assert_eq!(
+        env.send_keyed(
+            "history_materialize",
+            changed,
+            "synthetic-local-history-key"
+        )["error"]["code"],
+        "idempotency_conflict"
+    );
+    let resumed = env.wait(&env.ok("history_resume", json!({"taskId":first["taskId"]})));
+    assert_eq!(resumed["state"], "succeeded", "{resumed}");
+    assert_eq!(resumed["result"]["batches"], first["batches"]);
+    assert_eq!(env.ws.open().unwrap().vault.pin_current().unwrap(), head);
+    env.ok("vault_lock", json!({}));
+    assert_eq!(
+        env.err("history_task_get", json!({"taskId":first["taskId"]}))["code"],
+        "vault_locked"
+    );
+    env.ok("vault_unlock", json!({}));
+    assert_eq!(
+        env.ok("history_task_get", json!({"taskId":first["taskId"]}))["batches"],
+        first["batches"]
+    );
+}
+#[test]
+fn local_task_refusals_leave_no_admission_or_children() {
+    let env = Env::new("history-local-refusals");
+    let import = imported(&env, RAW);
+    let args = local_args(&env, &import);
+    let open = env.ws.open().unwrap();
+    let before = open.vault.pin_current().unwrap();
+    assert_eq!(
+        env.err("history_materialize", args.clone())["code"],
+        "provider_unavailable"
+    );
+    local_model(&env);
+    for (field, value, code) in [
+        ("model", json!("different-model"), "revision_conflict"),
+        ("planHash", json!(sha256(b"other")), "revision_conflict"),
+        ("batchIndices", json!([999]), "invalid_request"),
+        ("importRevision", json!(99), "revision_conflict"),
+    ] {
+        let mut changed = args.clone();
+        changed[field] = value;
+        assert_eq!(
+            env.err("history_materialize", changed)["code"],
+            code,
+            "{field}"
+        );
+        assert_eq!(open.vault.pin_current().unwrap(), before);
+    }
+    assert!(
+        env.ok("history_task_list", json!({"cursor":null,"limit":20}))["items"]
+            .as_array()
+            .unwrap()
+            .is_empty()
+    );
+}
+
+#[test]
+fn admitted_task_without_coordinator_is_discovered_and_explicitly_resumed_once() {
+    let env = Env::new("history-local-admission-only");
+    let import = imported(&env, RAW);
+    let args = local_args(&env, &import);
+    let open = env.ws.open().unwrap();
+    let key = b"workspace-history-admission:synthetic-admission-only-key";
+    let admission: enouia_memory_contract::history::HistoryMaterialization=serde_json::from_value(json!({
+        "import_id":args["importId"],"import_revision":args["importRevision"],
+        "input_object_hash":args["inputObjectHash"],"preview_plan_hash":args["planHash"],
+        "preview_commit_id":args["previewCommitId"],"messages_per_batch":2,"max_path_references":1000,
+        "batch_indices":[1,0],"binding":{"provider":"openai","model":"synthetic-model","adapter_version":"text-http-1"},
+        "subject_id":open.owner.actor_id.as_str().replacen("prn_","sub_",1),
+        "max_candidates":2,"max_pending":100,"max_reserved_tokens":10000,
+        "max_reserved_cost_microusd":null,"submission_key_hash":sha256(key)})).unwrap();
+    let input = enouia_memory_vault::service::SessionStart {
+        owner: open.owner.clone(),
+        surface: ClientSurface::WindowsApp,
+        sensitivity: Sensitivity::Private,
+        policy_id: env.ws.policy(&open).unwrap(),
+    };
+    let id = session::start_history_materialization(&open.vault, &input, key, &admission)
+        .unwrap()
+        .id
+        .0;
+    let before = open.vault.pin_current().unwrap();
+    env.ws.shutdown();
+    env.ws.open_root(&env.base.join("vault")).unwrap();
+    let list = env.ok("history_task_list", json!({"cursor":null,"limit":1}));
+    assert_eq!(list["items"][0]["taskId"], json!(id));
+    let partial = env.ok("history_task_get", json!({"taskId":id}));
+    assert_eq!(partial["materializationComplete"], false);
+    assert!(partial["coordinatorSessionId"].is_null());
+    assert_eq!(partial["missingBatchIndices"], json!([1, 0]));
+    assert_eq!(env.ws.open().unwrap().vault.pin_current().unwrap(), before);
+    let done = env.wait(&env.ok("history_resume", json!({"taskId":id})));
+    assert_eq!(done["state"], "succeeded", "{done}");
+    assert_eq!(done["result"]["materializationComplete"], true);
+    let final_head = env.ws.open().unwrap().vault.pin_current().unwrap();
+    let replay = local_keyed(&env, &args, "synthetic-admission-only-key");
+    assert_eq!(replay["taskId"], json!(id));
+    assert_eq!(replay["batches"], done["result"]["batches"]);
+    assert_eq!(
+        env.ws.open().unwrap().vault.pin_current().unwrap(),
+        final_head
+    );
+}
+
+#[test]
+fn saved_local_task_status_and_resume_obey_current_source_policy() {
+    let env = Env::new("history-local-current-policy");
+    let import = imported(&env, RAW);
+    local_model(&env);
+    let first = local_keyed(
+        &env,
+        &local_args(&env, &import),
+        "synthetic-current-policy-key",
+    );
+    let open = env.ws.open().unwrap();
+    let policy = env.ws.policy(&open).unwrap().to_string();
+    rewrite::<PolicyRecord>(&env, RecordKind::Policy, &policy, |value| {
+        value["scopes"]
+            .as_array_mut()
+            .unwrap()
+            .retain(|scope| scope != "source:read");
+    });
+    let denied_head = open.vault.pin_current().unwrap();
+    assert_eq!(
+        env.err("history_task_get", json!({"taskId":first["taskId"]}))["code"],
+        "permission_denied"
+    );
+    let resumed = env.wait(&env.ok("history_resume", json!({"taskId":first["taskId"]})));
+    assert_eq!(resumed["state"], "failed", "{resumed}");
+    assert_eq!(resumed["error"]["code"], "permission_denied");
+    assert_eq!(open.vault.pin_current().unwrap(), denied_head);
+    assert_eq!(
+        env.ok("history_task_list", json!({"cursor":null,"limit":20}))["items"][0]["taskId"],
+        first["taskId"]
+    );
+}
