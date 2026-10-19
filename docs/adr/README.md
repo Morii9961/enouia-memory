@@ -346,6 +346,10 @@ The [full remember replay and target freshness acceptance](../validation/MV-6-fu
 
 [Decision](065-recorded-context-source-dependencies.md): record selected context dependencies separately from supporting evidence, propagate them through governance/compilation and source purge; explicit optional storage fields preserve legacy reads without claiming complete legacy lineage. [Evidence](../validation/MV-7-semantic-context-dependencies.md).
 
+### ADR-MEM-69 — Workspace history planning (Owner-authorized implementation, MV-7)
+
+[Decision](069-workspace-history-planning.md): expose H1 through one read-only, source-bound workspace command with bounded metadata/pages, opening/head-bound cursors and current SourceRead/deletion checks. No extraction, task or memory write. [Evidence](../validation/MV-7-workspace-history-planning.md).
+
 ## Relation to Enouia Runtime's register
 
 

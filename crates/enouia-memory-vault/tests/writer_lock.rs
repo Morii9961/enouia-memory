@@ -7,7 +7,7 @@ mod support;
 
 use enouia_memory_contract::MemoryErrorCode;
 use enouia_memory_contract::ports::CommitOutcome;
-use enouia_memory_vault::fault::Faults;
+use enouia_memory_vault::fault::{FaultAction, FaultPoint, Faults};
 use enouia_memory_vault::fs::ManagedRoot;
 use enouia_memory_vault::{Fault, lock};
 use std::path::PathBuf;
@@ -31,7 +31,10 @@ fn child_process_entry() {
             std::fs::write(signal.join("ready"), b"1").unwrap();
             if mode == "hold-and-abort" {
                 std::thread::sleep(Duration::from_millis(100));
-                std::process::abort();
+                let faults = Faults::armed();
+                faults.arm(FaultPoint::AfterLock, 1, FaultAction::Abort);
+                faults.io(FaultPoint::AfterLock).unwrap();
+                unreachable!("armed crash must terminate the writer");
             }
             wait_for(&signal.join("release"), 30);
         }

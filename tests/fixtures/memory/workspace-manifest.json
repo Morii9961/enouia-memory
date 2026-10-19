@@ -478,6 +478,20 @@
         "runId": "ext_00000000-0000-4000-8000-000000000006",
         "paused": true
       }
+    },
+    {
+      "schemaVersion": 1,
+      "requestId": "req_00000000-0000-4000-8000-00000000000c",
+      "command": "history_plan",
+      "idempotencyKey": null,
+      "arguments": {
+        "importId": "imp_00000000-0000-4000-8000-000000000001",
+        "importRevision": 1,
+        "messagesPerBatch": 15,
+        "maxPathReferences": 100000,
+        "cursor": null,
+        "limit": null
+      }
     }
   ],
   "invalid_requests": [
@@ -847,6 +861,71 @@
       ],
       "schema": "reject",
       "rust_rule": "workspace.extraction_candidates"
+    },
+    {
+      "id": "history_messagesPerBatch_0",
+      "base": 47,
+      "ops": [
+        {
+          "op": "set",
+          "path": "/arguments/messagesPerBatch",
+          "value": 0
+        }
+      ],
+      "schema": "reject",
+      "rust_rule": "workspace.history_batch_limit"
+    },
+    {
+      "id": "history_messagesPerBatch_16",
+      "base": 47,
+      "ops": [
+        {
+          "op": "set",
+          "path": "/arguments/messagesPerBatch",
+          "value": 16
+        }
+      ],
+      "schema": "reject",
+      "rust_rule": "workspace.history_batch_limit"
+    },
+    {
+      "id": "history_maxPathReferences_0",
+      "base": 47,
+      "ops": [
+        {
+          "op": "set",
+          "path": "/arguments/maxPathReferences",
+          "value": 0
+        }
+      ],
+      "schema": "reject",
+      "rust_rule": "workspace.history_reference_limit"
+    },
+    {
+      "id": "history_maxPathReferences_100001",
+      "base": 47,
+      "ops": [
+        {
+          "op": "set",
+          "path": "/arguments/maxPathReferences",
+          "value": 100001
+        }
+      ],
+      "schema": "reject",
+      "rust_rule": "workspace.history_reference_limit"
+    },
+    {
+      "id": "history_limit_21",
+      "base": 47,
+      "ops": [
+        {
+          "op": "set",
+          "path": "/arguments/limit",
+          "value": 21
+        }
+      ],
+      "schema": "reject",
+      "rust_rule": "workspace.history_page_limit"
     }
   ],
   "valid_responses": [
@@ -910,6 +989,20 @@
             "index.busy"
           ]
         }
+      }
+    },
+    {
+      "command": "history_plan",
+      "message": {
+        "schemaVersion": 1,
+        "requestId": "req_00000000-0000-4000-8000-00000000000c",
+        "kind": "history_plan",
+        "vaultCommitId": null,
+        "operationId": null,
+        "result": {
+          "readOnly": true
+        },
+        "error": null
       }
     }
   ],
