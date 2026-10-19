@@ -2,7 +2,9 @@
 
 状态：**待执行**。本页给出 MV-7 出口门槛（[ACCEPTANCE](../design/ACCEPTANCE.md) P02～P06）的真实验收步骤。执行前，本仓库里所有 MV-7 证据都来自合成数据和假 transport（见 [MV-7 报告](MV-7.md)）。
 
-代码基线：Memory `a9d61c5`（main，含 ADR-MEM-48），Runtime `36c6542`（main，pin `8186aed`，Runtime ADR-032）。
+代码基线（2026-10-17 更新）：Memory `56bc5eb`（main，含 PR #17～#33 与 ADR-MEM-65），Runtime `07584cb`（main，pin `56bc5eb`）。本页最初按 Memory `a9d61c5`、Runtime `36c6542`（pin `8186aed`）编写；之后的改动没有改变下列按钮和提示文字，只增加了“Reload settings”。执行时以届时的 main 构建为准，并在执行记录里写下实际使用的提交。
+
+`07584cb` 构建的执行前检查（合成 Vault）：`--forget-only` 16/16、`--session-writes-only` 21/21、`--context-only` 19/19。默认 smoke 两次都停在快速搜索结果等待；改用今天下午曾通过 101/101 的分支构建重跑，也在快速搜索重开时失去焦点，归为桌面焦点争用，未定位具体原因。`--sessions-only` 在 `07584cb`、分支构建和 pin 更新前的 `372d6d1` 上都停在“newer session B detail delivered”（5/6），与本次 pin 无关。原因是该测试模式过时：Runtime 读取会话期间会禁用会话列表，测试却在读取中点另一个会话。已在 Runtime PR #81 中更新测试，产品行为不变，更新后 21/21。执行时会话列表在读取完成前点不动属于预期。
 
 ## 原则
 
@@ -14,7 +16,7 @@
 ## 准备（主人）
 
 1. 用 Runtime main 构建的版本（安装包或 `enouia-desktop.exe`）。
-2. 在 `%APPDATA%\com.enouia.runtime\memory-providers.json` 写入设置，格式见 Runtime 的 `docs/integration/memory-providers.example.json`。两家都要写，`model` 填核实过的精确模型名，`verifiedAt` 填核实时间（`YYYY-MM-DDTHH:MM:SS.000Z`）。文件里不能出现密钥字段，有未知字段时整个文件会被拒绝。
+2. 在 `%APPDATA%\com.enouia.runtime\memory-providers.json` 写入设置，格式见 Runtime 的 `docs/integration/memory-providers.example.json`。两家都要写，`model` 填核实过的精确模型名，`verifiedAt` 填核实时间（`YYYY-MM-DDTHH:MM:SS.000Z`）。文件里不能出现密钥字段，有未知字段时整个文件会被拒绝。保存后在 Sessions 的“External provider”面板点“Reload settings”即可生效，不必重启。
 3. 新建一个合成 Vault 文件夹。它要位于本地 NTFS 固定磁盘上，不在 Git 工作树、同步文件夹或系统目录里。在 Runtime 里用“create new vault”创建。
 4. 在 Memory 页面用“Remember”记下一两条合成事实（例如“合成项目代号是 Quiet Harbor”），然后在审核里接受。
 
