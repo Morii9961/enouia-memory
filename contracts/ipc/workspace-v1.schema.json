@@ -147,6 +147,9 @@
     },
     {
       "$ref": "#/$defs/request_extraction_pause"
+    },
+    {
+      "$ref": "#/$defs/request_history_plan"
     }
   ],
   "$defs": {
@@ -2338,7 +2341,8 @@
             "provider_committed",
             "external_prepared",
             "extraction_preview",
-            "extraction_job"
+            "extraction_job",
+            "history_plan"
           ]
         },
         "vaultCommitId": {
@@ -2412,6 +2416,85 @@
           }
         }
       ]
+    },
+    "request_history_plan": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "requestId",
+        "command",
+        "idempotencyKey",
+        "arguments"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": 1
+        },
+        "requestId": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/requestId"
+        },
+        "command": {
+          "const": "history_plan"
+        },
+        "idempotencyKey": {
+          "type": "null"
+        },
+        "arguments": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "importId",
+            "importRevision",
+            "messagesPerBatch",
+            "maxPathReferences",
+            "cursor",
+            "limit"
+          ],
+          "properties": {
+            "importId": {
+              "$ref": "../memory/common-v1.schema.json#/$defs/importId"
+            },
+            "importRevision": {
+              "$ref": "../memory/common-v1.schema.json#/$defs/revision"
+            },
+            "messagesPerBatch": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 15
+            },
+            "maxPathReferences": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100000
+            },
+            "cursor": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 512
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "limit": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 20
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          }
+        }
+      }
     }
   }
 }

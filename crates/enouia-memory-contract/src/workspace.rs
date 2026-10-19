@@ -25,6 +25,9 @@ pub const QUERY_MAX_CHARS: usize = 2_000;
 pub const EXCERPT_MAX_BYTES: u64 = 8 * 1024;
 pub const REVIEW_MAX_DECISIONS: usize = 20;
 pub const CREATE_VAULT_PHRASE: &str = "create new vault";
+pub const HISTORY_MAX_MESSAGES_PER_BATCH: u32 = 15;
+pub const HISTORY_MAX_PATH_REFERENCES: u32 = 100_000;
+pub const HISTORY_PAGE_MAX_LIMIT: u32 = 20;
 
 /// `tok_` + 32 lowercase hex: a picker token.
 pub fn is_token(value: &str) -> bool {
@@ -214,6 +217,19 @@ pub struct ImportStartArgs {
 pub struct ImportResumeArgs {
     pub import_id: ImportId,
     pub account_alias: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct HistoryPlanArgs {
+    pub import_id: ImportId,
+    pub import_revision: Revision,
+    pub messages_per_batch: u32,
+    pub max_path_references: u32,
+    #[serde(deserialize_with = "crate::json::nullable")]
+    pub cursor: Option<String>,
+    #[serde(deserialize_with = "crate::json::nullable")]
+    pub limit: Option<u32>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -424,10 +440,11 @@ pub enum Command {
     ExtractionPreview(ExtractionArgs),
     ExtractionApply(ExtractionArgs),
     ExtractionPause(ExtractionPauseArgs),
+    HistoryPlan(HistoryPlanArgs),
 }
 
 /// Command names, in schema order.
-pub const COMMANDS: [&str; 47] = [
+pub const COMMANDS: [&str; 48] = [
     "workspace_status",
     "vault_open",
     "vault_create",
@@ -475,6 +492,7 @@ pub const COMMANDS: [&str; 47] = [
     "extraction_preview",
     "extraction_apply",
     "extraction_pause",
+    "history_plan",
 ];
 
 /// Commands that can commit to the Vault and therefore carry an idempotency key.
@@ -593,6 +611,7 @@ pub fn success_kind(command: &str) -> ResponseKind {
         "external_prepare" | "extraction_prepare" => K::ExternalPrepared,
         "extraction_preview" => K::ExtractionPreview,
         "extraction_apply" | "extraction_pause" => K::ExtractionJob,
+        "history_plan" => K::HistoryPlan,
         _ => K::MemoryError,
     }
 }
@@ -763,6 +782,29 @@ pub fn parse_request(value: &Value) -> Result<(Request, Command), ContractError>
             check_alias(&a.account_alias, &mut out);
         }
         Command::ImportResume(a) => check_alias(&a.account_alias, &mut out),
+        Command::HistoryPlan(a) => {
+            check_cursor(a.cursor.as_ref(), &mut out);
+            if a.messages_per_batch == 0 || a.messages_per_batch > HISTORY_MAX_MESSAGES_PER_BATCH {
+                out.push(Violation::new(
+                    "workspace.history_batch_limit",
+                    "/arguments/messagesPerBatch",
+                ));
+            }
+            if a.max_path_references == 0 || a.max_path_references > HISTORY_MAX_PATH_REFERENCES {
+                out.push(Violation::new(
+                    "workspace.history_reference_limit",
+                    "/arguments/maxPathReferences",
+                ));
+            }
+            if a.limit
+                .is_some_and(|limit| limit == 0 || limit > HISTORY_PAGE_MAX_LIMIT)
+            {
+                out.push(Violation::new(
+                    "workspace.history_page_limit",
+                    "/arguments/limit",
+                ));
+            }
+        }
         Command::SessionAsk(a) => check_text(&a.text, TEXT_MAX_CHARS, "/arguments/text", &mut out),
         Command::SessionCheckpoint(a) => {
             check_text(&a.summary, TEXT_MAX_CHARS, "/arguments/summary", &mut out)
@@ -864,6 +906,7 @@ pub enum ResponseKind {
     ExternalPrepared,
     ExtractionPreview,
     ExtractionJob,
+    HistoryPlan,
 }
 
 /// An error as the page sees it: a contract code, whether a retry can help,

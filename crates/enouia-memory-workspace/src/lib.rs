@@ -13,6 +13,7 @@
 //! will authenticate the caller; until then the process boundary is the
 //! trust boundary.
 
+mod history;
 mod native;
 pub mod ops;
 pub mod views;
@@ -240,6 +241,8 @@ struct Open {
     /// Native Provider access for this open Vault (ADR-MEM-48). Close and
     /// lock turn it off before operations are cancelled and joined.
     enabled: std::sync::atomic::AtomicBool,
+    /// Planning cursors are scoped to this opening, including after unlock.
+    history_nonce: [u8; 16],
 }
 
 enum Slot {
@@ -530,6 +533,7 @@ impl Workspace {
             root: root.to_path_buf(),
             owner,
             enabled: native::enabled_flag(),
+            history_nonce: self.config.ids.random_16(),
         }));
         Ok(())
     }
@@ -761,6 +765,7 @@ impl Workspace {
             Command::ImportStart(a) => self.import_start(a, key)?,
             Command::ImportResume(a) => self.import_resume(a, key)?,
             Command::ImportList(_) => Done::of(self.import_list()?),
+            Command::HistoryPlan(a) => Done::of(self.history_plan(a)?),
             Command::SessionList(_) => Done::of(self.session_list()?),
             Command::SessionDetail(a) => Done::of(self.session_detail(a)?),
             Command::SessionNew(_) => Done::of(self.session_new(key)?),
