@@ -1,5 +1,9 @@
 # MV-7 质量链路持续工作接续
 
+## 2026-10-18 合并、Runtime 采用与 Codex 交接
+
+在 `1f170d7` 上补完全部 required checks（Rust 395/0、严格 Clippy 等都 exit 0）后，Memory #17～#33 按顺序合并，main 为 `56bc5eb`。Runtime PR #77 已把 pin 改到它并合并为 `07584cb`。真实双 Provider 验收包已准备好，由 Morii 执行；手册更新在 PR #34，`--sessions-only` 过时测试的修复在 Runtime PR #81，均未合并。完整状态和待办见 [Codex 交接](CODEX_MV7_HANDOFF_20261018.md)。MV-8 未启动，状态快照未刷新。
+
 ## 2026-10-17 上下文依赖与人工交接
 
 分支 `codex/history-context-dependencies`，基于 PR #32 的 `a2b77bd`。ADR-MEM-65 将已选上下文与支持证据分开保存，补齐敏感度、审核、编译和候选清除依赖；见[验证报告](../validation/MV-7-semantic-context-dependencies.md)及[Claude 交接](CLAUDE_MV7_HANDOFF_20261017.md)。此前定向与独立检查证据已保存；Morii 最后要求免测试快速交付，最终全量 Rust 被中断、严格 Clippy 未完成，不宣称全套通过。旧依赖不回填，其他正式记忆按既有策略保留原文，本例清除后编译返回 `IntentionallyPurged`。Runtime 需采用新 Core／契约，本轮未激活；标准 Dashboard 快照按主人本轮请求单独生成，只引用保存证据。完成提交、推送和草稿 PR 后停止，不开启下一片。
