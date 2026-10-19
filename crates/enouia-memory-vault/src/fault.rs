@@ -98,10 +98,23 @@ impl Faults {
                 armed.fired = true;
                 match armed.action {
                     FaultAction::Fail(code) => return Err(io::Error::from_raw_os_error(code)),
-                    FaultAction::Abort => std::process::abort(),
+                    FaultAction::Abort => abort_process(),
                 }
             }
         }
         Ok(())
     }
+}
+
+/// Crash injection must stop at the armed boundary, without waiting for CRT
+/// reporting or DLL cleanup. Normal Vault operation uses `Faults::none()`.
+fn abort_process() -> ! {
+    #[cfg(windows)]
+    unsafe {
+        use windows_sys::Win32::System::Threading::{GetCurrentProcess, TerminateProcess};
+        // Only the current fault-injected process, never a caller-supplied PID.
+        TerminateProcess(GetCurrentProcess(), 3);
+    }
+    // Portable path, and the fallback if the Windows call unexpectedly fails.
+    std::process::abort()
 }
