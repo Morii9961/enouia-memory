@@ -1057,6 +1057,41 @@ fn check_sessions(set: &View, out: &mut Vec<Violation>) {
         let is_latest = latest_session(session.session_id.as_str())
             .is_some_and(|l| l.revision == session.revision);
         if is_latest {
+            if let Some(admission) = &session.history_materialization {
+                let import = set.imports.iter().find(|i| {
+                    i.import_id == admission.import_id && i.revision == admission.import_revision
+                });
+                if import.is_none_or(|i| {
+                    i.input_object_hash != admission.input_object_hash
+                        || i.status != ImportStatus::Completed
+                        || i.duplicate_of.is_some()
+                }) {
+                    out.push(Violation::new(
+                        "history.admission_import",
+                        session.session_id.to_string(),
+                    ));
+                }
+                if !set
+                    .commits
+                    .iter()
+                    .any(|c| c.commit_id == admission.preview_commit_id)
+                {
+                    out.push(Violation::new(
+                        "history.admission_commit",
+                        session.session_id.to_string(),
+                    ));
+                }
+                if !session.participants.iter().any(|actor| {
+                    actor.actor_type == crate::common::ActorType::Owner
+                        && actor.actor_id.as_str().replacen("prn_", "sub_", 1)
+                            == admission.subject_id.as_str()
+                }) {
+                    out.push(Violation::new(
+                        "history.admission_subject",
+                        session.session_id.to_string(),
+                    ));
+                }
+            }
             for job in &session.extraction_jobs {
                 if set.tombstones.iter().any(|t| {
                     t.targets.iter().any(|r| {
@@ -1169,6 +1204,12 @@ fn check_sessions(set: &View, out: &mut Vec<Violation>) {
                 .filter(|s| s.session_id == session.session_id && s.revision < session.revision)
                 .max_by_key(|s| s.revision)
             {
+                if previous.history_materialization != session.history_materialization {
+                    out.push(Violation::new(
+                        "history.admission_history",
+                        session.session_id.to_string(),
+                    ));
+                }
                 for old in &previous.extraction_jobs {
                     let next = session
                         .extraction_jobs

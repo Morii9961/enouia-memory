@@ -9,12 +9,18 @@ const RAW: &[u8] =
     include_bytes!("../../../../tests/fixtures/history/initialization-synthetic.json");
 
 fn imported(env: &Env, bytes: &[u8]) -> Value {
+    imported_with_timeout(env, bytes, Duration::from_secs(60))
+}
+
+fn imported_with_timeout(env: &Env, bytes: &[u8], timeout: Duration) -> Value {
     std::fs::write(env.base.join("history.json"), bytes).unwrap();
     let token = env.pick(PickKind::ImportFile, "history.json");
-    let done = env.wait(&env.ok(
+    let started = env.ok(
         "import_start",
         json!({"importToken": token, "accountAlias": "synthetic-history"}),
-    ));
+    );
+    let id = OperationId::parse(started["operationId"].as_str().unwrap()).unwrap();
+    let done = env.ws.operations().wait(&id, timeout).unwrap();
     assert_eq!(done["state"], "succeeded", "{done}");
     env.ok("import_list", json!({}))["items"]
         .as_array()
@@ -28,6 +34,111 @@ fn imported(env: &Env, bytes: &[u8]) -> Value {
 fn args(import: &Value) -> Value {
     json!({"importId": import["importId"], "importRevision": import["revision"],
         "messagesPerBatch": 2, "maxPathReferences": 1000, "cursor": null, "limit": 2})
+}
+
+#[test]
+fn local_history_admission_is_atomic_replayable_and_survives_reopen() {
+    use enouia_memory_contract::history::HistoryMaterialization;
+    use enouia_memory_contract::session::ProviderBinding;
+    let env = Env::new("history-admission");
+    let import = imported(&env, RAW);
+    let plan = env.ok("history_plan", args(&import));
+    let key = b"synthetic-workspace-history-admission";
+    let open = env.ws.open().unwrap();
+    let input = enouia_memory_vault::service::SessionStart {
+        owner: open.owner.clone(),
+        surface: ClientSurface::WindowsApp,
+        sensitivity: Sensitivity::Private,
+        policy_id: env.ws.policy(&open).unwrap(),
+    };
+    let admission = HistoryMaterialization {
+        import_id: serde_json::from_value(import["importId"].clone()).unwrap(),
+        import_revision: serde_json::from_value(import["revision"].clone()).unwrap(),
+        input_object_hash: serde_json::from_value(plan["identity"]["inputObjectHash"].clone())
+            .unwrap(),
+        preview_plan_hash: serde_json::from_value(plan["planHash"].clone()).unwrap(),
+        preview_commit_id: serde_json::from_value(plan["identity"]["commitId"].clone()).unwrap(),
+        messages_per_batch: 2,
+        max_path_references: 1000,
+        batch_indices: vec![1, 0],
+        binding: ProviderBinding {
+            provider: "openai".into(),
+            model: "synthetic-history-model".into(),
+            adapter_version: "text-http-1".into(),
+        },
+        subject_id: SubjectId::parse(&open.owner.actor_id.as_str().replacen("prn_", "sub_", 1))
+            .unwrap(),
+        max_candidates: 8,
+        max_pending: 100,
+        max_reserved_tokens: 10000,
+        max_reserved_cost_microusd: None,
+        submission_key_hash: sha256(key),
+    };
+    let before = open.vault.pin_current().unwrap();
+    let first =
+        session::start_history_materialization(&open.vault, &input, key, &admission).unwrap();
+    let after = open.vault.pin_current().unwrap();
+    assert_eq!(after.sequence, before.sequence + 1);
+    let saved = session::get(&open.vault, &after, &first.id.0).unwrap();
+    assert_eq!(saved.history_materialization, Some(admission.clone()));
+    assert!(saved.extraction_jobs.is_empty() && saved.provider_invocations.is_empty());
+    assert!(
+        session::events(&open.vault, &after, &first.id.0, &first.id.1)
+            .unwrap()
+            .is_empty()
+    );
+    let replay =
+        session::start_history_materialization(&open.vault, &input, key, &admission).unwrap();
+    assert_eq!(replay.id, first.id);
+    assert_eq!(open.vault.pin_current().unwrap().commit_id, after.commit_id);
+    let mut changed = admission.clone();
+    changed.batch_indices.reverse();
+    assert_eq!(
+        session::start_history_materialization(&open.vault, &input, key, &changed)
+            .unwrap_err()
+            .code(),
+        MemoryErrorCode::IdempotencyConflict
+    );
+    assert_eq!(open.vault.pin_current().unwrap().commit_id, after.commit_id);
+    let mut stale = admission.clone();
+    stale.submission_key_hash = sha256(b"synthetic-new-stale-admission");
+    assert_eq!(
+        session::start_history_materialization(
+            &open.vault,
+            &input,
+            b"synthetic-new-stale-admission",
+            &stale
+        )
+        .unwrap_err()
+        .code(),
+        MemoryErrorCode::RevisionConflict
+    );
+    assert_eq!(open.vault.pin_current().unwrap().commit_id, after.commit_id);
+    env.ws.shutdown();
+    env.ws.open_root(&env.base.join("vault")).unwrap();
+    let reopened = env.ws.open().unwrap();
+    assert_eq!(
+        session::start_history_materialization(&reopened.vault, &input, key, &admission)
+            .unwrap()
+            .id,
+        first.id
+    );
+    assert_eq!(
+        reopened.vault.pin_current().unwrap().commit_id,
+        after.commit_id
+    );
+    let mut bad_key = admission;
+    bad_key.submission_key_hash = sha256(b"different-key");
+    assert_eq!(
+        session::start_history_materialization(&reopened.vault, &input, key, &bad_key)
+            .unwrap_err()
+            .code(),
+        MemoryErrorCode::InvalidRequest
+    );
+    assert_eq!(
+        reopened.vault.pin_current().unwrap().commit_id,
+        after.commit_id
+    );
 }
 
 // Only deliberately modified, validated synthetic records, through a real
@@ -281,7 +392,17 @@ fn history_plan_refuses_adapter_drift_and_bounds_the_archived_object_before_read
     );
     // Use a genuine oversized archived Markdown input. Vault correctly
     // refuses changing the byte size of an already archived import.
-    let oversized = imported(&env, &vec![b' '; 64 * 1024 * 1024 + 1]);
+    // This is fixture setup, not a planning/lifecycle deadline. Two measured
+    // runs hit the ordinary 60s import wait while still running, before any
+    // planning assertion. Give this genuine 64 MiB archive its own bounded
+    // setup window; retain the production limits and concurrent-test barriers.
+    let started = std::time::Instant::now();
+    let oversized = imported_with_timeout(
+        &env,
+        &vec![b' '; 64 * 1024 * 1024 + 1],
+        Duration::from_secs(180),
+    );
+    eprintln!("oversized synthetic archive setup: {:?}", started.elapsed());
     let request = args(&oversized);
     assert_eq!(
         env.err("history_plan", request)["rules"][0],

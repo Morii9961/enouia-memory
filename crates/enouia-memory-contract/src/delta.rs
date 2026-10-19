@@ -184,6 +184,14 @@ fn checkpoint_needs(checkpoint: &SessionCheckpoint) -> Vec<Need> {
 
 fn session_needs(session: &crate::session::SessionRecord) -> Vec<Need> {
     let mut needs = vec![Need::SessionEvents(session.session_id.to_string())];
+    if let Some(admission) = &session.history_materialization {
+        needs.push(Need::Revision(
+            RecordKind::Import,
+            admission.import_id.to_string(),
+            admission.import_revision.get(),
+        ));
+        needs.push(Need::Commit(admission.preview_commit_id.to_string()));
+    }
     for job in &session.extraction_jobs {
         needs.extend(job.sources.iter().map(|s| source_need(&s.source)));
     }

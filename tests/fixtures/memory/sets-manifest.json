@@ -1199,12 +1199,85 @@
         }
       ],
       "rust_rule": "checkpoint.coverage_missing"
+    },
+    {
+      "id": "history-admission-unknown-import",
+      "base": "sets/history-materialization-admission.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/sessions/0/history_materialization/import_id",
+          "value": "imp_000000ff-0000-4000-8000-0000000000ff"
+        }
+      ],
+      "rust_rule": "history.admission_import"
+    },
+    {
+      "id": "history-admission-changed-input",
+      "base": "sets/history-materialization-admission.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/sessions/0/history_materialization/input_object_hash",
+          "value": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+        }
+      ],
+      "rust_rule": "history.admission_import"
+    },
+    {
+      "id": "history-admission-unknown-head",
+      "base": "sets/history-materialization-admission.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/sessions/0/history_materialization/preview_commit_id",
+          "value": "cmt_000000ff-0000-4000-8000-0000000000ff"
+        }
+      ],
+      "rust_rule": "history.admission_commit"
+    },
+    {
+      "id": "history-admission-wrong-subject",
+      "base": "sets/history-materialization-admission.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/sessions/0/history_materialization/subject_id",
+          "value": "sub_000000ff-0000-4000-8000-0000000000ff"
+        }
+      ],
+      "rust_rule": "history.admission_subject"
+    },
+    {
+      "id": "history-admission-immutable",
+      "base": "sets/history-materialization-admission.json",
+      "ops": [
+        {
+          "op": "append",
+          "path": "/sessions",
+          "then": [
+            {
+              "op": "set",
+              "path": "/revision",
+              "value": 2
+            },
+            {
+              "op": "set",
+              "path": "/history_materialization/max_candidates",
+              "value": 9
+            }
+          ],
+          "value_from": "/sessions/0"
+        }
+      ],
+      "rust_rule": "history.admission_history"
     }
   ],
   "valid": [
     "sets/morimeta-confirmed.json",
     "sets/morimeta-insufficient-evidence.json",
     "sets/morimeta-external-egress.json",
-    "sets/lifecycle.json"
+    "sets/lifecycle.json",
+    "sets/history-materialization-admission.json"
   ]
 }

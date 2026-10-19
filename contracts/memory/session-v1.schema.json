@@ -158,6 +158,9 @@
       "items": {
         "$ref": "../provider/extraction-job-v1.schema.json"
       }
+    },
+    "history_materialization": {
+      "$ref": "../provider/history-materialization-v1.schema.json"
     }
   }
 }

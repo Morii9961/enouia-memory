@@ -1,0 +1,67 @@
+{
+  "branches": [
+    {
+      "branch_id": "br_00000001-0000-4000-8000-000000000001",
+      "forked_from_event_id": null,
+      "last_event_seq": 4,
+      "parent_branch_id": null
+    }
+  ],
+  "created_at": "2026-07-03T09:00:00.000Z",
+  "default_branch_id": "br_00000001-0000-4000-8000-000000000001",
+  "extensions": {},
+  "last_event_seq": 4,
+  "origin_surface": "local_cli",
+  "parent_session_id": null,
+  "participants": [
+    {
+      "actor_id": "prn_00000001-0000-4000-8000-000000000001",
+      "actor_type": "owner"
+    },
+    {
+      "actor_id": "prn_00000003-0000-4000-8000-000000000003",
+      "actor_type": "provider"
+    }
+  ],
+  "policy_id": "pol_00000001-0000-4000-8000-000000000001",
+  "provider_bindings": [
+    {
+      "binding": {
+        "adapter_version": "0",
+        "model": "deterministic-mock",
+        "provider": "mock"
+      },
+      "from_sequence": 1
+    }
+  ],
+  "revision": 1,
+  "schema_version": 1,
+  "sensitivity": "private",
+  "session_id": "ses_00000001-0000-4000-8000-000000000001",
+  "status": "closed",
+  "updated_at": "2026-07-03T09:10:00.000Z",
+  "history_materialization": {
+    "import_id": "imp_00000003-0000-4000-8000-000000000003",
+    "import_revision": 1,
+    "input_object_hash": "1fd075315c5791f8ef6ca8ae96c822120a7566c5a4921b659d68ca6a7f5c82f2",
+    "preview_plan_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "preview_commit_id": "cmt_000000c9-0000-4000-8000-0000000000c9",
+    "messages_per_batch": 2,
+    "max_path_references": 1000,
+    "batch_indices": [
+      1,
+      0
+    ],
+    "binding": {
+      "provider": "openai",
+      "model": "synthetic-history-model",
+      "adapter_version": "text-http-1"
+    },
+    "subject_id": "sub_00000001-0000-4000-8000-000000000001",
+    "max_candidates": 8,
+    "max_pending": 100,
+    "max_reserved_tokens": 10000,
+    "max_reserved_cost_microusd": null,
+    "submission_key_hash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+  }
+}

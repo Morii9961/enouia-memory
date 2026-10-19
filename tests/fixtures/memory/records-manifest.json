@@ -1819,6 +1819,141 @@
       ],
       "rust_rule": "context_sources.budget_or_duplicate",
       "schema": "reject"
+    },
+    {
+      "id": "history-admission-batch-empty",
+      "base": "records/session-history-materialization.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/history_materialization/batch_indices",
+          "value": []
+        }
+      ],
+      "rust_rule": "history.admission_bounds",
+      "schema": "reject",
+      "covers": "bounded local task admission"
+    },
+    {
+      "id": "history-admission-batch-duplicate",
+      "base": "records/session-history-materialization.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/history_materialization/batch_indices",
+          "value": [
+            0,
+            0
+          ]
+        }
+      ],
+      "rust_rule": "history.admission_bounds",
+      "schema": "reject",
+      "covers": "bounded local task admission"
+    },
+    {
+      "id": "history-admission-batch-too-many",
+      "base": "records/session-history-materialization.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/history_materialization/batch_indices",
+          "value": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20,
+            21,
+            22,
+            23,
+            24,
+            25,
+            26,
+            27,
+            28,
+            29,
+            30,
+            31,
+            32
+          ]
+        }
+      ],
+      "rust_rule": "history.admission_bounds",
+      "schema": "reject",
+      "covers": "bounded local task admission"
+    },
+    {
+      "id": "history-admission-candidate-zero",
+      "base": "records/session-history-materialization.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/history_materialization/max_candidates",
+          "value": 0
+        }
+      ],
+      "rust_rule": "history.admission_bounds",
+      "schema": "reject",
+      "covers": "bounded local task admission"
+    },
+    {
+      "id": "history-admission-references-zero",
+      "base": "records/session-history-materialization.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/history_materialization/max_path_references",
+          "value": 0
+        }
+      ],
+      "rust_rule": "history.admission_bounds",
+      "schema": "reject",
+      "covers": "bounded local task admission"
+    },
+    {
+      "id": "history-admission-tokens-zero",
+      "base": "records/session-history-materialization.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/history_materialization/max_reserved_tokens",
+          "value": 0
+        }
+      ],
+      "rust_rule": "history.admission_bounds",
+      "schema": "reject",
+      "covers": "bounded local task admission"
+    },
+    {
+      "id": "history-admission-null-is-not-absence",
+      "base": "records/session-history-materialization.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/history_materialization",
+          "value": null
+        }
+      ],
+      "rust_rule": "shape",
+      "schema": "reject",
+      "covers": "optional admission is absent or a closed object; null cannot be silently rewritten"
     }
   ],
   "valid": [
@@ -2096,6 +2231,11 @@
       "file": "records/memory-context-dependencies.json",
       "kind": "memory",
       "schema": "memory/memory-v1.schema.json"
+    },
+    {
+      "file": "records/session-history-materialization.json",
+      "kind": "session",
+      "schema": "memory/session-v1.schema.json"
     }
   ]
 }

@@ -350,6 +350,10 @@ The [full remember replay and target freshness acceptance](../validation/MV-6-fu
 
 [Decision](069-workspace-history-planning.md): expose H1 through one read-only, source-bound workspace command with bounded metadata/pages, opening/head-bound cursors and current SourceRead/deletion checks. No extraction, task or memory write. [Evidence](../validation/MV-7-workspace-history-planning.md).
 
+### ADR-MEM-70 — Workspace local history materialization (Owner-authorized implementation, MV-7)
+
+[Decision](070-workspace-history-materialization.md): persist typed local request admission atomically before offline child creation; add bounded Workspace create/read/resume and Runtime adoption after verification. No sending, credential port, automatic approval, MV-8 or cloud activation. Implementation is in progress.
+
 ## Relation to Enouia Runtime's register
 
 
