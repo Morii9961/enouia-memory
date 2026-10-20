@@ -126,6 +126,33 @@ fn progress(open: &Open, id: &SessionId) -> R<Value> {
     result["readOnly"] = json!(true);
     Ok(result)
 }
+
+/// Resolve one child from the saved admission, never caller-supplied run IDs.
+pub(super) fn selected_batch(
+    open: &Open,
+    id: &SessionId,
+    index: u32,
+) -> R<provider_history::HistoryBatchProgress> {
+    let (header, admission) = task(open, id)?;
+    if !admission.batch_indices.contains(&index) {
+        return Err(fail(
+            MemoryErrorCode::InvalidRequest,
+            "history.batch_not_selected",
+        ));
+    }
+    let state = provider_history::inspect(
+        &open.vault,
+        &open.owner,
+        &options(&header, &admission)?,
+        &helper_key(id),
+    )
+    .map_err(local_error)?;
+    state
+        .batches
+        .into_iter()
+        .find(|b| b.batch_index == index as usize)
+        .ok_or_else(|| fail(MemoryErrorCode::NotFound, "history.batch_missing"))
+}
 impl Workspace {
     pub(super) fn history_task_get(&self, a: &wire::HistoryTaskArgs) -> R<Value> {
         let open = self.open()?;

@@ -161,6 +161,9 @@
       "$ref": "#/$defs/request_history_resume"
     },
     {
+      "$ref": "#/$defs/request_history_batch_prepare"
+    },
+    {
       "$ref": "#/$defs/request_history_plan"
     }
   ],
@@ -2758,6 +2761,60 @@
           "properties": {
             "taskId": {
               "$ref": "../memory/common-v1.schema.json#/$defs/sessionId"
+            }
+          }
+        }
+      }
+    },
+    "request_history_batch_prepare": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "requestId",
+        "command",
+        "idempotencyKey",
+        "arguments"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": 1
+        },
+        "requestId": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/requestId"
+        },
+        "command": {
+          "const": "history_batch_prepare"
+        },
+        "idempotencyKey": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{16,128}$"
+        },
+        "arguments": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "taskId",
+            "batchIndex",
+            "policyId",
+            "outputTokens"
+          ],
+          "properties": {
+            "taskId": {
+              "$ref": "../memory/common-v1.schema.json#/$defs/sessionId"
+            },
+            "batchIndex": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 4294967295
+            },
+            "policyId": {
+              "$ref": "../memory/common-v1.schema.json#/$defs/policyId"
+            },
+            "outputTokens": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 32768
             }
           }
         }

@@ -545,6 +545,18 @@
       "arguments": {
         "taskId": "ses_00000000-0000-4000-8000-000000000001"
       }
+    },
+    {
+      "schemaVersion": 1,
+      "requestId": "req_00000000-0000-4000-8000-00000000000c",
+      "command": "history_batch_prepare",
+      "idempotencyKey": "synthetic-history-task-key",
+      "arguments": {
+        "taskId": "ses_00000000-0000-4000-8000-000000000001",
+        "batchIndex": 1,
+        "policyId": "pol_00000000-0000-4000-8000-000000000001",
+        "outputTokens": 256
+      }
     }
   ],
   "invalid_requests": [
@@ -1200,6 +1212,84 @@
       ],
       "schema": "reject",
       "rust_rule": "shape"
+    },
+    {
+      "id": "history_batch_prepare_outputTokens_0",
+      "base": 52,
+      "ops": [
+        {
+          "op": "set",
+          "path": "/arguments/outputTokens",
+          "value": 0
+        }
+      ],
+      "schema": "reject",
+      "rust_rule": "workspace.output_tokens"
+    },
+    {
+      "id": "history_batch_prepare_outputTokens_32769",
+      "base": 52,
+      "ops": [
+        {
+          "op": "set",
+          "path": "/arguments/outputTokens",
+          "value": 32769
+        }
+      ],
+      "schema": "reject",
+      "rust_rule": "workspace.output_tokens"
+    },
+    {
+      "id": "history_batch_prepare_runId_run_00000000-0000-4000-8000-000000000001",
+      "base": 52,
+      "ops": [
+        {
+          "op": "set",
+          "path": "/arguments/runId",
+          "value": "run_00000000-0000-4000-8000-000000000001"
+        }
+      ],
+      "schema": "reject",
+      "rust_rule": "shape"
+    },
+    {
+      "id": "history_batch_prepare_actor_owner",
+      "base": 52,
+      "ops": [
+        {
+          "op": "set",
+          "path": "/arguments/actor",
+          "value": "owner"
+        }
+      ],
+      "schema": "reject",
+      "rust_rule": "shape"
+    },
+    {
+      "id": "history_batch_prepare_path_synthetic.txt",
+      "base": 52,
+      "ops": [
+        {
+          "op": "set",
+          "path": "/arguments/path",
+          "value": "synthetic.txt"
+        }
+      ],
+      "schema": "reject",
+      "rust_rule": "shape"
+    },
+    {
+      "id": "history_batch_prepare_model_other",
+      "base": 52,
+      "ops": [
+        {
+          "op": "set",
+          "path": "/arguments/model",
+          "value": "other"
+        }
+      ],
+      "schema": "reject",
+      "rust_rule": "shape"
     }
   ],
   "valid_responses": [
@@ -1323,6 +1413,18 @@
         "kind": "operation_started",
         "vaultCommitId": null,
         "operationId": "op_00000000-0000-4000-8000-000000000001",
+        "result": {},
+        "error": null
+      }
+    },
+    {
+      "command": "history_batch_prepare",
+      "message": {
+        "schemaVersion": 1,
+        "requestId": "req_00000000-0000-4000-8000-00000000000c",
+        "kind": "external_prepared",
+        "vaultCommitId": null,
+        "operationId": null,
         "result": {},
         "error": null
       }

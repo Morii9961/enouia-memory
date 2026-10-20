@@ -260,6 +260,15 @@ pub struct HistoryTaskArgs {
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct HistoryBatchPrepareArgs {
+    pub task_id: SessionId,
+    pub batch_index: u32,
+    pub policy_id: PolicyId,
+    pub output_tokens: u64,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct SessionArgs {
     pub session_id: SessionId,
     pub branch_id: BranchId,
@@ -470,11 +479,12 @@ pub enum Command {
     HistoryMaterialize(HistoryMaterializeArgs),
     HistoryTaskList(PageArgs),
     HistoryTaskGet(HistoryTaskArgs),
+    HistoryBatchPrepare(HistoryBatchPrepareArgs),
     HistoryResume(HistoryTaskArgs),
 }
 
 /// Command names, in schema order.
-pub const COMMANDS: [&str; 52] = [
+pub const COMMANDS: [&str; 53] = [
     "workspace_status",
     "vault_open",
     "vault_create",
@@ -527,6 +537,7 @@ pub const COMMANDS: [&str; 52] = [
     "history_task_list",
     "history_task_get",
     "history_resume",
+    "history_batch_prepare",
 ];
 
 /// Commands that can commit to the Vault and therefore carry an idempotency key.
@@ -551,6 +562,7 @@ pub fn is_write(command: &str) -> bool {
             | "extraction_pause"
             | "history_materialize"
             | "history_resume"
+            | "history_batch_prepare"
     )
 }
 
@@ -646,7 +658,7 @@ pub fn success_kind(command: &str) -> ResponseKind {
         "provider_status" => K::ProviderStatus,
         "egress_grant_plan" | "egress_revoke_plan" | "external_interrupt_plan" => K::ProviderPlan,
         "provider_confirm" => K::ProviderCommitted,
-        "external_prepare" | "extraction_prepare" => K::ExternalPrepared,
+        "external_prepare" | "extraction_prepare" | "history_batch_prepare" => K::ExternalPrepared,
         "extraction_preview" => K::ExtractionPreview,
         "extraction_apply" | "extraction_pause" => K::ExtractionJob,
         "history_plan" => K::HistoryPlan,
@@ -908,6 +920,14 @@ pub fn parse_request(value: &Value) -> Result<(Request, Command), ContractError>
         }
         Command::ExternalPrepare(a) => {
             check_text(&a.text, TEXT_MAX_CHARS, "/arguments/text", &mut out);
+            if a.output_tokens == 0 || a.output_tokens > EXTERNAL_OUTPUT_MAX_TOKENS {
+                out.push(Violation::new(
+                    "workspace.output_tokens",
+                    "/arguments/outputTokens",
+                ));
+            }
+        }
+        Command::HistoryBatchPrepare(a) => {
             if a.output_tokens == 0 || a.output_tokens > EXTERNAL_OUTPUT_MAX_TOKENS {
                 out.push(Violation::new(
                     "workspace.output_tokens",

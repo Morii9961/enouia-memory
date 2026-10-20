@@ -770,6 +770,7 @@ impl Workspace {
             Command::HistoryMaterialize(a) => self.history_materialize(a, key)?,
             Command::HistoryTaskList(a) => Done::of(self.history_task_list(a)?),
             Command::HistoryTaskGet(a) => Done::of(self.history_task_get(a)?),
+            Command::HistoryBatchPrepare(a) => Done::of(self.history_batch_prepare(a, key)?),
             Command::HistoryResume(a) => self.history_resume(a, key)?,
             Command::SessionList(_) => Done::of(self.session_list()?),
             Command::SessionDetail(a) => Done::of(self.session_detail(a)?),

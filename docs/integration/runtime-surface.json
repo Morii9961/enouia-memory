@@ -55,7 +55,8 @@
     "history_materialize",
     "history_task_list",
     "history_task_get",
-    "history_resume"
+    "history_resume",
+    "history_batch_prepare"
   ],
   "coveredDirectories": [
     "apps/workspace/src",
@@ -160,7 +161,7 @@
     {
       "path": "apps/workspace/src/api.ts",
       "role": "reference-ui",
-      "sha256": "f477e145975a23bd5959e03906f3c1257135fb2262e8eaed2f1055bf54b30bd2"
+      "sha256": "c9dae8f4a52a561ae47eada18647cf89f305d8ff19e7f30e457aa9c4c0abf859"
     },
     {
       "path": "apps/workspace/src/env.d.ts",
@@ -180,7 +181,7 @@
     {
       "path": "contracts/ipc/workspace-v1.schema.json",
       "role": "wire",
-      "sha256": "1e905365c1543eed3d9086d4497432090368cc85af385da42c83b3f8d142ec38"
+      "sha256": "11948d6208b96b3f07d0a0d71edf4697f2c582c77906b3770f3b2bbc26bf3402"
     },
     {
       "path": "contracts/memory/common-v1.schema.json",
@@ -205,7 +206,7 @@
     {
       "path": "crates/enouia-memory-contract/src/workspace.rs",
       "role": "wire",
-      "sha256": "c8b7058347d418c7c0ae2c18e5f901d4b2d66ffedab6f2df9871ce61a50c7ab4"
+      "sha256": "25faf85cf6c30f388609eea76be792d513fef231efc927c0105ac5ff19693852"
     },
     {
       "path": "crates/enouia-memory-govern/Cargo.toml",
@@ -320,17 +321,17 @@
     {
       "path": "crates/enouia-memory-workspace/src/lib.rs",
       "role": "core",
-      "sha256": "9029d5f9430d8aefd4a79ad21485c674deb2d0c5cbe707816b4df0569e6887c8"
+      "sha256": "405b56ea4e6375e291a186493062cfb83da6b5c89ec1bb4a61258d034c570345"
     },
     {
       "path": "crates/enouia-memory-workspace/src/materialization.rs",
       "role": "core",
-      "sha256": "3a677f03ee40cfb7edb921eedea23f98942062f5370d0172c9f7ea85cc8ad27e"
+      "sha256": "c824be281024d714459648ab1af78239ce1497bc9945eb32941e7c41e8d5e884"
     },
     {
       "path": "crates/enouia-memory-workspace/src/native.rs",
       "role": "core",
-      "sha256": "bbe306c7356d0d5a6636e3d378defd47c2306e5497aba29ff2348cef4eb62fab"
+      "sha256": "fe1a6d432850ce25ebb5819d9cd47c97af122520d44c037e82eee7f95fd45a60"
     },
     {
       "path": "crates/enouia-memory-workspace/src/ops.rs",
@@ -345,7 +346,7 @@
     {
       "path": "crates/enouia-memory-workspace/src/tests/history.rs",
       "role": "core",
-      "sha256": "8505993f212f6207ad429d80287161c2e3615989477eec813a8b04b1282cdfba"
+      "sha256": "966e5cc79395e6dd5a276205f734d5aa6d499da66a1bc43917ba694fe42d563b"
     },
     {
       "path": "crates/enouia-memory-workspace/src/tests/native.rs",
@@ -365,7 +366,7 @@
     {
       "path": "tests/fixtures/memory/workspace-manifest.json",
       "role": "wire",
-      "sha256": "495a7521b79860d74b63a37154cf25dee3bb42f34445603e80b7eb76deb3275a"
+      "sha256": "351ebf5337123d12efc1d8fb70db396b307ec95d4014a38495aed6e2db033f4f"
     },
     {
       "path": "tools/windows/installer-smoke.ps1",
@@ -398,5 +399,5 @@
       "sha256": "3603c1855d9f9ec9b3585143a0191508980b260b1ffd26c82b3e6f9b7223a75d"
     }
   ],
-  "aggregate": "b70f8f124959225f25315ef5fb197f79fc5457964f79f5263f71a02cee068500"
+  "aggregate": "9b25885480cf2e220b37f231fe9973afaecb3bd68b8939fdf1c918d42ac233b2"
 }

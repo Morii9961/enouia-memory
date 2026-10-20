@@ -354,6 +354,10 @@ The [full remember replay and target freshness acceptance](../validation/MV-6-fu
 
 [Decision](070-workspace-history-materialization.md): persist typed local request admission atomically before offline child creation; add bounded Workspace create/read/resume and Runtime adoption after verification. No sending, credential port, automatic approval, MV-8 or cloud activation. Implementation is in progress.
 
+### ADR-MEM-71 — Saved history batch request preparation (Adopted, MV-7)
+
+[Decision](071-history-batch-request-preparation.md): prepare one ready, uninvoked child derived from a saved history task, bind request keys durably, and reuse exact-body inspection and explicit send without recreating tasks. [Contract and evidence](../validation/MV-7-history-batch-preparation.md).
+
 ## Relation to Enouia Runtime's register
 
 

@@ -10,11 +10,14 @@
 //! cannot publish into a Vault the owner has closed.
 
 use super::*;
+use enouia_memory_contract::commit::OperationKind;
 use enouia_memory_contract::common::SourceRevisionRef;
 use enouia_memory_contract::context::{Destination, DestinationKind, Purpose};
 use enouia_memory_contract::ids::{EventId, VaultId};
+use enouia_memory_contract::json::canonical_bytes;
 use enouia_memory_contract::policy::{PolicyOrigin, PolicyRecord, PolicyStatus, ResourceSelector};
 use enouia_memory_contract::ports::SecretStore;
+use enouia_memory_contract::ports::{CommitRequest, StagedRecord};
 use enouia_memory_contract::provider::{FinishReason, ProviderCapabilities};
 use enouia_memory_contract::workspace::{ExternalApi, GrantSensitivity};
 use enouia_memory_provider::client::{Client, Limits, PreparedCall};
@@ -617,6 +620,127 @@ impl Workspace {
             job.input_event_id,
             &destination,
             output_tokens,
+            fields,
+        )
+    }
+
+    /// Prepare exactly one existing, uninvoked history child. No new job,
+    /// credential read or transport; external_send still requires inspection.
+    pub(crate) fn history_batch_prepare(
+        &self,
+        a: &wire::HistoryBatchPrepareArgs,
+        key: &str,
+    ) -> R<Value> {
+        let provider = self.native_provider()?;
+        let open = self.open()?;
+        let batch = crate::materialization::selected_batch(&open, &a.task_id, a.batch_index)?;
+        if batch.invocation_state.is_some() {
+            return Err(fail(
+                MemoryErrorCode::PermissionDenied,
+                "history.batch_already_invoked",
+            ));
+        }
+        let job = extraction::job(&open.vault, &open.owner, &batch.session_id, &batch.run_id)
+            .map_err(|e| memory(e, "provider.extraction_job"))?;
+        if job.state != enouia_memory_contract::extraction::ExtractionState::Ready {
+            return Err(fail(
+                MemoryErrorCode::PermissionDenied,
+                "history.batch_not_ready",
+            ));
+        }
+        let api = match job.binding.provider.as_str() {
+            "openai" => Api::OpenAiResponses,
+            "anthropic" => Api::AnthropicMessages,
+            _ => return Err(fail(MemoryErrorCode::UnsupportedSchema, "history.binding")),
+        };
+        let destination = Self::destination(&provider, api)?;
+        if destination.capabilities.binding != job.binding {
+            return Err(fail(
+                MemoryErrorCode::RevisionConflict,
+                "history.model_changed",
+            ));
+        }
+        let scope = IdempotencyScope {
+            principal_id: open.owner.actor_id.clone(),
+            operation_kind: OperationKind::SessionAppend,
+            key_hash: sha256(format!("history-batch-prepare:{key}").as_bytes()),
+        };
+        let payload = sha256(&canonical_bytes(a)?);
+        let prior = open.vault.find_receipt(&scope)?;
+        if prior
+            .as_ref()
+            .is_some_and(|(_, saved, _)| saved != &payload)
+        {
+            return Err(fail(
+                MemoryErrorCode::IdempotencyConflict,
+                "workspace.key_reuse",
+            ));
+        }
+        let adapter = self.adapter(&open, job.input_event_id.clone(), provider.quota);
+        let prepared = self.with_index(&open, |index| {
+            extraction::prepare(
+                &adapter,
+                index,
+                &job.run_id,
+                &destination.capabilities,
+                provider.limits.clone(),
+                CallOptions {
+                    egress_policy: a.policy_id.clone(),
+                    approval: None,
+                    streaming: false,
+                    output_tokens: a.output_tokens,
+                },
+            )
+            .map_err(|e| memory(e, "provider.extraction_prepare"))
+        })?;
+        if prior.is_none() {
+            let pin = open.vault.pin_current()?;
+            if pin.policy_epoch != prepared.dispatch().egress.policy_epoch
+                || pin.deletion_epoch != prepared.dispatch().egress.deletion_epoch
+            {
+                return Err(fail(
+                    MemoryErrorCode::RevisionConflict,
+                    "history.plan_stale",
+                ));
+            }
+            let mut header = session::get(&open.vault, &pin, &batch.session_id)?;
+            let revision = header.revision;
+            header.revision = Revision::new(revision.get() + 1)
+                .ok_or_else(|| fail(MemoryErrorCode::InvalidRequest, "history.revision"))?;
+            header.updated_at = open.vault.now()?;
+            open.vault.commit(CommitRequest {
+                commit_id: enouia_memory_contract::ids::CommitId::from_random(
+                    self.config.ids.random_16(),
+                ),
+                expected_commit_id: Some(pin.commit_id),
+                principal: open.owner.clone(),
+                operation_kind: OperationKind::SessionAppend,
+                idempotency: scope,
+                request_payload_hash: payload,
+                expected_revisions: vec![(
+                    RecordKind::Session,
+                    header.session_id.to_string(),
+                    Some(revision),
+                )],
+                records: vec![StagedRecord {
+                    record_kind: RecordKind::Session,
+                    record_id: header.session_id.to_string(),
+                    revision: header.revision,
+                    bytes: canonical_bytes(&header)?,
+                }],
+                objects: vec![],
+            })?;
+        }
+        let mut fields = Map::new();
+        fields.insert("taskId".into(), json!(a.task_id));
+        fields.insert("batchIndex".into(), json!(a.batch_index));
+        fields.insert("sessionId".into(), json!(batch.session_id));
+        fields.insert("runId".into(), json!(batch.run_id));
+        self.hold_call(
+            prepared,
+            job.input_event_id,
+            &destination,
+            a.output_tokens,
             fields,
         )
     }
