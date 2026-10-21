@@ -2,6 +2,8 @@
 
 All project documentation lives under `docs/`.
 
+2026-10-21: [saved history batch response application](validation/MV-7-history-batch-application.md) adds source-bound preview and one inspected cursor step into pending candidates (ADR-MEM-72), with durable request binding and reopen recovery. Runtime adoption and real acceptance remain separate.
+
 2026-10-20: [saved history batch request preparation](validation/MV-7-history-batch-preparation.md) adds a keyed local preparation step for one existing task child (ADR-MEM-71). It exposes exact request inspection without sending; Runtime adoption and real acceptance remain separate.
 
 Current route (2026-10-11): [cloud primary, historical initialization and MCP cycle](design/CLOUD_PRIMARY_AND_HISTORY.md), [ADR-MEM-49](adr/049-cloud-primary-and-history-initialization.md), and the [MV-7-H1 offline planning report](validation/MV-7-history-planning.md). The local implementation remains; no cloud activation follows from this direction update.

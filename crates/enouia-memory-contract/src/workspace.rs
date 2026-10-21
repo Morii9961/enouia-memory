@@ -269,6 +269,22 @@ pub struct HistoryBatchPrepareArgs {
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct HistoryBatchArgs {
+    pub task_id: SessionId,
+    pub batch_index: u32,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct HistoryBatchApplyArgs {
+    pub task_id: SessionId,
+    pub batch_index: u32,
+    pub response_hash: Sha256Hex,
+    pub cursor: u64,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct SessionArgs {
     pub session_id: SessionId,
     pub branch_id: BranchId,
@@ -480,11 +496,13 @@ pub enum Command {
     HistoryTaskList(PageArgs),
     HistoryTaskGet(HistoryTaskArgs),
     HistoryBatchPrepare(HistoryBatchPrepareArgs),
+    HistoryBatchPreview(HistoryBatchArgs),
+    HistoryBatchApply(HistoryBatchApplyArgs),
     HistoryResume(HistoryTaskArgs),
 }
 
 /// Command names, in schema order.
-pub const COMMANDS: [&str; 53] = [
+pub const COMMANDS: [&str; 55] = [
     "workspace_status",
     "vault_open",
     "vault_create",
@@ -538,6 +556,8 @@ pub const COMMANDS: [&str; 53] = [
     "history_task_get",
     "history_resume",
     "history_batch_prepare",
+    "history_batch_preview",
+    "history_batch_apply",
 ];
 
 /// Commands that can commit to the Vault and therefore carry an idempotency key.
@@ -563,6 +583,7 @@ pub fn is_write(command: &str) -> bool {
             | "history_materialize"
             | "history_resume"
             | "history_batch_prepare"
+            | "history_batch_apply"
     )
 }
 
@@ -659,8 +680,8 @@ pub fn success_kind(command: &str) -> ResponseKind {
         "egress_grant_plan" | "egress_revoke_plan" | "external_interrupt_plan" => K::ProviderPlan,
         "provider_confirm" => K::ProviderCommitted,
         "external_prepare" | "extraction_prepare" | "history_batch_prepare" => K::ExternalPrepared,
-        "extraction_preview" => K::ExtractionPreview,
-        "extraction_apply" | "extraction_pause" => K::ExtractionJob,
+        "extraction_preview" | "history_batch_preview" => K::ExtractionPreview,
+        "extraction_apply" | "extraction_pause" | "history_batch_apply" => K::ExtractionJob,
         "history_plan" => K::HistoryPlan,
         "history_task_list" => K::HistoryTaskList,
         "history_task_get" => K::HistoryTask,
@@ -932,6 +953,14 @@ pub fn parse_request(value: &Value) -> Result<(Request, Command), ContractError>
                 out.push(Violation::new(
                     "workspace.output_tokens",
                     "/arguments/outputTokens",
+                ));
+            }
+        }
+        Command::HistoryBatchApply(a) => {
+            if a.cursor > EXTRACTION_MAX_CANDIDATES {
+                out.push(Violation::new(
+                    "workspace.extraction_cursor",
+                    "/arguments/cursor",
                 ));
             }
         }

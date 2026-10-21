@@ -771,6 +771,8 @@ impl Workspace {
             Command::HistoryTaskList(a) => Done::of(self.history_task_list(a)?),
             Command::HistoryTaskGet(a) => Done::of(self.history_task_get(a)?),
             Command::HistoryBatchPrepare(a) => Done::of(self.history_batch_prepare(a, key)?),
+            Command::HistoryBatchPreview(a) => Done::of(self.history_batch_preview(a)?),
+            Command::HistoryBatchApply(a) => Done::of(self.history_batch_apply(a, key)?),
             Command::HistoryResume(a) => self.history_resume(a, key)?,
             Command::SessionList(_) => Done::of(self.session_list()?),
             Command::SessionDetail(a) => Done::of(self.session_detail(a)?),

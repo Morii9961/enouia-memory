@@ -748,6 +748,25 @@ pub fn preview(adapter: &VaultAdapter<'_>, run: &ExtractionRunId) -> Result<Extr
 /// Apply one candidate from an already saved completed response. Pausing and
 /// recovery affect only local application, never authorize an HTTP retry.
 pub fn apply_next(adapter: &VaultAdapter<'_>, run: &ExtractionRunId) -> Result<ExtractionJob> {
+    apply_at(adapter, run, None)
+}
+
+/// Apply only the inspected response position. Retrying an already advanced
+/// position never consumes the next suggestion, including after reopening.
+pub fn apply_inspected(
+    adapter: &VaultAdapter<'_>,
+    run: &ExtractionRunId,
+    response_hash: &Sha256Hex,
+    cursor: u64,
+) -> Result<ExtractionJob> {
+    apply_at(adapter, run, Some((response_hash, cursor)))
+}
+
+fn apply_at(
+    adapter: &VaultAdapter<'_>,
+    run: &ExtractionRunId,
+    inspected: Option<(&Sha256Hex, u64)>,
+) -> Result<ExtractionJob> {
     if !adapter.enabled.load(Ordering::SeqCst) {
         return Err(error(MemoryErrorCode::PermissionDenied));
     }
@@ -760,7 +779,7 @@ pub fn apply_next(adapter: &VaultAdapter<'_>, run: &ExtractionRunId) -> Result<E
     if current.input_event_id != adapter.input_event {
         return Err(error(MemoryErrorCode::PermissionDenied));
     }
-    if current.state == ExtractionState::Completed {
+    if inspected.is_none() && current.state == ExtractionState::Completed {
         return Ok(current);
     }
     if current.state == ExtractionState::Paused {
@@ -778,6 +797,14 @@ pub fn apply_next(adapter: &VaultAdapter<'_>, run: &ExtractionRunId) -> Result<E
         .saved_response(&invocation.dispatch_id)?
         .ok_or_else(|| error(MemoryErrorCode::NotFound))?;
     let all = proposals(adapter, &current, &response.text)?;
+    if let Some((hash, cursor)) = inspected {
+        if &sha256(response.text.as_bytes()) != hash || current.cursor < cursor {
+            return Err(error(MemoryErrorCode::RevisionConflict));
+        }
+        if current.cursor > cursor || current.state == ExtractionState::Completed {
+            return Ok(current);
+        }
+    }
     let mut next = current.clone();
     if let Some(item) = all.get(current.cursor as usize) {
         let pin = adapter.vault.pin_current().map_err(|e| e.error)?;

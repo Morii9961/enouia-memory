@@ -529,6 +529,10 @@ fn local_args(env: &Env, import: &Value) -> Value {
 }
 
 fn batch_setup(env: &Env) -> (Value, Value, NativeProvider) {
+    batch_setup_pending(env, 100)
+}
+
+fn batch_setup_pending(env: &Env, max_pending: u64) -> (Value, Value, NativeProvider) {
     let import = imported(env, RAW);
     let provider = local_model(env);
     let grant = env.ok(
@@ -539,7 +543,9 @@ fn batch_setup(env: &Env) -> (Value, Value, NativeProvider) {
         "provider_confirm",
         json!({"planId":grant["planId"],"diffHash":grant["diffHash"]}),
     );
-    let task = local_keyed(env, &local_args(env, &import), "synthetic-batch-task");
+    let mut request = local_args(env, &import);
+    request["maxPending"] = json!(max_pending);
+    let task = local_keyed(env, &request, "synthetic-batch-task");
     let args = json!({"taskId":task["taskId"],"batchIndex":1,"policyId":policy["policyId"],"outputTokens":256});
     (task, args, provider)
 }
@@ -683,6 +689,7 @@ fn history_batch_prepare_refuses_unselected_paused_model_drift_source_policy_and
 struct BatchPorts {
     reads: AtomicU64,
     calls: AtomicU64,
+    text: Option<String>,
 }
 impl enouia_memory_contract::ports::SecretStore for BatchPorts {
     fn read(
@@ -706,7 +713,7 @@ impl enouia_memory_provider::transport::Transport for BatchPorts {
         sink: &mut dyn FnMut(&[u8]) -> Result<(), enouia_memory_contract::MemoryError>,
     ) -> Result<(), enouia_memory_contract::MemoryError> {
         self.calls.fetch_add(1, Ordering::SeqCst);
-        sink(&serde_json::to_vec(&json!({"status":"completed","output":[{"type":"message","role":"assistant","content":[{"type":"output_text","text":"{\"candidates\":[]}"}]}],"usage":{"input_tokens":50,"output_tokens":10}})).unwrap())
+        sink(&serde_json::to_vec(&json!({"status":"completed","output":[{"type":"message","role":"assistant","content":[{"type":"output_text","text":self.text.as_deref().unwrap_or("{\"candidates\":[]}")}]}],"usage":{"input_tokens":50,"output_tokens":10}})).unwrap())
     }
 }
 
@@ -717,6 +724,7 @@ fn history_batch_prepare_only_sends_after_exact_confirmation_and_never_reopens_a
     let ports = Arc::new(BatchPorts {
         reads: AtomicU64::new(0),
         calls: AtomicU64::new(0),
+        text: None,
     });
     provider.secrets = ports.clone();
     provider.transport = ports.clone();
@@ -958,4 +966,308 @@ fn saved_local_task_status_and_resume_obey_current_source_policy() {
         env.ok("history_task_list", json!({"cursor":null,"limit":20}))["items"][0]["taskId"],
         first["taskId"]
     );
+}
+
+// Produce saved synthetic responses only through the ordinary inspected-send
+// path; all following preview/application runs with the native Provider removed.
+fn saved_batch(env: &Env, candidates: bool) -> (Value, Value, Arc<BatchPorts>) {
+    saved_batch_pending(env, candidates, 100)
+}
+
+fn saved_batch_pending(
+    env: &Env,
+    candidates: bool,
+    max_pending: u64,
+) -> (Value, Value, Arc<BatchPorts>) {
+    let (task, args, mut provider) = batch_setup_pending(env, max_pending);
+    let open = env.ws.open().unwrap();
+    let id =
+        enouia_memory_contract::ids::SessionId::parse(task["taskId"].as_str().unwrap()).unwrap();
+    let batch = crate::materialization::selected_batch(&open, &id, 1).unwrap();
+    let job = enouia_memory_provider::extraction::job(
+        &open.vault,
+        &open.owner,
+        &batch.session_id,
+        &batch.run_id,
+    )
+    .unwrap();
+    let pin = open.vault.pin_current().unwrap();
+    let first = &job.sources[0];
+    let source: SourceRecord = parse(
+        &open
+            .vault
+            .read_record(
+                &pin,
+                &RecordRef::new(
+                    RecordKind::Source,
+                    first.source.source_id.as_str(),
+                    first.source.source_revision,
+                ),
+            )
+            .unwrap(),
+    )
+    .unwrap();
+    let text = enouia_memory_import::locate::resolve(RAW, &source.locator).unwrap();
+    let quote = std::str::from_utf8(&text[first.start as usize..first.end as usize]).unwrap();
+    let suggestions = if candidates {
+        json!([
+            {"kind":"fact","content":"合成候选一","quote":quote,"source_index":0,"claim_key":"synthetic_first"},
+            {"kind":"fact","content":"合成候选二","quote":quote,"source_index":0,"claim_key":"synthetic_second"}
+        ])
+    } else {
+        json!([])
+    };
+    let ports = Arc::new(BatchPorts {
+        reads: AtomicU64::new(0),
+        calls: AtomicU64::new(0),
+        text: Some(json!({"candidates":suggestions}).to_string()),
+    });
+    provider.secrets = ports.clone();
+    provider.transport = ports.clone();
+    env.ws.set_native_provider(Some(provider)).unwrap();
+    let prepared = env.ok("history_batch_prepare", args);
+    let done = env.wait(&env.ok(
+        "external_send",
+        json!({"callId":prepared["callId"],"wireHash":prepared["wireHash"]}),
+    ));
+    assert_eq!(done["state"], "succeeded", "{done}");
+    env.ws.set_native_provider(None).unwrap();
+    let selected = json!({"taskId":task["taskId"],"batchIndex":1});
+    (task, selected, ports)
+}
+
+#[test]
+fn history_batch_application_binds_response_cursor_and_key_across_reopen_without_ports() {
+    let env = Env::new("history-batch-apply-replay");
+    let (task, selected, ports) = saved_batch(&env, true);
+    let open = env.ws.open().unwrap();
+    let head = open.vault.pin_current().unwrap();
+    let preview = env.ok("history_batch_preview", selected.clone());
+    assert_eq!(preview["items"].as_array().unwrap().len(), 2);
+    assert_eq!(preview["items"][0]["application"], "awaiting_cursor");
+    assert!(
+        !preview["items"][0]["selectedText"]
+            .as_str()
+            .unwrap()
+            .is_empty()
+    );
+    assert_eq!(open.vault.pin_current().unwrap(), head);
+    let mut request = selected.clone();
+    request["responseHash"] = preview["responseHash"].clone();
+    request["cursor"] = json!(0);
+    let applied = env.send_keyed(
+        "history_batch_apply",
+        request.clone(),
+        "synthetic-apply-one",
+    );
+    assert!(applied["error"].is_null(), "{applied}");
+    assert_eq!(applied["result"]["job"]["cursor"], 1);
+    let head = open.vault.pin_current().unwrap();
+    let replay = env.send_keyed(
+        "history_batch_apply",
+        request.clone(),
+        "synthetic-apply-one",
+    );
+    assert_eq!(replay["result"], applied["result"], "{replay}");
+    assert_eq!(open.vault.pin_current().unwrap(), head);
+    env.ws.shutdown();
+    env.ws.open_root(&env.base.join("vault")).unwrap();
+    let replay = env.send_keyed(
+        "history_batch_apply",
+        request.clone(),
+        "synthetic-apply-one",
+    );
+    assert_eq!(replay["result"], applied["result"], "{replay}");
+    assert_eq!(open.vault.pin_current().unwrap(), head);
+    // Even a different key with an old cursor cannot consume item two.
+    let old = env.send_keyed(
+        "history_batch_apply",
+        request.clone(),
+        "synthetic-apply-old",
+    );
+    assert_eq!(old["result"]["job"]["cursor"], 1, "{old}");
+    request["cursor"] = json!(1);
+    assert_eq!(
+        env.send_keyed(
+            "history_batch_apply",
+            request.clone(),
+            "synthetic-apply-one"
+        )["error"]["code"],
+        "idempotency_conflict"
+    );
+    let second = env.send_keyed(
+        "history_batch_apply",
+        request.clone(),
+        "synthetic-apply-two",
+    );
+    assert_eq!(second["result"]["job"]["cursor"], 2, "{second}");
+    assert_eq!(second["result"]["job"]["state"], "completed");
+    let shown = env.ok("history_batch_preview", selected.clone());
+    assert!(
+        shown["items"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|i| i["candidate"]["status"] == "pending")
+    );
+    assert!(
+        open.vault
+            .record_entries(&open.vault.pin_current().unwrap(), RecordKind::Memory)
+            .unwrap()
+            .is_empty()
+    );
+    let status = env.ok("history_task_get", json!({"taskId":task["taskId"]}));
+    assert_eq!(status["batches"][0]["applied"], 2);
+    assert_eq!(ports.calls.load(Ordering::SeqCst), 1);
+    assert_eq!(ports.reads.load(Ordering::SeqCst), 1);
+    assert!(!HostSurface::QuickSearch.allows(&json!({"command":"history_batch_apply"})));
+    assert!(!HostSurface::QuickSearch.allows(&json!({"command":"history_batch_preview"})));
+}
+
+#[test]
+fn history_batch_application_refuses_changed_response_future_cursor_pause_policy_and_lock() {
+    let env = Env::new("history-batch-apply-guards");
+    let (_, selected, ports) = saved_batch(&env, true);
+    let preview = env.ok("history_batch_preview", selected.clone());
+    let mut request = selected.clone();
+    request["responseHash"] = json!(sha256(b"wrong"));
+    request["cursor"] = json!(0);
+    let open = env.ws.open().unwrap();
+    let head = open.vault.pin_current().unwrap();
+    assert_eq!(
+        env.err("history_batch_apply", request.clone())["code"],
+        "revision_conflict"
+    );
+    request["responseHash"] = preview["responseHash"].clone();
+    request["cursor"] = json!(1);
+    assert_eq!(
+        env.err("history_batch_apply", request.clone())["code"],
+        "revision_conflict"
+    );
+    assert_eq!(open.vault.pin_current().unwrap(), head);
+    request["cursor"] = json!(0);
+    request["batchIndex"] = json!(100);
+    assert_eq!(
+        env.err("history_batch_apply", request.clone())["code"],
+        "invalid_request"
+    );
+    request["batchIndex"] = json!(1);
+    let pause = json!({"sessionId":preview["sessionId"],"runId":preview["runId"],"paused":true});
+    env.ok("extraction_pause", pause.clone());
+    assert_eq!(
+        env.err("history_batch_apply", request.clone())["code"],
+        "cancelled"
+    );
+    let mut resume = pause;
+    resume["paused"] = json!(false);
+    env.ok("extraction_pause", resume);
+    let policy = env.ws.policy(&open).unwrap().to_string();
+    rewrite::<PolicyRecord>(&env, RecordKind::Policy, &policy, |p| {
+        p["scopes"]
+            .as_array_mut()
+            .unwrap()
+            .retain(|s| s != "source:read")
+    });
+    assert_eq!(
+        env.err("history_batch_preview", selected)["code"],
+        "permission_denied"
+    );
+    assert_eq!(
+        env.err("history_batch_apply", request.clone())["code"],
+        "permission_denied"
+    );
+    env.ok("vault_lock", json!({}));
+    assert_eq!(
+        env.err("history_batch_apply", request)["code"],
+        "vault_locked"
+    );
+    assert_eq!(ports.calls.load(Ordering::SeqCst), 1);
+}
+
+#[test]
+fn history_batch_application_completes_an_empty_saved_response_without_candidates() {
+    let env = Env::new("history-batch-apply-empty");
+    let (_, selected, ports) = saved_batch(&env, false);
+    let preview = env.ok("history_batch_preview", selected.clone());
+    assert!(preview["items"].as_array().unwrap().is_empty());
+    let mut request = selected;
+    request["responseHash"] = preview["responseHash"].clone();
+    request["cursor"] = json!(0);
+    let applied = env.send_keyed(
+        "history_batch_apply",
+        request.clone(),
+        "synthetic-empty-apply",
+    );
+    assert_eq!(applied["result"]["job"]["state"], "completed", "{applied}");
+    let open = env.ws.open().unwrap();
+    let head = open.vault.pin_current().unwrap();
+    let replay = env.send_keyed("history_batch_apply", request, "synthetic-empty-apply");
+    assert_eq!(replay["result"], applied["result"], "{replay}");
+    assert_eq!(open.vault.pin_current().unwrap(), head);
+    assert!(
+        open.vault
+            .record_entries(&head, RecordKind::Candidate)
+            .unwrap()
+            .is_empty()
+    );
+    assert_eq!(ports.calls.load(Ordering::SeqCst), 1);
+}
+
+#[test]
+fn history_batch_application_recovers_admission_without_a_candidate_after_backlog_refusal() {
+    let env = Env::new("history-batch-apply-admission-recovery");
+    let (_, selected, ports) = saved_batch_pending(&env, true, 1);
+    let blocker = env.ok(
+        "remember",
+        json!({"text":"合成待审占位","claimKey":"synthetic.backlog"}),
+    );
+    let preview = env.ok("history_batch_preview", selected.clone());
+    let mut request = selected.clone();
+    request["responseHash"] = preview["responseHash"].clone();
+    request["cursor"] = json!(0);
+    let refused = env.send_keyed(
+        "history_batch_apply",
+        request.clone(),
+        "synthetic-admission-recovery",
+    );
+    assert_eq!(refused["error"]["code"], "budget_exceeded", "{refused}");
+    let open = env.ws.open().unwrap();
+    let receipt = open
+        .vault
+        .find_receipt(&IdempotencyScope {
+            principal_id: open.owner.actor_id.clone(),
+            operation_kind: OperationKind::SessionAppend,
+            key_hash: sha256(b"history-batch-apply:synthetic-admission-recovery"),
+        })
+        .unwrap();
+    assert!(
+        receipt.is_some(),
+        "the apply request is admitted before the backlog refusal"
+    );
+    assert_eq!(
+        env.ok("history_batch_preview", selected)["job"]["cursor"],
+        0
+    );
+    // Free the synthetic pending slot through the ordinary owner review flow.
+    let plan = env.ok("review_plan", json!({"decisions":[{"candidateId":blocker["candidateId"],"revision":blocker["revision"],"action":"reject","editedContent":null,"mergeTarget":null}]}));
+    env.ok(
+        "review_confirm",
+        json!({"planId":plan["planId"],"diffHash":plan["diffHash"]}),
+    );
+    env.ws.shutdown();
+    env.ws.open_root(&env.base.join("vault")).unwrap();
+    let recovered = env.send_keyed(
+        "history_batch_apply",
+        request,
+        "synthetic-admission-recovery",
+    );
+    assert_eq!(recovered["result"]["job"]["cursor"], 1, "{recovered}");
+    assert_eq!(
+        recovered["result"]["job"]["candidates"]
+            .as_array()
+            .unwrap()
+            .len(),
+        1
+    );
+    assert_eq!(ports.calls.load(Ordering::SeqCst), 1);
 }
