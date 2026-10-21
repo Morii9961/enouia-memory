@@ -491,33 +491,33 @@ impl enouia_memory_provider::transport::Transport for NoHistoryPorts {
         panic!("local history tasks must never send")
     }
 }
-fn local_model(env: &Env) {
+fn local_model(env: &Env) -> NativeProvider {
     use enouia_memory_contract::provider::{Capability, ProviderCapabilities, TokenCounting};
     use enouia_memory_provider::codec::Api;
-    env.ws
-        .set_native_provider(Some(NativeProvider {
-            transport: Arc::new(NoHistoryPorts),
-            secrets: Arc::new(NoHistoryPorts),
-            destinations: vec![NativeDestination {
-                api: Api::OpenAiResponses,
-                capabilities: ProviderCapabilities {
-                    schema_version: enouia_memory_contract::json::SchemaVersion,
-                    binding: Api::OpenAiResponses.binding("synthetic-model").unwrap(),
-                    text_input: Capability::Supported,
-                    image_input: Capability::Unsupported,
-                    streaming: Capability::Unsupported,
-                    tool_calling: Capability::Unsupported,
-                    cancellation: Capability::Supported,
-                    token_counting: TokenCounting::Estimated,
-                    context_window_tokens: Some(128000),
-                    max_output_tokens: Some(4096),
-                    verified_at: Some(env.ws.open().unwrap().vault.now().unwrap()),
-                },
-            }],
-            quota: enouia_memory_provider::vault::Quota::default(),
-            limits: enouia_memory_provider::client::Limits::default(),
-        }))
-        .unwrap();
+    let provider = NativeProvider {
+        transport: Arc::new(NoHistoryPorts),
+        secrets: Arc::new(NoHistoryPorts),
+        destinations: vec![NativeDestination {
+            api: Api::OpenAiResponses,
+            capabilities: ProviderCapabilities {
+                schema_version: enouia_memory_contract::json::SchemaVersion,
+                binding: Api::OpenAiResponses.binding("synthetic-model").unwrap(),
+                text_input: Capability::Supported,
+                image_input: Capability::Unsupported,
+                streaming: Capability::Unsupported,
+                tool_calling: Capability::Unsupported,
+                cancellation: Capability::Supported,
+                token_counting: TokenCounting::Estimated,
+                context_window_tokens: Some(128000),
+                max_output_tokens: Some(4096),
+                verified_at: Some(env.ws.open().unwrap().vault.now().unwrap()),
+            },
+        }],
+        quota: enouia_memory_provider::vault::Quota::default(),
+        limits: enouia_memory_provider::client::Limits::default(),
+    };
+    env.ws.set_native_provider(Some(provider.clone())).unwrap();
+    provider
 }
 fn local_args(env: &Env, import: &Value) -> Value {
     let plan = env.ok("history_plan", args(import));
@@ -526,6 +526,225 @@ fn local_args(env: &Env, import: &Value) -> Value {
         "previewCommitId":plan["identity"]["commitId"],"messagesPerBatch":2,"maxPathReferences":1000,
         "batchIndices":[1,0],"api":"openai","model":"synthetic-model","maxCandidates":2,
         "maxPending":100,"maxReservedTokens":10000,"maxReservedCostMicrousd":null})
+}
+
+fn batch_setup(env: &Env) -> (Value, Value, NativeProvider) {
+    let import = imported(env, RAW);
+    let provider = local_model(env);
+    let grant = env.ok(
+        "egress_grant_plan",
+        json!({"apis":["openai"],"maxSensitivity":"private","extraction":true}),
+    );
+    let policy = env.ok(
+        "provider_confirm",
+        json!({"planId":grant["planId"],"diffHash":grant["diffHash"]}),
+    );
+    let task = local_keyed(env, &local_args(env, &import), "synthetic-batch-task");
+    let args = json!({"taskId":task["taskId"],"batchIndex":1,"policyId":policy["policyId"],"outputTokens":256});
+    (task, args, provider)
+}
+
+#[test]
+fn history_batch_prepare_reuses_saved_child_and_replays_keys_after_reopen_without_ports() {
+    let env = Env::new("history-batch-prepare-replay");
+    let (task, args, _) = batch_setup(&env);
+    let original = task["batches"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|b| b["batchIndex"] == 1)
+        .unwrap();
+    let open = env.ws.open().unwrap();
+    let count = open
+        .vault
+        .record_entries(&open.vault.pin_current().unwrap(), RecordKind::Session)
+        .unwrap()
+        .len();
+    let reply = env.send_keyed(
+        "history_batch_prepare",
+        args.clone(),
+        "synthetic-prepare-key",
+    );
+    assert!(reply["error"].is_null(), "{reply}");
+    let first = &reply["result"];
+    assert_eq!(first["runId"], original["runId"]);
+    assert_eq!(first["sessionId"], original["sessionId"]);
+    assert_eq!(first["taskId"], task["taskId"]);
+    assert_eq!(first["outputTokens"], 256);
+    assert!(first["body"].as_str().unwrap().contains("source_index"));
+    let head = open.vault.pin_current().unwrap();
+    let replay = env.send_keyed(
+        "history_batch_prepare",
+        args.clone(),
+        "synthetic-prepare-key",
+    );
+    assert!(replay["error"].is_null(), "{replay}");
+    assert_eq!(replay["result"]["wireHash"], first["wireHash"]);
+    assert_eq!(open.vault.pin_current().unwrap(), head);
+    env.ws.shutdown();
+    env.ws.open_root(&env.base.join("vault")).unwrap();
+    local_model(&env);
+    let reopened = env.send_keyed(
+        "history_batch_prepare",
+        args.clone(),
+        "synthetic-prepare-key",
+    );
+    assert!(reopened["error"].is_null(), "{reopened}");
+    assert_eq!(reopened["result"]["wireHash"], first["wireHash"]);
+    assert_eq!(open.vault.pin_current().unwrap(), head);
+    let mut changed = args.clone();
+    changed["batchIndex"] = json!(0);
+    let conflict = env.send_keyed("history_batch_prepare", changed, "synthetic-prepare-key");
+    assert_eq!(conflict["error"]["code"], "idempotency_conflict");
+    assert_eq!(
+        open.vault
+            .record_entries(&head, RecordKind::Session)
+            .unwrap()
+            .len(),
+        count
+    );
+    for kind in [RecordKind::Candidate, RecordKind::Memory] {
+        assert!(open.vault.record_entries(&head, kind).unwrap().is_empty());
+    }
+    let state = env.ok("history_task_get", json!({"taskId":task["taskId"]}));
+    assert!(
+        state["batches"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|b| b["invocationState"].is_null())
+    );
+    assert!(!HostSurface::QuickSearch.allows(&json!({"command":"history_batch_prepare"})));
+    assert_eq!(
+        env.err(
+            "external_send",
+            json!({"callId":first["callId"],"wireHash":first["wireHash"]})
+        )["code"],
+        "not_found"
+    );
+}
+
+#[test]
+fn history_batch_prepare_refuses_unselected_paused_model_drift_source_policy_and_lock() {
+    let env = Env::new("history-batch-prepare-guards");
+    let (task, args, mut provider) = batch_setup(&env);
+    let open = env.ws.open().unwrap();
+    let head = open.vault.pin_current().unwrap();
+    let mut bad = args.clone();
+    bad["batchIndex"] = json!(100);
+    assert_eq!(
+        env.err("history_batch_prepare", bad)["code"],
+        "invalid_request"
+    );
+    provider.destinations[0].capabilities.binding.model = "other-synthetic-model".into();
+    env.ws.set_native_provider(Some(provider)).unwrap();
+    assert_eq!(
+        env.err("history_batch_prepare", args.clone())["code"],
+        "revision_conflict"
+    );
+    assert_eq!(open.vault.pin_current().unwrap(), head);
+    local_model(&env);
+    let batch = task["batches"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|b| b["batchIndex"] == 1)
+        .unwrap();
+    env.ok(
+        "extraction_pause",
+        json!({"sessionId":batch["sessionId"],"runId":batch["runId"],"paused":true}),
+    );
+    assert_eq!(
+        env.err("history_batch_prepare", args.clone())["code"],
+        "permission_denied"
+    );
+    env.ok(
+        "extraction_pause",
+        json!({"sessionId":batch["sessionId"],"runId":batch["runId"],"paused":false}),
+    );
+    let policy = env.ws.policy(&open).unwrap().to_string();
+    rewrite::<PolicyRecord>(&env, RecordKind::Policy, &policy, |p| {
+        p["scopes"]
+            .as_array_mut()
+            .unwrap()
+            .retain(|s| s != "source:read");
+    });
+    assert_eq!(
+        env.err("history_batch_prepare", args.clone())["code"],
+        "permission_denied"
+    );
+    env.ok("vault_lock", json!({}));
+    assert_eq!(
+        env.err("history_batch_prepare", args)["code"],
+        "vault_locked"
+    );
+}
+
+struct BatchPorts {
+    reads: AtomicU64,
+    calls: AtomicU64,
+}
+impl enouia_memory_contract::ports::SecretStore for BatchPorts {
+    fn read(
+        &self,
+        _: &str,
+    ) -> Result<enouia_memory_contract::ports::SecretBytes, enouia_memory_contract::MemoryError>
+    {
+        self.reads.fetch_add(1, Ordering::SeqCst);
+        Ok(enouia_memory_contract::ports::SecretBytes::new(
+            b"synthetic-key".to_vec(),
+        ))
+    }
+}
+impl enouia_memory_provider::transport::Transport for BatchPorts {
+    fn exchange(
+        &self,
+        _: &enouia_memory_provider::codec::WireRequest,
+        _: &enouia_memory_contract::ports::SecretBytes,
+        _: &dyn enouia_memory_contract::foundation::Cancellation,
+        _: Duration,
+        sink: &mut dyn FnMut(&[u8]) -> Result<(), enouia_memory_contract::MemoryError>,
+    ) -> Result<(), enouia_memory_contract::MemoryError> {
+        self.calls.fetch_add(1, Ordering::SeqCst);
+        sink(&serde_json::to_vec(&json!({"status":"completed","output":[{"type":"message","role":"assistant","content":[{"type":"output_text","text":"{\"candidates\":[]}"}]}],"usage":{"input_tokens":50,"output_tokens":10}})).unwrap())
+    }
+}
+
+#[test]
+fn history_batch_prepare_only_sends_after_exact_confirmation_and_never_reopens_an_invocation() {
+    let env = Env::new("history-batch-prepare-send");
+    let (task, args, mut provider) = batch_setup(&env);
+    let ports = Arc::new(BatchPorts {
+        reads: AtomicU64::new(0),
+        calls: AtomicU64::new(0),
+    });
+    provider.secrets = ports.clone();
+    provider.transport = ports.clone();
+    env.ws.set_native_provider(Some(provider)).unwrap();
+    let prepared = env.ok("history_batch_prepare", args.clone());
+    assert_eq!(ports.reads.load(Ordering::SeqCst), 0);
+    assert_eq!(ports.calls.load(Ordering::SeqCst), 0);
+    let wrong = env.err(
+        "external_send",
+        json!({"callId":prepared["callId"],"wireHash":sha256(b"wrong-body")}),
+    );
+    assert_eq!(wrong["code"], "permission_denied");
+    assert_eq!(ports.calls.load(Ordering::SeqCst), 0);
+    let done = env.wait(&env.ok(
+        "external_send",
+        json!({"callId":prepared["callId"],"wireHash":prepared["wireHash"]}),
+    ));
+    assert_eq!(done["state"], "succeeded", "{done}");
+    assert_eq!(ports.calls.load(Ordering::SeqCst), 1);
+    let head = env.ws.open().unwrap().vault.pin_current().unwrap();
+    assert_eq!(
+        env.err("history_batch_prepare", args)["code"],
+        "permission_denied"
+    );
+    assert_eq!(env.ws.open().unwrap().vault.pin_current().unwrap(), head);
+    let state = env.ok("history_task_get", json!({"taskId":task["taskId"]}));
+    assert_eq!(state["batches"][0]["invocationState"], "completed");
+    assert_eq!(ports.calls.load(Ordering::SeqCst), 1);
 }
 fn local_keyed(env: &Env, args: &Value, key: &str) -> Value {
     let reply = env.send_keyed("history_materialize", args.clone(), key);

@@ -19,6 +19,7 @@ const WRITES = new Set([
   "provider_confirm", "external_prepare", "external_send",
   "extraction_prepare", "extraction_apply", "extraction_pause",
   "history_materialize", "history_resume",
+  "history_batch_prepare",
 ]);
 
 const uuid = () => crypto.randomUUID();
