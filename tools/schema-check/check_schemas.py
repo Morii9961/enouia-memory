@@ -189,6 +189,20 @@ def main():
             failures.append(f"store case {case['id']}: independent validator accepted={accepted}, manifest says {case['schema']}")
     counts["store_documents"] = len(store["valid"]) + len(store["invalid"])
 
+    host_dir = ROOT / "tests" / "fixtures" / "host"
+    host = load(host_dir / "manifest.json")
+    host_schema_of = {entry["file"]: entry["schema"] for entry in host["valid"]}
+    for entry in host["valid"]:
+        if not valid(entry["schema"], load(host_dir / entry["file"])):
+            failures.append(f"valid host document rejected: {entry['file']}")
+    for case in host["invalid"]:
+        value = load(host_dir / case["base"])
+        apply_ops(value, case["ops"])
+        accepted = valid(host_schema_of[case["base"]], value)
+        if accepted != (case["schema"] == "accept"):
+            failures.append(f"host case {case['id']}: independent validator accepted={accepted}")
+    counts["host_documents"] = len(host["valid"]) + len(host["invalid"])
+
     invocation_cases = load(FIXTURES / "provider-invocation-cases.json")
     for case in invocation_cases["cases"]:
         value = copy.deepcopy(invocation_cases["base"])

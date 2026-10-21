@@ -1,0 +1,6 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.enouia-memory.invalid/host/transfer-plan-v1.schema.json",
+  "title": "Host transfer plan v1",
+  "$ref": "authority-v1.schema.json#/$defs/plan"
+}

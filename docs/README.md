@@ -2,6 +2,8 @@
 
 All project documentation lives under `docs/`.
 
+2026-10-21: [MV-8.1 authority foundation integration](validation/MV-8-authority-integration.md) brings the previously authorized Host contracts, native control persistence and shared CURRENT publication onto the current 55-command baseline. Host process, authenticated transport, recovery and Runtime adoption remain separate gates.
+
 2026-10-21: [saved history batch response application](validation/MV-7-history-batch-application.md) adds source-bound preview and one inspected cursor step into pending candidates (ADR-MEM-72), with durable request binding and reopen recovery. Runtime adoption and real acceptance remain separate.
 
 2026-10-20: [saved history batch request preparation](validation/MV-7-history-batch-preparation.md) adds a keyed local preparation step for one existing task child (ADR-MEM-71). It exposes exact request inspection without sending; Runtime adoption and real acceptance remain separate.
@@ -60,3 +62,5 @@ The design package, the two prompts, and the review were written in this directo
 - Files changed by these substitutions: `design/README.md`, `design/DECISIONS_AND_SOURCES.md`, `design/CLAUDE_HANDOFF.md`, `handoff/CLAUDE_START_PROMPT.md`, `handoff/CLAUDE_MV0_CORRECTION_PROMPT.md`, `reviews/MV0_REVIEW_AND_REPO_CORRECTION.md`. The other design documents are byte-identical to their originals.
 
 The original v0.1 draft is unchanged (SHA-256 `bfc7d55d219a1eb667c666739f943cab034db1a2508ed4f56e9ea81f5abd1ea4`).
+
+MV-8 was explicitly authorized on 2026-10-18. [Host authority v1](design/HOST_AUTHORITY_V1.md), [ADR-MEM-66](adr/066-host-authority-and-platform-contracts.md) and the [8.1a report](validation/MV-8-host-authority-contracts.md) cover the additive contracts and pure rules. [ADR-MEM-67](adr/067-authority-control-file-persistence.md) and the [8.1b report](validation/MV-8-authority-control-file.md) cover opt-in Windows authority-control persistence and actual synthetic file/process checks. They do not implement shared authority/data transactions, start a Host process, migrate Runtime or provide MCP compatibility. MV-7 real acceptance and the recorded ordered-barrier failure remain pending.

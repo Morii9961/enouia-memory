@@ -88,6 +88,18 @@ pub struct CurrentPointer {
     pub commit_id: CommitId,
     pub sequence: u64,
     pub manifest_sha256: Sha256Hex,
+    /// Opt-in Host mode: the SAME publication also selects immutable authority
+    /// bytes. Absent for legacy Vaults, preserving their canonical encoding.
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "authority_hash"
+    )]
+    pub host_authority_hash: Option<Sha256Hex>,
+}
+
+fn authority_hash<'de, D: serde::Deserializer<'de>>(d: D) -> Result<Option<Sha256Hex>, D::Error> {
+    Sha256Hex::deserialize(d).map(Some)
 }
 
 impl StoreDocument for CurrentPointer {

@@ -11,6 +11,8 @@ pub enum FaultPoint {
     WriteBytes,
     /// Inside an atomic replace, after the flushed temporary file exists.
     BeforeRename,
+    /// Opt-in Host control file published; the response can still be lost.
+    HostAuthorityPublished,
     AfterLock,
     StagingWritten,
     RecordsPlaced,

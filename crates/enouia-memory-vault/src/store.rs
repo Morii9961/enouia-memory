@@ -1539,6 +1539,14 @@ impl Vault {
 
     /// Replace `CURRENT` (the publication) and append the journal line.
     fn publish(&self, commit: &StoredCommit) -> Result<()> {
+        self.publish_with_authority(commit, None)
+    }
+
+    pub(crate) fn publish_with_authority(
+        &self,
+        commit: &StoredCommit,
+        host_authority_hash: Option<Sha256Hex>,
+    ) -> Result<()> {
         let faults = &self.options.faults;
         let (_, hash) = self.load_commit(&commit.commit_id, None)?;
         let pointer = CurrentPointer {
@@ -1547,6 +1555,7 @@ impl Vault {
             commit_id: commit.commit_id.clone(),
             sequence: commit.sequence,
             manifest_sha256: hash.clone(),
+            host_authority_hash,
         };
         faults.io(FaultPoint::BeforeCurrent)?;
         self.root.write_atomic(
@@ -1589,10 +1598,12 @@ impl Vault {
 
     /// The writer lock, for maintenance operations in this crate.
     pub(crate) fn writer_guard(&self) -> Result<WriterGuard> {
-        self.lock()
+        let guard = self.lock()?;
+        self.require_legacy_mode()?;
+        Ok(guard)
     }
 
-    fn lock(&self) -> Result<WriterGuard> {
+    pub(crate) fn lock(&self) -> Result<WriterGuard> {
         let guard = lock::acquire(&self.root, self.options.lock_wait)?;
         self.options.faults.io(FaultPoint::AfterLock)?;
         Ok(guard)
@@ -1658,6 +1669,20 @@ impl Vault {
 
     /// Apply one transaction (see the module documentation for the order).
     pub fn commit(&self, request: CommitRequest) -> Result<CommitOutcome> {
+        let _guard = self.writer_guard()?;
+        self.commit_locked(request, None)
+    }
+
+    /// Caller owns writer exclusion and has freshly verified authority before
+    /// ANY replay, staging cleanup or data write. Never expose this to clients.
+    pub(crate) fn commit_locked(
+        &self,
+        request: CommitRequest,
+        authority: Option<&enouia_memory_contract::host::AuthorityState>,
+    ) -> Result<CommitOutcome> {
+        if authority.is_some() && !self.options.validate_record_set {
+            return Err(enouia_memory_contract::host::HostFault::InvalidState.into());
+        }
         if request.operation_kind == OperationKind::Genesis
             || request.operation_kind == OperationKind::RestoreAdopt
         {
@@ -1668,7 +1693,6 @@ impl Vault {
         {
             return Err(VaultError::invalid(vec!["store.idempotency_scope"]));
         }
-        let _guard = self.lock()?;
         self.clear_staging()?;
         let head = self.load_head()?;
         match self.published_receipt(&head, &request.idempotency)? {
@@ -1785,7 +1809,10 @@ impl Vault {
             parent_commit_id: Some(head.commit_id.clone()),
             sequence: head.sequence + 1,
             vault_id: self.descriptor.vault_id.clone(),
-            writer_device_id: self.device_id.clone(),
+            writer_device_id: authority.map_or_else(
+                || self.device_id.clone(),
+                |state| state.primary.host_id.clone(),
+            ),
             principal: request.principal.clone(),
             operation_id: operation_id.clone(),
             operation_kind: request.operation_kind,
@@ -1813,7 +1840,18 @@ impl Vault {
             &request.objects,
             Some((&request.idempotency, &request.request_payload_hash)),
         )?;
-        self.publish(&built.commit)?;
+        if let Some(authority) = authority {
+            let checkpoint = self.checkpoint_for_locked(&Self::pin_of(&built.commit))?;
+            let next = authority.advance(&authority.primary, &authority.checkpoint, checkpoint)?;
+            let hash = self.write_authority(&next)?;
+            // Only this replacement publishes BOTH the new data and authority.
+            self.publish_with_authority(&built.commit, Some(hash))
+                .map_err(|_| {
+                    VaultError::from(enouia_memory_contract::host::HostFault::OutcomeUnknown)
+                })?;
+        } else {
+            self.publish(&built.commit)?;
+        }
         Ok(CommitOutcome::Committed {
             commit_id: built.commit.commit_id.clone(),
             receipt: built.commit.receipt.clone(),
@@ -1921,7 +1959,7 @@ impl Vault {
         if approved_by.actor_type != ActorType::Owner {
             return Err(VaultError::invalid(vec!["recovery.owner_required"]));
         }
-        let _guard = self.lock()?;
+        let _guard = self.writer_guard()?;
         let report = self.recovery_report()?;
         if report.current == CurrentState::Valid {
             return Err(VaultError::invalid(vec!["recovery.current_valid"]));

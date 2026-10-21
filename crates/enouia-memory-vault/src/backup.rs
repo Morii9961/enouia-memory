@@ -58,6 +58,8 @@ pub fn export_pinned(
     pin: &CommitPin,
     destination: &VerifiedRoot,
 ) -> Result<ExportManifest> {
+    // Until a Host-aware export format exists, never strip its authority fence.
+    let _guard = vault.writer_guard()?;
     let source_root = vault.managed_root().root();
     if destination.path().starts_with(source_root) || source_root.starts_with(destination.path()) {
         return Err(VaultError::invalid(vec!["export.destination_overlaps"]));
@@ -426,6 +428,7 @@ pub fn restore_export(
         commit_id: export.commit_id.clone(),
         sequence: export.sequence,
         manifest_sha256: export.manifest_sha256.clone(),
+        host_authority_hash: None,
     };
     out.write_atomic(
         &layout::current_pointer(),
@@ -472,6 +475,7 @@ pub fn network_allowed(vault: &Vault) -> Result<bool> {
 /// revocations made after its export (B02); network use may resume. A Vault
 /// that was not restored has nothing to reconcile.
 pub fn mark_reconciled(vault: &Vault) -> Result<()> {
+    let _guard = vault.writer_guard()?;
     let Some(bytes) = vault.managed_root().read(&layout::restore_state())? else {
         return Ok(());
     };

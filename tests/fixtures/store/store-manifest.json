@@ -536,6 +536,34 @@
       ],
       "rust_rule": "shape",
       "schema": "reject"
+    },
+    {
+      "base": "current-host.json",
+      "covers": "Host authority reference is absent or a digest, never null or unchecked text",
+      "id": "host-current-null",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/host_authority_hash",
+          "value": null
+        }
+      ],
+      "rust_rule": "shape",
+      "schema": "reject"
+    },
+    {
+      "base": "current-host.json",
+      "covers": "Host authority reference is absent or a digest, never null or unchecked text",
+      "id": "host-current-invalid",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/host_authority_hash",
+          "value": "not-a-digest"
+        }
+      ],
+      "rust_rule": "shape",
+      "schema": "reject"
     }
   ],
   "valid": [
@@ -546,6 +574,11 @@
     },
     {
       "file": "current.json",
+      "schema": "store/current-v1.schema.json",
+      "type": "current"
+    },
+    {
+      "file": "current-host.json",
       "schema": "store/current-v1.schema.json",
       "type": "current"
     },

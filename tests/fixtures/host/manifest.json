@@ -1,0 +1,2950 @@
+{
+  "valid": [
+    {
+      "file": "initial.json",
+      "type": "authority",
+      "schema": "host/authority-v1.schema.json"
+    },
+    {
+      "file": "plan.json",
+      "type": "plan",
+      "schema": "host/transfer-plan-v1.schema.json"
+    },
+    {
+      "file": "quiesced.json",
+      "type": "authority",
+      "schema": "host/authority-v1.schema.json"
+    },
+    {
+      "file": "promoted.json",
+      "type": "authority",
+      "schema": "host/authority-v1.schema.json"
+    }
+  ],
+  "invalid": [
+    {
+      "id": "unknown-authority-field",
+      "base": "initial.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/token",
+          "value": "synthetic-not-a-key"
+        }
+      ],
+      "rust_rule": "shape",
+      "schema": "reject"
+    },
+    {
+      "id": "zero-primary-epoch",
+      "base": "initial.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/primary/primary_epoch",
+          "value": 0
+        }
+      ],
+      "rust_rule": "shape",
+      "schema": "reject"
+    },
+    {
+      "id": "unknown-major",
+      "base": "initial.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/schema_version",
+          "value": 2
+        }
+      ],
+      "rust_rule": "unsupported_schema",
+      "schema": "reject"
+    },
+    {
+      "id": "unsafe-watermark",
+      "base": "initial.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/checkpoint/deletion_epoch",
+          "value": 9007199254740992
+        }
+      ],
+      "rust_rule": "number.out_of_range",
+      "schema": "reject"
+    },
+    {
+      "id": "negative-watermark",
+      "base": "initial.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/checkpoint/policy_epoch",
+          "value": -1
+        }
+      ],
+      "rust_rule": "shape",
+      "schema": "reject"
+    },
+    {
+      "id": "unproven-primary-epoch",
+      "base": "initial.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/primary/primary_epoch",
+          "value": 2
+        }
+      ],
+      "rust_rule": "host.primary_chain",
+      "schema": "accept"
+    },
+    {
+      "id": "wrong-plan-hash",
+      "base": "plan.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/plan_hash",
+          "value": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        }
+      ],
+      "rust_rule": "host.plan_hash",
+      "schema": "accept"
+    },
+    {
+      "id": "same-target-host",
+      "base": "plan.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/intent/target_host",
+          "value": "dev_00000001-0000-4000-8000-000000000001"
+        }
+      ],
+      "rust_rule": "host.distinct_target",
+      "schema": "accept"
+    },
+    {
+      "id": "wrong-quiesced-revision",
+      "base": "quiesced.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/revision",
+          "value": 3
+        }
+      ],
+      "rust_rule": "host.quiesced_binding",
+      "schema": "accept"
+    },
+    {
+      "id": "wrong-quiesced-checkpoint",
+      "base": "quiesced.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/checkpoint/snapshot_hash",
+          "value": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        }
+      ],
+      "rust_rule": "host.quiesced_binding",
+      "schema": "accept"
+    },
+    {
+      "id": "wrong-promoted-host",
+      "base": "promoted.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/primary/host_id",
+          "value": "dev_00000001-0000-4000-8000-000000000001"
+        }
+      ],
+      "rust_rule": "host.primary_chain",
+      "schema": "accept"
+    },
+    {
+      "id": "watermark-rollback",
+      "base": "promoted.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/checkpoint/snapshot_hash",
+          "value": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        }
+      ],
+      "rust_rule": "host.primary_chain",
+      "schema": "accept"
+    },
+    {
+      "id": "receipt-over-budget",
+      "base": "promoted.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/promotions",
+          "value": [
+            {
+              "schema_version": 1,
+              "intent": {
+                "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+                "operation_id": "op_00000001-0000-4000-8000-000000000001",
+                "source": {
+                  "host_id": "dev_00000001-0000-4000-8000-000000000001",
+                  "primary_epoch": 1
+                },
+                "target_host": "dev_00000002-0000-4000-8000-000000000001",
+                "base_revision": 1,
+                "checkpoint": {
+                  "commit_id": "cmt_00000001-0000-4000-8000-000000000001",
+                  "commit_sequence": 1,
+                  "snapshot_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "policy_epoch": 0,
+                  "deletion_epoch": 0
+                }
+              },
+              "plan_hash": "cd5f38f9ddf98a2d52ec3ff61e9aef76661c28358e40a542f7471d43724096c7"
+            },
+            {
+              "schema_version": 1,
+              "intent": {
+                "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+                "operation_id": "op_00000001-0000-4000-8000-000000000001",
+                "source": {
+                  "host_id": "dev_00000001-0000-4000-8000-000000000001",
+                  "primary_epoch": 1
+                },
+                "target_host": "dev_00000002-0000-4000-8000-000000000001",
+                "base_revision": 1,
+                "checkpoint": {
+                  "commit_id": "cmt_00000001-0000-4000-8000-000000000001",
+                  "commit_sequence": 1,
+                  "snapshot_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "policy_epoch": 0,
+                  "deletion_epoch": 0
+                }
+              },
+              "plan_hash": "cd5f38f9ddf98a2d52ec3ff61e9aef76661c28358e40a542f7471d43724096c7"
+            },
+            {
+              "schema_version": 1,
+              "intent": {
+                "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+                "operation_id": "op_00000001-0000-4000-8000-000000000001",
+                "source": {
+                  "host_id": "dev_00000001-0000-4000-8000-000000000001",
+                  "primary_epoch": 1
+                },
+                "target_host": "dev_00000002-0000-4000-8000-000000000001",
+                "base_revision": 1,
+                "checkpoint": {
+                  "commit_id": "cmt_00000001-0000-4000-8000-000000000001",
+                  "commit_sequence": 1,
+                  "snapshot_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "policy_epoch": 0,
+                  "deletion_epoch": 0
+                }
+              },
+              "plan_hash": "cd5f38f9ddf98a2d52ec3ff61e9aef76661c28358e40a542f7471d43724096c7"
+            },
+            {
+              "schema_version": 1,
+              "intent": {
+                "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+                "operation_id": "op_00000001-0000-4000-8000-000000000001",
+                "source": {
+                  "host_id": "dev_00000001-0000-4000-8000-000000000001",
+                  "primary_epoch": 1
+                },
+                "target_host": "dev_00000002-0000-4000-8000-000000000001",
+                "base_revision": 1,
+                "checkpoint": {
+                  "commit_id": "cmt_00000001-0000-4000-8000-000000000001",
+                  "commit_sequence": 1,
+                  "snapshot_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "policy_epoch": 0,
+                  "deletion_epoch": 0
+                }
+              },
+              "plan_hash": "cd5f38f9ddf98a2d52ec3ff61e9aef76661c28358e40a542f7471d43724096c7"
+            },
+            {
+              "schema_version": 1,
+              "intent": {
+                "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+                "operation_id": "op_00000001-0000-4000-8000-000000000001",
+                "source": {
+                  "host_id": "dev_00000001-0000-4000-8000-000000000001",
+                  "primary_epoch": 1
+                },
+                "target_host": "dev_00000002-0000-4000-8000-000000000001",
+                "base_revision": 1,
+                "checkpoint": {
+                  "commit_id": "cmt_00000001-0000-4000-8000-000000000001",
+                  "commit_sequence": 1,
+                  "snapshot_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "policy_epoch": 0,
+                  "deletion_epoch": 0
+                }
+              },
+              "plan_hash": "cd5f38f9ddf98a2d52ec3ff61e9aef76661c28358e40a542f7471d43724096c7"
+            },
+            {
+              "schema_version": 1,
+              "intent": {
+                "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+                "operation_id": "op_00000001-0000-4000-8000-000000000001",
+                "source": {
+                  "host_id": "dev_00000001-0000-4000-8000-000000000001",
+                  "primary_epoch": 1
+                },
+                "target_host": "dev_00000002-0000-4000-8000-000000000001",
+                "base_revision": 1,
+                "checkpoint": {
+                  "commit_id": "cmt_00000001-0000-4000-8000-000000000001",
+                  "commit_sequence": 1,
+                  "snapshot_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "policy_epoch": 0,
+                  "deletion_epoch": 0
+                }
+              },
+              "plan_hash": "cd5f38f9ddf98a2d52ec3ff61e9aef76661c28358e40a542f7471d43724096c7"
+            },
+            {
+              "schema_version": 1,
+              "intent": {
+                "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+                "operation_id": "op_00000001-0000-4000-8000-000000000001",
+                "source": {
+                  "host_id": "dev_00000001-0000-4000-8000-000000000001",
+                  "primary_epoch": 1
+                },
+                "target_host": "dev_00000002-0000-4000-8000-000000000001",
+                "base_revision": 1,
+                "checkpoint": {
+                  "commit_id": "cmt_00000001-0000-4000-8000-000000000001",
+                  "commit_sequence": 1,
+                  "snapshot_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "policy_epoch": 0,
+                  "deletion_epoch": 0
+                }
+              },
+              "plan_hash": "cd5f38f9ddf98a2d52ec3ff61e9aef76661c28358e40a542f7471d43724096c7"
+            },
+            {
+              "schema_version": 1,
+              "intent": {
+                "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+                "operation_id": "op_00000001-0000-4000-8000-000000000001",
+                "source": {
+                  "host_id": "dev_00000001-0000-4000-8000-000000000001",
+                  "primary_epoch": 1
+                },
+                "target_host": "dev_00000002-0000-4000-8000-000000000001",
+                "base_revision": 1,
+                "checkpoint": {
+                  "commit_id": "cmt_00000001-0000-4000-8000-000000000001",
+                  "commit_sequence": 1,
+                  "snapshot_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "policy_epoch": 0,
+                  "deletion_epoch": 0
+                }
+              },
+              "plan_hash": "cd5f38f9ddf98a2d52ec3ff61e9aef76661c28358e40a542f7471d43724096c7"
+            },
+            {
+              "schema_version": 1,
+              "intent": {
+                "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+                "operation_id": "op_00000001-0000-4000-8000-000000000001",
+                "source": {
+                  "host_id": "dev_00000001-0000-4000-8000-000000000001",
+                  "primary_epoch": 1
+                },
+                "target_host": "dev_00000002-0000-4000-8000-000000000001",
+                "base_revision": 1,
+                "checkpoint": {
+                  "commit_id": "cmt_00000001-0000-4000-8000-000000000001",
+                  "commit_sequence": 1,
+                  "snapshot_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "policy_epoch": 0,
+                  "deletion_epoch": 0
+                }
+              },
+              "plan_hash": "cd5f38f9ddf98a2d52ec3ff61e9aef76661c28358e40a542f7471d43724096c7"
+            },
+            {
+              "schema_version": 1,
+              "intent": {
+                "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+                "operation_id": "op_00000001-0000-4000-8000-000000000001",
+                "source": {
+                  "host_id": "dev_00000001-0000-4000-8000-000000000001",
+                  "primary_epoch": 1
+                },
+                "target_host": "dev_00000002-0000-4000-8000-000000000001",
+                "base_revision": 1,
+                "checkpoint": {
+                  "commit_id": "cmt_00000001-0000-4000-8000-000000000001",
+                  "commit_sequence": 1,
+                  "snapshot_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "policy_epoch": 0,
+                  "deletion_epoch": 0
+                }
+              },
+              "plan_hash": "cd5f38f9ddf98a2d52ec3ff61e9aef76661c28358e40a542f7471d43724096c7"
+            },
+            {
+              "schema_version": 1,
+              "intent": {
+                "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+                "operation_id": "op_00000001-0000-4000-8000-000000000001",
+                "source": {
+                  "host_id": "dev_00000001-0000-4000-8000-000000000001",
+                  "primary_epoch": 1
+                },
+                "target_host": "dev_00000002-0000-4000-8000-000000000001",
+                "base_revision": 1,
+                "checkpoint": {
+                  "commit_id": "cmt_00000001-0000-4000-8000-000000000001",
+                  "commit_sequence": 1,
+                  "snapshot_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "policy_epoch": 0,
+                  "deletion_epoch": 0
+                }
+              },
+              "plan_hash": "cd5f38f9ddf98a2d52ec3ff61e9aef76661c28358e40a542f7471d43724096c7"
+            },
+            {
+              "schema_version": 1,
+              "intent": {
+                "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+                "operation_id": "op_00000001-0000-4000-8000-000000000001",
+                "source": {
+                  "host_id": "dev_00000001-0000-4000-8000-000000000001",
+                  "primary_epoch": 1
+                },
+                "target_host": "dev_00000002-0000-4000-8000-000000000001",
+                "base_revision": 1,
+                "checkpoint": {
+                  "commit_id": "cmt_00000001-0000-4000-8000-000000000001",
+                  "commit_sequence": 1,
+                  "snapshot_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "policy_epoch": 0,
+                  "deletion_epoch": 0
+                }
+              },
+              "plan_hash": "cd5f38f9ddf98a2d52ec3ff61e9aef76661c28358e40a542f7471d43724096c7"
+            },
+            {
+              "schema_version": 1,
+              "intent": {
+                "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+                "operation_id": "op_00000001-0000-4000-8000-000000000001",
+                "source": {
+                  "host_id": "dev_00000001-0000-4000-8000-000000000001",
+                  "primary_epoch": 1
+                },
+                "target_host": "dev_00000002-0000-4000-8000-000000000001",
+                "base_revision": 1,
+                "checkpoint": {
+                  "commit_id": "cmt_00000001-0000-4000-8000-000000000001",
+                  "commit_sequence": 1,
+                  "snapshot_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "policy_epoch": 0,
+                  "deletion_epoch": 0
+                }
+              },
+              "plan_hash": "cd5f38f9ddf98a2d52ec3ff61e9aef76661c28358e40a542f7471d43724096c7"
+            },
+            {
+              "schema_version": 1,
+              "intent": {
+                "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+                "operation_id": "op_00000001-0000-4000-8000-000000000001",
+                "source": {
+                  "host_id": "dev_00000001-0000-4000-8000-000000000001",
+                  "primary_epoch": 1
+                },
+                "target_host": "dev_00000002-0000-4000-8000-000000000001",
+                "base_revision": 1,
+                "checkpoint": {
+                  "commit_id": "cmt_00000001-0000-4000-8000-000000000001",
+                  "commit_sequence": 1,
+                  "snapshot_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "policy_epoch": 0,
+                  "deletion_epoch": 0
+                }
+              },
+              "plan_hash": "cd5f38f9ddf98a2d52ec3ff61e9aef76661c28358e40a542f7471d43724096c7"
+            },
+            {
+              "schema_version": 1,
+              "intent": {
+                "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+                "operation_id": "op_00000001-0000-4000-8000-000000000001",
+                "source": {
+                  "host_id": "dev_00000001-0000-4000-8000-000000000001",
+                  "primary_epoch": 1
+                },
+                "target_host": "dev_00000002-0000-4000-8000-000000000001",
+                "base_revision": 1,
+                "checkpoint": {
+                  "commit_id": "cmt_00000001-0000-4000-8000-000000000001",
+                  "commit_sequence": 1,
+                  "snapshot_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "policy_epoch": 0,
+                  "deletion_epoch": 0
+                }
+              },
+              "plan_hash": "cd5f38f9ddf98a2d52ec3ff61e9aef76661c28358e40a542f7471d43724096c7"
+            },
+            {
+              "schema_version": 1,
+              "intent": {
+                "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+                "operation_id": "op_00000001-0000-4000-8000-000000000001",
+                "source": {
+                  "host_id": "dev_00000001-0000-4000-8000-000000000001",
+                  "primary_epoch": 1
+                },
+                "target_host": "dev_00000002-0000-4000-8000-000000000001",
+                "base_revision": 1,
+                "checkpoint": {
+                  "commit_id": "cmt_00000001-0000-4000-8000-000000000001",
+                  "commit_sequence": 1,
+                  "snapshot_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "policy_epoch": 0,
+                  "deletion_epoch": 0
+                }
+              },
+              "plan_hash": "cd5f38f9ddf98a2d52ec3ff61e9aef76661c28358e40a542f7471d43724096c7"
+            },
+            {
+              "schema_version": 1,
+              "intent": {
+                "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+                "operation_id": "op_00000001-0000-4000-8000-000000000001",
+                "source": {
+                  "host_id": "dev_00000001-0000-4000-8000-000000000001",
+                  "primary_epoch": 1
+                },
+                "target_host": "dev_00000002-0000-4000-8000-000000000001",
+                "base_revision": 1,
+                "checkpoint": {
+                  "commit_id": "cmt_00000001-0000-4000-8000-000000000001",
+                  "commit_sequence": 1,
+                  "snapshot_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "policy_epoch": 0,
+                  "deletion_epoch": 0
+                }
+              },
+              "plan_hash": "cd5f38f9ddf98a2d52ec3ff61e9aef76661c28358e40a542f7471d43724096c7"
+            },
+            {
+              "schema_version": 1,
+              "intent": {
+                "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+                "operation_id": "op_00000001-0000-4000-8000-000000000001",
+                "source": {
+                  "host_id": "dev_00000001-0000-4000-8000-000000000001",
+                  "primary_epoch": 1
+                },
+                "target_host": "dev_00000002-0000-4000-8000-000000000001",
+                "base_revision": 1,
+                "checkpoint": {
+                  "commit_id": "cmt_00000001-0000-4000-8000-000000000001",
+                  "commit_sequence": 1,
+                  "snapshot_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "policy_epoch": 0,
+                  "deletion_epoch": 0
+                }
+              },
+              "plan_hash": "cd5f38f9ddf98a2d52ec3ff61e9aef76661c28358e40a542f7471d43724096c7"
+            },
+            {
+              "schema_version": 1,
+              "intent": {
+                "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+                "operation_id": "op_00000001-0000-4000-8000-000000000001",
+                "source": {
+                  "host_id": "dev_00000001-0000-4000-8000-000000000001",
+                  "primary_epoch": 1
+                },
+                "target_host": "dev_00000002-0000-4000-8000-000000000001",
+                "base_revision": 1,
+                "checkpoint": {
+                  "commit_id": "cmt_00000001-0000-4000-8000-000000000001",
+                  "commit_sequence": 1,
+                  "snapshot_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "policy_epoch": 0,
+                  "deletion_epoch": 0
+                }
+              },
+              "plan_hash": "cd5f38f9ddf98a2d52ec3ff61e9aef76661c28358e40a542f7471d43724096c7"
+            },
+            {
+              "schema_version": 1,
+              "intent": {
+                "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+                "operation_id": "op_00000001-0000-4000-8000-000000000001",
+                "source": {
+                  "host_id": "dev_00000001-0000-4000-8000-000000000001",
+                  "primary_epoch": 1
+                },
+                "target_host": "dev_00000002-0000-4000-8000-000000000001",
+                "base_revision": 1,
+                "checkpoint": {
+                  "commit_id": "cmt_00000001-0000-4000-8000-000000000001",
+                  "commit_sequence": 1,
+                  "snapshot_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "policy_epoch": 0,
+                  "deletion_epoch": 0
+                }
+              },
+              "plan_hash": "cd5f38f9ddf98a2d52ec3ff61e9aef76661c28358e40a542f7471d43724096c7"
+            },
+            {
+              "schema_version": 1,
+              "intent": {
+                "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+                "operation_id": "op_00000001-0000-4000-8000-000000000001",
+                "source": {
+                  "host_id": "dev_00000001-0000-4000-8000-000000000001",
+                  "primary_epoch": 1
+                },
+                "target_host": "dev_00000002-0000-4000-8000-000000000001",
+                "base_revision": 1,
+                "checkpoint": {
+                  "commit_id": "cmt_00000001-0000-4000-8000-000000000001",
+                  "commit_sequence": 1,
+                  "snapshot_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "policy_epoch": 0,
+                  "deletion_epoch": 0
+                }
+              },
+              "plan_hash": "cd5f38f9ddf98a2d52ec3ff61e9aef76661c28358e40a542f7471d43724096c7"
+            },
+            {
+              "schema_version": 1,
+              "intent": {
+                "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+                "operation_id": "op_00000001-0000-4000-8000-000000000001",
+                "source": {
+                  "host_id": "dev_00000001-0000-4000-8000-000000000001",
+                  "primary_epoch": 1
+                },
+                "target_host": "dev_00000002-0000-4000-8000-000000000001",
+                "base_revision": 1,
+                "checkpoint": {
+                  "commit_id": "cmt_00000001-0000-4000-8000-000000000001",
+                  "commit_sequence": 1,
+                  "snapshot_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "policy_epoch": 0,
+                  "deletion_epoch": 0
+                }
+              },
+              "plan_hash": "cd5f38f9ddf98a2d52ec3ff61e9aef76661c28358e40a542f7471d43724096c7"
+            },
+            {
+              "schema_version": 1,
+              "intent": {
+                "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+                "operation_id": "op_00000001-0000-4000-8000-000000000001",
+                "source": {
+                  "host_id": "dev_00000001-0000-4000-8000-000000000001",
+                  "primary_epoch": 1
+                },
+                "target_host": "dev_00000002-0000-4000-8000-000000000001",
+                "base_revision": 1,
+                "checkpoint": {
+                  "commit_id": "cmt_00000001-0000-4000-8000-000000000001",
+                  "commit_sequence": 1,
+                  "snapshot_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "policy_epoch": 0,
+                  "deletion_epoch": 0
+                }
+              },
+              "plan_hash": "cd5f38f9ddf98a2d52ec3ff61e9aef76661c28358e40a542f7471d43724096c7"
+            },
+            {
+              "schema_version": 1,
+              "intent": {
+                "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+                "operation_id": "op_00000001-0000-4000-8000-000000000001",
+                "source": {
+                  "host_id": "dev_00000001-0000-4000-8000-000000000001",
+                  "primary_epoch": 1
+                },
+                "target_host": "dev_00000002-0000-4000-8000-000000000001",
+                "base_revision": 1,
+                "checkpoint": {
+                  "commit_id": "cmt_00000001-0000-4000-8000-000000000001",
+                  "commit_sequence": 1,
+                  "snapshot_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "policy_epoch": 0,
+                  "deletion_epoch": 0
+                }
+              },
+              "plan_hash": "cd5f38f9ddf98a2d52ec3ff61e9aef76661c28358e40a542f7471d43724096c7"
+            },
+            {
+              "schema_version": 1,
+              "intent": {
+                "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+                "operation_id": "op_00000001-0000-4000-8000-000000000001",
+                "source": {
+                  "host_id": "dev_00000001-0000-4000-8000-000000000001",
+                  "primary_epoch": 1
+                },
+                "target_host": "dev_00000002-0000-4000-8000-000000000001",
+                "base_revision": 1,
+                "checkpoint": {
+                  "commit_id": "cmt_00000001-0000-4000-8000-000000000001",
+                  "commit_sequence": 1,
+                  "snapshot_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "policy_epoch": 0,
+                  "deletion_epoch": 0
+                }
+              },
+              "plan_hash": "cd5f38f9ddf98a2d52ec3ff61e9aef76661c28358e40a542f7471d43724096c7"
+            },
+            {
+              "schema_version": 1,
+              "intent": {
+                "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+                "operation_id": "op_00000001-0000-4000-8000-000000000001",
+                "source": {
+                  "host_id": "dev_00000001-0000-4000-8000-000000000001",
+                  "primary_epoch": 1
+                },
+                "target_host": "dev_00000002-0000-4000-8000-000000000001",
+                "base_revision": 1,
+                "checkpoint": {
+                  "commit_id": "cmt_00000001-0000-4000-8000-000000000001",
+                  "commit_sequence": 1,
+                  "snapshot_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "policy_epoch": 0,
+                  "deletion_epoch": 0
+                }
+              },
+              "plan_hash": "cd5f38f9ddf98a2d52ec3ff61e9aef76661c28358e40a542f7471d43724096c7"
+            },
+            {
+              "schema_version": 1,
+              "intent": {
+                "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+                "operation_id": "op_00000001-0000-4000-8000-000000000001",
+                "source": {
+                  "host_id": "dev_00000001-0000-4000-8000-000000000001",
+                  "primary_epoch": 1
+                },
+                "target_host": "dev_00000002-0000-4000-8000-000000000001",
+                "base_revision": 1,
+                "checkpoint": {
+                  "commit_id": "cmt_00000001-0000-4000-8000-000000000001",
+                  "commit_sequence": 1,
+                  "snapshot_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "policy_epoch": 0,
+                  "deletion_epoch": 0
+                }
+              },
+              "plan_hash": "cd5f38f9ddf98a2d52ec3ff61e9aef76661c28358e40a542f7471d43724096c7"
+            },
+            {
+              "schema_version": 1,
+              "intent": {
+                "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+                "operation_id": "op_00000001-0000-4000-8000-000000000001",
+                "source": {
+                  "host_id": "dev_00000001-0000-4000-8000-000000000001",
+                  "primary_epoch": 1
+                },
+                "target_host": "dev_00000002-0000-4000-8000-000000000001",
+                "base_revision": 1,
+                "checkpoint": {
+                  "commit_id": "cmt_00000001-0000-4000-8000-000000000001",
+                  "commit_sequence": 1,
+                  "snapshot_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "policy_epoch": 0,
+                  "deletion_epoch": 0
+                }
+              },
+              "plan_hash": "cd5f38f9ddf98a2d52ec3ff61e9aef76661c28358e40a542f7471d43724096c7"
+            },
+            {
+              "schema_version": 1,
+              "intent": {
+                "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+                "operation_id": "op_00000001-0000-4000-8000-000000000001",
+                "source": {
+                  "host_id": "dev_00000001-0000-4000-8000-000000000001",
+                  "primary_epoch": 1
+                },
+                "target_host": "dev_00000002-0000-4000-8000-000000000001",
+                "base_revision": 1,
+                "checkpoint": {
+                  "commit_id": "cmt_00000001-0000-4000-8000-000000000001",
+                  "commit_sequence": 1,
+                  "snapshot_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "policy_epoch": 0,
+                  "deletion_epoch": 0
+                }
+              },
+              "plan_hash": "cd5f38f9ddf98a2d52ec3ff61e9aef76661c28358e40a542f7471d43724096c7"
+            },
+            {
+              "schema_version": 1,
+              "intent": {
+                "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+                "operation_id": "op_00000001-0000-4000-8000-000000000001",
+                "source": {
+                  "host_id": "dev_00000001-0000-4000-8000-000000000001",
+                  "primary_epoch": 1
+                },
+                "target_host": "dev_00000002-0000-4000-8000-000000000001",
+                "base_revision": 1,
+                "checkpoint": {
+                  "commit_id": "cmt_00000001-0000-4000-8000-000000000001",
+                  "commit_sequence": 1,
+                  "snapshot_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "policy_epoch": 0,
+                  "deletion_epoch": 0
+                }
+              },
+              "plan_hash": "cd5f38f9ddf98a2d52ec3ff61e9aef76661c28358e40a542f7471d43724096c7"
+            },
+            {
+              "schema_version": 1,
+              "intent": {
+                "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+                "operation_id": "op_00000001-0000-4000-8000-000000000001",
+                "source": {
+                  "host_id": "dev_00000001-0000-4000-8000-000000000001",
+                  "primary_epoch": 1
+                },
+                "target_host": "dev_00000002-0000-4000-8000-000000000001",
+                "base_revision": 1,
+                "checkpoint": {
+                  "commit_id": "cmt_00000001-0000-4000-8000-000000000001",
+                  "commit_sequence": 1,
+                  "snapshot_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "policy_epoch": 0,
+                  "deletion_epoch": 0
+                }
+              },
+              "plan_hash": "cd5f38f9ddf98a2d52ec3ff61e9aef76661c28358e40a542f7471d43724096c7"
+            },
+            {
+              "schema_version": 1,
+              "intent": {
+                "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+                "operation_id": "op_00000001-0000-4000-8000-000000000001",
+                "source": {
+                  "host_id": "dev_00000001-0000-4000-8000-000000000001",
+                  "primary_epoch": 1
+                },
+                "target_host": "dev_00000002-0000-4000-8000-000000000001",
+                "base_revision": 1,
+                "checkpoint": {
+                  "commit_id": "cmt_00000001-0000-4000-8000-000000000001",
+                  "commit_sequence": 1,
+                  "snapshot_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "policy_epoch": 0,
+                  "deletion_epoch": 0
+                }
+              },
+              "plan_hash": "cd5f38f9ddf98a2d52ec3ff61e9aef76661c28358e40a542f7471d43724096c7"
+            },
+            {
+              "schema_version": 1,
+              "intent": {
+                "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+                "operation_id": "op_00000001-0000-4000-8000-000000000001",
+                "source": {
+                  "host_id": "dev_00000001-0000-4000-8000-000000000001",
+                  "primary_epoch": 1
+                },
+                "target_host": "dev_00000002-0000-4000-8000-000000000001",
+                "base_revision": 1,
+                "checkpoint": {
+                  "commit_id": "cmt_00000001-0000-4000-8000-000000000001",
+                  "commit_sequence": 1,
+                  "snapshot_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "policy_epoch": 0,
+                  "deletion_epoch": 0
+                }
+              },
+              "plan_hash": "cd5f38f9ddf98a2d52ec3ff61e9aef76661c28358e40a542f7471d43724096c7"
+            },
+            {
+              "schema_version": 1,
+              "intent": {
+                "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+                "operation_id": "op_00000001-0000-4000-8000-000000000001",
+                "source": {
+                  "host_id": "dev_00000001-0000-4000-8000-000000000001",
+                  "primary_epoch": 1
+                },
+                "target_host": "dev_00000002-0000-4000-8000-000000000001",
+                "base_revision": 1,
+                "checkpoint": {
+                  "commit_id": "cmt_00000001-0000-4000-8000-000000000001",
+                  "commit_sequence": 1,
+                  "snapshot_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "policy_epoch": 0,
+                  "deletion_epoch": 0
+                }
+              },
+              "plan_hash": "cd5f38f9ddf98a2d52ec3ff61e9aef76661c28358e40a542f7471d43724096c7"
+            },
+            {
+              "schema_version": 1,
+              "intent": {
+                "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+                "operation_id": "op_00000001-0000-4000-8000-000000000001",
+                "source": {
+                  "host_id": "dev_00000001-0000-4000-8000-000000000001",
+                  "primary_epoch": 1
+                },
+                "target_host": "dev_00000002-0000-4000-8000-000000000001",
+                "base_revision": 1,
+                "checkpoint": {
+                  "commit_id": "cmt_00000001-0000-4000-8000-000000000001",
+                  "commit_sequence": 1,
+                  "snapshot_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "policy_epoch": 0,
+                  "deletion_epoch": 0
+                }
+              },
+              "plan_hash": "cd5f38f9ddf98a2d52ec3ff61e9aef76661c28358e40a542f7471d43724096c7"
+            },
+            {
+              "schema_version": 1,
+              "intent": {
+                "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+                "operation_id": "op_00000001-0000-4000-8000-000000000001",
+                "source": {
+                  "host_id": "dev_00000001-0000-4000-8000-000000000001",
+                  "primary_epoch": 1
+                },
+                "target_host": "dev_00000002-0000-4000-8000-000000000001",
+                "base_revision": 1,
+                "checkpoint": {
+                  "commit_id": "cmt_00000001-0000-4000-8000-000000000001",
+                  "commit_sequence": 1,
+                  "snapshot_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "policy_epoch": 0,
+                  "deletion_epoch": 0
+                }
+              },
+              "plan_hash": "cd5f38f9ddf98a2d52ec3ff61e9aef76661c28358e40a542f7471d43724096c7"
+            },
+            {
+              "schema_version": 1,
+              "intent": {
+                "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+                "operation_id": "op_00000001-0000-4000-8000-000000000001",
+                "source": {
+                  "host_id": "dev_00000001-0000-4000-8000-000000000001",
+                  "primary_epoch": 1
+                },
+                "target_host": "dev_00000002-0000-4000-8000-000000000001",
+                "base_revision": 1,
+                "checkpoint": {
+                  "commit_id": "cmt_00000001-0000-4000-8000-000000000001",
+                  "commit_sequence": 1,
+                  "snapshot_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "policy_epoch": 0,
+                  "deletion_epoch": 0
+                }
+              },
+              "plan_hash": "cd5f38f9ddf98a2d52ec3ff61e9aef76661c28358e40a542f7471d43724096c7"
+            },
+            {
+              "schema_version": 1,
+              "intent": {
+                "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+                "operation_id": "op_00000001-0000-4000-8000-000000000001",
+                "source": {
+                  "host_id": "dev_00000001-0000-4000-8000-000000000001",
+                  "primary_epoch": 1
+                },
+                "target_host": "dev_00000002-0000-4000-8000-000000000001",
+                "base_revision": 1,
+                "checkpoint": {
+                  "commit_id": "cmt_00000001-0000-4000-8000-000000000001",
+                  "commit_sequence": 1,
+                  "snapshot_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "policy_epoch": 0,
+                  "deletion_epoch": 0
+                }
+              },
+              "plan_hash": "cd5f38f9ddf98a2d52ec3ff61e9aef76661c28358e40a542f7471d43724096c7"
+            },
+            {
+              "schema_version": 1,
+              "intent": {
+                "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+                "operation_id": "op_00000001-0000-4000-8000-000000000001",
+                "source": {
+                  "host_id": "dev_00000001-0000-4000-8000-000000000001",
+                  "primary_epoch": 1
+                },
+                "target_host": "dev_00000002-0000-4000-8000-000000000001",
+                "base_revision": 1,
+                "checkpoint": {
+                  "commit_id": "cmt_00000001-0000-4000-8000-000000000001",
+                  "commit_sequence": 1,
+                  "snapshot_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "policy_epoch": 0,
+                  "deletion_epoch": 0
+                }
+              },
+              "plan_hash": "cd5f38f9ddf98a2d52ec3ff61e9aef76661c28358e40a542f7471d43724096c7"
+            },
+            {
+              "schema_version": 1,
+              "intent": {
+                "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+                "operation_id": "op_00000001-0000-4000-8000-000000000001",
+                "source": {
+                  "host_id": "dev_00000001-0000-4000-8000-000000000001",
+                  "primary_epoch": 1
+                },
+                "target_host": "dev_00000002-0000-4000-8000-000000000001",
+                "base_revision": 1,
+                "checkpoint": {
+                  "commit_id": "cmt_00000001-0000-4000-8000-000000000001",
+                  "commit_sequence": 1,
+                  "snapshot_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "policy_epoch": 0,
+                  "deletion_epoch": 0
+                }
+              },
+              "plan_hash": "cd5f38f9ddf98a2d52ec3ff61e9aef76661c28358e40a542f7471d43724096c7"
+            },
+            {
+              "schema_version": 1,
+              "intent": {
+                "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+                "operation_id": "op_00000001-0000-4000-8000-000000000001",
+                "source": {
+                  "host_id": "dev_00000001-0000-4000-8000-000000000001",
+                  "primary_epoch": 1
+                },
+                "target_host": "dev_00000002-0000-4000-8000-000000000001",
+                "base_revision": 1,
+                "checkpoint": {
+                  "commit_id": "cmt_00000001-0000-4000-8000-000000000001",
+                  "commit_sequence": 1,
+                  "snapshot_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "policy_epoch": 0,
+                  "deletion_epoch": 0
+                }
+              },
+              "plan_hash": "cd5f38f9ddf98a2d52ec3ff61e9aef76661c28358e40a542f7471d43724096c7"
+            },
+            {
+              "schema_version": 1,
+              "intent": {
+                "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+                "operation_id": "op_00000001-0000-4000-8000-000000000001",
+                "source": {
+                  "host_id": "dev_00000001-0000-4000-8000-000000000001",
+                  "primary_epoch": 1
+                },
+                "target_host": "dev_00000002-0000-4000-8000-000000000001",
+                "base_revision": 1,
+                "checkpoint": {
+                  "commit_id": "cmt_00000001-0000-4000-8000-000000000001",
+                  "commit_sequence": 1,
+                  "snapshot_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "policy_epoch": 0,
+                  "deletion_epoch": 0
+                }
+              },
+              "plan_hash": "cd5f38f9ddf98a2d52ec3ff61e9aef76661c28358e40a542f7471d43724096c7"
+            },
+            {
+              "schema_version": 1,
+              "intent": {
+                "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+                "operation_id": "op_00000001-0000-4000-8000-000000000001",
+                "source": {
+                  "host_id": "dev_00000001-0000-4000-8000-000000000001",
+                  "primary_epoch": 1
+                },
+                "target_host": "dev_00000002-0000-4000-8000-000000000001",
+                "base_revision": 1,
+                "checkpoint": {
+                  "commit_id": "cmt_00000001-0000-4000-8000-000000000001",
+                  "commit_sequence": 1,
+                  "snapshot_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "policy_epoch": 0,
+                  "deletion_epoch": 0
+                }
+              },
+              "plan_hash": "cd5f38f9ddf98a2d52ec3ff61e9aef76661c28358e40a542f7471d43724096c7"
+            },
+            {
+              "schema_version": 1,
+              "intent": {
+                "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+                "operation_id": "op_00000001-0000-4000-8000-000000000001",
+                "source": {
+                  "host_id": "dev_00000001-0000-4000-8000-000000000001",
+                  "primary_epoch": 1
+                },
+                "target_host": "dev_00000002-0000-4000-8000-000000000001",
+                "base_revision": 1,
+                "checkpoint": {
+                  "commit_id": "cmt_00000001-0000-4000-8000-000000000001",
+                  "commit_sequence": 1,
+                  "snapshot_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "policy_epoch": 0,
+                  "deletion_epoch": 0
+                }
+              },
+              "plan_hash": "cd5f38f9ddf98a2d52ec3ff61e9aef76661c28358e40a542f7471d43724096c7"
+            },
+            {
+              "schema_version": 1,
+              "intent": {
+                "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+                "operation_id": "op_00000001-0000-4000-8000-000000000001",
+                "source": {
+                  "host_id": "dev_00000001-0000-4000-8000-000000000001",
+                  "primary_epoch": 1
+                },
+                "target_host": "dev_00000002-0000-4000-8000-000000000001",
+                "base_revision": 1,
+                "checkpoint": {
+                  "commit_id": "cmt_00000001-0000-4000-8000-000000000001",
+                  "commit_sequence": 1,
+                  "snapshot_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "policy_epoch": 0,
+                  "deletion_epoch": 0
+                }
+              },
+              "plan_hash": "cd5f38f9ddf98a2d52ec3ff61e9aef76661c28358e40a542f7471d43724096c7"
+            },
+            {
+              "schema_version": 1,
+              "intent": {
+                "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+                "operation_id": "op_00000001-0000-4000-8000-000000000001",
+                "source": {
+                  "host_id": "dev_00000001-0000-4000-8000-000000000001",
+                  "primary_epoch": 1
+                },
+                "target_host": "dev_00000002-0000-4000-8000-000000000001",
+                "base_revision": 1,
+                "checkpoint": {
+                  "commit_id": "cmt_00000001-0000-4000-8000-000000000001",
+                  "commit_sequence": 1,
+                  "snapshot_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "policy_epoch": 0,
+                  "deletion_epoch": 0
+                }
+              },
+              "plan_hash": "cd5f38f9ddf98a2d52ec3ff61e9aef76661c28358e40a542f7471d43724096c7"
+            },
+            {
+              "schema_version": 1,
+              "intent": {
+                "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+                "operation_id": "op_00000001-0000-4000-8000-000000000001",
+                "source": {
+                  "host_id": "dev_00000001-0000-4000-8000-000000000001",
+                  "primary_epoch": 1
+                },
+                "target_host": "dev_00000002-0000-4000-8000-000000000001",
+                "base_revision": 1,
+                "checkpoint": {
+                  "commit_id": "cmt_00000001-0000-4000-8000-000000000001",
+                  "commit_sequence": 1,
+                  "snapshot_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "policy_epoch": 0,
+                  "deletion_epoch": 0
+                }
+              },
+              "plan_hash": "cd5f38f9ddf98a2d52ec3ff61e9aef76661c28358e40a542f7471d43724096c7"
+            },
+            {
+              "schema_version": 1,
+              "intent": {
+                "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+                "operation_id": "op_00000001-0000-4000-8000-000000000001",
+                "source": {
+                  "host_id": "dev_00000001-0000-4000-8000-000000000001",
+                  "primary_epoch": 1
+                },
+                "target_host": "dev_00000002-0000-4000-8000-000000000001",
+                "base_revision": 1,
+                "checkpoint": {
+                  "commit_id": "cmt_00000001-0000-4000-8000-000000000001",
+                  "commit_sequence": 1,
+                  "snapshot_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "policy_epoch": 0,
+                  "deletion_epoch": 0
+                }
+              },
+              "plan_hash": "cd5f38f9ddf98a2d52ec3ff61e9aef76661c28358e40a542f7471d43724096c7"
+            },
+            {
+              "schema_version": 1,
+              "intent": {
+                "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+                "operation_id": "op_00000001-0000-4000-8000-000000000001",
+                "source": {
+                  "host_id": "dev_00000001-0000-4000-8000-000000000001",
+                  "primary_epoch": 1
+                },
+                "target_host": "dev_00000002-0000-4000-8000-000000000001",
+                "base_revision": 1,
+                "checkpoint": {
+                  "commit_id": "cmt_00000001-0000-4000-8000-000000000001",
+                  "commit_sequence": 1,
+                  "snapshot_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "policy_epoch": 0,
+                  "deletion_epoch": 0
+                }
+              },
+              "plan_hash": "cd5f38f9ddf98a2d52ec3ff61e9aef76661c28358e40a542f7471d43724096c7"
+            },
+            {
+              "schema_version": 1,
+              "intent": {
+                "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+                "operation_id": "op_00000001-0000-4000-8000-000000000001",
+                "source": {
+                  "host_id": "dev_00000001-0000-4000-8000-000000000001",
+                  "primary_epoch": 1
+                },
+                "target_host": "dev_00000002-0000-4000-8000-000000000001",
+                "base_revision": 1,
+                "checkpoint": {
+                  "commit_id": "cmt_00000001-0000-4000-8000-000000000001",
+                  "commit_sequence": 1,
+                  "snapshot_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "policy_epoch": 0,
+                  "deletion_epoch": 0
+                }
+              },
+              "plan_hash": "cd5f38f9ddf98a2d52ec3ff61e9aef76661c28358e40a542f7471d43724096c7"
+            },
+            {
+              "schema_version": 1,
+              "intent": {
+                "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+                "operation_id": "op_00000001-0000-4000-8000-000000000001",
+                "source": {
+                  "host_id": "dev_00000001-0000-4000-8000-000000000001",
+                  "primary_epoch": 1
+                },
+                "target_host": "dev_00000002-0000-4000-8000-000000000001",
+                "base_revision": 1,
+                "checkpoint": {
+                  "commit_id": "cmt_00000001-0000-4000-8000-000000000001",
+                  "commit_sequence": 1,
+                  "snapshot_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "policy_epoch": 0,
+                  "deletion_epoch": 0
+                }
+              },
+              "plan_hash": "cd5f38f9ddf98a2d52ec3ff61e9aef76661c28358e40a542f7471d43724096c7"
+            },
+            {
+              "schema_version": 1,
+              "intent": {
+                "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+                "operation_id": "op_00000001-0000-4000-8000-000000000001",
+                "source": {
+                  "host_id": "dev_00000001-0000-4000-8000-000000000001",
+                  "primary_epoch": 1
+                },
+                "target_host": "dev_00000002-0000-4000-8000-000000000001",
+                "base_revision": 1,
+                "checkpoint": {
+                  "commit_id": "cmt_00000001-0000-4000-8000-000000000001",
+                  "commit_sequence": 1,
+                  "snapshot_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "policy_epoch": 0,
+                  "deletion_epoch": 0
+                }
+              },
+              "plan_hash": "cd5f38f9ddf98a2d52ec3ff61e9aef76661c28358e40a542f7471d43724096c7"
+            },
+            {
+              "schema_version": 1,
+              "intent": {
+                "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+                "operation_id": "op_00000001-0000-4000-8000-000000000001",
+                "source": {
+                  "host_id": "dev_00000001-0000-4000-8000-000000000001",
+                  "primary_epoch": 1
+                },
+                "target_host": "dev_00000002-0000-4000-8000-000000000001",
+                "base_revision": 1,
+                "checkpoint": {
+                  "commit_id": "cmt_00000001-0000-4000-8000-000000000001",
+                  "commit_sequence": 1,
+                  "snapshot_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "policy_epoch": 0,
+                  "deletion_epoch": 0
+                }
+              },
+              "plan_hash": "cd5f38f9ddf98a2d52ec3ff61e9aef76661c28358e40a542f7471d43724096c7"
+            },
+            {
+              "schema_version": 1,
+              "intent": {
+                "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+                "operation_id": "op_00000001-0000-4000-8000-000000000001",
+                "source": {
+                  "host_id": "dev_00000001-0000-4000-8000-000000000001",
+                  "primary_epoch": 1
+                },
+                "target_host": "dev_00000002-0000-4000-8000-000000000001",
+                "base_revision": 1,
+                "checkpoint": {
+                  "commit_id": "cmt_00000001-0000-4000-8000-000000000001",
+                  "commit_sequence": 1,
+                  "snapshot_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "policy_epoch": 0,
+                  "deletion_epoch": 0
+                }
+              },
+              "plan_hash": "cd5f38f9ddf98a2d52ec3ff61e9aef76661c28358e40a542f7471d43724096c7"
+            },
+            {
+              "schema_version": 1,
+              "intent": {
+                "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+                "operation_id": "op_00000001-0000-4000-8000-000000000001",
+                "source": {
+                  "host_id": "dev_00000001-0000-4000-8000-000000000001",
+                  "primary_epoch": 1
+                },
+                "target_host": "dev_00000002-0000-4000-8000-000000000001",
+                "base_revision": 1,
+                "checkpoint": {
+                  "commit_id": "cmt_00000001-0000-4000-8000-000000000001",
+                  "commit_sequence": 1,
+                  "snapshot_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "policy_epoch": 0,
+                  "deletion_epoch": 0
+                }
+              },
+              "plan_hash": "cd5f38f9ddf98a2d52ec3ff61e9aef76661c28358e40a542f7471d43724096c7"
+            },
+            {
+              "schema_version": 1,
+              "intent": {
+                "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+                "operation_id": "op_00000001-0000-4000-8000-000000000001",
+                "source": {
+                  "host_id": "dev_00000001-0000-4000-8000-000000000001",
+                  "primary_epoch": 1
+                },
+                "target_host": "dev_00000002-0000-4000-8000-000000000001",
+                "base_revision": 1,
+                "checkpoint": {
+                  "commit_id": "cmt_00000001-0000-4000-8000-000000000001",
+                  "commit_sequence": 1,
+                  "snapshot_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "policy_epoch": 0,
+                  "deletion_epoch": 0
+                }
+              },
+              "plan_hash": "cd5f38f9ddf98a2d52ec3ff61e9aef76661c28358e40a542f7471d43724096c7"
+            },
+            {
+              "schema_version": 1,
+              "intent": {
+                "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+                "operation_id": "op_00000001-0000-4000-8000-000000000001",
+                "source": {
+                  "host_id": "dev_00000001-0000-4000-8000-000000000001",
+                  "primary_epoch": 1
+                },
+                "target_host": "dev_00000002-0000-4000-8000-000000000001",
+                "base_revision": 1,
+                "checkpoint": {
+                  "commit_id": "cmt_00000001-0000-4000-8000-000000000001",
+                  "commit_sequence": 1,
+                  "snapshot_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "policy_epoch": 0,
+                  "deletion_epoch": 0
+                }
+              },
+              "plan_hash": "cd5f38f9ddf98a2d52ec3ff61e9aef76661c28358e40a542f7471d43724096c7"
+            },
+            {
+              "schema_version": 1,
+              "intent": {
+                "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+                "operation_id": "op_00000001-0000-4000-8000-000000000001",
+                "source": {
+                  "host_id": "dev_00000001-0000-4000-8000-000000000001",
+                  "primary_epoch": 1
+                },
+                "target_host": "dev_00000002-0000-4000-8000-000000000001",
+                "base_revision": 1,
+                "checkpoint": {
+                  "commit_id": "cmt_00000001-0000-4000-8000-000000000001",
+                  "commit_sequence": 1,
+                  "snapshot_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "policy_epoch": 0,
+                  "deletion_epoch": 0
+                }
+              },
+              "plan_hash": "cd5f38f9ddf98a2d52ec3ff61e9aef76661c28358e40a542f7471d43724096c7"
+            },
+            {
+              "schema_version": 1,
+              "intent": {
+                "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+                "operation_id": "op_00000001-0000-4000-8000-000000000001",
+                "source": {
+                  "host_id": "dev_00000001-0000-4000-8000-000000000001",
+                  "primary_epoch": 1
+                },
+                "target_host": "dev_00000002-0000-4000-8000-000000000001",
+                "base_revision": 1,
+                "checkpoint": {
+                  "commit_id": "cmt_00000001-0000-4000-8000-000000000001",
+                  "commit_sequence": 1,
+                  "snapshot_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "policy_epoch": 0,
+                  "deletion_epoch": 0
+                }
+              },
+              "plan_hash": "cd5f38f9ddf98a2d52ec3ff61e9aef76661c28358e40a542f7471d43724096c7"
+            },
+            {
+              "schema_version": 1,
+              "intent": {
+                "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+                "operation_id": "op_00000001-0000-4000-8000-000000000001",
+                "source": {
+                  "host_id": "dev_00000001-0000-4000-8000-000000000001",
+                  "primary_epoch": 1
+                },
+                "target_host": "dev_00000002-0000-4000-8000-000000000001",
+                "base_revision": 1,
+                "checkpoint": {
+                  "commit_id": "cmt_00000001-0000-4000-8000-000000000001",
+                  "commit_sequence": 1,
+                  "snapshot_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "policy_epoch": 0,
+                  "deletion_epoch": 0
+                }
+              },
+              "plan_hash": "cd5f38f9ddf98a2d52ec3ff61e9aef76661c28358e40a542f7471d43724096c7"
+            },
+            {
+              "schema_version": 1,
+              "intent": {
+                "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+                "operation_id": "op_00000001-0000-4000-8000-000000000001",
+                "source": {
+                  "host_id": "dev_00000001-0000-4000-8000-000000000001",
+                  "primary_epoch": 1
+                },
+                "target_host": "dev_00000002-0000-4000-8000-000000000001",
+                "base_revision": 1,
+                "checkpoint": {
+                  "commit_id": "cmt_00000001-0000-4000-8000-000000000001",
+                  "commit_sequence": 1,
+                  "snapshot_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "policy_epoch": 0,
+                  "deletion_epoch": 0
+                }
+              },
+              "plan_hash": "cd5f38f9ddf98a2d52ec3ff61e9aef76661c28358e40a542f7471d43724096c7"
+            },
+            {
+              "schema_version": 1,
+              "intent": {
+                "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+                "operation_id": "op_00000001-0000-4000-8000-000000000001",
+                "source": {
+                  "host_id": "dev_00000001-0000-4000-8000-000000000001",
+                  "primary_epoch": 1
+                },
+                "target_host": "dev_00000002-0000-4000-8000-000000000001",
+                "base_revision": 1,
+                "checkpoint": {
+                  "commit_id": "cmt_00000001-0000-4000-8000-000000000001",
+                  "commit_sequence": 1,
+                  "snapshot_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "policy_epoch": 0,
+                  "deletion_epoch": 0
+                }
+              },
+              "plan_hash": "cd5f38f9ddf98a2d52ec3ff61e9aef76661c28358e40a542f7471d43724096c7"
+            },
+            {
+              "schema_version": 1,
+              "intent": {
+                "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+                "operation_id": "op_00000001-0000-4000-8000-000000000001",
+                "source": {
+                  "host_id": "dev_00000001-0000-4000-8000-000000000001",
+                  "primary_epoch": 1
+                },
+                "target_host": "dev_00000002-0000-4000-8000-000000000001",
+                "base_revision": 1,
+                "checkpoint": {
+                  "commit_id": "cmt_00000001-0000-4000-8000-000000000001",
+                  "commit_sequence": 1,
+                  "snapshot_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "policy_epoch": 0,
+                  "deletion_epoch": 0
+                }
+              },
+              "plan_hash": "cd5f38f9ddf98a2d52ec3ff61e9aef76661c28358e40a542f7471d43724096c7"
+            },
+            {
+              "schema_version": 1,
+              "intent": {
+                "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+                "operation_id": "op_00000001-0000-4000-8000-000000000001",
+                "source": {
+                  "host_id": "dev_00000001-0000-4000-8000-000000000001",
+                  "primary_epoch": 1
+                },
+                "target_host": "dev_00000002-0000-4000-8000-000000000001",
+                "base_revision": 1,
+                "checkpoint": {
+                  "commit_id": "cmt_00000001-0000-4000-8000-000000000001",
+                  "commit_sequence": 1,
+                  "snapshot_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "policy_epoch": 0,
+                  "deletion_epoch": 0
+                }
+              },
+              "plan_hash": "cd5f38f9ddf98a2d52ec3ff61e9aef76661c28358e40a542f7471d43724096c7"
+            },
+            {
+              "schema_version": 1,
+              "intent": {
+                "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+                "operation_id": "op_00000001-0000-4000-8000-000000000001",
+                "source": {
+                  "host_id": "dev_00000001-0000-4000-8000-000000000001",
+                  "primary_epoch": 1
+                },
+                "target_host": "dev_00000002-0000-4000-8000-000000000001",
+                "base_revision": 1,
+                "checkpoint": {
+                  "commit_id": "cmt_00000001-0000-4000-8000-000000000001",
+                  "commit_sequence": 1,
+                  "snapshot_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "policy_epoch": 0,
+                  "deletion_epoch": 0
+                }
+              },
+              "plan_hash": "cd5f38f9ddf98a2d52ec3ff61e9aef76661c28358e40a542f7471d43724096c7"
+            },
+            {
+              "schema_version": 1,
+              "intent": {
+                "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+                "operation_id": "op_00000001-0000-4000-8000-000000000001",
+                "source": {
+                  "host_id": "dev_00000001-0000-4000-8000-000000000001",
+                  "primary_epoch": 1
+                },
+                "target_host": "dev_00000002-0000-4000-8000-000000000001",
+                "base_revision": 1,
+                "checkpoint": {
+                  "commit_id": "cmt_00000001-0000-4000-8000-000000000001",
+                  "commit_sequence": 1,
+                  "snapshot_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "policy_epoch": 0,
+                  "deletion_epoch": 0
+                }
+              },
+              "plan_hash": "cd5f38f9ddf98a2d52ec3ff61e9aef76661c28358e40a542f7471d43724096c7"
+            },
+            {
+              "schema_version": 1,
+              "intent": {
+                "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+                "operation_id": "op_00000001-0000-4000-8000-000000000001",
+                "source": {
+                  "host_id": "dev_00000001-0000-4000-8000-000000000001",
+                  "primary_epoch": 1
+                },
+                "target_host": "dev_00000002-0000-4000-8000-000000000001",
+                "base_revision": 1,
+                "checkpoint": {
+                  "commit_id": "cmt_00000001-0000-4000-8000-000000000001",
+                  "commit_sequence": 1,
+                  "snapshot_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "policy_epoch": 0,
+                  "deletion_epoch": 0
+                }
+              },
+              "plan_hash": "cd5f38f9ddf98a2d52ec3ff61e9aef76661c28358e40a542f7471d43724096c7"
+            },
+            {
+              "schema_version": 1,
+              "intent": {
+                "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+                "operation_id": "op_00000001-0000-4000-8000-000000000001",
+                "source": {
+                  "host_id": "dev_00000001-0000-4000-8000-000000000001",
+                  "primary_epoch": 1
+                },
+                "target_host": "dev_00000002-0000-4000-8000-000000000001",
+                "base_revision": 1,
+                "checkpoint": {
+                  "commit_id": "cmt_00000001-0000-4000-8000-000000000001",
+                  "commit_sequence": 1,
+                  "snapshot_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "policy_epoch": 0,
+                  "deletion_epoch": 0
+                }
+              },
+              "plan_hash": "cd5f38f9ddf98a2d52ec3ff61e9aef76661c28358e40a542f7471d43724096c7"
+            },
+            {
+              "schema_version": 1,
+              "intent": {
+                "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+                "operation_id": "op_00000001-0000-4000-8000-000000000001",
+                "source": {
+                  "host_id": "dev_00000001-0000-4000-8000-000000000001",
+                  "primary_epoch": 1
+                },
+                "target_host": "dev_00000002-0000-4000-8000-000000000001",
+                "base_revision": 1,
+                "checkpoint": {
+                  "commit_id": "cmt_00000001-0000-4000-8000-000000000001",
+                  "commit_sequence": 1,
+                  "snapshot_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "policy_epoch": 0,
+                  "deletion_epoch": 0
+                }
+              },
+              "plan_hash": "cd5f38f9ddf98a2d52ec3ff61e9aef76661c28358e40a542f7471d43724096c7"
+            },
+            {
+              "schema_version": 1,
+              "intent": {
+                "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+                "operation_id": "op_00000001-0000-4000-8000-000000000001",
+                "source": {
+                  "host_id": "dev_00000001-0000-4000-8000-000000000001",
+                  "primary_epoch": 1
+                },
+                "target_host": "dev_00000002-0000-4000-8000-000000000001",
+                "base_revision": 1,
+                "checkpoint": {
+                  "commit_id": "cmt_00000001-0000-4000-8000-000000000001",
+                  "commit_sequence": 1,
+                  "snapshot_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "policy_epoch": 0,
+                  "deletion_epoch": 0
+                }
+              },
+              "plan_hash": "cd5f38f9ddf98a2d52ec3ff61e9aef76661c28358e40a542f7471d43724096c7"
+            },
+            {
+              "schema_version": 1,
+              "intent": {
+                "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+                "operation_id": "op_00000001-0000-4000-8000-000000000001",
+                "source": {
+                  "host_id": "dev_00000001-0000-4000-8000-000000000001",
+                  "primary_epoch": 1
+                },
+                "target_host": "dev_00000002-0000-4000-8000-000000000001",
+                "base_revision": 1,
+                "checkpoint": {
+                  "commit_id": "cmt_00000001-0000-4000-8000-000000000001",
+                  "commit_sequence": 1,
+                  "snapshot_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "policy_epoch": 0,
+                  "deletion_epoch": 0
+                }
+              },
+              "plan_hash": "cd5f38f9ddf98a2d52ec3ff61e9aef76661c28358e40a542f7471d43724096c7"
+            },
+            {
+              "schema_version": 1,
+              "intent": {
+                "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+                "operation_id": "op_00000001-0000-4000-8000-000000000001",
+                "source": {
+                  "host_id": "dev_00000001-0000-4000-8000-000000000001",
+                  "primary_epoch": 1
+                },
+                "target_host": "dev_00000002-0000-4000-8000-000000000001",
+                "base_revision": 1,
+                "checkpoint": {
+                  "commit_id": "cmt_00000001-0000-4000-8000-000000000001",
+                  "commit_sequence": 1,
+                  "snapshot_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "policy_epoch": 0,
+                  "deletion_epoch": 0
+                }
+              },
+              "plan_hash": "cd5f38f9ddf98a2d52ec3ff61e9aef76661c28358e40a542f7471d43724096c7"
+            },
+            {
+              "schema_version": 1,
+              "intent": {
+                "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+                "operation_id": "op_00000001-0000-4000-8000-000000000001",
+                "source": {
+                  "host_id": "dev_00000001-0000-4000-8000-000000000001",
+                  "primary_epoch": 1
+                },
+                "target_host": "dev_00000002-0000-4000-8000-000000000001",
+                "base_revision": 1,
+                "checkpoint": {
+                  "commit_id": "cmt_00000001-0000-4000-8000-000000000001",
+                  "commit_sequence": 1,
+                  "snapshot_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "policy_epoch": 0,
+                  "deletion_epoch": 0
+                }
+              },
+              "plan_hash": "cd5f38f9ddf98a2d52ec3ff61e9aef76661c28358e40a542f7471d43724096c7"
+            },
+            {
+              "schema_version": 1,
+              "intent": {
+                "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+                "operation_id": "op_00000001-0000-4000-8000-000000000001",
+                "source": {
+                  "host_id": "dev_00000001-0000-4000-8000-000000000001",
+                  "primary_epoch": 1
+                },
+                "target_host": "dev_00000002-0000-4000-8000-000000000001",
+                "base_revision": 1,
+                "checkpoint": {
+                  "commit_id": "cmt_00000001-0000-4000-8000-000000000001",
+                  "commit_sequence": 1,
+                  "snapshot_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "policy_epoch": 0,
+                  "deletion_epoch": 0
+                }
+              },
+              "plan_hash": "cd5f38f9ddf98a2d52ec3ff61e9aef76661c28358e40a542f7471d43724096c7"
+            },
+            {
+              "schema_version": 1,
+              "intent": {
+                "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+                "operation_id": "op_00000001-0000-4000-8000-000000000001",
+                "source": {
+                  "host_id": "dev_00000001-0000-4000-8000-000000000001",
+                  "primary_epoch": 1
+                },
+                "target_host": "dev_00000002-0000-4000-8000-000000000001",
+                "base_revision": 1,
+                "checkpoint": {
+                  "commit_id": "cmt_00000001-0000-4000-8000-000000000001",
+                  "commit_sequence": 1,
+                  "snapshot_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "policy_epoch": 0,
+                  "deletion_epoch": 0
+                }
+              },
+              "plan_hash": "cd5f38f9ddf98a2d52ec3ff61e9aef76661c28358e40a542f7471d43724096c7"
+            },
+            {
+              "schema_version": 1,
+              "intent": {
+                "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+                "operation_id": "op_00000001-0000-4000-8000-000000000001",
+                "source": {
+                  "host_id": "dev_00000001-0000-4000-8000-000000000001",
+                  "primary_epoch": 1
+                },
+                "target_host": "dev_00000002-0000-4000-8000-000000000001",
+                "base_revision": 1,
+                "checkpoint": {
+                  "commit_id": "cmt_00000001-0000-4000-8000-000000000001",
+                  "commit_sequence": 1,
+                  "snapshot_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "policy_epoch": 0,
+                  "deletion_epoch": 0
+                }
+              },
+              "plan_hash": "cd5f38f9ddf98a2d52ec3ff61e9aef76661c28358e40a542f7471d43724096c7"
+            },
+            {
+              "schema_version": 1,
+              "intent": {
+                "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+                "operation_id": "op_00000001-0000-4000-8000-000000000001",
+                "source": {
+                  "host_id": "dev_00000001-0000-4000-8000-000000000001",
+                  "primary_epoch": 1
+                },
+                "target_host": "dev_00000002-0000-4000-8000-000000000001",
+                "base_revision": 1,
+                "checkpoint": {
+                  "commit_id": "cmt_00000001-0000-4000-8000-000000000001",
+                  "commit_sequence": 1,
+                  "snapshot_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "policy_epoch": 0,
+                  "deletion_epoch": 0
+                }
+              },
+              "plan_hash": "cd5f38f9ddf98a2d52ec3ff61e9aef76661c28358e40a542f7471d43724096c7"
+            },
+            {
+              "schema_version": 1,
+              "intent": {
+                "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+                "operation_id": "op_00000001-0000-4000-8000-000000000001",
+                "source": {
+                  "host_id": "dev_00000001-0000-4000-8000-000000000001",
+                  "primary_epoch": 1
+                },
+                "target_host": "dev_00000002-0000-4000-8000-000000000001",
+                "base_revision": 1,
+                "checkpoint": {
+                  "commit_id": "cmt_00000001-0000-4000-8000-000000000001",
+                  "commit_sequence": 1,
+                  "snapshot_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "policy_epoch": 0,
+                  "deletion_epoch": 0
+                }
+              },
+              "plan_hash": "cd5f38f9ddf98a2d52ec3ff61e9aef76661c28358e40a542f7471d43724096c7"
+            },
+            {
+              "schema_version": 1,
+              "intent": {
+                "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+                "operation_id": "op_00000001-0000-4000-8000-000000000001",
+                "source": {
+                  "host_id": "dev_00000001-0000-4000-8000-000000000001",
+                  "primary_epoch": 1
+                },
+                "target_host": "dev_00000002-0000-4000-8000-000000000001",
+                "base_revision": 1,
+                "checkpoint": {
+                  "commit_id": "cmt_00000001-0000-4000-8000-000000000001",
+                  "commit_sequence": 1,
+                  "snapshot_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "policy_epoch": 0,
+                  "deletion_epoch": 0
+                }
+              },
+              "plan_hash": "cd5f38f9ddf98a2d52ec3ff61e9aef76661c28358e40a542f7471d43724096c7"
+            },
+            {
+              "schema_version": 1,
+              "intent": {
+                "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+                "operation_id": "op_00000001-0000-4000-8000-000000000001",
+                "source": {
+                  "host_id": "dev_00000001-0000-4000-8000-000000000001",
+                  "primary_epoch": 1
+                },
+                "target_host": "dev_00000002-0000-4000-8000-000000000001",
+                "base_revision": 1,
+                "checkpoint": {
+                  "commit_id": "cmt_00000001-0000-4000-8000-000000000001",
+                  "commit_sequence": 1,
+                  "snapshot_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "policy_epoch": 0,
+                  "deletion_epoch": 0
+                }
+              },
+              "plan_hash": "cd5f38f9ddf98a2d52ec3ff61e9aef76661c28358e40a542f7471d43724096c7"
+            },
+            {
+              "schema_version": 1,
+              "intent": {
+                "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+                "operation_id": "op_00000001-0000-4000-8000-000000000001",
+                "source": {
+                  "host_id": "dev_00000001-0000-4000-8000-000000000001",
+                  "primary_epoch": 1
+                },
+                "target_host": "dev_00000002-0000-4000-8000-000000000001",
+                "base_revision": 1,
+                "checkpoint": {
+                  "commit_id": "cmt_00000001-0000-4000-8000-000000000001",
+                  "commit_sequence": 1,
+                  "snapshot_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "policy_epoch": 0,
+                  "deletion_epoch": 0
+                }
+              },
+              "plan_hash": "cd5f38f9ddf98a2d52ec3ff61e9aef76661c28358e40a542f7471d43724096c7"
+            },
+            {
+              "schema_version": 1,
+              "intent": {
+                "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+                "operation_id": "op_00000001-0000-4000-8000-000000000001",
+                "source": {
+                  "host_id": "dev_00000001-0000-4000-8000-000000000001",
+                  "primary_epoch": 1
+                },
+                "target_host": "dev_00000002-0000-4000-8000-000000000001",
+                "base_revision": 1,
+                "checkpoint": {
+                  "commit_id": "cmt_00000001-0000-4000-8000-000000000001",
+                  "commit_sequence": 1,
+                  "snapshot_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "policy_epoch": 0,
+                  "deletion_epoch": 0
+                }
+              },
+              "plan_hash": "cd5f38f9ddf98a2d52ec3ff61e9aef76661c28358e40a542f7471d43724096c7"
+            },
+            {
+              "schema_version": 1,
+              "intent": {
+                "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+                "operation_id": "op_00000001-0000-4000-8000-000000000001",
+                "source": {
+                  "host_id": "dev_00000001-0000-4000-8000-000000000001",
+                  "primary_epoch": 1
+                },
+                "target_host": "dev_00000002-0000-4000-8000-000000000001",
+                "base_revision": 1,
+                "checkpoint": {
+                  "commit_id": "cmt_00000001-0000-4000-8000-000000000001",
+                  "commit_sequence": 1,
+                  "snapshot_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "policy_epoch": 0,
+                  "deletion_epoch": 0
+                }
+              },
+              "plan_hash": "cd5f38f9ddf98a2d52ec3ff61e9aef76661c28358e40a542f7471d43724096c7"
+            },
+            {
+              "schema_version": 1,
+              "intent": {
+                "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+                "operation_id": "op_00000001-0000-4000-8000-000000000001",
+                "source": {
+                  "host_id": "dev_00000001-0000-4000-8000-000000000001",
+                  "primary_epoch": 1
+                },
+                "target_host": "dev_00000002-0000-4000-8000-000000000001",
+                "base_revision": 1,
+                "checkpoint": {
+                  "commit_id": "cmt_00000001-0000-4000-8000-000000000001",
+                  "commit_sequence": 1,
+                  "snapshot_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "policy_epoch": 0,
+                  "deletion_epoch": 0
+                }
+              },
+              "plan_hash": "cd5f38f9ddf98a2d52ec3ff61e9aef76661c28358e40a542f7471d43724096c7"
+            },
+            {
+              "schema_version": 1,
+              "intent": {
+                "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+                "operation_id": "op_00000001-0000-4000-8000-000000000001",
+                "source": {
+                  "host_id": "dev_00000001-0000-4000-8000-000000000001",
+                  "primary_epoch": 1
+                },
+                "target_host": "dev_00000002-0000-4000-8000-000000000001",
+                "base_revision": 1,
+                "checkpoint": {
+                  "commit_id": "cmt_00000001-0000-4000-8000-000000000001",
+                  "commit_sequence": 1,
+                  "snapshot_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "policy_epoch": 0,
+                  "deletion_epoch": 0
+                }
+              },
+              "plan_hash": "cd5f38f9ddf98a2d52ec3ff61e9aef76661c28358e40a542f7471d43724096c7"
+            },
+            {
+              "schema_version": 1,
+              "intent": {
+                "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+                "operation_id": "op_00000001-0000-4000-8000-000000000001",
+                "source": {
+                  "host_id": "dev_00000001-0000-4000-8000-000000000001",
+                  "primary_epoch": 1
+                },
+                "target_host": "dev_00000002-0000-4000-8000-000000000001",
+                "base_revision": 1,
+                "checkpoint": {
+                  "commit_id": "cmt_00000001-0000-4000-8000-000000000001",
+                  "commit_sequence": 1,
+                  "snapshot_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "policy_epoch": 0,
+                  "deletion_epoch": 0
+                }
+              },
+              "plan_hash": "cd5f38f9ddf98a2d52ec3ff61e9aef76661c28358e40a542f7471d43724096c7"
+            },
+            {
+              "schema_version": 1,
+              "intent": {
+                "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+                "operation_id": "op_00000001-0000-4000-8000-000000000001",
+                "source": {
+                  "host_id": "dev_00000001-0000-4000-8000-000000000001",
+                  "primary_epoch": 1
+                },
+                "target_host": "dev_00000002-0000-4000-8000-000000000001",
+                "base_revision": 1,
+                "checkpoint": {
+                  "commit_id": "cmt_00000001-0000-4000-8000-000000000001",
+                  "commit_sequence": 1,
+                  "snapshot_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "policy_epoch": 0,
+                  "deletion_epoch": 0
+                }
+              },
+              "plan_hash": "cd5f38f9ddf98a2d52ec3ff61e9aef76661c28358e40a542f7471d43724096c7"
+            },
+            {
+              "schema_version": 1,
+              "intent": {
+                "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+                "operation_id": "op_00000001-0000-4000-8000-000000000001",
+                "source": {
+                  "host_id": "dev_00000001-0000-4000-8000-000000000001",
+                  "primary_epoch": 1
+                },
+                "target_host": "dev_00000002-0000-4000-8000-000000000001",
+                "base_revision": 1,
+                "checkpoint": {
+                  "commit_id": "cmt_00000001-0000-4000-8000-000000000001",
+                  "commit_sequence": 1,
+                  "snapshot_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "policy_epoch": 0,
+                  "deletion_epoch": 0
+                }
+              },
+              "plan_hash": "cd5f38f9ddf98a2d52ec3ff61e9aef76661c28358e40a542f7471d43724096c7"
+            },
+            {
+              "schema_version": 1,
+              "intent": {
+                "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+                "operation_id": "op_00000001-0000-4000-8000-000000000001",
+                "source": {
+                  "host_id": "dev_00000001-0000-4000-8000-000000000001",
+                  "primary_epoch": 1
+                },
+                "target_host": "dev_00000002-0000-4000-8000-000000000001",
+                "base_revision": 1,
+                "checkpoint": {
+                  "commit_id": "cmt_00000001-0000-4000-8000-000000000001",
+                  "commit_sequence": 1,
+                  "snapshot_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "policy_epoch": 0,
+                  "deletion_epoch": 0
+                }
+              },
+              "plan_hash": "cd5f38f9ddf98a2d52ec3ff61e9aef76661c28358e40a542f7471d43724096c7"
+            },
+            {
+              "schema_version": 1,
+              "intent": {
+                "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+                "operation_id": "op_00000001-0000-4000-8000-000000000001",
+                "source": {
+                  "host_id": "dev_00000001-0000-4000-8000-000000000001",
+                  "primary_epoch": 1
+                },
+                "target_host": "dev_00000002-0000-4000-8000-000000000001",
+                "base_revision": 1,
+                "checkpoint": {
+                  "commit_id": "cmt_00000001-0000-4000-8000-000000000001",
+                  "commit_sequence": 1,
+                  "snapshot_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "policy_epoch": 0,
+                  "deletion_epoch": 0
+                }
+              },
+              "plan_hash": "cd5f38f9ddf98a2d52ec3ff61e9aef76661c28358e40a542f7471d43724096c7"
+            },
+            {
+              "schema_version": 1,
+              "intent": {
+                "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+                "operation_id": "op_00000001-0000-4000-8000-000000000001",
+                "source": {
+                  "host_id": "dev_00000001-0000-4000-8000-000000000001",
+                  "primary_epoch": 1
+                },
+                "target_host": "dev_00000002-0000-4000-8000-000000000001",
+                "base_revision": 1,
+                "checkpoint": {
+                  "commit_id": "cmt_00000001-0000-4000-8000-000000000001",
+                  "commit_sequence": 1,
+                  "snapshot_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "policy_epoch": 0,
+                  "deletion_epoch": 0
+                }
+              },
+              "plan_hash": "cd5f38f9ddf98a2d52ec3ff61e9aef76661c28358e40a542f7471d43724096c7"
+            },
+            {
+              "schema_version": 1,
+              "intent": {
+                "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+                "operation_id": "op_00000001-0000-4000-8000-000000000001",
+                "source": {
+                  "host_id": "dev_00000001-0000-4000-8000-000000000001",
+                  "primary_epoch": 1
+                },
+                "target_host": "dev_00000002-0000-4000-8000-000000000001",
+                "base_revision": 1,
+                "checkpoint": {
+                  "commit_id": "cmt_00000001-0000-4000-8000-000000000001",
+                  "commit_sequence": 1,
+                  "snapshot_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "policy_epoch": 0,
+                  "deletion_epoch": 0
+                }
+              },
+              "plan_hash": "cd5f38f9ddf98a2d52ec3ff61e9aef76661c28358e40a542f7471d43724096c7"
+            },
+            {
+              "schema_version": 1,
+              "intent": {
+                "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+                "operation_id": "op_00000001-0000-4000-8000-000000000001",
+                "source": {
+                  "host_id": "dev_00000001-0000-4000-8000-000000000001",
+                  "primary_epoch": 1
+                },
+                "target_host": "dev_00000002-0000-4000-8000-000000000001",
+                "base_revision": 1,
+                "checkpoint": {
+                  "commit_id": "cmt_00000001-0000-4000-8000-000000000001",
+                  "commit_sequence": 1,
+                  "snapshot_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "policy_epoch": 0,
+                  "deletion_epoch": 0
+                }
+              },
+              "plan_hash": "cd5f38f9ddf98a2d52ec3ff61e9aef76661c28358e40a542f7471d43724096c7"
+            },
+            {
+              "schema_version": 1,
+              "intent": {
+                "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+                "operation_id": "op_00000001-0000-4000-8000-000000000001",
+                "source": {
+                  "host_id": "dev_00000001-0000-4000-8000-000000000001",
+                  "primary_epoch": 1
+                },
+                "target_host": "dev_00000002-0000-4000-8000-000000000001",
+                "base_revision": 1,
+                "checkpoint": {
+                  "commit_id": "cmt_00000001-0000-4000-8000-000000000001",
+                  "commit_sequence": 1,
+                  "snapshot_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "policy_epoch": 0,
+                  "deletion_epoch": 0
+                }
+              },
+              "plan_hash": "cd5f38f9ddf98a2d52ec3ff61e9aef76661c28358e40a542f7471d43724096c7"
+            },
+            {
+              "schema_version": 1,
+              "intent": {
+                "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+                "operation_id": "op_00000001-0000-4000-8000-000000000001",
+                "source": {
+                  "host_id": "dev_00000001-0000-4000-8000-000000000001",
+                  "primary_epoch": 1
+                },
+                "target_host": "dev_00000002-0000-4000-8000-000000000001",
+                "base_revision": 1,
+                "checkpoint": {
+                  "commit_id": "cmt_00000001-0000-4000-8000-000000000001",
+                  "commit_sequence": 1,
+                  "snapshot_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "policy_epoch": 0,
+                  "deletion_epoch": 0
+                }
+              },
+              "plan_hash": "cd5f38f9ddf98a2d52ec3ff61e9aef76661c28358e40a542f7471d43724096c7"
+            },
+            {
+              "schema_version": 1,
+              "intent": {
+                "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+                "operation_id": "op_00000001-0000-4000-8000-000000000001",
+                "source": {
+                  "host_id": "dev_00000001-0000-4000-8000-000000000001",
+                  "primary_epoch": 1
+                },
+                "target_host": "dev_00000002-0000-4000-8000-000000000001",
+                "base_revision": 1,
+                "checkpoint": {
+                  "commit_id": "cmt_00000001-0000-4000-8000-000000000001",
+                  "commit_sequence": 1,
+                  "snapshot_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "policy_epoch": 0,
+                  "deletion_epoch": 0
+                }
+              },
+              "plan_hash": "cd5f38f9ddf98a2d52ec3ff61e9aef76661c28358e40a542f7471d43724096c7"
+            },
+            {
+              "schema_version": 1,
+              "intent": {
+                "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+                "operation_id": "op_00000001-0000-4000-8000-000000000001",
+                "source": {
+                  "host_id": "dev_00000001-0000-4000-8000-000000000001",
+                  "primary_epoch": 1
+                },
+                "target_host": "dev_00000002-0000-4000-8000-000000000001",
+                "base_revision": 1,
+                "checkpoint": {
+                  "commit_id": "cmt_00000001-0000-4000-8000-000000000001",
+                  "commit_sequence": 1,
+                  "snapshot_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "policy_epoch": 0,
+                  "deletion_epoch": 0
+                }
+              },
+              "plan_hash": "cd5f38f9ddf98a2d52ec3ff61e9aef76661c28358e40a542f7471d43724096c7"
+            },
+            {
+              "schema_version": 1,
+              "intent": {
+                "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+                "operation_id": "op_00000001-0000-4000-8000-000000000001",
+                "source": {
+                  "host_id": "dev_00000001-0000-4000-8000-000000000001",
+                  "primary_epoch": 1
+                },
+                "target_host": "dev_00000002-0000-4000-8000-000000000001",
+                "base_revision": 1,
+                "checkpoint": {
+                  "commit_id": "cmt_00000001-0000-4000-8000-000000000001",
+                  "commit_sequence": 1,
+                  "snapshot_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "policy_epoch": 0,
+                  "deletion_epoch": 0
+                }
+              },
+              "plan_hash": "cd5f38f9ddf98a2d52ec3ff61e9aef76661c28358e40a542f7471d43724096c7"
+            },
+            {
+              "schema_version": 1,
+              "intent": {
+                "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+                "operation_id": "op_00000001-0000-4000-8000-000000000001",
+                "source": {
+                  "host_id": "dev_00000001-0000-4000-8000-000000000001",
+                  "primary_epoch": 1
+                },
+                "target_host": "dev_00000002-0000-4000-8000-000000000001",
+                "base_revision": 1,
+                "checkpoint": {
+                  "commit_id": "cmt_00000001-0000-4000-8000-000000000001",
+                  "commit_sequence": 1,
+                  "snapshot_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "policy_epoch": 0,
+                  "deletion_epoch": 0
+                }
+              },
+              "plan_hash": "cd5f38f9ddf98a2d52ec3ff61e9aef76661c28358e40a542f7471d43724096c7"
+            },
+            {
+              "schema_version": 1,
+              "intent": {
+                "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+                "operation_id": "op_00000001-0000-4000-8000-000000000001",
+                "source": {
+                  "host_id": "dev_00000001-0000-4000-8000-000000000001",
+                  "primary_epoch": 1
+                },
+                "target_host": "dev_00000002-0000-4000-8000-000000000001",
+                "base_revision": 1,
+                "checkpoint": {
+                  "commit_id": "cmt_00000001-0000-4000-8000-000000000001",
+                  "commit_sequence": 1,
+                  "snapshot_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "policy_epoch": 0,
+                  "deletion_epoch": 0
+                }
+              },
+              "plan_hash": "cd5f38f9ddf98a2d52ec3ff61e9aef76661c28358e40a542f7471d43724096c7"
+            },
+            {
+              "schema_version": 1,
+              "intent": {
+                "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+                "operation_id": "op_00000001-0000-4000-8000-000000000001",
+                "source": {
+                  "host_id": "dev_00000001-0000-4000-8000-000000000001",
+                  "primary_epoch": 1
+                },
+                "target_host": "dev_00000002-0000-4000-8000-000000000001",
+                "base_revision": 1,
+                "checkpoint": {
+                  "commit_id": "cmt_00000001-0000-4000-8000-000000000001",
+                  "commit_sequence": 1,
+                  "snapshot_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "policy_epoch": 0,
+                  "deletion_epoch": 0
+                }
+              },
+              "plan_hash": "cd5f38f9ddf98a2d52ec3ff61e9aef76661c28358e40a542f7471d43724096c7"
+            },
+            {
+              "schema_version": 1,
+              "intent": {
+                "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+                "operation_id": "op_00000001-0000-4000-8000-000000000001",
+                "source": {
+                  "host_id": "dev_00000001-0000-4000-8000-000000000001",
+                  "primary_epoch": 1
+                },
+                "target_host": "dev_00000002-0000-4000-8000-000000000001",
+                "base_revision": 1,
+                "checkpoint": {
+                  "commit_id": "cmt_00000001-0000-4000-8000-000000000001",
+                  "commit_sequence": 1,
+                  "snapshot_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "policy_epoch": 0,
+                  "deletion_epoch": 0
+                }
+              },
+              "plan_hash": "cd5f38f9ddf98a2d52ec3ff61e9aef76661c28358e40a542f7471d43724096c7"
+            },
+            {
+              "schema_version": 1,
+              "intent": {
+                "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+                "operation_id": "op_00000001-0000-4000-8000-000000000001",
+                "source": {
+                  "host_id": "dev_00000001-0000-4000-8000-000000000001",
+                  "primary_epoch": 1
+                },
+                "target_host": "dev_00000002-0000-4000-8000-000000000001",
+                "base_revision": 1,
+                "checkpoint": {
+                  "commit_id": "cmt_00000001-0000-4000-8000-000000000001",
+                  "commit_sequence": 1,
+                  "snapshot_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "policy_epoch": 0,
+                  "deletion_epoch": 0
+                }
+              },
+              "plan_hash": "cd5f38f9ddf98a2d52ec3ff61e9aef76661c28358e40a542f7471d43724096c7"
+            },
+            {
+              "schema_version": 1,
+              "intent": {
+                "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+                "operation_id": "op_00000001-0000-4000-8000-000000000001",
+                "source": {
+                  "host_id": "dev_00000001-0000-4000-8000-000000000001",
+                  "primary_epoch": 1
+                },
+                "target_host": "dev_00000002-0000-4000-8000-000000000001",
+                "base_revision": 1,
+                "checkpoint": {
+                  "commit_id": "cmt_00000001-0000-4000-8000-000000000001",
+                  "commit_sequence": 1,
+                  "snapshot_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "policy_epoch": 0,
+                  "deletion_epoch": 0
+                }
+              },
+              "plan_hash": "cd5f38f9ddf98a2d52ec3ff61e9aef76661c28358e40a542f7471d43724096c7"
+            },
+            {
+              "schema_version": 1,
+              "intent": {
+                "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+                "operation_id": "op_00000001-0000-4000-8000-000000000001",
+                "source": {
+                  "host_id": "dev_00000001-0000-4000-8000-000000000001",
+                  "primary_epoch": 1
+                },
+                "target_host": "dev_00000002-0000-4000-8000-000000000001",
+                "base_revision": 1,
+                "checkpoint": {
+                  "commit_id": "cmt_00000001-0000-4000-8000-000000000001",
+                  "commit_sequence": 1,
+                  "snapshot_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "policy_epoch": 0,
+                  "deletion_epoch": 0
+                }
+              },
+              "plan_hash": "cd5f38f9ddf98a2d52ec3ff61e9aef76661c28358e40a542f7471d43724096c7"
+            },
+            {
+              "schema_version": 1,
+              "intent": {
+                "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+                "operation_id": "op_00000001-0000-4000-8000-000000000001",
+                "source": {
+                  "host_id": "dev_00000001-0000-4000-8000-000000000001",
+                  "primary_epoch": 1
+                },
+                "target_host": "dev_00000002-0000-4000-8000-000000000001",
+                "base_revision": 1,
+                "checkpoint": {
+                  "commit_id": "cmt_00000001-0000-4000-8000-000000000001",
+                  "commit_sequence": 1,
+                  "snapshot_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "policy_epoch": 0,
+                  "deletion_epoch": 0
+                }
+              },
+              "plan_hash": "cd5f38f9ddf98a2d52ec3ff61e9aef76661c28358e40a542f7471d43724096c7"
+            },
+            {
+              "schema_version": 1,
+              "intent": {
+                "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+                "operation_id": "op_00000001-0000-4000-8000-000000000001",
+                "source": {
+                  "host_id": "dev_00000001-0000-4000-8000-000000000001",
+                  "primary_epoch": 1
+                },
+                "target_host": "dev_00000002-0000-4000-8000-000000000001",
+                "base_revision": 1,
+                "checkpoint": {
+                  "commit_id": "cmt_00000001-0000-4000-8000-000000000001",
+                  "commit_sequence": 1,
+                  "snapshot_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "policy_epoch": 0,
+                  "deletion_epoch": 0
+                }
+              },
+              "plan_hash": "cd5f38f9ddf98a2d52ec3ff61e9aef76661c28358e40a542f7471d43724096c7"
+            },
+            {
+              "schema_version": 1,
+              "intent": {
+                "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+                "operation_id": "op_00000001-0000-4000-8000-000000000001",
+                "source": {
+                  "host_id": "dev_00000001-0000-4000-8000-000000000001",
+                  "primary_epoch": 1
+                },
+                "target_host": "dev_00000002-0000-4000-8000-000000000001",
+                "base_revision": 1,
+                "checkpoint": {
+                  "commit_id": "cmt_00000001-0000-4000-8000-000000000001",
+                  "commit_sequence": 1,
+                  "snapshot_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "policy_epoch": 0,
+                  "deletion_epoch": 0
+                }
+              },
+              "plan_hash": "cd5f38f9ddf98a2d52ec3ff61e9aef76661c28358e40a542f7471d43724096c7"
+            },
+            {
+              "schema_version": 1,
+              "intent": {
+                "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+                "operation_id": "op_00000001-0000-4000-8000-000000000001",
+                "source": {
+                  "host_id": "dev_00000001-0000-4000-8000-000000000001",
+                  "primary_epoch": 1
+                },
+                "target_host": "dev_00000002-0000-4000-8000-000000000001",
+                "base_revision": 1,
+                "checkpoint": {
+                  "commit_id": "cmt_00000001-0000-4000-8000-000000000001",
+                  "commit_sequence": 1,
+                  "snapshot_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "policy_epoch": 0,
+                  "deletion_epoch": 0
+                }
+              },
+              "plan_hash": "cd5f38f9ddf98a2d52ec3ff61e9aef76661c28358e40a542f7471d43724096c7"
+            },
+            {
+              "schema_version": 1,
+              "intent": {
+                "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+                "operation_id": "op_00000001-0000-4000-8000-000000000001",
+                "source": {
+                  "host_id": "dev_00000001-0000-4000-8000-000000000001",
+                  "primary_epoch": 1
+                },
+                "target_host": "dev_00000002-0000-4000-8000-000000000001",
+                "base_revision": 1,
+                "checkpoint": {
+                  "commit_id": "cmt_00000001-0000-4000-8000-000000000001",
+                  "commit_sequence": 1,
+                  "snapshot_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "policy_epoch": 0,
+                  "deletion_epoch": 0
+                }
+              },
+              "plan_hash": "cd5f38f9ddf98a2d52ec3ff61e9aef76661c28358e40a542f7471d43724096c7"
+            },
+            {
+              "schema_version": 1,
+              "intent": {
+                "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+                "operation_id": "op_00000001-0000-4000-8000-000000000001",
+                "source": {
+                  "host_id": "dev_00000001-0000-4000-8000-000000000001",
+                  "primary_epoch": 1
+                },
+                "target_host": "dev_00000002-0000-4000-8000-000000000001",
+                "base_revision": 1,
+                "checkpoint": {
+                  "commit_id": "cmt_00000001-0000-4000-8000-000000000001",
+                  "commit_sequence": 1,
+                  "snapshot_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "policy_epoch": 0,
+                  "deletion_epoch": 0
+                }
+              },
+              "plan_hash": "cd5f38f9ddf98a2d52ec3ff61e9aef76661c28358e40a542f7471d43724096c7"
+            },
+            {
+              "schema_version": 1,
+              "intent": {
+                "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+                "operation_id": "op_00000001-0000-4000-8000-000000000001",
+                "source": {
+                  "host_id": "dev_00000001-0000-4000-8000-000000000001",
+                  "primary_epoch": 1
+                },
+                "target_host": "dev_00000002-0000-4000-8000-000000000001",
+                "base_revision": 1,
+                "checkpoint": {
+                  "commit_id": "cmt_00000001-0000-4000-8000-000000000001",
+                  "commit_sequence": 1,
+                  "snapshot_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "policy_epoch": 0,
+                  "deletion_epoch": 0
+                }
+              },
+              "plan_hash": "cd5f38f9ddf98a2d52ec3ff61e9aef76661c28358e40a542f7471d43724096c7"
+            },
+            {
+              "schema_version": 1,
+              "intent": {
+                "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+                "operation_id": "op_00000001-0000-4000-8000-000000000001",
+                "source": {
+                  "host_id": "dev_00000001-0000-4000-8000-000000000001",
+                  "primary_epoch": 1
+                },
+                "target_host": "dev_00000002-0000-4000-8000-000000000001",
+                "base_revision": 1,
+                "checkpoint": {
+                  "commit_id": "cmt_00000001-0000-4000-8000-000000000001",
+                  "commit_sequence": 1,
+                  "snapshot_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "policy_epoch": 0,
+                  "deletion_epoch": 0
+                }
+              },
+              "plan_hash": "cd5f38f9ddf98a2d52ec3ff61e9aef76661c28358e40a542f7471d43724096c7"
+            },
+            {
+              "schema_version": 1,
+              "intent": {
+                "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+                "operation_id": "op_00000001-0000-4000-8000-000000000001",
+                "source": {
+                  "host_id": "dev_00000001-0000-4000-8000-000000000001",
+                  "primary_epoch": 1
+                },
+                "target_host": "dev_00000002-0000-4000-8000-000000000001",
+                "base_revision": 1,
+                "checkpoint": {
+                  "commit_id": "cmt_00000001-0000-4000-8000-000000000001",
+                  "commit_sequence": 1,
+                  "snapshot_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "policy_epoch": 0,
+                  "deletion_epoch": 0
+                }
+              },
+              "plan_hash": "cd5f38f9ddf98a2d52ec3ff61e9aef76661c28358e40a542f7471d43724096c7"
+            },
+            {
+              "schema_version": 1,
+              "intent": {
+                "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+                "operation_id": "op_00000001-0000-4000-8000-000000000001",
+                "source": {
+                  "host_id": "dev_00000001-0000-4000-8000-000000000001",
+                  "primary_epoch": 1
+                },
+                "target_host": "dev_00000002-0000-4000-8000-000000000001",
+                "base_revision": 1,
+                "checkpoint": {
+                  "commit_id": "cmt_00000001-0000-4000-8000-000000000001",
+                  "commit_sequence": 1,
+                  "snapshot_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "policy_epoch": 0,
+                  "deletion_epoch": 0
+                }
+              },
+              "plan_hash": "cd5f38f9ddf98a2d52ec3ff61e9aef76661c28358e40a542f7471d43724096c7"
+            },
+            {
+              "schema_version": 1,
+              "intent": {
+                "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+                "operation_id": "op_00000001-0000-4000-8000-000000000001",
+                "source": {
+                  "host_id": "dev_00000001-0000-4000-8000-000000000001",
+                  "primary_epoch": 1
+                },
+                "target_host": "dev_00000002-0000-4000-8000-000000000001",
+                "base_revision": 1,
+                "checkpoint": {
+                  "commit_id": "cmt_00000001-0000-4000-8000-000000000001",
+                  "commit_sequence": 1,
+                  "snapshot_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "policy_epoch": 0,
+                  "deletion_epoch": 0
+                }
+              },
+              "plan_hash": "cd5f38f9ddf98a2d52ec3ff61e9aef76661c28358e40a542f7471d43724096c7"
+            },
+            {
+              "schema_version": 1,
+              "intent": {
+                "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+                "operation_id": "op_00000001-0000-4000-8000-000000000001",
+                "source": {
+                  "host_id": "dev_00000001-0000-4000-8000-000000000001",
+                  "primary_epoch": 1
+                },
+                "target_host": "dev_00000002-0000-4000-8000-000000000001",
+                "base_revision": 1,
+                "checkpoint": {
+                  "commit_id": "cmt_00000001-0000-4000-8000-000000000001",
+                  "commit_sequence": 1,
+                  "snapshot_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "policy_epoch": 0,
+                  "deletion_epoch": 0
+                }
+              },
+              "plan_hash": "cd5f38f9ddf98a2d52ec3ff61e9aef76661c28358e40a542f7471d43724096c7"
+            },
+            {
+              "schema_version": 1,
+              "intent": {
+                "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+                "operation_id": "op_00000001-0000-4000-8000-000000000001",
+                "source": {
+                  "host_id": "dev_00000001-0000-4000-8000-000000000001",
+                  "primary_epoch": 1
+                },
+                "target_host": "dev_00000002-0000-4000-8000-000000000001",
+                "base_revision": 1,
+                "checkpoint": {
+                  "commit_id": "cmt_00000001-0000-4000-8000-000000000001",
+                  "commit_sequence": 1,
+                  "snapshot_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "policy_epoch": 0,
+                  "deletion_epoch": 0
+                }
+              },
+              "plan_hash": "cd5f38f9ddf98a2d52ec3ff61e9aef76661c28358e40a542f7471d43724096c7"
+            },
+            {
+              "schema_version": 1,
+              "intent": {
+                "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+                "operation_id": "op_00000001-0000-4000-8000-000000000001",
+                "source": {
+                  "host_id": "dev_00000001-0000-4000-8000-000000000001",
+                  "primary_epoch": 1
+                },
+                "target_host": "dev_00000002-0000-4000-8000-000000000001",
+                "base_revision": 1,
+                "checkpoint": {
+                  "commit_id": "cmt_00000001-0000-4000-8000-000000000001",
+                  "commit_sequence": 1,
+                  "snapshot_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "policy_epoch": 0,
+                  "deletion_epoch": 0
+                }
+              },
+              "plan_hash": "cd5f38f9ddf98a2d52ec3ff61e9aef76661c28358e40a542f7471d43724096c7"
+            },
+            {
+              "schema_version": 1,
+              "intent": {
+                "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+                "operation_id": "op_00000001-0000-4000-8000-000000000001",
+                "source": {
+                  "host_id": "dev_00000001-0000-4000-8000-000000000001",
+                  "primary_epoch": 1
+                },
+                "target_host": "dev_00000002-0000-4000-8000-000000000001",
+                "base_revision": 1,
+                "checkpoint": {
+                  "commit_id": "cmt_00000001-0000-4000-8000-000000000001",
+                  "commit_sequence": 1,
+                  "snapshot_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "policy_epoch": 0,
+                  "deletion_epoch": 0
+                }
+              },
+              "plan_hash": "cd5f38f9ddf98a2d52ec3ff61e9aef76661c28358e40a542f7471d43724096c7"
+            },
+            {
+              "schema_version": 1,
+              "intent": {
+                "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+                "operation_id": "op_00000001-0000-4000-8000-000000000001",
+                "source": {
+                  "host_id": "dev_00000001-0000-4000-8000-000000000001",
+                  "primary_epoch": 1
+                },
+                "target_host": "dev_00000002-0000-4000-8000-000000000001",
+                "base_revision": 1,
+                "checkpoint": {
+                  "commit_id": "cmt_00000001-0000-4000-8000-000000000001",
+                  "commit_sequence": 1,
+                  "snapshot_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "policy_epoch": 0,
+                  "deletion_epoch": 0
+                }
+              },
+              "plan_hash": "cd5f38f9ddf98a2d52ec3ff61e9aef76661c28358e40a542f7471d43724096c7"
+            },
+            {
+              "schema_version": 1,
+              "intent": {
+                "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+                "operation_id": "op_00000001-0000-4000-8000-000000000001",
+                "source": {
+                  "host_id": "dev_00000001-0000-4000-8000-000000000001",
+                  "primary_epoch": 1
+                },
+                "target_host": "dev_00000002-0000-4000-8000-000000000001",
+                "base_revision": 1,
+                "checkpoint": {
+                  "commit_id": "cmt_00000001-0000-4000-8000-000000000001",
+                  "commit_sequence": 1,
+                  "snapshot_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "policy_epoch": 0,
+                  "deletion_epoch": 0
+                }
+              },
+              "plan_hash": "cd5f38f9ddf98a2d52ec3ff61e9aef76661c28358e40a542f7471d43724096c7"
+            },
+            {
+              "schema_version": 1,
+              "intent": {
+                "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+                "operation_id": "op_00000001-0000-4000-8000-000000000001",
+                "source": {
+                  "host_id": "dev_00000001-0000-4000-8000-000000000001",
+                  "primary_epoch": 1
+                },
+                "target_host": "dev_00000002-0000-4000-8000-000000000001",
+                "base_revision": 1,
+                "checkpoint": {
+                  "commit_id": "cmt_00000001-0000-4000-8000-000000000001",
+                  "commit_sequence": 1,
+                  "snapshot_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "policy_epoch": 0,
+                  "deletion_epoch": 0
+                }
+              },
+              "plan_hash": "cd5f38f9ddf98a2d52ec3ff61e9aef76661c28358e40a542f7471d43724096c7"
+            },
+            {
+              "schema_version": 1,
+              "intent": {
+                "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+                "operation_id": "op_00000001-0000-4000-8000-000000000001",
+                "source": {
+                  "host_id": "dev_00000001-0000-4000-8000-000000000001",
+                  "primary_epoch": 1
+                },
+                "target_host": "dev_00000002-0000-4000-8000-000000000001",
+                "base_revision": 1,
+                "checkpoint": {
+                  "commit_id": "cmt_00000001-0000-4000-8000-000000000001",
+                  "commit_sequence": 1,
+                  "snapshot_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "policy_epoch": 0,
+                  "deletion_epoch": 0
+                }
+              },
+              "plan_hash": "cd5f38f9ddf98a2d52ec3ff61e9aef76661c28358e40a542f7471d43724096c7"
+            },
+            {
+              "schema_version": 1,
+              "intent": {
+                "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+                "operation_id": "op_00000001-0000-4000-8000-000000000001",
+                "source": {
+                  "host_id": "dev_00000001-0000-4000-8000-000000000001",
+                  "primary_epoch": 1
+                },
+                "target_host": "dev_00000002-0000-4000-8000-000000000001",
+                "base_revision": 1,
+                "checkpoint": {
+                  "commit_id": "cmt_00000001-0000-4000-8000-000000000001",
+                  "commit_sequence": 1,
+                  "snapshot_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "policy_epoch": 0,
+                  "deletion_epoch": 0
+                }
+              },
+              "plan_hash": "cd5f38f9ddf98a2d52ec3ff61e9aef76661c28358e40a542f7471d43724096c7"
+            },
+            {
+              "schema_version": 1,
+              "intent": {
+                "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+                "operation_id": "op_00000001-0000-4000-8000-000000000001",
+                "source": {
+                  "host_id": "dev_00000001-0000-4000-8000-000000000001",
+                  "primary_epoch": 1
+                },
+                "target_host": "dev_00000002-0000-4000-8000-000000000001",
+                "base_revision": 1,
+                "checkpoint": {
+                  "commit_id": "cmt_00000001-0000-4000-8000-000000000001",
+                  "commit_sequence": 1,
+                  "snapshot_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "policy_epoch": 0,
+                  "deletion_epoch": 0
+                }
+              },
+              "plan_hash": "cd5f38f9ddf98a2d52ec3ff61e9aef76661c28358e40a542f7471d43724096c7"
+            },
+            {
+              "schema_version": 1,
+              "intent": {
+                "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+                "operation_id": "op_00000001-0000-4000-8000-000000000001",
+                "source": {
+                  "host_id": "dev_00000001-0000-4000-8000-000000000001",
+                  "primary_epoch": 1
+                },
+                "target_host": "dev_00000002-0000-4000-8000-000000000001",
+                "base_revision": 1,
+                "checkpoint": {
+                  "commit_id": "cmt_00000001-0000-4000-8000-000000000001",
+                  "commit_sequence": 1,
+                  "snapshot_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "policy_epoch": 0,
+                  "deletion_epoch": 0
+                }
+              },
+              "plan_hash": "cd5f38f9ddf98a2d52ec3ff61e9aef76661c28358e40a542f7471d43724096c7"
+            },
+            {
+              "schema_version": 1,
+              "intent": {
+                "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+                "operation_id": "op_00000001-0000-4000-8000-000000000001",
+                "source": {
+                  "host_id": "dev_00000001-0000-4000-8000-000000000001",
+                  "primary_epoch": 1
+                },
+                "target_host": "dev_00000002-0000-4000-8000-000000000001",
+                "base_revision": 1,
+                "checkpoint": {
+                  "commit_id": "cmt_00000001-0000-4000-8000-000000000001",
+                  "commit_sequence": 1,
+                  "snapshot_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "policy_epoch": 0,
+                  "deletion_epoch": 0
+                }
+              },
+              "plan_hash": "cd5f38f9ddf98a2d52ec3ff61e9aef76661c28358e40a542f7471d43724096c7"
+            },
+            {
+              "schema_version": 1,
+              "intent": {
+                "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+                "operation_id": "op_00000001-0000-4000-8000-000000000001",
+                "source": {
+                  "host_id": "dev_00000001-0000-4000-8000-000000000001",
+                  "primary_epoch": 1
+                },
+                "target_host": "dev_00000002-0000-4000-8000-000000000001",
+                "base_revision": 1,
+                "checkpoint": {
+                  "commit_id": "cmt_00000001-0000-4000-8000-000000000001",
+                  "commit_sequence": 1,
+                  "snapshot_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "policy_epoch": 0,
+                  "deletion_epoch": 0
+                }
+              },
+              "plan_hash": "cd5f38f9ddf98a2d52ec3ff61e9aef76661c28358e40a542f7471d43724096c7"
+            }
+          ]
+        }
+      ],
+      "rust_rule": "host.receipt_budget",
+      "schema": "reject"
+    },
+    {
+      "id": "missing-receipt-array",
+      "base": "initial.json",
+      "ops": [
+        {
+          "op": "remove",
+          "path": "/promotions"
+        }
+      ],
+      "rust_rule": "shape",
+      "schema": "reject"
+    },
+    {
+      "id": "duplicate-receipt",
+      "base": "promoted.json",
+      "ops": [
+        {
+          "op": "append",
+          "path": "/promotions",
+          "value": {
+            "schema_version": 1,
+            "intent": {
+              "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+              "operation_id": "op_00000001-0000-4000-8000-000000000001",
+              "source": {
+                "host_id": "dev_00000001-0000-4000-8000-000000000001",
+                "primary_epoch": 1
+              },
+              "target_host": "dev_00000002-0000-4000-8000-000000000001",
+              "base_revision": 1,
+              "checkpoint": {
+                "commit_id": "cmt_00000001-0000-4000-8000-000000000001",
+                "commit_sequence": 1,
+                "snapshot_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "policy_epoch": 0,
+                "deletion_epoch": 0
+              }
+            },
+            "plan_hash": "cd5f38f9ddf98a2d52ec3ff61e9aef76661c28358e40a542f7471d43724096c7"
+          }
+        }
+      ],
+      "rust_rule": "host.receipt_chain",
+      "schema": "accept"
+    }
+  ]
+}

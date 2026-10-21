@@ -2,6 +2,14 @@
 
 原始计划：设计包 v1.0 / 2026-09-28；v1.3 路线修订：2026-10-11。本文定义阶段与出口；实际进度以对应 validation 报告为准。
 
+> **2026-10-21，主线整合接续：** 在已合并 PR #40 的 MV-7 / 55-command 基线上整合此前独立工作树的 MV-8.1a～c，保留历史检查失败与真实验收门槛；当前证据见[整合报告](../validation/MV-8-authority-integration.md)。接下来先处理显式 Host-aware 恢复，再推进唯一 Host 进程、原生认证/会话撤回/版本握手和断连重连，之后才接受限 MCP。本段不启动 MV-9、真实迁主或云端部署。
+
+> **2026-10-18，MV-8 已获主人明确授权：** 开始 MV-8.1a 的单主状态、迁移/栅栏与平台事务契约，见 [ADR-MEM-66](../adr/066-host-authority-and-platform-contracts.md) 和 [Host authority v1](HOST_AUTHORITY_V1.md)。MV-7 真实 P02～P06 仍 pending；新契约不会自动改变现有 Vault、Runtime 嵌入 Core 或激活真实迁移。下面历史接续中的“MV-8 未启动”仅描述各自日期。
+
+> **同日接续，MV-8.1b：** [ADR-MEM-67](../adr/067-authority-control-file-persistence.md)将主权控制记录单独持久化，验证 Windows 双锁、原子替换和进程中断。它不开放普通数据写入；authority 与 CURRENT 的共同提交/恢复、Host 进程、认证 IPC 和 Runtime 采用仍待完成。
+
+> **同日 MV-8.1c：** [ADR-MEM-68](../adr/068-shared-current-authority-publication.md)加入显式 Host 模式的单 CURRENT 数据/主权发布与持久旧入口栅栏。仅原生库与合成根；认证 IPC、Host 进程、完整目标恢复和 Runtime 采用待完成。
+
 > **当前路线 v1.3（2026-10-11）：** [ADR-MEM-49](../adr/049-cloud-primary-and-history-initialization.md) 确认云端主库目标；新版 v1 门槛和激活决定见 [完整路线](CLOUD_PRIMARY_AND_HISTORY.md)。本次领取 MV-7-H1（设计对齐、只读历史处理规划、合成样例），不自动启动 MV-8。MV-7-H2 才接入可恢复批量抽取和跨时间候选；当前真实双 Provider 出口仍 pending。
 
 > **2026-10-12 接续：** H1～H2d 已通过 PR #8～#11 合并，main 基线为 `00afd8a`。H2e 增加离线人工质量评估工具及正/负/待审合成校准，见 [ADR-MEM-54](../adr/054-history-quality-assessment-harness.md) 和 [报告](../validation/MV-7-quality-assessment.md)。结构与证据门槛、评估流程已经合成验证；真实语义质量、漏提和全量尺度仍未验收，MV-8 未启动。
