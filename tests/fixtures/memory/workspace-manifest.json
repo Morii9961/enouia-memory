@@ -557,6 +557,28 @@
         "policyId": "pol_00000000-0000-4000-8000-000000000001",
         "outputTokens": 256
       }
+    },
+    {
+      "schemaVersion": 1,
+      "requestId": "req_00000000-0000-4000-8000-00000000000c",
+      "command": "history_batch_preview",
+      "idempotencyKey": null,
+      "arguments": {
+        "taskId": "ses_00000000-0000-4000-8000-000000000001",
+        "batchIndex": 1
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "requestId": "req_00000000-0000-4000-8000-00000000000c",
+      "command": "history_batch_apply",
+      "idempotencyKey": "synthetic-history-task-key",
+      "arguments": {
+        "taskId": "ses_00000000-0000-4000-8000-000000000001",
+        "batchIndex": 1,
+        "responseHash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "cursor": 0
+      }
     }
   ],
   "invalid_requests": [
@@ -1290,6 +1312,136 @@
       ],
       "schema": "reject",
       "rust_rule": "shape"
+    },
+    {
+      "id": "history_batch_preview-forbid-runId",
+      "base": 53,
+      "ops": [
+        {
+          "op": "set",
+          "path": "/arguments/runId",
+          "value": "forged"
+        }
+      ],
+      "schema": "reject",
+      "rust_rule": "shape"
+    },
+    {
+      "id": "history_batch_preview-forbid-actor",
+      "base": 53,
+      "ops": [
+        {
+          "op": "set",
+          "path": "/arguments/actor",
+          "value": "forged"
+        }
+      ],
+      "schema": "reject",
+      "rust_rule": "shape"
+    },
+    {
+      "id": "history_batch_preview-forbid-model",
+      "base": 53,
+      "ops": [
+        {
+          "op": "set",
+          "path": "/arguments/model",
+          "value": "forged"
+        }
+      ],
+      "schema": "reject",
+      "rust_rule": "shape"
+    },
+    {
+      "id": "history_batch_preview-forbid-path",
+      "base": 53,
+      "ops": [
+        {
+          "op": "set",
+          "path": "/arguments/path",
+          "value": "forged"
+        }
+      ],
+      "schema": "reject",
+      "rust_rule": "shape"
+    },
+    {
+      "id": "history_batch_apply-forbid-runId",
+      "base": 54,
+      "ops": [
+        {
+          "op": "set",
+          "path": "/arguments/runId",
+          "value": "forged"
+        }
+      ],
+      "schema": "reject",
+      "rust_rule": "shape"
+    },
+    {
+      "id": "history_batch_apply-forbid-actor",
+      "base": 54,
+      "ops": [
+        {
+          "op": "set",
+          "path": "/arguments/actor",
+          "value": "forged"
+        }
+      ],
+      "schema": "reject",
+      "rust_rule": "shape"
+    },
+    {
+      "id": "history_batch_apply-forbid-model",
+      "base": 54,
+      "ops": [
+        {
+          "op": "set",
+          "path": "/arguments/model",
+          "value": "forged"
+        }
+      ],
+      "schema": "reject",
+      "rust_rule": "shape"
+    },
+    {
+      "id": "history_batch_apply-forbid-path",
+      "base": 54,
+      "ops": [
+        {
+          "op": "set",
+          "path": "/arguments/path",
+          "value": "forged"
+        }
+      ],
+      "schema": "reject",
+      "rust_rule": "shape"
+    },
+    {
+      "id": "history_batch_apply-cursor-bound",
+      "base": 54,
+      "ops": [
+        {
+          "op": "set",
+          "path": "/arguments/cursor",
+          "value": 33
+        }
+      ],
+      "schema": "reject",
+      "rust_rule": "workspace.extraction_cursor"
+    },
+    {
+      "id": "history_batch_apply-hash",
+      "base": 54,
+      "ops": [
+        {
+          "op": "set",
+          "path": "/arguments/responseHash",
+          "value": "bad"
+        }
+      ],
+      "schema": "reject",
+      "rust_rule": "shape"
     }
   ],
   "valid_responses": [
@@ -1423,6 +1575,30 @@
         "schemaVersion": 1,
         "requestId": "req_00000000-0000-4000-8000-00000000000c",
         "kind": "external_prepared",
+        "vaultCommitId": null,
+        "operationId": null,
+        "result": {},
+        "error": null
+      }
+    },
+    {
+      "command": "history_batch_preview",
+      "message": {
+        "schemaVersion": 1,
+        "requestId": "req_00000000-0000-4000-8000-00000000000c",
+        "kind": "extraction_preview",
+        "vaultCommitId": null,
+        "operationId": null,
+        "result": {},
+        "error": null
+      }
+    },
+    {
+      "command": "history_batch_apply",
+      "message": {
+        "schemaVersion": 1,
+        "requestId": "req_00000000-0000-4000-8000-00000000000c",
+        "kind": "extraction_job",
         "vaultCommitId": null,
         "operationId": null,
         "result": {},

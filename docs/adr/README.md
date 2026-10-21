@@ -358,6 +358,10 @@ The [full remember replay and target freshness acceptance](../validation/MV-6-fu
 
 [Decision](071-history-batch-request-preparation.md): prepare one ready, uninvoked child derived from a saved history task, bind request keys durably, and reuse exact-body inspection and explicit send without recreating tasks. [Contract and evidence](../validation/MV-7-history-batch-preparation.md).
 
+### ADR-MEM-72 — Saved history batch response application (MV-7)
+
+[Decision](072-history-batch-response-application.md): source-bound response preview and one inspected cursor step into pending candidates, with durable argument binding and restart-safe replay. No sending or automatic approval. [Evidence](../validation/MV-7-history-batch-application.md).
+
 ## Relation to Enouia Runtime's register
 
 

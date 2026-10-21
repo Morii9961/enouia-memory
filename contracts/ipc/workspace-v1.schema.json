@@ -165,6 +165,12 @@
     },
     {
       "$ref": "#/$defs/request_history_plan"
+    },
+    {
+      "$ref": "#/$defs/request_history_batch_preview"
+    },
+    {
+      "$ref": "#/$defs/request_history_batch_apply"
     }
   ],
   "$defs": {
@@ -2815,6 +2821,103 @@
               "type": "integer",
               "minimum": 1,
               "maximum": 32768
+            }
+          }
+        }
+      }
+    },
+    "request_history_batch_preview": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "requestId",
+        "command",
+        "idempotencyKey",
+        "arguments"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": 1
+        },
+        "requestId": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/requestId"
+        },
+        "command": {
+          "const": "history_batch_preview"
+        },
+        "idempotencyKey": {
+          "type": "null"
+        },
+        "arguments": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "taskId",
+            "batchIndex"
+          ],
+          "properties": {
+            "taskId": {
+              "$ref": "../memory/common-v1.schema.json#/$defs/sessionId"
+            },
+            "batchIndex": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 4294967295
+            }
+          }
+        }
+      }
+    },
+    "request_history_batch_apply": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "requestId",
+        "command",
+        "idempotencyKey",
+        "arguments"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": 1
+        },
+        "requestId": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/requestId"
+        },
+        "command": {
+          "const": "history_batch_apply"
+        },
+        "idempotencyKey": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{16,128}$"
+        },
+        "arguments": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "taskId",
+            "batchIndex",
+            "responseHash",
+            "cursor"
+          ],
+          "properties": {
+            "taskId": {
+              "$ref": "../memory/common-v1.schema.json#/$defs/sessionId"
+            },
+            "batchIndex": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 4294967295
+            },
+            "responseHash": {
+              "$ref": "../memory/common-v1.schema.json#/$defs/sha256"
+            },
+            "cursor": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 32
             }
           }
         }

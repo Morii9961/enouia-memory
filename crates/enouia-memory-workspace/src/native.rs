@@ -745,6 +745,102 @@ impl Workspace {
         )
     }
 
+    /// Inspect the saved response of an admitted child without trusting page
+    /// supplied Session/run IDs or creating local records.
+    pub(crate) fn history_batch_preview(&self, a: &wire::HistoryBatchArgs) -> R<Value> {
+        let open = self.open()?;
+        let batch = crate::materialization::selected_batch(&open, &a.task_id, a.batch_index)?;
+        let mut result = self.extraction_preview(&wire::ExtractionArgs {
+            session_id: batch.session_id.clone(),
+            run_id: batch.run_id.clone(),
+        })?;
+        result["taskId"] = json!(a.task_id);
+        result["batchIndex"] = json!(a.batch_index);
+        result["sessionId"] = json!(batch.session_id);
+        result["runId"] = json!(batch.run_id);
+        Ok(result)
+    }
+
+    /// Bind a local apply request before attempting its one inspected cursor
+    /// step. Candidate/cursor receipts recover interrupted application.
+    pub(crate) fn history_batch_apply(
+        &self,
+        a: &wire::HistoryBatchApplyArgs,
+        key: &str,
+    ) -> R<Value> {
+        let open = self.open()?;
+        let batch = crate::materialization::selected_batch(&open, &a.task_id, a.batch_index)?;
+        let scope = IdempotencyScope {
+            principal_id: open.owner.actor_id.clone(),
+            operation_kind: OperationKind::SessionAppend,
+            key_hash: sha256(format!("history-batch-apply:{key}").as_bytes()),
+        };
+        let payload = sha256(&canonical_bytes(a)?);
+        let prior = open.vault.find_receipt(&scope)?;
+        if prior
+            .as_ref()
+            .is_some_and(|(_, saved, _)| saved != &payload)
+        {
+            return Err(fail(
+                MemoryErrorCode::IdempotencyConflict,
+                "workspace.key_reuse",
+            ));
+        }
+        let adapter = self.extraction_adapter(
+            &open,
+            &wire::ExtractionArgs {
+                session_id: batch.session_id.clone(),
+                run_id: batch.run_id.clone(),
+            },
+        )?;
+        let preview = extraction::preview(&adapter, &batch.run_id)
+            .map_err(|e| memory(e, "provider.extraction_preview"))?;
+        if preview.response_hash != a.response_hash || preview.job.cursor < a.cursor {
+            return Err(fail(
+                MemoryErrorCode::RevisionConflict,
+                "history.response_stale",
+            ));
+        }
+        if preview.job.state == enouia_memory_contract::extraction::ExtractionState::Paused {
+            return Err(fail(MemoryErrorCode::Cancelled, "history.batch_paused"));
+        }
+        if prior.is_none() {
+            let pin = open.vault.pin_current()?;
+            let mut header = session::get(&open.vault, &pin, &batch.session_id)?;
+            let revision = header.revision;
+            header.revision = Revision::new(revision.get() + 1)
+                .ok_or_else(|| fail(MemoryErrorCode::InvalidRequest, "history.revision"))?;
+            header.updated_at = open.vault.now()?;
+            open.vault.commit(CommitRequest {
+                commit_id: enouia_memory_contract::ids::CommitId::from_random(
+                    self.config.ids.random_16(),
+                ),
+                expected_commit_id: Some(pin.commit_id),
+                principal: open.owner.clone(),
+                operation_kind: OperationKind::SessionAppend,
+                idempotency: scope,
+                request_payload_hash: payload,
+                expected_revisions: vec![(
+                    RecordKind::Session,
+                    header.session_id.to_string(),
+                    Some(revision),
+                )],
+                records: vec![StagedRecord {
+                    record_kind: RecordKind::Session,
+                    record_id: header.session_id.to_string(),
+                    revision: header.revision,
+                    bytes: canonical_bytes(&header)?,
+                }],
+                objects: vec![],
+            })?;
+        }
+        let job = extraction::apply_inspected(&adapter, &batch.run_id, &a.response_hash, a.cursor)
+            .map_err(|e| memory(e, "provider.extraction_apply"))?;
+        Ok(json!({"taskId": a.task_id, "batchIndex": a.batch_index,
+            "sessionId": batch.session_id, "runId": batch.run_id,
+            "responseHash": a.response_hash, "job": job}))
+    }
+
     fn extraction_adapter<'a>(
         &self,
         open: &'a Open,
