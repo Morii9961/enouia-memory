@@ -19,6 +19,21 @@
       "file": "promoted.json",
       "type": "authority",
       "schema": "host/authority-v1.schema.json"
+    },
+    {
+      "file": "publication-bootstrap.json",
+      "type": "intent",
+      "schema": "host/publication-intent-v1.schema.json"
+    },
+    {
+      "file": "publication-promote.json",
+      "type": "intent",
+      "schema": "host/publication-intent-v1.schema.json"
+    },
+    {
+      "file": "publication-witness.json",
+      "type": "witness",
+      "schema": "host/publication-witness-v1.schema.json"
     }
   ],
   "invalid": [
@@ -2945,6 +2960,96 @@
       ],
       "rust_rule": "host.receipt_chain",
       "schema": "accept"
+    },
+    {
+      "id": "intent-unknown",
+      "base": "publication-bootstrap.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/token",
+          "value": "synthetic-only"
+        }
+      ],
+      "rust_rule": "shape",
+      "schema": "reject"
+    },
+    {
+      "id": "intent-hash-binding",
+      "base": "publication-bootstrap.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/after/host_authority_hash",
+          "value": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        }
+      ],
+      "rust_rule": "host.publication_binding",
+      "schema": "accept"
+    },
+    {
+      "id": "intent-vault-binding",
+      "base": "publication-bootstrap.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/after/vault_id",
+          "value": "vlt_00000002-0000-4000-8000-000000000001"
+        }
+      ],
+      "rust_rule": "host.publication_binding",
+      "schema": "accept"
+    },
+    {
+      "id": "intent-null-before-authority",
+      "base": "publication-bootstrap.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/before/host_authority_hash",
+          "value": null
+        }
+      ],
+      "rust_rule": "shape",
+      "schema": "reject"
+    },
+    {
+      "id": "intent-zero-sequence",
+      "base": "publication-bootstrap.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/after/sequence",
+          "value": 0
+        }
+      ],
+      "rust_rule": "current.sequence",
+      "schema": "reject"
+    },
+    {
+      "id": "witness-unknown",
+      "base": "publication-witness.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/path",
+          "value": "synthetic-only"
+        }
+      ],
+      "rust_rule": "shape",
+      "schema": "reject"
+    },
+    {
+      "id": "witness-missing-authority",
+      "base": "publication-witness.json",
+      "ops": [
+        {
+          "op": "remove",
+          "path": "/current/host_authority_hash"
+        }
+      ],
+      "rust_rule": "host.witness_binding",
+      "schema": "reject"
     }
   ]
 }

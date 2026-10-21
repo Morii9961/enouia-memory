@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.enouia-memory.invalid/host/publication-intent-v1.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "before",
+    "after",
+    "authority"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "before": {
+      "$ref": "../store/current-v1.schema.json"
+    },
+    "after": {
+      "allOf": [
+        {
+          "$ref": "../store/current-v1.schema.json"
+        },
+        {
+          "required": [
+            "host_authority_hash"
+          ]
+        }
+      ]
+    },
+    "authority": {
+      "$ref": "authority-v1.schema.json"
+    }
+  }
+}

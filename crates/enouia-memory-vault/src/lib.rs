@@ -13,6 +13,7 @@ pub mod fault;
 pub mod fs;
 pub mod health;
 pub mod host_authority;
+pub mod host_recovery;
 pub mod host_transaction;
 pub mod lock;
 pub mod platform;

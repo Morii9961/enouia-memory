@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.enouia-memory.invalid/host/publication-witness-v1.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "current"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "current": {
+      "allOf": [
+        {
+          "$ref": "../store/current-v1.schema.json"
+        },
+        {
+          "required": [
+            "host_authority_hash"
+          ]
+        }
+      ]
+    }
+  }
+}

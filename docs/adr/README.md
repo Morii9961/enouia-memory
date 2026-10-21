@@ -374,6 +374,10 @@ The [full remember replay and target freshness acceptance](../validation/MV-6-fu
 
 [Decision](072-history-batch-response-application.md): source-bound response preview and one inspected cursor step into pending candidates, with durable argument binding and restart-safe replay. No sending or automatic approval. [Evidence](../validation/MV-7-history-batch-application.md).
 
+### ADR-MEM-73 — Witnessed Host publication and forward recovery (MV-8.1d)
+
+[Decision](073-host-publication-recovery.md): opt-in native Host v2 binds a publication intent and acknowledgement witness to CURRENT; normal operations refuse incomplete publication. Explicit owner-confirmed recovery verifies the latest exact intent and target bytes, preserves watermarks/receipts and never selects an older commit. Missing ordinary witnesses and prototype v1 roots remain fenced. [Evidence](../validation/MV-8-host-recovery.md).
+
 ## Relation to Enouia Runtime's register
 
 

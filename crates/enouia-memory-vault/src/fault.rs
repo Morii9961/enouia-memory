@@ -13,6 +13,8 @@ pub enum FaultPoint {
     BeforeRename,
     /// Opt-in Host control file published; the response can still be lost.
     HostAuthorityPublished,
+    HostIntentPublished,
+    HostWitnessPublished,
     AfterLock,
     StagingWritten,
     RecordsPlaced,

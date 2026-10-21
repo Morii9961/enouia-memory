@@ -10,6 +10,7 @@ use enouia_memory_contract::ports::CommitOutcome;
 use enouia_memory_vault::backup::{export_pinned, mark_reconciled};
 use enouia_memory_vault::fault::{FaultAction, FaultPoint, Faults};
 use enouia_memory_vault::host_authority::ControlChange;
+use enouia_memory_vault::host_recovery::HostRecovery;
 use enouia_memory_vault::host_transaction::{HostCoordinator, MODE_FILE};
 use enouia_memory_vault::{Fault, VaultError};
 use support::{Harness, TempRoot, child_env, open_at, spawn_child, verified};
@@ -224,7 +225,7 @@ fn lost_response_replays_committed_data_without_second_authority_advance() {
     let writer = h.reopen(faults.clone());
     let host = HostCoordinator::open(&writer, &root, identity(1)).unwrap();
     h.clock.set(h.lifecycle.time(1));
-    faults.arm(FaultPoint::AfterCurrent, 1, FaultAction::Fail(112));
+    faults.arm(FaultPoint::HostWitnessPublished, 1, FaultAction::Fail(112));
     is_host(
         host.commit(h.lifecycle.request(1)).unwrap_err(),
         HostFault::OutcomeUnknown,
@@ -275,8 +276,8 @@ fn incomplete_adoption_missing_authority_and_bad_current_never_recover_as_legacy
 }
 
 #[test]
-fn child_process_abort_recovers_matching_old_or_new_data_and_authority() {
-    for mode in ["before", "after"] {
+fn child_process_abort_requires_exact_forward_recovery_until_the_witness_is_flushed() {
+    for mode in ["intent", "before", "after", "witness"] {
         let h = setup(&format!("host-data-process-{mode}"));
         let root = verified(h.root.path());
         let host = HostCoordinator::bootstrap(&h.vault, &root, identity(1)).unwrap();
@@ -307,23 +308,29 @@ fn child_process_abort_recovers_matching_old_or_new_data_and_authority() {
         assert!(!status.success());
         assert!(root.path().join("host-data-child-ready").is_file());
         let reopened = h.reopen(Faults::none());
+        if mode != "witness" {
+            assert!(HostCoordinator::open(&reopened, &root, identity(1)).is_err());
+        }
+        let observed = reopened.pin_current().unwrap();
+        assert_eq!(
+            observed.sequence,
+            before.checkpoint.commit_sequence.get()
+                + u64::from(matches!(mode, "after" | "witness"))
+        );
+        let recovery = HostRecovery::open(&reopened, &root, identity(1)).unwrap();
+        let plan = recovery.plan().unwrap();
+        assert_eq!(plan.repair_needed(), mode != "witness");
+        let recovered = recovery.confirm(&plan, plan.hash()).unwrap();
+        drop(recovery);
         let host = HostCoordinator::open(&reopened, &root, identity(1)).unwrap();
-        let recovered = host.inspect().unwrap();
         assert_eq!(
             recovered.checkpoint,
             reopened.verified_data_checkpoint().unwrap()
         );
-        if mode == "before" {
-            assert_eq!(recovered, before);
-        } else {
-            assert_eq!(recovered.revision.get(), 2);
-        }
+        assert_eq!(recovered.revision.get(), 2);
         h.clock.set(h.lifecycle.time(1));
         let outcome = host.commit(h.lifecycle.request(1)).unwrap();
-        assert_eq!(
-            matches!(outcome, CommitOutcome::Replayed { .. }),
-            mode == "after"
-        );
+        assert!(matches!(outcome, CommitOutcome::Replayed { .. }));
         assert_eq!(host.inspect().unwrap().revision.get(), 2);
         assert!(matches!(
             host.inspect().unwrap().phase,
@@ -349,10 +356,12 @@ fn child_process_entry() {
     }
     let host = HostCoordinator::open(&vault, &root, identity(1)).unwrap();
     faults.arm(
-        if mode == "before" {
-            FaultPoint::BeforeCurrent
-        } else {
-            FaultPoint::AfterCurrent
+        match mode.as_str() {
+            "intent" => FaultPoint::HostIntentPublished,
+            "before" => FaultPoint::BeforeCurrent,
+            "after" => FaultPoint::AfterCurrent,
+            "witness" => FaultPoint::HostWitnessPublished,
+            _ => panic!("unknown synthetic crash boundary"),
         },
         1,
         FaultAction::Abort,

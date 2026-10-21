@@ -95,6 +95,12 @@ impl<R: CheckpointReader> ControlStore<R> {
             || root
                 .exists("vault/host-authority")
                 .map_err(|_| HostFault::StorageFailed)?
+            || root
+                .exists(crate::host_recovery::INTENT_FILE)
+                .map_err(|_| HostFault::StorageFailed)?
+            || root
+                .exists(crate::host_recovery::WITNESS_FILE)
+                .map_err(|_| HostFault::StorageFailed)?
         {
             return Err(HostFault::Conflict);
         }

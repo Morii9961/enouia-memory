@@ -1548,15 +1548,8 @@ impl Vault {
         host_authority_hash: Option<Sha256Hex>,
     ) -> Result<()> {
         let faults = &self.options.faults;
-        let (_, hash) = self.load_commit(&commit.commit_id, None)?;
-        let pointer = CurrentPointer {
-            schema_version: SchemaVersion,
-            vault_id: self.descriptor.vault_id.clone(),
-            commit_id: commit.commit_id.clone(),
-            sequence: commit.sequence,
-            manifest_sha256: hash.clone(),
-            host_authority_hash,
-        };
+        let pointer = self.pointer_for(commit, host_authority_hash)?;
+        let hash = pointer.manifest_sha256.clone();
         faults.io(FaultPoint::BeforeCurrent)?;
         self.root.write_atomic(
             &layout::current_pointer(),
@@ -1569,6 +1562,33 @@ impl Vault {
             .root
             .remove_staging(&layout::staging_dir(commit.operation_id.as_str()));
         Ok(())
+    }
+
+    pub(crate) fn pointer_for(
+        &self,
+        commit: &StoredCommit,
+        host_authority_hash: Option<Sha256Hex>,
+    ) -> Result<CurrentPointer> {
+        let (_, hash) = self.load_commit(&commit.commit_id, None)?;
+        Ok(CurrentPointer {
+            schema_version: SchemaVersion,
+            vault_id: self.descriptor.vault_id.clone(),
+            commit_id: commit.commit_id.clone(),
+            sequence: commit.sequence,
+            manifest_sha256: hash,
+            host_authority_hash,
+        })
+    }
+
+    pub(crate) fn pin_pointer(&self, pointer: &CurrentPointer) -> Result<CommitPin> {
+        if pointer.vault_id != self.descriptor.vault_id {
+            return Err(enouia_memory_contract::host::HostFault::Fenced.into());
+        }
+        let (commit, _) = self.load_commit(&pointer.commit_id, Some(&pointer.manifest_sha256))?;
+        if commit.sequence != pointer.sequence {
+            return Err(enouia_memory_contract::host::HostFault::CheckpointMismatch.into());
+        }
+        Ok(Self::pin_of(&commit))
     }
 
     /// The journal is recovery evidence, not the commit: a failed append is
@@ -1843,9 +1863,7 @@ impl Vault {
         if let Some(authority) = authority {
             let checkpoint = self.checkpoint_for_locked(&Self::pin_of(&built.commit))?;
             let next = authority.advance(&authority.primary, &authority.checkpoint, checkpoint)?;
-            let hash = self.write_authority(&next)?;
-            // Only this replacement publishes BOTH the new data and authority.
-            self.publish_with_authority(&built.commit, Some(hash))
+            self.publish_host(&built.commit, &next, false)
                 .map_err(|_| {
                     VaultError::from(enouia_memory_contract::host::HostFault::OutcomeUnknown)
                 })?;
