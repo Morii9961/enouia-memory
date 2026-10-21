@@ -2,6 +2,8 @@
 
 原始计划：设计包 v1.0 / 2026-09-28；v1.3 路线修订：2026-10-11。本文定义阶段与出口；实际进度以对应 validation 报告为准。
 
+> **2026-10-22，MV-8.1e：** [ADR-MEM-74](../adr/074-native-host-domain-writer.md) 将现有领域服务显式绑定到原生 Host 的租约与固定 primary epoch；普通提交、head pin 和回执重放均重新检查发布状态，旧句柄与维护入口继续拒绝写入。见[领域写入报告](../validation/MV-8-native-domain-writer.md)。下一步为 Host 进程与认证会话；本片不切换 Runtime、不开放 MCP 或真实迁移。
+
 > **2026-10-22，MV-8.1d：** [ADR-MEM-73](../adr/073-host-publication-recovery.md) 与[恢复报告](../validation/MV-8-host-recovery.md)补齐 opt-in Host v2 的发布意图、确认见证与显式向前恢复；不猜测旧提交，不自动升级 v1。接下来推进唯一 Host 进程、原生认证/会话撤回/版本握手和断连重连，之后才接受限 MCP。独立加密恢复、Runtime 采用、MV-9 和真实迁主仍是分别验证的门槛。
 
 > **2026-10-21，主线整合接续：** 在已合并 PR #40 的 MV-7 / 55-command 基线上整合此前独立工作树的 MV-8.1a～c，保留历史检查失败与真实验收门槛；证据见[整合报告](../validation/MV-8-authority-integration.md)。本段不启动 MV-9、真实迁主或云端部署。

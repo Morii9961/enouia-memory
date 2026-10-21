@@ -11,7 +11,7 @@ use crate::platform;
 use crate::{RootPolicy, Vault, VerifiedRoot, verify_data_root};
 use enouia_memory_contract::hash::{Sha256Hex, sha256};
 use enouia_memory_contract::host::{
-    AuthorityState, Checkpoint, HostFault, MAX_HOST_DOCUMENT_BYTES, parse_document,
+    AuthorityState, Checkpoint, HostFault, MAX_HOST_DOCUMENT_BYTES, PrimaryBinding, parse_document,
 };
 use enouia_memory_contract::ids::DeviceId;
 use enouia_memory_contract::json::{Revision, canonical_bytes};
@@ -24,6 +24,11 @@ use std::fs::{File, TryLockError};
 
 pub const MODE_FILE: &str = "config/host-mode.json";
 const AUTHORITY_DIR: &str = "vault/host-authority";
+
+pub(crate) struct NativeHostWriter {
+    binding: PrimaryBinding,
+    _lease: File,
+}
 
 fn authority_file(hash: &Sha256Hex) -> String {
     format!("{AUTHORITY_DIR}/{hash}.json")
@@ -109,7 +114,8 @@ impl Vault {
     /// export/recovery proof for mutable audit, secrets or platform metadata.
     pub fn verified_data_checkpoint(&self) -> Result<Checkpoint> {
         let _guard = self.lock()?;
-        self.checkpoint_for_locked(&self.pin_current()?)
+        self.bound_host_state_locked()?;
+        self.checkpoint_for_locked(&self.pin_current_locked()?)
     }
 
     pub(crate) fn write_authority(&self, state: &AuthorityState) -> Result<Sha256Hex> {
@@ -168,12 +174,31 @@ impl Vault {
         if &state.vault_id != self.vault_id() {
             return Err(HostFault::Fenced.into());
         }
-        let checkpoint = self.checkpoint_for_locked(&self.pin_current()?)?;
+        let checkpoint = self.checkpoint_for_locked(&self.pin_current_locked()?)?;
         if state.checkpoint != checkpoint {
             return Err(HostFault::CheckpointMismatch.into());
         }
         self.check_publication_locked(&pointer, &state)?;
         Ok(state)
+    }
+
+    pub(crate) fn bound_host_state_locked(&self) -> Result<Option<AuthorityState>> {
+        self.host_writer
+            .as_ref()
+            .map(|writer| {
+                let state = self.host_state_locked()?;
+                state.check_writer(self.vault_id(), &writer.binding)?;
+                Ok(state)
+            })
+            .transpose()
+    }
+
+    /// Fresh native dispatch preflight. Pinned reads still require the host's
+    /// operation/lifecycle gate; a past pin is not an authentication grant.
+    pub fn host_writer_state(&self) -> Result<AuthorityState> {
+        let _guard = self.lock()?;
+        self.bound_host_state_locked()?
+            .ok_or_else(|| HostFault::Unavailable.into())
     }
 }
 
@@ -251,6 +276,19 @@ impl<'a> HostCoordinator<'a> {
     pub fn inspect(&self) -> Result<AuthorityState> {
         let _guard = self.vault.lock()?;
         self.vault.host_state_locked()
+    }
+
+    pub(super) fn into_writer(self) -> Result<NativeHostWriter> {
+        let state = self.inspect()?;
+        let binding = PrimaryBinding {
+            host_id: self.identity,
+            primary_epoch: state.primary.primary_epoch,
+        };
+        state.check_writer(self.vault.vault_id(), &binding)?;
+        Ok(NativeHostWriter {
+            binding,
+            _lease: self._lease,
+        })
     }
 
     pub fn commit(&self, request: CommitRequest) -> Result<CommitOutcome> {

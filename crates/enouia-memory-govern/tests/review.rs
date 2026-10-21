@@ -29,6 +29,79 @@ use support::{Env, agent, fact, owner, rev};
 
 const CLI: TrustedSurface = TrustedSurface::TrustedLocalCli;
 
+#[cfg(windows)]
+#[test]
+fn native_host_writer_preserves_pending_proposals_and_exact_owner_review() {
+    use enouia_memory_contract::ids::DeviceId;
+    use enouia_memory_vault::host_transaction::HostCoordinator;
+    use enouia_memory_vault::{OsIdSource, RootPolicy, Vault, VaultOptions, verify_data_root};
+    use std::sync::Arc;
+
+    let env = Env::new("native-host-governance");
+    let source = env.statement("合成：项目使用本地文件存储。");
+    let root = verify_data_root(&env.root.join("vault"), &RootPolicy::default()).unwrap();
+    enouia_memory_vault::platform::restrict_to_owner(root.path()).unwrap();
+    let identity = DeviceId::parse("dev_00000001-0000-4000-8000-000000000001").unwrap();
+    drop(HostCoordinator::bootstrap(&env.vault, &root, identity.clone()).unwrap());
+    let writer = Vault::open(
+        &root,
+        None,
+        env.clock.clone(),
+        Arc::new(OsIdSource),
+        VaultOptions::default(),
+    )
+    .unwrap()
+    .into_host_writer(&root, identity)
+    .unwrap();
+    let before = writer.host_writer_state().unwrap();
+    env.tick();
+    let proposal = fact(&source, "host.storage", "项目使用本地文件存储。");
+    let Proposed::Stored(written) = propose(
+        &writer,
+        &proposal,
+        &Origin::agent(agent()),
+        b"native-host-proposal",
+    )
+    .unwrap() else {
+        panic!("new native proposal must be pending");
+    };
+    let pending_pin = writer.pin_current().unwrap();
+    assert_eq!(pending_candidates(&writer, &pending_pin).unwrap().len(), 1);
+    assert!(
+        canonical_memories(&writer, &pending_pin, Canonical::Active)
+            .unwrap()
+            .is_empty()
+    );
+    assert!(plan(&writer, &[accept(&written.id, 1)], &agent(), CLI).is_err());
+    let shown = plan(&writer, &[accept(&written.id, 1)], &owner(), CLI).unwrap();
+    env.tick();
+    confirm(&writer, &shown, &yes()).unwrap();
+    let accepted_pin = writer.pin_current().unwrap();
+    assert!(
+        pending_candidates(&writer, &accepted_pin)
+            .unwrap()
+            .is_empty()
+    );
+    assert_eq!(
+        canonical_memories(&writer, &accepted_pin, Canonical::Active)
+            .unwrap()
+            .len(),
+        1
+    );
+    let after = writer.host_writer_state().unwrap();
+    assert_eq!(after.revision.get(), before.revision.get() + 2);
+    assert_eq!(after.checkpoint, writer.verified_data_checkpoint().unwrap());
+    assert!(
+        propose(
+            &env.vault,
+            &proposal,
+            &Origin::agent(agent()),
+            b"legacy-writer"
+        )
+        .is_err()
+    );
+}
+
 fn yes() -> OwnerConfirmation {
     OwnerConfirmation {
         owner: owner(),
