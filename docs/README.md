@@ -2,7 +2,7 @@
 
 All project documentation lives under `docs/`.
 
-2026-10-21: [MV-8.1 authority foundation integration](validation/MV-8-authority-integration.md) brings the previously authorized Host contracts, native control persistence and shared CURRENT publication onto the current 55-command baseline. Host process, authenticated transport, recovery and Runtime adoption remain separate gates.
+2026-10-22: [Witnessed Host publication and explicit forward recovery](validation/MV-8-host-recovery.md) adds opt-in native Host v2 recovery on the 55-command baseline. The earlier [authority foundation integration](validation/MV-8-authority-integration.md) remains the historical baseline. Host process, authenticated transport, independent restore and Runtime adoption remain separate gates.
 
 2026-10-21: [saved history batch response application](validation/MV-7-history-batch-application.md) adds source-bound preview and one inspected cursor step into pending candidates (ADR-MEM-72), with durable request binding and reopen recovery. Runtime adoption and real acceptance remain separate.
 

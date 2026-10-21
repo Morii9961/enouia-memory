@@ -4,6 +4,7 @@ mod support;
 
 use enouia_memory_contract::ContractError;
 use enouia_memory_contract::hash::sha256;
+use enouia_memory_contract::host::publication::{PublicationIntent, PublicationWitness};
 use enouia_memory_contract::host::*;
 use enouia_memory_contract::ids::{CommitId, DeviceId, OperationId, VaultId};
 use enouia_memory_contract::json::{MAX_SAFE_INTEGER, Revision};
@@ -33,6 +34,12 @@ fn parse(kind: &str, value: &Value) -> Result<Value, ContractError> {
             parse_document::<AuthorityState>(&bytes).map(|v| serde_json::to_value(v).unwrap())
         }
         "plan" => parse_document::<TransferPlan>(&bytes).map(|v| serde_json::to_value(v).unwrap()),
+        "intent" => {
+            parse_document::<PublicationIntent>(&bytes).map(|v| serde_json::to_value(v).unwrap())
+        }
+        "witness" => {
+            parse_document::<PublicationWitness>(&bytes).map(|v| serde_json::to_value(v).unwrap())
+        }
         _ => panic!("unknown synthetic fixture type"),
     }
 }
@@ -61,6 +68,12 @@ fn host_schemas_and_typed_rules_round_trip_all_valid_fixtures() {
             }
             "plan" => {
                 parse_document::<TransferPlan>(&bytes).unwrap();
+            }
+            "intent" => {
+                parse_document::<PublicationIntent>(&bytes).unwrap();
+            }
+            "witness" => {
+                parse_document::<PublicationWitness>(&bytes).unwrap();
             }
             _ => unreachable!(),
         }
@@ -545,4 +558,84 @@ fn raw_authority_rejects_duplicate_decoded_fields_and_oversized_or_nonobject_inp
         Err(ContractError::Malformed)
     );
     assert!(parse_document::<AuthorityState>(b"{ malformed }").is_err());
+}
+
+#[test]
+fn publication_intents_bind_bootstrap_advance_and_control_successors() {
+    use enouia_memory_contract::json::{SchemaVersion, canonical_bytes};
+    use enouia_memory_contract::store::CurrentPointer;
+    let bootstrap: PublicationIntent =
+        parse_document(&serde_json::to_vec(&fixture("publication-bootstrap")).unwrap()).unwrap();
+    bootstrap.check_transition(None).unwrap();
+    let promoted: PublicationIntent =
+        parse_document(&serde_json::to_vec(&fixture("publication-promote")).unwrap()).unwrap();
+    let quiesced: AuthorityState = parse_store_value(&fixture("quiesced")).unwrap();
+    promoted.check_transition(Some(&quiesced)).unwrap();
+    assert!(promoted.check_transition(None).is_err());
+    let old = initial();
+    let before = CurrentPointer {
+        host_authority_hash: Some(sha256(&canonical_bytes(&old).unwrap())),
+        ..bootstrap.after.clone()
+    };
+    let mut checkpoint = old.checkpoint.clone();
+    checkpoint.commit_id = CommitId::parse("cmt_00000002-0000-4000-8000-000000000001").unwrap();
+    checkpoint.commit_sequence = Revision::new(old.checkpoint.commit_sequence.get() + 1).unwrap();
+    checkpoint.snapshot_hash = sha256(b"synthetic advanced closure");
+    let authority = old
+        .advance(&old.primary, &old.checkpoint, checkpoint)
+        .unwrap();
+    let after = CurrentPointer {
+        schema_version: SchemaVersion,
+        vault_id: old.vault_id.clone(),
+        commit_id: authority.checkpoint.commit_id.clone(),
+        sequence: authority.checkpoint.commit_sequence.get(),
+        manifest_sha256: sha256(b"synthetic advanced manifest"),
+        host_authority_hash: Some(sha256(&canonical_bytes(&authority).unwrap())),
+    };
+    PublicationIntent {
+        schema_version: SchemaVersion,
+        before: before.clone(),
+        after,
+        authority,
+    }
+    .check_transition(Some(&old))
+    .unwrap();
+    let mut forged = bootstrap;
+    forged.before = before;
+    forged.authority.primary.host_id = host(9);
+    forged.after.host_authority_hash = Some(sha256(&canonical_bytes(&forged.authority).unwrap()));
+    assert!(
+        forged.validate().is_empty(),
+        "closed shape alone does not establish a legal transition"
+    );
+    assert!(forged.check_transition(Some(&old)).is_err());
+}
+
+#[test]
+fn publication_documents_keep_duplicate_field_and_document_budgets_strict() {
+    let witness = serde_json::to_string(&fixture("publication-witness")).unwrap();
+    let duplicate = witness.replacen(
+        "\"schema_version\":1",
+        "\"schema_version\":1,\"schema_version\":1",
+        1,
+    );
+    assert!(parse_document::<PublicationWitness>(duplicate.as_bytes()).is_err());
+    assert!(
+        parse_document::<PublicationWitness>(&vec![b' '; publication::MAX_WITNESS_BYTES + 1])
+            .unwrap_err()
+            .rules()
+            .contains(&"host.document_budget")
+    );
+    assert!(
+        parse_document::<AuthorityState>(&vec![b' '; MAX_HOST_DOCUMENT_BYTES + 1])
+            .unwrap_err()
+            .rules()
+            .contains(&"host.document_budget")
+    );
+    assert!(
+        parse_document::<PublicationIntent>(&vec![b' '; publication::MAX_INTENT_BYTES + 1])
+            .unwrap_err()
+            .rules()
+            .contains(&"host.document_budget")
+    );
 }

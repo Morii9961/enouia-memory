@@ -14,6 +14,8 @@ use crate::json::{
 use crate::store::StoreDocument;
 use serde::{Deserialize, Serialize};
 
+pub mod publication;
+
 /// Retain every migration receipt. Exhaustion refuses another migration;
 /// receipts are never silently pruned or made reusable.
 pub const MAX_PROMOTIONS: usize = 128;
@@ -23,7 +25,7 @@ pub const MAX_HOST_DOCUMENT_BYTES: usize = 256 * 1024;
 /// duplicate decoded field names, which a Value-only parser would overwrite.
 /// All Host documents are closed structs/enums, without arbitrary JSON maps.
 pub fn parse_document<T: HostDocument>(bytes: &[u8]) -> Result<T, ContractError> {
-    if bytes.len() > MAX_HOST_DOCUMENT_BYTES {
+    if bytes.len() > T::MAX_BYTES {
         return Err(ContractError::Invalid(vec![Violation::new(
             "host.document_budget",
             "",
@@ -155,7 +157,9 @@ mod sealed {
 }
 
 /// Only closed Host documents may use the raw parser's duplicate-field guarantee.
-pub trait HostDocument: StoreDocument + sealed::Sealed {}
+pub trait HostDocument: StoreDocument + sealed::Sealed {
+    const MAX_BYTES: usize = MAX_HOST_DOCUMENT_BYTES;
+}
 impl HostDocument for AuthorityState {}
 impl HostDocument for TransferPlan {}
 

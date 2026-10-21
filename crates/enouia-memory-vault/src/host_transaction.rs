@@ -2,7 +2,7 @@
 //! trusted caller; this library is not an authenticated client transport.
 //!
 //! Immutable authority bytes are selected by the SAME atomic CURRENT as data.
-//! A persistent mode marker is written first; interrupted adoption fails closed.
+//! A durable publication intent is written first; interrupted adoption fails closed.
 //! Never silently adopt the earlier authority-only pilot or a legacy backup.
 
 use crate::error::{Result, VaultError};
@@ -36,6 +36,8 @@ impl Vault {
     pub(crate) fn require_legacy_mode(&self) -> Result<()> {
         let root = self.managed_root();
         if root.exists(MODE_FILE)?
+            || root.exists(crate::host_recovery::INTENT_FILE)?
+            || root.exists(crate::host_recovery::WITNESS_FILE)?
             || root.exists(AUTHORITY_DIR)?
             || root.read(&layout::current_pointer())?.is_some_and(|bytes| {
                 // Inspect presence, including malformed/null claimed values.
@@ -126,9 +128,9 @@ impl Vault {
         Ok(hash)
     }
 
-    fn mode_bytes(&self) -> Vec<u8> {
+    pub(crate) fn mode_bytes(&self) -> Vec<u8> {
         canonical_bytes(&json!({
-            "schema_version": 1, "mode": "host-current-v1",
+            "schema_version": 1, "mode": "host-current-v2",
             "vault_id": self.vault_id(),
         }))
         .expect("mode marker")
@@ -151,12 +153,15 @@ impl Vault {
         let pointer: CurrentPointer =
             serde_json::from_slice(&bytes).map_err(|_| HostFault::InvalidState)?;
         parse_store::<CurrentPointer>(&bytes).map_err(|_| HostFault::InvalidState)?;
-        let hash = pointer.host_authority_hash.ok_or(HostFault::InvalidState)?;
+        let hash = pointer
+            .host_authority_hash
+            .as_ref()
+            .ok_or(HostFault::InvalidState)?;
         let bytes = self
             .managed_root()
-            .read_bounded(&authority_file(&hash), MAX_HOST_DOCUMENT_BYTES)?
+            .read_bounded(&authority_file(hash), MAX_HOST_DOCUMENT_BYTES)?
             .ok_or(HostFault::Unavailable)?;
-        if sha256(&bytes) != hash {
+        if &sha256(&bytes) != hash {
             return Err(HostFault::InvalidState.into());
         }
         let state: AuthorityState = parse_document(&bytes).map_err(|_| HostFault::InvalidState)?;
@@ -167,6 +172,7 @@ impl Vault {
         if state.checkpoint != checkpoint {
             return Err(HostFault::CheckpointMismatch.into());
         }
+        self.check_publication_locked(&pointer, &state)?;
         Ok(state)
     }
 }
@@ -175,13 +181,17 @@ impl Vault {
 /// obtains the Vault writer lock and re-verifies data and authority from disk.
 /// This is a coordinator, not yet the Host executable or an IPC/MCP adapter.
 pub struct HostCoordinator<'a> {
-    vault: &'a Vault,
-    identity: DeviceId,
+    pub(super) vault: &'a Vault,
+    pub(super) identity: DeviceId,
     _lease: File,
 }
 
 impl<'a> HostCoordinator<'a> {
-    fn acquire(vault: &'a Vault, root: &VerifiedRoot, identity: DeviceId) -> Result<Self> {
+    pub(super) fn acquire(
+        vault: &'a Vault,
+        root: &VerifiedRoot,
+        identity: DeviceId,
+    ) -> Result<Self> {
         if !cfg!(windows) {
             return Err(HostFault::Unavailable.into());
         }
@@ -212,7 +222,7 @@ impl<'a> HostCoordinator<'a> {
 
     /// Explicit irreversible MODE ADOPTION in a synthetic root. Native owner
     /// approval belongs to the calling control plane; there is no UI command.
-    /// A partial bootstrap leaves a marker and refuses legacy recovery/writing.
+    /// A partial bootstrap leaves an intent and refuses legacy recovery/writing.
     pub fn bootstrap(vault: &'a Vault, root: &VerifiedRoot, identity: DeviceId) -> Result<Self> {
         let host = Self::acquire(vault, root, identity)?;
         let _guard = vault.lock()?;
@@ -224,14 +234,9 @@ impl<'a> HostCoordinator<'a> {
         let checkpoint = vault.checkpoint_for_locked(&pin)?;
         let state =
             AuthorityState::initial(vault.vault_id().clone(), host.identity.clone(), checkpoint)?;
-        // Flush the persistent fail-closed gate BEFORE changing CURRENT.
-        vault
-            .managed_root()
-            .write_new(MODE_FILE, &vault.mode_bytes())?;
-        let hash = vault.write_authority(&state)?;
         let commit = vault.stored_commit(&pin)?;
         vault
-            .publish_with_authority(&commit, Some(hash))
+            .publish_host(&commit, &state, true)
             .map_err(|_| VaultError::from(HostFault::OutcomeUnknown))?;
         Ok(host)
     }
@@ -301,10 +306,9 @@ impl<'a> HostCoordinator<'a> {
             }
         };
         if next != state {
-            let hash = self.vault.write_authority(&next)?;
             let commit = self.vault.stored_commit(&self.vault.pin_current()?)?;
             self.vault
-                .publish_with_authority(&commit, Some(hash))
+                .publish_host(&commit, &next, false)
                 .map_err(|_| VaultError::from(HostFault::OutcomeUnknown))?;
         }
         Ok(next)

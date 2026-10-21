@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "before": {
+    "schema_version": 1,
+    "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+    "commit_id": "cmt_00000001-0000-4000-8000-000000000001",
+    "sequence": 1,
+    "manifest_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  },
+  "after": {
+    "schema_version": 1,
+    "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+    "commit_id": "cmt_00000001-0000-4000-8000-000000000001",
+    "sequence": 1,
+    "manifest_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "host_authority_hash": "27290fcc61e09c0b38a6645c5838b4a35e1c068545540b79bde009dbb888ac30"
+  },
+  "authority": {
+    "schema_version": 1,
+    "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+    "revision": 1,
+    "primary": {
+      "host_id": "dev_00000001-0000-4000-8000-000000000001",
+      "primary_epoch": 1
+    },
+    "checkpoint": {
+      "commit_id": "cmt_00000001-0000-4000-8000-000000000001",
+      "commit_sequence": 1,
+      "snapshot_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "policy_epoch": 0,
+      "deletion_epoch": 0
+    },
+    "phase": {
+      "state": "active"
+    },
+    "promotions": []
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "current": {
+    "schema_version": 1,
+    "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+    "commit_id": "cmt_00000001-0000-4000-8000-000000000001",
+    "sequence": 1,
+    "manifest_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "host_authority_hash": "27290fcc61e09c0b38a6645c5838b4a35e1c068545540b79bde009dbb888ac30"
+  }
+}
