@@ -43,7 +43,7 @@ fn valid_store_documents_pass_schema_and_rust_and_round_trip() {
     let store = SchemaStore::load();
     let manifest = store_fixture("store-manifest.json");
     let valid = manifest["valid"].as_array().unwrap();
-    assert_eq!(valid.len(), 10);
+    assert_eq!(valid.len(), 11);
     for entry in valid {
         let file = entry["file"].as_str().unwrap();
         let value = store_fixture(file);

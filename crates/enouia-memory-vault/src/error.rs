@@ -29,6 +29,7 @@ pub enum Fault {
     Recovering(&'static str),
     NotInitialized,
     AlreadyInitialized,
+    Host(enouia_memory_contract::host::HostFault),
     /// An injected failure (tests only).
     Injected(&'static str),
 }
@@ -84,6 +85,19 @@ impl From<MemoryError> for VaultError {
             _ => Fault::Io(io::ErrorKind::Other),
         };
         Self { error, fault }
+    }
+}
+
+impl From<enouia_memory_contract::host::HostFault> for VaultError {
+    fn from(fault: enouia_memory_contract::host::HostFault) -> Self {
+        use enouia_memory_contract::host::HostFault as H;
+        let code = match fault {
+            H::Busy => MemoryErrorCode::Busy,
+            H::Fenced | H::Quiesced | H::PermissionDenied => MemoryErrorCode::PermissionDenied,
+            H::StorageFailed | H::OutcomeUnknown => MemoryErrorCode::StorageFailed,
+            _ => MemoryErrorCode::VaultRecovering,
+        };
+        Self::new(code, Fault::Host(fault))
     }
 }
 

@@ -26,6 +26,7 @@ pub mod extraction;
 pub mod foundation;
 pub mod hash;
 pub mod history;
+pub mod host;
 pub mod identity;
 pub mod ids;
 pub mod import;

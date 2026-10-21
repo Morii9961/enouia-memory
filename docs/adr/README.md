@@ -18,7 +18,7 @@ These come from [design/DECISIONS_AND_SOURCES](../design/DECISIONS_AND_SOURCES.m
 | ADR-MEM-08 | Automatic checkpoint is a Session artifact | Adopted |
 | ADR-MEM-09 | Local FTS/metadata; separate CJK short-query path | Direction recorded (frozen in MV-4) |
 | ADR-MEM-10 | Inspectable Dispatch; egress authorized separately | Adopted; made concrete by ADR-MEM-25, 30 and 33 |
-| ADR-MEM-11 | Embedded Core → single Memory Host | Direction recorded (MV-8) |
+| ADR-MEM-11 | Embedded Core → single Memory Host | Direction recorded; authority contract frozen by ADR-MEM-66 (MV-8.1a), process switch pending |
 | ADR-MEM-12 | Activity is independent | Adopted (Activity stays in Runtime) |
 | ADR-MEM-13 | ACL / verified volume protection + restic backup | Direction recorded; gated before real data |
 | ADR-MEM-14 | Raw immutable by default; owner deletion is the exception | Adopted (contract); purge in MV-3 |
@@ -345,6 +345,18 @@ The [full remember replay and target freshness acceptance](../validation/MV-6-fu
 ### ADR-MEM-65 — Recorded context source dependencies (Adopted, MV-7)
 
 [Decision](065-recorded-context-source-dependencies.md): record selected context dependencies separately from supporting evidence, propagate them through governance/compilation and source purge; explicit optional storage fields preserve legacy reads without claiming complete legacy lineage. [Evidence](../validation/MV-7-semantic-context-dependencies.md).
+
+### ADR-MEM-66 — Host authority and platform transactions (Adopted as contract, MV-8.1a)
+
+[Decision](066-host-authority-and-platform-contracts.md): additive authority/transfer-plan v1 schemas, exact checkpoint-bound quiescence/promotion/abort, monotonic primary epochs and retained bounded migration receipts. Native platform transactions must combine the latest authority check with durable data publication; an unavailable authority never permits cached writing. Pure model and synthetic transaction tests do not migrate existing Vaults, authenticate clients, create a Host process or prove OS/cloud fencing. Runtime still embeds its pinned Core until a later explicit adoption.
+
+### ADR-MEM-67 — Authority-only control persistence (Adopted, MV-8.1b pilot)
+
+[Decision](067-authority-control-file-persistence.md): explicit native Windows control-file persistence with protected owner ACLs, bounded reads, flushed atomic replacement and lifetime host/writer OS leases. Only same-checkpoint quiesce/promote/abort are available; missing/corrupt state never bootstraps on open. This is not the full AuthorityStore data transaction adapter, does not activate existing Core/CLI fencing after the lease ends and is not exposed to Runtime or MCP. [Evidence](../validation/MV-8-authority-control-file.md).
+
+### ADR-MEM-68 — Shared CURRENT publication (Adopted, MV-8.1c library)
+
+[Decision](068-shared-current-authority-publication.md): one CURRENT selects data and immutable authority; fresh data verification and a persistent legacy mutation/export gate. No transport or production activation. [Evidence](../validation/MV-8-shared-current-publication.md).
 
 ### ADR-MEM-69 — Workspace history planning (Owner-authorized implementation, MV-7)
 

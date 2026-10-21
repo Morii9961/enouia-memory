@@ -27,6 +27,9 @@
       "minimum": 1,
       "maximum": 9007199254740991
     },
+    "host_authority_hash": {
+      "$ref": "../memory/common-v1.schema.json#/$defs/sha256"
+    },
     "manifest_sha256": {
       "$ref": "../memory/common-v1.schema.json#/$defs/sha256"
     }
