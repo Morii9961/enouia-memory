@@ -191,6 +191,8 @@ pub struct Vault {
     records: Mutex<BTreeMap<DocKey, AnyRecord>>,
     /// Purge coverage of each commit's tombstones (immutable per commit).
     pub(crate) purges: Mutex<BTreeMap<String, Arc<crate::purge::Purged>>>,
+    /// Native-only capability: owns the OS Host lease, never deserialized.
+    pub(crate) host_writer: Option<crate::host_transaction::NativeHostWriter>,
 }
 
 fn id_field(kind: RecordKind) -> Option<&'static str> {
@@ -358,6 +360,7 @@ impl Vault {
             segments: Mutex::new(BTreeMap::new()),
             records: Mutex::new(BTreeMap::new()),
             purges: Mutex::new(BTreeMap::new()),
+            host_writer: None,
         };
         if request.records.is_empty()
             || request
@@ -450,11 +453,26 @@ impl Vault {
             segments: Mutex::new(BTreeMap::new()),
             records: Mutex::new(BTreeMap::new()),
             purges: Mutex::new(BTreeMap::new()),
+            host_writer: None,
         })
     }
 
     pub fn vault_id(&self) -> &VaultId {
         &self.descriptor.vault_id
+    }
+
+    /// Bind this native handle to an already adopted, active v2 Host root.
+    /// Holds the exclusive Host lease until this Vault is dropped. Never
+    /// adopts, repairs or falls back to legacy writing. Native authentication
+    /// and owner authorization remain the calling process's responsibilities.
+    pub fn into_host_writer(mut self, root: &VerifiedRoot, identity: DeviceId) -> Result<Self> {
+        if !self.options.validate_record_set || self.host_writer.is_some() {
+            return Err(enouia_memory_contract::host::HostFault::InvalidState.into());
+        }
+        self.host_writer = Some(
+            crate::host_transaction::HostCoordinator::open(&self, root, identity)?.into_writer()?,
+        );
+        Ok(self)
     }
 
     pub fn descriptor(&self) -> &VaultDescriptor {
@@ -583,6 +601,13 @@ impl Vault {
 
     /// Pin the published head for a whole read.
     pub fn pin_current(&self) -> Result<CommitPin> {
+        let _guard = self.host_writer.as_ref().map(|_| self.lock()).transpose()?;
+        self.bound_host_state_locked()?;
+        self.pin_current_locked()
+    }
+
+    /// Host callers already hold writer exclusion; avoid acquiring it twice.
+    pub(crate) fn pin_current_locked(&self) -> Result<CommitPin> {
         Ok(Self::pin_of(&*self.load_head()?))
     }
 
@@ -1683,12 +1708,21 @@ impl Vault {
         &self,
         scope: &IdempotencyScope,
     ) -> Result<Option<(CommitId, Sha256Hex, OperationReceipt)>> {
+        // Domain services may return here without calling commit. Check the
+        // bound Host before those receipt-only replay paths as well.
+        let _guard = self.host_writer.as_ref().map(|_| self.lock()).transpose()?;
+        self.bound_host_state_locked()?;
         let head = self.load_head()?;
         self.published_receipt(&head, scope)
     }
 
     /// Apply one transaction (see the module documentation for the order).
     pub fn commit(&self, request: CommitRequest) -> Result<CommitOutcome> {
+        if self.host_writer.is_some() {
+            let _guard = self.lock()?;
+            let state = self.bound_host_state_locked()?.expect("bound Host writer");
+            return self.commit_locked(request, Some(&state));
+        }
         let _guard = self.writer_guard()?;
         self.commit_locked(request, None)
     }

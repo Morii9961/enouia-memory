@@ -378,6 +378,10 @@ The [full remember replay and target freshness acceptance](../validation/MV-6-fu
 
 [Decision](073-host-publication-recovery.md): opt-in native Host v2 binds a publication intent and acknowledgement witness to CURRENT; normal operations refuse incomplete publication. Explicit owner-confirmed recovery verifies the latest exact intent and target bytes, preserves watermarks/receipts and never selects an older commit. Missing ordinary witnesses and prototype v1 roots remain fenced. [Evidence](../validation/MV-8-host-recovery.md).
 
+### ADR-MEM-74 — Native Host domain-writer binding (MV-8.1e)
+
+[Decision](074-native-host-domain-writer.md): an explicit native binding holds the Host lease and captured primary epoch while existing domain commits use witnessed publication. Fresh pins and receipt-only replay also revalidate; legacy handles and maintenance remain fenced. [Evidence](../validation/MV-8-native-domain-writer.md).
+
 ## Relation to Enouia Runtime's register
 
 
