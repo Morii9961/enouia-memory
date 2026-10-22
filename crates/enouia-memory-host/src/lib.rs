@@ -2,8 +2,13 @@
 //! No listener, OS peer authentication, automatic spawn or embedded fallback.
 
 mod compatibility;
+mod framing;
 pub use compatibility::compatibility_hash;
 pub mod service;
+#[cfg(windows)]
+pub mod transport;
+#[cfg(windows)]
+pub mod windows;
 
 use enouia_memory_contract::common::{ActorRef, ActorType};
 use enouia_memory_contract::foundation::Clock;
@@ -170,12 +175,7 @@ impl SessionGate {
         if native.owner != self.owner {
             return Err(SessionFault::Unauthenticated);
         }
-        if !hello.validate().is_empty() || hello.compatibility_hash != self.compatibility {
-            return Err(SessionFault::Incompatible);
-        }
-        if hello.vault_id != self.vault {
-            return Err(SessionFault::WrongVault);
-        }
+        self.validate_hello(hello)?;
         let expires_ms = now
             .checked_add(SESSION_TTL_MS)
             .ok_or(SessionFault::InvalidTime)?;
@@ -215,6 +215,16 @@ impl SessionGate {
                 _lifetime: lifetime,
             },
         ))
+    }
+
+    pub(crate) fn validate_hello(&self, hello: &ClientHello) -> Result<()> {
+        if !hello.validate().is_empty() || hello.compatibility_hash != self.compatibility {
+            return Err(SessionFault::Incompatible);
+        }
+        if hello.vault_id != self.vault {
+            return Err(SessionFault::WrongVault);
+        }
+        Ok(())
     }
 
     /// Closure MUST perform fresh native Host authority preflight and then
