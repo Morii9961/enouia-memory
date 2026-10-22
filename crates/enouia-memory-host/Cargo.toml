@@ -6,4 +6,6 @@ rust-version.workspace = true
 
 [dependencies]
 enouia-memory-contract = { path = "../enouia-memory-contract" }
+enouia-memory-vault = { path = "../enouia-memory-vault" }
+enouia-memory-workspace = { path = "../enouia-memory-workspace" }
 serde_json.workspace = true

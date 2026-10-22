@@ -3,6 +3,7 @@
 
 mod compatibility;
 pub use compatibility::compatibility_hash;
+pub mod service;
 
 use enouia_memory_contract::common::{ActorRef, ActorType};
 use enouia_memory_contract::foundation::Clock;
