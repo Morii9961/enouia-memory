@@ -8,7 +8,7 @@ export type WsError = { code: string; retryable: boolean; rules: string[] };
 export type J = any;
 
 export class CallError extends Error {
-  constructor(public readonly error: WsError) {
+  constructor(public readonly error: WsError, public readonly originalRequest?: J) {
     super(error.code);
   }
 }
@@ -34,9 +34,18 @@ export async function call(command: string, args: Record<string, unknown> = {}, 
     requestId: `req_${uuid()}`,
     command,
     idempotencyKey: WRITES.has(command) ? key ?? newKey() : null,
-    arguments: args,
+    arguments: structuredClone(args),
   };
-  const response: J = await invoke("workspace_call", { request });
+  let response: J;
+  try {
+    response = await invoke("workspace_call", { request });
+  } catch (error) {
+    if (typeof error === "string" && HOST_ERRORS.has(error)) {
+      throw new CallError({ code: error, retryable: false, rules: [] },
+        error === "host_outcome_unknown" ? request : undefined);
+    }
+    throw error;
+  }
   if (response.kind === "memory_error") throw new CallError(response.error);
   return response.result;
 }
@@ -45,7 +54,15 @@ export type Picked = { token: string; displayName: string; bytes: number | null 
 export type PickKind = "import_file" | "vault_root" | "backup_destination" | "export_folder";
 
 export async function pick(kind: PickKind): Promise<Picked | null> {
-  const result: J = await invoke("pick", { kind });
+  let result: J;
+  try {
+    result = await invoke("pick", { kind });
+  } catch (error) {
+    if (error === "native_host_picker_unavailable") {
+      throw new CallError({ code: error, retryable: false, rules: [] });
+    }
+    throw error;
+  }
   if (result.cancelled) return null;
   if (result.error) throw new CallError({ retryable: false, rules: [], ...result.error });
   return result as Picked;
@@ -60,6 +77,13 @@ export const shell = {
 };
 
 const CODES: Record<string, string> = {
+  host_stale_connection: "连接已变化，请刷新后重新操作",
+  host_not_ready: "Host 未连接或已锁定，请从托盘重新连接或解锁",
+  host_disconnected: "Host 连接已断开，请从托盘重新连接",
+  host_outcome_unknown: "未收到完整响应，操作可能已保存；请保留原请求键，在重新连接后确认结果，不要作为新操作重复提交",
+  host_busy: "Host 正在处理其他请求，请稍后操作",
+  host_unavailable: "Host 不可用，请退出后检查显式启动配置",
+  native_host_picker_unavailable: "当前 Host 模式尚未接入文件选择，请使用已有数据进行检索和审核",
   vault_locked: "Vault 未打开或已锁定",
   index_not_ready: "索引正在重建或未就绪，请稍后重试",
   revision_conflict: "内容已变化（计划过期、哈希不符或游标失效），请刷新后重来",
@@ -74,6 +98,12 @@ const CODES: Record<string, string> = {
   cancelled: "已取消",
   budget_exceeded: "超出上下文预算",
 };
+
+const HOST_ERRORS = new Set([
+  "host_stale_connection", "host_not_ready", "host_disconnected",
+  "host_outcome_unknown", "host_busy", "host_unavailable",
+  "permission_denied", "invalid_request",
+]);
 
 // Rules that say more than their code (ADR-MEM-46 and the import pipeline).
 const RULES: Record<string, string> = {

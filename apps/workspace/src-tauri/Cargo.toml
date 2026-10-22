@@ -14,11 +14,14 @@ tauri-build = { version = "=2.7.0", features = [] }
 
 [dependencies]
 enouia-memory-workspace = { path = "../../../crates/enouia-memory-workspace" }
+enouia-memory-contract = { path = "../../../crates/enouia-memory-contract" }
 rfd = { version = "=0.17.2", default-features = false }
 serde_json.workspace = true
 tauri = { version = "=2.12.0", features = ["tray-icon"] }
 
 [target.'cfg(windows)'.dependencies]
+enouia-memory-host = { path = "../../../crates/enouia-memory-host" }
+enouia-memory-vault = { path = "../../../crates/enouia-memory-vault" }
 windows-sys = { version = "=0.61.2", features = [
     "Win32_Foundation",
     "Win32_System_Registry",

@@ -398,6 +398,10 @@ The [full remember replay and target freshness acceptance](../validation/MV-6-fu
 
 [Decision](078-native-client-reconnect-boundary.md): native-only queue tickets bind work to one connection generation, per-window scope is checked independently of page packets, and uncertain replies disconnect without retry. Explicit lock/unlock/reconnect remain separate from ordinary Call frames. [Evidence](../validation/MV-8-native-client-reconnect.md).
 
+### ADR-MEM-79 — Opt-in reference shell native Host (MV-8.1j)
+
+[Decision](079-reference-shell-native-host.md): explicit native arguments select a hidden, enrolled child Host and a connection-ticket-aware reference backend. Native tray reconnect/unlock, unavailable picker/autostart gates and visible uncertain-call errors keep the default embedded mode separate. [Evidence](../validation/MV-8-reference-shell-host.md).
+
 ## Relation to Enouia Runtime's register
 
 

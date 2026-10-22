@@ -2,14 +2,15 @@
 //! shell and acceptance harness. Enouia Runtime hosts the product client
 //! through its own adapter (ADR-MEM-45).
 //!
-//! The shell forwards the page's typed requests to the embedded Core, opens
+//! The shell forwards typed requests to the selected embedded/native backend, opens
 //! native file dialogs (the page receives a token, never a path), and owns
 //! the window lifecycle: closing hides, the tray offers show/lock/exit, a
 //! global hotkey opens the quick-search overlay. It writes no logs.
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use enouia_memory_workspace::{Config, PickKind, Workspace};
+use backend::Backend;
+use enouia_memory_workspace::PickKind;
 use serde_json::{Value, json};
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -17,21 +18,28 @@ use tauri::menu::{Menu, MenuItem};
 use tauri::tray::TrayIconBuilder;
 use tauri::{AppHandle, Manager, State, WebviewWindow, WindowEvent};
 
+mod backend;
 mod lifecycle;
 mod startup;
 mod window_scope;
 
 #[tauri::command]
-fn startup_status() -> Result<Value, String> {
+fn startup_status(core: State<'_, Core>) -> Result<Value, String> {
+    if core.0.embedded().is_none() {
+        return Err("native_host_autostart_unavailable".to_owned());
+    }
     startup::get()
 }
 
 #[tauri::command]
-fn startup_set(enabled: bool) -> Result<Value, String> {
+fn startup_set(core: State<'_, Core>, enabled: bool) -> Result<Value, String> {
+    if core.0.embedded().is_none() {
+        return Err("native_host_autostart_unavailable".to_owned());
+    }
     startup::set(enabled)
 }
 
-struct Core(Arc<Workspace>);
+struct Core(Arc<Backend>);
 
 #[tauri::command]
 async fn workspace_call(
@@ -44,9 +52,12 @@ async fn workspace_call(
     }
     let locking = request.get("command").and_then(Value::as_str) == Some("vault_lock");
     let ws = core.0.clone();
-    let response = tauri::async_runtime::spawn_blocking(move || ws.call(&request))
-        .await
-        .map_err(|_| "worker_failed".to_owned())?;
+    let pending = ws.pending()?;
+    let surface = window_scope::surface(window.label()).ok_or("permission_denied")?;
+    let response =
+        tauri::async_runtime::spawn_blocking(move || ws.call(pending, surface, &request))
+            .await
+            .map_err(|_| "worker_failed".to_owned())??;
     if locking && let Some(overlay) = window.app_handle().get_webview_window("overlay") {
         let _ = overlay.hide();
     }
@@ -57,6 +68,9 @@ async fn workspace_call(
 #[tauri::command]
 async fn pick(core: State<'_, Core>, kind: String) -> Result<Value, String> {
     let ws = core.0.clone();
+    if ws.embedded().is_none() {
+        return Err("native_host_picker_unavailable".to_owned());
+    }
     tauri::async_runtime::spawn_blocking(move || {
         let (kind, title) = match kind.as_str() {
             "import_file" => (PickKind::ImportFile, "选择要导入的导出文件"),
@@ -73,10 +87,7 @@ async fn pick(core: State<'_, Core>, kind: String) -> Result<Value, String> {
         let Some(path) = chosen else {
             return json!({"cancelled": true});
         };
-        match ws.register_pick(kind, &path) {
-            Ok(p) => json!({"token": p.token, "displayName": p.display_name, "bytes": p.bytes}),
-            Err(e) => json!({"error": e}),
-        }
+        ws.register_pick(kind, &path)
     })
     .await
     .map_err(|_| "worker_failed".to_owned())
@@ -106,7 +117,7 @@ fn hide_window(window: WebviewWindow) {
 /// Exit: cancel and join operations, release the Vault, end the process.
 #[tauri::command]
 async fn exit_app(app: AppHandle, core: State<'_, Core>) -> Result<(), String> {
-    lifecycle::queue_shutdown(core.0.clone())
+    Backend::queue_shutdown(core.0.clone())
         .await
         .map_err(|_| "worker_failed".to_owned())?;
     app.exit(0);
@@ -133,7 +144,7 @@ fn tray_icon() -> tauri::image::Image<'static> {
 /// Ctrl+Alt+<letter> (M unless `--hotkey-key` says otherwise) on its own thread. A taken combination is reported as a
 /// conflict instead of failing silently.
 #[cfg(windows)]
-fn hotkey(app: AppHandle, ws: Arc<Workspace>, letter: u8) {
+fn hotkey(app: AppHandle, ws: Arc<Backend>, letter: u8) {
     use windows_sys::Win32::UI::Input::KeyboardAndMouse::{
         MOD_ALT, MOD_CONTROL, MOD_NOREPEAT, RegisterHotKey,
     };
@@ -167,15 +178,26 @@ fn hotkey(app: AppHandle, ws: Arc<Workspace>, letter: u8) {
 }
 
 #[cfg(not(windows))]
-fn hotkey(_app: AppHandle, ws: Arc<Workspace>, _letter: u8) {
+fn hotkey(_app: AppHandle, ws: Arc<Backend>, _letter: u8) {
     ws.set_companion(
         json!({"tray": "present", "overlay": "available", "hotkey": {"state": "unsupported"}}),
     );
 }
 
 fn main() {
-    let ws = Arc::new(Workspace::new(Config::default()));
     let args: Vec<String> = std::env::args().collect();
+    let ws = match Backend::from_args(&args) {
+        Ok(backend) => Arc::new(backend),
+        Err(code) => {
+            rfd::MessageDialog::new()
+                .set_title("Enouia Memory")
+                .set_description(format!(
+                    "原生 Host 启动失败：{code}。请检查显式启动参数和现有 Host v2 数据根。"
+                ))
+                .show();
+            return;
+        }
+    };
     let background = args.iter().any(|arg| arg == "--autostart");
     let mut context = tauri::generate_context!();
     if background {
@@ -184,16 +206,6 @@ fn main() {
                 window.visible = false;
             }
         }
-    }
-    if let Some(root) = args
-        .windows(2)
-        .find(|w| w[0] == "--vault")
-        .map(|w| PathBuf::from(&w[1]))
-    {
-        // A rejected root (or one open in another app) leaves the workspace
-        // empty; the owner then opens a Vault from the Vault page, which
-        // names the reason.
-        let _ = ws.open_root(&root);
     }
     let letter = args
         .windows(2)
@@ -220,6 +232,22 @@ fn main() {
             let lock_item = MenuItem::with_id(app, "lock", "锁定 Vault", true, None::<&str>)?;
             let exit_item = MenuItem::with_id(app, "exit", "退出", true, None::<&str>)?;
             let menu = Menu::with_items(app, &[&show_item, &lock_item, &exit_item])?;
+            if core.embedded().is_none() {
+                menu.append(&MenuItem::with_id(
+                    app,
+                    "host_reconnect",
+                    "原生 Host：重新连接",
+                    true,
+                    None::<&str>,
+                )?)?;
+                menu.append(&MenuItem::with_id(
+                    app,
+                    "host_unlock",
+                    "原生 Host：解锁",
+                    true,
+                    None::<&str>,
+                )?)?;
+            }
             let tray_core = core.clone();
             TrayIconBuilder::with_id("main")
                 .icon(tray_icon())
@@ -233,11 +261,26 @@ fn main() {
                         }
                         // The menu callback returns while Core waits for calls
                         // and joins operations on a blocking worker.
-                        lifecycle::queue_lock(tray_core.clone());
+                        Backend::queue_lock(tray_core.clone());
                     }
                     "exit" => {
                         let app = app.clone();
-                        lifecycle::queue_exit(tray_core.clone(), move || app.exit(0));
+                        Backend::queue_exit(tray_core.clone(), move || app.exit(0));
+                    }
+                    "host_reconnect" | "host_unlock" => {
+                        let core = tray_core.clone();
+                        let unlock = event.id().as_ref() == "host_unlock";
+                        tauri::async_runtime::spawn_blocking(move || {
+                            let message = match core.native_action(unlock) {
+                                Ok(()) if unlock => "Host 已解锁并建立新会话。".to_owned(),
+                                Ok(()) => "Host 已重新连接。".to_owned(),
+                                Err(code) => format!("Host 操作未完成：{code}。原请求未自动重发。"),
+                            };
+                            rfd::MessageDialog::new()
+                                .set_title("Enouia Memory")
+                                .set_description(message)
+                                .show();
+                        });
                     }
                     _ => {}
                 })

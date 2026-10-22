@@ -2,6 +2,8 @@
 
 原始计划：设计包 v1.0 / 2026-09-28；v1.3 路线修订：2026-10-11。本文定义阶段与出口；实际进度以对应 validation 报告为准。
 
+> **2026-10-22，MV-8.1j：** [ADR-MEM-79](../adr/079-reference-shell-native-host.md) 与[参考外壳报告](../validation/MV-8-reference-shell-host.md)将原生 Broker 接入 Tauri 参考后端：显式选择现有 v2 根及匹配 Host，独立子进程持租约，托盘重连/解锁，丢响应保留原键且不自动重试。文件选择、原生模式自启动、实际窗口/托盘验收、Runtime 采用与多客户端仍单独待做，不据此开始 MCP 或新阶段。
+
 > **2026-10-22，MV-8.1i：** [ADR-MEM-78](../adr/078-native-client-reconnect-boundary.md) 与[客户端重连报告](../validation/MV-8-native-client-reconnect.md)加入 opt-in 原生 Broker：旧连接排队请求失效、原生窗口作用域复核、响应丢失后报告结果未知而不自动重发。真实合成提交后的丢响应与原键重放已验证；Tauri/Runtime 采用、多客户端、受限 MCP 和真实验收继续单独推进。
 
 > **2026-10-22，MV-8.1h：** [ADR-MEM-77](../adr/077-windows-host-transport.md) 与[Windows 进程报告](../validation/MV-8-windows-host-transport.md)加入显式 Host 可执行入口、当前账户/终端会话内的活进程登记、内核对端 PID 校验和受保护管道。已合成验证独立进程业务与锁定后真实断连重连；原生参考壳/Runtime 采用、多客户端、授权登记 UX 和受限 MCP 仍待完成，不启动真实私有迁移或云端部署。
