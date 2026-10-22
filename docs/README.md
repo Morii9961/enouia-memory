@@ -2,6 +2,8 @@
 
 All project documentation lives under `docs/`.
 
+2026-10-22: [Native client reconnect boundary](validation/MV-8-native-client-reconnect.md) adds an opt-in native broker with connection-bound queue tickets, per-window scope checks and explicit uncertain outcomes. Synthetic durable-commit/reply-loss recovery is verified; Tauri/Runtime adoption remains separate.
+
 2026-10-22: [Windows Host process and pipe prototype](validation/MV-8-windows-host-transport.md) runs the real service in a separate process with explicit live-process enrollment, protected local pipes and bounded native framing. Synthetic lock/disconnect/reconnect is verified; reference-shell/Runtime adoption and broader clients remain pending.
 
 2026-10-22: [Host-bound Workspace service](validation/MV-8-host-workspace-service.md) connects native sessions to real proposal/review/read APIs and retains the Vault lease through UI lock/reopen. Embedded clients remain unchanged; actual executable/listener/authentication and Runtime transport adoption remain pending.
