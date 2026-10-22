@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "protocol_version": 1,
+  "workspace_version": 1,
+  "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+  "compatibility_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "instance_id": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "primary": {
+    "host_id": "dev_00000001-0000-4000-8000-000000000001",
+    "primary_epoch": 1
+  },
+  "surface": "workspace",
+  "expires_at": "2026-10-22T00:05:00.000Z"
+}

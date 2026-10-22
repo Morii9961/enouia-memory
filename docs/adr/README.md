@@ -382,6 +382,10 @@ The [full remember replay and target freshness acceptance](../validation/MV-6-fu
 
 [Decision](074-native-host-domain-writer.md): an explicit native binding holds the Host lease and captured primary epoch while existing domain commits use witnessed publication. Fresh pins and receipt-only replay also revalidate; legacy handles and maintenance remain fenced. [Evidence](../validation/MV-8-native-domain-writer.md).
 
+### ADR-MEM-75 — Versioned native Host session gate (MV-8.1f)
+
+[Decision](075-native-host-session-gate.md): closed version/schema/Vault handshake and private connection handles with fixed native scope, bounded expiry/capacity, lock/revocation and instance isolation. OS authentication and the process/listener are separate pending adapters. [Evidence](../validation/MV-8-native-session-gate.md).
+
 ## Relation to Enouia Runtime's register
 
 

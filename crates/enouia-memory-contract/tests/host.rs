@@ -5,6 +5,7 @@ mod support;
 use enouia_memory_contract::ContractError;
 use enouia_memory_contract::hash::sha256;
 use enouia_memory_contract::host::publication::{PublicationIntent, PublicationWitness};
+use enouia_memory_contract::host::session::{ClientHello, ServerHello};
 use enouia_memory_contract::host::*;
 use enouia_memory_contract::ids::{CommitId, DeviceId, OperationId, VaultId};
 use enouia_memory_contract::json::{MAX_SAFE_INTEGER, Revision};
@@ -40,6 +41,10 @@ fn parse(kind: &str, value: &Value) -> Result<Value, ContractError> {
         "witness" => {
             parse_document::<PublicationWitness>(&bytes).map(|v| serde_json::to_value(v).unwrap())
         }
+        "hello" => parse_document::<ClientHello>(&bytes).map(|v| serde_json::to_value(v).unwrap()),
+        "welcome" => {
+            parse_document::<ServerHello>(&bytes).map(|v| serde_json::to_value(v).unwrap())
+        }
         _ => panic!("unknown synthetic fixture type"),
     }
 }
@@ -74,6 +79,12 @@ fn host_schemas_and_typed_rules_round_trip_all_valid_fixtures() {
             }
             "witness" => {
                 parse_document::<PublicationWitness>(&bytes).unwrap();
+            }
+            "hello" => {
+                parse_document::<ClientHello>(&bytes).unwrap();
+            }
+            "welcome" => {
+                parse_document::<ServerHello>(&bytes).unwrap();
             }
             _ => unreachable!(),
         }
@@ -634,6 +645,40 @@ fn publication_documents_keep_duplicate_field_and_document_budgets_strict() {
     );
     assert!(
         parse_document::<PublicationIntent>(&vec![b' '; publication::MAX_INTENT_BYTES + 1])
+            .unwrap_err()
+            .rules()
+            .contains(&"host.document_budget")
+    );
+}
+
+#[test]
+fn native_handshake_raw_documents_reject_duplicate_fields_and_budget_overflow() {
+    use enouia_memory_contract::host::session::MAX_HANDSHAKE_BYTES;
+    let hello = serde_json::to_string(&fixture("client-hello")).unwrap();
+    let duplicate = hello.replacen(
+        "\"protocol_version\":1",
+        "\"protocol_version\":1,\"protocol_versi\\u006fn\":1",
+        1,
+    );
+    assert_ne!(duplicate, hello);
+    assert!(parse_document::<ClientHello>(duplicate.as_bytes()).is_err());
+    let welcome = serde_json::to_string(&fixture("server-hello")).unwrap();
+    let duplicate = welcome.replacen(
+        "\"primary_epoch\":1",
+        "\"primary_epoch\":1,\"primary_epoch\":1",
+        1,
+    );
+    assert_ne!(duplicate, welcome);
+    assert!(parse_document::<ServerHello>(duplicate.as_bytes()).is_err());
+    let oversized = vec![b' '; MAX_HANDSHAKE_BYTES + 1];
+    assert!(
+        parse_document::<ClientHello>(&oversized)
+            .unwrap_err()
+            .rules()
+            .contains(&"host.document_budget")
+    );
+    assert!(
+        parse_document::<ServerHello>(&oversized)
             .unwrap_err()
             .rules()
             .contains(&"host.document_budget")

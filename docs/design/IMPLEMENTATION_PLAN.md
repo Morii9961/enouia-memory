@@ -2,6 +2,8 @@
 
 原始计划：设计包 v1.0 / 2026-09-28；v1.3 路线修订：2026-10-11。本文定义阶段与出口；实际进度以对应 validation 报告为准。
 
+> **2026-10-22，MV-8.1f：** [ADR-MEM-75](../adr/075-native-host-session-gate.md) 与[会话报告](../validation/MV-8-native-session-gate.md)加入原生版本/Schema/Vault 握手和连接失效门槛。原生准入声明仍须由实际 OS 认证适配器提供，不能来自页面；进程/listener、Host-bound Workspace 与参考壳断连重连仍待接通，不宣称已经部署或具备实际认证。
+
 > **2026-10-22，MV-8.1e：** [ADR-MEM-74](../adr/074-native-host-domain-writer.md) 将现有领域服务显式绑定到原生 Host 的租约与固定 primary epoch；普通提交、head pin 和回执重放均重新检查发布状态，旧句柄与维护入口继续拒绝写入。见[领域写入报告](../validation/MV-8-native-domain-writer.md)。下一步为 Host 进程与认证会话；本片不切换 Runtime、不开放 MCP 或真实迁移。
 
 > **2026-10-22，MV-8.1d：** [ADR-MEM-73](../adr/073-host-publication-recovery.md) 与[恢复报告](../validation/MV-8-host-recovery.md)补齐 opt-in Host v2 的发布意图、确认见证与显式向前恢复；不猜测旧提交，不自动升级 v1。接下来推进唯一 Host 进程、原生认证/会话撤回/版本握手和断连重连，之后才接受限 MCP。独立加密恢复、Runtime 采用、MV-9 和真实迁主仍是分别验证的门槛。

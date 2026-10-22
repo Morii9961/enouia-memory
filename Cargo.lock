@@ -758,6 +758,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "enouia-memory-host"
+version = "0.1.0"
+dependencies = [
+ "enouia-memory-contract",
+ "serde_json",
+]
+
+[[package]]
 name = "enouia-memory-import"
 version = "0.1.0"
 dependencies = [

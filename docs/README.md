@@ -2,6 +2,8 @@
 
 All project documentation lives under `docs/`.
 
+2026-10-22: [Versioned native session gate](validation/MV-8-native-session-gate.md) adds bounded hello/welcome documents and connection-bound scope, expiry, lock/revocation and instance isolation. The protected process/listener, actual OS authentication and Workspace reconnect remain pending.
+
 2026-10-22: [Native Host domain-writer binding](validation/MV-8-native-domain-writer.md) connects existing source/governance APIs to witnessed Host commits through an explicit native lease and captured epoch. Process/authenticated-session/reconnect work remains next; embedded clients are not switched.
 
 2026-10-22: [Witnessed Host publication and explicit forward recovery](validation/MV-8-host-recovery.md) adds opt-in native Host v2 recovery on the 55-command baseline. The earlier [authority foundation integration](validation/MV-8-authority-integration.md) remains the historical baseline. Host process, authenticated transport, independent restore and Runtime adoption remain separate gates.
