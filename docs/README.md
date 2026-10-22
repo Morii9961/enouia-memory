@@ -2,6 +2,8 @@
 
 All project documentation lives under `docs/`.
 
+2026-10-22: [Opt-in reference shell native Host](validation/MV-8-reference-shell-host.md) adds explicit child launch and native tray reconnect/unlock to the Tauri reference backend, with per-window queue tickets and original-request retention after uncertain replies. Synthetic backend/process evidence is separate from rendered/native-window acceptance and Runtime adoption.
+
 2026-10-22: [Native client reconnect boundary](validation/MV-8-native-client-reconnect.md) adds an opt-in native broker with connection-bound queue tickets, per-window scope checks and explicit uncertain outcomes. Synthetic durable-commit/reply-loss recovery is verified; Tauri/Runtime adoption remains separate.
 
 2026-10-22: [Windows Host process and pipe prototype](validation/MV-8-windows-host-transport.md) runs the real service in a separate process with explicit live-process enrollment, protected local pipes and bounded native framing. Synthetic lock/disconnect/reconnect is verified; reference-shell/Runtime adoption and broader clients remain pending.

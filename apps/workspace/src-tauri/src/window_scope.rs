@@ -4,7 +4,7 @@
 use enouia_memory_workspace::HostSurface;
 use serde_json::Value;
 
-fn surface(window: &str) -> Option<HostSurface> {
+pub fn surface(window: &str) -> Option<HostSurface> {
     match window {
         "main" => Some(HostSurface::Workspace),
         "overlay" => Some(HostSurface::QuickSearch),

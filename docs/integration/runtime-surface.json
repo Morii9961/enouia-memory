@@ -84,7 +84,7 @@
     {
       "path": "apps/workspace/src-tauri/Cargo.toml",
       "role": "reference-shell",
-      "sha256": "70fe4cb857268d316952bf003ce3e7f2572b4e7929a05cdb122b33ccacc3980b"
+      "sha256": "b99c51f8551d16cc1b84ba3e0f620ca4ffee683c18485fb41e3792b16b898330"
     },
     {
       "path": "apps/workspace/src-tauri/build.rs",
@@ -107,6 +107,11 @@
       "sha256": "38b77ced8d006173deb2b5691c89dc6d98bcc6dba462666b8700a03c42845278"
     },
     {
+      "path": "apps/workspace/src-tauri/src/backend.rs",
+      "role": "reference-shell",
+      "sha256": "2443897b1dd81031b687150898f0fc90b92ac69245f6f2a71233318ec9105f21"
+    },
+    {
       "path": "apps/workspace/src-tauri/src/lifecycle.rs",
       "role": "reference-shell",
       "sha256": "0b10499c80ac10fa3ee5aa174061d11b3287c11cae8d3f5dbdd5f7347c6e97b3"
@@ -114,7 +119,12 @@
     {
       "path": "apps/workspace/src-tauri/src/main.rs",
       "role": "reference-shell",
-      "sha256": "a346593a11999f307002e621aa4820ee12a6df192119910a2a51c7686d6e6df5"
+      "sha256": "fac9149a92ee28e583704c777254ee43fdd7b0fa1794827e84a41dba231fe52d"
+    },
+    {
+      "path": "apps/workspace/src-tauri/src/native_host.rs",
+      "role": "reference-shell",
+      "sha256": "6bfc008ce7ec9420be6706addf7061342ed3d76f06f4d03b20ab6796e110964a"
     },
     {
       "path": "apps/workspace/src-tauri/src/startup.rs",
@@ -124,7 +134,7 @@
     {
       "path": "apps/workspace/src-tauri/src/window_scope.rs",
       "role": "reference-shell",
-      "sha256": "426d5892356fdcfbbc3a3a45f4b3c513b51ff70d9995e1db1f033c9226558806"
+      "sha256": "a93426244da4ab4bc798954659f2ccfe7223a7546a1675de6fd64cfefe0cf0b9"
     },
     {
       "path": "apps/workspace/src-tauri/tauri.conf.json",
@@ -164,7 +174,7 @@
     {
       "path": "apps/workspace/src/api.ts",
       "role": "reference-ui",
-      "sha256": "b921d594e7da25bfcea9df97012c52de1a9433488d473690a33a9491626bdb0c"
+      "sha256": "13ed4273594c082170044933ae4c41d01954caa016d2110798c810774e11f824"
     },
     {
       "path": "apps/workspace/src/env.d.ts",
@@ -547,5 +557,5 @@
       "sha256": "3603c1855d9f9ec9b3585143a0191508980b260b1ffd26c82b3e6f9b7223a75d"
     }
   ],
-  "aggregate": "e12900633f864e7c74919a0d4e957bf7bb0a1a4c329af8b6b263f5e68323c19b"
+  "aggregate": "d855683e0879c7887aae819b1345e31587a9a956be5fff5bf31de42ed08478d5"
 }
