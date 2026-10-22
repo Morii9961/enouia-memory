@@ -274,6 +274,9 @@ pub struct Workspace {
     /// the open/close lifecycle, not to `Open`'s reference count, so a read
     /// still in flight cannot keep it held after close.
     host: Mutex<Option<std::fs::File>>,
+    /// Native Host owns this bound Vault across UI lock/close. Embedded mode
+    /// keeps its existing open/close lease behavior instead.
+    host_vault: Option<Arc<Vault>>,
     /// The last backup export since this Vault was opened (not persisted).
     last_backup: Mutex<Option<OperationId>>,
     /// Companion status reported by the shell (tray, hotkey, overlay).
@@ -406,6 +409,7 @@ impl Workspace {
             confirmed: Mutex::new(BTreeMap::new()),
             started: Mutex::new(BTreeMap::new()),
             host: Mutex::new(None),
+            host_vault: None,
             last_backup: Mutex::new(None),
             companion: Mutex::new(
                 json!({"tray": "absent", "hotkey": {"state": "absent"}, "overlay": "absent"}),
@@ -416,6 +420,19 @@ impl Workspace {
 
     pub fn operations(&self) -> &Operations {
         &self.ops
+    }
+
+    /// Native single-Host attachment only. The supplied Vault must already
+    /// own a verified Host writer lease; never bootstrap or fall back here.
+    /// Retain that same root/handle through UI lock and reopen. The native Host
+    /// releases its lease only after workers stop and all owners drop it.
+    pub fn from_host_vault(config: Config, vault: Arc<Vault>) -> Result<Self, WorkspaceError> {
+        vault.host_writer_state().map_err(|e| Fail::from(e).0)?;
+        let root = vault.managed_root().root().to_path_buf();
+        let mut workspace = Self::new(config);
+        workspace.host_vault = Some(vault);
+        workspace.open_root(&root)?;
+        Ok(workspace)
     }
 
     pub fn set_companion(&self, value: Value) {
@@ -518,18 +535,27 @@ impl Workspace {
     fn open_at(&self, root: &Path) -> R<()> {
         self.close(None);
         let verified = verify_data_root(root, &RootPolicy::default()).map_err(root_rejected)?;
-        let vault = Vault::open(
-            &verified,
-            None,
-            self.config.clock.clone(),
-            self.config.ids.clone(),
-            VaultOptions::default(),
-        )?;
-        let host = host_lock(&vault)?;
+        let (vault, host) = if let Some(vault) = &self.host_vault {
+            if verified.path() != vault.managed_root().root() {
+                return Err(fail(MemoryErrorCode::InvalidRequest, "workspace.host_root"));
+            }
+            vault.host_writer_state()?;
+            (vault.clone(), None)
+        } else {
+            let vault = Vault::open(
+                &verified,
+                None,
+                self.config.clock.clone(),
+                self.config.ids.clone(),
+                VaultOptions::default(),
+            )?;
+            let host = host_lock(&vault)?;
+            (Arc::new(vault), Some(host))
+        };
         let owner = vault.descriptor().created_by.clone();
-        *self.host.lock().expect("host") = Some(host);
+        *self.host.lock().expect("host") = host;
         *self.slot.lock().expect("slot") = Slot::Open(Arc::new(Open {
-            vault: Arc::new(vault),
+            vault,
             index: Arc::new(Mutex::new(None)),
             root: root.to_path_buf(),
             owner,
@@ -540,6 +566,12 @@ impl Workspace {
     }
 
     fn create_at(&self, root: &Path) -> R<()> {
+        if self.host_vault.is_some() {
+            return Err(fail(
+                MemoryErrorCode::InvalidRequest,
+                "workspace.host_adoption_required",
+            ));
+        }
         self.close(None);
         let verified = verify_data_root(root, &RootPolicy::default()).map_err(root_rejected)?;
         let owner = ActorRef {
@@ -593,7 +625,8 @@ impl Workspace {
     }
 
     /// Exit path for the shell: stop accepting work, cancel and join
-    /// operations, release every handle.
+    /// operations and release embedded handles. Native attachment retains the
+    /// supplied Vault lease until its native owners drop it.
     pub fn shutdown(&self) {
         // Shutdown still attempts cleanup if a lifecycle writer panicked.
         let _guard = self.lifecycle.write().unwrap_or_else(|e| e.into_inner());

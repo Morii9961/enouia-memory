@@ -386,6 +386,10 @@ The [full remember replay and target freshness acceptance](../validation/MV-6-fu
 
 [Decision](075-native-host-session-gate.md): closed version/schema/Vault handshake and private connection handles with fixed native scope, bounded expiry/capacity, lock/revocation and instance isolation. OS authentication and the process/listener are separate pending adapters. [Evidence](../validation/MV-8-native-session-gate.md).
 
+### ADR-MEM-76 — Host-bound Workspace service (MV-8.1g)
+
+[Decision](076-host-bound-workspace-service.md): native Host sessions dispatch the unchanged envelope to Workspace over the same bound Vault handle. UI lock retains the lease, revokes connections and requires native owner reopen; actual OS authentication/listener/adoption remain separate. [Evidence](../validation/MV-8-host-workspace-service.md).
+
 ## Relation to Enouia Runtime's register
 
 
