@@ -2,6 +2,8 @@
 
 原始计划：设计包 v1.0 / 2026-09-28；v1.3 路线修订：2026-10-11。本文定义阶段与出口；实际进度以对应 validation 报告为准。
 
+> **2026-10-22，MV-8.1h：** [ADR-MEM-77](../adr/077-windows-host-transport.md) 与[Windows 进程报告](../validation/MV-8-windows-host-transport.md)加入显式 Host 可执行入口、当前账户/终端会话内的活进程登记、内核对端 PID 校验和受保护管道。已合成验证独立进程业务与锁定后真实断连重连；原生参考壳/Runtime 采用、多客户端、授权登记 UX 和受限 MCP 仍待完成，不启动真实私有迁移或云端部署。
+
 > **2026-10-22，MV-8.1g：** [ADR-MEM-76](../adr/076-host-bound-workspace-service.md) 与[服务报告](../validation/MV-8-host-workspace-service.md)将原生会话接到真实 Workspace，共用绑定 Vault，界面锁定期间继续持有排他租约。已具备合成提案/主人审核与重连回执验证；可执行进程、受保护 listener、实际 OS 认证和参考壳/Runtime 采用仍待完成。
 
 > **2026-10-22，MV-8.1f：** [ADR-MEM-75](../adr/075-native-host-session-gate.md) 与[会话报告](../validation/MV-8-native-session-gate.md)加入原生版本/Schema/Vault 握手和连接失效门槛。原生准入声明仍须由实际 OS 认证适配器提供，不能来自页面；进程/listener、Host-bound Workspace 与参考壳断连重连仍待接通，不宣称已经部署或具备实际认证。

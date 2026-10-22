@@ -36,6 +36,7 @@ pub fn compatibility_hash() -> Sha256Hex {
             "protocol": HOST_PROTOCOL_VERSION,
             "workspace": WORKSPACE_PROTOCOL_VERSION,
             "layout": "host-current-v2",
+            "framing": crate::framing::DESCRIPTOR,
             "schemas": schemas,
         }))
         .expect("closed compatibility metadata"),

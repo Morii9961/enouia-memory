@@ -45,6 +45,16 @@ pub struct HostService {
     control: Mutex<()>,
 }
 impl HostService {
+    #[cfg(windows)]
+    pub(crate) fn native_owner(&self) -> &enouia_memory_contract::common::ActorRef {
+        &self.vault.descriptor().created_by
+    }
+    #[cfg(windows)]
+    pub(crate) fn validate_native_hello(&self, hello: &ClientHello) -> Result<()> {
+        self.vault.host_writer_state()?;
+        self.gate.validate_hello(hello)?;
+        Ok(())
+    }
     pub fn open(root: &VerifiedRoot, identity: DeviceId, config: Config) -> Result<Self> {
         let vault = Arc::new(
             Vault::open(

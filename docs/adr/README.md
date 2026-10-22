@@ -390,6 +390,10 @@ The [full remember replay and target freshness acceptance](../validation/MV-6-fu
 
 [Decision](076-host-bound-workspace-service.md): native Host sessions dispatch the unchanged envelope to Workspace over the same bound Vault handle. UI lock retains the lease, revokes connections and requires native owner reopen; actual OS authentication/listener/adoption remain separate. [Evidence](../validation/MV-8-host-workspace-service.md).
 
+### ADR-MEM-77 — Explicit Windows Host process and pipe prototype (MV-8.1h)
+
+[Decision](077-windows-host-transport.md): existing v2 root, explicit live-process enrollment, protected local pipe and bounded versioned native frames, with reciprocal kernel PID checks and continuous lease through lock/reconnect. Synthetic executable evidence is separate from native client/Runtime adoption and multi-client/MCP acceptance. [Evidence](../validation/MV-8-windows-host-transport.md).
+
 ## Relation to Enouia Runtime's register
 
 

@@ -279,22 +279,42 @@
     {
       "path": "crates/enouia-memory-host/Cargo.toml",
       "role": "host-session",
-      "sha256": "fd7cf396e50421839b4e6f9b006e59956be0d955703af24004006769d8cc887d"
+      "sha256": "a5e0e382674fae08221409def58e01835f3f2f89705a693a14bf07836360ef73"
     },
     {
       "path": "crates/enouia-memory-host/src/compatibility.rs",
       "role": "host-session",
-      "sha256": "94527e40809bb6c133993d99737c7b93028ebaafe9f06d736c6e9628cac1a2dc"
+      "sha256": "283a310e1c40f1c6311757f19c0fe71d470b4d73213ee872bd57b438d394e0c2"
+    },
+    {
+      "path": "crates/enouia-memory-host/src/framing.rs",
+      "role": "host-session",
+      "sha256": "f51e2405bbd39780ad7d91cb59b0faa8108c863556d78a0ab9f518de94153a6f"
     },
     {
       "path": "crates/enouia-memory-host/src/lib.rs",
       "role": "host-session",
-      "sha256": "2b31130da5d497d629170c05f8158253f9897a106f59ac245cfe3a3db0c7e3ac"
+      "sha256": "faf659453c89e943c10c0831454c14cb42cbc80edf2eefcc42cce8711977432c"
+    },
+    {
+      "path": "crates/enouia-memory-host/src/main.rs",
+      "role": "host-session",
+      "sha256": "5cbe937bb695677887cb20b8e06d34a09cd5f0e6ae73a7fb4552e5bf2d5acca5"
     },
     {
       "path": "crates/enouia-memory-host/src/service.rs",
       "role": "host-session",
-      "sha256": "8ac141f8be7d0e1109018ce8b45a4d414823c5e6edd07c48d2e03c84e4273fc3"
+      "sha256": "b5084f60dfd35a0e3662f126f8bf3e05fa99fb142027c372c8137814aeb0e5d6"
+    },
+    {
+      "path": "crates/enouia-memory-host/src/transport.rs",
+      "role": "host-session",
+      "sha256": "2303d97feb79f465014ce22b73d7f4315e5b11c3b16bfb759bbdf9c6ed3c9f51"
+    },
+    {
+      "path": "crates/enouia-memory-host/src/windows.rs",
+      "role": "host-session",
+      "sha256": "6cf1144e43f71bd641369d9233c9958e834599b9abacdbad1811b8a750613d52"
     },
     {
       "path": "crates/enouia-memory-import/Cargo.toml",
@@ -522,5 +542,5 @@
       "sha256": "3603c1855d9f9ec9b3585143a0191508980b260b1ffd26c82b3e6f9b7223a75d"
     }
   ],
-  "aggregate": "dc95e3d82770167bfdcadfe622fdd00964848a614c70a5a163b1a27c93bbbddc"
+  "aggregate": "ff757421e8bccac01a6d283f88d898ab7ec6dc0d90f3b7a59959bdd993713643"
 }
