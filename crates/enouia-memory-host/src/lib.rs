@@ -1,6 +1,8 @@
-//! Native session/lifecycle gate for MV-8's future single Host process.
-//! No listener, OS peer authentication, automatic spawn or embedded fallback.
+//! Native single-Host service, session gate and opt-in Windows pipe adapters.
+//! No automatic spawn, adoption or embedded fallback.
 
+#[cfg(windows)]
+pub mod broker;
 mod compatibility;
 mod framing;
 pub use compatibility::compatibility_hash;

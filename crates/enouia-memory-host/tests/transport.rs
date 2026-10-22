@@ -9,6 +9,7 @@ use enouia_memory_contract::json::SchemaVersion;
 use enouia_memory_contract::ports::IdSource;
 use enouia_memory_contract::time::Timestamp;
 use enouia_memory_contract::workspace::{HostSurface, is_write, validate_response};
+use enouia_memory_host::broker::{Broker, Fault as BrokerFault, State as BrokerState};
 use enouia_memory_host::compatibility_hash;
 use enouia_memory_host::transport::Client;
 use enouia_memory_host::windows::{Pipe, ProcessPeer};
@@ -465,22 +466,56 @@ fn reconnect_native_broker_child() {
         vault_id: vault,
         compatibility_hash: compatibility_hash(),
     };
-    let mut client = Client::connect(
-        Pipe::connect(&id).unwrap(),
-        ProcessPeer::enroll(pid, HostSurface::Workspace).unwrap(),
-        hello.clone(),
-        TIMEOUT,
-    )
-    .unwrap();
+    let mut broker = Broker::new(HostSurface::Workspace);
+    broker
+        .open(
+            Pipe::connect(&id).unwrap(),
+            ProcessPeer::enroll(pid, HostSurface::Workspace).unwrap(),
+            hello.clone(),
+            TIMEOUT,
+        )
+        .unwrap();
+    assert_eq!(broker.state(), BrokerState::AwaitingHandshake);
+    let before_handshake = broker.ticket();
+    broker.handshake(&before_handshake).unwrap();
     let request = packet(
         "remember",
         json!({"text":"合成：真正断连后保留请求。","claimKey":"native.reconnect"}),
         "native-physical-reconnect-key",
     );
-    let original = client.call(&request).unwrap();
+    assert!(matches!(
+        broker.call(&before_handshake, HostSurface::Workspace, &request),
+        Err(BrokerFault::Stale)
+    ));
+    let queued = broker.ticket();
+    assert!(matches!(
+        broker.call(&queued, HostSurface::QuickSearch, &request),
+        Err(BrokerFault::ScopeDenied)
+    ));
+    assert!(matches!(
+        broker.lock(&queued, HostSurface::QuickSearch),
+        Err(BrokerFault::ScopeDenied)
+    ));
+    assert!(matches!(
+        broker.unlock(&queued, HostSurface::QuickSearch),
+        Err(BrokerFault::ScopeDenied)
+    ));
+    let original = broker
+        .call(&queued, HostSurface::Workspace, &request)
+        .unwrap();
     assert!(original["error"].is_null());
-    client.lock().unwrap();
-    drop(client);
+    let page_lock = packet("vault_lock", json!({}), "native-broker-page-lock-key");
+    let locked = broker
+        .call(&queued, HostSurface::Workspace, &page_lock)
+        .unwrap();
+    assert!(locked["error"].is_null());
+    assert_eq!(broker.state(), BrokerState::Locked);
+    assert!(matches!(
+        broker.call(&queued, HostSurface::Workspace, &request),
+        Err(BrokerFault::Stale)
+    ));
+    broker.disconnect();
+    assert_eq!(broker.state(), BrokerState::Disconnected);
     let deadline = until();
     // Only connection establishment is retried. No application packet/send is repeated.
     let pipe = loop {
@@ -492,21 +527,188 @@ fn reconnect_native_broker_child() {
             Err(e) => panic!("synthetic reconnect failed: {:?}", e.kind()),
         }
     };
-    let mut fresh = Client::open(
-        pipe,
-        ProcessPeer::enroll(pid, HostSurface::Workspace).unwrap(),
-        hello,
-        TIMEOUT,
-    )
-    .unwrap();
-    assert!(fresh.call(&request).is_err());
-    fresh.unlock().unwrap();
-    let replay = fresh.call(&request).unwrap();
+    broker
+        .open(
+            pipe,
+            ProcessPeer::enroll(pid, HostSurface::Workspace).unwrap(),
+            hello,
+            TIMEOUT,
+        )
+        .unwrap();
+    let reconnect_ticket = broker.ticket();
+    assert!(matches!(
+        broker.call(&reconnect_ticket, HostSurface::Workspace, &request),
+        Err(BrokerFault::NotReady)
+    ));
+    assert!(matches!(
+        broker.unlock(&queued, HostSurface::Workspace),
+        Err(BrokerFault::Stale)
+    ));
+    broker
+        .unlock(&reconnect_ticket, HostSurface::Workspace)
+        .unwrap();
+    assert_eq!(broker.state(), BrokerState::Ready);
+    assert!(matches!(
+        broker.call(&reconnect_ticket, HostSurface::Workspace, &request),
+        Err(BrokerFault::Stale)
+    ));
+    let fresh_ticket = broker.ticket();
+    let replay = broker
+        .call(&fresh_ticket, HostSurface::Workspace, &request)
+        .unwrap();
     assert!(replay["error"].is_null());
     assert_eq!(replay["vaultCommitId"], original["vaultCommitId"]);
     assert_eq!(
         replay["result"]["candidateId"],
         original["result"]["candidateId"]
     );
-    fresh.lock().unwrap();
+    broker.lock(&fresh_ticket, HostSurface::Workspace).unwrap();
+    let locked_ticket = broker.ticket();
+    assert!(matches!(
+        broker.call(&locked_ticket, HostSurface::Workspace, &request),
+        Err(BrokerFault::NotReady)
+    ));
+    broker
+        .unlock(&locked_ticket, HostSurface::Workspace)
+        .unwrap();
+    broker.disconnect();
+}
+
+#[test]
+fn broker_refuses_foreign_tickets_invalid_packets_and_escaped_budget_before_io() {
+    let mut broker = Broker::new(HostSurface::Workspace);
+    let other = Broker::new(HostSurface::Workspace);
+    let request = packet("workspace_status", json!({}), "unused");
+    assert!(matches!(
+        broker.call(&other.ticket(), HostSurface::Workspace, &request),
+        Err(BrokerFault::Stale)
+    ));
+    assert_eq!(broker.state(), BrokerState::Disconnected);
+    let ticket = broker.ticket();
+    let mut malformed = request.clone();
+    malformed["arguments"]["window"] = json!("main");
+    assert!(matches!(
+        broker.call(&ticket, HostSurface::Workspace, &malformed),
+        Err(BrokerFault::InvalidPacket)
+    ));
+    let decisions: Vec<_> = (1..=20).map(|n| json!({"candidateId":format!("cand_00000001-0000-4000-8000-{n:012x}"),"revision":1,"action":"edit_accept","editedContent":"\u{1}".repeat(20_000),"mergeTarget":null})).collect();
+    let oversized = packet(
+        "review_plan",
+        json!({"decisions":decisions}),
+        "escaped-budget-key",
+    );
+    enouia_memory_contract::workspace::parse_request(&oversized).unwrap();
+    assert!(matches!(
+        broker.call(&ticket, HostSurface::Workspace, &oversized),
+        Err(BrokerFault::InvalidPacket)
+    ));
+    assert!(matches!(
+        broker.call(&ticket, HostSurface::Workspace, &request),
+        Err(BrokerFault::NotReady)
+    ));
+    broker.disconnect();
+    assert!(matches!(broker.handshake(&ticket), Err(BrokerFault::Stale)));
+}
+
+#[test]
+fn broker_lost_reply_after_real_commit_is_uncertain_and_never_retried() {
+    use enouia_memory_host::NativeAdmission;
+    use enouia_memory_host::service::HostService;
+    use enouia_memory_host::transport::serve_connection;
+    let f = Fixture::new();
+    let root = verify_data_root(&f.root, &RootPolicy::default()).unwrap();
+    let host = HostService::open(&root, f.identity.clone(), Default::default()).unwrap();
+    let id = pipe_id();
+    let mut pipe = Pipe::listen(&id).unwrap();
+    let request = packet(
+        "remember",
+        json!({"text":"合成：提交成功后的响应丢失。","claimKey":"broker.lost-reply"}),
+        "broker-original-lost-reply-key",
+    );
+    let before = f.current();
+    let (done_tx, done_rx) = mpsc::channel();
+    std::thread::scope(|scope| {
+        let server = scope.spawn(|| {
+            let peer = ProcessPeer::enroll(std::process::id(), HostSurface::Workspace).unwrap();
+            pipe.accept(TIMEOUT).unwrap();
+            peer.verify_client(&pipe).unwrap();
+            let (tag, hello) = receive(&mut pipe);
+            assert_eq!(tag, 1);
+            let hello: ClientHello = serde_json::from_value(hello).unwrap();
+            let (welcome, connection) = host
+                .connect(
+                    NativeAdmission::from_authenticated_owner(
+                        &f.vault.descriptor().created_by,
+                        HostSurface::Workspace,
+                    )
+                    .unwrap(),
+                    &hello,
+                )
+                .unwrap();
+            send(&mut pipe, 129, &serde_json::to_vec(&welcome).unwrap());
+            let (tag, packet) = receive(&mut pipe);
+            assert_eq!(tag, 2);
+            assert_eq!(packet, request);
+            peer.verify_client(&pipe).unwrap();
+            let original = host.call(&connection, &packet).unwrap();
+            assert!(original["error"].is_null());
+            assert_ne!(f.current(), before);
+            // Lose exactly this reply after a durable real domain operation.
+            pipe.disconnect().unwrap();
+            drop(connection);
+            assert_eq!(
+                pipe.accept(Duration::from_millis(50)).unwrap_err().kind(),
+                std::io::ErrorKind::TimedOut
+            );
+            done_tx.send(original).unwrap();
+            pipe.accept(TIMEOUT).unwrap();
+            assert!(serve_connection(&host, &mut pipe, &peer, TIMEOUT).is_err());
+        });
+        let mut broker = Broker::new(HostSurface::Workspace);
+        broker
+            .open(
+                Pipe::connect(&id).unwrap(),
+                ProcessPeer::enroll(std::process::id(), HostSurface::Workspace).unwrap(),
+                f.hello(),
+                TIMEOUT,
+            )
+            .unwrap();
+        broker.handshake(&broker.ticket()).unwrap();
+        let queued = broker.ticket();
+        assert!(matches!(
+            broker.call(&queued, HostSurface::Workspace, &request),
+            Err(BrokerFault::UncertainCall(_))
+        ));
+        assert_eq!(broker.state(), BrokerState::Disconnected);
+        assert!(matches!(
+            broker.call(&queued, HostSurface::Workspace, &request),
+            Err(BrokerFault::Stale)
+        ));
+        assert!(matches!(
+            broker.call(&broker.ticket(), HostSurface::Workspace, &request),
+            Err(BrokerFault::NotReady)
+        ));
+        let original = done_rx.recv_timeout(TIMEOUT).unwrap();
+        let committed = f.current();
+        // Caller now explicitly selects a new channel and original exact key.
+        broker
+            .open(
+                Pipe::connect(&id).unwrap(),
+                ProcessPeer::enroll(std::process::id(), HostSurface::Workspace).unwrap(),
+                f.hello(),
+                TIMEOUT,
+            )
+            .unwrap();
+        broker.handshake(&broker.ticket()).unwrap();
+        let replay = broker
+            .call(&broker.ticket(), HostSurface::Workspace, &request)
+            .unwrap();
+        assert_eq!(
+            original["result"]["candidateId"],
+            replay["result"]["candidateId"]
+        );
+        assert_eq!(f.current(), committed);
+        broker.disconnect();
+        server.join().unwrap();
+    });
 }

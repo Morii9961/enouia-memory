@@ -394,6 +394,10 @@ The [full remember replay and target freshness acceptance](../validation/MV-6-fu
 
 [Decision](077-windows-host-transport.md): existing v2 root, explicit live-process enrollment, protected local pipe and bounded versioned native frames, with reciprocal kernel PID checks and continuous lease through lock/reconnect. Synthetic executable evidence is separate from native client/Runtime adoption and multi-client/MCP acceptance. [Evidence](../validation/MV-8-windows-host-transport.md).
 
+### ADR-MEM-78 — Native client reconnect boundary (MV-8.1i)
+
+[Decision](078-native-client-reconnect-boundary.md): native-only queue tickets bind work to one connection generation, per-window scope is checked independently of page packets, and uncertain replies disconnect without retry. Explicit lock/unlock/reconnect remain separate from ordinary Call frames. [Evidence](../validation/MV-8-native-client-reconnect.md).
+
 ## Relation to Enouia Runtime's register
 
 
