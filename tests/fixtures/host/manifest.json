@@ -34,6 +34,16 @@
       "file": "publication-witness.json",
       "type": "witness",
       "schema": "host/publication-witness-v1.schema.json"
+    },
+    {
+      "file": "client-hello.json",
+      "type": "hello",
+      "schema": "host/client-hello-v1.schema.json"
+    },
+    {
+      "file": "server-hello.json",
+      "type": "welcome",
+      "schema": "host/server-hello-v1.schema.json"
     }
   ],
   "invalid": [
@@ -3050,6 +3060,110 @@
       ],
       "rust_rule": "host.witness_binding",
       "schema": "reject"
+    },
+    {
+      "id": "session-protocol-version",
+      "base": "client-hello.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/protocol_version",
+          "value": 2
+        }
+      ],
+      "rust_rule": "host.session_version",
+      "schema": "reject"
+    },
+    {
+      "id": "session-workspace-version",
+      "base": "client-hello.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/workspace_version",
+          "value": 0
+        }
+      ],
+      "rust_rule": "host.session_version",
+      "schema": "reject"
+    },
+    {
+      "id": "session-claimed-owner",
+      "base": "client-hello.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/principal_id",
+          "value": "synthetic-claimed-owner"
+        }
+      ],
+      "rust_rule": "shape",
+      "schema": "reject"
+    },
+    {
+      "id": "session-claimed-surface",
+      "base": "client-hello.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/surface",
+          "value": "workspace"
+        }
+      ],
+      "rust_rule": "shape",
+      "schema": "reject"
+    },
+    {
+      "id": "session-unknown-token",
+      "base": "server-hello.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/token",
+          "value": "synthetic-noncredential"
+        }
+      ],
+      "rust_rule": "shape",
+      "schema": "reject"
+    },
+    {
+      "id": "session-invalid-instance",
+      "base": "server-hello.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/instance_id",
+          "value": "invalid"
+        }
+      ],
+      "rust_rule": "shape",
+      "schema": "reject"
+    },
+    {
+      "id": "session-invalid-surface",
+      "base": "server-hello.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/surface",
+          "value": "agent_owner"
+        }
+      ],
+      "rust_rule": "shape",
+      "schema": "reject"
+    },
+    {
+      "id": "session-invalid-expiry",
+      "base": "server-hello.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/expires_at",
+          "value": "2026-99-22T00:05:00.000Z"
+        }
+      ],
+      "rust_rule": "shape",
+      "schema": "accept"
     }
   ]
 }

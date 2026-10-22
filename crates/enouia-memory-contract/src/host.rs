@@ -15,6 +15,7 @@ use crate::store::StoreDocument;
 use serde::{Deserialize, Serialize};
 
 pub mod publication;
+pub mod session;
 
 /// Retain every migration receipt. Exhaustion refuses another migration;
 /// receipts are never silently pruned or made reusable.

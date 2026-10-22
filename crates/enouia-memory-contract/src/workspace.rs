@@ -606,7 +606,8 @@ pub fn is_long_running(command: &str) -> bool {
 /// derives it from its own native window identity, never from a field the
 /// page sends, and checks it before forwarding a request. The reference
 /// shell and Runtime's adapter share this one rule.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum HostSurface {
     /// The full workspace page. The Core still validates every packet and
     /// the owner rules.
