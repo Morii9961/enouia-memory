@@ -18,6 +18,7 @@ mod history;
 mod materialization;
 mod native;
 pub mod ops;
+mod supersession;
 pub mod views;
 
 pub use native::{CALL_TTL_MS, NativeDestination, NativeProvider};
@@ -796,6 +797,7 @@ impl Workspace {
             Command::DeletePreview(a) => Done::of(self.delete_preview(a)?),
             Command::Remember(a) => Done::of(self.remember(a, key)?),
             Command::CorrectionPropose(a) => Done::of(self.correction(a, key)?),
+            Command::SupersessionPreview(a) => Done::of(self.supersession_preview(a)?),
             Command::ImportPreview(a) => Done::of(self.import_preview(&a.import_token)?),
             Command::ImportStart(a) => self.import_start(a, key)?,
             Command::ImportResume(a) => self.import_resume(a, key)?,

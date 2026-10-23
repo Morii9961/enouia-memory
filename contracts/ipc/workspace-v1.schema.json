@@ -177,6 +177,9 @@
     },
     {
       "$ref": "#/$defs/request_history_brief"
+    },
+    {
+      "$ref": "#/$defs/request_supersession_preview"
     }
   ],
   "$defs": {
@@ -2373,7 +2376,8 @@
             "history_task_list",
             "history_task",
             "history_comparison",
-            "history_brief"
+            "history_brief",
+            "supersession_preview"
           ]
         },
         "vaultCommitId": {
@@ -3052,6 +3056,59 @@
               "type": "integer",
               "minimum": 1,
               "maximum": 2097152
+            }
+          }
+        }
+      }
+    },
+    "request_supersession_preview": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "requestId",
+        "command",
+        "idempotencyKey",
+        "arguments"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": 1
+        },
+        "requestId": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/requestId"
+        },
+        "command": {
+          "const": "supersession_preview"
+        },
+        "idempotencyKey": {
+          "type": "null"
+        },
+        "arguments": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "candidateId",
+            "candidateRevision",
+            "targetMemoryId",
+            "targetRevision",
+            "effectiveFrom"
+          ],
+          "properties": {
+            "candidateId": {
+              "$ref": "../memory/common-v1.schema.json#/$defs/candidateId"
+            },
+            "candidateRevision": {
+              "$ref": "../memory/common-v1.schema.json#/$defs/revision"
+            },
+            "targetMemoryId": {
+              "$ref": "../memory/common-v1.schema.json#/$defs/memoryId"
+            },
+            "targetRevision": {
+              "$ref": "../memory/common-v1.schema.json#/$defs/revision"
+            },
+            "effectiveFrom": {
+              "$ref": "../memory/common-v1.schema.json#/$defs/businessTime"
             }
           }
         }

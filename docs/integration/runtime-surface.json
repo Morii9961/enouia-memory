@@ -60,7 +60,8 @@
     "history_batch_preview",
     "history_batch_apply",
     "history_compare",
-    "history_brief"
+    "history_brief",
+    "supersession_preview"
   ],
   "coveredDirectories": [
     "apps/workspace/src",
@@ -226,7 +227,7 @@
     {
       "path": "contracts/ipc/workspace-v1.schema.json",
       "role": "wire",
-      "sha256": "f1ef4f49b5a724b8246bfc9e0dc2728987fa65377c21f81da1f3068aca0bbd25"
+      "sha256": "a8ab019910a5765cf054e7eb13f7a44c74d5a45f36c076c751d67f45952f8f2e"
     },
     {
       "path": "contracts/memory/common-v1.schema.json",
@@ -281,7 +282,7 @@
     {
       "path": "crates/enouia-memory-contract/src/workspace.rs",
       "role": "wire",
-      "sha256": "df6fab14e62392fa4b0637a85c59470576db4b7267cc85d4abe752bb434f2363"
+      "sha256": "24ffe7d145f75da84417d2b6f6b987f041b99759275f947898f9ac64a5ce49e6"
     },
     {
       "path": "crates/enouia-memory-govern/Cargo.toml",
@@ -486,7 +487,7 @@
     {
       "path": "crates/enouia-memory-workspace/src/lib.rs",
       "role": "core",
-      "sha256": "657a44d13b4bbadc2b39a698ba00c7b4f7537c937b6ddb914035de9d755aafcc"
+      "sha256": "7095da6cdf73eeba26653f7bf25edfaf37a5d40fa4dc8f9fd3b2129685086095"
     },
     {
       "path": "crates/enouia-memory-workspace/src/materialization.rs",
@@ -502,6 +503,11 @@
       "path": "crates/enouia-memory-workspace/src/ops.rs",
       "role": "core",
       "sha256": "f4ab06441dc8bf6e5218d5f15774f018fa220406406707c508547bd6b04ebe0a"
+    },
+    {
+      "path": "crates/enouia-memory-workspace/src/supersession.rs",
+      "role": "core",
+      "sha256": "07567b5b48ae264bada270a46864d67e5384dbef77da671a802d0727171ecd56"
     },
     {
       "path": "crates/enouia-memory-workspace/src/tests.rs",
@@ -531,7 +537,7 @@
     {
       "path": "tests/fixtures/memory/workspace-manifest.json",
       "role": "wire",
-      "sha256": "4ddcc8975a05514f33090e1011e121f768ddb65cbc509389364b16211fae6d84"
+      "sha256": "f65b4fee8e62214153dda3aed3c281713e7ac4bded91a034f7e71d94b248534d"
     },
     {
       "path": "tools/windows/installer-smoke.ps1",
@@ -564,5 +570,5 @@
       "sha256": "3603c1855d9f9ec9b3585143a0191508980b260b1ffd26c82b3e6f9b7223a75d"
     }
   ],
-  "aggregate": "a7dc389a9e7073e26bcb17ac644c9949693a24e3ebf358513de58d2e2ecc52e7"
+  "aggregate": "43bbb7c021e348f93a9652c0022cca0068e6c86bd7d7bacf98edac3d6ecc2e49"
 }

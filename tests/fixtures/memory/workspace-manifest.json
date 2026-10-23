@@ -609,6 +609,19 @@
         "comparisonCommitId": "cmt_00000000-0000-4000-8000-000000000001",
         "maxBytes": 131072
       }
+    },
+    {
+      "schemaVersion": 1,
+      "requestId": "req_00000000-0000-4000-8000-00000000000c",
+      "command": "supersession_preview",
+      "idempotencyKey": null,
+      "arguments": {
+        "candidateId": "cand_00000000-0000-4000-8000-000000000003",
+        "candidateRevision": 1,
+        "targetMemoryId": "mem_00000000-0000-4000-8000-000000000001",
+        "targetRevision": 1,
+        "effectiveFrom": "unknown"
+      }
     }
   ],
   "invalid_requests": [
@@ -2025,6 +2038,18 @@
         "schemaVersion": 1,
         "requestId": "req_00000000-0000-4000-8000-00000000000c",
         "kind": "history_brief",
+        "vaultCommitId": null,
+        "operationId": null,
+        "result": {},
+        "error": null
+      }
+    },
+    {
+      "command": "supersession_preview",
+      "message": {
+        "schemaVersion": 1,
+        "requestId": "req_00000000-0000-4000-8000-00000000000c",
+        "kind": "supersession_preview",
         "vaultCommitId": null,
         "operationId": null,
         "result": {},
