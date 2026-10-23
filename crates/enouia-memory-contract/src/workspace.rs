@@ -282,6 +282,14 @@ pub struct HistoryCompareArgs {
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct HistoryBriefArgs {
+    pub batches: Vec<HistoryBatchArgs>,
+    pub comparison_commit_id: CommitId,
+    pub max_bytes: u32,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct HistoryBatchApplyArgs {
     pub task_id: SessionId,
     pub batch_index: u32,
@@ -505,11 +513,12 @@ pub enum Command {
     HistoryBatchPreview(HistoryBatchArgs),
     HistoryBatchApply(HistoryBatchApplyArgs),
     HistoryCompare(HistoryCompareArgs),
+    HistoryBrief(HistoryBriefArgs),
     HistoryResume(HistoryTaskArgs),
 }
 
 /// Command names, in schema order.
-pub const COMMANDS: [&str; 56] = [
+pub const COMMANDS: [&str; 57] = [
     "workspace_status",
     "vault_open",
     "vault_create",
@@ -566,6 +575,7 @@ pub const COMMANDS: [&str; 56] = [
     "history_batch_preview",
     "history_batch_apply",
     "history_compare",
+    "history_brief",
 ];
 
 /// Commands that can commit to the Vault and therefore carry an idempotency key.
@@ -695,6 +705,7 @@ pub fn success_kind(command: &str) -> ResponseKind {
         "history_task_list" => K::HistoryTaskList,
         "history_task_get" => K::HistoryTask,
         "history_compare" => K::HistoryComparison,
+        "history_brief" => K::HistoryBrief,
         _ => K::MemoryError,
     }
 }
@@ -736,6 +747,21 @@ fn check_cursor(cursor: Option<&String>, out: &mut Vec<Violation>) {
 fn check_token(token: &str, pointer: &str, out: &mut Vec<Violation>) {
     if !is_token(token) {
         out.push(Violation::new("workspace.token", pointer));
+    }
+}
+
+fn check_history_selection(batches: &[HistoryBatchArgs], out: &mut Vec<Violation>) {
+    if batches.is_empty()
+        || batches.len() > 32
+        || batches
+            .iter()
+            .enumerate()
+            .any(|(i, b)| batches[..i].contains(b))
+    {
+        out.push(Violation::new(
+            "workspace.history_selection",
+            "/arguments/batches",
+        ));
     }
 }
 
@@ -966,17 +992,13 @@ pub fn parse_request(value: &Value) -> Result<(Request, Command), ContractError>
                 ));
             }
         }
-        Command::HistoryCompare(a) => {
-            if a.batches.is_empty()
-                || a.batches.len() > 32
-                || a.batches
-                    .iter()
-                    .enumerate()
-                    .any(|(i, b)| a.batches[..i].contains(b))
-            {
+        Command::HistoryCompare(a) => check_history_selection(&a.batches, &mut out),
+        Command::HistoryBrief(a) => {
+            check_history_selection(&a.batches, &mut out);
+            if a.max_bytes == 0 || a.max_bytes > 2 * 1024 * 1024 {
                 out.push(Violation::new(
-                    "workspace.history_selection",
-                    "/arguments/batches",
+                    "workspace.history_brief_bytes",
+                    "/arguments/maxBytes",
                 ));
             }
         }
@@ -1053,6 +1075,7 @@ pub enum ResponseKind {
     HistoryTaskList,
     HistoryTask,
     HistoryComparison,
+    HistoryBrief,
 }
 
 /// An error as the page sees it: a contract code, whether a retry can help,

@@ -808,6 +808,7 @@ impl Workspace {
             Command::HistoryBatchPreview(a) => Done::of(self.history_batch_preview(a)?),
             Command::HistoryBatchApply(a) => Done::of(self.history_batch_apply(a, key)?),
             Command::HistoryCompare(a) => Done::of(self.history_compare(a)?),
+            Command::HistoryBrief(a) => Done::of(self.history_brief(a)?),
             Command::HistoryResume(a) => self.history_resume(a, key)?,
             Command::SessionList(_) => Done::of(self.session_list()?),
             Command::SessionDetail(a) => Done::of(self.session_detail(a)?),

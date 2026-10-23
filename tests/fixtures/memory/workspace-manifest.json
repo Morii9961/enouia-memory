@@ -593,6 +593,22 @@
           }
         ]
       }
+    },
+    {
+      "schemaVersion": 1,
+      "requestId": "req_00000000-0000-4000-8000-00000000000c",
+      "command": "history_brief",
+      "idempotencyKey": null,
+      "arguments": {
+        "batches": [
+          {
+            "taskId": "ses_00000000-0000-4000-8000-000000000001",
+            "batchIndex": 1
+          }
+        ],
+        "comparisonCommitId": "cmt_00000000-0000-4000-8000-000000000001",
+        "maxBytes": 131072
+      }
     }
   ],
   "invalid_requests": [
@@ -1715,6 +1731,119 @@
       ],
       "schema": "reject",
       "rust_rule": "ipc.idempotency_key"
+    },
+    {
+      "id": "history_brief-empty",
+      "base": 56,
+      "ops": [
+        {
+          "op": "set",
+          "path": "/arguments/batches",
+          "value": []
+        }
+      ],
+      "schema": "reject",
+      "rust_rule": "workspace.history_selection"
+    },
+    {
+      "id": "history_brief-duplicate",
+      "base": 56,
+      "ops": [
+        {
+          "op": "set",
+          "path": "/arguments/batches",
+          "value": [
+            {
+              "taskId": "ses_00000000-0000-4000-8000-000000000001",
+              "batchIndex": 1
+            },
+            {
+              "taskId": "ses_00000000-0000-4000-8000-000000000001",
+              "batchIndex": 1
+            }
+          ]
+        }
+      ],
+      "schema": "reject",
+      "rust_rule": "workspace.history_selection"
+    },
+    {
+      "id": "history_brief-zero-budget",
+      "base": 56,
+      "ops": [
+        {
+          "op": "set",
+          "path": "/arguments/maxBytes",
+          "value": 0
+        }
+      ],
+      "schema": "reject",
+      "rust_rule": "workspace.history_brief_bytes"
+    },
+    {
+      "id": "history_brief-over-budget",
+      "base": 56,
+      "ops": [
+        {
+          "op": "set",
+          "path": "/arguments/maxBytes",
+          "value": 2097153
+        }
+      ],
+      "schema": "reject",
+      "rust_rule": "workspace.history_brief_bytes"
+    },
+    {
+      "id": "history_brief-forged-actor",
+      "base": 56,
+      "ops": [
+        {
+          "op": "set",
+          "path": "/arguments/actor",
+          "value": "forged"
+        }
+      ],
+      "schema": "reject",
+      "rust_rule": "shape"
+    },
+    {
+      "id": "history_brief-forged-topic",
+      "base": 56,
+      "ops": [
+        {
+          "op": "set",
+          "path": "/arguments/topic",
+          "value": "forged"
+        }
+      ],
+      "schema": "reject",
+      "rust_rule": "shape"
+    },
+    {
+      "id": "history_brief-forged-path",
+      "base": 56,
+      "ops": [
+        {
+          "op": "set",
+          "path": "/arguments/path",
+          "value": "forged"
+        }
+      ],
+      "schema": "reject",
+      "rust_rule": "shape"
+    },
+    {
+      "id": "history_brief-write-key",
+      "base": 56,
+      "ops": [
+        {
+          "op": "set",
+          "path": "/idempotencyKey",
+          "value": "synthetic-key-0001"
+        }
+      ],
+      "schema": "reject",
+      "rust_rule": "ipc.idempotency_key"
     }
   ],
   "valid_responses": [
@@ -1884,6 +2013,18 @@
         "schemaVersion": 1,
         "requestId": "req_00000000-0000-4000-8000-00000000000c",
         "kind": "history_comparison",
+        "vaultCommitId": null,
+        "operationId": null,
+        "result": {},
+        "error": null
+      }
+    },
+    {
+      "command": "history_brief",
+      "message": {
+        "schemaVersion": 1,
+        "requestId": "req_00000000-0000-4000-8000-00000000000c",
+        "kind": "history_brief",
         "vaultCommitId": null,
         "operationId": null,
         "result": {},
