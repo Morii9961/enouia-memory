@@ -91,3 +91,8 @@ Runtime exact-pin adoption and real owner acceptance. No private Vault, real
 Provider, Runtime checkout, migration, cloud deployment or manual project-status
 snapshot was used or changed. Concurrent user instructions/status edits remain
 outside this change.
+
+2026-10-23 continuation: [delivery closeout and manual acceptance matrix](MV-8-reference-shell-host-closeout.md)
+records a focused caller-state fix for uncertain-request retention and the
+remaining native-window/tray/normal-exit gates. It does not replace the saved
+validation above or claim rendered acceptance.

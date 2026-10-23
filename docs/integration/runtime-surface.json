@@ -164,7 +164,7 @@
     {
       "path": "apps/workspace/src/App.tsx",
       "role": "reference-ui",
-      "sha256": "63a60545fe1ec9cbf9b992d94178cd0d09fb3cbaa48d827e49db2050c3de2b1b"
+      "sha256": "f11009a925b87afa45b4b5c05bfb402fa75afb02b6bbfa85e133e7b99a820907"
     },
     {
       "path": "apps/workspace/src/Overlay.tsx",
@@ -557,5 +557,5 @@
       "sha256": "3603c1855d9f9ec9b3585143a0191508980b260b1ffd26c82b3e6f9b7223a75d"
     }
   ],
-  "aggregate": "d855683e0879c7887aae819b1345e31587a9a956be5fff5bf31de42ed08478d5"
+  "aggregate": "ad55bcf532c7cb44d9249537b68f7d986a1f4d50a3e752a3cef55f2e2aa44b34"
 }
