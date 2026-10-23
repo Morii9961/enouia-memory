@@ -276,6 +276,12 @@ pub struct HistoryBatchArgs {
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct HistoryCompareArgs {
+    pub batches: Vec<HistoryBatchArgs>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct HistoryBatchApplyArgs {
     pub task_id: SessionId,
     pub batch_index: u32,
@@ -498,11 +504,12 @@ pub enum Command {
     HistoryBatchPrepare(HistoryBatchPrepareArgs),
     HistoryBatchPreview(HistoryBatchArgs),
     HistoryBatchApply(HistoryBatchApplyArgs),
+    HistoryCompare(HistoryCompareArgs),
     HistoryResume(HistoryTaskArgs),
 }
 
 /// Command names, in schema order.
-pub const COMMANDS: [&str; 55] = [
+pub const COMMANDS: [&str; 56] = [
     "workspace_status",
     "vault_open",
     "vault_create",
@@ -558,6 +565,7 @@ pub const COMMANDS: [&str; 55] = [
     "history_batch_prepare",
     "history_batch_preview",
     "history_batch_apply",
+    "history_compare",
 ];
 
 /// Commands that can commit to the Vault and therefore carry an idempotency key.
@@ -686,6 +694,7 @@ pub fn success_kind(command: &str) -> ResponseKind {
         "history_plan" => K::HistoryPlan,
         "history_task_list" => K::HistoryTaskList,
         "history_task_get" => K::HistoryTask,
+        "history_compare" => K::HistoryComparison,
         _ => K::MemoryError,
     }
 }
@@ -957,6 +966,20 @@ pub fn parse_request(value: &Value) -> Result<(Request, Command), ContractError>
                 ));
             }
         }
+        Command::HistoryCompare(a) => {
+            if a.batches.is_empty()
+                || a.batches.len() > 32
+                || a.batches
+                    .iter()
+                    .enumerate()
+                    .any(|(i, b)| a.batches[..i].contains(b))
+            {
+                out.push(Violation::new(
+                    "workspace.history_selection",
+                    "/arguments/batches",
+                ));
+            }
+        }
         Command::HistoryBatchApply(a) => {
             if a.cursor > EXTRACTION_MAX_CANDIDATES {
                 out.push(Violation::new(
@@ -1029,6 +1052,7 @@ pub enum ResponseKind {
     HistoryPlan,
     HistoryTaskList,
     HistoryTask,
+    HistoryComparison,
 }
 
 /// An error as the page sees it: a contract code, whether a retry can help,

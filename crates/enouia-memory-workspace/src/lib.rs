@@ -13,6 +13,7 @@
 //! will authenticate the caller; until then the process boundary is the
 //! trust boundary.
 
+mod comparison;
 mod history;
 mod materialization;
 mod native;
@@ -806,6 +807,7 @@ impl Workspace {
             Command::HistoryBatchPrepare(a) => Done::of(self.history_batch_prepare(a, key)?),
             Command::HistoryBatchPreview(a) => Done::of(self.history_batch_preview(a)?),
             Command::HistoryBatchApply(a) => Done::of(self.history_batch_apply(a, key)?),
+            Command::HistoryCompare(a) => Done::of(self.history_compare(a)?),
             Command::HistoryResume(a) => self.history_resume(a, key)?,
             Command::SessionList(_) => Done::of(self.session_list()?),
             Command::SessionDetail(a) => Done::of(self.session_detail(a)?),
