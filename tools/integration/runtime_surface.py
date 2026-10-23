@@ -32,6 +32,7 @@ FILES = {
     "crates/enouia-memory-contract/src/policy.rs": "agent-policy",
     "crates/enouia-memory-govern/src/propose.rs": "agent-governance",
     "crates/enouia-memory-govern/src/lib.rs": "agent-governance",
+    "crates/enouia-memory-context/src/compiler.rs": "agent-context",
     "contracts/memory/common-v1.schema.json": "wire",
     "tests/fixtures/memory/workspace-manifest.json": "wire",
     "crates/enouia-memory-contract/src/workspace.rs": "wire",

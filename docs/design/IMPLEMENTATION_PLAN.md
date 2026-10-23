@@ -2,6 +2,8 @@
 
 原始计划：设计包 v1.0 / 2026-09-28；v1.3 路线修订：2026-10-11。本文定义阶段与出口；实际进度以对应 validation 报告为准。
 
+> **同日接续，MV-8.2d：** [ADR-MEM-83](../adr/083-host-agent-local-context.md)接入当前版本、无会话、固定离线目的地的 Agent context_get，保留原生 McpClient 来源和 requestId 回执；拒绝未支持的历史/会话/外发选择，不静默降级。Context 更多选择、checkpoint 及外部 Agent 认证接线仍未完成，继续限定本地合成资料。
+
 > **同日接续，MV-8.2c：** [ADR-MEM-82](../adr/082-host-agent-proposals.md)接入同一 Host 上的受限 Agent 候选提议和稳定回执，按主体隔离去重；不借用 owner 权限、不改 Canonical。Context/checkpoint 与外部 Agent 认证接线仍待后续切片，沿用 MV-8.2 明确授权的本地合成边界。
 
 > **2026-10-23，MV-8.2b 明确获授权：** Morii 已选择“授权 MV-8.2 本地合成开发”。[ADR-MEM-81](../adr/081-host-scoped-agent-reads.md)先将受策略约束的 Agent 读取绑定到同一 Host，不借用 owner 会话；先开放已有 search/read/source 读工具，其余工具绑定仍为后续切片。继续禁止 Computer Use、私人 Vault、真实客户端、云端、迁主、Runtime UI、合并与部署。

@@ -5,6 +5,11 @@ Date: 2026-10-23 (Asia/Shanghai). Baseline `3ccc5c0`, branch
 authorization. [ADR-MEM-82](../adr/082-host-agent-proposals.md) fixes the write
 boundary. No external native Agent transport or real client is activated.
 
+The later [local current-memory Context slice](MV-8-host-agent-local-context.md)
+adds a restricted context_get binding. This report retains its proposal evidence
+and selection cutoff; session_checkpoint and broader Context selections remain
+unfinished there too.
+
 ## Delivered behavior
 
 `HostService::mcp_agent_server` now accepts the implemented memory:read,

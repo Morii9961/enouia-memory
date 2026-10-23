@@ -1,4 +1,6 @@
 //! In-process Agent reads over the Host's single bound Vault (ADR-MEM-81).
+#[path = "context.rs"]
+mod context;
 #[path = "propose.rs"]
 mod propose;
 use super::{AgentPort, Grant, PortFault, Server};
@@ -54,7 +56,7 @@ impl HostService {
         self.mcp_agent_server(grant)
     }
 
-    /// In-process read/propose binding after separate native authentication.
+    /// In-process read/propose/local-context binding after native authentication.
     pub fn mcp_agent_server(
         &self,
         grant: Grant,
@@ -63,7 +65,10 @@ impl HostService {
             || grant.scopes.iter().any(|s| {
                 !matches!(
                     s,
-                    Scope::MemoryRead | Scope::SourceRead | Scope::MemoryPropose
+                    Scope::MemoryRead
+                        | Scope::SourceRead
+                        | Scope::MemoryPropose
+                        | Scope::ContextRead
                 )
             })
         {
@@ -102,16 +107,19 @@ impl AgentPort for HostPort<'_> {
             self.host
                 .dispatch_agent(connection, |vault| match arguments {
                     Arguments::MemoryPropose(a) => propose::execute(vault, principal, request, a),
+                    Arguments::ContextGet(a) => context::execute(vault, principal, request, a),
                     other => execute(vault, principal, request, other)
                         .map_err(|_| PortFault::Unavailable),
                 });
         if !self.grant.allows(request.operation) {
             self.disconnect();
-            return Err(if request.operation.is_write() {
-                PortFault::OutcomeUnknown
-            } else {
-                PortFault::Unavailable
-            });
+            return Err(
+                if request.operation.is_write() || request.operation == ipc::Operation::ContextGet {
+                    PortFault::OutcomeUnknown
+                } else {
+                    PortFault::Unavailable
+                },
+            );
         }
         match result {
             Ok(Ok(value)) => Ok(value),

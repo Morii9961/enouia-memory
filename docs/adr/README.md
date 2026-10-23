@@ -414,6 +414,10 @@ The [full remember replay and target freshness acceptance](../validation/MV-6-fu
 
 [Decision](082-host-agent-proposals.md): authorize actual Agent proposal dependencies over the same Host writer, retain native principal and canonical-operation/key receipts, keep candidates pending and refuse unreceipted global duplicates without disclosing their IDs. Unknown publication/audit results close the session without replay.
 
+### ADR-MEM-83 — Agent local current-memory context (MV-8.2d)
+
+[Decision](083-host-agent-local-context.md): bind current, session-free context_get to the existing compiler with native McpClient provenance, current policy filtering, fixed offline destination and requestId receipt recovery. Unsupported history/session/destination choices are refused, not ignored.
+
 ## Relation to Enouia Runtime's register
 
 

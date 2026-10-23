@@ -761,6 +761,7 @@ dependencies = [
 name = "enouia-memory-host"
 version = "0.1.0"
 dependencies = [
+ "enouia-memory-context",
  "enouia-memory-contract",
  "enouia-memory-govern",
  "enouia-memory-import",

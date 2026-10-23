@@ -1104,3 +1104,244 @@ fn scoped_agent_proposal_actual_publication_fault_retains_packet_and_never_retri
         }
     }
 }
+
+fn context_args() -> Value {
+    json!({"query":"readable","sessionId":null,"branchId":null,"projectHints":[],
+        "timeMode":{"asOf":null,"knownAtCommitId":null},
+        "destination":{"kind":"local_mock","providerBindingName":null},"purpose":"answer","maxTokens":32768})
+}
+fn context_packet(id: usize, args: Value) -> Value {
+    let mut packet = proposal_packet(id, "context_get", args, "unused-key-replaced-with-null");
+    packet["params"]["arguments"]["idempotencyKey"] = Value::Null;
+    packet
+}
+fn context_call(s: &mut Server<crate::mcp::HostPort<'_>>, id: usize, args: Value) -> Value {
+    s.handle(&context_packet(id, args)).unwrap()["result"]["structuredContent"].clone()
+}
+fn context_memories(value: &Value) -> usize {
+    [
+        "user_context",
+        "relationship_context",
+        "active_projects",
+        "relevant_memories",
+    ]
+    .iter()
+    .map(|key| value["result"]["capsule"][key].as_array().unwrap().len())
+    .sum()
+}
+
+#[test]
+fn scoped_agent_context_default_denies_data_and_keeps_native_provenance() {
+    let env = Env::new();
+    let host = env.host();
+    let mut s = agent_initialized(&host, vec![Scope::ContextRead]);
+    let before = host.vault.pin_current().unwrap();
+    let r = context_call(&mut s, 2, context_args());
+    assert_eq!(r["kind"], "context_capsule", "{r}");
+    assert_eq!(context_memories(&r), 0);
+    let c = &r["result"]["capsule"];
+    assert_eq!(c["client_surface"], "mcp_client");
+    assert_eq!(c["requested_by"], json!(agent()));
+    assert_eq!(c["destination"]["kind"], "local_mock");
+    assert_eq!(c["completeness"]["complete"], false);
+    assert!(
+        c["completeness"]["limitations"]
+            .as_array()
+            .unwrap()
+            .contains(&json!("no_supported_memory"))
+    );
+    assert_eq!(r["vaultCommitId"], json!(before.commit_id));
+    let after = host.vault.pin_current().unwrap();
+    assert_eq!(after.sequence, before.sequence + 1);
+    assert_eq!(
+        host.vault
+            .record_entries(&after, RecordKind::Memory)
+            .unwrap()
+            .len(),
+        1
+    );
+    assert_eq!(
+        host.vault
+            .record_entries(&after, RecordKind::Source)
+            .unwrap()
+            .len(),
+        1
+    );
+    assert!(
+        host.vault
+            .record_entries(&after, RecordKind::SessionEvent)
+            .unwrap()
+            .is_empty()
+    );
+    assert_eq!(
+        call(&mut s, 3, "memory_read", read(&env.memory))["error"]["code"],
+        "permission_denied"
+    );
+}
+
+#[test]
+fn scoped_agent_context_uses_current_policies_budget_and_exact_purpose() {
+    let env = Env::new();
+    policy(
+        &env.vault,
+        &[Scope::MemoryRead, Scope::ContextRead],
+        Sensitivity::Private,
+        1,
+        false,
+    );
+    let host = env.host();
+    let mut s = agent_initialized(&host, vec![Scope::ContextRead]);
+    let r = context_call(&mut s, 2, context_args());
+    assert_eq!(context_memories(&r), 1, "{r}");
+    assert_eq!(r["result"].as_object().unwrap().len(), 2);
+    assert!(r["result"]["inspectionId"].is_string());
+    assert_eq!(r["result"]["capsule"]["purpose"], "answer");
+    let mut a = context_args();
+    a["purpose"] = json!("inspection_preview");
+    let r = context_call(&mut s, 3, a);
+    assert_eq!(context_memories(&r), 1, "{r}");
+    assert_eq!(r["result"]["capsule"]["purpose"], "inspection_preview");
+    let before = host.vault.pin_current().unwrap();
+    let mut a = context_args();
+    a["maxTokens"] = json!(1);
+    assert_eq!(
+        context_call(&mut s, 4, a)["error"]["code"],
+        "budget_exceeded"
+    );
+    assert_eq!(host.vault.pin_current().unwrap(), before);
+    let mut index = enouia_memory_index::Index::open(&host.vault).unwrap();
+    index.update(&host.vault, &|| false).unwrap();
+    let input = enouia_memory_context::CompileInput::local(
+        "synthetic owner attempt",
+        owner(),
+        RequestId::from_random(host.vault.random_id_bytes()),
+    );
+    assert_eq!(
+        enouia_memory_context::compiler::compile_agent_local(
+            &host.vault,
+            &index,
+            &input,
+            enouia_memory_contract::context::Purpose::Answer
+        )
+        .unwrap_err()
+        .code(),
+        enouia_memory_contract::MemoryErrorCode::PermissionDenied
+    );
+}
+
+#[test]
+fn scoped_agent_context_refuses_unsupported_selections_before_compilation() {
+    let env = Env::new();
+    let host = env.host();
+    let mut s = agent_initialized(&host, vec![Scope::ContextRead]);
+    let before = host.vault.pin_current().unwrap();
+    let mut cases = Vec::new();
+    let mut a = context_args();
+    a["timeMode"]["knownAtCommitId"] = json!(before.commit_id);
+    cases.push(a);
+    let mut a = context_args();
+    a["sessionId"] = json!("ses_00000001-0000-4000-8000-000000000001");
+    a["branchId"] = json!("br_00000001-0000-4000-8000-000000000001");
+    cases.push(a);
+    let mut a = context_args();
+    a["destination"] =
+        json!({"kind":"external_provider","providerBindingName":"synthetic-binding"});
+    cases.push(a);
+    let mut a = context_args();
+    a["purpose"] = json!("extraction");
+    cases.push(a);
+    for (n, a) in cases.into_iter().enumerate() {
+        let denied = context_call(&mut s, n + 2, a);
+        assert_eq!(denied["error"]["code"], "invalid_request", "{denied}");
+        assert_eq!(host.vault.pin_current().unwrap(), before);
+    }
+}
+
+#[test]
+fn scoped_agent_context_explicit_requestid_replay_keeps_capsule_and_rechecks_epochs() {
+    let env = Env::new();
+    policy(
+        &env.vault,
+        &[Scope::MemoryRead, Scope::ContextRead],
+        Sensitivity::Private,
+        1,
+        false,
+    );
+    let host = env.host();
+    let packet = context_packet(2, context_args());
+    let first = {
+        let mut s = agent_initialized(&host, vec![Scope::ContextRead]);
+        s.handle(&packet).unwrap()
+    };
+    assert_eq!(
+        first["result"]["structuredContent"]["kind"], "context_capsule",
+        "{first}"
+    );
+    let before = host.vault.pin_current().unwrap();
+    let mut s = agent_initialized(&host, vec![Scope::ContextRead]);
+    let replay = s.handle(&packet).unwrap();
+    assert_eq!(replay, first);
+    assert_eq!(host.vault.pin_current().unwrap(), before);
+    let mut changed = packet.clone();
+    changed["id"] = json!(3);
+    changed["params"]["arguments"]["arguments"]["query"] = json!("changed synthetic query");
+    assert_eq!(
+        s.handle(&changed).unwrap()["result"]["structuredContent"]["error"]["code"],
+        "idempotency_conflict"
+    );
+    policy(
+        &host.vault,
+        &[Scope::MemoryRead, Scope::ContextRead],
+        Sensitivity::Private,
+        2,
+        true,
+    );
+    let before = host.vault.pin_current().unwrap();
+    let mut fresh = agent_initialized(&host, vec![Scope::ContextRead]);
+    let denied = fresh.handle(&packet).unwrap();
+    assert_eq!(
+        denied["result"]["structuredContent"]["error"]["code"], "invalid_request",
+        "{denied}"
+    );
+    assert!(denied["result"]["structuredContent"]["result"].is_null());
+    assert_eq!(host.vault.pin_current().unwrap(), before);
+}
+
+#[test]
+fn scoped_agent_context_actual_witness_fault_preserves_requestid_for_explicit_recovery() {
+    use enouia_memory_vault::fault::{FaultAction, FaultPoint, Faults};
+    let env = Env::new();
+    policy(
+        &env.vault,
+        &[Scope::MemoryRead, Scope::ContextRead],
+        Sensitivity::Private,
+        1,
+        false,
+    );
+    let faults = Faults::armed();
+    let host = env.fault_host(faults.clone());
+    let packet = context_packet(2, context_args());
+    let before = host.vault.pin_current().unwrap();
+    let mut s = agent_initialized(&host, vec![Scope::ContextRead]);
+    faults.arm(FaultPoint::HostWitnessPublished, 1, FaultAction::Fail(5));
+    let unknown = s.handle(&packet).unwrap();
+    assert_eq!(
+        unknown["result"]["structuredContent"]["error"]["code"], "outcome_unknown",
+        "{unknown}"
+    );
+    assert_eq!(
+        unknown["result"]["structuredContent"]["originalRequest"],
+        packet["params"]["arguments"]
+    );
+    assert!(packet["params"]["arguments"]["idempotencyKey"].is_null());
+    faults.disarm();
+    let after = host.vault.pin_current().unwrap();
+    assert_eq!(after.sequence, before.sequence + 1);
+    let mut fresh = agent_initialized(&host, vec![Scope::ContextRead]);
+    let replay = fresh.handle(&packet).unwrap();
+    assert_eq!(
+        replay["result"]["structuredContent"]["kind"], "context_capsule",
+        "{replay}"
+    );
+    assert_eq!(host.vault.pin_current().unwrap(), after);
+}
