@@ -406,6 +406,10 @@ The [full remember replay and target freshness acceptance](../validation/MV-6-fu
 
 [Decision](080-restricted-mcp-stdio-boundary.md): owner-authorized local synthetic MCP 2025-11-25 adapter; existing six-tool Memory IPC envelopes, native Agent scope ceilings, revocation, bounded stdio and original-packet retention after uncertain outcomes. No owner Workspace bridge, actual Host/domain binding, real client, Provider, private data or cloud activation.
 
+### ADR-MEM-81 — Host-scoped Agent reads (MV-8.2b)
+
+[Decision](081-host-scoped-agent-reads.md): in-process MCP read binding over the existing Host Vault, separate expiring Agent connections, current persisted policy checks, deletion/provenance barriers and fail-closed content-free auditing. No owner Workspace bridge or external Agent transport enrollment.
+
 ## Relation to Enouia Runtime's register
 
 

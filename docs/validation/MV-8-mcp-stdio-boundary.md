@@ -6,6 +6,11 @@ Date: 2026-10-23 (Asia/Shanghai). Source baseline
 proposal. [ADR-MEM-80](../adr/080-restricted-mcp-stdio-boundary.md) freezes this
 slice before implementation. No Computer Use or product UI work is performed.
 
+Subsequent explicit MV-8.2 authorization and the actual in-process search/read/
+source binding are recorded in [MV-8.2b](MV-8-host-scoped-agent-reads.md). This
+report retains the earlier protocol-only evidence; it does not establish domain
+binding for the other three tools or native external Agent authentication.
+
 ## Implemented boundary
 
 The Host crate now contains an opt-in library adapter for MCP **2025-11-25**.

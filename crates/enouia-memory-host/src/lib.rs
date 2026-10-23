@@ -71,7 +71,7 @@ impl NativeAdmission {
 }
 
 struct Entry {
-    surface: HostSurface,
+    surface: Option<HostSurface>,
     expires_ms: i64,
     lifetime: Weak<()>,
 }
@@ -195,7 +195,7 @@ impl SessionGate {
         state.entries.insert(
             serial,
             Entry {
-                surface: native.surface,
+                surface: Some(native.surface),
                 expires_ms,
                 lifetime: Arc::downgrade(&lifetime),
             },
@@ -218,6 +218,67 @@ impl SessionGate {
                 _lifetime: lifetime,
             },
         ))
+    }
+
+    /// Trusted in-process Agent enrollment only; never reachable from a window
+    /// hello or a page packet. The embedding layer authenticates separately.
+    pub(crate) fn connect_agent(&self) -> Result<Connection> {
+        let mut state = self.inner.lock()?;
+        state.available()?;
+        let now = self.clock.now_unix_ms();
+        state.time(now)?;
+        let expires_ms = now
+            .checked_add(SESSION_TTL_MS)
+            .ok_or(SessionFault::InvalidTime)?;
+        Timestamp::from_unix_ms(expires_ms).ok_or(SessionFault::InvalidTime)?;
+        state
+            .entries
+            .retain(|_, e| e.expires_ms > now && e.lifetime.strong_count() > 0);
+        if state.entries.len() >= MAX_CONNECTIONS {
+            return Err(SessionFault::Capacity);
+        }
+        let serial = state.next;
+        state.next = serial.checked_add(1).ok_or(SessionFault::Capacity)?;
+        let lifetime = Arc::new(());
+        state.entries.insert(
+            serial,
+            Entry {
+                surface: None,
+                expires_ms,
+                lifetime: Arc::downgrade(&lifetime),
+            },
+        );
+        Ok(Connection {
+            inner: Arc::downgrade(&self.inner),
+            serial,
+            _lifetime: lifetime,
+        })
+    }
+
+    pub(crate) fn dispatch_agent<T>(
+        &self,
+        connection: &Connection,
+        run: impl FnOnce() -> T,
+    ) -> Result<T> {
+        let mut state = self.inner.lock()?;
+        state.available()?;
+        let now = self.clock.now_unix_ms();
+        state.time(now)?;
+        if !Weak::ptr_eq(&connection.inner, &Arc::downgrade(&self.inner)) {
+            return Err(SessionFault::Revoked);
+        }
+        let entry = state
+            .entries
+            .get(&connection.serial)
+            .ok_or(SessionFault::Revoked)?;
+        if now >= entry.expires_ms {
+            state.entries.remove(&connection.serial);
+            return Err(SessionFault::Expired);
+        }
+        if entry.surface.is_some() {
+            return Err(SessionFault::ScopeDenied);
+        }
+        Ok(run())
     }
 
     pub(crate) fn validate_hello(&self, hello: &ClientHello) -> Result<()> {
@@ -256,7 +317,7 @@ impl SessionGate {
             state.entries.remove(&connection.serial);
             return Err(SessionFault::Expired);
         }
-        let surface = entry.surface;
+        let surface = entry.surface.ok_or(SessionFault::ScopeDenied)?;
         if !surface.allows(request) {
             return Err(SessionFault::ScopeDenied);
         }

@@ -1,6 +1,8 @@
 //! Restricted MCP 2025-11-25 boundary (ADR-MEM-80).
 //! No native enrollment, Vault access, owner Workspace bridge or automatic retry.
 mod json;
+mod read;
+pub use read::ReadPort;
 
 use enouia_memory_contract::common::{ActorRef, ActorType};
 use enouia_memory_contract::ipc::{self, Arguments, IpcRequest, Operation};
