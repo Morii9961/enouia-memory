@@ -27,6 +27,9 @@ MANIFEST = ROOT / "docs/integration/runtime-surface.json"
 FILES = {
     # Wire contract between the page and the Core.
     "contracts/ipc/workspace-v1.schema.json": "wire",
+    "contracts/ipc/memory-v1.schema.json": "agent-wire",
+    "crates/enouia-memory-contract/src/ipc.rs": "agent-wire",
+    "crates/enouia-memory-contract/src/policy.rs": "agent-policy",
     "contracts/memory/common-v1.schema.json": "wire",
     "tests/fixtures/memory/workspace-manifest.json": "wire",
     "crates/enouia-memory-contract/src/workspace.rs": "wire",

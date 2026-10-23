@@ -764,6 +764,7 @@ dependencies = [
  "enouia-memory-contract",
  "enouia-memory-vault",
  "enouia-memory-workspace",
+ "serde",
  "serde_json",
  "windows-sys 0.61.2",
 ]

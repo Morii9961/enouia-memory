@@ -2,6 +2,8 @@
 
 原始计划：设计包 v1.0 / 2026-09-28；v1.3 路线修订：2026-10-11。本文定义阶段与出口；实际进度以对应 validation 报告为准。
 
+> **2026-10-23，MV-8.2a 已获主人接续授权：** [ADR-MEM-80](../adr/080-restricted-mcp-stdio-boundary.md) 冻结受限 stdio MCP 的本地合成边界，复用既有六工具 Memory IPC v1，显式 Agent principal/scopes，不借用 owner Workspace。先实现协议、撤回与未知回执的合成端口验证；原生 Host/domain 绑定和真实客户端仍为独立后续切片。不用 Computer Use，不改 Runtime 产品 UI，也不激活私人资料、云端或迁主。
+
 > **2026-10-22，MV-8.1j：** [ADR-MEM-79](../adr/079-reference-shell-native-host.md) 与[参考外壳报告](../validation/MV-8-reference-shell-host.md)将原生 Broker 接入 Tauri 参考后端：显式选择现有 v2 根及匹配 Host，独立子进程持租约，托盘重连/解锁，丢响应保留原键且不自动重试。文件选择、原生模式自启动、实际窗口/托盘验收、Runtime 采用与多客户端仍单独待做，不据此开始 MCP 或新阶段。
 
 > **2026-10-22，MV-8.1i：** [ADR-MEM-78](../adr/078-native-client-reconnect-boundary.md) 与[客户端重连报告](../validation/MV-8-native-client-reconnect.md)加入 opt-in 原生 Broker：旧连接排队请求失效、原生窗口作用域复核、响应丢失后报告结果未知而不自动重发。真实合成提交后的丢响应与原键重放已验证；Tauri/Runtime 采用、多客户端、受限 MCP 和真实验收继续单独推进。

@@ -6,6 +6,7 @@ pub mod broker;
 mod compatibility;
 mod framing;
 pub use compatibility::compatibility_hash;
+pub mod mcp;
 pub mod service;
 #[cfg(windows)]
 pub mod transport;
