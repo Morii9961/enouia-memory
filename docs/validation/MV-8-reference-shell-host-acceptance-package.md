@@ -2,6 +2,8 @@
 
 日期：2026-10-23（Asia/Shanghai）。接续[收口报告](MV-8-reference-shell-host-closeout.md)，限定于现有参考壳 Host 交付。**验收运行产物和两个合成根已准备；实际窗口、托盘和图形壳正常退出仍待验收。**
 
+交付方向已按 Morii 的纠正收敛：Runtime 早已承载 Memory 的产品界面和 embedded Core；本包是旧参考壳的工程产物，不是新的产品 UI，也不是 Runtime 的替代入口。后续不用 Computer Use；未完成的参考壳图形项保留待验收，不作为继续 Runtime 产品工作的前置。
+
 ## 固定版本与交付物
 
 - 分支：`codex/mv8-reference-host-closeout`。小修提交 `be044b4` 固定了 API → action catch 后的原 packet/key 保留及原五项 focused 检查记录。
@@ -44,12 +46,22 @@ launcher 只读取此次准备的合成元数据和包内程序，返回新 shel
 
 本轮没有重跑上一轮已通过且源码未变的五项 Node 检查，没有运行 full workspace tests/Clippy、schema cross-check、历史质量、真实 Provider、Runtime 或 Activity 检查。此次 build 用于产生明确获授权的现场验收程序，不把构建当作验收替代。
 
+## 停止界面操作后的源码核查
+
+后续只读核查了 `Backend::from_args`、`NativeHost::start/reconnect/shutdown`、Broker、HostService、pipe Client/server 及 overlay capability。页面请求仅使用 Call frame；页面 open/create/unlock 被拒绝；ticket 在握手、锁定和断线后撤销；未知调用先断开且不自动重发；重连仍使用保留的 Child 和原 endpoint；正常 shutdown 不 kill Host，启动失败清理限定于刚创建的 child。overlay 没有 exit、picker 或 startup capability。以上为源码核查及已有测试证据的对应关系，本轮没有启动程序或重复运行测试，也未发现需要新增修复的具体失败。
+
+当前本片可用 CLI 完成的工程收口已完成；不把剩余旧参考壳图形签收作为 Runtime 既有集成或历史结果采用的阻塞。MV-8.2 的新 MCP 开发仍须明确解除本片原有的范围排除；本报告本身不构成授权。
+
 ## 剩余出口与 Runtime 声明
 
-原清单 H01–H10 的现场签收全部仍为待验收：默认 embedded、显式 Host/错误启动、主窗口隐藏与恢复、overlay scope、托盘 lock/reconnect/unlock、异常 Host 退出反馈、托盘与页面正常退出、对照根生命周期隔离及不支持入口的实际反馈。现在已消除“没有参考壳程序/持久合成 fixture”的准备缺口，下一步直接用包执行清单，不再补造服务模拟证据。
+在随后一次已停止的观察中，仅确认了无参数参考壳主窗口显示 `core healthy / embedded`、`Vault：none`，并显示 `Ctrl+Alt+M` 被占用的提示。页面退出点击被用户的 Esc 停止，结果未知；没有开始合成 A 的图形 Host 模式。对应文字保存在忽略的 `embedded-window.txt`；截图含无关应用遮挡，不纳入交付材料。不查询或操作无关应用，也不将这次观察记为完整 H01 签收。
 
-确定的提交后丢回执仍复用既有真实服务 fault 和小修回归；本轮没有增加故障注入命令或未知结果恢复按钮。实际窗口/托盘无法由当前工具操作，继续由 Morii 现场执行并记录结果；未做的项目不得改成通过。
+原清单 H01–H10 的完整现场签收仍为待验收：默认 embedded、显式 Host/错误启动、主窗口隐藏与恢复、overlay scope、托盘 lock/reconnect/unlock、异常 Host 退出反馈、托盘与页面正常退出、对照根生命周期隔离及不支持入口的实际反馈。“没有参考壳程序/持久合成 fixture”的准备缺口已消除，但不再继续操作旧壳，也不以更多服务模拟证据替代这些图形项目。
+
+确定的提交后丢回执仍复用既有真实服务 fault 和小修回归；本轮没有增加故障注入命令或未知结果恢复按钮。此前“实际窗口/托盘无法由当前工具操作”是对工具能力的误判；当前停止原因是 Morii 已明确要求不用 Computer Use。以后只用 CLI、源码和已有记录核销本片；图形项目保留待验收，不默认要求 Morii 立即操作旧参考壳。
 
 Runtime 的历史结果最小采用仍为 `9d68d3d8707749ad3b0e2a36cfc97d71a27e712f` / workspace IPC v1 / **55 commands** / aggregate `c88a12cce61b9601dffea3795a72decfe7de53082c0b4a10548947c993bd31e8`。验收程序采用含小修的 surface aggregate `ad55bcf532c7cb44d9249537b68f7d986a1f4d50a3e752a3cef55f2e2aa44b34`；preparer 位于 examples，不改变 integration surface。没有改命令、存储、版本或传输协议；不要求 Runtime 追 main 或等待本片。
+
+“Runtime 采用待完成”仅适用于这组 native Host 模式及相应产品验收，不能泛指 Memory 尚未接入 Runtime。本片没有重新读取 Runtime checkout，不声称核实其最新 UI 或 pin；既有产品归属按 [Runtime 集成说明](../integration/RUNTIME.md) 保持不变。
 
 本片没有推送、PR、合并、部署、真实资料迁主、picker/Provider adapters、多客户端、MCP 或下一 MV 阶段。AGENTS、手工状态文件和旧实验原件继续保留；本轮追加的报告不是项目状态快照。

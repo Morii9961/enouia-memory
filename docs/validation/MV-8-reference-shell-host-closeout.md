@@ -4,6 +4,8 @@
 
 后续获授权接续已固定小修并准备了匹配程序、合成 A/B 根和手动 launcher，见[现场验收包准备记录](MV-8-reference-shell-host-acceptance-package.md)。下文保留首次收口时的证据截点；“未提交补丁”“未发现参考壳程序”是该截点的状态，已由后续记录更新。现场验收仍未完成。
 
+Morii 随后纠正交付方向：Memory 的产品界面早已由 Runtime 承载，`apps/workspace` 只是旧参考壳。下文“采用待完成”专指本次 native Host 的 Runtime 采用，不能理解为 Memory 尚未接入 Runtime。后续只用 CLI、源码和保存证据继续本片；不再用 Computer Use，也不把旧壳图形验收列为后续产品开发的前置。
+
 ## 基线与保护范围
 
 - 本地 `main` / HEAD 与 [GitHub main](https://github.com/Morii9961/enouia-memory/tree/b0b891d7daa2aed49029b50b36cbef58335669e7) 均为 `b0b891d7daa2aed49029b50b36cbef58335669e7`，即已合并 #48。普通 Git 网络读取失败后，通过 GitHub connector 的只读 branches/main 接口核实；没有 fetch、切分支或覆盖工作区。
@@ -27,7 +29,7 @@
 | 主窗口关闭只隐藏，快捷键显示 overlay，托盘重新显示主窗口 | Tauri 配置及窗口事件接线 | 实现已有；实际窗口/托盘/快捷键行为待验收 |
 | 托盘/页面 exit 先尝试 lock/disconnect；Host 随所属 Broker 进程退出释放 lease | 既有独立 Broker 正常退出后 Host 自退与 lease 再获取；shutdown/exit 接线 | **实际图形壳正常退出未证明**。reference-backend 测试最终 kill 自有 child 不能核销此项 |
 | Host 已退出时只报重启要求；不换 PID、不重启 Host、不回落 embedded | `NativeHost::reconnect` 的 retained Child 检查 | 代码边界已有；实际托盘反馈及无新增 Host 的观察待验收 |
-| Runtime 产品采用、个人日用验收 | 本片不读取 Runtime、不访问私人 Vault 或真实 Provider | 均未证明；参考壳通过也不能代替它们 |
+| Runtime native Host 采用、相应个人日用验收 | Runtime 已通过自己的适配器承载 embedded Memory；本片不读取 Runtime、不访问私人 Vault 或真实 Provider | 本片未证明 native Host 产品采用；参考壳通过不能代替它，也不否定既有 embedded 集成 |
 
 ## 必要小修与实际检查
 
@@ -49,7 +51,7 @@ Node 新回归只替换最小 hook 状态端口和 invoke，运行生产 hook/AP
 
 ## 人工验收前置与操作
 
-当前工具没有原生 Windows 窗口/托盘控制能力。本地 `target/debug` 有 Host exe、CLI exe，`target/debug/deps` 有参考壳**测试程序**；未发现可直接验收的 `target/debug/enouia-memory-workspace.exe`。前端 `dist` 是单独的 Web 构建，不能单独证明 Tauri shell。没有据此启动不可观察、不可正常关闭的窗口，也没有为清单反复构建。
+首次收口时未核实可用的原生控制接口，将其表述为“工具没有原生 Windows 窗口/托盘控制能力”不准确。之后确认了 Computer Use 接口并仅观察了无参数 embedded 窗口，随即被 Morii 停止；以后不再使用它。首次产物盘点只有 Host exe、CLI exe、参考壳测试程序和单独的前端 dist，尚无可运行参考壳；匹配程序后来已按准备记录产出。这些历史状态不构成 Runtime 产品接入缺口。
 
 开始人工验收前，准备同一固定工程版本的 Host 和 reference shell（连同本轮小修），并记录构建来源。兼容摘要或文件时间不能证明程序相同。使用独立本机固定磁盘临时目录的**已初始化合成 Host v2 根 A**，另备独立根 B；从对应合成 fixture 记录取得 `dev_...` / `vlt_...`，禁止猜 ID、复制私人 Vault 或读取私人日志。已有 reference-backend 测试会自动清理根，不能把它运行结束后的临时路径当可用 fixture。若没有合成 v2 fixture，先停在此前置，不让页面或普通 CLI init 冒充 Host bootstrap；可信准备步骤可参照 `native_host.rs` 的 `explicit_reference_backend_runs_its_own_synthetic_host_child`：`Vault::create` → owner ACL → `HostCoordinator::bootstrap` → 记录 IDs → 释放准备者句柄。此准备不能用于真实根迁主。
 
@@ -84,4 +86,4 @@ Runtime 历史结果采用的接口前置已由 [#40](https://github.com/Morii99
 
 `b0b891d7` 的 aggregate 为 `d855683e0879c7887aae819b1345e31587a9a956be5fff5bf31de42ed08478d5`。本轮仅参考 UI 错误状态小修使接入面 aggregate 变为 **`ad55bcf532c7cb44d9249537b68f7d986a1f4d50a3e752a3cef55f2e2aa44b34`**；它不是新协议或要求 Runtime 追 main 的指令。命令、schema、存储、版本和传输协议均未改变。Runtime 无须等待本片人工签收，也不需要为历史结果采用 Host/MCP/云端。
 
-若 Runtime 以后另行采用 native Host，匹配程序、原生 scope/ticket、连接生命周期及原 packet/key 的责任仍适用；此处只补明调用者也必须保留 API 给出的原 packet，不能 catch 后只留下文字。实际产品采用、picker/Provider adapters、个人验收仍为独立出口，本片不实施它们。
+若 Runtime 以后另行采用 native Host，匹配程序、原生 scope/ticket、连接生命周期及原 packet/key 的责任仍适用；此处只补明调用者也必须保留 API 给出的原 packet，不能 catch 后只留下文字。native Host 产品采用及其 picker/Provider adapters、相应个人验收仍为独立出口，本片不实施它们；既有 embedded 产品界面继续属于 Runtime。
