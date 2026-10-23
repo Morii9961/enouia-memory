@@ -2,6 +2,8 @@
 
 核对日期：2026-10-23（Asia/Shanghai）。本片只收口 ADR-MEM-79 的既有参考壳行为，不开启新阶段。**实际窗口、托盘和图形壳正常退出仍待验收。** 本轮修复一处已复现的原请求丢失；没有新增原生界面观察。
 
+后续获授权接续已固定小修并准备了匹配程序、合成 A/B 根和手动 launcher，见[现场验收包准备记录](MV-8-reference-shell-host-acceptance-package.md)。下文保留首次收口时的证据截点；“未提交补丁”“未发现参考壳程序”是该截点的状态，已由后续记录更新。现场验收仍未完成。
+
 ## 基线与保护范围
 
 - 本地 `main` / HEAD 与 [GitHub main](https://github.com/Morii9961/enouia-memory/tree/b0b891d7daa2aed49029b50b36cbef58335669e7) 均为 `b0b891d7daa2aed49029b50b36cbef58335669e7`，即已合并 #48。普通 Git 网络读取失败后，通过 GitHub connector 的只读 branches/main 接口核实；没有 fetch、切分支或覆盖工作区。
