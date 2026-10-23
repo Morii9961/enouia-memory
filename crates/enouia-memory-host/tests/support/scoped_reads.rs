@@ -158,6 +158,42 @@ impl Env {
         drop(HostCoordinator::bootstrap(&self.vault, &verified, device()).unwrap());
         HostService::open(&verified, device(), self.config.clone()).unwrap()
     }
+
+    fn fault_host(&self, faults: enouia_memory_vault::fault::Faults) -> HostService {
+        let verified = verify_data_root(&self.root, &RootPolicy::default()).unwrap();
+        drop(HostCoordinator::bootstrap(&self.vault, &verified, device()).unwrap());
+        let vault = Arc::new(
+            Vault::open(
+                &verified,
+                Some(device()),
+                self.config.clock.clone(),
+                self.config.ids.clone(),
+                VaultOptions {
+                    faults,
+                    ..VaultOptions::default()
+                },
+            )
+            .unwrap()
+            .into_host_writer(&verified, device())
+            .unwrap(),
+        );
+        let state = vault.host_writer_state().unwrap();
+        let gate = SessionGate::new(
+            state.vault_id,
+            owner().actor_id,
+            state.primary,
+            self.config.clock.clone(),
+            self.config.ids.as_ref(),
+        );
+        let core = Workspace::from_host_vault(self.config.clone(), vault.clone()).unwrap();
+        HostService {
+            core,
+            vault,
+            gate,
+            root: self.root.clone(),
+            control: Mutex::new(()),
+        }
+    }
 }
 impl Drop for Env {
     fn drop(&mut self) {
@@ -619,4 +655,452 @@ fn scoped_agent_deletion_blocks_old_pins_and_source_dependencies() {
     search["timeMode"]["knownAtCommitId"] = json!(before.commit_id);
     let found = call(&mut s, 4, "memory_search", search);
     assert_eq!(found["result"]["items"], json!([]), "{found}");
+}
+
+fn agent_initialized(host: &HostService, scopes: Vec<Scope>) -> Server<crate::mcp::HostPort<'_>> {
+    let mut server = host.mcp_agent_server(grant(scopes)).unwrap();
+    server.handle(&json!({"jsonrpc":"2.0","id":1,"method":"initialize","params":{
+        "protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"synthetic","version":"0"}}}));
+    server.handle(&json!({"jsonrpc":"2.0","method":"notifications/initialized"}));
+    server
+}
+fn proposal_args(env: &Env) -> Value {
+    json!({"proposalKind":"create","proposedType":"fact","proposedContent":"synthetic Agent pending proposal",
+        "proposedDetails":{"claim_key":"agent.proposed","subject_ids":["sub_00000001-0000-4000-8000-000000000001"]},
+        "evidence":[{"sourceId":env.source,"sourceRevision":1,"range":null,"supports":"content"}],
+        "targetMemoryId":null,"expectedRevision":null,"proposedEffectiveFrom":null,"reason":"synthetic proposal"})
+}
+fn proposal_packet(id: usize, name: &str, args: Value, key: &str) -> Value {
+    json!({"jsonrpc":"2.0","id":id,"method":"tools/call","params":{"name":name,"arguments":{
+        "schemaVersion":1,"requestId":format!("req_00000001-0000-4000-8000-{id:012x}"),
+        "operation":name,"idempotencyKey":key,"arguments":args}}})
+}
+fn propose_call(
+    s: &mut Server<crate::mcp::HostPort<'_>>,
+    id: usize,
+    name: &str,
+    args: Value,
+    key: &str,
+) -> Value {
+    s.handle(&proposal_packet(id, name, args, key)).unwrap()["result"]["structuredContent"].clone()
+}
+
+#[test]
+fn scoped_agent_proposals_require_persisted_permission_and_remain_pending() {
+    let env = Env::new();
+    let host = env.host();
+    let before = host.vault.pin_current().unwrap();
+    let mut s = agent_initialized(&host, vec![Scope::MemoryPropose]);
+    let denied = propose_call(
+        &mut s,
+        2,
+        "memory_propose",
+        proposal_args(&env),
+        "synthetic-propose-key-01",
+    );
+    assert_eq!(denied["error"]["code"], "not_found", "{denied}");
+    assert_eq!(host.vault.pin_current().unwrap(), before);
+    policy(
+        &host.vault,
+        &[Scope::MemoryPropose],
+        Sensitivity::Private,
+        1,
+        false,
+    );
+    let before = host.vault.pin_current().unwrap();
+    let result = propose_call(
+        &mut s,
+        3,
+        "memory_propose",
+        proposal_args(&env),
+        "synthetic-propose-key-01",
+    );
+    assert_eq!(result["result"]["state"], "pending", "{result}");
+    assert!(result["operationId"].is_string());
+    let pin = host.vault.pin_current().unwrap();
+    assert_eq!(pin.sequence, before.sequence + 1);
+    let candidate_id = result["result"]["candidateId"].as_str().unwrap();
+    let bytes = host
+        .vault
+        .read_record(
+            &pin,
+            &RecordRef::new(
+                RecordKind::Candidate,
+                candidate_id,
+                Revision::new(1).unwrap(),
+            ),
+        )
+        .unwrap();
+    let c: enouia_memory_contract::candidate::CandidateRecord =
+        enouia_memory_contract::record::parse_record(&bytes).unwrap();
+    assert_eq!(c.origin_actor, agent());
+    assert_eq!(
+        c.origin_kind,
+        enouia_memory_contract::candidate::OriginKind::AgentProposal
+    );
+    assert_eq!(c.sensitivity, Sensitivity::Private);
+    assert_eq!(c.evidence[0].source_id, env.source);
+    assert!(c.resolution_review_id.is_none());
+    assert_eq!(
+        host.vault
+            .record_entries(&pin, RecordKind::Memory)
+            .unwrap()
+            .len(),
+        1
+    );
+    assert_eq!(
+        host.vault
+            .record_entries(&pin, RecordKind::Source)
+            .unwrap()
+            .len(),
+        1
+    );
+    assert_eq!(
+        call(&mut s, 4, "memory_source", source_args(&env.source))["error"]["code"],
+        "permission_denied"
+    );
+}
+
+#[test]
+fn scoped_agent_proposal_receipts_survive_session_end_and_changed_payload_conflicts() {
+    let env = Env::new();
+    policy(
+        &env.vault,
+        &[Scope::MemoryPropose],
+        Sensitivity::Private,
+        1,
+        false,
+    );
+    let host = env.host();
+    let args = proposal_args(&env);
+    let key = "synthetic-receipt-key-01";
+    let first = {
+        let mut s = agent_initialized(&host, vec![Scope::MemoryPropose]);
+        propose_call(&mut s, 2, "memory_propose", args.clone(), key)
+    };
+    assert_eq!(first["result"]["state"], "pending", "{first}");
+    let pin = host.vault.pin_current().unwrap();
+    let mut s = agent_initialized(&host, vec![Scope::MemoryPropose]);
+    let replay = propose_call(&mut s, 3, "memory_propose", args.clone(), key);
+    assert_eq!(replay["result"], first["result"]);
+    assert_eq!(replay["vaultCommitId"], first["vaultCommitId"]);
+    assert_eq!(replay["operationId"], first["operationId"]);
+    assert_eq!(host.vault.pin_current().unwrap(), pin);
+    let mut changed = args.clone();
+    changed["proposedContent"] = json!("synthetic changed body");
+    assert_eq!(
+        propose_call(&mut s, 4, "memory_propose", changed, key)["error"]["code"],
+        "idempotency_conflict"
+    );
+    let duplicate = propose_call(&mut s, 5, "memory_propose", args, "synthetic-second-key-01");
+    assert_eq!(
+        duplicate["error"]["code"], "revision_conflict",
+        "{duplicate}"
+    );
+    assert!(duplicate["operationId"].is_null());
+    assert!(duplicate["result"].is_null());
+    assert!(
+        !duplicate
+            .to_string()
+            .contains(first["result"]["candidateId"].as_str().unwrap())
+    );
+    assert_eq!(host.vault.pin_current().unwrap(), pin);
+}
+
+#[test]
+fn scoped_agent_update_alias_replays_the_canonical_key_without_owner_operations() {
+    let env = Env::new();
+    policy(
+        &env.vault,
+        &[Scope::MemoryPropose],
+        Sensitivity::Private,
+        1,
+        false,
+    );
+    let host = env.host();
+    let mut s = agent_initialized(&host, vec![Scope::MemoryPropose]);
+    let mut args = proposal_args(&env);
+    args["proposalKind"] = json!("revise");
+    args["targetMemoryId"] = json!(env.memory);
+    args["expectedRevision"] = json!(1);
+    let first = propose_call(
+        &mut s,
+        2,
+        "memory_propose",
+        args.clone(),
+        "synthetic-alias-key-01",
+    );
+    assert_eq!(first["result"]["state"], "pending", "{first}");
+    let pin = host.vault.pin_current().unwrap();
+    let replay = propose_call(
+        &mut s,
+        3,
+        "memory_update",
+        args.clone(),
+        "synthetic-alias-key-01",
+    );
+    assert_eq!(replay["operationId"], first["operationId"]);
+    assert_eq!(replay["result"], first["result"]);
+    args["proposalKind"] = json!("identity_change");
+    args["proposedType"] = json!("identity");
+    args["targetMemoryId"] = Value::Null;
+    args["expectedRevision"] = Value::Null;
+    assert_eq!(
+        propose_call(
+            &mut s,
+            4,
+            "memory_propose",
+            args,
+            "synthetic-identity-key-01"
+        )["error"]["code"],
+        "permission_denied"
+    );
+    assert_eq!(host.vault.pin_current().unwrap(), pin);
+    assert_eq!(
+        stored_memory(&host.vault, &env.memory).revision,
+        Revision::new(1).unwrap()
+    );
+}
+
+#[test]
+fn scoped_agent_proposal_replay_rechecks_policy_and_terminal_state() {
+    let env = Env::new();
+    policy(
+        &env.vault,
+        &[Scope::MemoryPropose],
+        Sensitivity::Private,
+        1,
+        false,
+    );
+    let host = env.host();
+    let mut s = agent_initialized(&host, vec![Scope::MemoryPropose]);
+    let args = proposal_args(&env);
+    let key = "synthetic-revoke-key-01";
+    let first = propose_call(&mut s, 2, "memory_propose", args.clone(), key);
+    assert_eq!(first["result"]["state"], "pending", "{first}");
+    policy(
+        &host.vault,
+        &[Scope::MemoryPropose],
+        Sensitivity::Private,
+        2,
+        true,
+    );
+    let pin = host.vault.pin_current().unwrap();
+    assert_eq!(
+        propose_call(&mut s, 3, "memory_propose", args.clone(), key)["error"]["code"],
+        "not_found"
+    );
+    assert_eq!(host.vault.pin_current().unwrap(), pin);
+    policy(
+        &host.vault,
+        &[Scope::MemoryPropose],
+        Sensitivity::Private,
+        3,
+        false,
+    );
+    let candidate = CandidateId::parse(first["result"]["candidateId"].as_str().unwrap()).unwrap();
+    let shown = plan(
+        &host.vault,
+        &[Decision::Reject {
+            candidate_id: candidate,
+            revision: Revision::new(1).unwrap(),
+            reason_code: None,
+        }],
+        &owner(),
+        TrustedSurface::TrustedWindowsApp,
+    )
+    .unwrap();
+    confirm(
+        &host.vault,
+        &shown,
+        &OwnerConfirmation {
+            owner: owner(),
+            surface: TrustedSurface::TrustedWindowsApp,
+        },
+    )
+    .unwrap();
+    let pin = host.vault.pin_current().unwrap();
+    assert_eq!(
+        propose_call(&mut s, 4, "memory_propose", args, key)["error"]["code"],
+        "revision_conflict"
+    );
+    assert_eq!(host.vault.pin_current().unwrap(), pin);
+}
+
+#[test]
+fn scoped_agent_real_proposal_lost_output_does_not_repeat_publication() {
+    struct Broken;
+    impl std::io::Write for Broken {
+        fn write(&mut self, _: &[u8]) -> std::io::Result<usize> {
+            Err(std::io::ErrorKind::BrokenPipe.into())
+        }
+        fn flush(&mut self) -> std::io::Result<()> {
+            Ok(())
+        }
+    }
+    let env = Env::new();
+    policy(
+        &env.vault,
+        &[Scope::MemoryPropose],
+        Sensitivity::Private,
+        1,
+        false,
+    );
+    let host = env.host();
+    let mut s = agent_initialized(&host, vec![Scope::MemoryPropose]);
+    let args = proposal_args(&env);
+    let key = "synthetic-lost-output-key";
+    let packet = proposal_packet(2, "memory_propose", args.clone(), key);
+    let next = proposal_packet(
+        3,
+        "memory_propose",
+        args.clone(),
+        "synthetic-never-sent-key",
+    );
+    let before = host.vault.pin_current().unwrap();
+    let mut input = std::io::Cursor::new(format!("{packet}\n{next}\n"));
+    assert!(s.serve(&mut input, &mut Broken).is_err());
+    let after = host.vault.pin_current().unwrap();
+    assert_eq!(after.sequence, before.sequence + 1);
+    assert_eq!(
+        host.vault
+            .record_entries(&after, RecordKind::Candidate)
+            .unwrap()
+            .len(),
+        2
+    );
+    drop(s);
+    let mut fresh = agent_initialized(&host, vec![Scope::MemoryPropose]);
+    let replay = propose_call(&mut fresh, 2, "memory_propose", args, key);
+    assert_eq!(replay["result"]["state"], "pending", "{replay}");
+    assert_eq!(replay["vaultCommitId"], json!(after.commit_id));
+    assert_eq!(host.vault.pin_current().unwrap(), after);
+}
+
+#[test]
+fn scoped_agent_proposals_do_not_probe_another_principals_pending_content() {
+    let env = Env::new();
+    policy(
+        &env.vault,
+        &[Scope::MemoryPropose],
+        Sensitivity::Private,
+        1,
+        false,
+    );
+    let host = env.host();
+    let args = proposal_args(&env);
+    let proposal = Proposal::create(
+        ProposedType::Fact,
+        args["proposedContent"].as_str().unwrap(),
+        serde_json::from_value(args["proposedDetails"].clone()).unwrap(),
+        vec![EvidenceSpec::content(
+            env.source.clone(),
+            Revision::new(1).unwrap(),
+        )],
+    );
+    let Proposed::Stored(private) = propose(
+        &host.vault,
+        &proposal,
+        &Origin::owner(owner()),
+        b"synthetic-owner-private",
+    )
+    .unwrap() else {
+        panic!("stored")
+    };
+    let pin = host.vault.pin_current().unwrap();
+    // Reproduce the old global-dedupe behavior without exporting that identity.
+    let global = enouia_memory_govern::propose_bound_at_head(
+        &host.vault,
+        &proposal,
+        &Origin::agent(agent()),
+        b"synthetic-legacy-bound",
+        &sha256(b"synthetic legacy payload"),
+        &pin.commit_id,
+    )
+    .unwrap();
+    assert_eq!(global, Proposed::DuplicateOf(private.id.clone()));
+    let denied = enouia_memory_govern::propose_agent_bound_at_head(
+        &host.vault,
+        &proposal,
+        &Origin::owner(owner()),
+        b"synthetic-bad-owner",
+        &sha256(b"synthetic owner payload"),
+        &pin.commit_id,
+    )
+    .unwrap_err();
+    assert_eq!(
+        denied.code(),
+        enouia_memory_contract::MemoryErrorCode::PermissionDenied
+    );
+    let mut s = agent_initialized(&host, vec![Scope::MemoryPropose]);
+    let result = propose_call(&mut s, 2, "memory_propose", args, "synthetic-isolated-key");
+    assert_eq!(result["result"]["state"], "pending", "{result}");
+    assert_ne!(result["result"]["candidateId"], json!(private.id));
+    assert!(!result.to_string().contains(private.id.as_str()));
+    assert_eq!(host.vault.pin_current().unwrap().sequence, pin.sequence + 1);
+}
+
+#[test]
+fn scoped_agent_proposal_actual_publication_fault_retains_packet_and_never_retries() {
+    use enouia_memory_vault::fault::{FaultAction, FaultPoint, Faults};
+    for point in [FaultPoint::AfterCurrent, FaultPoint::HostWitnessPublished] {
+        let env = Env::new();
+        policy(
+            &env.vault,
+            &[Scope::MemoryPropose],
+            Sensitivity::Private,
+            1,
+            false,
+        );
+        let faults = Faults::armed();
+        let host = env.fault_host(faults.clone());
+        let mut s = agent_initialized(&host, vec![Scope::MemoryPropose]);
+        let before = host.vault.pin_current().unwrap();
+        let packet = proposal_packet(
+            2,
+            "memory_propose",
+            proposal_args(&env),
+            "synthetic-publication-fault-key",
+        );
+        faults.arm(point, 1, FaultAction::Fail(5));
+        let unknown = s.handle(&packet).unwrap();
+        assert_eq!(
+            unknown["result"]["structuredContent"]["error"]["code"], "outcome_unknown",
+            "{point:?}: {unknown}"
+        );
+        assert_eq!(
+            unknown["result"]["structuredContent"]["originalRequest"],
+            packet["params"]["arguments"]
+        );
+        assert_eq!(
+            s.handle(&proposal_packet(
+                3,
+                "memory_propose",
+                proposal_args(&env),
+                "synthetic-new-key-not-sent"
+            ))
+            .unwrap()["error"]["message"],
+            "session_closed"
+        );
+        faults.disarm();
+        if point == FaultPoint::HostWitnessPublished {
+            let after = host.vault.pin_current().unwrap();
+            assert_eq!(after.sequence, before.sequence + 1);
+            let mut fresh = agent_initialized(&host, vec![Scope::MemoryPropose]);
+            let replay = fresh.handle(&packet).unwrap();
+            assert_eq!(
+                replay["result"]["structuredContent"]["result"]["state"], "pending",
+                "{replay}"
+            );
+            assert_eq!(host.vault.pin_current().unwrap(), after);
+        } else {
+            // CURRENT without its complete witness is fenced, never repaired
+            // or replayed by MCP. Recovery remains a separate native action.
+            assert!(host.vault.pin_current().is_err());
+            assert!(
+                host.mcp_agent_server(grant(vec![Scope::MemoryPropose]))
+                    .is_err()
+            );
+        }
+    }
 }

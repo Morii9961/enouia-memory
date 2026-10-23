@@ -1,4 +1,6 @@
 //! In-process Agent reads over the Host's single bound Vault (ADR-MEM-81).
+#[path = "propose.rs"]
+mod propose;
 use super::{AgentPort, Grant, PortFault, Server};
 use crate::service::{HostService, ServiceFault};
 use crate::{Connection, SessionFault};
@@ -26,11 +28,13 @@ const MAX_SOURCE_OBJECT_BYTES: usize = 64 * 1024 * 1024;
 const MAX_RESULT_BYTES: usize = 128 * 1024;
 type Result<T> = std::result::Result<T, VaultError>;
 
-pub struct ReadPort<'a> {
+pub struct HostPort<'a> {
     host: &'a HostService,
     connection: Option<Connection>,
     grant: Grant,
 }
+/// The original read constructor remains restricted to read scopes.
+pub type ReadPort<'a> = HostPort<'a>;
 
 impl HostService {
     /// Trusted in-process binding after separate Agent authentication. Only
@@ -47,10 +51,28 @@ impl HostService {
         {
             return Err(SessionFault::ScopeDenied.into());
         }
+        self.mcp_agent_server(grant)
+    }
+
+    /// In-process read/propose binding after separate native authentication.
+    pub fn mcp_agent_server(
+        &self,
+        grant: Grant,
+    ) -> std::result::Result<Server<HostPort<'_>>, ServiceFault> {
+        if !grant.active.load(std::sync::atomic::Ordering::SeqCst)
+            || grant.scopes.iter().any(|s| {
+                !matches!(
+                    s,
+                    Scope::MemoryRead | Scope::SourceRead | Scope::MemoryPropose
+                )
+            })
+        {
+            return Err(SessionFault::ScopeDenied.into());
+        }
         let connection = self.admit_agent()?;
         Ok(Server::new(
             grant.clone(),
-            ReadPort {
+            HostPort {
                 host: self,
                 connection: Some(connection),
                 grant,
@@ -59,7 +81,7 @@ impl HostService {
     }
 }
 
-impl AgentPort for ReadPort<'_> {
+impl AgentPort for HostPort<'_> {
     fn call(
         &mut self,
         principal: &ActorRef,
@@ -76,16 +98,28 @@ impl AgentPort for ReadPort<'_> {
         if !ipc::parse_request(&packet).is_ok_and(|(_, a)| a == arguments) {
             return Err(PortFault::Unavailable);
         }
-        let result = self.host.dispatch_agent(connection, |vault| {
-            execute(vault, principal, request, arguments)
-        });
+        let result =
+            self.host
+                .dispatch_agent(connection, |vault| match arguments {
+                    Arguments::MemoryPropose(a) => propose::execute(vault, principal, request, a),
+                    other => execute(vault, principal, request, other)
+                        .map_err(|_| PortFault::Unavailable),
+                });
         if !self.grant.allows(request.operation) {
             self.disconnect();
-            return Err(PortFault::Unavailable);
+            return Err(if request.operation.is_write() {
+                PortFault::OutcomeUnknown
+            } else {
+                PortFault::Unavailable
+            });
         }
         match result {
             Ok(Ok(value)) => Ok(value),
-            _ => {
+            Ok(Err(fault)) => {
+                self.disconnect();
+                Err(fault)
+            }
+            Err(_) => {
                 self.disconnect();
                 Err(PortFault::Unavailable)
             }
@@ -96,7 +130,7 @@ impl AgentPort for ReadPort<'_> {
         self.grant.revoke();
     }
 }
-impl Drop for ReadPort<'_> {
+impl Drop for HostPort<'_> {
     fn drop(&mut self) {
         self.disconnect();
     }

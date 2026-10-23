@@ -6,6 +6,11 @@ branch `codex/mv8-mcp-boundary`. Morii explicitly selected **授权 MV-8.2 本�
 separate MV-8.1j closeout branch and its outstanding graphical acceptance remain
 preserved; this authorization does not reopen Computer Use or Runtime UI work.
 
+The later [MV-8.2c proposal slice](MV-8-host-agent-proposals.md) adds actual
+pending proposal writes. The read-only constructor and this report's original
+read checks remain valid; context/checkpoint and external Agent enrollment are
+not supplied by that follow-up.
+
 ## Delivered behavior
 
 `HostService::mcp_read_server(Grant)` now creates a distinct in-process Agent

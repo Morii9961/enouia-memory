@@ -2,6 +2,8 @@
 
 原始计划：设计包 v1.0 / 2026-09-28；v1.3 路线修订：2026-10-11。本文定义阶段与出口；实际进度以对应 validation 报告为准。
 
+> **同日接续，MV-8.2c：** [ADR-MEM-82](../adr/082-host-agent-proposals.md)接入同一 Host 上的受限 Agent 候选提议和稳定回执，按主体隔离去重；不借用 owner 权限、不改 Canonical。Context/checkpoint 与外部 Agent 认证接线仍待后续切片，沿用 MV-8.2 明确授权的本地合成边界。
+
 > **2026-10-23，MV-8.2b 明确获授权：** Morii 已选择“授权 MV-8.2 本地合成开发”。[ADR-MEM-81](../adr/081-host-scoped-agent-reads.md)先将受策略约束的 Agent 读取绑定到同一 Host，不借用 owner 会话；先开放已有 search/read/source 读工具，其余工具绑定仍为后续切片。继续禁止 Computer Use、私人 Vault、真实客户端、云端、迁主、Runtime UI、合并与部署。
 
 > **2026-10-23，MV-8.2a 已获主人接续授权：** [ADR-MEM-80](../adr/080-restricted-mcp-stdio-boundary.md) 冻结受限 stdio MCP 的本地合成边界，复用既有六工具 Memory IPC v1，显式 Agent principal/scopes，不借用 owner Workspace。先实现协议、撤回与未知回执的合成端口验证；原生 Host/domain 绑定和真实客户端仍为独立后续切片。不用 Computer Use，不改 Runtime 产品 UI，也不激活私人资料、云端或迁主。

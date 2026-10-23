@@ -410,6 +410,10 @@ The [full remember replay and target freshness acceptance](../validation/MV-6-fu
 
 [Decision](081-host-scoped-agent-reads.md): in-process MCP read binding over the existing Host Vault, separate expiring Agent connections, current persisted policy checks, deletion/provenance barriers and fail-closed content-free auditing. No owner Workspace bridge or external Agent transport enrollment.
 
+### ADR-MEM-82 — Host Agent proposals and keyed receipts (MV-8.2c)
+
+[Decision](082-host-agent-proposals.md): authorize actual Agent proposal dependencies over the same Host writer, retain native principal and canonical-operation/key receipts, keep candidates pending and refuse unreceipted global duplicates without disclosing their IDs. Unknown publication/audit results close the session without replay.
+
 ## Relation to Enouia Runtime's register
 
 
