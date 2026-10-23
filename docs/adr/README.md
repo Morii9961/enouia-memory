@@ -418,6 +418,10 @@ The [full remember replay and target freshness acceptance](../validation/MV-6-fu
 
 [Decision](083-host-agent-local-context.md): bind current, session-free context_get to the existing compiler with native McpClient provenance, current policy filtering, fixed offline destination and requestId receipt recovery. Unsupported history/session/destination choices are refused, not ignored.
 
+### ADR-MEM-84 — Agent provisional checkpoints (MV-8.2e)
+
+[Decision](084-host-agent-checkpoints.md): same-Host SessionPropose over authorized existing events and exact branch/range coverage, generated Agent provenance, stable keys excluding generated item IDs and provisional-only receipts. Existing owner whole-branch behavior stays unchanged.
+
 ## Relation to Enouia Runtime's register
 
 

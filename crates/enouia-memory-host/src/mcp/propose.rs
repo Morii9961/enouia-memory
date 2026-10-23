@@ -64,14 +64,19 @@ fn authorize(read: &mut Read<'_>, args: &MemoryProposeArgs) -> Result<()> {
     }
     Ok(())
 }
-fn audit(read: &Read<'_>, request: &IpcRequest, code: Option<MemoryErrorCode>) -> Result<()> {
+pub(super) fn audit(
+    read: &Read<'_>,
+    request: &IpcRequest,
+    code: Option<MemoryErrorCode>,
+) -> Result<()> {
     AuditLog::new(read.vault.managed_root().clone(), DEFAULT_SEGMENT_BYTES).append(&AuditEvent {
         schema_version: SchemaVersion,
         audit_id: AuditId::from_random(read.vault.random_id_bytes()),
         actor: read.principal.clone(),
         operation: request.operation,
         object_refs: read.refs.clone(),
-        purpose: None,
+        purpose: (request.operation == ipc::Operation::SessionCheckpoint)
+            .then_some(enouia_memory_contract::context::Purpose::Checkpoint),
         destination: None,
         policy_epoch: read.pin.policy_epoch,
         decision: if code.is_some() {

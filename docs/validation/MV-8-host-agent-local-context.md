@@ -4,6 +4,10 @@ Date: 2026-10-23 (Asia/Shanghai). Baseline `8c1cea5`, branch
 `codex/mv8-mcp-boundary`; within the explicit MV-8.2 local synthetic authorization.
 [ADR-MEM-83](../adr/083-host-agent-local-context.md) freezes the limited selection.
 
+Later same-day follow-up: [MV-8.2e](MV-8-host-agent-checkpoints.md) completes the
+in-process checkpoint binding. The remaining-exit statements below describe
+this earlier slice; broader Context and external Agent enrollment remain open.
+
 ## Delivered selection
 
 The existing Host can now accept ContextRead and execute context_get through

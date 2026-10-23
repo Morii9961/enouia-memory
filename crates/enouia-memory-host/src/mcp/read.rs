@@ -1,4 +1,6 @@
 //! In-process Agent reads over the Host's single bound Vault (ADR-MEM-81).
+#[path = "checkpoint.rs"]
+mod checkpoint;
 #[path = "context.rs"]
 mod context;
 #[path = "propose.rs"]
@@ -69,6 +71,7 @@ impl HostService {
                         | Scope::SourceRead
                         | Scope::MemoryPropose
                         | Scope::ContextRead
+                        | Scope::SessionPropose
                 )
             })
         {
@@ -108,6 +111,9 @@ impl AgentPort for HostPort<'_> {
                 .dispatch_agent(connection, |vault| match arguments {
                     Arguments::MemoryPropose(a) => propose::execute(vault, principal, request, a),
                     Arguments::ContextGet(a) => context::execute(vault, principal, request, a),
+                    Arguments::SessionCheckpoint(a) => {
+                        checkpoint::execute(vault, principal, request, a)
+                    }
                     other => execute(vault, principal, request, other)
                         .map_err(|_| PortFault::Unavailable),
                 });

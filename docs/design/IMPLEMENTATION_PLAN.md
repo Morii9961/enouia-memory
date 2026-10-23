@@ -2,6 +2,8 @@
 
 原始计划：设计包 v1.0 / 2026-09-28；v1.3 路线修订：2026-10-11。本文定义阶段与出口；实际进度以对应 validation 报告为准。
 
+> **同日接续，MV-8.2e：** [ADR-MEM-84](../adr/084-host-agent-checkpoints.md)将 session_checkpoint 接到同一 Host 的 SessionPropose，按当前策略授权会话、所选事件及来源依赖；精确记录分支和序列范围，保留 Agent 来源、provisional 状态及原键回执。[合成验证报告](../validation/MV-8-host-agent-checkpoints.md)记录六个新增场景与出口表。本项完成后按主人指令 commit/push 并停止；更广 Context、外部 Agent 认证/接线、真实客户端和个人验收仍未完成，不自动进入下一项。
+
 > **同日接续，MV-8.2d：** [ADR-MEM-83](../adr/083-host-agent-local-context.md)接入当前版本、无会话、固定离线目的地的 Agent context_get，保留原生 McpClient 来源和 requestId 回执；拒绝未支持的历史/会话/外发选择，不静默降级。Context 更多选择、checkpoint 及外部 Agent 认证接线仍未完成，继续限定本地合成资料。
 
 > **同日接续，MV-8.2c：** [ADR-MEM-82](../adr/082-host-agent-proposals.md)接入同一 Host 上的受限 Agent 候选提议和稳定回执，按主体隔离去重；不借用 owner 权限、不改 Canonical。Context/checkpoint 与外部 Agent 认证接线仍待后续切片，沿用 MV-8.2 明确授权的本地合成边界。

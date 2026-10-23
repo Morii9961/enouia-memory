@@ -744,6 +744,77 @@ pub struct CheckpointInput {
     pub open_loops: Vec<SourcedItem>,
 }
 
+/// Logical Agent input: native IDs/timestamps are not part of its key binding.
+#[derive(Clone, Debug, Serialize)]
+pub struct AgentCheckpointItem {
+    pub claim: String,
+    pub state_kind: enouia_memory_contract::memory::StateKind,
+    pub event_ids: Vec<EventId>,
+}
+#[derive(Clone, Debug, Serialize)]
+pub struct AgentCheckpointInput {
+    pub session_id: SessionId,
+    pub branch_id: BranchId,
+    pub from_sequence: u64,
+    pub to_sequence: u64,
+    pub summary: String,
+    pub decisions: Vec<AgentCheckpointItem>,
+    pub open_loops: Vec<AgentCheckpointItem>,
+}
+
+/// Trusted native caller must authorize all current event/source dependencies
+/// before entering. This is not transport authentication or a policy grant.
+pub fn checkpoint_agent_at_head(
+    vault: &Vault,
+    actor: &ActorRef,
+    input: &AgentCheckpointInput,
+    key: &[u8],
+    required_head: &CommitId,
+) -> Result<Written<CheckpointId>> {
+    if actor.actor_type != enouia_memory_contract::common::ActorType::Agent {
+        return Err(denied());
+    }
+    if input.from_sequence == 0
+        || input.from_sequence > input.to_sequence
+        || key.is_empty()
+        || key.len() > 128
+    {
+        return Err(invalid("checkpoint.agent_input"));
+    }
+    let payload = sha256(&bytes(input)?);
+    let key = [b"agent-checkpoint-v1:".as_slice(), key].concat();
+    let items = |rows: &[AgentCheckpointItem]| {
+        rows.iter()
+            .map(|item| SourcedItem {
+                item_id: ItemId::from_random(vault.random_id_bytes()),
+                claim: item.claim.clone(),
+                state_kind: item.state_kind,
+                source_refs: item
+                    .event_ids
+                    .iter()
+                    .cloned()
+                    .map(|event_id| CheckpointSourceRef::Event { event_id })
+                    .collect(),
+            })
+            .collect()
+    };
+    checkpoint_on_head(
+        vault,
+        actor,
+        &input.session_id,
+        &input.branch_id,
+        &CheckpointInput {
+            summary: input.summary.clone(),
+            decisions: items(&input.decisions),
+            open_loops: items(&input.open_loops),
+        },
+        &key,
+        payload,
+        Some((input.from_sequence, input.to_sequence)),
+        Some(required_head),
+    )
+}
+
 /// Each checkpoint replaces the branch's complete provisional summary/open
 /// loop view. Callers explicitly remove solved loops in the next checkpoint.
 pub fn checkpoint(
@@ -761,6 +832,24 @@ pub fn checkpoint(
     let payload = sha256(&bytes(
         &json!({"session":sid,"branch":bid,"checkpoint":input}),
     )?);
+    checkpoint_on_head(vault, actor, sid, bid, input, key, payload, None, None)
+}
+
+#[allow(clippy::too_many_arguments)]
+fn checkpoint_on_head(
+    vault: &Vault,
+    actor: &ActorRef,
+    sid: &SessionId,
+    bid: &BranchId,
+    input: &CheckpointInput,
+    key: &[u8],
+    payload: Sha256Hex,
+    range: Option<(u64, u64)>,
+    required_head: Option<&CommitId>,
+) -> Result<Written<CheckpointId>> {
+    if input.summary.trim().is_empty() {
+        return Err(invalid("checkpoint.summary"));
+    }
     if let Some((commit_id, receipt)) = replay(
         vault,
         actor,
@@ -780,13 +869,28 @@ pub fn checkpoint(
         });
     }
     let pin = vault.pin_current()?;
+    if required_head.is_some_and(|head| head != &pin.commit_id) {
+        return Err(VaultError::new(
+            enouia_memory_contract::MemoryErrorCode::RevisionConflict,
+            enouia_memory_vault::Fault::RevisionMismatch,
+        ));
+    }
     let session = get(vault, &pin, sid)?;
     let covered: Vec<_> = events(vault, &pin, sid, bid)?
         .into_iter()
-        .filter(|e| &e.branch_id == bid)
+        .filter(|e| {
+            &e.branch_id == bid
+                && range.is_none_or(|(from, to)| e.sequence >= from && e.sequence <= to)
+        })
         .collect();
     if covered.is_empty() {
         return Err(invalid("checkpoint.empty_coverage"));
+    }
+    if range.is_some_and(|(from, to)| {
+        covered.first().is_none_or(|e| e.sequence != from)
+            || covered.last().is_none_or(|e| e.sequence != to)
+    }) {
+        return Err(invalid("checkpoint.range_endpoints"));
     }
     // No external evidence is silently added to this branch-local summary.
     for item in input.decisions.iter().chain(&input.open_loops) {
@@ -818,7 +922,13 @@ pub fn checkpoint(
         },
         status: CheckpointStatus::Provisional,
         review_id: None,
-        sensitivity: session.sensitivity,
+        sensitivity: if range.is_some() {
+            covered
+                .iter()
+                .fold(session.sensitivity, |s, e| s.max(e.sensitivity))
+        } else {
+            session.sensitivity
+        },
         created_at: vault.now()?,
         extensions: Default::default(),
     };

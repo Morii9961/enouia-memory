@@ -225,6 +225,32 @@ fn project_policy(
     revoked: bool,
     project: Option<ProjectId>,
 ) -> PolicyId {
+    policy_for_records(
+        vault,
+        scopes,
+        max,
+        revision,
+        revoked,
+        project,
+        &[
+            "memory",
+            "source",
+            "attachment",
+            "session",
+            "session_event",
+            "checkpoint",
+        ],
+    )
+}
+fn policy_for_records(
+    vault: &Vault,
+    scopes: &[Scope],
+    max: Sensitivity,
+    revision: u64,
+    revoked: bool,
+    project: Option<ProjectId>,
+    kinds: &[&str],
+) -> PolicyId {
     let pin = vault.pin_current().unwrap();
     let entry = vault
         .record_entries(&pin, RecordKind::Policy)
@@ -250,7 +276,7 @@ fn project_policy(
     p["approval_id"] = json!(approval);
     p["principals"] = json!([{"actor_type":"agent","actor_id":agent().actor_id}]);
     p["scopes"] = json!(scopes);
-    p["resources"]["record_kinds"] = json!(["memory", "source", "attachment"]);
+    p["resources"]["record_kinds"] = json!(kinds);
     p["resources"]["max_sensitivity"] = json!(max);
     p["resources"]["all_projects"] = json!(project.is_none());
     p["resources"]["project_ids"] = json!(project.into_iter().collect::<Vec<_>>());
@@ -1109,6 +1135,502 @@ fn context_args() -> Value {
     json!({"query":"readable","sessionId":null,"branchId":null,"projectHints":[],
         "timeMode":{"asOf":null,"knownAtCommitId":null},
         "destination":{"kind":"local_mock","providerBindingName":null},"purpose":"answer","maxTokens":32768})
+}
+
+fn checkpoint_session(
+    host: &HostService,
+    source: &SourceId,
+) -> (SessionId, BranchId, EventId, EventId) {
+    use enouia_memory_context::session;
+    use enouia_memory_contract::session::{ClientSurface, EventKind};
+    let pin = host.vault.pin_current().unwrap();
+    let policy = host
+        .vault
+        .record_entries(&pin, RecordKind::Policy)
+        .unwrap()
+        .into_iter()
+        .find(|e| e.record_id != "pol_000000aa-0000-4000-8000-000000000001")
+        .unwrap();
+    let (sid, bid) = session::start(
+        &host.vault,
+        &enouia_memory_vault::service::SessionStart {
+            owner: owner(),
+            surface: ClientSurface::WindowsApp,
+            sensitivity: Sensitivity::Private,
+            policy_id: PolicyId::parse(&policy.record_id).unwrap(),
+        },
+        b"synthetic-checkpoint-session",
+    )
+    .unwrap()
+    .id;
+    let input = session::save_input_with_sources(
+        &host.vault,
+        &owner(),
+        &sid,
+        &bid,
+        "synthetic existing user input",
+        &RequestId::from_random(host.vault.random_id_bytes()),
+        b"synthetic-checkpoint-input",
+        &[enouia_memory_contract::common::SourceRevisionRef {
+            source_id: source.clone(),
+            source_revision: Revision::new(1).unwrap(),
+        }],
+    )
+    .unwrap()
+    .id;
+    let output = session::append_output(
+        &host.vault,
+        &owner(),
+        &input,
+        EventKind::AssistantCompleted,
+        Some("synthetic completed response"),
+        b"synthetic-checkpoint-output",
+    )
+    .unwrap()
+    .id;
+    (sid, bid, input, output)
+}
+fn checkpoint_args(sid: &SessionId, bid: &BranchId, event: &EventId) -> Value {
+    json!({"sessionId":sid,"branchId":bid,"fromSequence":1,"toSequence":1,
+        "summary":"synthetic provisional summary","decisions":[{"claim":"synthetic decision",
+        "stateKind":"decided","eventIds":[event]}],"openLoops":[]})
+}
+fn checkpoint_record(
+    host: &HostService,
+    response: &Value,
+) -> enouia_memory_contract::session::SessionCheckpoint {
+    let pin = host.vault.pin_current().unwrap();
+    enouia_memory_contract::record::parse_record(
+        &host
+            .vault
+            .read_record(
+                &pin,
+                &RecordRef::new(
+                    RecordKind::Checkpoint,
+                    response["result"]["checkpointId"].as_str().unwrap(),
+                    Revision::new(1).unwrap(),
+                ),
+            )
+            .unwrap(),
+    )
+    .unwrap()
+}
+
+#[test]
+fn scoped_agent_checkpoint_requires_policy_and_preserves_exact_native_coverage() {
+    use enouia_memory_context::session;
+    use enouia_memory_contract::session::{CheckpointStatus, Coverage};
+    let env = Env::new();
+    let host = env.host();
+    let (sid, bid, input, output) = checkpoint_session(&host, &env.source);
+    let before = host.vault.pin_current().unwrap();
+    let original = session::events(&host.vault, &before, &sid, &bid).unwrap();
+    let args = checkpoint_args(&sid, &bid, &input);
+    let mut s = agent_initialized(&host, vec![Scope::SessionPropose]);
+    assert_eq!(
+        propose_call(
+            &mut s,
+            2,
+            "session_checkpoint",
+            args.clone(),
+            "synthetic-checkpoint-key"
+        )["error"]["code"],
+        "not_found"
+    );
+    assert_eq!(host.vault.pin_current().unwrap(), before);
+    policy(
+        &host.vault,
+        &[Scope::SessionPropose],
+        Sensitivity::Private,
+        1,
+        false,
+    );
+    let before = host.vault.pin_current().unwrap();
+    let result = propose_call(
+        &mut s,
+        3,
+        "session_checkpoint",
+        args,
+        "synthetic-checkpoint-key",
+    );
+    assert_eq!(result["kind"], "checkpoint_proposed", "{result}");
+    let artifact = checkpoint_record(&host, &result);
+    assert_eq!(artifact.status, CheckpointStatus::Provisional);
+    assert_eq!(artifact.generated_by.actor, agent());
+    assert!(artifact.review_id.is_none());
+    assert_eq!(
+        artifact.coverage,
+        Coverage::EventIds {
+            event_ids: vec![input]
+        }
+    );
+    assert_eq!(
+        artifact.coverage_hash,
+        session::coverage_hash(&original[..1]).unwrap()
+    );
+    assert_eq!(artifact.decisions.len(), 1);
+    let pin = host.vault.pin_current().unwrap();
+    assert_eq!(pin.sequence, before.sequence + 1);
+    assert_eq!(
+        session::events(&host.vault, &pin, &sid, &bid).unwrap(),
+        original
+    );
+    assert_eq!(
+        host.vault
+            .record_entries(&pin, RecordKind::Memory)
+            .unwrap()
+            .len(),
+        1
+    );
+    assert_eq!(
+        call(&mut s, 4, "memory_source", source_args(&env.source))["error"]["code"],
+        "permission_denied"
+    );
+    session::verify_checkpoint(&host.vault, &pin, &artifact).unwrap();
+    // The existing owner API keeps its whole-branch selection and namespace.
+    let legacy = session::checkpoint(
+        &host.vault,
+        &owner(),
+        &sid,
+        &bid,
+        &session::CheckpointInput {
+            summary: "synthetic owner checkpoint".into(),
+            decisions: vec![],
+            open_loops: vec![],
+        },
+        b"synthetic-checkpoint-key",
+    )
+    .unwrap();
+    let pin = host.vault.pin_current().unwrap();
+    let old: enouia_memory_contract::session::SessionCheckpoint =
+        enouia_memory_contract::record::parse_record(
+            &host
+                .vault
+                .read_record(
+                    &pin,
+                    &RecordRef::new(
+                        RecordKind::Checkpoint,
+                        legacy.id.as_str(),
+                        Revision::new(1).unwrap(),
+                    ),
+                )
+                .unwrap(),
+        )
+        .unwrap();
+    assert_eq!(
+        old.coverage,
+        Coverage::EventIds {
+            event_ids: vec![original[0].event_id.clone(), output]
+        }
+    );
+    assert_eq!(old.generated_by.actor, owner());
+}
+
+#[test]
+fn scoped_agent_checkpoint_replays_original_receipt_after_append_and_conflicts_on_changes() {
+    use enouia_memory_context::session;
+    let env = Env::new();
+    policy(
+        &env.vault,
+        &[Scope::SessionPropose],
+        Sensitivity::Private,
+        1,
+        false,
+    );
+    let host = env.host();
+    let (sid, bid, input, _) = checkpoint_session(&host, &env.source);
+    let args = checkpoint_args(&sid, &bid, &input);
+    let key = "synthetic-stable-checkpoint-key";
+    let mut s = agent_initialized(&host, vec![Scope::SessionPropose]);
+    let first = propose_call(&mut s, 2, "session_checkpoint", args.clone(), key);
+    let artifact = checkpoint_record(&host, &first);
+    session::save_input(
+        &host.vault,
+        &owner(),
+        &sid,
+        &bid,
+        "synthetic later input",
+        &RequestId::from_random(host.vault.random_id_bytes()),
+        b"synthetic-later-input",
+    )
+    .unwrap();
+    drop(s);
+    let mut s = agent_initialized(&host, vec![Scope::SessionPropose]);
+    let before = host.vault.pin_current().unwrap();
+    let replay = propose_call(&mut s, 3, "session_checkpoint", args.clone(), key);
+    for field in ["result", "operationId", "vaultCommitId"] {
+        assert_eq!(replay[field], first[field], "{replay}");
+    }
+    assert_eq!(checkpoint_record(&host, &replay), artifact);
+    let mut body = args.clone();
+    body["summary"] = json!("changed summary");
+    let mut range = args.clone();
+    range["toSequence"] = json!(2);
+    let mut item = args;
+    item["decisions"][0]["claim"] = json!("changed decision");
+    for (i, changed) in [body, range, item].into_iter().enumerate() {
+        assert_eq!(
+            propose_call(&mut s, i + 4, "session_checkpoint", changed, key)["error"]["code"],
+            "idempotency_conflict"
+        );
+    }
+    assert_eq!(host.vault.pin_current().unwrap(), before);
+}
+
+#[test]
+fn scoped_agent_checkpoint_refuses_missing_endpoints_foreign_and_inherited_events() {
+    use enouia_memory_context::session;
+    let env = Env::new();
+    policy(
+        &env.vault,
+        &[Scope::SessionPropose],
+        Sensitivity::Private,
+        1,
+        false,
+    );
+    let host = env.host();
+    let (sid, bid, input, output) = checkpoint_session(&host, &env.source);
+    let branch = session::fork(
+        &host.vault,
+        &owner(),
+        &sid,
+        &output,
+        b"synthetic-checkpoint-fork",
+    )
+    .unwrap()
+    .id;
+    let args = checkpoint_args(&sid, &bid, &input);
+    let mut missing = args.clone();
+    missing["toSequence"] = json!(9);
+    let mut outside = args.clone();
+    outside["decisions"][0]["eventIds"] = json!([output]);
+    let mut inherited = args.clone();
+    inherited["branchId"] = json!(branch);
+    let mut foreign = args;
+    foreign["sessionId"] = json!("ses_000000ff-0000-4000-8000-000000000001");
+    let before = host.vault.pin_current().unwrap();
+    let mut s = agent_initialized(&host, vec![Scope::SessionPropose]);
+    for (i, bad) in [missing, outside, inherited, foreign]
+        .into_iter()
+        .enumerate()
+    {
+        let result = propose_call(
+            &mut s,
+            i + 2,
+            "session_checkpoint",
+            bad,
+            "synthetic-invalid-checkpoint-key",
+        );
+        assert!(result["error"].is_object(), "{result}");
+        assert!(result["result"].is_null());
+    }
+    let input = session::AgentCheckpointInput {
+        session_id: sid,
+        branch_id: bid,
+        from_sequence: 1,
+        to_sequence: 1,
+        summary: "synthetic".into(),
+        decisions: vec![],
+        open_loops: vec![],
+    };
+    assert!(
+        session::checkpoint_agent_at_head(
+            &host.vault,
+            &owner(),
+            &input,
+            b"synthetic-owner-refused",
+            &before.commit_id
+        )
+        .is_err()
+    );
+    assert_eq!(host.vault.pin_current().unwrap(), before);
+}
+
+#[test]
+fn scoped_agent_checkpoint_rechecks_source_permission_and_policy_on_replay() {
+    let env = Env::new();
+    let host = env.host();
+    let (sid, bid, input, _) = checkpoint_session(&host, &env.source);
+    let args = checkpoint_args(&sid, &bid, &input);
+    let key = "synthetic-checkpoint-policy-key";
+    policy_for_records(
+        &host.vault,
+        &[Scope::SessionPropose],
+        Sensitivity::Private,
+        1,
+        false,
+        None,
+        &["session", "session_event"],
+    );
+    let mut s = agent_initialized(&host, vec![Scope::SessionPropose]);
+    let before = host.vault.pin_current().unwrap();
+    assert_eq!(
+        propose_call(&mut s, 2, "session_checkpoint", args.clone(), key)["error"]["code"],
+        "not_found"
+    );
+    assert_eq!(host.vault.pin_current().unwrap(), before);
+    policy(
+        &host.vault,
+        &[Scope::SessionPropose],
+        Sensitivity::Private,
+        2,
+        false,
+    );
+    let first = propose_call(&mut s, 3, "session_checkpoint", args.clone(), key);
+    assert_eq!(first["kind"], "checkpoint_proposed", "{first}");
+    policy_for_records(
+        &host.vault,
+        &[Scope::SessionPropose],
+        Sensitivity::Private,
+        3,
+        false,
+        None,
+        &["session", "session_event"],
+    );
+    assert_eq!(
+        propose_call(&mut s, 4, "session_checkpoint", args.clone(), key)["error"]["code"],
+        "not_found"
+    );
+    policy(
+        &host.vault,
+        &[Scope::SessionPropose],
+        Sensitivity::Private,
+        4,
+        true,
+    );
+    let before = host.vault.pin_current().unwrap();
+    assert_eq!(
+        propose_call(&mut s, 5, "session_checkpoint", args, key)["error"]["code"],
+        "not_found"
+    );
+    assert_eq!(host.vault.pin_current().unwrap(), before);
+}
+
+#[test]
+fn scoped_agent_checkpoint_stale_receipt_is_a_known_conflict() {
+    use enouia_memory_contract::session::CheckpointStatus;
+    let env = Env::new();
+    policy(
+        &env.vault,
+        &[Scope::SessionPropose],
+        Sensitivity::Private,
+        1,
+        false,
+    );
+    let host = env.host();
+    let (sid, bid, input, _) = checkpoint_session(&host, &env.source);
+    let args = checkpoint_args(&sid, &bid, &input);
+    let key = "synthetic-checkpoint-stale-key";
+    let mut s = agent_initialized(&host, vec![Scope::SessionPropose]);
+    let first = propose_call(&mut s, 2, "session_checkpoint", args.clone(), key);
+    let mut stale = checkpoint_record(&host, &first);
+    stale.status = CheckpointStatus::Stale;
+    stale.revision = Revision::new(2).unwrap();
+    let pin = host.vault.pin_current().unwrap();
+    let bytes = canonical_bytes(&serde_json::to_value(&stale).unwrap()).unwrap();
+    host.vault
+        .commit(CommitRequest {
+            commit_id: CommitId::from_random(host.vault.random_id_bytes()),
+            expected_commit_id: Some(pin.commit_id),
+            principal: owner(),
+            operation_kind: OperationKind::CheckpointPropose,
+            idempotency: IdempotencyScope {
+                principal_id: owner().actor_id,
+                operation_kind: OperationKind::CheckpointPropose,
+                key_hash: sha256(b"synthetic-stale-checkpoint"),
+            },
+            request_payload_hash: sha256(&bytes),
+            expected_revisions: vec![(
+                RecordKind::Checkpoint,
+                stale.checkpoint_id.to_string(),
+                Revision::new(1),
+            )],
+            records: vec![StagedRecord {
+                record_kind: RecordKind::Checkpoint,
+                record_id: stale.checkpoint_id.to_string(),
+                revision: stale.revision,
+                bytes,
+            }],
+            objects: vec![],
+        })
+        .unwrap();
+    let before = host.vault.pin_current().unwrap();
+    assert_eq!(
+        propose_call(&mut s, 3, "session_checkpoint", args, key)["error"]["code"],
+        "revision_conflict"
+    );
+    assert!(
+        s.handle(&json!({"jsonrpc":"2.0","id":4,"method":"ping"}))
+            .unwrap()["result"]
+            .is_object()
+    );
+    assert_eq!(host.vault.pin_current().unwrap(), before);
+}
+
+#[test]
+fn scoped_agent_checkpoint_actual_publication_fault_preserves_packet_and_explicit_recovery() {
+    use enouia_memory_vault::fault::{FaultAction, FaultPoint, Faults};
+    for point in [FaultPoint::AfterCurrent, FaultPoint::HostWitnessPublished] {
+        let env = Env::new();
+        policy(
+            &env.vault,
+            &[Scope::SessionPropose],
+            Sensitivity::Private,
+            1,
+            false,
+        );
+        let faults = Faults::armed();
+        let host = env.fault_host(faults.clone());
+        let (sid, bid, input, _) = checkpoint_session(&host, &env.source);
+        let mut s = agent_initialized(&host, vec![Scope::SessionPropose]);
+        let before = host.vault.pin_current().unwrap();
+        let packet = proposal_packet(
+            2,
+            "session_checkpoint",
+            checkpoint_args(&sid, &bid, &input),
+            "synthetic-checkpoint-fault-key",
+        );
+        faults.arm(point, 1, FaultAction::Fail(5));
+        let result = s.handle(&packet).unwrap();
+        assert_eq!(
+            result["result"]["structuredContent"]["error"]["code"], "outcome_unknown",
+            "{point:?}: {result}"
+        );
+        assert_eq!(
+            result["result"]["structuredContent"]["originalRequest"],
+            packet["params"]["arguments"]
+        );
+        assert_eq!(
+            s.handle(&json!({"jsonrpc":"2.0","id":3,"method":"ping"}))
+                .unwrap()["error"]["message"],
+            "session_closed"
+        );
+        faults.disarm();
+        if point == FaultPoint::HostWitnessPublished {
+            let after = host.vault.pin_current().unwrap();
+            assert_eq!(after.sequence, before.sequence + 1);
+            let mut fresh = agent_initialized(&host, vec![Scope::SessionPropose]);
+            let replay = fresh.handle(&packet).unwrap();
+            assert_eq!(
+                replay["result"]["structuredContent"]["kind"], "checkpoint_proposed",
+                "{replay}"
+            );
+            assert_eq!(
+                host.vault
+                    .record_entries(&after, RecordKind::Checkpoint)
+                    .unwrap()
+                    .len(),
+                1
+            );
+            assert_eq!(host.vault.pin_current().unwrap(), after);
+        } else {
+            assert!(host.vault.pin_current().is_err());
+            assert!(
+                host.mcp_agent_server(grant(vec![Scope::SessionPropose]))
+                    .is_err()
+            );
+        }
+    }
 }
 fn context_packet(id: usize, args: Value) -> Value {
     let mut packet = proposal_packet(id, "context_get", args, "unused-key-replaced-with-null");
