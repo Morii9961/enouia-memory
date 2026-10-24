@@ -50,6 +50,23 @@ Every host (the reference shell, Runtime's adapter, a test harness) must:
 9. **One Core per Vault.** The Core enforces this (ADR-MEM-46): a second embedded Core gets `busy` / `workspace.vault_in_use`, which is not retryable. Tell the owner the Vault is open in another app.
 10. **Keep Provider setup native (ADR-MEM-48).** Only native code calls `set_native_provider`, with destinations whose models and capabilities the owner verified; never infer them from a subscription. Read, write and remove keys only natively (`CredentialStore`), never through the page or logs. Before changing setup or removing a key, cancel running `external_send` operations, wait for them to end, then call `set_native_provider(None)`; `busy` / `provider.call_running` means a send is still running. Show the exact `external_prepare` body before the owner confirms `external_send`. Show unknown/failed/length outcomes from `session_detail.invocations`, and never resend; a new attempt needs a new owner input.
 
+## Private seed staging
+
+The offline [seed staging bridge](../../tools/seed-stage/README.md) imports an
+explicitly selected portable bootstrap through the existing native import and
+pending-proposal transactions. Runtime opens the selected Vault and uses its
+existing Candidate inbox, exact source readers and trusted review dialog. No
+new IPC command, Core API, schema or Provider activation is introduced; the
+surface aggregate remains unchanged. Use a pin with ADR-MEM-65 record support
+before opening candidates carrying `context_source_refs` (the current recorded
+Runtime pin is `56bc5eb8b08fb80cd6df892bf53d200ff23afc4c`).
+
+Portable provenance/recall annotations remain available in the saved proposal
+reason, imported documents and exact review plan. They do not create a new
+native default-recall policy, owner approval or permission to dispatch data.
+Personal acceptance and independent encrypted recovery remain separate from
+staging and from synthetic frontend checks.
+
 ## Routing a change to Runtime
 
 `docs/integration/runtime-surface.json` lists every file Runtime depends on:
@@ -110,6 +127,14 @@ What remains:
 - **Source byte budgets.** `source_excerpt` returns non-retryable `invalid_request` / `workspace.excerpt_budget` if the next UTF-8 character cannot fit the requested budget. Increase that budget rather than retrying identical input. A budget of at least four bytes fits a single character; the reference page already uses 4096. Successful pages before EOF advance `byteEnd`; paginate using `byteEnd < totalBytes`, as `truncated` also describes an omitted prefix.
 
 ## Compatibility log
+
+The 2026-10-18 candidate inspection extension adds result fields only:
+`candidate_list.items[].contextSources` holds recorded dependency IDs and
+revisions separately from `evidence`; citations additionally expose
+`evidenceClass`, and `source_excerpt.evidenceClass` reports the saved source's
+classification. Dependencies carry no citation relationship or availability
+claim. An empty array means none were recorded; a legacy missing field means
+the Core did not report this information. Neither proves complete reading.
 
 Each row records the surface aggregate printed by `tools/integration/runtime_surface.py`. The newest row is last.
 
@@ -233,3 +258,6 @@ Each row records the surface aggregate printed by `tools/integration/runtime_sur
 | 2026-10-23 | `afbbaa936a787f199cc5d94942e253d2c6d80e9d7b0ce980f8afba9e1626daa4` | ADR-MEM-84 / MV-8.2e adds native SessionPropose checkpoints over authorized existing session/branch events and exact inclusive sequence coverage. Agent provenance and provisional-only artifacts use a separate stable receipt namespace excluding generated item IDs. Existing owner checkpoint payloads/whole-branch behavior remain unchanged; the existing session domain source is now tracked. No dependency, schema, storage version, transport or 55-command Workspace change. | No Runtime activation or UI change. Keep original packet/key on publication uncertainty; only fresh explicit admission may recover a completed receipt, and incomplete Host publication stays fenced. Broader Context, native external Agent authentication/enrollment, real clients and personal acceptance remain pending. Historical-results adoption stays 9d68d3d / 55 commands independently. See [checkpoint evidence and exit table](../validation/MV-8-host-agent-checkpoints.md). |
 
 | 2026-10-24 | `f4db930d6d32fb65486ae81964d3557c5762613969b84f8c6425a29757dfddf1` | Integrate the already implemented native MCP/Host branch 9286cd8 with current Provider hardening and 58-command Workspace. Preserve history ADR81–83; Host reads/proposals/context use ADR87–89, stdio remains80 and checkpoints84. Internal Host edges use already locked crates; no new external version or storage/wire change. | Runtime remains on its separate 08892702 / 57-command pin; no Host/Agent enrollment, runnable real-client transport, Provider or cloud activation. Core 85/86 branch remains separate; translate inherited Host ADR references using the checked-in map. Existing 55-command branch reports are historical. |
+| 2026-10-18 | `f1d99344c596ba71d4f1c6d0abcc288a8284def4dcf5aec70b4e1ca3e997fff9` | Additive result fields: candidate rows expose `contextSources` separately, cited evidence exposes `evidenceClass`, and source excerpts report their saved `evidenceClass`. Reference review offers explicit context-source reads. No request, command, record schema or Provider change; 47 commands. | Bump the pin to adopt the result fields. Render dependencies separately from citations; read exact selected revisions only on request, preserve attribution and untrusted text handling, and distinguish legacy missing information from an empty recorded list. Do not infer availability, corroboration, approval or complete reading history. Existing hosts may ignore the additive fields until adoption. |
+
+| 2026-10-24 | `77b7b5aae54bb250266f29b76bae52dbea805f42456535c8696bcc3bdf808e15` | Integrate the existing seed preparation/review backend 2f1595b into the current Provider/MCP-hardened 58-command mainline. Additive candidate contextSources and evidenceClass result fields preserve citation/context separation; the offline CLI/preparer requires explicit inspected inputs. Only an existing serde edge is added to the CLI lock entry, without an external version change. | Runtime remains pinned to 08892702 /57 commands. Do not use the old47-command seed pin or merge the protected Runtime seed-review UI branch automatically. No personal migration, approval, installation or activation is authorized by this merge; use explicit source identity/revision checks and render context as non-evidence. |

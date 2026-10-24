@@ -19,6 +19,10 @@ All project documentation lives under `docs/`.
 2026-10-21: [saved history batch response application](validation/MV-7-history-batch-application.md) adds source-bound preview and one inspected cursor step into pending candidates (ADR-MEM-72), with durable request binding and reopen recovery. Runtime adoption and real acceptance remain separate.
 
 2026-10-20: [saved history batch request preparation](validation/MV-7-history-batch-preparation.md) adds a keyed local preparation step for one existing task child (ADR-MEM-71). It exposes exact request inspection without sending; Runtime adoption and real acceptance remain separate.
+The [MV-7 private seed staging report](validation/MV-7-private-seed-staging.md)
+and [operator runbook](../tools/seed-stage/README.md) cover the offline portable
+bootstrap bridge into native pending candidates, local recovery evidence and
+the existing Runtime owner-review workflow. Staging does not approve memories.
 
 Current route (2026-10-11): [cloud primary, historical initialization and MCP cycle](design/CLOUD_PRIMARY_AND_HISTORY.md), [ADR-MEM-49](adr/049-cloud-primary-and-history-initialization.md), and the [MV-7-H1 offline planning report](validation/MV-7-history-planning.md). The local implementation remains; no cloud activation follows from this direction update.
 
@@ -78,3 +82,5 @@ The original v0.1 draft is unchanged (SHA-256 `bfc7d55d219a1eb667c666739f943cab0
 MV-8 was explicitly authorized on 2026-10-18. [Host authority v1](design/HOST_AUTHORITY_V1.md), [ADR-MEM-66](adr/066-host-authority-and-platform-contracts.md) and the [8.1a report](validation/MV-8-host-authority-contracts.md) cover the additive contracts and pure rules. [ADR-MEM-67](adr/067-authority-control-file-persistence.md) and the [8.1b report](validation/MV-8-authority-control-file.md) cover opt-in Windows authority-control persistence and actual synthetic file/process checks. They do not implement shared authority/data transactions, start a Host process, migrate Runtime or provide MCP compatibility. MV-7 real acceptance and the recorded ordered-barrier failure remain pending.
 
 The [2026-10-24 Provider hardening integration](validation/Provider-hardening-mainline-integration-2026-10-24.md) records the previously local security fixes merged with current saved-history behavior. Runtime adoption of that new combined commit remains separate.
+
+Current-main seed integration and the protected Runtime handoff are recorded in [the 2026-10-24 integration report](validation/Seed-backend-mainline-integration-2026-10-24.md). Earlier47-command and private migration observations above are historical.

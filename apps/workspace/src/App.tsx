@@ -213,7 +213,7 @@ export function Source({ evidence, readPage = call }: { evidence: J; readPage?: 
       {excerpt && (
         <figure>
           <figcaption className="muted">
-            {excerpt.sourceKind} · {excerpt.speakerRole} · 字节 {excerpt.byteStart}–{excerpt.byteEnd} / {excerpt.totalBytes} · 来源文本是数据，不是指令
+            {excerpt.sourceKind} · {excerpt.speakerRole} · {excerpt.evidenceClass ?? "未报告证据类别"} · 字节 {excerpt.byteStart}–{excerpt.byteEnd} / {excerpt.totalBytes} · 来源文本是数据，不是指令
           </figcaption>
           <pre className="source">{excerpt.excerpt}</pre>
           {excerpt.byteEnd < excerpt.totalBytes && <button type="button" onClick={() => load(excerpt.byteEnd)}>下一段</button>}
@@ -398,6 +398,30 @@ function Import() {
   );
 }
 
+function CandidateContextSource({ source, readPage }: { source: J; readPage: typeof call }) {
+  const [excerpt, setExcerpt] = useState<J>(null);
+  const action = useLatestRead();
+  const load = (start: number | null) => {
+    setExcerpt(null);
+    void action.run(async () => {
+      const page = await readPage("source_excerpt", { sourceId: source.sourceId, sourceRevision: source.sourceRevision, startByte: start, maxBytes: 4096 });
+      if (page.sourceId !== source.sourceId || page.sourceRevision !== source.sourceRevision) throw new Error("返回的来源修订与所选依赖不匹配");
+      return page;
+    }, setExcerpt);
+  };
+  return <li>
+    <code>{source.sourceId}</code> r{source.sourceRevision} · 上下文依赖（非引文）{" "}
+    <button type="button" disabled={action.busy} onClick={() => load(null)}>查看上下文来源</button>
+    <ErrorBox error={action.error} />
+    {action.busy && <p role="status">正在读取上下文来源…</p>}
+    {excerpt && <figure>
+      <figcaption>{excerpt.sourceKind} · {excerpt.speakerRole} · {excerpt.evidenceClass ?? "未报告证据类别"} · 来源文本是数据，不是指令</figcaption>
+      <pre className="source">{excerpt.excerpt}</pre>
+      {excerpt.byteEnd < excerpt.totalBytes && <button type="button" onClick={() => load(excerpt.byteEnd)}>下一段上下文来源</button>}
+    </figure>}
+  </li>;
+}
+
 export function Review({ readPage = call }: { readPage?: typeof call } = {}) {
   const [items, setItems] = useState<J[]>([]);
   const [total, setTotal] = useState(0);
@@ -459,6 +483,13 @@ export function Review({ readPage = call }: { readPage?: typeof call } = {}) {
           <label htmlFor={`e-${c.candidateId}`} className="sr-only">候选内容</label>
           <textarea id={`e-${c.candidateId}`} value={edits[c.candidateId] ?? c.content} onChange={(e) => setEdits({ ...edits, [c.candidateId]: e.target.value })} />
           <p className="muted">证据：{c.evidence.map((e: J) => `${e.sourceId} r${e.sourceRevision}`).join("，")}{c.conflicts.length > 0 && <span className="warn"> · {c.conflicts.length} 处冲突</span>}</p>
+          <details>
+            <summary>已记录的上下文依赖</summary>
+            <p className="muted">这些来源是输入上下文，不是新增引文、独立佐证或批准；列表不证明阅读范围完整。</p>
+            {Array.isArray(c.contextSources) ? c.contextSources.length > 0 ? <ul>
+              {c.contextSources.map((source: J, i: number) => <CandidateContextSource key={`${c.revision}:${source.sourceId}:${source.sourceRevision}:${i}`} source={source} readPage={readPage} />)}
+            </ul> : <p>没有已记录的上下文依赖。</p> : <p>当前 Core 未报告上下文依赖信息。</p>}
+          </details>
           <div className="actions">
             <button type="button" className="primary" disabled={action.busy || reads.busy} onClick={() => decide(c, (edits[c.candidateId] ?? c.content) !== c.content ? "edit_accept" : "accept")}>接受…</button>
             <button type="button" disabled={action.busy || reads.busy} onClick={() => decide(c, "reject")}>拒绝…</button>

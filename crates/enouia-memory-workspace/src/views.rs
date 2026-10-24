@@ -50,7 +50,10 @@ pub fn candidate_row(candidate: &CandidateRecord, target: Option<&CanonicalMemor
         "sensitivity": candidate.sensitivity,
         "evidence": candidate.evidence.iter().map(|e| json!({
             "sourceId": e.source_id, "sourceRevision": e.source_revision, "supports": e.supports,
-            "locator": e.locator,
+            "locator": e.locator, "evidenceClass": e.evidence_class,
+        })).collect::<Vec<_>>(),
+        "contextSources": candidate.context_source_refs.iter().map(|source| json!({
+            "sourceId": source.source_id, "sourceRevision": source.source_revision,
         })).collect::<Vec<_>>(),
         "conflicts": candidate.conflicts,
         "targetMemoryId": candidate.target_memory_id,
@@ -84,6 +87,36 @@ pub fn excerpt(text: &str, start: u64, max: u64) -> (String, u64, u64, bool) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn candidate_context_is_reported_separately_without_citation_claims() {
+        let candidate: CandidateRecord = serde_json::from_str(include_str!(
+            "../../../tests/fixtures/memory/records/candidate-context-dependencies.json"
+        ))
+        .unwrap();
+        let row = candidate_row(&candidate, None);
+        assert_eq!(row["evidence"].as_array().unwrap().len(), 1);
+        assert_eq!(row["evidence"][0]["evidenceClass"], "user_statement");
+        assert_eq!(row["contextSources"].as_array().unwrap().len(), 1);
+        assert_eq!(
+            row["contextSources"][0]["sourceId"],
+            json!(candidate.context_source_refs[0].source_id)
+        );
+        assert_eq!(row["contextSources"][0]["sourceRevision"], 1);
+        assert!(row["contextSources"][0].get("supports").is_none());
+        assert!(row["contextSources"][0].get("evidenceClass").is_none());
+        assert!(row["contextSources"][0].get("available").is_none());
+        let legacy: CandidateRecord = serde_json::from_str(include_str!(
+            "../../../tests/fixtures/memory/records/candidate-pending.json"
+        ))
+        .unwrap();
+        assert!(
+            candidate_row(&legacy, None)["contextSources"]
+                .as_array()
+                .unwrap()
+                .is_empty()
+        );
+    }
 
     #[test]
     fn excerpts_never_split_a_character() {
