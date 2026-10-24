@@ -282,6 +282,16 @@ pub struct HistoryCompareArgs {
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct SupersessionPreviewArgs {
+    pub candidate_id: CandidateId,
+    pub candidate_revision: Revision,
+    pub target_memory_id: MemoryId,
+    pub target_revision: Revision,
+    pub effective_from: crate::time::BusinessTime,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct HistoryBriefArgs {
     pub batches: Vec<HistoryBatchArgs>,
     pub comparison_commit_id: CommitId,
@@ -475,6 +485,7 @@ pub enum Command {
     DeletePreview(DeletePreviewArgs),
     Remember(RememberArgs),
     CorrectionPropose(CorrectionArgs),
+    SupersessionPreview(SupersessionPreviewArgs),
     ImportPreview(ImportTokenArgs),
     ImportStart(ImportStartArgs),
     ImportResume(ImportResumeArgs),
@@ -518,7 +529,7 @@ pub enum Command {
 }
 
 /// Command names, in schema order.
-pub const COMMANDS: [&str; 57] = [
+pub const COMMANDS: [&str; 58] = [
     "workspace_status",
     "vault_open",
     "vault_create",
@@ -576,6 +587,7 @@ pub const COMMANDS: [&str; 57] = [
     "history_batch_apply",
     "history_compare",
     "history_brief",
+    "supersession_preview",
 ];
 
 /// Commands that can commit to the Vault and therefore carry an idempotency key.
@@ -706,6 +718,7 @@ pub fn success_kind(command: &str) -> ResponseKind {
         "history_task_get" => K::HistoryTask,
         "history_compare" => K::HistoryComparison,
         "history_brief" => K::HistoryBrief,
+        "supersession_preview" => K::SupersessionPreview,
         _ => K::MemoryError,
     }
 }
@@ -1076,6 +1089,7 @@ pub enum ResponseKind {
     HistoryTask,
     HistoryComparison,
     HistoryBrief,
+    SupersessionPreview,
 }
 
 /// An error as the page sees it: a contract code, whether a retry can help,
