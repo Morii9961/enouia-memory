@@ -402,6 +402,26 @@ The [full remember replay and target freshness acceptance](../validation/MV-6-fu
 
 [Decision](079-reference-shell-native-host.md): explicit native arguments select a hidden, enrolled child Host and a connection-ticket-aware reference backend. Native tray reconnect/unlock, unavailable picker/autostart gates and visible uncertain-call errors keep the default embedded mode separate. [Evidence](../validation/MV-8-reference-shell-host.md).
 
+### ADR-MEM-80 — Restricted MCP stdio boundary (MV-8.2a)
+
+[Decision](080-restricted-mcp-stdio-boundary.md): owner-authorized local synthetic MCP 2025-11-25 adapter; existing six-tool Memory IPC envelopes, native Agent scope ceilings, revocation, bounded stdio and original-packet retention after uncertain outcomes. No owner Workspace bridge, actual Host/domain binding, real client, Provider, private data or cloud activation.
+
+### ADR-MEM-87 — Host-scoped Agent reads (MV-8.2b)
+
+[Decision](087-host-scoped-agent-reads.md): in-process MCP read binding over the existing Host Vault, separate expiring Agent connections, current persisted policy checks, deletion/provenance barriers and fail-closed content-free auditing. No owner Workspace bridge or external Agent transport enrollment.
+
+### ADR-MEM-88 — Host Agent proposals and keyed receipts (MV-8.2c)
+
+[Decision](088-host-agent-proposals.md): authorize actual Agent proposal dependencies over the same Host writer, retain native principal and canonical-operation/key receipts, keep candidates pending and refuse unreceipted global duplicates without disclosing their IDs. Unknown publication/audit results close the session without replay.
+
+### ADR-MEM-89 — Agent local current-memory context (MV-8.2d)
+
+[Decision](089-host-agent-local-context.md): bind current, session-free context_get to the existing compiler with native McpClient provenance, current policy filtering, fixed offline destination and requestId receipt recovery. Unsupported history/session/destination choices are refused, not ignored.
+
+### ADR-MEM-84 — Agent provisional checkpoints (MV-8.2e)
+
+[Decision](084-host-agent-checkpoints.md): same-Host SessionPropose over authorized existing events and exact branch/range coverage, generated Agent provenance, stable keys excluding generated item IDs and provisional-only receipts. Existing owner whole-branch behavior stays unchanged.
+
 ## Relation to Enouia Runtime's register
 
 

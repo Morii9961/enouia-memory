@@ -466,6 +466,46 @@ fn propose_on_head(
     key: &[u8],
     binding: PublicationBinding<'_>,
 ) -> Result<Proposed> {
+    propose_on_head_with_dedupe(vault, proposal, origin, key, binding, false)
+}
+
+/// Native Agent boundary: do not expose another principal's candidates through
+/// the duplicate result. Existing callers retain their global dedupe behavior.
+pub fn propose_agent_bound_at_head(
+    vault: &Vault,
+    proposal: &Proposal,
+    origin: &Origin,
+    key: &[u8],
+    payload: &Sha256Hex,
+    required_head: &CommitId,
+) -> Result<Proposed> {
+    if origin.actor.actor_type != ActorType::Agent || origin.kind != OriginKind::AgentProposal {
+        return Err(enouia_memory_vault::VaultError::new(
+            MemoryErrorCode::PermissionDenied,
+            enouia_memory_vault::Fault::Contract(vec!["proposal.agent_origin"]),
+        ));
+    }
+    propose_on_head_with_dedupe(
+        vault,
+        proposal,
+        origin,
+        &bound_key(key)?,
+        PublicationBinding {
+            head: Some(required_head),
+            payload: Some(payload),
+        },
+        true,
+    )
+}
+
+fn propose_on_head_with_dedupe(
+    vault: &Vault,
+    proposal: &Proposal,
+    origin: &Origin,
+    key: &[u8],
+    binding: PublicationBinding<'_>,
+    agent_isolation: bool,
+) -> Result<Proposed> {
     if let Some(done) = replayed_payload(vault, &origin.actor, key, binding.payload)? {
         return Ok(Proposed::Stored(done));
     }
@@ -500,10 +540,9 @@ fn propose_on_head(
         &proposal.target_memory_id,
         &proposal.target_identity_id,
     );
-    if let Some(existing) = pending_candidates(vault, &pin)?
-        .into_iter()
-        .find(|c| c.dedupe_fingerprint == dedupe)
-    {
+    if let Some(existing) = pending_candidates(vault, &pin)?.into_iter().find(|c| {
+        c.dedupe_fingerprint == dedupe && (!agent_isolation || c.origin_actor == origin.actor)
+    }) {
         return Ok(Proposed::DuplicateOf(existing.candidate_id));
     }
     let now = vault.now()?;

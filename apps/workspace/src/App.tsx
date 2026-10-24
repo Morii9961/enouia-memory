@@ -17,7 +17,7 @@ type Page = (typeof PAGES)[number][0];
 /** Run an async action with a visible busy state, error and retry. */
 export function useAction() {
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<{ text: string; retry?: () => void } | null>(null);
+  const [error, setError] = useState<{ text: string; retry?: () => void; originalRequest?: J } | null>(null);
   const run = useCallback(async <T,>(action: (key: string) => Promise<T>): Promise<T | undefined> => {
     const key = newKey();
     const execute = async (): Promise<T | undefined> => {
@@ -26,7 +26,10 @@ export function useAction() {
       try {
         return await action(key);
       } catch (err) {
-        setError({ text: describe(err), retry: retryable(err) ? () => void execute() : undefined });
+        setError({
+          text: describe(err), retry: retryable(err) ? () => void execute() : undefined,
+          originalRequest: err instanceof CallError ? err.originalRequest : undefined,
+        });
         return undefined;
       } finally {
         setBusy(false);

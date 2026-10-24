@@ -1,6 +1,16 @@
-# Enouia Memory · 分阶段实施计划
+> 2026-10-24 整合说明：Morii 已授权合并既有工作；下文各片原先“禁止合并”属于历史交付边界。本次只合入既有 MCP/Host 实现，不启动真实客户端、不激活 Host/MCP、不采用 Runtime 新 pin；ADR 重号按 [映射](../handoff/MCP_MAINLINE_ADR_MAP_2026-10-24.md) 处理，并行 Core 85/86 保留。\n\n# Enouia Memory · 分阶段实施计划
 
 原始计划：设计包 v1.0 / 2026-09-28；v1.3 路线修订：2026-10-11。本文定义阶段与出口；实际进度以对应 validation 报告为准。
+
+> **同日接续，MV-8.2e：** [ADR-MEM-84](../adr/084-host-agent-checkpoints.md)将 session_checkpoint 接到同一 Host 的 SessionPropose，按当前策略授权会话、所选事件及来源依赖；精确记录分支和序列范围，保留 Agent 来源、provisional 状态及原键回执。[合成验证报告](../validation/MV-8-host-agent-checkpoints.md)记录六个新增场景与出口表。本项完成后按主人指令 commit/push 并停止；更广 Context、外部 Agent 认证/接线、真实客户端和个人验收仍未完成，不自动进入下一项。
+
+> **同日接续，MV-8.2d：** [ADR-MEM-89](../adr/089-host-agent-local-context.md)接入当前版本、无会话、固定离线目的地的 Agent context_get，保留原生 McpClient 来源和 requestId 回执；拒绝未支持的历史/会话/外发选择，不静默降级。Context 更多选择、checkpoint 及外部 Agent 认证接线仍未完成，继续限定本地合成资料。
+
+> **同日接续，MV-8.2c：** [ADR-MEM-88](../adr/088-host-agent-proposals.md)接入同一 Host 上的受限 Agent 候选提议和稳定回执，按主体隔离去重；不借用 owner 权限、不改 Canonical。Context/checkpoint 与外部 Agent 认证接线仍待后续切片，沿用 MV-8.2 明确授权的本地合成边界。
+
+> **2026-10-23，MV-8.2b 明确获授权：** Morii 已选择“授权 MV-8.2 本地合成开发”。[ADR-MEM-87](../adr/087-host-scoped-agent-reads.md)先将受策略约束的 Agent 读取绑定到同一 Host，不借用 owner 会话；先开放已有 search/read/source 读工具，其余工具绑定仍为后续切片。继续禁止 Computer Use、私人 Vault、真实客户端、云端、迁主、Runtime UI、合并与部署。
+
+> **2026-10-23，MV-8.2a 已获主人接续授权：** [ADR-MEM-80](../adr/080-restricted-mcp-stdio-boundary.md) 冻结受限 stdio MCP 的本地合成边界，复用既有六工具 Memory IPC v1，显式 Agent principal/scopes，不借用 owner Workspace。先实现协议、撤回与未知回执的合成端口验证；原生 Host/domain 绑定和真实客户端仍为独立后续切片。不用 Computer Use，不改 Runtime 产品 UI，也不激活私人资料、云端或迁主。
 
 > **2026-10-22，MV-8.1j：** [ADR-MEM-79](../adr/079-reference-shell-native-host.md) 与[参考外壳报告](../validation/MV-8-reference-shell-host.md)将原生 Broker 接入 Tauri 参考后端：显式选择现有 v2 根及匹配 Host，独立子进程持租约，托盘重连/解锁，丢响应保留原键且不自动重试。文件选择、原生模式自启动、实际窗口/托盘验收、Runtime 采用与多客户端仍单独待做，不据此开始 MCP 或新阶段。
 
