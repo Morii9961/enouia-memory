@@ -42,3 +42,10 @@ Real Agent authentication/enrollment, broader Context choices, actual Runtime
 Host adoption, physical shell/tray exit, personal quality and owner acceptance
 remain open. Concurrent Core/MCP original worktrees, all Runtime redesign
 branches/worktrees and manual status snapshots are preserved.
+
+Reference Host closeout follow-up: the final documentation-only commit
+d6abbb4a45c0b0072cba8f42107497a2363b1148 is also included. Its first four
+ancestors were already shared by the MCP branch; only the final report cutoff
+is new. No implementation/surface change follows from that merge, and no
+behavior check is rerun for it. Its original no-merge statements describe its
+2026-10-23 delivery, superseded only for merging by Morii's current request.

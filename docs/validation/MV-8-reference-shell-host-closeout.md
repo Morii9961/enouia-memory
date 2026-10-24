@@ -1,12 +1,28 @@
 # MV-8.1j 参考壳 Host 交付收口
 
-核对日期：2026-10-23（Asia/Shanghai）。本片只收口 ADR-MEM-79 的既有参考壳行为，不开启新阶段。**实际窗口、托盘和图形壳正常退出仍待验收。** 本轮修复一处已复现的原请求丢失；没有新增原生界面观察。
+核对日期：2026-10-23（Asia/Shanghai）。本片只收口 ADR-MEM-79 的既有参考壳行为，不开启新阶段。**CLI 工程收口已完成；实际窗口、托盘和图形壳正常退出仍待验收。** 已修复一处复现的原请求丢失；本次最终核对没有新增原生界面观察。
 
 后续获授权接续已固定小修并准备了匹配程序、合成 A/B 根和手动 launcher，见[现场验收包准备记录](MV-8-reference-shell-host-acceptance-package.md)。下文保留首次收口时的证据截点；“未提交补丁”“未发现参考壳程序”是该截点的状态，已由后续记录更新。现场验收仍未完成。
 
 Morii 随后纠正交付方向：Memory 的产品界面早已由 Runtime 承载，`apps/workspace` 只是旧参考壳。下文“采用待完成”专指本次 native Host 的 Runtime 采用，不能理解为 Memory 尚未接入 Runtime。后续只用 CLI、源码和保存证据继续本片；不再用 Computer Use，也不把旧壳图形验收列为后续产品开发的前置。
 
-## 基线与保护范围
+## 最终交付截点
+
+交付分支为 `codex/mv8-reference-host-closeout`，本次核对的已有提交为 `6c2b9999a7d978e8eba7fb06149eb8a202a60e20`。本次只补本文的最终截点，不修改实现、协议、surface 或手工状态快照。
+
+| 交付内容 | 固定来源与结论 |
+| --- | --- |
+| 原请求保留小修 | `be044b4caa4d1d89d1a80b7ae770ce67d0a8e47b`；五项 Node 检查、typecheck 和 surface 检查已有通过记录 |
+| 匹配程序和全新合成 A/B 根 | 源码 pin `eaa002f84a9452257e18e8512d7fe99f73089bd1`；[验收包记录](MV-8-reference-shell-host-acceptance-package.md)列明构建及产物；没有重新构建 |
+| 自有生命周期观察 | 保存记录中两轮 Broker/Host 均正常退出 0，第二轮重新取得根，CURRENT 不变，未使用 kill；这不能签收托盘或页面 exit |
+| 实际图形行为 | H01–H10 保持待验收；仅保存一次 embedded 窗口的局部观察；不再用 Computer Use，不补模拟矩阵冒充窗口证据 |
+| Runtime 稳定入口 | 既有 embedded 产品集成有效；历史结果仍可独立采用 `9d68d3d` / 55 commands；本片不要求追最新或切 Host |
+
+单独的本地 `codex/mv8-mcp-boundary` / `c1499b79043f5af0d164edf182698151ddddd2cc` 原样保留，不属于本片交付集合，不整块合入此分支，也不在本片继续 Agent/Host 绑定。旧实验 worktree、AGENTS 和两个手工状态文件未纳入提交。本片没有推送、PR、合并或部署。
+
+本次核对仅阅读既有报告、固定提交和自有合成包的 manifest/进程观察记录，并检查交付文档差异及本地链接；没有运行新的行为测试、构建、Clippy、schema 或 Runtime surface checker。下文检查结果均保留其原取证截点，不改称本次重跑。
+
+## 首次取证基线与保护范围
 
 - 本地 `main` / HEAD 与 [GitHub main](https://github.com/Morii9961/enouia-memory/tree/b0b891d7daa2aed49029b50b36cbef58335669e7) 均为 `b0b891d7daa2aed49029b50b36cbef58335669e7`，即已合并 #48。普通 Git 网络读取失败后，通过 GitHub connector 的只读 branches/main 接口核实；没有 fetch、切分支或覆盖工作区。
 - 读取跨项目交接、仓库 AGENTS、[ADR-MEM-79](../adr/079-reference-shell-native-host.md)、[原 MV-8.1j 报告](MV-8-reference-shell-host.md)及下表证据。启动时已有的 AGENTS 和两个手工状态文件修改不属于本片。
