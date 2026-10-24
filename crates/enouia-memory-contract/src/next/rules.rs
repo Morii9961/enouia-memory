@@ -20,6 +20,8 @@ pub struct SourceView<'a> {
 
 #[derive(Clone)]
 pub struct TargetView {
+    /// Native machine-creation provenance, never inferred from model JSON.
+    pub created_under_policy: Option<PolicyId>,
     pub target: TargetRef,
     /// Only next-version machine memories may be revised by this slice.
     pub legacy_owner_record: bool,
@@ -191,14 +193,17 @@ pub fn evaluate(
             }
         }
         Some(target) => {
-            if !policy.target_ids.contains(&target.memory.memory_id) {
-                return Err(invalid("next.policy_scope", "/target"));
-            }
             let current = context
                 .targets
                 .iter()
                 .find(|t| t.target.memory.memory_id == target.memory.memory_id)
                 .ok_or_else(|| invalid("next.target_missing", "/target"))?;
+            if !policy.target_ids.contains(&target.memory.memory_id)
+                && !(policy.allow_revise_created
+                    && current.created_under_policy.as_ref() == Some(&policy.policy_id))
+            {
+                return Err(invalid("next.policy_scope", "/target"));
+            }
             if &current.target != target {
                 return Err(invalid("next.target_stale", "/target"));
             }
@@ -226,7 +231,7 @@ pub fn evaluate(
     let draft = DecisionDraft {
         schema_version: NextVersion,
         kind: DecisionKind::AdmissionDraft,
-        rule_version: RuleVersion::V1,
+        rule_version: policy.rule_version,
         input: input.clone(),
         outcome: outcome(input.interpretation),
     };

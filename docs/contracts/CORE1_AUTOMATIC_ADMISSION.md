@@ -4,6 +4,16 @@ Date: 2026-10-24. Frozen by [ADR-MEM-85](../adr/085-machine-admission-drafts.md)
 Implementation baseline: `9286cd8f89669d9ec3b92f943fd74072457536e7`.
 Scope: isolated synthetic contracts and pure rules, with no persistence adapter.
 
+Core-3 amendment: [ADR-MEM-87](../adr/087-automatic-memory-transactions.md) adds
+an opt-in separate synthetic storage adapter and `admission-rules-2`. The
+Core-1 scope statements below describe that original slice. Rule 1 remains
+supported unchanged. Optional `allow_revise_created` defaults to false and is
+omitted when false, preserving existing policy bytes/hashes. True requires
+rule 2 and native `TargetView.created_under_policy` matching the active policy
+identity; it never authorizes legacy owner records or bypasses other scope and
+revision checks. Older next readers must reject this field/rule rather than
+silently apply rule 1. See [current storage contract](CORE3_AUTOMATIC_LOOP.md).
+
 ## Types and trust boundary
 
 `enouia_memory_contract::next` exports four closed, independently tagged
@@ -20,8 +30,8 @@ Document `schema_version` is exactly **2** using a separate `NextVersion` type.
 The existing global `SCHEMA_VERSION`, `SchemaVersion`, RecordKind, AnyRecord,
 RecordSet, writer operation kinds and schema-1 files are unchanged. None of
 these four types implements `Record` or a store write port. Policy revision is
-independent of schema major; the only supported rule algorithm is
-`admission-rules-1`. Producer/model versions describe analysis provenance and
+independent of schema major; Core-1 introduced `admission-rules-1` and Core-3
+adds the explicitly versioned scope above. Producer/model versions describe analysis provenance and
 grant no authority. `model_version: null` is used by the synthetic baseline.
 
 `parse_document` bounds input to 256 KiB, rejects unsupported majors, duplicate

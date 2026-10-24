@@ -4,9 +4,15 @@
 
 mod admission;
 mod rules;
+mod storage;
+mod storage_rules;
 
 pub use admission::*;
 pub use rules::{EvaluationContext, SourceView, TargetView, evaluate, validate_commit_binding};
+pub use storage::*;
+pub use storage_rules::{
+    admission_batch_key, check_generation_binding, validate_delta, with_stored_context,
+};
 
 use crate::error::{ContractError, Violation};
 use crate::json::check_safe_integers;
@@ -39,11 +45,12 @@ impl<'de> Deserialize<'de> for NextVersion {
 /// Structural validation only. Evaluation/binding requires trusted current
 /// context; successful parsing never admits or persists a memory.
 pub trait NextDocument: Serialize + serde::de::DeserializeOwned {
+    const MAX_BYTES: usize = MAX_DOCUMENT_BYTES;
     fn validate(&self) -> Vec<Violation>;
 }
 
 pub fn parse_document<T: NextDocument>(bytes: &[u8]) -> Result<T, ContractError> {
-    if bytes.len() > MAX_DOCUMENT_BYTES {
+    if bytes.len() > T::MAX_BYTES {
         return Err(invalid("next.document_budget", ""));
     }
     let value: serde_json::Value =

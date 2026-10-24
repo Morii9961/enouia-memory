@@ -257,10 +257,5 @@ pub(super) fn validate_inputs(inputs: &[AdmissionInput]) -> Result<()> {
 /// Work identity excludes generated operation/result IDs, preserving originals
 /// on replay. Exact evidence, dependencies, policy and snapshot remain bound.
 pub fn work_key(inputs: &[AdmissionInput]) -> Sha256Hex {
-    let mut values = serde_json::to_value(inputs).expect("closed input serialization");
-    for input in values.as_array_mut().expect("input array") {
-        input.as_object_mut().unwrap().remove("operation_id");
-        input.as_object_mut().unwrap().remove("result");
-    }
-    digest(&values)
+    admission_batch_key(inputs)
 }

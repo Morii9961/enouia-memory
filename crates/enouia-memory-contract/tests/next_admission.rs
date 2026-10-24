@@ -119,6 +119,7 @@ impl World {
         self.policy.target_ids = vec![memory.memory_id];
         self.rebind_policy();
         self.targets = vec![TargetView {
+            created_under_policy: None,
             target,
             legacy_owner_record: false,
             subject_id: self.input.subject_id.clone(),
@@ -547,4 +548,25 @@ fn legacy_descriptor_and_current_refuse_new_major_before_record_decoding() {
         "unsupported_schema",
     );
     assert!(serde_json::from_value::<RecordKind>(json!("admission_draft")).is_err());
+}
+
+#[test]
+fn revise_created_scope_requires_native_policy_provenance_and_never_owner_records() {
+    let mut w = World::new();
+    w.target();
+    w.policy.target_ids.clear();
+    w.policy.allow_revise_created = true;
+    w.policy.rule_version = RuleVersion::V2;
+    w.targets[0].created_under_policy = Some(w.policy.policy_id.clone());
+    w.rebind_policy();
+    w.evaluate().unwrap();
+    w.targets[0].legacy_owner_record = true;
+    rule(w.evaluate(), "next.target_unavailable");
+    w.targets[0].legacy_owner_record = false;
+    w.targets[0].created_under_policy = None;
+    rule(w.evaluate(), "next.policy_scope");
+    w.targets[0].created_under_policy = Some(w.policy.policy_id.clone());
+    w.policy.allow_revise_created = false;
+    w.rebind_policy();
+    rule(w.evaluate(), "next.policy_scope");
 }

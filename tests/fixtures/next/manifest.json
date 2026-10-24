@@ -81,7 +81,7 @@
         {
           "op": "set",
           "path": "/rule_version",
-          "value": "admission-rules-2"
+          "value": "admission-rules-99"
         }
       ],
       "schema": "reject",

@@ -51,6 +51,18 @@ MV-1 update: rows whose "Later behavior" names MV-1 now have store evidence (com
 
 ## Rule coverage
 
+Core-3 (ADR-MEM-87) adds closed descriptor/current/commit/publication documents
+in `next/storage-v2.schema.json`. The automation-vault fixture manifest checks
+17 schema/native cases; `tests/automation_storage.rs` additionally checks full
+set/delta, authority, exact batches and immutable history. `next_admission.rs`
+checks rule-2 same-policy native creation provenance and legacy-owner refusal.
+Native `host/tests/automatic_loop.rs` exercises real files/leases, short writer
+exclusion, automatic completion, exact replay, current authorization, legacy
+byte preservation and actual child-process termination at three publication
+boundaries. Schema checks shape, typed rules check semantic closure, and native
+tests check publication/recovery; none establishes model quality or real
+Provider/Runtime acceptance. See [Core-3 evidence](../validation/CORE3-automatic-loop.md).
+
 Core-2 (ADR-MEM-86) adds the isolated native `memory_job_journal` schema and
 `host::automation::Journal` validator. The synthetic automation manifest compares
 schema shape with cursor/state/key/reservation consistency. Host automation tests

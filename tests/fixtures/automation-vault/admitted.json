@@ -1,0 +1,267 @@
+{
+  "schema_version": 2,
+  "kind": "automation_commit",
+  "commit_id": "cmt_00000003-0000-4000-8000-000000000001",
+  "sequence": 3,
+  "parent": {
+    "schema_version": 2,
+    "kind": "automation_current",
+    "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+    "commit_id": "cmt_00000002-0000-4000-8000-000000000001",
+    "sequence": 2,
+    "manifest_sha256": "beb5cdd291845a4b5d2db9b9751ac9bcf7d026da3f8212fded3f8ef7ea843a86"
+  },
+  "actor": {
+    "actor_id": "prn_00000002-0000-4000-8000-000000000001",
+    "actor_type": "system"
+  },
+  "created_at": "2026-10-24T12:00:00.000Z",
+  "change": "admit_batch",
+  "data": {
+    "policy": {
+      "schema_version": 2,
+      "kind": "automation_policy",
+      "policy_id": "pol_00000001-0000-4000-8000-000000000001",
+      "revision": 1,
+      "rule_version": "admission-rules-2",
+      "system_actor": {
+        "actor_id": "prn_00000002-0000-4000-8000-000000000001",
+        "actor_type": "system"
+      },
+      "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+      "subject_id": "sub_00000001-0000-4000-8000-000000000001",
+      "project_id": null,
+      "source_ids": [
+        "src_00000001-0000-4000-8000-000000000001",
+        "src_00000002-0000-4000-8000-000000000001"
+      ],
+      "allow_create": true,
+      "target_ids": [
+        "mem_00000002-0000-4000-8000-000000000001"
+      ],
+      "max_sensitivity": "private",
+      "access_policy_id": "pol_00000002-0000-4000-8000-000000000001",
+      "egress_policy_id": "pol_00000003-0000-4000-8000-000000000001",
+      "active": true,
+      "valid_from": "2026-10-24T00:00:00.000Z",
+      "valid_until": "2026-10-25T00:00:00.000Z",
+      "allow_revise_created": true
+    },
+    "policy_watermark": 1,
+    "deletion_watermark": 1,
+    "sources": [
+      {
+        "record": {
+          "access_policy_id": "pol_00000002-0000-4000-8000-000000000001",
+          "account_scope": null,
+          "agent_submission": null,
+          "attachment_refs": [],
+          "author_label": null,
+          "branch_id": null,
+          "captured_at": "2026-10-24T12:00:00.000Z",
+          "completeness": "complete",
+          "content_hash": "452c51c0e5d693cc71a4434687ce9f7984b288c9b5f70cfa79440ae0fbd98f4f",
+          "created_at": "2026-10-24T12:00:00.000Z",
+          "evidence_class": "user_statement",
+          "extensions": {},
+          "import_id": null,
+          "locator": {
+            "event_id": "evt_00000015-0000-4000-8000-000000000015",
+            "kind": "runtime_event"
+          },
+          "manual_assertion": null,
+          "occurred_at": "2026-06-10T10:00:00.000Z",
+          "original_conversation_id": null,
+          "original_message_id": null,
+          "original_time": null,
+          "original_timezone": null,
+          "parent_source_ids": [],
+          "parse_warnings": [],
+          "parser_version": null,
+          "provider": null,
+          "raw_object_hash": null,
+          "revision": 1,
+          "schema_version": 1,
+          "sensitivity": "private",
+          "source_id": "src_00000001-0000-4000-8000-000000000001",
+          "source_kind": "runtime_event",
+          "speaker_role": "user",
+          "time_precision": "minute"
+        },
+        "text": "Synthetic subject says: I prefer quiet workspaces.",
+        "attributed_subject": "sub_00000001-0000-4000-8000-000000000001"
+      }
+    ],
+    "memories": [
+      {
+        "schema_version": 2,
+        "kind": "machine_memory",
+        "memory": {
+          "memory_id": "mem_00000001-0000-4000-8000-000000000001",
+          "revision": 1
+        },
+        "request": {
+          "schema_version": 2,
+          "kind": "admission_input",
+          "snapshot": {
+            "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+            "base_commit_id": "cmt_00000002-0000-4000-8000-000000000001",
+            "primary_epoch": 1,
+            "policy_watermark": 1,
+            "deletion_watermark": 1
+          },
+          "operation_id": "op_00000001-0000-4000-8000-000000000001",
+          "actor": {
+            "actor_id": "prn_00000002-0000-4000-8000-000000000001",
+            "actor_type": "system"
+          },
+          "policy": {
+            "policy_id": "pol_00000001-0000-4000-8000-000000000001",
+            "revision": 1,
+            "hash": "f310cd4149124c63b7537ad259f016b7d4d1546c826ff8e136afd61c51deb256"
+          },
+          "producer_version": "synthetic-analysis-1",
+          "model_version": null,
+          "subject_id": "sub_00000001-0000-4000-8000-000000000001",
+          "project_id": null,
+          "content": "Synthetic subject says: I prefer quiet workspaces.",
+          "interpretation": "ambiguous",
+          "input_refs": [
+            {
+              "source_id": "src_00000001-0000-4000-8000-000000000001",
+              "source_revision": 1
+            }
+          ],
+          "evidence": [
+            {
+              "source_id": "src_00000001-0000-4000-8000-000000000001",
+              "source_revision": 1,
+              "locator": {
+                "event_id": "evt_00000015-0000-4000-8000-000000000015",
+                "kind": "runtime_event"
+              },
+              "object_hash": "452c51c0e5d693cc71a4434687ce9f7984b288c9b5f70cfa79440ae0fbd98f4f",
+              "evidence_class": "user_statement",
+              "supports": "content"
+            }
+          ],
+          "context_source_refs": [],
+          "target": null,
+          "result": {
+            "memory_id": "mem_00000001-0000-4000-8000-000000000001",
+            "revision": 1
+          },
+          "sensitivity": "private",
+          "access_policy_id": "pol_00000002-0000-4000-8000-000000000001",
+          "egress_policy_id": "pol_00000003-0000-4000-8000-000000000001"
+        },
+        "decision": {
+          "schema_version": 2,
+          "kind": "admission_draft",
+          "rule_version": "admission-rules-2",
+          "input": {
+            "schema_version": 2,
+            "kind": "admission_input",
+            "snapshot": {
+              "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+              "base_commit_id": "cmt_00000002-0000-4000-8000-000000000001",
+              "primary_epoch": 1,
+              "policy_watermark": 1,
+              "deletion_watermark": 1
+            },
+            "operation_id": "op_00000001-0000-4000-8000-000000000001",
+            "actor": {
+              "actor_id": "prn_00000002-0000-4000-8000-000000000001",
+              "actor_type": "system"
+            },
+            "policy": {
+              "policy_id": "pol_00000001-0000-4000-8000-000000000001",
+              "revision": 1,
+              "hash": "f310cd4149124c63b7537ad259f016b7d4d1546c826ff8e136afd61c51deb256"
+            },
+            "producer_version": "synthetic-analysis-1",
+            "model_version": null,
+            "subject_id": "sub_00000001-0000-4000-8000-000000000001",
+            "project_id": null,
+            "content": "Synthetic subject says: I prefer quiet workspaces.",
+            "interpretation": "clear_self_report",
+            "input_refs": [
+              {
+                "source_id": "src_00000001-0000-4000-8000-000000000001",
+                "source_revision": 1
+              }
+            ],
+            "evidence": [
+              {
+                "source_id": "src_00000001-0000-4000-8000-000000000001",
+                "source_revision": 1,
+                "locator": {
+                  "event_id": "evt_00000015-0000-4000-8000-000000000015",
+                  "kind": "runtime_event"
+                },
+                "object_hash": "452c51c0e5d693cc71a4434687ce9f7984b288c9b5f70cfa79440ae0fbd98f4f",
+                "evidence_class": "user_statement",
+                "supports": "content"
+              }
+            ],
+            "context_source_refs": [],
+            "target": null,
+            "result": {
+              "memory_id": "mem_00000001-0000-4000-8000-000000000001",
+              "revision": 1
+            },
+            "sensitivity": "private",
+            "access_policy_id": "pol_00000002-0000-4000-8000-000000000001",
+            "egress_policy_id": "pol_00000003-0000-4000-8000-000000000001"
+          },
+          "outcome": {
+            "knowledge": "attributed_statement",
+            "adoption": "adopted",
+            "reassessment": null
+          }
+        },
+        "response_hash": "cf59cc6c546caf79aec547c722766579034d11afe2edfd70a32d230c93944294",
+        "committed_in": "cmt_00000003-0000-4000-8000-000000000001",
+        "response_json": "{\"input\":{\"access_policy_id\":\"pol_00000002-0000-4000-8000-000000000001\",\"actor\":{\"actor_id\":\"prn_00000002-0000-4000-8000-000000000001\",\"actor_type\":\"system\"},\"content\":\"Synthetic subject says: I prefer quiet workspaces.\",\"context_source_refs\":[],\"egress_policy_id\":\"pol_00000003-0000-4000-8000-000000000001\",\"evidence\":[{\"evidence_class\":\"user_statement\",\"locator\":{\"event_id\":\"evt_00000015-0000-4000-8000-000000000015\",\"kind\":\"runtime_event\"},\"object_hash\":\"452c51c0e5d693cc71a4434687ce9f7984b288c9b5f70cfa79440ae0fbd98f4f\",\"source_id\":\"src_00000001-0000-4000-8000-000000000001\",\"source_revision\":1,\"supports\":\"content\"}],\"input_refs\":[{\"source_id\":\"src_00000001-0000-4000-8000-000000000001\",\"source_revision\":1}],\"interpretation\":\"clear_self_report\",\"kind\":\"admission_input\",\"model_version\":null,\"operation_id\":\"op_00000001-0000-4000-8000-000000000001\",\"policy\":{\"hash\":\"f310cd4149124c63b7537ad259f016b7d4d1546c826ff8e136afd61c51deb256\",\"policy_id\":\"pol_00000001-0000-4000-8000-000000000001\",\"revision\":1},\"producer_version\":\"synthetic-analysis-1\",\"project_id\":null,\"result\":{\"memory_id\":\"mem_00000001-0000-4000-8000-000000000001\",\"revision\":1},\"schema_version\":2,\"sensitivity\":\"private\",\"snapshot\":{\"base_commit_id\":\"cmt_00000002-0000-4000-8000-000000000001\",\"deletion_watermark\":1,\"policy_watermark\":1,\"primary_epoch\":1,\"vault_id\":\"vlt_00000001-0000-4000-8000-000000000001\"},\"subject_id\":\"sub_00000001-0000-4000-8000-000000000001\",\"target\":null},\"kind\":\"admission_draft\",\"outcome\":{\"adoption\":\"adopted\",\"knowledge\":\"attributed_statement\",\"reassessment\":null},\"rule_version\":\"admission-rules-2\",\"schema_version\":2}"
+      }
+    ],
+    "receipts": [
+      {
+        "job_key": "da524a29403882da69261073fcf5fb537491fdfe7c9a96b38dd18d1715da5ceb",
+        "binding_hash": "8a692126e05261a25bf1aa405bcfd187e8e8045219b8489d7746071fc98fbd5c",
+        "operation_id": "op_00000001-0000-4000-8000-000000000001",
+        "request_hash": "e995a9d9bb772891d87742a20879b462d3317085c858afcaf97fea06ce145e3a",
+        "response_hash": "cf59cc6c546caf79aec547c722766579034d11afe2edfd70a32d230c93944294",
+        "decision_hash": "f0800b287b9a5da0fc81cb701727494d119988398575d9e62b70837c7ee6384e",
+        "committed_in": "cmt_00000003-0000-4000-8000-000000000001",
+        "sequence": 3,
+        "result": {
+          "memory_id": "mem_00000001-0000-4000-8000-000000000001",
+          "revision": 1
+        }
+      }
+    ],
+    "deleted_sources": [],
+    "deleted_memories": []
+  },
+  "authority": {
+    "schema_version": 1,
+    "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+    "revision": 3,
+    "primary": {
+      "host_id": "dev_00000001-0000-4000-8000-000000000001",
+      "primary_epoch": 1
+    },
+    "checkpoint": {
+      "commit_id": "cmt_00000003-0000-4000-8000-000000000001",
+      "commit_sequence": 3,
+      "snapshot_hash": "9494ca2bcd0c66e559a0067010ab8257b1bd88447fa85566c6fb3eedeae32f47",
+      "policy_epoch": 1,
+      "deletion_epoch": 1
+    },
+    "phase": {
+      "state": "active"
+    },
+    "promotions": []
+  }
+}

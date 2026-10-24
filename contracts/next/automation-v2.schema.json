@@ -150,7 +150,10 @@
           "$ref": "../memory/common-v1.schema.json#/$defs/revision"
         },
         "rule_version": {
-          "const": "admission-rules-1"
+          "enum": [
+            "admission-rules-1",
+            "admission-rules-2"
+          ]
         },
         "system_actor": {
           "$ref": "#/$defs/systemActor"
@@ -209,6 +212,10 @@
         },
         "valid_until": {
           "$ref": "../memory/common-v1.schema.json#/$defs/timestamp"
+        },
+        "allow_revise_created": {
+          "type": "boolean",
+          "default": false
         }
       }
     },
@@ -403,7 +410,10 @@
           "const": "admission_draft"
         },
         "rule_version": {
-          "const": "admission-rules-1"
+          "enum": [
+            "admission-rules-1",
+            "admission-rules-2"
+          ]
         },
         "input": {
           "$ref": "#/$defs/input"

@@ -1,5 +1,7 @@
 //! Core-2 opt-in synthetic job coordinator. No default Host wiring, Provider
-//! adapter, V2 Vault, Canonical application, owner approval or success receipt.
+//! adapter or default writer. The opt-in `application` module connects Core-3's
+//! separate V2 synthetic transactions; the coordinator alone never applies them.
+pub mod application;
 mod model;
 mod worker;
 pub use model::*;
@@ -379,6 +381,12 @@ impl SyntheticJobs {
         Ok(())
     }
     pub fn results(&self, key: &Sha256Hex) -> Result<Vec<GenerationResult>> {
+        self.generated_batch(key).map(|(_, results)| results)
+    }
+    pub fn generated_batch(
+        &self,
+        key: &Sha256Hex,
+    ) -> Result<(Vec<AdmissionInput>, Vec<GenerationResult>)> {
         let mut s = self.inner.lock()?;
         self.inner.time(&mut s)?;
         let job = s
@@ -392,7 +400,33 @@ impl SyntheticJobs {
         {
             return Err(Fault::Unavailable);
         }
-        Ok(job.results.clone())
+        Ok((job.inputs.clone(), job.results.clone()))
+    }
+    /// Content-free exact identities for recovery of an already committed
+    /// batch. This grants no dispatch/application authority after invalidation.
+    pub fn generated_bindings(&self, key: &Sha256Hex) -> Result<Vec<GenerationBinding>> {
+        let s = self.inner.lock()?;
+        let job = s
+            .journal
+            .jobs
+            .iter()
+            .find(|j| &j.key == key)
+            .ok_or(Fault::NotFound)?;
+        if !matches!(job.state, JobState::Generated | JobState::Invalidated)
+            || job.results.len() != job.inputs.len()
+        {
+            return Err(Fault::Unavailable);
+        }
+        Ok(job
+            .inputs
+            .iter()
+            .zip(&job.results)
+            .map(|(input, result)| GenerationBinding {
+                operation_id: input.operation_id.clone(),
+                input_hash: result.input_hash.clone(),
+                response_hash: result.response_hash.clone(),
+            })
+            .collect())
     }
     pub fn cancel(&self, key: &Sha256Hex) -> Result<()> {
         let mut s = self.inner.lock()?;
@@ -439,6 +473,15 @@ impl SyntheticJobs {
         Ok(())
     }
     pub fn spawn(&self, generator: impl Generator) -> Result<JoinHandle<()>> {
+        self.spawn_with_completion(generator, |_| {})
+    }
+    /// Native completion hook outside job control exclusion. Default spawn
+    /// retains its generation-only behavior.
+    pub fn spawn_with_completion(
+        &self,
+        generator: impl Generator,
+        completion: impl FnMut(Sha256Hex) + Send + 'static,
+    ) -> Result<JoinHandle<()>> {
         let mut s = self.inner.lock()?;
         if s.started || s.closed || s.faulted {
             return Err(Fault::Unavailable);
@@ -447,7 +490,7 @@ impl SyntheticJobs {
         let inner = self.inner.clone();
         std::thread::Builder::new()
             .name("memory-core2".into())
-            .spawn(move || worker::run(inner, generator))
+            .spawn(move || worker::run(inner, generator, completion))
             .map_err(|_| {
                 s.started = false;
                 Fault::Unavailable

@@ -229,6 +229,18 @@ def main():
             failures.append(f"automation case {case['id']}: disagreement")
     counts["automation_documents"] = 2 + len(jobs["invalid"])
 
+    automation_store_dir = ROOT / "tests" / "fixtures" / "automation-vault"
+    automation_store = load(automation_store_dir / "manifest.json")
+    for entry in automation_store["valid"]:
+        if not valid(automation_store["schema"], load(automation_store_dir / entry["file"])):
+            failures.append(f"valid automation store document rejected: {entry['file']}")
+    for case in automation_store["invalid"]:
+        value = load(automation_store_dir / case["base"])
+        apply_ops(value, case["ops"])
+        if valid(automation_store["schema"], value) != (case["schema"] == "accept"):
+            failures.append(f"automation store case {case['id']}: disagreement")
+    counts["automation_store_documents"] = len(automation_store["valid"]) + len(automation_store["invalid"])
+
     invocation_cases = load(FIXTURES / "provider-invocation-cases.json")
     for case in invocation_cases["cases"]:
         value = copy.deepcopy(invocation_cases["base"])

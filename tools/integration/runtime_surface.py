@@ -82,6 +82,7 @@ FILES = {
 
 # Directories recorded completely: a new file there is a surface change.
 DIRECTORIES = {
+    "crates/enouia-memory-vault/src/automation": "automatic-memory-storage",
     # Isolated Core-1 contracts, not exposed through existing page/MCP IPC.
     "crates/enouia-memory-contract/src/next": "automation-contract",
     "contracts/next": "automation-contract",

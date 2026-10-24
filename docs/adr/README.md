@@ -436,6 +436,14 @@ exact Core-1 inputs, original-identity dedupe, restart/cursor recovery, durable
 pre-dispatch reservations and unknown outcomes, lifecycle cancellation and one
 private foreground-aware worker. No default Host wiring or memory application.
 
+### ADR-MEM-87 — Automatic memory transactions (Core-3)
+
+[Decision](087-automatic-memory-transactions.md): explicit schema-2 synthetic
+root, native System formation/correction and witnessed atomic batch receipts,
+append-only data/authority closure, exact forward publication recovery and
+attributed current recall. Rule-2 optionally delegates revision of same-policy
+machine results; legacy owner history and all default routes remain unchanged.
+
 ## Relation to Enouia Runtime's register
 
 

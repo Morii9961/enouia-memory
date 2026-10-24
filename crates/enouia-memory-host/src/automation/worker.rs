@@ -173,7 +173,11 @@ fn finish(inner: &Inner, work: &Dispatch, generation: Generation) -> Result<()> 
     Ok(())
 }
 
-pub(super) fn run(inner: Arc<Inner>, mut generator: impl Generator) {
+pub(super) fn run(
+    inner: Arc<Inner>,
+    mut generator: impl Generator,
+    mut completion: impl FnMut(Sha256Hex),
+) {
     loop {
         let work = match dispatch(&inner, &mut generator) {
             Ok(Some(work)) => work,
@@ -218,6 +222,13 @@ pub(super) fn run(inner: Arc<Inner>, mut generator: impl Generator) {
         };
         if finish(&inner, &work, generation).is_err() {
             return;
+        }
+        let completed = inner.lock().ok().and_then(|state| {
+            let job = &state.journal.jobs[work.index];
+            (job.state == JobState::Generated).then(|| job.key.clone())
+        });
+        if let Some(key) = completed {
+            let _ = catch_unwind(AssertUnwindSafe(|| completion(key)));
         }
     }
 }

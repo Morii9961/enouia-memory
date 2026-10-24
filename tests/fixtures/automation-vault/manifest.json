@@ -1,0 +1,173 @@
+{
+  "schema": "next/storage-v2.schema.json",
+  "valid": [
+    {
+      "file": "descriptor.json",
+      "type": "descriptor"
+    },
+    {
+      "file": "genesis.json",
+      "type": "commit"
+    },
+    {
+      "file": "capture.json",
+      "type": "commit"
+    },
+    {
+      "file": "admitted.json",
+      "type": "commit"
+    },
+    {
+      "file": "current.json",
+      "type": "current"
+    },
+    {
+      "file": "publication.json",
+      "type": "publication"
+    }
+  ],
+  "invalid": [
+    {
+      "id": "unsupported-major",
+      "base": "descriptor.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/schema_version",
+          "value": 3
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "owner-is-system",
+      "base": "descriptor.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/created_by/actor_type",
+          "value": "system"
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "bad-layout",
+      "base": "descriptor.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/layout",
+          "value": "host-current-v2"
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "false-checkpoint",
+      "base": "admitted.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/authority/checkpoint/snapshot_hash",
+          "value": "0000000000000000000000000000000000000000000000000000000000000000"
+        }
+      ],
+      "schema": "accept"
+    },
+    {
+      "id": "false-receipt",
+      "base": "admitted.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/data/receipts/0/decision_hash",
+          "value": "0000000000000000000000000000000000000000000000000000000000000000"
+        }
+      ],
+      "schema": "accept"
+    },
+    {
+      "id": "bad-source-bytes",
+      "base": "capture.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/data/sources/0/text",
+          "value": "different synthetic bytes"
+        }
+      ],
+      "schema": "accept"
+    },
+    {
+      "id": "false-memory-id",
+      "base": "admitted.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/data/memories/0/memory/revision",
+          "value": 2
+        }
+      ],
+      "schema": "accept"
+    },
+    {
+      "id": "invented-review",
+      "base": "admitted.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/data/memories/0/approved_by",
+          "value": {
+            "actor_id": "prn_00000001-0000-4000-8000-000000000001",
+            "actor_type": "owner"
+          }
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "unsafe-sequence",
+      "base": "current.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/sequence",
+          "value": 9007199254740992
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "same-publication",
+      "base": "publication.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/before",
+          "value": {
+            "schema_version": 2,
+            "kind": "automation_current",
+            "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+            "commit_id": "cmt_00000003-0000-4000-8000-000000000001",
+            "sequence": 3,
+            "manifest_sha256": "aedfed48ab4cca017ccbdce44cbb81a74bd6dba25f0e8b516df89de616715849"
+          }
+        }
+      ],
+      "schema": "accept"
+    },
+    {
+      "id": "owner-principal-confusion",
+      "base": "descriptor.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/system_actor/actor_id",
+          "value": "prn_00000001-0000-4000-8000-000000000001"
+        }
+      ],
+      "schema": "accept"
+    }
+  ]
+}

@@ -3,6 +3,14 @@
 Date: 2026-10-24. [ADR-MEM-86](../adr/086-durable-automation-jobs.md).
 Base: Core-1 `678c2d75d0eb88f3c98c31a95d08a490d24627be`.
 
+Core-3 amendment: optional native `spawn_with_completion` invokes a callback
+after generation persistence, outside job control exclusion. Default `spawn`
+retains generation-only behavior. The separate
+[AutomationHost](CORE3_AUTOMATIC_LOOP.md) applies exact results to its selected
+V2 root; the coordinator never creates a memory receipt by itself. Native
+metadata-only generated bindings support recovery of an already committed
+batch after invalidation, without granting new dispatch/application authority.
+
 ## Opt-in boundary and persistence
 
 `enouia_memory_host::automation::SyntheticJobs` is an explicitly constructed

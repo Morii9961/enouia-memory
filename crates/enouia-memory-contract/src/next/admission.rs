@@ -23,7 +23,13 @@ kind!(PolicyKind, AutomationPolicy, "automation_policy");
 kind!(InputKind, AdmissionInput, "admission_input");
 kind!(DecisionKind, AdmissionDraft, "admission_draft");
 kind!(CommitKind, PlannedCommit, "planned_commit");
-kind!(RuleVersion, V1, "admission-rules-1");
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub enum RuleVersion {
+    #[serde(rename = "admission-rules-1")]
+    V1,
+    #[serde(rename = "admission-rules-2")]
+    V2,
+}
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -59,6 +65,10 @@ pub struct AutomationPolicy {
     pub project_id: Option<ProjectId>,
     pub source_ids: Vec<SourceId>,
     pub allow_create: bool,
+    /// Core-3 opt-in scope: revise only machine memories whose native provenance
+    /// names this same policy. Absent/false preserves existing policy bytes.
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub allow_revise_created: bool,
     pub target_ids: Vec<MemoryId>,
     pub max_sensitivity: Sensitivity,
     pub access_policy_id: PolicyId,
@@ -66,6 +76,9 @@ pub struct AutomationPolicy {
     pub active: bool,
     pub valid_from: Timestamp,
     pub valid_until: Timestamp,
+}
+fn is_false(value: &bool) -> bool {
+    !*value
 }
 
 impl AutomationPolicy {
@@ -212,6 +225,9 @@ fn document_budget(value: &impl Serialize, out: &mut Vec<Violation>) {
 impl NextDocument for AutomationPolicy {
     fn validate(&self) -> Vec<Violation> {
         let mut out = Vec::new();
+        if self.allow_revise_created && self.rule_version != RuleVersion::V2 {
+            out.push(Violation::new("next.policy_rule_version", "/rule_version"));
+        }
         document_budget(self, &mut out);
         if self.system_actor.actor_type != ActorType::System {
             out.push(Violation::new("next.system_actor", "/system_actor"));
