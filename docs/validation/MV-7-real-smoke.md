@@ -1,6 +1,6 @@
 # MV-7 真实双 Provider 受控验收手册
 
-状态：**待执行**。本页给出 MV-7 出口门槛（[ACCEPTANCE](../design/ACCEPTANCE.md) P02～P06）的真实验收步骤。执行前，本仓库里所有 MV-7 证据都来自合成数据和假 transport（见 [MV-7 报告](MV-7.md)）。
+状态：**待执行**。本页给出 MV-7 出口门槛（[ACCEPTANCE](../design/ACCEPTANCE.md) P02～P06）的真实验收步骤。现有功能验收使用合成数据和假 transport；历史凭据形状探测曾向真实 HTTPS 端点发送合成凭据及合成请求，不构成真实账户或模型接受证据（见 [MV-7 报告](MV-7.md)）。本手册尚未执行。
 
 代码基线（2026-10-17 更新）：Memory `56bc5eb`（main，含 PR #17～#33 与 ADR-MEM-65），Runtime `07584cb`（main，pin `56bc5eb`）。本页最初按 Memory `a9d61c5`、Runtime `36c6542`（pin `8186aed`）编写；之后的改动没有改变下列按钮和提示文字，只增加了“Reload settings”。执行时以届时的 main 构建为准，并在执行记录里写下实际使用的提交。
 

@@ -60,9 +60,11 @@ impl Transport for FakeHttp {
             .clone()
             .unwrap_or_else(|| "合成外部答复".into());
         let reply = match request.binding().provider.as_str() {
-            "openai" => json!({"status": "completed", "output": [{"type": "message",
+            "openai" => {
+                json!({"id":"resp_synthetic_workspace","object":"response","error":null,"status": "completed", "output": [{"type": "message",
                 "role": "assistant", "content": [{"type": "output_text", "text": text}]}],
-                "usage": {"input_tokens": 90, "output_tokens": 6}}),
+                "usage": {"input_tokens": 90, "output_tokens": 6}})
+            }
             _ => json!({"type": "message", "role": "assistant",
                 "content": [{"type": "text", "text": text}], "stop_reason": "end_turn",
                 "usage": {"input_tokens": 90, "output_tokens": 6}}),

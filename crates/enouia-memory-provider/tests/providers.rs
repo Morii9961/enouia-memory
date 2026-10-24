@@ -346,7 +346,7 @@ impl Transport for FakeHttp {
 fn reply(api: Api) -> Vec<u8> {
     let v = match api {
         Api::OpenAiResponses => {
-            json!({"status":"completed","output":[{"type":"message","role":"assistant","content":[{"type":"output_text","text":"合成答复"}]}],"usage":{"input_tokens":100,"output_tokens":4}})
+            json!({"id":"resp_synthetic_reply","object":"response","error":null,"status":"completed","output":[{"type":"message","role":"assistant","content":[{"type":"output_text","text":"合成答复"}]}],"usage":{"input_tokens":100,"output_tokens":4}})
         }
         Api::AnthropicMessages => {
             json!({"type":"message","role":"assistant","content":[{"type":"text","text":"合成答复"}],"stop_reason":"end_turn","usage":{"input_tokens":100,"output_tokens":4}})
@@ -785,7 +785,7 @@ fn provider_usage_keeps_total_input_without_double_counting_cache_breakdowns() {
         );
     }
     let events = [
-        json!({"type":"message_start","message":{"type":"message","role":"assistant","usage":{"input_tokens":100,"cache_creation_input_tokens":20,"cache_read_input_tokens":30,"output_tokens":0}}}),
+        json!({"type":"message_start","message":{"type":"message","role":"assistant","content":[],"usage":{"input_tokens":100,"cache_creation_input_tokens":20,"cache_read_input_tokens":30,"output_tokens":0}}}),
         json!({"type":"message_delta","delta":{"stop_reason":"end_turn"},"usage":{"input_tokens":110,"cache_creation_input_tokens":25,"output_tokens":4}}),
         json!({"type":"message_delta","delta":{},"usage":{"cache_read_input_tokens":null,"output_tokens":5}}),
         json!({"type":"message_stop"}),
@@ -915,7 +915,7 @@ fn malformed_usage_fails_before_completed_publication_and_unknown_is_not_zero() 
 #[test]
 fn malformed_stream_metadata_fails_immediately_without_panic_or_later_overwrite() {
     use std::panic::{AssertUnwindSafe, catch_unwind};
-    let start = json!({"type":"message_start","message":{"type":"message","role":"assistant","usage":{"input_tokens":100,"output_tokens":0}}});
+    let start = json!({"type":"message_start","message":{"type":"message","role":"assistant","content":[],"usage":{"input_tokens":100,"output_tokens":0}}});
     let valid = json!({"type":"message_delta","delta":{"stop_reason":"end_turn"},"usage":{"output_tokens":4}});
     let stop = json!({"type":"message_stop"});
     let encode = |events: Vec<serde_json::Value>| {
@@ -1445,7 +1445,7 @@ fn admitted_crash_is_unknown_and_cannot_be_resent() {
 }
 #[test]
 fn sse_rejects_out_of_order_stops_and_errors_cannot_be_finished_or_resumed() {
-    let start = json!({"type":"message_start","message":{"type":"message","role":"assistant","usage":{"input_tokens":100,"output_tokens":0}}});
+    let start = json!({"type":"message_start","message":{"type":"message","role":"assistant","content":[],"usage":{"input_tokens":100,"output_tokens":0}}});
     let block =
         json!({"type":"content_block_start","index":0,"content_block":{"type":"text","text":""}});
     let block_end = json!({"type":"content_block_stop","index":0});
@@ -1501,7 +1501,7 @@ fn sse_rejects_out_of_order_stops_and_errors_cannot_be_finished_or_resumed() {
 #[test]
 fn anthropic_multiple_top_level_deltas_keep_stop_reason_and_cumulative_usage() {
     let events = [
-        json!({"type":"message_start","message":{"type":"message","role":"assistant","usage":{"input_tokens":100,"output_tokens":0}}}),
+        json!({"type":"message_start","message":{"type":"message","role":"assistant","content":[],"usage":{"input_tokens":100,"output_tokens":0}}}),
         json!({"type":"message_delta","delta":{"stop_reason":null},"usage":{"output_tokens":1}}),
         json!({"type":"message_delta","delta":{"stop_reason":"end_turn"},"usage":{"input_tokens":110,"output_tokens":4}}),
         json!({"type":"message_delta","delta":{"stop_reason":null},"usage":{"output_tokens":5}}),
@@ -1531,7 +1531,7 @@ fn anthropic_cumulative_usage_never_regresses_or_recovers_after_a_conflict() {
         "output_tokens",
     ] {
         let mut decoder = Decoder::new(Api::AnthropicMessages);
-        let start = json!({"type":"message_start","message":{"type":"message","role":"assistant","usage":{"input_tokens":5000,"cache_creation_input_tokens":2,"cache_read_input_tokens":3,"output_tokens":0}}});
+        let start = json!({"type":"message_start","message":{"type":"message","role":"assistant","content":[],"usage":{"input_tokens":5000,"cache_creation_input_tokens":2,"cache_read_input_tokens":3,"output_tokens":0}}});
         let known = json!({"type":"message_delta","delta":{},"usage":{"output_tokens":1000}});
         for event in [&start, &known, &known] {
             let bytes = format!("data: {event}\n\n");
@@ -1638,6 +1638,123 @@ fn sse(events: &[serde_json::Value]) -> Vec<u8> {
         .map(|v| format!("event: {}\ndata: {v}\n\n", v["type"].as_str().unwrap()))
         .collect::<String>()
         .into_bytes()
+}
+
+#[test]
+fn anthropic_initial_content_cannot_be_dropped_into_a_completed_turn() {
+    fn events(content: Option<serde_json::Value>) -> Vec<serde_json::Value> {
+        let mut message = json!({"type":"message","role":"assistant","usage":{"input_tokens":100,"output_tokens":0}});
+        if let Some(content) = content {
+            message["content"] = content;
+        }
+        vec![
+            json!({"type":"message_start","message":message}),
+            json!({"type":"message_delta","delta":{"stop_reason":"end_turn"},"usage":{"output_tokens":4}}),
+            json!({"type":"message_stop"}),
+        ]
+    }
+    for content in [
+        None,
+        Some(json!(null)),
+        Some(json!({})),
+        Some(json!("lost synthetic text")),
+        Some(json!([{"type":"text","text":"lost synthetic text"}])),
+        Some(json!([{"type":"thinking","thinking":"lost synthetic reasoning"}])),
+    ] {
+        let mut decoder = Decoder::new(Api::AnthropicMessages);
+        let mut chunks = Vec::new();
+        assert_eq!(
+            decoder
+                .push(&sse(&events(content)), &mut |text| {
+                    chunks.push(text.to_owned());
+                    Ok(())
+                })
+                .err()
+                .map(|e| e.code),
+            Some(MemoryErrorCode::ProviderUnavailable)
+        );
+        assert!(chunks.is_empty());
+        assert_eq!(decoder.observed_usage(), (None, None));
+        assert!(
+            decoder
+                .push(&sse(&events(Some(json!([])))), &mut |_| Ok(()))
+                .is_err()
+        );
+        assert!(decoder.finish().is_err());
+    }
+    let mut valid = Decoder::new(Api::AnthropicMessages);
+    valid
+        .push(&sse(&events(Some(json!([])))), &mut |_| Ok(()))
+        .unwrap();
+    let response = valid.finish().unwrap();
+    assert!(response.text.is_empty());
+    assert_eq!(
+        response.finish,
+        enouia_memory_contract::provider::FinishReason::Completed
+    );
+    assert_eq!(
+        (response.input_tokens, response.output_tokens),
+        (Some(100), Some(4))
+    );
+
+    let api = Api::AnthropicMessages;
+    let env = Env::new("anthropic-start-content");
+    let (capsule, input, policy, caps) = setup(&env, api, Sensitivity::Normal);
+    let enabled = AtomicBool::new(true);
+    let adapter = VaultAdapter {
+        vault: &env.vault,
+        owner: owner(),
+        input_event: input,
+        enabled: &enabled,
+        quota: Quota::default(),
+    };
+    let mut options = CallOptions::text(policy, 128);
+    options.streaming = true;
+    let call = adapter
+        .prepare_saved(api, &capsule, &caps, Limits::default(), options)
+        .unwrap();
+    let http = FakeHttp {
+        calls: Cell::new(0),
+        bytes: sse(&events(Some(json!([
+            {"type":"text","text":"lost synthetic text"}
+        ])))),
+        fail: false,
+    };
+    let client = Client {
+        transport: &http,
+        secrets: &Secrets { missing: false },
+        guard: &adapter,
+        journal: &adapter,
+    };
+    assert_eq!(
+        client
+            .send(&call, &call.inspect().hash(), &NeverCancel)
+            .unwrap_err()
+            .code,
+        MemoryErrorCode::ProviderUnavailable
+    );
+    let rows = adapter.invocations().unwrap();
+    assert_eq!(rows.len(), 1);
+    assert_eq!(rows[0].state, InvocationState::Failed);
+    assert_eq!(rows[0].input_tokens, None);
+    assert_eq!(rows[0].output_tokens, None);
+    assert!(
+        adapter
+            .saved_response(&call.dispatch().dispatch_id)
+            .unwrap()
+            .is_none()
+    );
+    let before = env.vault.pin_current().unwrap();
+    assert_eq!(
+        client
+            .send(&call, &call.inspect().hash(), &NeverCancel)
+            .unwrap_err()
+            .code,
+        MemoryErrorCode::IdempotencyConflict
+    );
+    assert_eq!(http.calls.get(), 1);
+    assert_eq!(env.vault.pin_current().unwrap(), before);
+    assert!(env.vault.verify(&before).unwrap().is_clean());
 }
 #[test]
 fn anthropic_thinking_blocks_are_accepted_without_exposing_reasoning() {
@@ -1867,7 +1984,7 @@ fn streaming_reply(api: Api, complete: bool) -> Vec<u8> {
             json!({"type":"response.completed","response":serde_json::from_slice::<serde_json::Value>(&reply(api)).unwrap()}),
         ],
         Api::AnthropicMessages => vec![
-            json!({"type":"message_start","message":{"type":"message","role":"assistant","usage":{"input_tokens":100,"output_tokens":0}}}),
+            json!({"type":"message_start","message":{"type":"message","role":"assistant","content":[],"usage":{"input_tokens":100,"output_tokens":0}}}),
             json!({"type":"content_block_start","index":0,"content_block":{"type":"text","text":""}}),
             json!({"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"合成答复"}}),
             json!({"type":"content_block_stop","index":0}),
@@ -1941,7 +2058,7 @@ fn both_streams_preserve_whitespace_and_ignore_empty_deltas() {
                 let mut events = match api {
                     Api::OpenAiResponses => vec![],
                     Api::AnthropicMessages => vec![
-                        json!({"type":"message_start","message":{"type":"message","role":"assistant","usage":{"input_tokens":100,"output_tokens":0}}}),
+                        json!({"type":"message_start","message":{"type":"message","role":"assistant","content":[],"usage":{"input_tokens":100,"output_tokens":0}}}),
                         json!({"type":"content_block_start","index":0,"content_block":{"type":"text","text":segments[0]}}),
                     ],
                 };
@@ -2080,7 +2197,7 @@ fn empty_text_terminal_results_are_persisted_with_usage() {
                             json!({"type":if length { "response.incomplete" } else { "response.completed" },"response":response}),
                         ],
                         Api::AnthropicMessages => vec![
-                            json!({"type":"message_start","message":{"type":"message","role":"assistant","usage":{"input_tokens":100,"output_tokens":0}}}),
+                            json!({"type":"message_start","message":{"type":"message","role":"assistant","content":[],"usage":{"input_tokens":100,"output_tokens":0}}}),
                             json!({"type":"content_block_start","index":0,"content_block":{"type":"text","text":""}}),
                             json!({"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":""}}),
                             json!({"type":"content_block_stop","index":0}),
@@ -2450,6 +2567,191 @@ fn terminal_metadata_cannot_bind_a_different_admission_or_invalid_state() {
         );
     }
     assert!(env.vault.verify(&pin).unwrap().is_clean());
+}
+
+#[test]
+fn invocation_snapshot_requires_the_exact_terminal_event_kind() {
+    use enouia_memory_contract::{
+        MemoryError,
+        foundation::ComponentId,
+        provider::{FinishReason, ProviderResponse},
+        record::RecordRef,
+        session::EventKind,
+        set::{RecordSet, validate_set},
+    };
+    for state in [
+        InvocationState::Completed,
+        InvocationState::Length,
+        InvocationState::Failed,
+        InvocationState::Cancelled,
+    ] {
+        let env = Env::new("invocation-terminal-snapshot");
+        let api = Api::OpenAiResponses;
+        let (capsule, input, policy, caps) = setup(&env, api, Sensitivity::Normal);
+        let enabled = AtomicBool::new(true);
+        let adapter = VaultAdapter {
+            vault: &env.vault,
+            owner: owner(),
+            input_event: input,
+            enabled: &enabled,
+            quota: Quota::default(),
+        };
+        let call = adapter
+            .prepare_saved(
+                api,
+                &capsule,
+                &caps,
+                Limits::default(),
+                CallOptions::text(policy, 128),
+            )
+            .unwrap();
+        // Journal-only fixtures: actual synthetic persistence, no transport or
+        // credentials. Each state first comes from the supported write entry.
+        assert!(adapter.claim(&call).unwrap());
+        if matches!(state, InvocationState::Completed | InvocationState::Length) {
+            adapter
+                .finish(
+                    call.dispatch(),
+                    Some(&ProviderResponse {
+                        text: "synthetic terminal".into(),
+                        finish: if state == InvocationState::Completed {
+                            FinishReason::Completed
+                        } else {
+                            FinishReason::Length
+                        },
+                        tool_requests: vec![],
+                        input_tokens: Some(10),
+                        output_tokens: Some(4),
+                    }),
+                    None,
+                )
+                .unwrap();
+        } else {
+            adapter
+                .finish_failure(
+                    call.dispatch(),
+                    MemoryError::new(
+                        if state == InvocationState::Cancelled {
+                            MemoryErrorCode::Cancelled
+                        } else {
+                            MemoryErrorCode::ProviderUnavailable
+                        },
+                        ComponentId::Provider,
+                    ),
+                    None,
+                    None,
+                )
+                .unwrap();
+        }
+        let pin = env.vault.pin_current().unwrap();
+        let mut set = RecordSet::default();
+        for kind in [
+            RecordKind::Source,
+            RecordKind::Attachment,
+            RecordKind::Project,
+            RecordKind::Memory,
+            RecordKind::Candidate,
+            RecordKind::Review,
+            RecordKind::Identity,
+            RecordKind::Session,
+            RecordKind::SessionEvent,
+            RecordKind::Checkpoint,
+            RecordKind::Tombstone,
+            RecordKind::PurgeReceipt,
+            RecordKind::Capsule,
+            RecordKind::Inspection,
+            RecordKind::Dispatch,
+            RecordKind::Approval,
+            RecordKind::Policy,
+            RecordKind::Import,
+        ] {
+            for entry in env.vault.record_entries(&pin, kind).unwrap() {
+                for revision in 1..=entry.revision.get() {
+                    set.push(
+                        env.vault
+                            .read_parsed(
+                                &pin,
+                                &RecordRef::new(
+                                    kind,
+                                    &entry.record_id,
+                                    Revision::new(revision).unwrap(),
+                                ),
+                            )
+                            .unwrap(),
+                    );
+                }
+            }
+        }
+        let mut cursor = pin.clone();
+        loop {
+            let manifest = env.vault.read_manifest(&cursor).unwrap();
+            let parent = manifest.parent_commit_id.clone();
+            set.commits.push(manifest);
+            let Some(commit_id) = parent else {
+                break;
+            };
+            cursor = enouia_memory_contract::ports::CommitPin {
+                commit_id,
+                sequence: cursor.sequence - 1,
+                policy_epoch: 0,
+                deletion_epoch: 0,
+            };
+        }
+        assert!(validate_set(&set).is_empty());
+        let latest = set
+            .sessions
+            .iter()
+            .enumerate()
+            .max_by_key(|(_, s)| s.revision)
+            .unwrap()
+            .0;
+        let terminal = set.sessions[latest].provider_invocations[0]
+            .terminal_event_id
+            .as_ref()
+            .unwrap();
+        let kind = set
+            .session_events
+            .iter()
+            .find(|e| &e.event_id == terminal)
+            .unwrap()
+            .kind;
+        for alternate in [
+            InvocationState::Completed,
+            InvocationState::Length,
+            InvocationState::Failed,
+            InvocationState::Cancelled,
+        ] {
+            let mut changed = set.clone();
+            let row = &mut changed.sessions[latest].provider_invocations[0];
+            row.state = alternate;
+            row.error_code = match alternate {
+                InvocationState::Failed => Some(MemoryErrorCode::ProviderUnavailable),
+                InvocationState::Cancelled => Some(MemoryErrorCode::Cancelled),
+                _ => None,
+            };
+            assert!(row.validate().is_empty());
+            let expected = matches!(
+                (alternate, kind),
+                (InvocationState::Completed, EventKind::AssistantCompleted)
+                    | (
+                        InvocationState::Length | InvocationState::Failed,
+                        EventKind::TurnFailed
+                    )
+                    | (InvocationState::Cancelled, EventKind::TurnCancelled)
+            );
+            let violations = validate_set(&changed);
+            assert_eq!(
+                !violations.iter().any(|v| v.rule == "invocation.terminal"),
+                expected,
+                "{alternate:?} must agree with {kind:?}: {violations:?}"
+            );
+            if expected {
+                assert!(violations.is_empty());
+            }
+        }
+        assert_eq!(env.vault.pin_current().unwrap(), pin);
+        assert!(env.vault.verify(&pin).unwrap().is_clean());
+    }
 }
 
 #[test]
@@ -3384,6 +3686,319 @@ fn extraction_source(env: &Env) -> SourceId {
         )
         .unwrap()
         .id
+}
+
+fn revise_synthetic_extraction_source(env: &Env, id: &SourceId, sensitivity: Sensitivity) {
+    use enouia_memory_contract::{
+        commit::OperationKind,
+        json::canonical_bytes,
+        ports::{CommitRequest, IdempotencyScope, StagedRecord},
+        record::{AnyRecord, RecordRef},
+    };
+    let pin = env.vault.pin_current().unwrap();
+    let AnyRecord::Source(mut source) = env
+        .vault
+        .read_parsed(
+            &pin,
+            &RecordRef::new(RecordKind::Source, id.as_str(), Revision::new(1).unwrap()),
+        )
+        .unwrap()
+    else {
+        panic!("source");
+    };
+    source.revision = Revision::new(2).unwrap();
+    source.sensitivity = sensitivity;
+    let bytes = canonical_bytes(&serde_json::to_value(&source).unwrap()).unwrap();
+    env.vault
+        .commit(CommitRequest {
+            commit_id: CommitId::from_random(env.vault.random_id_bytes()),
+            expected_commit_id: Some(pin.commit_id),
+            principal: owner(),
+            operation_kind: OperationKind::Migration,
+            idempotency: IdempotencyScope {
+                principal_id: owner().actor_id,
+                operation_kind: OperationKind::Migration,
+                key_hash: sha256(b"synthetic-extraction-source-revision"),
+            },
+            request_payload_hash: sha256(&bytes),
+            expected_revisions: vec![(RecordKind::Source, id.to_string(), Revision::new(1))],
+            records: vec![StagedRecord {
+                record_kind: RecordKind::Source,
+                record_id: id.to_string(),
+                revision: source.revision,
+                bytes,
+            }],
+            objects: vec![],
+        })
+        .unwrap();
+}
+
+#[test]
+fn extraction_refuses_obsolete_source_revisions_in_every_job_entry_point() {
+    use enouia_memory_contract::extraction::ExtractionState;
+    use enouia_memory_provider::extraction;
+    for state in [
+        ExtractionState::Ready,
+        ExtractionState::Paused,
+        ExtractionState::Completed,
+    ] {
+        for sensitivity in [Sensitivity::Normal, Sensitivity::HighlySensitive] {
+            let env = Env::new("extraction-obsolete-source");
+            let api = Api::OpenAiResponses;
+            let source = extraction_source(&env);
+            let policy = grant(&env, api);
+            let mut options = extraction_options(source.clone(), api);
+            let (sid, run) = extraction::create(
+                &env.vault,
+                &owner(),
+                &env.policy(),
+                &options,
+                b"obsolete-source-run",
+            )
+            .unwrap();
+            let current = extraction::job(&env.vault, &owner(), &sid, &run).unwrap();
+            let enabled = AtomicBool::new(true);
+            let adapter = VaultAdapter {
+                vault: &env.vault,
+                owner: owner(),
+                input_event: current.input_event_id.clone(),
+                enabled: &enabled,
+                quota: Quota::default(),
+            };
+            if state == ExtractionState::Paused {
+                extraction::set_paused(&env.vault, &owner(), &sid, &run, true).unwrap();
+            } else if state == ExtractionState::Completed {
+                let (index, _) = enouia_memory_index::Index::rebuild(&env.vault).unwrap();
+                let call = extraction::prepare(
+                    &adapter,
+                    &index,
+                    &run,
+                    &extraction_capabilities(&env, api),
+                    Limits::default(),
+                    CallOptions::text(policy.clone(), 1024),
+                )
+                .unwrap();
+                let mut body: serde_json::Value = serde_json::from_slice(&reply(api)).unwrap();
+                body["output"][0]["content"][0]["text"] =
+                    json!(json!({"candidates":[]}).to_string());
+                Client {
+                    transport: &FakeHttp {
+                        calls: Cell::new(0),
+                        bytes: serde_json::to_vec(&body).unwrap(),
+                        fail: false,
+                    },
+                    secrets: &Secrets { missing: false },
+                    guard: &adapter,
+                    journal: &adapter,
+                }
+                .send(&call, &call.inspect().hash(), &NeverCancel)
+                .unwrap();
+                assert_eq!(
+                    extraction::apply_next(&adapter, &run).unwrap().state,
+                    ExtractionState::Completed
+                );
+            }
+            let original = extraction::job(&env.vault, &owner(), &sid, &run).unwrap();
+            // An unrelated Session commit does not invalidate these sources.
+            session::start(
+                &env.vault,
+                &SessionStart {
+                    owner: owner(),
+                    surface: ClientSurface::Test,
+                    sensitivity: Sensitivity::Normal,
+                    policy_id: env.policy(),
+                },
+                b"unrelated-session",
+            )
+            .unwrap();
+            assert_eq!(
+                extraction::job(&env.vault, &owner(), &sid, &run).unwrap(),
+                original
+            );
+            let (index, _) = enouia_memory_index::Index::rebuild(&env.vault).unwrap();
+            revise_synthetic_extraction_source(&env, &source, sensitivity);
+            let changed = env.vault.pin_current().unwrap();
+            assert!(env.vault.verify(&changed).unwrap().is_clean());
+            assert_eq!(
+                extraction::job(&env.vault, &owner(), &sid, &run)
+                    .unwrap_err()
+                    .code,
+                MemoryErrorCode::RevisionConflict
+            );
+            for paused in [true, false] {
+                assert_eq!(
+                    extraction::set_paused(&env.vault, &owner(), &sid, &run, paused)
+                        .unwrap_err()
+                        .code,
+                    MemoryErrorCode::RevisionConflict
+                );
+            }
+            assert_eq!(
+                extraction::preview(&adapter, &run).unwrap_err().code,
+                MemoryErrorCode::RevisionConflict
+            );
+            assert_eq!(
+                extraction::apply_next(&adapter, &run).unwrap_err().code,
+                MemoryErrorCode::RevisionConflict
+            );
+            assert_eq!(
+                extraction::prepare(
+                    &adapter,
+                    &index,
+                    &run,
+                    &extraction_capabilities(&env, api),
+                    Limits::default(),
+                    CallOptions::text(policy, 1024)
+                )
+                .err()
+                .unwrap()
+                .code,
+                MemoryErrorCode::RevisionConflict
+            );
+            assert_eq!(
+                extraction::create(
+                    &env.vault,
+                    &owner(),
+                    &env.policy(),
+                    &options,
+                    b"obsolete-selection-new-run"
+                )
+                .unwrap_err()
+                .code,
+                MemoryErrorCode::RevisionConflict
+            );
+            assert_eq!(env.vault.pin_current().unwrap(), changed);
+            assert_eq!(
+                session::get(&env.vault, &changed, &sid)
+                    .unwrap()
+                    .extraction_jobs,
+                vec![original]
+            );
+            // Explicitly select the current version; never silently upgrade the
+            // old job. Highly sensitive sources remain ineligible for extraction.
+            options.sources[0].source.source_revision = Revision::new(2).unwrap();
+            let fresh = extraction::create(
+                &env.vault,
+                &owner(),
+                &env.policy(),
+                &options,
+                b"current-selection-new-run",
+            );
+            if sensitivity == Sensitivity::HighlySensitive {
+                assert_eq!(fresh.unwrap_err().code, MemoryErrorCode::PermissionDenied);
+                assert_eq!(env.vault.pin_current().unwrap(), changed);
+            } else {
+                let (new_sid, new_run) = fresh.unwrap();
+                assert_eq!(
+                    extraction::job(&env.vault, &owner(), &new_sid, &new_run)
+                        .unwrap()
+                        .sources[0]
+                        .source
+                        .source_revision,
+                    Revision::new(2).unwrap()
+                );
+            }
+            assert!(
+                env.vault
+                    .verify(&env.vault.pin_current().unwrap())
+                    .unwrap()
+                    .is_clean()
+            );
+        }
+    }
+}
+
+#[test]
+fn extraction_source_revision_changes_during_validation_refuse_the_old_snapshot() {
+    use enouia_memory_contract::foundation::Clock;
+    use enouia_memory_provider::extraction;
+    use std::sync::{Arc, Mutex, mpsc};
+    struct PauseClock(Mutex<Option<(mpsc::Sender<()>, mpsc::Receiver<()>)>>);
+    impl Clock for PauseClock {
+        fn now_unix_ms(&self) -> i64 {
+            if let Some((entered, release)) = self.0.lock().unwrap().take() {
+                entered.send(()).unwrap();
+                release.recv_timeout(Duration::from_secs(30)).unwrap();
+            }
+            T0
+        }
+    }
+    for change in [
+        "normal_revision",
+        "sensitive_revision",
+        "policy_epoch",
+        "unrelated_session",
+    ] {
+        let env = Env::new("extraction-source-change-race");
+        let source = extraction_source(&env);
+        let options = extraction_options(source.clone(), Api::OpenAiResponses);
+        let (sid, run) = extraction::create(
+            &env.vault,
+            &owner(),
+            &env.policy(),
+            &options,
+            b"source-change-race-run",
+        )
+        .unwrap();
+        let clock = Arc::new(PauseClock(Mutex::new(None)));
+        let root = enouia_memory_vault::verify_data_root(
+            env.vault.managed_root().root(),
+            &enouia_memory_vault::RootPolicy::default(),
+        )
+        .unwrap();
+        let delayed = enouia_memory_vault::Vault::open(
+            &root,
+            None,
+            clock.clone(),
+            Arc::new(enouia_memory_vault::OsIdSource),
+            enouia_memory_vault::VaultOptions::default(),
+        )
+        .unwrap();
+        let (entered_tx, entered_rx) = mpsc::channel();
+        let (release_tx, release_rx) = mpsc::channel();
+        *clock.0.lock().unwrap() = Some((entered_tx, release_rx));
+        let (result, changed) = std::thread::scope(|scope| {
+            let worker = scope.spawn(|| extraction::job(&delayed, &owner(), &sid, &run));
+            entered_rx.recv_timeout(Duration::from_secs(30)).unwrap();
+            match change {
+                "normal_revision" => {
+                    revise_synthetic_extraction_source(&env, &source, Sensitivity::Normal)
+                }
+                "sensitive_revision" => {
+                    revise_synthetic_extraction_source(&env, &source, Sensitivity::HighlySensitive)
+                }
+                "policy_epoch" => {
+                    grant(&env, Api::OpenAiResponses);
+                }
+                _ => {
+                    session::start(
+                        &env.vault,
+                        &SessionStart {
+                            owner: owner(),
+                            surface: ClientSurface::Test,
+                            sensitivity: Sensitivity::Normal,
+                            policy_id: env.policy(),
+                        },
+                        b"unrelated-validation-session",
+                    )
+                    .unwrap();
+                }
+            }
+            let changed = env.vault.pin_current().unwrap();
+            release_tx.send(()).unwrap();
+            (worker.join().unwrap(), changed)
+        });
+        if change == "unrelated_session" {
+            assert_eq!(
+                result.unwrap().sources[0].source.source_revision,
+                Revision::new(1).unwrap()
+            );
+        } else {
+            assert_eq!(result.unwrap_err().code, MemoryErrorCode::RevisionConflict);
+        }
+        assert_eq!(env.vault.pin_current().unwrap(), changed);
+        assert!(env.vault.verify(&changed).unwrap().is_clean());
+    }
 }
 fn extraction_reply(api: Api, invalid: bool) -> Vec<u8> {
     let claims = json!({"candidates":[
@@ -4727,6 +5342,7 @@ fn openai_terminal_event_and_response_status_must_agree_before_publication() {
             MemoryErrorCode::ProviderUnavailable
         );
         assert_eq!(partial, "合成答复");
+        assert_eq!(decoder.observed_usage(), (None, None));
         let correct_terminal = json!({
             "type":if completed {"response.completed"} else {"response.incomplete"},
             "response":response,
@@ -4776,6 +5392,7 @@ fn openai_terminal_event_and_response_status_must_agree_before_publication() {
         );
         let row = adapter.invocations().unwrap().remove(0);
         assert_eq!(row.state, InvocationState::Failed);
+        assert_eq!((row.input_tokens, row.output_tokens), (None, None));
         assert_eq!(row.error_code, Some(MemoryErrorCode::ProviderUnavailable));
         assert!(adapter.saved_response(&row.dispatch_id).unwrap().is_none());
         let pin = env.vault.pin_current().unwrap();
@@ -4961,6 +5578,31 @@ fn malformed_native_credentials_do_not_consume_private_approval_or_admission() {
             Ok(SecretBytes::new(self.0.clone()))
         }
     }
+    // Exercise the exact native guards with an exchange that cannot use HTTP.
+    // A credential/client regression must fail locally without contacting an API.
+    struct OfflineNative(Cell<u64>);
+    impl Transport for OfflineNative {
+        fn preflight(&self) -> Result<()> {
+            enouia_memory_provider::transport::HttpsTransport.preflight()
+        }
+        fn validate_secret(&self, secret: &SecretBytes) -> Result<()> {
+            enouia_memory_provider::transport::HttpsTransport.validate_secret(secret)
+        }
+        fn exchange(
+            &self,
+            _: &enouia_memory_provider::codec::WireRequest,
+            _: &SecretBytes,
+            _: &dyn Cancellation,
+            _: Duration,
+            _: &mut dyn FnMut(&[u8]) -> Result<()>,
+        ) -> Result<()> {
+            self.0.set(self.0.get() + 1);
+            Err(enouia_memory_contract::MemoryError::new(
+                MemoryErrorCode::Unauthenticated,
+                enouia_memory_contract::foundation::ComponentId::Provider,
+            ))
+        }
+    }
     for api in [Api::OpenAiResponses, Api::AnthropicMessages] {
         let env = Env::new("credential-shape-preflight");
         let (capsule, input, policy, caps) = setup(&env, api, Sensitivity::Private);
@@ -4992,10 +5634,10 @@ fn malformed_native_credentials_do_not_consume_private_approval_or_admission() {
             .unwrap();
         let before = env.vault.pin_current().unwrap();
         let native = enouia_memory_provider::transport::HttpsTransport;
-        // Every shape is refused locally before any request is built,
-        // independently of whether Client validates it before admission.
-        // Space and non-ASCII bytes are accepted by the pinned header type,
-        // so without this check they would be admitted and sent malformed.
+        let offline = OfflineNative(Cell::new(0));
+        // Space/non-ASCII bytes are accepted by the pinned header type. Never
+        // pass them to native exchange in a regression test: a broken shape
+        // guard would otherwise build and send a real request.
         for secret in [
             vec![],
             vec![0xff],
@@ -5012,7 +5654,7 @@ fn malformed_native_credentials_do_not_consume_private_approval_or_admission() {
         ] {
             let store = FixedSecret(secret.clone());
             let client = Client {
-                transport: &native,
+                transport: &offline,
                 secrets: &store,
                 guard: &adapter,
                 journal: &adapter,
@@ -5022,24 +5664,14 @@ fn malformed_native_credentials_do_not_consume_private_approval_or_admission() {
             assert!(!failure.retryable);
             assert!(adapter.invocations().unwrap().is_empty());
             assert_eq!(env.vault.pin_current().unwrap(), before);
-            let mut delivered = false;
             assert_eq!(
                 native
-                    .exchange(
-                        call.inspect(),
-                        &SecretBytes::new(secret),
-                        &NeverCancel,
-                        Duration::from_secs(1),
-                        &mut |_| {
-                            delivered = true;
-                            Ok(())
-                        }
-                    )
+                    .validate_secret(&SecretBytes::new(secret))
                     .unwrap_err()
                     .code,
                 MemoryErrorCode::Unauthenticated
             );
-            assert!(!delivered);
+            assert_eq!(offline.0.get(), 0);
             assert_eq!(env.vault.pin_current().unwrap(), before);
         }
         // A custom transport can support opaque/binary secret bytes. Its
@@ -5119,12 +5751,17 @@ fn failed_or_cancelled_streams_keep_validated_usage_for_later_token_admission() 
             "eof",
             "cancel",
             "malformed",
+            "completed_text_mismatch",
+            "incomplete_text_mismatch",
             "input_tokens",
             "output_tokens",
             "cache_creation_input_tokens",
             "cache_read_input_tokens",
         ] {
             if api != Api::AnthropicMessages && mode.ends_with("tokens") {
+                continue;
+            }
+            if api != Api::OpenAiResponses && mode.ends_with("text_mismatch") {
                 continue;
             }
             let env = Env::new("failed-stream-usage");
@@ -5147,13 +5784,23 @@ fn failed_or_cancelled_streams_keep_validated_usage_for_later_token_admission() 
                     let mut terminal: serde_json::Value =
                         serde_json::from_slice(&reply(api)).unwrap();
                     terminal["usage"] = json!({"input_tokens":5000,"output_tokens":1000});
+                    if mode.ends_with("text_mismatch") {
+                        terminal["output"][0]["content"][0]["text"] = json!("不一致的合成终态");
+                    }
+                    let terminal_kind = if mode == "incomplete_text_mismatch" {
+                        terminal["status"] = json!("incomplete");
+                        terminal["incomplete_details"] = json!({"reason":"max_output_tokens"});
+                        "response.incomplete"
+                    } else {
+                        "response.completed"
+                    };
                     vec![
                         json!({"type":"response.output_text.delta","delta":"合成答复"}),
-                        json!({"type":"response.completed","response":terminal}),
+                        json!({"type":terminal_kind,"response":terminal}),
                     ]
                 }
                 Api::AnthropicMessages => vec![
-                    json!({"type":"message_start","message":{"type":"message","role":"assistant","usage":{"input_tokens":5000,"cache_creation_input_tokens":2,"cache_read_input_tokens":3,"output_tokens":0}}}),
+                    json!({"type":"message_start","message":{"type":"message","role":"assistant","content":[],"usage":{"input_tokens":5000,"cache_creation_input_tokens":2,"cache_read_input_tokens":3,"output_tokens":0}}}),
                     json!({"type":"content_block_start","index":0,"content_block":{"type":"text","text":"合成答复"}}),
                     json!({"type":"content_block_stop","index":0}),
                     json!({"type":"message_delta","delta":{"stop_reason":"end_turn"},"usage":{"output_tokens":1000}}),
@@ -5333,6 +5980,63 @@ fn failed_or_cancelled_streams_keep_validated_usage_for_later_token_admission() 
             assert_eq!(never_sent.calls.get(), 0);
             assert_eq!(env.vault.pin_current().unwrap(), before);
             assert!(env.vault.verify(&before).unwrap().is_clean());
+        }
+    }
+}
+
+#[test]
+fn openai_text_mismatch_keeps_only_validated_terminal_usage_and_latches_failure() {
+    for completed in [true, false] {
+        for (usage, expected) in [
+            (
+                json!({"input_tokens":5000,"output_tokens":1000}),
+                (Some(5000), Some(1000)),
+            ),
+            (serde_json::Value::Null, (None, None)),
+            (
+                json!({"input_tokens":5000,"output_tokens":"invalid"}),
+                (None, None),
+            ),
+        ] {
+            let mut response: serde_json::Value =
+                serde_json::from_slice(&reply(Api::OpenAiResponses)).unwrap();
+            response["usage"] = usage;
+            response["output"][0]["content"][0]["text"] = json!("不一致的合成终态");
+            let kind = if completed {
+                "response.completed"
+            } else {
+                response["status"] = json!("incomplete");
+                response["incomplete_details"] = json!({"reason":"max_output_tokens"});
+                "response.incomplete"
+            };
+            let terminal = json!({"type":kind,"response":response});
+            let bytes = format!(
+                "data: {{\"type\":\"response.output_text.delta\",\"delta\":\"合成答复\"}}\n\ndata: {terminal}\n\n"
+            );
+            let mut decoder = Decoder::new(Api::OpenAiResponses);
+            let mut chunks = String::new();
+            assert_eq!(
+                decoder
+                    .push(bytes.as_bytes(), &mut |text| {
+                        chunks.push_str(text);
+                        Ok(())
+                    })
+                    .unwrap_err()
+                    .code,
+                MemoryErrorCode::ProviderUnavailable
+            );
+            assert_eq!(chunks, "合成答复");
+            assert_eq!(decoder.observed_usage(), expected);
+            response["output"][0]["content"][0]["text"] = json!("合成答复");
+            response["usage"] = json!({"input_tokens":6000,"output_tokens":2000});
+            let corrected = json!({"type":kind,"response":response});
+            assert!(
+                decoder
+                    .push(format!("data: {corrected}\n\n").as_bytes(), &mut |_| Ok(()))
+                    .is_err()
+            );
+            assert_eq!(decoder.observed_usage(), expected);
+            assert!(decoder.finish().is_err());
         }
     }
 }
@@ -5913,4 +6617,2502 @@ fn sse_line_framing_preserves_text_and_completion_across_fragment_boundaries() {
         MemoryErrorCode::BudgetExceeded
     );
     assert!(decoder.finish().is_err());
+}
+
+#[test]
+fn failed_anthropic_json_keeps_valid_usage_without_completing_or_resending() {
+    use enouia_memory_contract::record::{AnyRecord, RecordRef};
+    let mut cases: Vec<_> = [
+        (
+            json!({"input_tokens":50000,"output_tokens":4}),
+            Some(50000),
+            Some(4),
+        ),
+        (
+            json!({"input_tokens":50000,"cache_creation_input_tokens":2,"cache_read_input_tokens":3,"output_tokens":4}),
+            Some(50005),
+            Some(4),
+        ),
+        (
+            json!({"input_tokens":0,"output_tokens":0}),
+            Some(0),
+            Some(0),
+        ),
+        (json!({"output_tokens":4}), None, Some(4)),
+        (serde_json::Value::Null, None, None),
+        (
+            json!({"input_tokens":50000,"output_tokens":"invalid"}),
+            None,
+            None,
+        ),
+    ].into_iter().map(|(usage, input, output)| (json!({"type":"message","role":"assistant","content":[],
+        "stop_reason":"refusal","usage":usage}), input, output, false)).collect();
+    let valid = json!({"type":"message","role":"assistant","content":[],"stop_reason":"refusal",
+        "usage":{"input_tokens":50000,"output_tokens":4}});
+    for (key, value) in [
+        ("type", json!("error")),
+        ("role", json!("user")),
+        ("content", serde_json::Value::Null),
+        ("content", json!([{"type":"text","text":42}])),
+    ] {
+        let mut body = valid.clone();
+        body[key] = value;
+        cases.push((body, None, None, false));
+    }
+    cases.push((valid, None, None, true));
+    for (body, expected_input, expected_output, transport_failure) in cases {
+        let env = Env::new("failed-json-usage");
+        let api = Api::AnthropicMessages;
+        let (capsule, input, policy, caps) = setup(&env, api, Sensitivity::Normal);
+        let enabled = AtomicBool::new(true);
+        let adapter = VaultAdapter {
+            vault: &env.vault,
+            owner: owner(),
+            input_event: input.clone(),
+            enabled: &enabled,
+            quota: Quota::default(),
+        };
+        let call = adapter
+            .prepare_saved(
+                api,
+                &capsule,
+                &caps,
+                Limits::default(),
+                CallOptions::text(policy.clone(), 128),
+            )
+            .unwrap();
+        let http = FakeHttp {
+            calls: Cell::new(0),
+            bytes: serde_json::to_vec(&body).unwrap(),
+            fail: transport_failure,
+        };
+        let client = Client {
+            transport: &http,
+            secrets: &Secrets { missing: false },
+            guard: &adapter,
+            journal: &adapter,
+        };
+        let failure = client
+            .send(&call, &call.inspect().hash(), &NeverCancel)
+            .unwrap_err();
+        assert_eq!(failure.code, MemoryErrorCode::ProviderUnavailable);
+        assert!(!failure.retryable);
+        let rows = adapter.invocations().unwrap();
+        assert_eq!(rows.len(), 1);
+        let row = &rows[0];
+        assert_eq!(row.state, InvocationState::Failed);
+        assert_eq!(
+            (row.input_tokens, row.output_tokens),
+            (expected_input, expected_output)
+        );
+        assert_eq!(
+            row.reserved_tokens,
+            call.estimated_input_tokens() + call.dispatch().output.max_output_tokens
+        );
+        let pin = env.vault.pin_current().unwrap();
+        let AnyRecord::SessionEvent(previous) = env
+            .vault
+            .read_parsed(
+                &pin,
+                &RecordRef::new(
+                    RecordKind::SessionEvent,
+                    input.as_str(),
+                    Revision::new(1).unwrap(),
+                ),
+            )
+            .unwrap()
+        else {
+            panic!("input");
+        };
+        let events =
+            session::events(&env.vault, &pin, &previous.session_id, &previous.branch_id).unwrap();
+        assert!(!events.iter().any(|event| matches!(
+            event.kind,
+            enouia_memory_contract::session::EventKind::AssistantCompleted
+                | enouia_memory_contract::session::EventKind::AssistantChunk
+        )));
+        assert_eq!(
+            client
+                .send(&call, &call.inspect().hash(), &NeverCancel)
+                .unwrap_err()
+                .code,
+            MemoryErrorCode::IdempotencyConflict
+        );
+        assert_eq!(http.calls.get(), 1);
+        assert_eq!(env.vault.pin_current().unwrap(), pin);
+        assert!(env.vault.verify(&pin).unwrap().is_clean());
+
+        // The failed body reports more than the old reservation. A distinct
+        // explicit next input must debit that known use before any exchange.
+        if expected_input.is_some_and(|count| count >= 50000) {
+            let mut compile = CompileInput::local(
+                "新的明确合成输入",
+                owner(),
+                RequestId::from_random(env.vault.random_id_bytes()),
+            );
+            compile.session_id = Some(previous.session_id.clone());
+            compile.branch_id = Some(previous.branch_id.clone());
+            let next_input = session::save_input(
+                &env.vault,
+                &owner(),
+                &previous.session_id,
+                &previous.branch_id,
+                &compile.query,
+                &compile.request_id,
+                b"after-failed-json",
+            )
+            .unwrap()
+            .id;
+            let (index, _) = enouia_memory_index::Index::rebuild(&env.vault).unwrap();
+            let next_capsule = compiler::compile_for_destination(
+                &env.vault,
+                &index,
+                &compile,
+                &Destination {
+                    kind: DestinationKind::ExternalProvider,
+                    provider_binding: Some(caps.binding.clone()),
+                },
+            )
+            .unwrap();
+            let mut next = VaultAdapter {
+                input_event: next_input,
+                ..adapter
+            };
+            let next_call = next
+                .prepare_saved(
+                    api,
+                    &next_capsule.capsule.capsule_id,
+                    &caps,
+                    Limits::default(),
+                    CallOptions::text(policy, 128),
+                )
+                .unwrap();
+            next.quota.max_reserved_tokens = row.reserved_tokens
+                + next_call.estimated_input_tokens()
+                + next_call.dispatch().output.max_output_tokens;
+            let before = env.vault.pin_current().unwrap();
+            assert_eq!(
+                Client {
+                    transport: &http,
+                    secrets: &Secrets { missing: false },
+                    guard: &next,
+                    journal: &next
+                }
+                .send(&next_call, &next_call.inspect().hash(), &NeverCancel)
+                .unwrap_err()
+                .code,
+                MemoryErrorCode::BudgetExceeded
+            );
+            assert_eq!(http.calls.get(), 1);
+            assert_eq!(env.vault.pin_current().unwrap(), before);
+            assert_eq!(next.invocations().unwrap().len(), 1);
+            assert!(env.vault.verify(&before).unwrap().is_clean());
+        }
+    }
+}
+
+#[test]
+fn prepared_extraction_calls_refuse_changed_sources_before_secrets_or_admission() {
+    use enouia_memory_provider::{egress::SendGuard, extraction};
+    struct CountSecrets(Cell<u64>);
+    impl SecretStore for CountSecrets {
+        fn read(&self, _: &str) -> Result<SecretBytes> {
+            self.0.set(self.0.get() + 1);
+            Ok(SecretBytes::new(b"synthetic-secret".to_vec()))
+        }
+    }
+    for api in [Api::OpenAiResponses, Api::AnthropicMessages] {
+        for change in ["normal_revision", "sensitive_revision", "unrelated_session"] {
+            let env = Env::new("prepared-extraction-source-change");
+            let source = extraction_source(&env);
+            let policy = grant(&env, api);
+            let (sid, run) = extraction::create(
+                &env.vault,
+                &owner(),
+                &env.policy(),
+                &extraction_options(source.clone(), api),
+                b"prepared-source-change",
+            )
+            .unwrap();
+            let job = extraction::job(&env.vault, &owner(), &sid, &run).unwrap();
+            let enabled = AtomicBool::new(true);
+            let adapter = VaultAdapter {
+                vault: &env.vault,
+                owner: owner(),
+                input_event: job.input_event_id.clone(),
+                enabled: &enabled,
+                quota: Quota::default(),
+            };
+            let (index, _) = enouia_memory_index::Index::rebuild(&env.vault).unwrap();
+            let call = extraction::prepare(
+                &adapter,
+                &index,
+                &run,
+                &extraction_capabilities(&env, api),
+                Limits::default(),
+                CallOptions::text(policy, 1024),
+            )
+            .unwrap();
+            match change {
+                "normal_revision" => {
+                    revise_synthetic_extraction_source(&env, &source, Sensitivity::Normal)
+                }
+                "sensitive_revision" => {
+                    revise_synthetic_extraction_source(&env, &source, Sensitivity::HighlySensitive)
+                }
+                _ => {
+                    session::start(
+                        &env.vault,
+                        &SessionStart {
+                            owner: owner(),
+                            surface: ClientSurface::Test,
+                            sensitivity: Sensitivity::Normal,
+                            policy_id: env.policy(),
+                        },
+                        b"unrelated-prepared-session",
+                    )
+                    .unwrap();
+                }
+            }
+            let before = env.vault.pin_current().unwrap();
+            let secrets = CountSecrets(Cell::new(0));
+            let http = FakeHttp {
+                calls: Cell::new(0),
+                bytes: reply(api),
+                fail: false,
+            };
+            if change != "unrelated_session" {
+                for audit in [false, true] {
+                    assert_eq!(
+                        adapter.check(call.dispatch(), audit).unwrap_err().code,
+                        MemoryErrorCode::RevisionConflict
+                    );
+                }
+                assert_eq!(
+                    adapter.claim(&call).unwrap_err().code,
+                    MemoryErrorCode::RevisionConflict
+                );
+            }
+            let result = Client {
+                transport: &http,
+                secrets: &secrets,
+                guard: &adapter,
+                journal: &adapter,
+            }
+            .send(&call, &call.inspect().hash(), &NeverCancel);
+            if change == "unrelated_session" {
+                assert!(result.is_ok());
+                assert_eq!(secrets.0.get(), 1);
+                assert_eq!(http.calls.get(), 1);
+                assert_eq!(
+                    adapter.invocations().unwrap()[0].state,
+                    InvocationState::Completed
+                );
+            } else {
+                assert_eq!(result.unwrap_err().code, MemoryErrorCode::RevisionConflict);
+                assert_eq!(secrets.0.get(), 0);
+                assert_eq!(http.calls.get(), 0);
+                assert!(adapter.invocations().unwrap().is_empty());
+                assert_eq!(env.vault.pin_current().unwrap(), before);
+                assert_eq!(
+                    session::get(&env.vault, &before, &sid)
+                        .unwrap()
+                        .extraction_jobs,
+                    vec![job]
+                );
+            }
+            assert!(
+                env.vault
+                    .verify(&env.vault.pin_current().unwrap())
+                    .unwrap()
+                    .is_clean()
+            );
+        }
+    }
+}
+
+#[test]
+fn extraction_source_changes_stop_later_stream_chunks_and_terminal_publication() {
+    use enouia_memory_provider::extraction;
+    struct RevisingHttp<'a> {
+        env: &'a Env,
+        source: &'a SourceId,
+        api: Api,
+        terminal_received: bool,
+        calls: Cell<u64>,
+    }
+    impl Transport for RevisingHttp<'_> {
+        fn exchange(
+            &self,
+            _: &WireRequest,
+            _: &SecretBytes,
+            _: &dyn Cancellation,
+            _: Duration,
+            sink: &mut dyn FnMut(&[u8]) -> Result<()>,
+        ) -> Result<()> {
+            self.calls.set(self.calls.get() + 1);
+            let prefix = if self.terminal_received {
+                streaming_reply(self.api, true)
+            } else if self.api == Api::OpenAiResponses {
+                sse(&[json!({"type":"response.output_text.delta","delta":"合成答复"})])
+            } else {
+                sse(&[
+                    json!({"type":"message_start","message":{"type":"message","role":"assistant","content":[],"usage":{"input_tokens":100,"output_tokens":0}}}),
+                    json!({"type":"content_block_start","index":0,"content_block":{"type":"text","text":""}}),
+                    json!({"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"合成答复"}}),
+                ])
+            };
+            sink(&prefix)?;
+            revise_synthetic_extraction_source(self.env, self.source, Sensitivity::HighlySensitive);
+            if !self.terminal_received {
+                // This callback must be refused before decoding or saving text.
+                let delta = if self.api == Api::OpenAiResponses {
+                    json!({"type":"response.output_text.delta","delta":"must not be saved"})
+                } else {
+                    json!({"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"must not be saved"}})
+                };
+                sink(&sse(&[delta]))?;
+            }
+            Ok(())
+        }
+    }
+    for api in [Api::OpenAiResponses, Api::AnthropicMessages] {
+        for terminal_received in [true, false] {
+            let env = Env::new("extraction-stream-source-change");
+            let source = extraction_source(&env);
+            let policy = grant(&env, api);
+            let (sid, run) = extraction::create(
+                &env.vault,
+                &owner(),
+                &env.policy(),
+                &extraction_options(source.clone(), api),
+                b"stream-source-change",
+            )
+            .unwrap();
+            let job = extraction::job(&env.vault, &owner(), &sid, &run).unwrap();
+            let enabled = AtomicBool::new(true);
+            let adapter = VaultAdapter {
+                vault: &env.vault,
+                owner: owner(),
+                input_event: job.input_event_id.clone(),
+                enabled: &enabled,
+                quota: Quota::default(),
+            };
+            let (index, _) = enouia_memory_index::Index::rebuild(&env.vault).unwrap();
+            let mut options = CallOptions::text(policy, 1024);
+            options.streaming = true;
+            let call = extraction::prepare(
+                &adapter,
+                &index,
+                &run,
+                &extraction_capabilities(&env, api),
+                Limits::default(),
+                options,
+            )
+            .unwrap();
+            let http = RevisingHttp {
+                env: &env,
+                source: &source,
+                api,
+                terminal_received,
+                calls: Cell::new(0),
+            };
+            let client = Client {
+                transport: &http,
+                secrets: &Secrets { missing: false },
+                guard: &adapter,
+                journal: &adapter,
+            };
+            assert_eq!(
+                client
+                    .send(&call, &call.inspect().hash(), &NeverCancel)
+                    .unwrap_err()
+                    .code,
+                MemoryErrorCode::RevisionConflict
+            );
+            assert_eq!(http.calls.get(), 1);
+            let row = adapter.invocations().unwrap().remove(0);
+            assert_eq!(row.state, InvocationState::Failed);
+            // Retain only counts validated before the Source change.
+            let expected = if terminal_received {
+                (Some(100), Some(4))
+            } else if api == Api::AnthropicMessages {
+                (Some(100), Some(0))
+            } else {
+                (None, None)
+            };
+            assert_eq!((row.input_tokens, row.output_tokens), expected);
+            assert!(adapter.saved_response(&row.dispatch_id).unwrap().is_none());
+            let pin = env.vault.pin_current().unwrap();
+            let input = session::get(&env.vault, &pin, &sid).unwrap();
+            assert_eq!(input.extraction_jobs, vec![job]);
+            let events = session::events(&env.vault, &pin, &sid, &input.default_branch_id).unwrap();
+            assert!(
+                events
+                    .iter()
+                    .any(|e| e.kind == enouia_memory_contract::session::EventKind::AssistantChunk)
+            );
+            assert!(
+                !events
+                    .iter()
+                    .any(|e| e.kind
+                        == enouia_memory_contract::session::EventKind::AssistantCompleted)
+            );
+            for event in events
+                .iter()
+                .filter(|e| e.kind == enouia_memory_contract::session::EventKind::AssistantChunk)
+            {
+                assert!(
+                    !session::text(&env.vault, &pin, event)
+                        .unwrap()
+                        .contains("must not be saved")
+                );
+            }
+            assert!(
+                client
+                    .send(&call, &call.inspect().hash(), &NeverCancel)
+                    .is_err()
+            );
+            assert_eq!(http.calls.get(), 1);
+            assert_eq!(env.vault.pin_current().unwrap(), pin);
+            assert!(env.vault.verify(&pin).unwrap().is_clean());
+        }
+    }
+}
+
+#[test]
+fn extraction_send_guard_rechecks_source_changes_during_authorization() {
+    use enouia_memory_contract::foundation::Clock;
+    use enouia_memory_provider::{egress::SendGuard, extraction};
+    use std::sync::{Arc, Mutex, mpsc};
+    struct PauseClock(Mutex<Option<(mpsc::Sender<()>, mpsc::Receiver<()>)>>);
+    impl Clock for PauseClock {
+        fn now_unix_ms(&self) -> i64 {
+            if let Some((entered, release)) = self.0.lock().unwrap().take() {
+                entered.send(()).unwrap();
+                release.recv_timeout(Duration::from_secs(30)).unwrap();
+            }
+            T0
+        }
+    }
+    for change in ["normal_revision", "sensitive_revision", "unrelated_session"] {
+        let env = Env::new("extraction-egress-source-race");
+        let api = Api::OpenAiResponses;
+        let source = extraction_source(&env);
+        let policy = grant(&env, api);
+        let (sid, run) = extraction::create(
+            &env.vault,
+            &owner(),
+            &env.policy(),
+            &extraction_options(source.clone(), api),
+            b"egress-source-race",
+        )
+        .unwrap();
+        let job = extraction::job(&env.vault, &owner(), &sid, &run).unwrap();
+        let enabled = AtomicBool::new(true);
+        let adapter = VaultAdapter {
+            vault: &env.vault,
+            owner: owner(),
+            input_event: job.input_event_id.clone(),
+            enabled: &enabled,
+            quota: Quota::default(),
+        };
+        let (index, _) = enouia_memory_index::Index::rebuild(&env.vault).unwrap();
+        let call = extraction::prepare(
+            &adapter,
+            &index,
+            &run,
+            &extraction_capabilities(&env, api),
+            Limits::default(),
+            CallOptions::text(policy, 1024),
+        )
+        .unwrap();
+        let clock = Arc::new(PauseClock(Mutex::new(None)));
+        let root = enouia_memory_vault::verify_data_root(
+            env.vault.managed_root().root(),
+            &enouia_memory_vault::RootPolicy::default(),
+        )
+        .unwrap();
+        let delayed = enouia_memory_vault::Vault::open(
+            &root,
+            None,
+            clock.clone(),
+            Arc::new(enouia_memory_vault::OsIdSource),
+            enouia_memory_vault::VaultOptions::default(),
+        )
+        .unwrap();
+        let (entered_tx, entered_rx) = mpsc::channel();
+        let (release_tx, release_rx) = mpsc::channel();
+        *clock.0.lock().unwrap() = Some((entered_tx, release_rx));
+        let (result, changed) = std::thread::scope(|scope| {
+            let delayed_adapter = VaultAdapter {
+                vault: &delayed,
+                owner: owner(),
+                input_event: job.input_event_id.clone(),
+                enabled: &enabled,
+                quota: Quota::default(),
+            };
+            let worker = scope.spawn(move || delayed_adapter.check(call.dispatch(), false));
+            entered_rx.recv_timeout(Duration::from_secs(30)).unwrap();
+            match change {
+                "normal_revision" => {
+                    revise_synthetic_extraction_source(&env, &source, Sensitivity::Normal)
+                }
+                "sensitive_revision" => {
+                    revise_synthetic_extraction_source(&env, &source, Sensitivity::HighlySensitive)
+                }
+                _ => {
+                    session::start(
+                        &env.vault,
+                        &SessionStart {
+                            owner: owner(),
+                            surface: ClientSurface::Test,
+                            sensitivity: Sensitivity::Normal,
+                            policy_id: env.policy(),
+                        },
+                        b"unrelated-egress-session",
+                    )
+                    .unwrap();
+                }
+            }
+            let changed = env.vault.pin_current().unwrap();
+            release_tx.send(()).unwrap();
+            (worker.join().unwrap(), changed)
+        });
+        if change == "unrelated_session" {
+            result.unwrap();
+        } else {
+            assert_eq!(result.unwrap_err().code, MemoryErrorCode::RevisionConflict);
+        }
+        assert_eq!(env.vault.pin_current().unwrap(), changed);
+        assert!(env.vault.verify(&changed).unwrap().is_clean());
+    }
+}
+
+#[test]
+fn extraction_publication_rechecks_source_revisions_on_its_commit_head() {
+    use enouia_memory_contract::{MemoryError, provider::ProviderResponse};
+    use enouia_memory_provider::extraction;
+    struct RevisingJournal<'a, 'b> {
+        env: &'a Env,
+        adapter: &'a VaultAdapter<'b>,
+        source: &'a SourceId,
+        at_terminal: bool,
+        change: &'static str,
+        changed: Cell<bool>,
+    }
+    impl RevisingJournal<'_, '_> {
+        fn revise(&self) {
+            if !self.changed.replace(true) {
+                match self.change {
+                    "normal_revision" => revise_synthetic_extraction_source(
+                        self.env,
+                        self.source,
+                        Sensitivity::Normal,
+                    ),
+                    "sensitive_revision" => revise_synthetic_extraction_source(
+                        self.env,
+                        self.source,
+                        Sensitivity::HighlySensitive,
+                    ),
+                    _ => {
+                        session::start(
+                            &self.env.vault,
+                            &SessionStart {
+                                owner: owner(),
+                                surface: ClientSurface::Test,
+                                sensitivity: Sensitivity::Normal,
+                                policy_id: self.env.policy(),
+                            },
+                            b"unrelated-output-session",
+                        )
+                        .unwrap();
+                    }
+                }
+            }
+        }
+    }
+    impl InvocationJournal for RevisingJournal<'_, '_> {
+        fn claim(&self, call: &enouia_memory_provider::client::PreparedCall) -> Result<bool> {
+            self.adapter.claim(call)
+        }
+        fn chunk(&self, dispatch: &DispatchRecord, sequence: u64, text: &str) -> Result<()> {
+            if !self.at_terminal {
+                self.revise();
+            }
+            self.adapter.chunk(dispatch, sequence, text)
+        }
+        fn finish(
+            &self,
+            dispatch: &DispatchRecord,
+            response: Option<&ProviderResponse>,
+            failure: Option<MemoryError>,
+        ) -> Result<()> {
+            if self.at_terminal {
+                self.revise();
+            }
+            self.adapter.finish(dispatch, response, failure)
+        }
+        fn finish_failure(
+            &self,
+            dispatch: &DispatchRecord,
+            failure: MemoryError,
+            input_tokens: Option<u64>,
+            output_tokens: Option<u64>,
+        ) -> Result<()> {
+            self.adapter
+                .finish_failure(dispatch, failure, input_tokens, output_tokens)
+        }
+    }
+    for api in [Api::OpenAiResponses, Api::AnthropicMessages] {
+        for at_terminal in [true, false] {
+            for change in ["normal_revision", "sensitive_revision", "unrelated_session"] {
+                let env = Env::new("extraction-source-publication-race");
+                let source = extraction_source(&env);
+                let policy = grant(&env, api);
+                let (sid, run) = extraction::create(
+                    &env.vault,
+                    &owner(),
+                    &env.policy(),
+                    &extraction_options(source.clone(), api),
+                    b"source-publication-race",
+                )
+                .unwrap();
+                let job = extraction::job(&env.vault, &owner(), &sid, &run).unwrap();
+                let enabled = AtomicBool::new(true);
+                let adapter = VaultAdapter {
+                    vault: &env.vault,
+                    owner: owner(),
+                    input_event: job.input_event_id.clone(),
+                    enabled: &enabled,
+                    quota: Quota::default(),
+                };
+                let (index, _) = enouia_memory_index::Index::rebuild(&env.vault).unwrap();
+                let mut options = CallOptions::text(policy, 1024);
+                options.streaming = !at_terminal;
+                let call = extraction::prepare(
+                    &adapter,
+                    &index,
+                    &run,
+                    &extraction_capabilities(&env, api),
+                    Limits::default(),
+                    options,
+                )
+                .unwrap();
+                let http = FakeHttp {
+                    calls: Cell::new(0),
+                    bytes: if at_terminal {
+                        reply(api)
+                    } else {
+                        streaming_reply(api, true)
+                    },
+                    fail: false,
+                };
+                let journal = RevisingJournal {
+                    env: &env,
+                    adapter: &adapter,
+                    source: &source,
+                    at_terminal,
+                    change,
+                    changed: Cell::new(false),
+                };
+                let client = Client {
+                    transport: &http,
+                    secrets: &Secrets { missing: false },
+                    guard: &adapter,
+                    journal: &journal,
+                };
+                let result = client.send(&call, &call.inspect().hash(), &NeverCancel);
+                if change == "unrelated_session" {
+                    result.unwrap();
+                } else {
+                    assert_eq!(result.unwrap_err().code, MemoryErrorCode::RevisionConflict);
+                }
+                assert!(journal.changed.get());
+                assert_eq!(http.calls.get(), 1);
+                let rows = adapter.invocations().unwrap();
+                assert_eq!(rows.len(), 1);
+                assert_eq!(
+                    rows[0].state,
+                    if change == "unrelated_session" {
+                        InvocationState::Completed
+                    } else if at_terminal {
+                        InvocationState::OutcomeUnknown
+                    } else {
+                        InvocationState::Failed
+                    }
+                );
+                assert_eq!(
+                    adapter
+                        .saved_response(&rows[0].dispatch_id)
+                        .unwrap()
+                        .is_some(),
+                    change == "unrelated_session"
+                );
+                let pin = env.vault.pin_current().unwrap();
+                let header = session::get(&env.vault, &pin, &sid).unwrap();
+                assert_eq!(header.extraction_jobs, vec![job]);
+                let events =
+                    session::events(&env.vault, &pin, &sid, &header.default_branch_id).unwrap();
+                if change != "unrelated_session" {
+                    assert!(!events.iter().any(|e| matches!(
+                        e.kind,
+                        enouia_memory_contract::session::EventKind::AssistantChunk
+                            | enouia_memory_contract::session::EventKind::AssistantCompleted
+                    )));
+                }
+                assert!(
+                    client
+                        .send(&call, &call.inspect().hash(), &NeverCancel)
+                        .is_err()
+                );
+                assert_eq!(http.calls.get(), 1);
+                assert_eq!(env.vault.pin_current().unwrap(), pin);
+                assert!(env.vault.verify(&pin).unwrap().is_clean());
+            }
+        }
+    }
+}
+
+#[test]
+fn published_extraction_output_receipts_replay_after_later_source_revisions() {
+    use enouia_memory_provider::extraction;
+    for api in [Api::OpenAiResponses, Api::AnthropicMessages] {
+        let env = Env::new("extraction-output-receipt-replay");
+        let source = extraction_source(&env);
+        let policy = grant(&env, api);
+        let (sid, run) = extraction::create(
+            &env.vault,
+            &owner(),
+            &env.policy(),
+            &extraction_options(source.clone(), api),
+            b"output-receipt-replay",
+        )
+        .unwrap();
+        let job = extraction::job(&env.vault, &owner(), &sid, &run).unwrap();
+        let enabled = AtomicBool::new(true);
+        let adapter = VaultAdapter {
+            vault: &env.vault,
+            owner: owner(),
+            input_event: job.input_event_id,
+            enabled: &enabled,
+            quota: Quota::default(),
+        };
+        let (index, _) = enouia_memory_index::Index::rebuild(&env.vault).unwrap();
+        let mut options = CallOptions::text(policy, 1024);
+        options.streaming = true;
+        let call = extraction::prepare(
+            &adapter,
+            &index,
+            &run,
+            &extraction_capabilities(&env, api),
+            Limits::default(),
+            options,
+        )
+        .unwrap();
+        let http = FakeHttp {
+            calls: Cell::new(0),
+            bytes: streaming_reply(api, true),
+            fail: false,
+        };
+        let response = Client {
+            transport: &http,
+            secrets: &Secrets { missing: false },
+            guard: &adapter,
+            journal: &adapter,
+        }
+        .send(&call, &call.inspect().hash(), &NeverCancel)
+        .unwrap();
+        revise_synthetic_extraction_source(&env, &source, Sensitivity::HighlySensitive);
+        let before = env.vault.pin_current().unwrap();
+        let row = adapter.invocations().unwrap().remove(0);
+        // Native chunk entry points still enforce current authorization.
+        // The Core can recover the already-published exact receipt without
+        // producing new bytes or changing a completed invocation.
+        assert_eq!(
+            adapter
+                .chunk(call.dispatch(), 1, "合成答复")
+                .unwrap_err()
+                .code,
+            MemoryErrorCode::RevisionConflict
+        );
+        session::append_output_with_guard(
+            &env.vault,
+            &owner(),
+            &adapter.input_event,
+            enouia_memory_contract::session::EventKind::AssistantChunk,
+            Some("合成答复"),
+            format!("provider-chunk:{}:1", call.dispatch().dispatch_id).as_bytes(),
+            Some(session::OutputGuard {
+                policy_epoch: call.dispatch().egress.policy_epoch,
+                deletion_epoch: call.dispatch().egress.deletion_epoch,
+                sensitivity: Sensitivity::Normal,
+            }),
+        )
+        .unwrap();
+        adapter
+            .finish(call.dispatch(), Some(&response), None)
+            .unwrap();
+        assert_eq!(adapter.invocations().unwrap(), vec![row]);
+        assert_eq!(env.vault.pin_current().unwrap(), before);
+        assert_eq!(http.calls.get(), 1);
+        assert!(env.vault.verify(&before).unwrap().is_clean());
+    }
+}
+
+#[test]
+fn guarded_extraction_chunks_refuse_new_writes_but_recover_existing_receipts() {
+    use enouia_memory_provider::extraction;
+    for sensitivity in [Sensitivity::Normal, Sensitivity::HighlySensitive] {
+        let env = Env::new("extraction-core-chunk-revision");
+        let api = Api::OpenAiResponses;
+        let source = extraction_source(&env);
+        let policy = grant(&env, api);
+        let (sid, run) = extraction::create(
+            &env.vault,
+            &owner(),
+            &env.policy(),
+            &extraction_options(source.clone(), api),
+            b"core-chunk-revision",
+        )
+        .unwrap();
+        let job = extraction::job(&env.vault, &owner(), &sid, &run).unwrap();
+        let enabled = AtomicBool::new(true);
+        let adapter = VaultAdapter {
+            vault: &env.vault,
+            owner: owner(),
+            input_event: job.input_event_id.clone(),
+            enabled: &enabled,
+            quota: Quota::default(),
+        };
+        let (index, _) = enouia_memory_index::Index::rebuild(&env.vault).unwrap();
+        let call = extraction::prepare(
+            &adapter,
+            &index,
+            &run,
+            &extraction_capabilities(&env, api),
+            Limits::default(),
+            CallOptions::text(policy, 1024),
+        )
+        .unwrap();
+        assert!(adapter.claim(&call).unwrap());
+        let guard = session::OutputGuard {
+            policy_epoch: call.dispatch().egress.policy_epoch,
+            deletion_epoch: call.dispatch().egress.deletion_epoch,
+            sensitivity: Sensitivity::Normal,
+        };
+        let prefix = session::append_output_with_guard(
+            &env.vault,
+            &owner(),
+            &adapter.input_event,
+            enouia_memory_contract::session::EventKind::AssistantChunk,
+            Some("valid prefix"),
+            b"source-prefix-receipt",
+            Some(guard),
+        )
+        .unwrap();
+        revise_synthetic_extraction_source(&env, &source, sensitivity);
+        let changed = env.vault.pin_current().unwrap();
+        let replay = session::append_output_with_guard(
+            &env.vault,
+            &owner(),
+            &adapter.input_event,
+            enouia_memory_contract::session::EventKind::AssistantChunk,
+            Some("valid prefix"),
+            b"source-prefix-receipt",
+            Some(guard),
+        )
+        .unwrap();
+        assert_eq!(replay.id, prefix.id);
+        assert_eq!(env.vault.pin_current().unwrap(), changed);
+        assert_eq!(
+            session::append_output_with_guard(
+                &env.vault,
+                &owner(),
+                &adapter.input_event,
+                enouia_memory_contract::session::EventKind::AssistantChunk,
+                Some("must not be stored"),
+                b"source-new-chunk",
+                Some(guard)
+            )
+            .unwrap_err()
+            .error
+            .code,
+            MemoryErrorCode::RevisionConflict
+        );
+        assert_eq!(env.vault.pin_current().unwrap(), changed);
+        adapter
+            .finish_failure(
+                call.dispatch(),
+                enouia_memory_contract::MemoryError::new(
+                    MemoryErrorCode::ProviderUnavailable,
+                    enouia_memory_contract::foundation::ComponentId::Provider,
+                ),
+                None,
+                None,
+            )
+            .unwrap();
+        assert_eq!(
+            adapter.invocations().unwrap()[0].state,
+            InvocationState::Failed
+        );
+        let pin = env.vault.pin_current().unwrap();
+        let header = session::get(&env.vault, &pin, &sid).unwrap();
+        assert_eq!(header.extraction_jobs, vec![job]);
+        let chunks: Vec<_> = session::events(&env.vault, &pin, &sid, &header.default_branch_id)
+            .unwrap()
+            .into_iter()
+            .filter(|e| e.kind == enouia_memory_contract::session::EventKind::AssistantChunk)
+            .collect();
+        assert_eq!(chunks.len(), 1);
+        assert_eq!(
+            session::text(&env.vault, &pin, &chunks[0]).unwrap(),
+            "valid prefix"
+        );
+        assert!(env.vault.verify(&pin).unwrap().is_clean());
+    }
+}
+
+fn add_synthetic_extraction_job(
+    env: &Env,
+    sid: &SessionId,
+    cost: bool,
+    first: bool,
+    input: Option<EventId>,
+) -> ExtractionRunId {
+    use enouia_memory_contract::{
+        commit::OperationKind,
+        json::canonical_bytes,
+        ports::{CommitRequest, IdempotencyScope, StagedRecord},
+    };
+    let pin = env.vault.pin_current().unwrap();
+    let mut header = session::get(&env.vault, &pin, sid).unwrap();
+    let previous = header.revision;
+    let mut alias = header.extraction_jobs[0].clone();
+    alias.run_id = ExtractionRunId::from_random([93; 16]);
+    if let Some(input) = input {
+        let record = env
+            .vault
+            .read_parsed(
+                &pin,
+                &enouia_memory_contract::record::RecordRef::new(
+                    RecordKind::SessionEvent,
+                    input.as_str(),
+                    Revision::new(1).unwrap(),
+                ),
+            )
+            .unwrap();
+        let enouia_memory_contract::record::AnyRecord::SessionEvent(event) = record else {
+            panic!("input");
+        };
+        alias.input_hash = event.content_ref.unwrap().object_hash;
+        alias.input_event_id = input;
+    }
+    if cost {
+        alias.max_reserved_cost_microusd = Some(0);
+    } else {
+        alias.max_reserved_tokens = 1;
+    }
+    let run = alias.run_id.clone();
+    if first {
+        header.extraction_jobs.insert(0, alias);
+    } else {
+        header.extraction_jobs.push(alias);
+    }
+    header.revision = Revision::new(previous.get() + 1).unwrap();
+    header.updated_at = env.vault.now().unwrap();
+    env.vault
+        .commit(CommitRequest {
+            commit_id: CommitId::from_random(env.vault.random_id_bytes()),
+            expected_commit_id: Some(pin.commit_id),
+            principal: owner(),
+            operation_kind: OperationKind::Migration,
+            idempotency: IdempotencyScope {
+                principal_id: owner().actor_id,
+                operation_kind: OperationKind::Migration,
+                key_hash: sha256(b"synthetic-shared-input-job"),
+            },
+            request_payload_hash: sha256(b"synthetic-shared-input-job"),
+            expected_revisions: vec![(RecordKind::Session, sid.to_string(), Some(previous))],
+            records: vec![StagedRecord {
+                record_kind: RecordKind::Session,
+                record_id: sid.to_string(),
+                revision: header.revision,
+                bytes: canonical_bytes(&serde_json::to_value(header).unwrap()).unwrap(),
+            }],
+            objects: vec![],
+        })
+        .unwrap();
+    run
+}
+
+#[test]
+fn shared_input_extraction_jobs_refuse_ambiguous_budgets_without_changing_the_archive() {
+    use enouia_memory_provider::extraction;
+    for api in [Api::OpenAiResponses, Api::AnthropicMessages] {
+        for cost in [false, true] {
+            for first in [false, true] {
+                let env = Env::new("extraction-shared-input-budget");
+                let source = extraction_source(&env);
+                let policy = grant(&env, api);
+                let (sid, run) = extraction::create(
+                    &env.vault,
+                    &owner(),
+                    &env.policy(),
+                    &extraction_options(source, api),
+                    b"shared-input-budget",
+                )
+                .unwrap();
+                let job = extraction::job(&env.vault, &owner(), &sid, &run).unwrap();
+                let enabled = AtomicBool::new(true);
+                let adapter = VaultAdapter {
+                    vault: &env.vault,
+                    owner: owner(),
+                    input_event: job.input_event_id,
+                    enabled: &enabled,
+                    quota: Quota::default(),
+                };
+                let (index, _) = enouia_memory_index::Index::rebuild(&env.vault).unwrap();
+                // Prepare while the graph is unambiguous, then change the
+                // archive so admission must recheck rather than trust prepare.
+                let call = extraction::prepare(
+                    &adapter,
+                    &index,
+                    &run,
+                    &extraction_capabilities(&env, api),
+                    Limits::default(),
+                    CallOptions::text(policy.clone(), 1024),
+                )
+                .unwrap();
+                let alias = add_synthetic_extraction_job(&env, &sid, cost, first, None);
+                let before = env.vault.pin_current().unwrap();
+                let saved = session::get(&env.vault, &before, &sid).unwrap();
+                assert!(env.vault.verify(&before).unwrap().is_clean());
+                for selected in [&run, &alias] {
+                    assert_eq!(
+                        extraction::job(&env.vault, &owner(), &sid, selected)
+                            .unwrap_err()
+                            .code,
+                        MemoryErrorCode::InvalidRequest
+                    );
+                    assert_eq!(
+                        extraction::prepare(
+                            &adapter,
+                            &index,
+                            selected,
+                            &extraction_capabilities(&env, api),
+                            Limits::default(),
+                            CallOptions::text(policy.clone(), 1024)
+                        )
+                        .err()
+                        .unwrap()
+                        .code,
+                        MemoryErrorCode::InvalidRequest
+                    );
+                    assert_eq!(
+                        extraction::preview(&adapter, selected).unwrap_err().code,
+                        MemoryErrorCode::InvalidRequest
+                    );
+                    assert_eq!(
+                        extraction::apply_next(&adapter, selected).unwrap_err().code,
+                        MemoryErrorCode::InvalidRequest
+                    );
+                    assert_eq!(
+                        extraction::set_paused(&env.vault, &owner(), &sid, selected, true)
+                            .unwrap_err()
+                            .code,
+                        MemoryErrorCode::InvalidRequest
+                    );
+                }
+                assert_eq!(
+                    adapter.claim(&call).unwrap_err().code,
+                    MemoryErrorCode::InvalidRequest
+                );
+                let http = FakeHttp {
+                    calls: Cell::new(0),
+                    bytes: reply(api),
+                    fail: false,
+                };
+                let client = Client {
+                    transport: &http,
+                    secrets: &Secrets { missing: false },
+                    guard: &adapter,
+                    journal: &adapter,
+                };
+                assert_eq!(
+                    client
+                        .send(&call, &call.inspect().hash(), &NeverCancel)
+                        .unwrap_err()
+                        .code,
+                    MemoryErrorCode::InvalidRequest
+                );
+                assert_eq!(http.calls.get(), 0);
+                assert!(adapter.invocations().unwrap().is_empty());
+                assert_eq!(env.vault.pin_current().unwrap(), before);
+                assert_eq!(session::get(&env.vault, &before, &sid).unwrap(), saved);
+                assert!(env.vault.verify(&before).unwrap().is_clean());
+            }
+        }
+    }
+}
+
+#[test]
+fn multiple_extraction_jobs_with_distinct_inputs_keep_their_own_budget_routes() {
+    use enouia_memory_provider::extraction;
+    for api in [Api::OpenAiResponses, Api::AnthropicMessages] {
+        let env = Env::new("extraction-distinct-input-budgets");
+        let source = extraction_source(&env);
+        let policy = grant(&env, api);
+        let (sid, run) = extraction::create(
+            &env.vault,
+            &owner(),
+            &env.policy(),
+            &extraction_options(source, api),
+            b"distinct-input-budget",
+        )
+        .unwrap();
+        let job = extraction::job(&env.vault, &owner(), &sid, &run).unwrap();
+        let enabled = AtomicBool::new(true);
+        let adapter = VaultAdapter {
+            vault: &env.vault,
+            owner: owner(),
+            input_event: job.input_event_id.clone(),
+            enabled: &enabled,
+            quota: Quota::default(),
+        };
+        let (index, _) = enouia_memory_index::Index::rebuild(&env.vault).unwrap();
+        let call = extraction::prepare(
+            &adapter,
+            &index,
+            &run,
+            &extraction_capabilities(&env, api),
+            Limits::default(),
+            CallOptions::text(policy.clone(), 1024),
+        )
+        .unwrap();
+        drop(index);
+        let http = FakeHttp {
+            calls: Cell::new(0),
+            bytes: reply(api),
+            fail: false,
+        };
+        Client {
+            transport: &http,
+            secrets: &Secrets { missing: false },
+            guard: &adapter,
+            journal: &adapter,
+        }
+        .send(&call, &call.inspect().hash(), &NeverCancel)
+        .unwrap();
+        let pin = env.vault.pin_current().unwrap();
+        let header = session::get(&env.vault, &pin, &sid).unwrap();
+        let input = session::events(&env.vault, &pin, &sid, &header.default_branch_id)
+            .unwrap()
+            .into_iter()
+            .find(|e| e.event_id == job.input_event_id)
+            .unwrap();
+        // Keep the control's second request small so the fixed historical
+        // context budget does not omit it after the earlier long prompt.
+        let text = "Extract facts from the selected synthetic source.";
+        let next_input = session::save_input_with_sources(
+            &env.vault,
+            &owner(),
+            &sid,
+            &header.default_branch_id,
+            text,
+            &RequestId::from_random([37; 16]),
+            b"distinct-job-input",
+            &input.source_refs,
+        )
+        .unwrap();
+        let next_run =
+            add_synthetic_extraction_job(&env, &sid, false, false, Some(next_input.id.clone()));
+        assert_eq!(
+            extraction::job(&env.vault, &owner(), &sid, &run).unwrap(),
+            job
+        );
+        assert_eq!(
+            extraction::job(&env.vault, &owner(), &sid, &next_run)
+                .unwrap()
+                .max_reserved_tokens,
+            1
+        );
+        let next_adapter = VaultAdapter {
+            vault: &env.vault,
+            owner: owner(),
+            input_event: next_input.id,
+            enabled: &enabled,
+            quota: Quota::default(),
+        };
+        let (index, _) = enouia_memory_index::Index::rebuild(&env.vault).unwrap();
+        let next_call = extraction::prepare(
+            &next_adapter,
+            &index,
+            &next_run,
+            &extraction_capabilities(&env, api),
+            Limits::default(),
+            CallOptions::text(policy, 1024),
+        )
+        .unwrap();
+        let before = env.vault.pin_current().unwrap();
+        assert_eq!(
+            Client {
+                transport: &http,
+                secrets: &Secrets { missing: false },
+                guard: &next_adapter,
+                journal: &next_adapter
+            }
+            .send(&next_call, &next_call.inspect().hash(), &NeverCancel)
+            .unwrap_err()
+            .code,
+            MemoryErrorCode::BudgetExceeded
+        );
+        assert_eq!(http.calls.get(), 1);
+        assert_eq!(next_adapter.invocations().unwrap().len(), 1);
+        assert_eq!(env.vault.pin_current().unwrap(), before);
+        assert!(env.vault.verify(&before).unwrap().is_clean());
+    }
+}
+
+#[test]
+fn prepared_extraction_admission_rechecks_the_current_pending_backlog() {
+    use enouia_memory_contract::candidate::ProposedType;
+    use enouia_memory_govern::{EvidenceSpec, Origin, Proposal, Proposed};
+    use enouia_memory_provider::extraction;
+    for api in [Api::OpenAiResponses, Api::AnthropicMessages] {
+        for scenario in ["full", "below", "reviewed"] {
+            let env = Env::new("extraction-admission-backlog");
+            let source = extraction_source(&env);
+            let policy = grant(&env, api);
+            let mut options = extraction_options(source.clone(), api);
+            options.max_pending = if scenario == "below" { 2 } else { 1 };
+            let (sid, run) = extraction::create(
+                &env.vault,
+                &owner(),
+                &env.policy(),
+                &options,
+                b"admission-backlog",
+            )
+            .unwrap();
+            let job = extraction::job(&env.vault, &owner(), &sid, &run).unwrap();
+            let enabled = AtomicBool::new(true);
+            let adapter = VaultAdapter {
+                vault: &env.vault,
+                owner: owner(),
+                input_event: job.input_event_id.clone(),
+                enabled: &enabled,
+                quota: Quota::default(),
+            };
+            let (index, _) = enouia_memory_index::Index::rebuild(&env.vault).unwrap();
+            let call = extraction::prepare(
+                &adapter,
+                &index,
+                &run,
+                &extraction_capabilities(&env, api),
+                Limits::default(),
+                CallOptions::text(policy.clone(), 1024),
+            )
+            .unwrap();
+            let proposal = Proposal::create(
+                ProposedType::Fact,
+                "Another synthetic pending claim",
+                json!({"claim_key":"other_pending"})
+                    .as_object()
+                    .unwrap()
+                    .clone(),
+                vec![EvidenceSpec::content(source, Revision::new(1).unwrap())],
+            );
+            let Proposed::Stored(candidate) = enouia_memory_govern::propose::propose(
+                &env.vault,
+                &proposal,
+                &Origin::owner(owner()),
+                b"fill-admission-backlog",
+            )
+            .unwrap() else {
+                panic!("new synthetic candidate");
+            };
+            let before = env.vault.pin_current().unwrap();
+            assert_eq!(
+                enouia_memory_govern::pending_candidates(&env.vault, &before)
+                    .unwrap()
+                    .len(),
+                1
+            );
+            let http = FakeHttp {
+                calls: Cell::new(0),
+                bytes: extraction_reply(api, false),
+                fail: false,
+            };
+            let client = Client {
+                transport: &http,
+                secrets: &Secrets { missing: false },
+                guard: &adapter,
+                journal: &adapter,
+            };
+            if scenario != "below" {
+                assert_eq!(
+                    extraction::prepare(
+                        &adapter,
+                        &index,
+                        &run,
+                        &extraction_capabilities(&env, api),
+                        Limits::default(),
+                        CallOptions::text(policy, 1024),
+                    )
+                    .err()
+                    .unwrap()
+                    .code,
+                    MemoryErrorCode::BudgetExceeded
+                );
+                assert_eq!(
+                    adapter.claim(&call).unwrap_err().code,
+                    MemoryErrorCode::BudgetExceeded
+                );
+                assert_eq!(
+                    client
+                        .send(&call, &call.inspect().hash(), &NeverCancel)
+                        .unwrap_err()
+                        .code,
+                    MemoryErrorCode::BudgetExceeded
+                );
+                assert_eq!(http.calls.get(), 0);
+                assert!(adapter.invocations().unwrap().is_empty());
+                assert_eq!(env.vault.pin_current().unwrap(), before);
+                assert_eq!(
+                    extraction::job(&env.vault, &owner(), &sid, &run).unwrap(),
+                    job
+                );
+                assert!(env.vault.verify(&before).unwrap().is_clean());
+                if scenario == "full" {
+                    continue;
+                }
+                let shown = enouia_memory_govern::plan(
+                    &env.vault,
+                    &[enouia_memory_govern::Decision::Reject {
+                        candidate_id: candidate.id,
+                        revision: Revision::new(1).unwrap(),
+                        reason_code: None,
+                    }],
+                    &owner(),
+                    TrustedSurface::TrustedLocalCli,
+                )
+                .unwrap();
+                enouia_memory_govern::confirm(
+                    &env.vault,
+                    &shown,
+                    &enouia_memory_govern::OwnerConfirmation {
+                        owner: owner(),
+                        surface: TrustedSurface::TrustedLocalCli,
+                    },
+                )
+                .unwrap();
+                assert!(
+                    enouia_memory_govern::pending_candidates(
+                        &env.vault,
+                        &env.vault.pin_current().unwrap()
+                    )
+                    .unwrap()
+                    .is_empty()
+                );
+            }
+            // A refused pre-admission call has not consumed its input. Once
+            // the owner frees capacity, the same inspected call can admit.
+            assert_eq!(
+                client
+                    .send(&call, &call.inspect().hash(), &NeverCancel)
+                    .unwrap()
+                    .finish,
+                enouia_memory_contract::provider::FinishReason::Completed
+            );
+            assert_eq!(http.calls.get(), 1);
+            assert_eq!(adapter.invocations().unwrap().len(), 1);
+            assert!(
+                env.vault
+                    .verify(&env.vault.pin_current().unwrap())
+                    .unwrap()
+                    .is_clean()
+            );
+        }
+    }
+}
+
+fn synthetic_failed_openai_response() -> serde_json::Value {
+    json!({"id":"resp_synthetic_failed","object":"response","status":"failed",
+        "error":{"code":"server_error","message":"Synthetic error body must stay private"},
+        "output":[{"type":"message","role":"assistant","content":[{"type":"output_text","text":"Synthetic failed final text must stay private"}]}],
+        "usage":{"input_tokens":50000,"output_tokens":4}})
+}
+
+#[test]
+fn openai_terminal_failures_latch_and_retain_validated_stream_usage() {
+    let base = synthetic_failed_openai_response();
+    let mut cases = vec![(base.clone(), (Some(50000), Some(4)))];
+    for (field, value) in [
+        ("status", json!("completed")),
+        ("object", json!("error")),
+        ("error", json!({"code":"server_error","message":42})),
+        ("output", json!([{"type":"function_call"}])),
+        (
+            "usage",
+            json!({"input_tokens":50000,"output_tokens":"invalid"}),
+        ),
+    ] {
+        let mut response = base.clone();
+        response[field] = value;
+        cases.push((response, (None, None)));
+    }
+    let mut unknown = base;
+    unknown["usage"] = serde_json::Value::Null;
+    cases.push((unknown, (None, None)));
+    let mut cases: Vec<_> = cases
+        .into_iter()
+        .map(|(response, expected)| ("response.failed", response, expected))
+        .collect();
+    let mut nullable = synthetic_failed_openai_response();
+    nullable["error"] = serde_json::Value::Null;
+    cases.push(("response.failed", nullable.clone(), (Some(50000), Some(4))));
+    for reason in ["content_filter", "max_messages", "steered"] {
+        let mut incomplete = nullable.clone();
+        incomplete["status"] = json!("incomplete");
+        incomplete["incomplete_details"] = json!({"reason":reason});
+        cases.push(("response.incomplete", incomplete, (Some(50000), Some(4))));
+    }
+    let mut incomplete = nullable;
+    incomplete["status"] = json!("incomplete");
+    incomplete["incomplete_details"] = json!({"reason":"content_filter"});
+    cases.push(("response.failed", incomplete.clone(), (None, None)));
+    cases.push(("response.completed", incomplete.clone(), (None, None)));
+    incomplete["incomplete_details"] = json!({"reason":"unknown_reason"});
+    cases.push(("response.incomplete", incomplete.clone(), (None, None)));
+    incomplete["incomplete_details"] = json!({"reason":"content_filter"});
+    incomplete["usage"] = json!({"input_tokens":50000,"output_tokens":"bad"});
+    cases.push(("response.incomplete", incomplete, (None, None)));
+    for (kind, response, expected) in cases {
+        let mut decoder = Decoder::new(Api::OpenAiResponses);
+        let mut text = String::new();
+        let mut collect = |chunk: &str| {
+            text.push_str(chunk);
+            Ok(())
+        };
+        decoder
+            .push(
+                &sse(&[json!({"type":"response.output_text.delta","delta":"accepted partial"})]),
+                &mut collect,
+            )
+            .unwrap();
+        assert_eq!(
+            decoder
+                .push(
+                    &sse(&[json!({"type":kind,"response":response})]),
+                    &mut collect
+                )
+                .unwrap_err()
+                .code,
+            MemoryErrorCode::ProviderUnavailable
+        );
+        assert_eq!(decoder.observed_usage(), expected);
+        assert!(
+            decoder
+                .push(&streaming_reply(Api::OpenAiResponses, true), &mut collect)
+                .is_err()
+        );
+        assert_eq!(decoder.observed_usage(), expected);
+        assert!(decoder.finish().is_err());
+        assert_eq!(text, "accepted partial");
+    }
+}
+
+#[test]
+fn openai_terminal_failures_debit_reported_usage_without_delivery_or_resend() {
+    for (streaming, failure) in [false, true].into_iter().flat_map(|streaming| {
+        [
+            "failed",
+            "nullable_failed",
+            "content_filter",
+            "max_messages",
+            "steered",
+        ]
+        .map(move |failure| (streaming, failure))
+    }) {
+        let env = Env::new("failed-openai-usage");
+        let api = Api::OpenAiResponses;
+        let (capsule, input, policy, caps) = setup(&env, api, Sensitivity::Normal);
+        let enabled = AtomicBool::new(true);
+        let adapter = VaultAdapter {
+            vault: &env.vault,
+            owner: owner(),
+            input_event: input.clone(),
+            enabled: &enabled,
+            quota: Quota::default(),
+        };
+        let mut options = CallOptions::text(policy.clone(), 128);
+        options.streaming = streaming;
+        let call = adapter
+            .prepare_saved(api, &capsule, &caps, Limits::default(), options)
+            .unwrap();
+        let mut failed = synthetic_failed_openai_response();
+        if failure != "failed" {
+            failed["error"] = serde_json::Value::Null;
+        }
+        let kind = if matches!(failure, "failed" | "nullable_failed") {
+            "response.failed"
+        } else {
+            failed["status"] = json!("incomplete");
+            failed["incomplete_details"] = json!({"reason":failure});
+            "response.incomplete"
+        };
+        let bytes = if streaming {
+            sse(&[
+                json!({"type":"response.output_text.delta","delta":"accepted partial"}),
+                json!({"type":kind,"response":failed}),
+            ])
+        } else {
+            serde_json::to_vec(&failed).unwrap()
+        };
+        let http = FakeHttp {
+            calls: Cell::new(0),
+            bytes,
+            fail: false,
+        };
+        let client = Client {
+            transport: &http,
+            secrets: &Secrets { missing: false },
+            guard: &adapter,
+            journal: &adapter,
+        };
+        let error = client
+            .send(&call, &call.inspect().hash(), &NeverCancel)
+            .unwrap_err();
+        assert_eq!(error.code, MemoryErrorCode::ProviderUnavailable);
+        assert!(!error.retryable);
+        let rows = adapter.invocations().unwrap();
+        let row = &rows[0];
+        assert_eq!(rows.len(), 1);
+        assert_eq!(row.state, InvocationState::Failed);
+        assert_eq!(
+            (row.input_tokens, row.output_tokens),
+            (Some(50000), Some(4))
+        );
+        assert_eq!(
+            row.reserved_tokens,
+            call.estimated_input_tokens() + call.dispatch().output.max_output_tokens
+        );
+        assert!(adapter.saved_response(&row.dispatch_id).unwrap().is_none());
+        let pin = env.vault.pin_current().unwrap();
+        let enouia_memory_contract::record::AnyRecord::SessionEvent(previous) = env
+            .vault
+            .read_parsed(
+                &pin,
+                &enouia_memory_contract::record::RecordRef::new(
+                    RecordKind::SessionEvent,
+                    input.as_str(),
+                    Revision::new(1).unwrap(),
+                ),
+            )
+            .unwrap()
+        else {
+            panic!("input");
+        };
+        let events =
+            session::events(&env.vault, &pin, &previous.session_id, &previous.branch_id).unwrap();
+        assert!(
+            !events
+                .iter()
+                .any(|e| e.kind == enouia_memory_contract::session::EventKind::AssistantCompleted)
+        );
+        for event in events.iter().filter(|event| event.content_ref.is_some()) {
+            let text = session::text(&env.vault, &pin, event).unwrap();
+            assert!(!text.contains("Synthetic error body must stay private"));
+            assert!(!text.contains("Synthetic failed final text must stay private"));
+        }
+        assert_eq!(
+            client
+                .send(&call, &call.inspect().hash(), &NeverCancel)
+                .unwrap_err()
+                .code,
+            MemoryErrorCode::IdempotencyConflict
+        );
+        assert_eq!(http.calls.get(), 1);
+        assert_eq!(env.vault.pin_current().unwrap(), pin);
+        let mut compile = CompileInput::local(
+            "新的明确合成输入",
+            owner(),
+            RequestId::from_random(env.vault.random_id_bytes()),
+        );
+        compile.session_id = Some(previous.session_id.clone());
+        compile.branch_id = Some(previous.branch_id.clone());
+        let next_input = session::save_input(
+            &env.vault,
+            &owner(),
+            &previous.session_id,
+            &previous.branch_id,
+            &compile.query,
+            &compile.request_id,
+            b"after-failed-openai",
+        )
+        .unwrap()
+        .id;
+        let (index, _) = enouia_memory_index::Index::rebuild(&env.vault).unwrap();
+        let next_capsule = compiler::compile_for_destination(
+            &env.vault,
+            &index,
+            &compile,
+            &Destination {
+                kind: DestinationKind::ExternalProvider,
+                provider_binding: Some(caps.binding.clone()),
+            },
+        )
+        .unwrap();
+        let mut next = VaultAdapter {
+            input_event: next_input,
+            ..adapter
+        };
+        let next_call = next
+            .prepare_saved(
+                api,
+                &next_capsule.capsule.capsule_id,
+                &caps,
+                Limits::default(),
+                CallOptions::text(policy, 128),
+            )
+            .unwrap();
+        next.quota.max_reserved_tokens = row.reserved_tokens
+            + next_call.estimated_input_tokens()
+            + next_call.dispatch().output.max_output_tokens;
+        let before = env.vault.pin_current().unwrap();
+        assert_eq!(
+            Client {
+                transport: &http,
+                secrets: &Secrets { missing: false },
+                guard: &next,
+                journal: &next
+            }
+            .send(&next_call, &next_call.inspect().hash(), &NeverCancel)
+            .unwrap_err()
+            .code,
+            MemoryErrorCode::BudgetExceeded
+        );
+        assert_eq!(http.calls.get(), 1);
+        assert_eq!(next.invocations().unwrap().len(), 1);
+        assert_eq!(env.vault.pin_current().unwrap(), before);
+        assert!(env.vault.verify(&before).unwrap().is_clean());
+    }
+}
+
+fn synthetic_openai_progress(kind: &str) -> serde_json::Value {
+    json!({"type":kind,"response":{
+        "id":"resp_synthetic_progress","object":"response","status":"in_progress",
+        "error":null,"output":[],"usage":{"input_tokens":50000,"output_tokens":4}
+    }})
+}
+
+#[test]
+fn openai_progress_usage_survives_interruptions_and_rejects_overwrites() {
+    for kind in ["response.created", "response.in_progress"] {
+        for mode in [
+            "error",
+            "truncated",
+            "missing",
+            "partial",
+            "increase",
+            "input_regression",
+            "output_regression",
+            "malformed",
+            "other_id",
+            "bad_status",
+            "failed_unknown",
+            "incomplete_unknown",
+            "future_metadata",
+        ] {
+            let mut decoder = Decoder::new(Api::OpenAiResponses);
+            let mut delivered = String::new();
+            let mut collect = |text: &str| {
+                delivered.push_str(text);
+                Ok(())
+            };
+            decoder
+                .push(&sse(&[synthetic_openai_progress(kind)]), &mut collect)
+                .unwrap();
+            assert_eq!(
+                decoder.observed_usage(),
+                (Some(50000), Some(4)),
+                "{kind}/{mode}"
+            );
+            let mut terminal = json!({"type":"response.completed","response":{
+                "id":"resp_synthetic_progress","object":"response","status":"completed",
+                "error":null,"output":[],"usage":null
+            }});
+            match mode {
+                "error" => {
+                    terminal =
+                        json!({"type":"error","usage":{"input_tokens":99999,"output_tokens":99999}})
+                }
+                "partial" => terminal["response"]["usage"] = json!({"output_tokens":8}),
+                "increase" => {
+                    terminal["response"]["usage"] = json!({"input_tokens":50001,"output_tokens":8})
+                }
+                "input_regression" => {
+                    terminal["response"]["usage"] = json!({"input_tokens":49999,"output_tokens":8})
+                }
+                "output_regression" => {
+                    terminal["response"]["usage"] = json!({"input_tokens":50001,"output_tokens":3})
+                }
+                "malformed" => {
+                    terminal["response"]["usage"] =
+                        json!({"input_tokens":50001,"output_tokens":"bad"})
+                }
+                "other_id" => terminal["response"]["id"] = json!("resp_other_synthetic"),
+                "bad_status" => terminal["response"]["status"] = json!("in_progress"),
+                "failed_unknown" => {
+                    terminal["type"] = json!("response.failed");
+                    terminal["response"]["status"] = json!("failed");
+                }
+                "incomplete_unknown" => {
+                    terminal["type"] = json!("response.incomplete");
+                    terminal["response"]["status"] = json!("incomplete");
+                    terminal["response"]["incomplete_details"] = json!({"reason":"content_filter"});
+                }
+                "future_metadata" => {
+                    decoder.push(&sse(&[json!({"type":"future.metadata","response":{"usage":{"input_tokens":1,"output_tokens":1}}})]), &mut collect).unwrap();
+                }
+                "missing" => {}
+                "truncated" => {
+                    assert_eq!(decoder.observed_usage(), (Some(50000), Some(4)));
+                    assert!(decoder.finish().is_err());
+                    continue;
+                }
+                _ => unreachable!(),
+            }
+            let result = decoder.push(&sse(&[terminal]), &mut collect);
+            if matches!(mode, "missing" | "partial" | "increase" | "future_metadata") {
+                result.unwrap();
+                let answer = decoder.finish().unwrap();
+                let expected = match mode {
+                    "partial" => (Some(50000), Some(8)),
+                    "increase" => (Some(50001), Some(8)),
+                    _ => (Some(50000), Some(4)),
+                };
+                assert_eq!((answer.input_tokens, answer.output_tokens), expected);
+            } else {
+                assert_eq!(
+                    result.unwrap_err().code,
+                    MemoryErrorCode::ProviderUnavailable
+                );
+                assert!(
+                    decoder
+                        .push(&streaming_reply(Api::OpenAiResponses, true), &mut collect)
+                        .is_err()
+                );
+                assert_eq!(decoder.observed_usage(), (Some(50000), Some(4)));
+                assert!(decoder.finish().is_err());
+            }
+            assert!(delivered.is_empty());
+        }
+        for field in ["id", "object", "status", "output", "usage", "error"] {
+            let mut event = synthetic_openai_progress(kind);
+            event["response"][field] = match field {
+                "id" => json!(""),
+                "object" => json!("error"),
+                "status" => json!("completed"),
+                "output" => json!([{"type":"function_call"}]),
+                "usage" => json!({"input_tokens":50000,"output_tokens":"bad"}),
+                "error" => json!({"code":"server_error","message":42}),
+                _ => unreachable!(),
+            };
+            let mut decoder = Decoder::new(Api::OpenAiResponses);
+            assert!(
+                decoder.push(&sse(&[event]), &mut |_| Ok(())).is_err(),
+                "{kind}/{field}"
+            );
+            assert_eq!(decoder.observed_usage(), (None, None));
+        }
+        for mode in [
+            "missing",
+            "null",
+            "queued",
+            "progress_regression",
+            "progress_other_id",
+        ] {
+            let mut decoder = Decoder::new(Api::OpenAiResponses);
+            let mut event = synthetic_openai_progress(kind);
+            if mode == "missing" {
+                event["response"].as_object_mut().unwrap().remove("usage");
+            }
+            if mode == "null" {
+                event["response"]["usage"] = serde_json::Value::Null;
+            }
+            if mode == "queued" {
+                event["response"]["status"] = json!("queued");
+            }
+            if matches!(mode, "progress_regression" | "progress_other_id") {
+                decoder
+                    .push(&sse(&[synthetic_openai_progress(kind)]), &mut |_| Ok(()))
+                    .unwrap();
+                if mode == "progress_regression" {
+                    event["response"]["usage"]["input_tokens"] = json!(49999);
+                } else {
+                    event["response"]["id"] = json!("resp_other_synthetic");
+                }
+            }
+            let result = decoder.push(&sse(&[event]), &mut |_| Ok(()));
+            if matches!(mode, "progress_regression" | "progress_other_id") {
+                assert!(result.is_err());
+                assert_eq!(decoder.observed_usage(), (Some(50000), Some(4)));
+            } else if mode == "queued" && kind == "response.in_progress" {
+                assert!(result.is_err());
+            } else {
+                result.unwrap();
+                assert_eq!(
+                    decoder.observed_usage(),
+                    if mode == "queued" {
+                        (Some(50000), Some(4))
+                    } else {
+                        (None, None)
+                    }
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn openai_progress_usage_is_durable_and_blocks_quota_bypass() {
+    for mode in [
+        "network",
+        "error",
+        "truncated",
+        "failed_unknown",
+        "completed_unknown",
+        "lower_usage",
+        "other_response",
+    ] {
+        let env = Env::new("openai-progress-usage");
+        let api = Api::OpenAiResponses;
+        let (capsule, input, policy, caps) = setup(&env, api, Sensitivity::Normal);
+        let enabled = AtomicBool::new(true);
+        let adapter = VaultAdapter {
+            vault: &env.vault,
+            owner: owner(),
+            input_event: input.clone(),
+            enabled: &enabled,
+            quota: Quota::default(),
+        };
+        let mut options = CallOptions::text(policy.clone(), 128);
+        options.streaming = true;
+        let call = adapter
+            .prepare_saved(api, &capsule, &caps, Limits::default(), options)
+            .unwrap();
+        let completed = mode == "completed_unknown";
+        let mut terminal = json!({"type":"response.completed","response":{
+            "id":"resp_synthetic_progress","object":"response","status":"completed",
+            "error":null,"output":[],"usage":null
+        }});
+        match mode {
+            "error" => {
+                terminal =
+                    json!({"type":"error","message":"Synthetic error body must stay private"})
+            }
+            "failed_unknown" => {
+                terminal["type"] = json!("response.failed");
+                terminal["response"]["status"] = json!("failed");
+            }
+            "lower_usage" => {
+                terminal["response"]["usage"] = json!({"input_tokens":49999,"output_tokens":4})
+            }
+            "other_response" => {
+                terminal["response"]["id"] = json!("resp_other_synthetic");
+                terminal["response"]["usage"] = json!({"input_tokens":70000,"output_tokens":4});
+            }
+            "network" | "truncated" | "completed_unknown" => {}
+            _ => unreachable!(),
+        }
+        let mut events = vec![synthetic_openai_progress("response.in_progress")];
+        if !matches!(mode, "network" | "truncated") {
+            events.push(terminal);
+        }
+        let http = FakeHttp {
+            calls: Cell::new(0),
+            bytes: sse(&events),
+            fail: mode == "network",
+        };
+        let client = Client {
+            transport: &http,
+            secrets: &Secrets { missing: false },
+            guard: &adapter,
+            journal: &adapter,
+        };
+        let result = client.send(&call, &call.inspect().hash(), &NeverCancel);
+        if completed {
+            let answer = result.unwrap();
+            assert_eq!(
+                (answer.input_tokens, answer.output_tokens),
+                (Some(50000), Some(4))
+            );
+            assert!(answer.text.is_empty());
+        } else {
+            let error = result.unwrap_err();
+            assert_eq!(error.code, MemoryErrorCode::ProviderUnavailable);
+            assert!(!error.retryable);
+        }
+        let rows = adapter.invocations().unwrap();
+        let row = &rows[0];
+        assert_eq!(rows.len(), 1);
+        assert_eq!(
+            row.state,
+            if completed {
+                InvocationState::Completed
+            } else {
+                InvocationState::Failed
+            }
+        );
+        assert_eq!(
+            (row.input_tokens, row.output_tokens),
+            (Some(50000), Some(4))
+        );
+        assert_eq!(
+            row.reserved_tokens,
+            call.estimated_input_tokens() + call.dispatch().output.max_output_tokens
+        );
+        assert_eq!(
+            adapter.saved_response(&row.dispatch_id).unwrap().is_some(),
+            completed
+        );
+        let pin = env.vault.pin_current().unwrap();
+        let enouia_memory_contract::record::AnyRecord::SessionEvent(previous) = env
+            .vault
+            .read_parsed(
+                &pin,
+                &enouia_memory_contract::record::RecordRef::new(
+                    RecordKind::SessionEvent,
+                    input.as_str(),
+                    Revision::new(1).unwrap(),
+                ),
+            )
+            .unwrap()
+        else {
+            panic!("input");
+        };
+        let events =
+            session::events(&env.vault, &pin, &previous.session_id, &previous.branch_id).unwrap();
+        assert_eq!(
+            events.iter().any(|event| event.kind
+                == enouia_memory_contract::session::EventKind::AssistantCompleted),
+            completed
+        );
+        for event in events.iter().filter(|event| event.content_ref.is_some()) {
+            let text = session::text(&env.vault, &pin, event).unwrap();
+            assert!(!text.contains("Synthetic error body must stay private"));
+            assert!(!text.contains("Synthetic failed final text must stay private"));
+        }
+        assert_eq!(
+            client
+                .send(&call, &call.inspect().hash(), &NeverCancel)
+                .unwrap_err()
+                .code,
+            MemoryErrorCode::IdempotencyConflict
+        );
+        assert_eq!(http.calls.get(), 1);
+        assert_eq!(env.vault.pin_current().unwrap(), pin);
+        let mut compile = CompileInput::local(
+            "新的明确合成输入",
+            owner(),
+            RequestId::from_random(env.vault.random_id_bytes()),
+        );
+        compile.session_id = Some(previous.session_id.clone());
+        compile.branch_id = Some(previous.branch_id.clone());
+        let next_input = session::save_input(
+            &env.vault,
+            &owner(),
+            &previous.session_id,
+            &previous.branch_id,
+            &compile.query,
+            &compile.request_id,
+            b"after-failed-openai",
+        )
+        .unwrap()
+        .id;
+        let (index, _) = enouia_memory_index::Index::rebuild(&env.vault).unwrap();
+        let next_capsule = compiler::compile_for_destination(
+            &env.vault,
+            &index,
+            &compile,
+            &Destination {
+                kind: DestinationKind::ExternalProvider,
+                provider_binding: Some(caps.binding.clone()),
+            },
+        )
+        .unwrap();
+        let mut next = VaultAdapter {
+            input_event: next_input,
+            ..adapter
+        };
+        let next_call = next
+            .prepare_saved(
+                api,
+                &next_capsule.capsule.capsule_id,
+                &caps,
+                Limits::default(),
+                CallOptions::text(policy, 128),
+            )
+            .unwrap();
+        next.quota.max_reserved_tokens = row.reserved_tokens
+            + next_call.estimated_input_tokens()
+            + next_call.dispatch().output.max_output_tokens;
+        let before = env.vault.pin_current().unwrap();
+        assert_eq!(
+            Client {
+                transport: &http,
+                secrets: &Secrets { missing: false },
+                guard: &next,
+                journal: &next
+            }
+            .send(&next_call, &next_call.inspect().hash(), &NeverCancel)
+            .unwrap_err()
+            .code,
+            MemoryErrorCode::BudgetExceeded
+        );
+        assert_eq!(http.calls.get(), 1);
+        assert_eq!(next.invocations().unwrap().len(), 1);
+        assert_eq!(env.vault.pin_current().unwrap(), before);
+        assert!(env.vault.verify(&before).unwrap().is_clean());
+    }
+}
+
+fn synthetic_openai_identity_response(length: bool) -> serde_json::Value {
+    let mut response: serde_json::Value =
+        serde_json::from_slice(&reply(Api::OpenAiResponses)).unwrap();
+    response["id"] = json!("resp_synthetic_identity");
+    response["object"] = json!("response");
+    response["error"] = serde_json::Value::Null;
+    response["usage"] = json!({"input_tokens":50000,"output_tokens":4});
+    if length {
+        response["status"] = json!("incomplete");
+        response["incomplete_details"] = json!({"reason":"max_output_tokens"});
+    }
+    response
+}
+
+#[test]
+fn openai_success_requires_valid_response_identity_and_nullable_error() {
+    use enouia_memory_contract::provider::FinishReason;
+    use enouia_memory_provider::codec::decode;
+    for length in [false, true] {
+        let valid = synthetic_openai_identity_response(length);
+        let good = decode(Api::OpenAiResponses, &serde_json::to_vec(&valid).unwrap()).unwrap();
+        assert_eq!(
+            good.finish,
+            if length {
+                FinishReason::Length
+            } else {
+                FinishReason::Completed
+            }
+        );
+        assert_eq!(
+            (good.input_tokens, good.output_tokens),
+            (Some(50000), Some(4))
+        );
+        for malformed in [
+            "missing_id",
+            "null_id",
+            "number_id",
+            "empty_id",
+            "missing_object",
+            "null_object",
+            "wrong_object",
+            "array_error",
+            "empty_code",
+            "number_message",
+        ] {
+            let mut response = valid.clone();
+            match malformed {
+                "missing_id" => {
+                    response.as_object_mut().unwrap().remove("id");
+                }
+                "null_id" => response["id"] = serde_json::Value::Null,
+                "number_id" => response["id"] = json!(42),
+                "empty_id" => response["id"] = json!(""),
+                "missing_object" => {
+                    response.as_object_mut().unwrap().remove("object");
+                }
+                "null_object" => response["object"] = serde_json::Value::Null,
+                "wrong_object" => response["object"] = json!("error"),
+                "array_error" => response["error"] = json!(["Synthetic error body"]),
+                "empty_code" => {
+                    response["error"] = json!({"code":"","message":"Synthetic error body"})
+                }
+                "number_message" => response["error"] = json!({"code":"server_error","message":42}),
+                _ => unreachable!(),
+            }
+            assert_eq!(
+                decode(
+                    Api::OpenAiResponses,
+                    &serde_json::to_vec(&response).unwrap()
+                )
+                .unwrap_err()
+                .code,
+                MemoryErrorCode::ProviderUnavailable,
+                "{length}/{malformed}"
+            );
+            let mut decoder = Decoder::new(Api::OpenAiResponses);
+            let mut text = String::new();
+            let mut collect = |chunk: &str| {
+                text.push_str(chunk);
+                Ok(())
+            };
+            decoder
+                .push(
+                    &sse(&[json!({"type":"response.output_text.delta","delta":"合成答复"})]),
+                    &mut collect,
+                )
+                .unwrap();
+            let kind = if length {
+                "response.incomplete"
+            } else {
+                "response.completed"
+            };
+            assert_eq!(
+                decoder
+                    .push(
+                        &sse(&[json!({"type":kind,"response":response})]),
+                        &mut collect
+                    )
+                    .unwrap_err()
+                    .code,
+                MemoryErrorCode::ProviderUnavailable
+            );
+            assert_eq!(decoder.observed_usage(), (None, None));
+            assert!(
+                decoder
+                    .push(&streaming_reply(Api::OpenAiResponses, true), &mut collect)
+                    .is_err()
+            );
+            assert_eq!(decoder.observed_usage(), (None, None));
+            assert!(decoder.finish().is_err());
+            assert_eq!(text, "合成答复");
+        }
+    }
+}
+
+#[test]
+fn malformed_openai_success_envelopes_never_publish_or_authorize_resend() {
+    for streaming in [false, true] {
+        for length in [false, true] {
+            for malformed in ["id", "object", "error"] {
+                let env = Env::new("openai-success-identity");
+                let api = Api::OpenAiResponses;
+                let (capsule, input, policy, caps) = setup(&env, api, Sensitivity::Normal);
+                let enabled = AtomicBool::new(true);
+                let adapter = VaultAdapter {
+                    vault: &env.vault,
+                    owner: owner(),
+                    input_event: input.clone(),
+                    enabled: &enabled,
+                    quota: Quota::default(),
+                };
+                let mut options = CallOptions::text(policy, 128);
+                options.streaming = streaming;
+                let call = adapter
+                    .prepare_saved(api, &capsule, &caps, Limits::default(), options)
+                    .unwrap();
+                let mut response = synthetic_openai_identity_response(length);
+                response[malformed] = match malformed {
+                    "id" => json!(42),
+                    "object" => json!("error"),
+                    "error" => json!(["Synthetic error body must stay private"]),
+                    _ => unreachable!(),
+                };
+                let kind = if length {
+                    "response.incomplete"
+                } else {
+                    "response.completed"
+                };
+                let bytes = if streaming {
+                    sse(&[
+                        json!({"type":"response.output_text.delta","delta":"合成答复"}),
+                        json!({"type":kind,"response":response}),
+                    ])
+                } else {
+                    serde_json::to_vec(&response).unwrap()
+                };
+                let http = FakeHttp {
+                    calls: Cell::new(0),
+                    bytes,
+                    fail: false,
+                };
+                let client = Client {
+                    transport: &http,
+                    secrets: &Secrets { missing: false },
+                    guard: &adapter,
+                    journal: &adapter,
+                };
+                let error = client
+                    .send(&call, &call.inspect().hash(), &NeverCancel)
+                    .unwrap_err();
+                assert_eq!(error.code, MemoryErrorCode::ProviderUnavailable);
+                assert!(!error.retryable);
+                let rows = adapter.invocations().unwrap();
+                assert_eq!(rows.len(), 1);
+                let row = &rows[0];
+                assert_eq!(row.state, InvocationState::Failed);
+                assert_eq!((row.input_tokens, row.output_tokens), (None, None));
+                assert_eq!(
+                    row.reserved_tokens,
+                    call.estimated_input_tokens() + call.dispatch().output.max_output_tokens
+                );
+                assert!(adapter.saved_response(&row.dispatch_id).unwrap().is_none());
+                let before = env.vault.pin_current().unwrap();
+                let enouia_memory_contract::record::AnyRecord::SessionEvent(previous) = env
+                    .vault
+                    .read_parsed(
+                        &before,
+                        &enouia_memory_contract::record::RecordRef::new(
+                            RecordKind::SessionEvent,
+                            input.as_str(),
+                            Revision::new(1).unwrap(),
+                        ),
+                    )
+                    .unwrap()
+                else {
+                    panic!("input");
+                };
+                let events = session::events(
+                    &env.vault,
+                    &before,
+                    &previous.session_id,
+                    &previous.branch_id,
+                )
+                .unwrap();
+                assert!(!events.iter().any(|event| event.kind
+                    == enouia_memory_contract::session::EventKind::AssistantCompleted));
+                let chunks: Vec<_> = events
+                    .iter()
+                    .filter(|event| {
+                        event.kind == enouia_memory_contract::session::EventKind::AssistantChunk
+                    })
+                    .collect();
+                assert_eq!(chunks.len(), usize::from(streaming));
+                for event in events.iter().filter(|event| event.content_ref.is_some()) {
+                    assert!(
+                        !session::text(&env.vault, &before, event)
+                            .unwrap()
+                            .contains("Synthetic error body must stay private")
+                    );
+                }
+                assert_eq!(
+                    client
+                        .send(&call, &call.inspect().hash(), &NeverCancel)
+                        .unwrap_err()
+                        .code,
+                    MemoryErrorCode::IdempotencyConflict
+                );
+                assert_eq!(http.calls.get(), 1);
+                assert_eq!(env.vault.pin_current().unwrap(), before);
+                assert!(env.vault.verify(&before).unwrap().is_clean());
+            }
+        }
+    }
+}
+
+fn synthetic_duplicate_json(bytes: &[u8], mode: &str) -> Vec<u8> {
+    let raw = std::str::from_utf8(bytes).unwrap();
+    match mode {
+        "usage" => raw.replacen(
+            "\"usage\":",
+            "\"usage\":{\"input_tokens\":50000,\"output_tokens\":4},\"usage\":",
+            1,
+        ),
+        "escaped_usage" => raw.replacen(
+            "\"usage\":",
+            "\"\\u0075sage\":{\"input_tokens\":50000,\"output_tokens\":4},\"usage\":",
+            1,
+        ),
+        "tokens" => raw.replacen(
+            "\"input_tokens\":",
+            "\"input_tokens\":\"bad\",\"input_tokens\":",
+            1,
+        ),
+        "text" => raw.replacen("\"text\":", "\"text\":42,\"text\":", 1),
+        "metadata" => raw.replacen('{', "{\"metadata\":{\"ignored\":1,\"ignored\":2},", 1),
+        _ => unreachable!(),
+    }
+    .into_bytes()
+}
+
+#[test]
+fn duplicate_provider_json_is_refused_before_overwrite_and_latches_stream_failure() {
+    use enouia_memory_provider::codec::decode;
+    for api in [Api::OpenAiResponses, Api::AnthropicMessages] {
+        let mut control: serde_json::Value = serde_json::from_slice(&reply(api)).unwrap();
+        control["temperature"] = json!(0.7);
+        control["ignored_metadata"] =
+            json!({"negative":-1.5,"flag":true,"list":[null,"synthetic"]});
+        assert_eq!(
+            decode(api, &serde_json::to_vec(&control).unwrap())
+                .unwrap()
+                .text,
+            "合成答复"
+        );
+        for mode in ["usage", "escaped_usage", "tokens", "text", "metadata"] {
+            assert_eq!(
+                decode(api, &synthetic_duplicate_json(&reply(api), mode))
+                    .unwrap_err()
+                    .code,
+                MemoryErrorCode::ProviderUnavailable,
+                "{api:?}/{mode}"
+            );
+            let mut decoder = Decoder::new(api);
+            let mut text = String::new();
+            let mut collect = |chunk: &str| {
+                text.push_str(chunk);
+                Ok(())
+            };
+            assert_eq!(
+                decoder
+                    .push(
+                        &synthetic_duplicate_json(&streaming_reply(api, true), mode),
+                        &mut collect
+                    )
+                    .unwrap_err()
+                    .code,
+                MemoryErrorCode::ProviderUnavailable,
+                "{api:?}/{mode}"
+            );
+            let expected = if api == Api::AnthropicMessages && mode == "text" {
+                (Some(100), Some(0))
+            } else {
+                (None, None)
+            };
+            assert_eq!(decoder.observed_usage(), expected);
+            assert!(
+                decoder
+                    .push(&streaming_reply(api, true), &mut collect)
+                    .is_err()
+            );
+            assert_eq!(decoder.observed_usage(), expected);
+            assert!(decoder.finish().is_err());
+        }
+        let mut decoder = Decoder::new(api);
+        let (prior, next, expected) = match api {
+            Api::OpenAiResponses => (
+                synthetic_openai_progress("response.created"),
+                synthetic_openai_progress("response.in_progress"),
+                (Some(50000), Some(4)),
+            ),
+            Api::AnthropicMessages => (
+                json!({"type":"message_start","message":{"type":"message","role":"assistant","content":[],"usage":{"input_tokens":100,"output_tokens":4}}}),
+                json!({"type":"message_delta","delta":{},"usage":{"input_tokens":100,"output_tokens":4}}),
+                (Some(100), Some(4)),
+            ),
+        };
+        decoder.push(&sse(&[prior]), &mut |_| Ok(())).unwrap();
+        assert_eq!(decoder.observed_usage(), expected);
+        assert!(
+            decoder
+                .push(
+                    &synthetic_duplicate_json(&sse(&[next]), "usage"),
+                    &mut |_| Ok(())
+                )
+                .is_err()
+        );
+        assert_eq!(decoder.observed_usage(), expected);
+        assert!(decoder.finish().is_err());
+    }
+}
+
+#[test]
+fn duplicate_provider_usage_never_completes_or_resends_an_admitted_input() {
+    for api in [Api::OpenAiResponses, Api::AnthropicMessages] {
+        for streaming in [false, true] {
+            for mode in ["usage", "escaped_usage"] {
+                let env = Env::new("duplicate-provider-json");
+                let (capsule, input, policy, caps) = setup(&env, api, Sensitivity::Normal);
+                let enabled = AtomicBool::new(true);
+                let adapter = VaultAdapter {
+                    vault: &env.vault,
+                    owner: owner(),
+                    input_event: input.clone(),
+                    enabled: &enabled,
+                    quota: Quota::default(),
+                };
+                let mut options = CallOptions::text(policy, 128);
+                options.streaming = streaming;
+                let call = adapter
+                    .prepare_saved(api, &capsule, &caps, Limits::default(), options)
+                    .unwrap();
+                let valid = if streaming {
+                    streaming_reply(api, true)
+                } else {
+                    reply(api)
+                };
+                let http = FakeHttp {
+                    calls: Cell::new(0),
+                    bytes: synthetic_duplicate_json(&valid, mode),
+                    fail: false,
+                };
+                let client = Client {
+                    transport: &http,
+                    secrets: &Secrets { missing: false },
+                    guard: &adapter,
+                    journal: &adapter,
+                };
+                let error = client
+                    .send(&call, &call.inspect().hash(), &NeverCancel)
+                    .unwrap_err();
+                assert_eq!(error.code, MemoryErrorCode::ProviderUnavailable);
+                assert!(!error.retryable);
+                let rows = adapter.invocations().unwrap();
+                assert_eq!(rows.len(), 1);
+                let row = &rows[0];
+                assert_eq!(row.state, InvocationState::Failed);
+                assert_eq!((row.input_tokens, row.output_tokens), (None, None));
+                assert_eq!(
+                    row.reserved_tokens,
+                    call.estimated_input_tokens() + call.dispatch().output.max_output_tokens
+                );
+                assert!(adapter.saved_response(&row.dispatch_id).unwrap().is_none());
+                let before = env.vault.pin_current().unwrap();
+                let enouia_memory_contract::record::AnyRecord::SessionEvent(previous) = env
+                    .vault
+                    .read_parsed(
+                        &before,
+                        &enouia_memory_contract::record::RecordRef::new(
+                            RecordKind::SessionEvent,
+                            input.as_str(),
+                            Revision::new(1).unwrap(),
+                        ),
+                    )
+                    .unwrap()
+                else {
+                    panic!("input");
+                };
+                let events = session::events(
+                    &env.vault,
+                    &before,
+                    &previous.session_id,
+                    &previous.branch_id,
+                )
+                .unwrap();
+                assert!(!events.iter().any(|event| event.kind
+                    == enouia_memory_contract::session::EventKind::AssistantCompleted));
+                assert_eq!(
+                    events
+                        .iter()
+                        .filter(|event| event.kind
+                            == enouia_memory_contract::session::EventKind::AssistantChunk)
+                        .count(),
+                    usize::from(streaming && api == Api::OpenAiResponses)
+                );
+                assert_eq!(
+                    client
+                        .send(&call, &call.inspect().hash(), &NeverCancel)
+                        .unwrap_err()
+                        .code,
+                    MemoryErrorCode::IdempotencyConflict
+                );
+                assert_eq!(http.calls.get(), 1);
+                assert_eq!(env.vault.pin_current().unwrap(), before);
+                assert!(env.vault.verify(&before).unwrap().is_clean());
+            }
+        }
+    }
 }

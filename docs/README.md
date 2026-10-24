@@ -76,3 +76,5 @@ The design package, the two prompts, and the review were written in this directo
 The original v0.1 draft is unchanged (SHA-256 `bfc7d55d219a1eb667c666739f943cab034db1a2508ed4f56e9ea81f5abd1ea4`).
 
 MV-8 was explicitly authorized on 2026-10-18. [Host authority v1](design/HOST_AUTHORITY_V1.md), [ADR-MEM-66](adr/066-host-authority-and-platform-contracts.md) and the [8.1a report](validation/MV-8-host-authority-contracts.md) cover the additive contracts and pure rules. [ADR-MEM-67](adr/067-authority-control-file-persistence.md) and the [8.1b report](validation/MV-8-authority-control-file.md) cover opt-in Windows authority-control persistence and actual synthetic file/process checks. They do not implement shared authority/data transactions, start a Host process, migrate Runtime or provide MCP compatibility. MV-7 real acceptance and the recorded ordered-barrier failure remain pending.
+
+The [2026-10-24 Provider hardening integration](validation/Provider-hardening-mainline-integration-2026-10-24.md) records the previously local security fixes merged with current saved-history behavior. Runtime adoption of that new combined commit remains separate.

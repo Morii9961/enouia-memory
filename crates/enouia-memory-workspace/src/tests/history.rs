@@ -713,7 +713,7 @@ impl enouia_memory_provider::transport::Transport for BatchPorts {
         sink: &mut dyn FnMut(&[u8]) -> Result<(), enouia_memory_contract::MemoryError>,
     ) -> Result<(), enouia_memory_contract::MemoryError> {
         self.calls.fetch_add(1, Ordering::SeqCst);
-        sink(&serde_json::to_vec(&json!({"status":"completed","output":[{"type":"message","role":"assistant","content":[{"type":"output_text","text":self.text.as_deref().unwrap_or("{\"candidates\":[]}")}]}],"usage":{"input_tokens":50,"output_tokens":10}})).unwrap())
+        sink(&serde_json::to_vec(&json!({"id":"resp_synthetic_history","object":"response","error":null,"status":"completed","output":[{"type":"message","role":"assistant","content":[{"type":"output_text","text":self.text.as_deref().unwrap_or("{\"candidates\":[]}")}]}],"usage":{"input_tokens":50,"output_tokens":10}})).unwrap())
     }
 }
 

@@ -294,6 +294,25 @@ pub struct VaultAdapter<'a> {
     pub enabled: &'a AtomicBool,
     pub quota: Quota,
 }
+fn current_extraction_sources(
+    vault: &Vault,
+    pin: &enouia_memory_contract::ports::CommitPin,
+    capsule: &ContextCapsule,
+) -> Result<()> {
+    if capsule.purpose != Purpose::Extraction {
+        return Ok(());
+    }
+    for source in &capsule.provenance {
+        let entry = vault
+            .record_entry(pin, RecordKind::Source, source.source_id.as_str())
+            .map_err(|e| e.error)?
+            .ok_or_else(|| error(MemoryErrorCode::NotFound))?;
+        if entry.revision != source.source_revision {
+            return Err(error(MemoryErrorCode::RevisionConflict));
+        }
+    }
+    Ok(())
+}
 impl VaultAdapter<'_> {
     fn output_guard(&self, dispatch: &DispatchRecord) -> Result<session::OutputGuard> {
         let pin = self.vault.pin_current().map_err(|e| e.error)?;
@@ -739,6 +758,18 @@ impl SendGuard for VaultAdapter<'_> {
             checked_at: now.clone(),
         }
         .authorize(dispatch)?;
+        if capsule.purpose == Purpose::Extraction {
+            // Authorization may have read a historical Source snapshot. Check
+            // the latest catalog after resolving policy, before allowing bytes.
+            let fresh = self
+                .vault
+                .check_fresh(&pin, &compiler::resource_refs(&capsule))
+                .map_err(|e| e.error)?;
+            if fresh.policy_changed || fresh.head.deletion_epoch != pin.deletion_epoch {
+                return Err(error(MemoryErrorCode::RevisionConflict));
+            }
+            current_extraction_sources(self.vault, &fresh.head, &capsule)?;
+        }
         if audit {
             AuditLog::new(self.vault.managed_root().clone(), 1024 * 1024)
                 .append(&AuditEvent {
@@ -770,6 +801,14 @@ impl InvocationJournal for VaultAdapter<'_> {
         {
             return Err(error(MemoryErrorCode::RevisionConflict));
         }
+        let capsule: ContextCapsule = read(
+            self.vault,
+            RecordKind::Capsule,
+            call.dispatch.capsule_id.as_str(),
+        )?;
+        // The admission commit below uses this exact pin. A revision change
+        // after this check conflicts with publication rather than consuming it.
+        current_extraction_sources(self.vault, &pin, &capsule)?;
         let mut header: SessionRecord =
             read(self.vault, RecordKind::Session, input.session_id.as_str())?;
         if header.provider_invocations.iter().any(|r| {
@@ -814,24 +853,33 @@ impl InvocationJournal for VaultAdapter<'_> {
                 sum.checked_add(r.reserved_tokens.max(known))
             })
             .ok_or_else(|| error(MemoryErrorCode::BudgetExceeded))?;
-        let job = header
+        let mut jobs = header
             .extraction_jobs
             .iter()
-            .find(|j| j.input_event_id == input.event_id);
-        if let Some(job) = job {
-            let capsule: ContextCapsule = read(
-                self.vault,
-                RecordKind::Capsule,
-                call.dispatch.capsule_id.as_str(),
-            )?;
-            if job.binding != call.wire.binding || capsule.purpose != Purpose::Extraction {
-                return Err(error(MemoryErrorCode::PermissionDenied));
-            }
+            .filter(|j| j.input_event_id == input.event_id);
+        let job = jobs.next();
+        if jobs.next().is_some() {
+            // Budget and origin cannot be resolved by array order. This check
+            // also protects calls prepared before an ambiguous archive update.
+            return Err(error(MemoryErrorCode::InvalidRequest));
+        }
+        if job.is_some_and(|job| {
+            job.binding != call.wire.binding || capsule.purpose != Purpose::Extraction
+        }) {
+            return Err(error(MemoryErrorCode::PermissionDenied));
         }
         if job
             .is_some_and(|j| j.state != enouia_memory_contract::extraction::ExtractionState::Ready)
         {
             return Err(error(MemoryErrorCode::Cancelled));
+        }
+        if let Some(job) = job
+            && enouia_memory_govern::pending_candidates(self.vault, &pin)
+                .map_err(|e| e.error)?
+                .len() as u64
+                >= job.max_pending
+        {
+            return Err(error(MemoryErrorCode::BudgetExceeded));
         }
         let token_limit = job.map_or(self.quota.max_reserved_tokens, |j| {
             self.quota.max_reserved_tokens.min(j.max_reserved_tokens)
