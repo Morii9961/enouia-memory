@@ -51,6 +51,14 @@ MV-1 update: rows whose "Later behavior" names MV-1 now have store evidence (com
 
 ## Rule coverage
 
+Core-6 (ADR-MEM-90) adds closed attention profile/projection schemas and native
+selection over an already authorized set. Pure tests cover aliases, fixed-clock
+replay, conditions/time/staging, accessibility-only decay, historical rescue,
+budgets and duplicate observations. Native cases additionally prove permission
+before counts, current validity independent of ranking time, cache nonauthority,
+source deletion/lock and single cancellable periodic maintenance. None changes
+record truth, adoption or plan state, and no notification/Activity source exists.
+
 Core-5 (ADR-MEM-89) adds `next/formation-v2.schema.json`, policy rule-3/layout
 gates and source-bound semantic dimensions. Pure formation tests check states,
 unknown time, source/parent closure, qualified understanding, exact reversion

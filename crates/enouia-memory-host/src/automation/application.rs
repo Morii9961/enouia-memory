@@ -29,6 +29,7 @@ pub struct AutomationHost {
     jobs: SyntheticJobs,
     unlocked: RwLock<bool>,
     continuation: Option<super::continuation::ContinuousPolicyHost>,
+    maintenance_running: Arc<AtomicBool>,
 }
 impl AutomationHost {
     /// Caller authenticates the native System identity separately. Never fill
@@ -49,6 +50,7 @@ impl AutomationHost {
             jobs,
             unlocked: RwLock::new(true),
             continuation: None,
+            maintenance_running: Arc::new(AtomicBool::new(false)),
         })
     }
     /// Bind before workers start; application shares the policy revoke barrier.
@@ -247,6 +249,78 @@ impl AutomationHost {
         self.jobs.cancel(key)?;
         Ok(())
     }
+    pub fn select_context_native(
+        &self,
+        profile: &AttentionProfile,
+        query: &RecallQuery,
+        max: Sensitivity,
+    ) -> ApplicationResult<super::attention::RecallRead> {
+        let _gate = self.gate()?;
+        let data = self.vault.authorized_recall_set(&self.system, max)?;
+        if query.at > data.now {
+            return Err(ApplicationFault::Invalid);
+        }
+        let rendered: Vec<_> = data
+            .memories
+            .iter()
+            .map(|(m, _)| render_memory(m))
+            .collect();
+        let candidates: Vec<_> = data
+            .memories
+            .iter()
+            .zip(&rendered)
+            .map(|((memory, source_time), text)| RecallCandidate {
+                memory,
+                source_time: source_time.clone(),
+                rendered_bytes: text.len(),
+            })
+            .collect();
+        let trace = select_recall(profile, query, &data.snapshot, &data.now, &candidates)
+            .map_err(|_| ApplicationFault::Invalid)?;
+        let text = trace
+            .selected
+            .iter()
+            .map(|s| {
+                let index = data
+                    .memories
+                    .iter()
+                    .position(|(m, _)| m.memory == s.memory)
+                    .expect("selected authorized reference");
+                rendered[index].as_str()
+            })
+            .collect::<Vec<_>>()
+            .join("\n");
+        Ok(super::attention::RecallRead { trace, text })
+    }
+    pub fn maintain_attention_native(
+        &self,
+        profile: &AttentionProfile,
+    ) -> ApplicationResult<AttentionProjection> {
+        let _gate = self.gate()?;
+        Ok(self.vault.maintain_attention(&self.system, profile)?)
+    }
+    pub fn start_maintenance(
+        self: &Arc<Self>,
+        profile: AttentionProfile,
+    ) -> ApplicationResult<super::attention::MaintenanceWorker> {
+        let _gate = self.gate()?;
+        if self
+            .maintenance_running
+            .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
+            .is_err()
+        {
+            return Err(ApplicationFault::Invalid);
+        }
+        let result = super::attention::spawn(
+            Arc::downgrade(self),
+            profile,
+            self.maintenance_running.clone(),
+        );
+        if result.is_err() {
+            self.maintenance_running.store(false, Ordering::SeqCst);
+        }
+        result
+    }
     pub fn context(
         &self,
         query: &str,
@@ -257,29 +331,39 @@ impl AutomationHost {
         let memories = self.vault.recall(&self.system, query, max, limit)?;
         Ok(memories
             .iter()
-            .map(|memory| {
-                let mut text = format!(
-                    "Subject stated (not independently verified): {}",
-                    memory.decision.input.content
-                );
-                if let Some(dimensions) = &memory.decision.input.dimensions {
-                    let time = |range: &Option<FormationTime>| range.as_ref().map_or_else(
-                        || "unknown".into(),
-                        |r|format!("{} until {}",r.from.as_str(),r.until.as_ref().map_or("unspecified",|t|t.as_str())),
-                    );
-                    text.push_str(&format!(
+            .map(render_memory)
+            .collect::<Vec<_>>()
+            .join("\n"))
+    }
+}
+fn render_memory(memory: &MachineMemory) -> String {
+    let mut text = format!(
+        "Subject stated (not independently verified): {}",
+        memory.decision.input.content
+    );
+    if let Some(dimensions) = &memory.decision.input.dimensions {
+        let time = |range: &Option<FormationTime>| {
+            range.as_ref().map_or_else(
+                || "unknown".into(),
+                |r| {
+                    format!(
+                        "{} until {}",
+                        r.from.as_str(),
+                        r.until.as_ref().map_or("unspecified", |t| t.as_str())
+                    )
+                },
+            )
+        };
+        text.push_str(&format!(
                         "\nForm: {:?}; state: {:?}; occurrence: {:?}. Conditions: {}. Event time: {}. Valid time: {}.",
                         dimensions.kind, dimensions.state, dimensions.occurrence,
                         if dimensions.conditions.is_empty(){"unspecified".into()}else{dimensions.conditions.join("; ")},
                         time(&dimensions.event_time),time(&dimensions.valid_time),
                     ));
-                }
-                text
-            })
-            .collect::<Vec<_>>()
-            .join("\n"))
     }
+    text
 }
+
 impl Drop for AutomationHost {
     fn drop(&mut self) {
         let _ = self.jobs.shutdown();

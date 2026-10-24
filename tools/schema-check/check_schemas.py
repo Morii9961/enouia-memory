@@ -267,6 +267,18 @@ def main():
             failures.append(f"formation case {case['id']}: disagreement")
     counts["formation_documents"] = 2 + len(formation["invalid"])
 
+    attention_dir = ROOT / "tests" / "fixtures" / "attention"
+    attention = load(attention_dir / "manifest.json")
+    for entry in attention["valid"]:
+        if not valid(attention["schema"], load(attention_dir / entry["file"])):
+            failures.append(f"valid attention document rejected: {entry['file']}")
+    for case in attention["invalid"]:
+        value = load(attention_dir / case["base"])
+        apply_ops(value, case["ops"])
+        if valid(attention["schema"], value) != (case["schema"] == "accept"):
+            failures.append(f"attention case {case['id']}: disagreement")
+    counts["attention_documents"] = len(attention["valid"]) + len(attention["invalid"])
+
     invocation_cases = load(FIXTURES / "provider-invocation-cases.json")
     for case in invocation_cases["cases"]:
         value = copy.deepcopy(invocation_cases["base"])

@@ -458,6 +458,14 @@ and rule 3, explicit formation/state/condition/time dimensions, exact original
 source derivation, staged System interpretation and new-revision historical
 reversion. No old-root upgrade, fabricated experience or owner approval.
 
+### ADR-MEM-90 — Contextual recall and attention maintenance (Core-6)
+
+[Decision](090-contextual-recall-maintenance.md): current authorization before
+deterministic lexical/alias/condition/time selection, separate fading/protection
+and historical rescue, read-without-reinforcement, and one cancellable native
+worker maintaining a disposable metadata projection. No truth/state mutation,
+Activity input, notification, default route or Runtime adoption.
+
 ## Relation to Enouia Runtime's register
 
 

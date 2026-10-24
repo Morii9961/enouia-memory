@@ -120,7 +120,7 @@ fn open_loop_does_not_complete_by_age_and_validity_excludes_current_use_without_
     drop(host);
     thread.join().unwrap();
 }
-fn env() -> Env {
+pub(super) fn env() -> Env {
     let mut e = Env::new();
     e.descriptor.layout = AutomationLayout::HostV2;
     let policy: AutomationPolicy =
@@ -129,7 +129,7 @@ fn env() -> Env {
     e.policy.allowed_forms = policy.allowed_forms;
     e
 }
-fn dims(
+pub(super) fn dims(
     kind: FormationKind,
     state: Option<FormationState>,
     change: FormationChange,
@@ -153,7 +153,7 @@ fn dims(
         reverts_to: None,
     }
 }
-struct DimensionalModel;
+pub(super) struct DimensionalModel;
 struct DimensionalPending(AdmissionInput);
 impl Generator for DimensionalModel {
     fn start(
@@ -225,7 +225,7 @@ impl PendingGeneration for DimensionalPending {
         })))
     }
 }
-fn form(
+pub(super) fn form(
     e: &Env,
     host: &AutomationHost,
     jobs: &SyntheticJobs,

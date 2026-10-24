@@ -1,6 +1,8 @@
 //! Core-3 explicit V2 synthetic authority. No legacy-format adoption or default
 //! writer activation. One Host lease, short Writer transactions, exact witness.
+mod attention;
 mod publication;
+pub use attention::{ATTENTION_PROJECTION, AuthorizedRecallSet};
 pub use publication::{AUTOMATION_INTENT, AUTOMATION_WITNESS};
 
 use crate::{

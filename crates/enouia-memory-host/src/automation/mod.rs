@@ -2,6 +2,7 @@
 //! adapter or default writer. The opt-in `application` module connects Core-3's
 //! separate V2 synthetic transactions; the coordinator alone never applies them.
 pub mod application;
+pub mod attention;
 pub mod continuation;
 mod model;
 mod worker;
