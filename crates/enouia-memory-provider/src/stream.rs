@@ -1,7 +1,7 @@
 //! Bounded incremental SSE decoding. A closed socket is never completion.
 use crate::{
     Result,
-    codec::{Api, decode, decode_usage},
+    codec::{Api, decode_observing, decode_usage, openai_reported_usage},
     error,
 };
 use enouia_memory_contract::{
@@ -31,6 +31,7 @@ pub struct Decoder {
     terminal: Option<ProviderResponse>,
     usage: Value,
     observed_usage: (Option<u64>, Option<u64>),
+    openai_response_id: Option<String>,
     stop: Option<String>,
     started: bool,
     next_block: u64,
@@ -51,6 +52,7 @@ impl Decoder {
             terminal: None,
             usage: json!({}),
             observed_usage: (None, None),
+            openai_response_id: None,
             stop: None,
             started: false,
             next_block: 0,
@@ -121,7 +123,7 @@ impl Decoder {
         if raw.is_empty() {
             if !self.data.is_empty() {
                 let data = std::mem::take(&mut self.data);
-                let v: Value = serde_json::from_slice(&data)
+                let v: Value = crate::json::parse(&data)
                     .map_err(|_| error(MemoryErrorCode::ProviderUnavailable))?;
                 self.event(v, on_text)?;
             }
@@ -142,6 +144,34 @@ impl Decoder {
         }
         Ok(())
     }
+    fn remember_openai_usage(
+        &mut self,
+        response: &Value,
+        reported: (Option<u64>, Option<u64>),
+    ) -> Result<()> {
+        if self
+            .openai_response_id
+            .as_deref()
+            .is_some_and(|id| response["id"].as_str() != Some(id))
+        {
+            return Err(error(MemoryErrorCode::ProviderUnavailable));
+        }
+        // Validate both components before replacing either last good count.
+        // Reported counts cannot regress; null is unknown, not zero.
+        for (previous, next) in [
+            (self.observed_usage.0, reported.0),
+            (self.observed_usage.1, reported.1),
+        ] {
+            if previous.zip(next).is_some_and(|(old, new)| new < old) {
+                return Err(error(MemoryErrorCode::ProviderUnavailable));
+            }
+        }
+        self.observed_usage = (
+            reported.0.or(self.observed_usage.0),
+            reported.1.or(self.observed_usage.1),
+        );
+        Ok(())
+    }
     fn event(&mut self, v: Value, on_text: &mut dyn FnMut(&str) -> Result<()>) -> Result<()> {
         if self.terminal.is_some() {
             return Err(error(MemoryErrorCode::ProviderUnavailable));
@@ -153,6 +183,25 @@ impl Decoder {
             return Err(error(MemoryErrorCode::ProviderUnavailable));
         }
         match (self.api, kind) {
+            (Api::OpenAiResponses, "response.created" | "response.in_progress") => {
+                let response = &v["response"];
+                // Null/missing usage carries no accounting evidence. Keep
+                // metadata compatibility and never invent or erase counts.
+                if !response["usage"].is_null() {
+                    if response["status"] != "in_progress"
+                        && !(kind == "response.created" && response["status"] == "queued")
+                    {
+                        return Err(error(MemoryErrorCode::ProviderUnavailable));
+                    }
+                    let reported = openai_reported_usage(response)?;
+                    self.remember_openai_usage(response, reported)?;
+                    if self.openai_response_id.is_none()
+                        && (reported.0.is_some() || reported.1.is_some())
+                    {
+                        self.openai_response_id = Some(response["id"].as_str().unwrap().into());
+                    }
+                }
+            }
             (Api::OpenAiResponses, "response.output_text.delta" | "response.refusal.delta") => {
                 let text = v["delta"]
                     .as_str()
@@ -173,22 +222,43 @@ impl Decoder {
                 }
                 let bytes = serde_json::to_vec(&v["response"])
                     .map_err(|_| error(MemoryErrorCode::ProviderUnavailable))?;
-                let answer = decode(self.api, &bytes)?;
+                let mut reported = (None, None);
+                let decoded = decode_observing(self.api, &bytes, &mut reported);
+                self.remember_openai_usage(&v["response"], reported)?;
+                let mut answer = decoded?;
+                // The response and usage have been validated independently of
+                // the streamed text. Keep reported use for a failed admission
+                // even when the final text cannot be published as consistent.
+                (answer.input_tokens, answer.output_tokens) = self.observed_usage;
                 // Terminal response must describe exactly the persisted stream.
                 if answer.text != self.text {
                     return Err(error(MemoryErrorCode::ProviderUnavailable));
                 }
-                self.observed_usage = (answer.input_tokens, answer.output_tokens);
                 self.terminal = Some(answer);
             }
-            (Api::OpenAiResponses, "error" | "response.failed")
-            | (Api::AnthropicMessages, "error") => {
+            (Api::OpenAiResponses, "response.failed") => {
+                if v["response"]["status"] == "failed" {
+                    let bytes = serde_json::to_vec(&v["response"])
+                        .map_err(|_| error(MemoryErrorCode::ProviderUnavailable))?;
+                    // Keep only validated usage from the failed Response;
+                    // no error body/output becomes a terminal response.
+                    let mut reported = (None, None);
+                    let _ = decode_observing(self.api, &bytes, &mut reported);
+                    self.remember_openai_usage(&v["response"], reported)?;
+                }
+                return Err(error(MemoryErrorCode::ProviderUnavailable));
+            }
+            (Api::OpenAiResponses, "error") | (Api::AnthropicMessages, "error") => {
                 return Err(error(MemoryErrorCode::ProviderUnavailable));
             }
             (Api::AnthropicMessages, "message_start") => {
                 if self.started
                     || v["message"]["type"] != "message"
                     || v["message"]["role"] != "assistant"
+                    // All content belongs to subsequent indexed blocks. An
+                    // initial payload would otherwise disappear from a valid
+                    // completed result. Require the documented empty array.
+                    || v["message"]["content"].as_array().is_none_or(|parts| !parts.is_empty())
                 {
                     return Err(error(MemoryErrorCode::ProviderUnavailable));
                 }

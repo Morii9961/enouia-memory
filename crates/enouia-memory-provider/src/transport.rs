@@ -8,7 +8,7 @@ use crate::{
 use enouia_memory_contract::{MemoryErrorCode, foundation::Cancellation, ports::SecretBytes};
 use std::time::Duration;
 
-fn credential_text(secret: &SecretBytes) -> Result<&str> {
+pub(crate) fn credential_text(secret: &SecretBytes) -> Result<&str> {
     let credential = std::str::from_utf8(secret.expose())
         .map_err(|_| error(MemoryErrorCode::Unauthenticated))?;
     // Visible ASCII without space: the pinned header type also admits space
