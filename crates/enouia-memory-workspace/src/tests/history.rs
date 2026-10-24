@@ -1412,6 +1412,34 @@ fn history_compare_is_read_only_and_preserves_originals_and_current_edits_withou
         entry["candidate"]["details"]["claim_key"],
         "synthetic_owner_edited_key"
     );
+    let brief_args = json!({"batches": selected,
+        "comparisonCommitId": edited["base"]["commitId"], "maxBytes": 131072});
+    let brief = env.ok("history_brief", brief_args.clone());
+    assert_eq!(brief["base"], edited["base"]);
+    assert_eq!(brief["batches"], edited["batches"]);
+    let markdown = brief["markdown"].as_str().unwrap();
+    assert_eq!(brief["contentHash"], json!(sha256(markdown.as_bytes())));
+    assert!(markdown.contains("Synthetic comparison statement 0"));
+    assert!(markdown.contains("Synthetic owner edited content"));
+    assert!(markdown.contains("uncited_span_occurrences"));
+    assert_eq!(open.vault.pin_current().unwrap(), head);
+    let mut small = brief_args.clone();
+    small["maxBytes"] = json!(1);
+    assert_eq!(env.err("history_brief", small)["code"], "budget_exceeded");
+    let mut stale = brief_args.clone();
+    stale["comparisonCommitId"] = initial["base"]["commitId"].clone();
+    assert_eq!(env.err("history_brief", stale)["code"], "revision_conflict");
+    assert_eq!(open.vault.pin_current().unwrap(), head);
+    if let Some(path) = std::env::var_os("MEMORY_HISTORY_BRIEF_FIXTURE") {
+        std::fs::write(
+            path,
+            serde_json::to_vec_pretty(
+                &json!({"comparison":edited,"args":brief_args,"response":brief}),
+            )
+            .unwrap(),
+        )
+        .unwrap();
+    }
     if let Some(path) = std::env::var_os("MEMORY_HISTORY_COMPARE_FIXTURE") {
         std::fs::write(
             path,
@@ -1456,6 +1484,7 @@ fn history_compare_is_read_only_and_preserves_originals_and_current_edits_withou
     );
     env.ok("vault_lock", json!({}));
     assert_eq!(env.err("history_compare", args)["code"], "vault_locked");
+    assert_eq!(env.err("history_brief", brief_args)["code"], "vault_locked");
     assert!(!HostSurface::QuickSearch.allows(&json!({"command":"history_compare"})));
     for ports in used_ports {
         assert_eq!(ports.reads.load(Ordering::SeqCst), 1);

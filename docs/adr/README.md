@@ -410,3 +410,7 @@ Runtime [ADR-025](https://github.com/Morii9961/enouia-runtime/blob/main/docs/adr
 ### ADR-MEM-81 — Workspace saved-history comparison (Adopted, local integration)
 
 [Decision](081-workspace-history-comparison.md): expose the existing read-only owner comparison through explicit native-resolved task/batch selections. Preserve original/source/current-candidate separation, reject stale or oversized results, and keep Provider, approval and Host activation outside this command. [Evidence](../validation/Workspace-history-comparison-v1.md).
+
+### ADR-MEM-82 — Workspace local history navigation brief (Adopted, local integration)
+
+[Decision](082-workspace-history-navigation-brief.md): expose the deterministic source navigation helper through explicitly selected saved batches and a current comparison head. Return bounded exact text/hash only; no file, Provider, approval or activation. [Evidence](../validation/Workspace-history-navigation-brief-v1.md).

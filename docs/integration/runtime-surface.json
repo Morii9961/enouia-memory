@@ -59,7 +59,8 @@
     "history_batch_prepare",
     "history_batch_preview",
     "history_batch_apply",
-    "history_compare"
+    "history_compare",
+    "history_brief"
   ],
   "coveredDirectories": [
     "apps/workspace/src",
@@ -225,7 +226,7 @@
     {
       "path": "contracts/ipc/workspace-v1.schema.json",
       "role": "wire",
-      "sha256": "7542d9a4a562c871eb6038889cb6772caf84e0b4f61c2ca7da59c17ea4612c77"
+      "sha256": "f1ef4f49b5a724b8246bfc9e0dc2728987fa65377c21f81da1f3068aca0bbd25"
     },
     {
       "path": "contracts/memory/common-v1.schema.json",
@@ -280,7 +281,7 @@
     {
       "path": "crates/enouia-memory-contract/src/workspace.rs",
       "role": "wire",
-      "sha256": "92664ebc8f4b2c36b0c2e93ee04c3d77eda992b4b4fdd225895cd478ce938a40"
+      "sha256": "df6fab14e62392fa4b0637a85c59470576db4b7267cc85d4abe752bb434f2363"
     },
     {
       "path": "crates/enouia-memory-govern/Cargo.toml",
@@ -475,7 +476,7 @@
     {
       "path": "crates/enouia-memory-workspace/src/comparison.rs",
       "role": "core",
-      "sha256": "668e7a9e7602494926bceea5d5be206aed803d9bab39a20c9b4cd257c0021534"
+      "sha256": "be6fe0d87c9318c3022267c12c54682d88271a5035f888883d28185ff10da3d6"
     },
     {
       "path": "crates/enouia-memory-workspace/src/history.rs",
@@ -485,7 +486,7 @@
     {
       "path": "crates/enouia-memory-workspace/src/lib.rs",
       "role": "core",
-      "sha256": "3e1ded64b8865706c7103a7895849796c0dfe5fb09a3280451d85da34cf70c3e"
+      "sha256": "657a44d13b4bbadc2b39a698ba00c7b4f7537c937b6ddb914035de9d755aafcc"
     },
     {
       "path": "crates/enouia-memory-workspace/src/materialization.rs",
@@ -510,7 +511,7 @@
     {
       "path": "crates/enouia-memory-workspace/src/tests/history.rs",
       "role": "core",
-      "sha256": "65499f4a0802accb701045184e5c35b75c7201a393c697854362436fced01f88"
+      "sha256": "06e57f04167529479a565100affc292b0eddd98f61e494df4b068a9ab1b4c4ec"
     },
     {
       "path": "crates/enouia-memory-workspace/src/tests/native.rs",
@@ -530,7 +531,7 @@
     {
       "path": "tests/fixtures/memory/workspace-manifest.json",
       "role": "wire",
-      "sha256": "66c0f113a44d48996ee0d63f02c847a9c9946d41e3b7eaef009bfd466f4fa0e6"
+      "sha256": "4ddcc8975a05514f33090e1011e121f768ddb65cbc509389364b16211fae6d84"
     },
     {
       "path": "tools/windows/installer-smoke.ps1",
@@ -563,5 +564,5 @@
       "sha256": "3603c1855d9f9ec9b3585143a0191508980b260b1ffd26c82b3e6f9b7223a75d"
     }
   ],
-  "aggregate": "9afc5e9960d438c824d785c6091637041485dd8d89e852dbb607b7b243cfa7f3"
+  "aggregate": "a7dc389a9e7073e26bcb17ac644c9949693a24e3ebf358513de58d2e2ecc52e7"
 }
