@@ -1,0 +1,40 @@
+{
+  "schema_version": 2,
+  "kind": "continuous_generation_policy",
+  "policy_id": "pol_00000003-0000-4000-8000-000000000001",
+  "revision": 1,
+  "granted_by": {
+    "actor_id": "prn_00000001-0000-4000-8000-000000000001",
+    "actor_type": "owner"
+  },
+  "system_actor": {
+    "actor_id": "prn_00000002-0000-4000-8000-000000000001",
+    "actor_type": "system"
+  },
+  "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+  "admission_policy": {
+    "policy_id": "pol_00000001-0000-4000-8000-000000000001",
+    "revision": 1,
+    "hash": "4f8140f564c08b8d87cc4f904abbf76c2a760b270acfaa7d93aa13b012ae722b"
+  },
+  "subject_id": "sub_00000001-0000-4000-8000-000000000001",
+  "project_id": null,
+  "source_ids": [
+    "src_00000001-0000-4000-8000-000000000001",
+    "src_00000002-0000-4000-8000-000000000001"
+  ],
+  "producer_version": "synthetic-analysis-1",
+  "destination": {
+    "api": "synthetic",
+    "model": "fake-model-1",
+    "adapter_version": "fake-1"
+  },
+  "max_sensitivity": "private",
+  "call_tokens": 100,
+  "call_cost_microusd": 10,
+  "total_tokens": 200,
+  "total_cost_microusd": 20,
+  "active": true,
+  "valid_from": "2026-10-24T00:00:00.000Z",
+  "valid_until": "2026-10-25T00:00:00.000Z"
+}

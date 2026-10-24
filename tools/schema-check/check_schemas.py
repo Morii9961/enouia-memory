@@ -241,6 +241,18 @@ def main():
             failures.append(f"automation store case {case['id']}: disagreement")
     counts["automation_store_documents"] = len(automation_store["valid"]) + len(automation_store["invalid"])
 
+    continuation_dir = ROOT / "tests" / "fixtures" / "continuation"
+    continuation = load(continuation_dir / "manifest.json")
+    for entry in continuation["valid"]:
+        if not valid(continuation["schema"], load(continuation_dir / entry["file"])):
+            failures.append(f"valid continuation document rejected: {entry['file']}")
+    for case in continuation["invalid"]:
+        value = load(continuation_dir / case["base"])
+        apply_ops(value, case["ops"])
+        if valid(continuation["schema"], value) != (case["schema"] == "accept"):
+            failures.append(f"continuation case {case['id']}: disagreement")
+    counts["continuation_documents"] = len(continuation["valid"]) + len(continuation["invalid"])
+
     invocation_cases = load(FIXTURES / "provider-invocation-cases.json")
     for case in invocation_cases["cases"]:
         value = copy.deepcopy(invocation_cases["base"])

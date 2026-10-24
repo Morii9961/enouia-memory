@@ -28,6 +28,7 @@ pub struct AutomationHost {
     system: ActorRef,
     jobs: SyntheticJobs,
     unlocked: RwLock<bool>,
+    continuation: Option<super::continuation::ContinuousPolicyHost>,
 }
 impl AutomationHost {
     /// Caller authenticates the native System identity separately. Never fill
@@ -47,7 +48,19 @@ impl AutomationHost {
             system,
             jobs,
             unlocked: RwLock::new(true),
+            continuation: None,
         })
+    }
+    /// Bind before workers start; application shares the policy revoke barrier.
+    pub fn with_continuation(
+        mut self,
+        policy: super::continuation::ContinuousPolicyHost,
+    ) -> ApplicationResult<Self> {
+        if !policy.owns_jobs(&self.jobs) {
+            return Err(ApplicationFault::Invalid);
+        }
+        self.continuation = Some(policy);
+        Ok(self)
     }
     fn gate(&self) -> ApplicationResult<RwLockReadGuard<'_, bool>> {
         let guard = self.unlocked.read().map_err(|_| ApplicationFault::Locked)?;
@@ -162,6 +175,17 @@ impl AutomationHost {
         if let Some(receipts) = self.vault.replay_job(&self.system, key, &bindings)? {
             return Ok(receipts);
         }
+        if let Some(policy) = &self.continuation {
+            return policy
+                .with_application(&bindings, || self.apply_generated(key, bindings.clone()))?;
+        }
+        self.apply_generated(key, bindings)
+    }
+    fn apply_generated(
+        &self,
+        key: &Sha256Hex,
+        bindings: Vec<GenerationBinding>,
+    ) -> ApplicationResult<Vec<MemoryReceipt>> {
         let (inputs, results) = self.jobs.generated_batch(key)?;
         let mut decisions = Vec::new();
         let mut responses = Vec::new();

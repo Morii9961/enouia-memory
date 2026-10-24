@@ -51,6 +51,14 @@ MV-1 update: rows whose "Later behavior" names MV-1 now have store evidence (com
 
 ## Rule coverage
 
+Core-4 (ADR-MEM-88) adds `next/continuation-v2.schema.json`, 17 schema/native
+fixture cases and three contract tests for scope, history and conservative
+charges. Native automatic-loop continuation cases test policy absence/grant,
+withdrawal before/after generation, lifetime budgets, expiry/lock, unknown and
+overrun costs, write failures, corrupt versions, leases and child-process crash.
+The shared policy barrier also gates Core-3 application. No V1 private-send
+approval rule is relaxed; all transports in this slice are fake.
+
 Core-3 (ADR-MEM-87) adds closed descriptor/current/commit/publication documents
 in `next/storage-v2.schema.json`. The automation-vault fixture manifest checks
 17 schema/native cases; `tests/automation_storage.rs` additionally checks full

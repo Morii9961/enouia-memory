@@ -21,6 +21,8 @@ pub enum Generation {
     Complete(Box<Generated>),
     Refused,
     Unknown,
+    /// Proven no transport handoff. Never use after an attempted send.
+    Paused,
 }
 
 /// A bounded nonblocking poll. Long model/embedding computation belongs outside
@@ -29,6 +31,10 @@ pub trait PendingGeneration: Send {
     fn poll(&mut self, stop: &StopToken) -> Option<Generation>;
 }
 pub trait Generator: Send + 'static {
+    /// Native preflight only; false retains queued work without a reservation.
+    fn ready(&mut self, _input: &AdmissionInput, _limits: &Limits) -> bool {
+        true
+    }
     /// Bounded, nonblocking handoff ONLY: cancellation and this dispatch share
     /// one gate, so a later cancel cannot be followed by an additional dispatch.
     /// No network wait, embedding or unbounded work inside this method.
@@ -77,6 +83,9 @@ fn dispatch(inner: &Inner, generator: &mut impl Generator) -> Result<Option<Disp
     if !s.permit.as_ref().is_some_and(|p| p.matches(&input)) {
         job.state = JobState::Invalidated;
         inner.persist(&mut s, journal)?;
+        return Ok(None);
+    }
+    if !catch_unwind(AssertUnwindSafe(|| generator.ready(&input, &limits))).unwrap_or(false) {
         return Ok(None);
     }
     if journal
@@ -131,6 +140,15 @@ fn finish(inner: &Inner, work: &Dispatch, generation: Generation) -> Result<()> 
     let mut journal = s.journal.clone();
     let job = &mut journal.jobs[work.index];
     match generation {
+        Generation::Paused => {
+            // Only a proven pre-handoff refusal may undo this local intent.
+            // A crash before this update remains unknown, never auto-resends.
+            job.state = JobState::Queued;
+            job.uncertain = false;
+            job.attempts -= 1;
+            journal.reserved_tokens -= journal.limits.call_tokens;
+            journal.reserved_cost_microusd -= journal.limits.call_cost_microusd;
+        }
         Generation::Complete(result)
             if work.started.elapsed().as_millis() < work.timeout_ms as u128 =>
         {
@@ -204,6 +222,7 @@ pub(super) fn run(
                     break Generation::Unknown;
                 }
                 match catch_unwind(AssertUnwindSafe(|| pending.poll(&work.stop))) {
+                    Ok(Some(Generation::Paused)) => break Generation::Unknown,
                     Ok(Some(result)) => break result,
                     Err(_) => break Generation::Unknown,
                     Ok(None) => {}

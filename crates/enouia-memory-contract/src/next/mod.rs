@@ -3,11 +3,13 @@
 //! Version 2 here is independent of schema-1 records and Host CURRENT format.
 
 mod admission;
+mod continuation;
 mod rules;
 mod storage;
 mod storage_rules;
 
 pub use admission::*;
+pub use continuation::*;
 pub use rules::{EvaluationContext, SourceView, TargetView, evaluate, validate_commit_binding};
 pub use storage::*;
 pub use storage_rules::{

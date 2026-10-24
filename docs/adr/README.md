@@ -444,6 +444,13 @@ append-only data/authority closure, exact forward publication recovery and
 attributed current recall. Rule-2 optionally delegates revision of same-policy
 machine results; legacy owner history and all default routes remain unchanged.
 
+### ADR-MEM-88 — Continuous generation policy (Core-4)
+
+[Decision](088-continuous-generation-policy.md): isolated standing native egress
+policy with exact input/destination scope, persistent reservations, conservative
+unknown/overrun charges, automatic no-policy pause and shared withdrawal/application
+barrier. Fake transport only; V1 private approvals and Runtime pins are unchanged.
+
 ## Relation to Enouia Runtime's register
 
 

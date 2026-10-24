@@ -1,6 +1,8 @@
 //! End-to-end Core-3 with actual V2 files/leases and fake generation. No owner
 //! review, real Provider, private data, Runtime or default Host route.
 #![cfg(windows)]
+#[path = "automatic_loop/continuation_cases.rs"]
+mod continuation_cases;
 #[path = "../../enouia-memory-contract/tests/support/mod.rs"]
 mod support;
 use enouia_memory_contract::{
