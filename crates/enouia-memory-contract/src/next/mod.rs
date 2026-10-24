@@ -6,6 +6,7 @@ mod admission;
 mod attention;
 mod continuation;
 mod formation;
+mod read_model;
 mod rules;
 mod storage;
 mod storage_rules;
@@ -14,6 +15,7 @@ pub use admission::*;
 pub use attention::*;
 pub use continuation::*;
 pub use formation::*;
+pub use read_model::*;
 pub use rules::{EvaluationContext, SourceView, TargetView, evaluate, validate_commit_binding};
 pub use storage::*;
 pub use storage_rules::{

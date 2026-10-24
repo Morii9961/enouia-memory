@@ -279,6 +279,18 @@ def main():
             failures.append(f"attention case {case['id']}: disagreement")
     counts["attention_documents"] = len(attention["valid"]) + len(attention["invalid"])
 
+    read_model_dir = ROOT / "tests" / "fixtures" / "read-model"
+    read_model = load(read_model_dir / "manifest.json")
+    for entry in read_model["valid"]:
+        if not valid(read_model["schema"], load(read_model_dir / entry["file"])):
+            failures.append(f"valid read-model document rejected: {entry['file']}")
+    for case in read_model["invalid"]:
+        value = load(read_model_dir / case["base"])
+        apply_ops(value, case["ops"])
+        if valid(read_model["schema"], value) != (case["schema"] == "accept"):
+            failures.append(f"read-model case {case['id']}: disagreement")
+    counts["read_model_documents"] = len(read_model["valid"]) + len(read_model["invalid"])
+
     invocation_cases = load(FIXTURES / "provider-invocation-cases.json")
     for case in invocation_cases["cases"]:
         value = copy.deepcopy(invocation_cases["base"])

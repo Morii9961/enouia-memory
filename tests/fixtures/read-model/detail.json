@@ -1,0 +1,198 @@
+{
+  "schema_version": 2,
+  "kind": "automation_memory_detail",
+  "capability": "memory-native-read-1",
+  "effect": "native_read",
+  "snapshot": {
+    "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+    "base_commit_id": "cmt_00000002-0000-4000-8000-000000000001",
+    "primary_epoch": 1,
+    "policy_watermark": 1,
+    "deletion_watermark": 1
+  },
+  "authorized_at": "2026-10-24T12:00:00.000Z",
+  "item": {
+    "memory": {
+      "memory_id": "mem_00000001-0000-4000-8000-000000000001",
+      "revision": 1
+    },
+    "system_actor": {
+      "actor_id": "prn_00000002-0000-4000-8000-000000000001",
+      "actor_type": "system"
+    },
+    "subject_id": "sub_00000001-0000-4000-8000-000000000001",
+    "project_id": null,
+    "content": "Synthetic subject says: I prefer quiet workspaces.",
+    "knowledge": "attributed_statement",
+    "adoption": "adopted",
+    "dimensions": {
+      "kind": "preference",
+      "occurrence": "unknown",
+      "state": null,
+      "change": "initial",
+      "conditions": [
+        "When debugging, preserve the reasoning steps."
+      ],
+      "event_time": null,
+      "valid_time": null,
+      "counter_sources": [],
+      "derived_from": [],
+      "reverts_to": null
+    },
+    "policy": {
+      "policy_id": "pol_00000001-0000-4000-8000-000000000001",
+      "revision": 1,
+      "hash": "f310cd4149124c63b7537ad259f016b7d4d1546c826ff8e136afd61c51deb256"
+    },
+    "rule_version": "admission-rules-3",
+    "committed_in": "cmt_00000003-0000-4000-8000-000000000001",
+    "learned_at": "2026-10-24T12:00:00.000Z",
+    "source_captured_at": "2026-10-24T12:00:00.000Z",
+    "attention": "active",
+    "evidence": [
+      {
+        "source_id": "src_00000001-0000-4000-8000-000000000001",
+        "source_revision": 1,
+        "locator": {
+          "event_id": "evt_00000015-0000-4000-8000-000000000015",
+          "kind": "runtime_event"
+        },
+        "object_hash": "452c51c0e5d693cc71a4434687ce9f7984b288c9b5f70cfa79440ae0fbd98f4f",
+        "evidence_class": "user_statement",
+        "supports": "content"
+      }
+    ],
+    "context_source_refs": [],
+    "receipt": {
+      "job_key": "da524a29403882da69261073fcf5fb537491fdfe7c9a96b38dd18d1715da5ceb",
+      "binding_hash": "8a692126e05261a25bf1aa405bcfd187e8e8045219b8489d7746071fc98fbd5c",
+      "operation_id": "op_00000001-0000-4000-8000-000000000001",
+      "request_hash": "e995a9d9bb772891d87742a20879b462d3317085c858afcaf97fea06ce145e3a",
+      "response_hash": "cf59cc6c546caf79aec547c722766579034d11afe2edfd70a32d230c93944294",
+      "decision_hash": "f0800b287b9a5da0fc81cb701727494d119988398575d9e62b70837c7ee6384e",
+      "committed_in": "cmt_00000003-0000-4000-8000-000000000001",
+      "sequence": 3,
+      "result": {
+        "memory_id": "mem_00000001-0000-4000-8000-000000000001",
+        "revision": 1
+      }
+    },
+    "validity": "unspecified"
+  },
+  "history": [
+    {
+      "memory": {
+        "memory_id": "mem_00000001-0000-4000-8000-000000000001",
+        "revision": 1
+      },
+      "system_actor": {
+        "actor_id": "prn_00000002-0000-4000-8000-000000000001",
+        "actor_type": "system"
+      },
+      "subject_id": "sub_00000001-0000-4000-8000-000000000001",
+      "project_id": null,
+      "content": "Synthetic subject says: I prefer quiet workspaces.",
+      "knowledge": "attributed_statement",
+      "adoption": "adopted",
+      "dimensions": {
+        "kind": "preference",
+        "occurrence": "unknown",
+        "state": null,
+        "change": "initial",
+        "conditions": [
+          "When debugging, preserve the reasoning steps."
+        ],
+        "event_time": null,
+        "valid_time": null,
+        "counter_sources": [],
+        "derived_from": [],
+        "reverts_to": null
+      },
+      "policy": {
+        "policy_id": "pol_00000001-0000-4000-8000-000000000001",
+        "revision": 1,
+        "hash": "f310cd4149124c63b7537ad259f016b7d4d1546c826ff8e136afd61c51deb256"
+      },
+      "rule_version": "admission-rules-3",
+      "committed_in": "cmt_00000003-0000-4000-8000-000000000001",
+      "learned_at": "2026-10-24T12:00:00.000Z",
+      "source_captured_at": "2026-10-24T12:00:00.000Z",
+      "attention": "active",
+      "evidence": [
+        {
+          "source_id": "src_00000001-0000-4000-8000-000000000001",
+          "source_revision": 1,
+          "locator": {
+            "event_id": "evt_00000015-0000-4000-8000-000000000015",
+            "kind": "runtime_event"
+          },
+          "object_hash": "452c51c0e5d693cc71a4434687ce9f7984b288c9b5f70cfa79440ae0fbd98f4f",
+          "evidence_class": "user_statement",
+          "supports": "content"
+        }
+      ],
+      "context_source_refs": [],
+      "receipt": {
+        "job_key": "da524a29403882da69261073fcf5fb537491fdfe7c9a96b38dd18d1715da5ceb",
+        "binding_hash": "8a692126e05261a25bf1aa405bcfd187e8e8045219b8489d7746071fc98fbd5c",
+        "operation_id": "op_00000001-0000-4000-8000-000000000001",
+        "request_hash": "e995a9d9bb772891d87742a20879b462d3317085c858afcaf97fea06ce145e3a",
+        "response_hash": "cf59cc6c546caf79aec547c722766579034d11afe2edfd70a32d230c93944294",
+        "decision_hash": "f0800b287b9a5da0fc81cb701727494d119988398575d9e62b70837c7ee6384e",
+        "committed_in": "cmt_00000003-0000-4000-8000-000000000001",
+        "sequence": 3,
+        "result": {
+          "memory_id": "mem_00000001-0000-4000-8000-000000000001",
+          "revision": 1
+        }
+      },
+      "validity": "unspecified"
+    }
+  ],
+  "sources": [
+    {
+      "record": {
+        "access_policy_id": "pol_00000002-0000-4000-8000-000000000001",
+        "account_scope": null,
+        "agent_submission": null,
+        "attachment_refs": [],
+        "author_label": null,
+        "branch_id": null,
+        "captured_at": "2026-10-24T12:00:00.000Z",
+        "completeness": "complete",
+        "content_hash": "452c51c0e5d693cc71a4434687ce9f7984b288c9b5f70cfa79440ae0fbd98f4f",
+        "created_at": "2026-10-24T12:00:00.000Z",
+        "evidence_class": "user_statement",
+        "extensions": {},
+        "import_id": null,
+        "locator": {
+          "event_id": "evt_00000015-0000-4000-8000-000000000015",
+          "kind": "runtime_event"
+        },
+        "manual_assertion": null,
+        "occurred_at": "2026-06-10T10:00:00.000Z",
+        "original_conversation_id": null,
+        "original_message_id": null,
+        "original_time": null,
+        "original_timezone": null,
+        "parent_source_ids": [],
+        "parse_warnings": [],
+        "parser_version": null,
+        "provider": null,
+        "raw_object_hash": null,
+        "revision": 1,
+        "schema_version": 1,
+        "sensitivity": "private",
+        "source_id": "src_00000001-0000-4000-8000-000000000001",
+        "source_kind": "runtime_event",
+        "speaker_role": "user",
+        "time_precision": "minute"
+      },
+      "text": null,
+      "attributed_subject": "sub_00000001-0000-4000-8000-000000000001"
+    }
+  ],
+  "neighbors": [],
+  "complete_in_scope": true,
+  "profile_hash": "2222222222222222222222222222222222222222222222222222222222222222"
+}

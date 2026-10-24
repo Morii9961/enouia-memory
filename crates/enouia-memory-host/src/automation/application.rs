@@ -24,12 +24,12 @@ impl From<AutomationFault> for ApplicationFault {
 pub type ApplicationResult<T> = std::result::Result<T, ApplicationFault>;
 
 pub struct AutomationHost {
-    vault: AutomationVault,
-    system: ActorRef,
+    pub(super) vault: AutomationVault,
+    pub(super) system: ActorRef,
     jobs: SyntheticJobs,
     unlocked: RwLock<bool>,
     continuation: Option<super::continuation::ContinuousPolicyHost>,
-    maintenance_running: Arc<AtomicBool>,
+    pub(super) maintenance_running: Arc<AtomicBool>,
 }
 impl AutomationHost {
     /// Caller authenticates the native System identity separately. Never fill
@@ -64,7 +64,7 @@ impl AutomationHost {
         self.continuation = Some(policy);
         Ok(self)
     }
-    fn gate(&self) -> ApplicationResult<RwLockReadGuard<'_, bool>> {
+    pub(super) fn gate(&self) -> ApplicationResult<RwLockReadGuard<'_, bool>> {
         let guard = self.unlocked.read().map_err(|_| ApplicationFault::Locked)?;
         if !*guard {
             return Err(ApplicationFault::Locked);
@@ -336,7 +336,7 @@ impl AutomationHost {
             .join("\n"))
     }
 }
-fn render_memory(memory: &MachineMemory) -> String {
+pub(super) fn render_memory(memory: &MachineMemory) -> String {
     let mut text = format!(
         "Subject stated (not independently verified): {}",
         memory.decision.input.content

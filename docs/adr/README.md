@@ -466,6 +466,14 @@ and historical rescue, read-without-reinforcement, and one cancellable native
 worker maintaining a disposable metadata projection. No truth/state mutation,
 Activity input, notification, default route or Runtime adoption.
 
+### ADR-MEM-91 — Authorized bounded read model (Core-7)
+
+[Decision](091-authorized-memory-read-model.md): `memory-native-read-1` pages,
+selected currently authorized history/source details, exact local lineage and
+explicit synthetic/native read-only simulations. Snapshot/filter/profile-bound
+cursors and bounded JSON preserve scope/completeness; no global graph/timeline,
+saved experiment, new IPC/MCP, Runtime pin or shell adoption.
+
 ## Relation to Enouia Runtime's register
 
 

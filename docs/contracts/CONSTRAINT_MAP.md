@@ -51,6 +51,14 @@ MV-1 update: rows whose "Later behavior" names MV-1 now have store evidence (com
 
 ## Rule coverage
 
+Core-7 (ADR-MEM-91) adds closed page/detail/simulation DTOs with explicit native
+capability/effect and unavailable product capabilities. Schema/native fixture
+cases cover identity, receipt binding, unknown versions, false capability flags,
+source hashes, duplicates and simulation byte counts. Native read-model cases
+test scope before counts/edges, cursor snapshot/filter/profile binding, selected
+history/source text/actual commit times, deletion/lock and no-write simulation.
+Parsing these DTOs is not authentication or a new write/approval authority.
+
 Core-6 (ADR-MEM-90) adds closed attention profile/projection schemas and native
 selection over an already authorized set. Pure tests cover aliases, fixed-clock
 replay, conditions/time/staging, accessibility-only decay, historical rescue,

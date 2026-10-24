@@ -5,6 +5,7 @@ pub mod application;
 pub mod attention;
 pub mod continuation;
 mod model;
+pub mod read_model;
 mod worker;
 pub use model::*;
 pub use worker::{Generated, Generation, Generator, PendingGeneration, StopToken};

@@ -7,6 +7,8 @@ mod attention_cases;
 mod continuation_cases;
 #[path = "automatic_loop/formation_cases.rs"]
 mod formation_cases;
+#[path = "automatic_loop/read_model_cases.rs"]
+mod read_model_cases;
 #[path = "../../enouia-memory-contract/tests/support/mod.rs"]
 mod support;
 use enouia_memory_contract::{

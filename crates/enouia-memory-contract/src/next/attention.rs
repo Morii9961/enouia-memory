@@ -116,7 +116,8 @@ pub enum RecallReason {
     Fading,
     HistoricalRescue,
 }
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum RecallExclusionReason {
     NotAdopted,
     Conditions,
@@ -138,14 +139,16 @@ pub struct RecallCandidate<'a> {
     pub source_time: Timestamp,
     pub rendered_bytes: usize,
 }
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct RecallSelection {
     pub memory: MemoryRevisionRef,
     pub attention: AttentionState,
     pub score: u64,
     pub reasons: Vec<RecallReason>,
 }
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct RecallTrace {
     pub algorithm: AttentionAlgorithm,
     pub snapshot: SnapshotBinding,
