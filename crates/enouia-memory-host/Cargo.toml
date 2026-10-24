@@ -8,7 +8,12 @@ rust-version.workspace = true
 enouia-memory-contract = { path = "../enouia-memory-contract" }
 enouia-memory-vault = { path = "../enouia-memory-vault" }
 enouia-memory-workspace = { path = "../enouia-memory-workspace" }
+enouia-memory-index = { path = "../enouia-memory-index" }
+enouia-memory-context = { path = "../enouia-memory-context" }
+enouia-memory-govern = { path = "../enouia-memory-govern" }
+enouia-memory-import = { path = "../enouia-memory-import" }
 serde_json.workspace = true
+serde.workspace = true
 
 [target.'cfg(windows)'.dependencies]
 windows-sys = { version = "=0.61.2", features = [

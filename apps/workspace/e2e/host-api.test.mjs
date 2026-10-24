@@ -38,6 +38,46 @@ test("lost reply retains the original immutable-argument packet and never retrie
   assert.equal(calls, 1);
 });
 
+test("action error state retains the uncertain packet after the caller catches it", async () => {
+  const app = readFileSync(new URL("../src/App.tsx", import.meta.url), "utf8");
+  const hook = app.slice(app.indexOf("export function useAction()"), app.indexOf("/** Only the latest read"));
+  // Exercise the production hook/API with a small state port, without claiming
+  // React rendering, native-window or tray acceptance.
+  const state = [];
+  let cursor = 0;
+  globalThis.__hostActionPort = {
+    useState(initial) {
+      const index = cursor++;
+      if (!(index in state)) state[index] = initial;
+      return [state[index], (next) => { state[index] = next; }];
+    },
+    useCallback: (callback) => callback,
+    CallError: api.CallError, describe: api.describe, retryable: api.retryable, newKey: api.newKey,
+  };
+  const { code } = await transformWithOxc(
+    "const {useState,useCallback,CallError,describe,retryable,newKey} = globalThis.__hostActionPort;\n" + hook, "action.ts");
+  const { useAction } = await import(`data:text/javascript;base64,${Buffer.from(code).toString("base64")}`);
+  let sent;
+  let calls = 0;
+  globalThis.__nativeHostApiInvoke = (_command, { request }) => {
+    calls++;
+    sent = request;
+    return Promise.reject("host_outcome_unknown");
+  };
+  const draft = { text: "synthetic original", claimKey: "synthetic.action" };
+  const action = useAction();
+  await action.run((key) => api.call("remember", draft, key));
+  draft.text = "later edited draft";
+  cursor = 0;
+  const after = useAction();
+  assert.deepEqual(after.error.originalRequest, sent);
+  assert.equal(after.error.originalRequest.arguments.text, "synthetic original");
+  assert.equal(after.error.retry, undefined);
+  assert.equal(after.busy, false);
+  assert.equal(calls, 1);
+  delete globalThis.__hostActionPort;
+});
+
 test("refused or disconnected calls carry distinct nonretryable errors", async () => {
   for (const code of ["host_stale_connection", "host_not_ready", "host_busy", "host_disconnected"]) {
     let calls = 0;

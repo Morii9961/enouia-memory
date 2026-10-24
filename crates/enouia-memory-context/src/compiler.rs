@@ -313,6 +313,55 @@ fn compile_with_purpose(
     destination: &Destination,
     purpose: Option<Purpose>,
 ) -> Result<Compiled> {
+    compile_at_surface(
+        vault,
+        index,
+        input,
+        destination,
+        purpose,
+        enouia_memory_contract::session::ClientSurface::LocalCli,
+    )
+}
+
+/// Native offline Agent slice. Unsupported history/session/egress selections
+/// are refused explicitly; this never invokes a Provider or assumes consent.
+pub fn compile_agent_local(
+    vault: &Vault,
+    index: &Index,
+    input: &CompileInput,
+    purpose: Purpose,
+) -> Result<Compiled> {
+    if input.principal.actor_type != enouia_memory_contract::common::ActorType::Agent {
+        return Err(denied());
+    }
+    if input.known_at.is_some()
+        || input.session_id.is_some()
+        || input.branch_id.is_some()
+        || !matches!(purpose, Purpose::Answer | Purpose::InspectionPreview)
+    {
+        return Err(invalid("context.agent_selection"));
+    }
+    compile_at_surface(
+        vault,
+        index,
+        input,
+        &Destination {
+            kind: DestinationKind::LocalMock,
+            provider_binding: None,
+        },
+        Some(purpose),
+        enouia_memory_contract::session::ClientSurface::McpClient,
+    )
+}
+
+fn compile_at_surface(
+    vault: &Vault,
+    index: &Index,
+    input: &CompileInput,
+    destination: &Destination,
+    purpose: Option<Purpose>,
+    surface: enouia_memory_contract::session::ClientSurface,
+) -> Result<Compiled> {
     if input.query.trim().is_empty()
         || input.output_tokens == 0
         || input.max_tokens > (1_u64 << 53) - 1
@@ -324,7 +373,18 @@ fn compile_with_purpose(
     if destination.kind != DestinationKind::LocalMock && destination.provider_binding.is_none() {
         return Err(invalid("context.destination_binding"));
     }
-    let payload = if purpose.is_some() {
+    let agent_surface = surface == enouia_memory_contract::session::ClientSurface::McpClient;
+    let native_key = format!("mcp-context-v1:{}", input.request_id);
+    let receipt_key = if agent_surface {
+        native_key.as_bytes()
+    } else {
+        input.request_id.as_str().as_bytes()
+    };
+    let payload = if agent_surface {
+        sha256(&bytes(
+            &json!({"input":input,"destination":destination,"purpose":purpose,"surface":surface}),
+        )?)
+    } else if purpose.is_some() {
         sha256(&bytes(
             &json!({"input":input,"destination":destination,"purpose":purpose}),
         )?)
@@ -337,7 +397,7 @@ fn compile_with_purpose(
         vault,
         &input.principal,
         OperationKind::SessionAppend,
-        input.request_id.as_str().as_bytes(),
+        receipt_key,
         &payload,
     )? {
         let pin = vault.pin_current()?;
@@ -389,7 +449,7 @@ fn compile_with_purpose(
         compiler_version: COMPILER_VERSION.into(),
         ranking_version: RANKING_VERSION.into(),
         tokenizer_version: TOKENIZER_VERSION.into(),
-        client_surface: enouia_memory_contract::session::ClientSurface::LocalCli,
+        client_surface: surface,
         destination: destination.clone(),
         purpose: if let Some(purpose) = purpose {
             purpose
@@ -1032,7 +1092,7 @@ fn compile_with_purpose(
         &input.principal,
         &freshness.head,
         OperationKind::SessionAppend,
-        input.request_id.as_str().as_bytes(),
+        receipt_key,
         payload,
         vec![
             staged(

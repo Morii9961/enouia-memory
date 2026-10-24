@@ -106,6 +106,22 @@ impl HostService {
         })?
     }
 
+    pub(crate) fn admit_agent(&self) -> Result<Connection> {
+        self.vault.host_writer_state()?;
+        Ok(self.gate.connect_agent()?)
+    }
+
+    pub(crate) fn dispatch_agent<T>(
+        &self,
+        connection: &Connection,
+        run: impl FnOnce(&Vault) -> T,
+    ) -> Result<T> {
+        self.gate.dispatch_agent(connection, || {
+            self.vault.host_writer_state()?;
+            Ok(run(&self.vault))
+        })?
+    }
+
     fn owner_control(&self, native: &NativeAdmission) -> Result<()> {
         if native.owner != self.vault.descriptor().created_by.actor_id
             || native.surface != HostSurface::Workspace
@@ -144,3 +160,7 @@ impl Drop for HostService {
         self.core.shutdown();
     }
 }
+
+#[cfg(all(test, windows))]
+#[path = "../tests/support/scoped_reads.rs"]
+mod scoped_reads;
