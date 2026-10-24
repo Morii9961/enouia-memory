@@ -55,6 +55,8 @@ use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 use std::sync::Arc;
 
+mod seed;
+
 const USAGE: &str = "usage: enouia-memory <command> ...
   check-root <dir>
   init <dir> --confirm-new-vault
@@ -73,6 +75,9 @@ const USAGE: &str = "usage: enouia-memory <command> ...
   acl <dir>
   protect <dir> --confirm-owner-only
   candidates <dir>
+  seed-preview <package.json>
+  seed-stage <dir> <package.json> --sha256 <hash> --confirm-stage
+  seed-review-check <dir>                              (plans only, never confirms)
   memories <dir> [--all]
   remember <dir> --text <text> --claim <claim-key> [--subject <sub_id>]   (plan, then type its code)
   review <dir> <candidate_id> <revision> accept|reject|edit [--text <text>]
@@ -283,6 +288,18 @@ fn scope_of(args: &[String]) -> DeleteScope {
 fn run(args: &[String]) -> Outcome {
     let command = arg(args, 1)?;
     match command {
+        "seed-preview" => seed::preview(Path::new(arg(args, 2)?)),
+        "seed-review-check" => seed::review_check(&open(arg(args, 2)?)?),
+        "seed-stage" => {
+            if !has(args, "--confirm-stage") {
+                return Err(Failure::Usage("seed-stage needs --confirm-stage".into()));
+            }
+            let expected = flag(args, "--sha256")
+                .ok_or_else(|| Failure::Usage("seed-stage needs --sha256".into()))?;
+            let package = seed::load(Path::new(arg(args, 3)?), Some(expected))?;
+            let vault = open(arg(args, 2)?)?;
+            seed::stage(&vault, &package)
+        }
         "session-new" => {
             if !has(args, "--confirm-new-session") {
                 return Err(Failure::Usage(

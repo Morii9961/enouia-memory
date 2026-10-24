@@ -1052,6 +1052,7 @@ impl Workspace {
         Ok(json!({
             "sourceId": source.source_id, "sourceRevision": source.revision,
             "sourceKind": source.source_kind, "speakerRole": source.speaker_role,
+            "evidenceClass": source.evidence_class,
             "occurredAt": source.occurred_at, "capturedAt": source.captured_at,
             "importId": source.import_id, "sensitivity": source.sensitivity,
             "excerpt": excerpt, "byteStart": byte_start, "byteEnd": byte_end,
