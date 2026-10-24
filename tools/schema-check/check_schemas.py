@@ -253,6 +253,20 @@ def main():
             failures.append(f"continuation case {case['id']}: disagreement")
     counts["continuation_documents"] = len(continuation["valid"]) + len(continuation["invalid"])
 
+    formation_dir = ROOT / "tests" / "fixtures" / "formation"
+    formation = load(formation_dir / "manifest.json")
+    base = load(formation_dir / formation["valid"])
+    if not valid(formation["schema"], base):
+        failures.append("valid formation dimensions rejected")
+    if not valid("next/automation-v2.schema.json", load(formation_dir / formation["policy"])):
+        failures.append("valid dimensional policy rejected")
+    for case in formation["invalid"]:
+        value = copy.deepcopy(base)
+        apply_ops(value, case["ops"])
+        if valid(formation["schema"], value) != (case["schema"] == "accept"):
+            failures.append(f"formation case {case['id']}: disagreement")
+    counts["formation_documents"] = 2 + len(formation["invalid"])
+
     invocation_cases = load(FIXTURES / "provider-invocation-cases.json")
     for case in invocation_cases["cases"]:
         value = copy.deepcopy(invocation_cases["base"])

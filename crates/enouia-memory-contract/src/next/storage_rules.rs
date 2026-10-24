@@ -42,6 +42,16 @@ pub fn check_generation_binding(
     {
         return Err(super::invalid("automation.generation_binding", ""));
     }
+    if request.dimensions.as_ref().is_some_and(|d| {
+        result.dimensions.as_ref().is_none_or(|r| {
+            d.kind != r.kind || d.derived_from != r.derived_from || d.reverts_to != r.reverts_to
+        })
+    }) {
+        return Err(super::invalid(
+            "formation.generation_binding",
+            "/dimensions",
+        ));
+    }
     Ok(())
 }
 
@@ -77,6 +87,21 @@ pub fn with_stored_context<T>(
         .map(|memory| TargetView {
             created_under_policy: Some(memory.request.policy.policy_id.clone()),
             target: memory.target(),
+            dimensions: memory.decision.input.dimensions.clone(),
+            input_refs: memory.decision.input.input_refs.clone(),
+            policy: memory.decision.input.policy.clone(),
+            history: data
+                .memories
+                .iter()
+                .filter(|m| m.memory.memory_id == memory.memory.memory_id)
+                .map(|m| HistoricalMemoryView {
+                    target: m.target(),
+                    content: m.decision.input.content.clone(),
+                    interpretation: m.decision.input.interpretation,
+                    dimensions: m.decision.input.dimensions.clone(),
+                    input_refs: m.decision.input.input_refs.clone(),
+                })
+                .collect(),
             legacy_owner_record: false,
             subject_id: memory.decision.input.subject_id.clone(),
             project_id: memory.decision.input.project_id.clone(),
@@ -116,6 +141,27 @@ pub fn validate_delta(
 ) -> Result<(), ContractError> {
     super::checked(descriptor.validate())?;
     super::checked(after.validate())?;
+    require(
+        match descriptor.layout {
+            AutomationLayout::HostV1 => {
+                after.data.policy.rule_version != RuleVersion::V3
+                    && after
+                        .data
+                        .memories
+                        .iter()
+                        .all(|m| m.decision.input.dimensions.is_none())
+            }
+            AutomationLayout::HostV2 => {
+                after.data.policy.rule_version == RuleVersion::V3
+                    && after
+                        .data
+                        .memories
+                        .iter()
+                        .all(|m| m.decision.input.dimensions.is_some())
+            }
+        },
+        "formation.layout",
+    )?;
     require(
         after.data.policy.vault_id == descriptor.vault_id
             && after.data.policy.system_actor == descriptor.system_actor

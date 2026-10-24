@@ -278,6 +278,20 @@ impl AutomationVault {
         input.content =
             serde_json::to_string(&selected).map_err(|_| AutomationFault::Unavailable)?;
         input.interpretation = Interpretation::Ambiguous;
+        if let Some(revert) = input
+            .dimensions
+            .as_ref()
+            .and_then(|d| d.reverts_to.as_ref())
+        {
+            let historical = before
+                .data
+                .memories
+                .iter()
+                .find(|m| m.target() == *revert)
+                .ok_or(AutomationFault::Stale)?;
+            input.content = historical.decision.input.content.clone();
+            input.interpretation = historical.decision.input.interpretation;
+        }
         with_stored_context(
             &before.data,
             &before.snapshot(),
@@ -286,6 +300,57 @@ impl AutomationVault {
             |context| evaluate(&input, context),
         )?;
         Ok(input)
+    }
+    /// Expand exact current parents to original sources. No model call or parent
+    /// deletion; the eventual result remains a separately attributed hypothesis.
+    pub fn prepare_synthesis(
+        &self,
+        actor: &ActorRef,
+        mut input: AdmissionInput,
+        parents: Vec<TargetRef>,
+    ) -> Result<AdmissionInput> {
+        self.system(actor)?;
+        self.available()?;
+        {
+            let _writer = lock::acquire(&self.root, Duration::ZERO)?;
+            let (before, _) = self.current_locked()?;
+            if self.descriptor.layout != AutomationLayout::HostV2
+                || parents.is_empty()
+                || parents.len() > 8
+            {
+                return Err(AutomationFault::Denied);
+            }
+            let mut refs = std::collections::BTreeSet::new();
+            for parent in &parents {
+                let memory = before
+                    .data
+                    .memories
+                    .iter()
+                    .rev()
+                    .find(|m| m.memory.memory_id == parent.memory.memory_id)
+                    .ok_or(AutomationFault::Stale)?;
+                if memory.target() != *parent {
+                    return Err(AutomationFault::Stale);
+                }
+                self.eligible(&before, memory, before.data.policy.max_sensitivity, true)?;
+                refs.extend(memory.decision.input.input_refs.iter().cloned());
+            }
+            input.input_refs = refs.into_iter().collect();
+            input.target = None;
+            input.dimensions = Some(FormationDimensions {
+                kind: FormationKind::Theme,
+                occurrence: OccurrenceAssertion::Unknown,
+                state: None,
+                change: FormationChange::Synthesis,
+                conditions: vec![],
+                event_time: None,
+                valid_time: None,
+                counter_sources: vec![],
+                derived_from: parents,
+                reverts_to: None,
+            });
+        }
+        self.prepare(actor, input)
     }
     fn commit(
         &self,
@@ -589,6 +654,30 @@ impl AutomationVault {
                 || source.record.sensitivity > input.sensitivity
             {
                 return Err(AutomationFault::Denied);
+            }
+        }
+        if let Some(dimensions) = &input.dimensions {
+            if !receipt
+                && dimensions.valid_time.as_ref().is_some_and(|t| {
+                    self.now().map_or(true, |now| {
+                        now < t.from || t.until.as_ref().is_some_and(|end| &now >= end)
+                    })
+                })
+            {
+                return Err(AutomationFault::Denied);
+            }
+            for parent in &dimensions.derived_from {
+                let current = commit
+                    .data
+                    .memories
+                    .iter()
+                    .rev()
+                    .find(|m| m.memory.memory_id == parent.memory.memory_id)
+                    .ok_or(AutomationFault::Denied)?;
+                if current.target() != *parent {
+                    return Err(AutomationFault::Denied);
+                }
+                self.eligible(commit, current, max, true)?;
             }
         }
         Ok(())

@@ -1,0 +1,166 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "kind": {
+      "enum": [
+        "fact",
+        "preference",
+        "episode",
+        "project_state",
+        "plan",
+        "open_loop",
+        "relationship_experience",
+        "subjective_understanding",
+        "theme"
+      ]
+    },
+    "occurrence": {
+      "enum": [
+        "unknown",
+        "intended",
+        "reported_occurred"
+      ]
+    },
+    "state": {
+      "oneOf": [
+        {
+          "enum": [
+            "planned",
+            "decided",
+            "implemented",
+            "tested",
+            "released",
+            "open",
+            "paused",
+            "cancelled",
+            "completed"
+          ]
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "change": {
+      "enum": [
+        "initial",
+        "update",
+        "correction",
+        "pause",
+        "resume",
+        "cancellation",
+        "completion",
+        "synthesis",
+        "reversion"
+      ]
+    },
+    "conditions": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 256
+      },
+      "maxItems": 8
+    },
+    "event_time": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "until": {
+              "oneOf": [
+                {
+                  "$ref": "../memory/common-v1.schema.json#/$defs/timestamp"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "from": {
+              "$ref": "../memory/common-v1.schema.json#/$defs/timestamp"
+            }
+          },
+          "required": [
+            "from",
+            "until"
+          ]
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "valid_time": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "until": {
+              "oneOf": [
+                {
+                  "$ref": "../memory/common-v1.schema.json#/$defs/timestamp"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "from": {
+              "$ref": "../memory/common-v1.schema.json#/$defs/timestamp"
+            }
+          },
+          "required": [
+            "from",
+            "until"
+          ]
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "counter_sources": {
+      "type": "array",
+      "items": {
+        "$ref": "../memory/common-v1.schema.json#/$defs/sourceRevisionRef"
+      },
+      "maxItems": 128
+    },
+    "derived_from": {
+      "type": "array",
+      "items": {
+        "$ref": "automation-v2.schema.json#/$defs/targetRef"
+      },
+      "maxItems": 8
+    },
+    "reverts_to": {
+      "oneOf": [
+        {
+          "$ref": "automation-v2.schema.json#/$defs/targetRef"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "required": [
+    "kind",
+    "occurrence",
+    "state",
+    "change",
+    "conditions",
+    "event_time",
+    "valid_time",
+    "counter_sources",
+    "derived_from",
+    "reverts_to"
+  ],
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.enouia-memory.invalid/next/formation-v2.schema.json"
+}

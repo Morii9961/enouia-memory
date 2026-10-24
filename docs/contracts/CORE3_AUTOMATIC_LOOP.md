@@ -3,6 +3,11 @@
 Date: 2026-10-24. [ADR-MEM-87](../adr/087-automatic-memory-transactions.md).
 Base: Core-2 `defb2530092db8149e614a2290cc991fd423ece5`.
 
+Core-5 amendment: separately selected `automation-host-v2` roots require rule 3
+and [formal dimensions](CORE5_FORMATION.md). Existing HostV1 roots retain the
+contract below and refuse new dimensional writes; old builds reject the new
+layout at the descriptor gate. No in-place root migration is performed.
+
 ## Native entry and authority
 
 `vault::automation::AutomationVault` creates only an explicitly selected empty

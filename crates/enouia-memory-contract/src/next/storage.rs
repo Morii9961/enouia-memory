@@ -29,7 +29,13 @@ macro_rules! kind {
         }
     };
 }
-kind!(AutomationLayout, HostV1, "automation-host-v1");
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub enum AutomationLayout {
+    #[serde(rename = "automation-host-v1")]
+    HostV1,
+    #[serde(rename = "automation-host-v2")]
+    HostV2,
+}
 kind!(DescriptorKind, AutomationVault, "automation_vault");
 kind!(CurrentKind, AutomationCurrent, "automation_current");
 kind!(AutomationCommitKind, AutomationCommit, "automation_commit");

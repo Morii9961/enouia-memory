@@ -242,12 +242,17 @@
     {
       "path": "contracts/next/automation-v2.schema.json",
       "role": "automation-contract",
-      "sha256": "ee1263e20b697237b08ee41921a2ccecaf45e9c237f85403a28d46e635f97bec"
+      "sha256": "b99f43d24e1f5bd2cc85569d272cec5340e42f7dbee8408a1719838a232d66ea"
     },
     {
       "path": "contracts/next/continuation-v2.schema.json",
       "role": "automation-contract",
       "sha256": "45a7a7cc09a5ed9b3963289811fa9eeaa331e38b41c11dbdb0a7528cd6c66411"
+    },
+    {
+      "path": "contracts/next/formation-v2.schema.json",
+      "role": "automation-contract",
+      "sha256": "f1f255e50a337348876e594efc5587afacb066716fc43fcf59ec5d69195d53da"
     },
     {
       "path": "contracts/next/job-journal-v2.schema.json",
@@ -257,7 +262,7 @@
     {
       "path": "contracts/next/storage-v2.schema.json",
       "role": "automation-contract",
-      "sha256": "89559f2ba20f4ad7846ab00c9512e66f561421853e057883f0546689cd02e3f5"
+      "sha256": "49a7604535118c7bd5576cd40608a140bf563bd95a2841fc2b5ed2a684a9ba4c"
     },
     {
       "path": "contracts/store/current-v1.schema.json",
@@ -317,7 +322,7 @@
     {
       "path": "crates/enouia-memory-contract/src/next/admission.rs",
       "role": "automation-contract",
-      "sha256": "bd1cd6a320381a8d92d44793fb2c2a7c0693f2ce9e98c0208dc4d03719785f2d"
+      "sha256": "b0dcd72528d95fc37cea37e67b022b2f6905bae50cec4d89bdb74ed1dc095c71"
     },
     {
       "path": "crates/enouia-memory-contract/src/next/continuation.rs",
@@ -325,24 +330,29 @@
       "sha256": "c3b6de5a7932245bb36b0448e993b2af9f406c6c16a36e523ef3a5c9c7694c68"
     },
     {
+      "path": "crates/enouia-memory-contract/src/next/formation.rs",
+      "role": "automation-contract",
+      "sha256": "598ad7ad671ad7ee7f7b6edab6ca7bbb0af786440389926ddad29b9761ea7859"
+    },
+    {
       "path": "crates/enouia-memory-contract/src/next/mod.rs",
       "role": "automation-contract",
-      "sha256": "42ea5c99fd8c66e00e6a3eaee2b8097980474fed8a6c67ca2c8a1c7c332118f0"
+      "sha256": "2b397042db9c085c748b37a6681e71b3dd6a0dd9aea88fefc24d529d4f55f672"
     },
     {
       "path": "crates/enouia-memory-contract/src/next/rules.rs",
       "role": "automation-contract",
-      "sha256": "24fccd358178a922757236a6eb31863fd9543e3792814529b326151d246d150c"
+      "sha256": "1ad468ffecd6065ca88f7630dc48e77b674e94a940aa4d996fc3660690124a35"
     },
     {
       "path": "crates/enouia-memory-contract/src/next/storage.rs",
       "role": "automation-contract",
-      "sha256": "826693df4b382ea95ee03a31328da48c71d5dddef618a3afc1ee15a699c8f46c"
+      "sha256": "46aedcb3ec08365da9efe9e7edc46ac9c4a110d0832267caf3f5e0f82e4c2c48"
     },
     {
       "path": "crates/enouia-memory-contract/src/next/storage_rules.rs",
       "role": "automation-contract",
-      "sha256": "668ebae8a3a7d26ad0e4ee971d9f9869482ad8abda8a59cb387951a7a78328cd"
+      "sha256": "6ea067e7926e37a1241d1172377687e22fdc0437ef1c31262d49f0bcddb7069e"
     },
     {
       "path": "crates/enouia-memory-contract/src/policy.rs",
@@ -382,7 +392,7 @@
     {
       "path": "crates/enouia-memory-host/src/automation/application.rs",
       "role": "host-session",
-      "sha256": "8d16d096b46ef4c181d05051c862844f6af1f1d4e556482f9157724281ec9883"
+      "sha256": "fb26f52aa568768b75a3feeae1aae9085e4cc2452ec6a9c759feec383ee5554f"
     },
     {
       "path": "crates/enouia-memory-host/src/automation/continuation.rs",
@@ -572,7 +582,7 @@
     {
       "path": "crates/enouia-memory-vault/src/automation/mod.rs",
       "role": "automatic-memory-storage",
-      "sha256": "396d5150ef0a333fa74b5c5f9f88c021d26635679a408dc94dfb37054fe09f81"
+      "sha256": "bd1309cafca1bee3063e79f30a9cf0e172fdb528e4e694f2fa3bdbe85b31543d"
     },
     {
       "path": "crates/enouia-memory-vault/src/automation/publication.rs",
@@ -715,5 +725,5 @@
       "sha256": "3603c1855d9f9ec9b3585143a0191508980b260b1ffd26c82b3e6f9b7223a75d"
     }
   ],
-  "aggregate": "40c5cbe2f6cbb58209ad2d35f04a6d1678a1092c770e6b615f939d357b678d86"
+  "aggregate": "bd9cecab4122969dd392a3c617c08da84974a6097e7ca80258ac8bdbdc282a9e"
 }

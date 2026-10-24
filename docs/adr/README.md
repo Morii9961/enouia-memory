@@ -451,6 +451,13 @@ policy with exact input/destination scope, persistent reservations, conservative
 unknown/overrun charges, automatic no-policy pause and shared withdrawal/application
 barrier. Fake transport only; V1 private approvals and Runtime pins are unchanged.
 
+### ADR-MEM-89 — Dimensional formation and reversible consolidation (Core-5)
+
+[Decision](089-dimensional-formation.md): opt-in layout `automation-host-v2`
+and rule 3, explicit formation/state/condition/time dimensions, exact original
+source derivation, staged System interpretation and new-revision historical
+reversion. No old-root upgrade, fabricated experience or owner approval.
+
 ## Relation to Enouia Runtime's register
 
 

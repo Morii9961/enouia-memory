@@ -51,6 +51,14 @@ MV-1 update: rows whose "Later behavior" names MV-1 now have store evidence (com
 
 ## Rule coverage
 
+Core-5 (ADR-MEM-89) adds `next/formation-v2.schema.json`, policy rule-3/layout
+gates and source-bound semantic dimensions. Pure formation tests check states,
+unknown time, source/parent closure, qualified understanding, exact reversion
+and independent omission detection. Native formation cases exercise the same
+transactions across restart, correction/pause/cancel, source-preserving repeated
+synthesis, stale parents, expiry and Core-4 fake policy. The comparison is
+typed representation, not extraction/relationship/emotion quality evidence.
+
 Core-4 (ADR-MEM-88) adds `next/continuation-v2.schema.json`, 17 schema/native
 fixture cases and three contract tests for scope, history and conservative
 charges. Native automatic-loop continuation cases test policy absence/grant,

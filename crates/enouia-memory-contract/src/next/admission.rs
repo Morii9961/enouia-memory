@@ -29,6 +29,8 @@ pub enum RuleVersion {
     V1,
     #[serde(rename = "admission-rules-2")]
     V2,
+    #[serde(rename = "admission-rules-3")]
+    V3,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -70,6 +72,8 @@ pub struct AutomationPolicy {
     #[serde(default, skip_serializing_if = "is_false")]
     pub allow_revise_created: bool,
     pub target_ids: Vec<MemoryId>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub allowed_forms: Vec<super::FormationKind>,
     pub max_sensitivity: Sensitivity,
     pub access_policy_id: PolicyId,
     pub egress_policy_id: PolicyId,
@@ -133,6 +137,12 @@ pub struct AdmissionInput {
     pub project_id: Option<ProjectId>,
     pub content: String,
     pub interpretation: Interpretation,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "super::formation::deserialize_dimensions"
+    )]
+    pub dimensions: Option<super::FormationDimensions>,
     pub input_refs: Vec<SourceRevisionRef>,
     pub evidence: Vec<EvidenceRef>,
     pub context_source_refs: Vec<SourceRevisionRef>,
@@ -225,7 +235,11 @@ fn document_budget(value: &impl Serialize, out: &mut Vec<Violation>) {
 impl NextDocument for AutomationPolicy {
     fn validate(&self) -> Vec<Violation> {
         let mut out = Vec::new();
-        if self.allow_revise_created && self.rule_version != RuleVersion::V2 {
+        if (self.allow_revise_created && self.rule_version == RuleVersion::V1)
+            || (!self.allowed_forms.is_empty() && self.rule_version != RuleVersion::V3)
+            || (self.rule_version == RuleVersion::V3 && self.allowed_forms.is_empty())
+            || self.allowed_forms.iter().collect::<BTreeSet<_>>().len() != self.allowed_forms.len()
+        {
             out.push(Violation::new("next.policy_rule_version", "/rule_version"));
         }
         document_budget(self, &mut out);
@@ -245,6 +259,9 @@ impl NextDocument for AdmissionInput {
     fn validate(&self) -> Vec<Violation> {
         let mut out = Vec::new();
         document_budget(self, &mut out);
+        if let Some(dimensions) = &self.dimensions {
+            out.extend(dimensions.validate());
+        }
         if self.actor.actor_type != ActorType::System {
             out.push(Violation::new("next.system_actor", "/actor"));
         }
@@ -287,6 +304,9 @@ impl NextDocument for DecisionDraft {
     fn validate(&self) -> Vec<Violation> {
         let mut out = self.input.validate();
         document_budget(self, &mut out);
+        if self.input.dimensions.is_some() && self.rule_version != RuleVersion::V3 {
+            out.push(Violation::new("formation.rule_version", "/rule_version"));
+        }
         if self.outcome != outcome(self.input.interpretation) {
             out.push(Violation::new("next.outcome", "/outcome"));
         }

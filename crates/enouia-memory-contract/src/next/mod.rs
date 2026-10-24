@@ -4,12 +4,14 @@
 
 mod admission;
 mod continuation;
+mod formation;
 mod rules;
 mod storage;
 mod storage_rules;
 
 pub use admission::*;
 pub use continuation::*;
+pub use formation::*;
 pub use rules::{EvaluationContext, SourceView, TargetView, evaluate, validate_commit_binding};
 pub use storage::*;
 pub use storage_rules::{

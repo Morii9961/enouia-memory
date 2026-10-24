@@ -36,7 +36,10 @@
           "const": "automation_vault"
         },
         "layout": {
-          "const": "automation-host-v1"
+          "enum": [
+            "automation-host-v1",
+            "automation-host-v2"
+          ]
         },
         "vault_id": {
           "$ref": "../memory/common-v1.schema.json#/$defs/vaultId"

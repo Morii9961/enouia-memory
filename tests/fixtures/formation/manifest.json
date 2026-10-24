@@ -1,0 +1,108 @@
+{
+  "schema": "next/formation-v2.schema.json",
+  "valid": "dimensions.json",
+  "invalid": [
+    {
+      "id": "planned-is-not-episode",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/kind",
+          "value": "episode"
+        }
+      ],
+      "schema": "accept"
+    },
+    {
+      "id": "preference-is-not-plan-state",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/state",
+          "value": "planned"
+        }
+      ],
+      "schema": "accept"
+    },
+    {
+      "id": "no-unknown-kind",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/kind",
+          "value": "emotion_diagnosis"
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "cancel-is-not-complete",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/change",
+          "value": "execute"
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "missing-range-time",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/event_time",
+          "value": {
+            "from": "2026-10-24T00:00:00.000Z",
+            "until": null
+          }
+        }
+      ],
+      "schema": "accept"
+    },
+    {
+      "id": "reversion-needs-reference",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/change",
+          "value": "reversion"
+        }
+      ],
+      "schema": "accept"
+    },
+    {
+      "id": "unknown-occurrence",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/occurrence",
+          "value": "certain_truth"
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "too-many-conditions",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/conditions",
+          "value": [
+            "x",
+            "x",
+            "x",
+            "x",
+            "x",
+            "x",
+            "x",
+            "x",
+            "x"
+          ]
+        }
+      ],
+      "schema": "reject"
+    }
+  ],
+  "policy": "policy.json"
+}

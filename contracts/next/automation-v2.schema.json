@@ -152,7 +152,8 @@
         "rule_version": {
           "enum": [
             "admission-rules-1",
-            "admission-rules-2"
+            "admission-rules-2",
+            "admission-rules-3"
           ]
         },
         "system_actor": {
@@ -216,6 +217,24 @@
         "allow_revise_created": {
           "type": "boolean",
           "default": false
+        },
+        "allowed_forms": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "fact",
+              "preference",
+              "episode",
+              "project_state",
+              "plan",
+              "open_loop",
+              "relationship_experience",
+              "subjective_understanding",
+              "theme"
+            ]
+          },
+          "maxItems": 9,
+          "uniqueItems": true
         }
       }
     },
@@ -354,6 +373,9 @@
         },
         "egress_policy_id": {
           "$ref": "../memory/common-v1.schema.json#/$defs/policyId"
+        },
+        "dimensions": {
+          "$ref": "formation-v2.schema.json"
         }
       }
     },
@@ -412,7 +434,8 @@
         "rule_version": {
           "enum": [
             "admission-rules-1",
-            "admission-rules-2"
+            "admission-rules-2",
+            "admission-rules-3"
           ]
         },
         "input": {

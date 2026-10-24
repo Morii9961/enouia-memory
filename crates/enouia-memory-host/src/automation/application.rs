@@ -169,6 +169,17 @@ impl AutomationHost {
         )
         .map_err(ApplicationFault::from)
     }
+    pub fn submit_synthesis(
+        &self,
+        input: AdmissionInput,
+        parents: Vec<TargetRef>,
+    ) -> ApplicationResult<Sha256Hex> {
+        let prepared = {
+            let _gate = self.gate()?;
+            self.vault.prepare_synthesis(&self.system, input, parents)?
+        };
+        self.prepare_submit(vec![prepared])
+    }
     pub fn apply_job(&self, key: &Sha256Hex) -> ApplicationResult<Vec<MemoryReceipt>> {
         let _gate = self.control()?;
         let bindings = self.jobs.generated_bindings(key)?;
@@ -247,10 +258,23 @@ impl AutomationHost {
         Ok(memories
             .iter()
             .map(|memory| {
-                format!(
+                let mut text = format!(
                     "Subject stated (not independently verified): {}",
                     memory.decision.input.content
-                )
+                );
+                if let Some(dimensions) = &memory.decision.input.dimensions {
+                    let time = |range: &Option<FormationTime>| range.as_ref().map_or_else(
+                        || "unknown".into(),
+                        |r|format!("{} until {}",r.from.as_str(),r.until.as_ref().map_or("unspecified",|t|t.as_str())),
+                    );
+                    text.push_str(&format!(
+                        "\nForm: {:?}; state: {:?}; occurrence: {:?}. Conditions: {}. Event time: {}. Valid time: {}.",
+                        dimensions.kind, dimensions.state, dimensions.occurrence,
+                        if dimensions.conditions.is_empty(){"unspecified".into()}else{dimensions.conditions.join("; ")},
+                        time(&dimensions.event_time),time(&dimensions.valid_time),
+                    ));
+                }
+                text
             })
             .collect::<Vec<_>>()
             .join("\n"))

@@ -31,6 +31,10 @@ pub struct TargetView {
     pub access_policy_id: PolicyId,
     pub egress_policy_id: PolicyId,
     pub writable: bool,
+    pub dimensions: Option<FormationDimensions>,
+    pub input_refs: Vec<SourceRevisionRef>,
+    pub history: Vec<HistoricalMemoryView>,
+    pub policy: PolicyRef,
     pub deleted: bool,
 }
 
@@ -228,6 +232,7 @@ pub fn evaluate(
     if input.sensitivity < sensitivity_floor {
         return Err(invalid("next.sensitivity_floor", "/sensitivity"));
     }
+    super::formation::validate_formation(input, context)?;
     let draft = DecisionDraft {
         schema_version: NextVersion,
         kind: DecisionKind::AdmissionDraft,

@@ -119,6 +119,10 @@ impl World {
         self.policy.target_ids = vec![memory.memory_id];
         self.rebind_policy();
         self.targets = vec![TargetView {
+            dimensions: None,
+            input_refs: Vec::new(),
+            history: Vec::new(),
+            policy: self.policy.reference(),
             created_under_policy: None,
             target,
             legacy_owner_record: false,

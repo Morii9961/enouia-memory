@@ -3,6 +3,8 @@
 #![cfg(windows)]
 #[path = "automatic_loop/continuation_cases.rs"]
 mod continuation_cases;
+#[path = "automatic_loop/formation_cases.rs"]
+mod formation_cases;
 #[path = "../../enouia-memory-contract/tests/support/mod.rs"]
 mod support;
 use enouia_memory_contract::{
