@@ -78,7 +78,9 @@ impl SchemaStore {
     pub fn load() -> Self {
         let root = contracts_root();
         let mut docs = BTreeMap::new();
-        for dir in ["memory", "context", "provider", "ipc", "store", "host"] {
+        for dir in [
+            "memory", "context", "provider", "ipc", "store", "host", "next",
+        ] {
             for entry in std::fs::read_dir(root.join(dir)).expect("contract dir") {
                 let path = entry.unwrap().path();
                 if path.extension().is_some_and(|e| e == "json") {

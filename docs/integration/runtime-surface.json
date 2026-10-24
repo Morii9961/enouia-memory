@@ -65,6 +65,8 @@
     "apps/workspace/src-tauri/capabilities",
     "apps/workspace/src-tauri/src",
     "apps/workspace/src-tauri/windows",
+    "contracts/next",
+    "crates/enouia-memory-contract/src/next",
     "crates/enouia-memory-host/src",
     "crates/enouia-memory-provider/src",
     "crates/enouia-memory-workspace/src",
@@ -237,6 +239,11 @@
       "sha256": "93056fe8c3d006a5ccf0f74f81a007a36a1d2e1c194fd71fc5685359b27cca8c"
     },
     {
+      "path": "contracts/next/automation-v2.schema.json",
+      "role": "automation-contract",
+      "sha256": "d2791de64d1d4cc0e967010428213473dc4ac1c6af61eff704c75d2ccd0effe4"
+    },
+    {
       "path": "contracts/store/current-v1.schema.json",
       "role": "host-publication",
       "sha256": "59ff9ae620407aa406e844953be61b7983004a8800445de683fce17928dde5be"
@@ -289,7 +296,22 @@
     {
       "path": "crates/enouia-memory-contract/src/lib.rs",
       "role": "contract-api",
-      "sha256": "66ffe788c959ebbc3be8e6330769cd080cb0cad017efc208f862cbbe7184b3cf"
+      "sha256": "d0c751de7ab2087772cc37475e33218c25a43638c829423678967e89d4124f7d"
+    },
+    {
+      "path": "crates/enouia-memory-contract/src/next/admission.rs",
+      "role": "automation-contract",
+      "sha256": "ac7f4958537601d574f466b859f56440a5786aad4752c3470e95aa401cdf0ac1"
+    },
+    {
+      "path": "crates/enouia-memory-contract/src/next/mod.rs",
+      "role": "automation-contract",
+      "sha256": "e25e623ad7d443ef32df6ebcd3b1016853f02cc65d385198504a860c444609b1"
+    },
+    {
+      "path": "crates/enouia-memory-contract/src/next/rules.rs",
+      "role": "automation-contract",
+      "sha256": "6b7f083e1e1a16cca3afd2870bafe9bf83688afc5af3f7e40e3f67f6cc9c8292"
     },
     {
       "path": "crates/enouia-memory-contract/src/policy.rs",
@@ -622,5 +644,5 @@
       "sha256": "3603c1855d9f9ec9b3585143a0191508980b260b1ffd26c82b3e6f9b7223a75d"
     }
   ],
-  "aggregate": "afbbaa936a787f199cc5d94942e253d2c6d80e9d7b0ce980f8afba9e1626daa4"
+  "aggregate": "c20dfd4275499f57e43b72d9d773071d8e485fe063cc780d8efbad786efff49b"
 }

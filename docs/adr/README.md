@@ -422,6 +422,13 @@ The [full remember replay and target freshness acceptance](../validation/MV-6-fu
 
 [Decision](084-host-agent-checkpoints.md): same-Host SessionPropose over authorized existing events and exact branch/range coverage, generated Agent provenance, stable keys excluding generated item IDs and provisional-only receipts. Existing owner whole-branch behavior stays unchanged.
 
+### ADR-MEM-85 — Isolated machine admission drafts (Core-1)
+
+[Decision](085-machine-admission-drafts.md): separate schema-2 policy/input/decision
+and planned-commit documents with System identity, exact revisions, evidence and
+context dependencies, deterministic attribution/staging and pure binding checks.
+No default writer, legacy owner-history change, IPC or Runtime activation.
+
 ## Relation to Enouia Runtime's register
 
 

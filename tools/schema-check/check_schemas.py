@@ -203,6 +203,18 @@ def main():
             failures.append(f"host case {case['id']}: independent validator accepted={accepted}")
     counts["host_documents"] = len(host["valid"]) + len(host["invalid"])
 
+    next_dir = ROOT / "tests" / "fixtures" / "next"
+    next_manifest = load(next_dir / "manifest.json")
+    for entry in next_manifest["valid"]:
+        if not valid(entry["schema"], load(next_dir / entry["file"])):
+            failures.append(f"valid next document rejected: {entry['file']}")
+    for case in next_manifest["invalid"]:
+        value = load(next_dir / case["base"])
+        apply_ops(value, case["ops"])
+        if valid("next/automation-v2.schema.json", value) != (case["schema"] == "accept"):
+            failures.append(f"next case {case['id']}: disagreement")
+    counts["next_documents"] = len(next_manifest["valid"]) + len(next_manifest["invalid"])
+
     invocation_cases = load(FIXTURES / "provider-invocation-cases.json")
     for case in invocation_cases["cases"]:
         value = copy.deepcopy(invocation_cases["base"])

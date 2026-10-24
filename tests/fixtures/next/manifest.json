@@ -1,0 +1,243 @@
+{
+  "valid": [
+    {
+      "file": "policy.json",
+      "type": "policy",
+      "schema": "next/automation-v2.schema.json"
+    },
+    {
+      "file": "input.json",
+      "type": "input",
+      "schema": "next/automation-v2.schema.json"
+    },
+    {
+      "file": "decision.json",
+      "type": "decision",
+      "schema": "next/automation-v2.schema.json"
+    },
+    {
+      "file": "commit.json",
+      "type": "commit",
+      "schema": "next/automation-v2.schema.json"
+    }
+  ],
+  "invalid": [
+    {
+      "id": "unsupported-major",
+      "base": "input.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/schema_version",
+          "value": 3
+        }
+      ],
+      "schema": "reject",
+      "rust_rule": "unsupported_schema"
+    },
+    {
+      "id": "legacy-major",
+      "base": "policy.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/schema_version",
+          "value": 1
+        }
+      ],
+      "schema": "reject",
+      "rust_rule": "unsupported_schema"
+    },
+    {
+      "id": "owner-impersonation",
+      "base": "input.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/actor/actor_type",
+          "value": "owner"
+        }
+      ],
+      "schema": "reject",
+      "rust_rule": "next.system_actor"
+    },
+    {
+      "id": "agent-impersonation",
+      "base": "policy.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/system_actor/actor_type",
+          "value": "agent"
+        }
+      ],
+      "schema": "reject",
+      "rust_rule": "next.system_actor"
+    },
+    {
+      "id": "unknown-rules",
+      "base": "policy.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/rule_version",
+          "value": "admission-rules-2"
+        }
+      ],
+      "schema": "reject",
+      "rust_rule": "shape"
+    },
+    {
+      "id": "missing-evidence",
+      "base": "input.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/evidence",
+          "value": []
+        }
+      ],
+      "schema": "reject",
+      "rust_rule": "next.evidence_required"
+    },
+    {
+      "id": "duplicate-input",
+      "base": "input.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/input_refs",
+          "value": [
+            {
+              "source_id": "src_00000001-0000-4000-8000-000000000001",
+              "source_revision": 1
+            },
+            {
+              "source_id": "src_00000001-0000-4000-8000-000000000001",
+              "source_revision": 1
+            }
+          ]
+        }
+      ],
+      "schema": "reject",
+      "rust_rule": "next.references"
+    },
+    {
+      "id": "bad-revision",
+      "base": "input.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/result/revision",
+          "value": 0
+        }
+      ],
+      "schema": "reject",
+      "rust_rule": "shape"
+    },
+    {
+      "id": "wrong-kind",
+      "base": "decision.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/kind",
+          "value": "review"
+        }
+      ],
+      "schema": "reject",
+      "rust_rule": "shape"
+    },
+    {
+      "id": "invented-approval",
+      "base": "input.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/approved_by",
+          "value": {
+            "actor_id": "prn_00000002-0000-4000-8000-000000000001",
+            "actor_type": "system"
+          }
+        }
+      ],
+      "schema": "reject",
+      "rust_rule": "shape"
+    },
+    {
+      "id": "forged-outcome",
+      "base": "decision.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/outcome/knowledge",
+          "value": "hypothesis"
+        }
+      ],
+      "schema": "accept",
+      "rust_rule": "next.outcome"
+    },
+    {
+      "id": "expired-policy-interval",
+      "base": "policy.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/valid_until",
+          "value": "2026-10-24T00:00:00.000Z"
+        }
+      ],
+      "schema": "accept",
+      "rust_rule": "next.policy_time"
+    },
+    {
+      "id": "same-base-commit",
+      "base": "commit.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/planned_commit_id",
+          "value": "cmt_00000001-0000-4000-8000-000000000001"
+        }
+      ],
+      "schema": "accept",
+      "rust_rule": "next.commit_identity"
+    },
+    {
+      "id": "duplicate-support",
+      "base": "input.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/evidence",
+          "value": [
+            {
+              "source_id": "src_00000001-0000-4000-8000-000000000001",
+              "source_revision": 1,
+              "locator": {
+                "kind": "json_pointer",
+                "pointer": "/mapping/b1/message/content"
+              },
+              "object_hash": "1bcb7e22aeceeedc14a62c504fbb3d1e0af52c2cb7e229c4a2c902c8745b7298",
+              "evidence_class": "user_statement",
+              "supports": "content"
+            },
+            {
+              "source_id": "src_00000001-0000-4000-8000-000000000001",
+              "source_revision": 1,
+              "locator": {
+                "kind": "json_pointer",
+                "pointer": "/mapping/b1/message/content"
+              },
+              "object_hash": "1bcb7e22aeceeedc14a62c504fbb3d1e0af52c2cb7e229c4a2c902c8745b7298",
+              "evidence_class": "user_statement",
+              "supports": "content"
+            }
+          ]
+        }
+      ],
+      "schema": "reject",
+      "rust_rule": "next.duplicate_support"
+    }
+  ]
+}

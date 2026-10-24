@@ -1,0 +1,74 @@
+{
+  "schema_version": 2,
+  "kind": "admission_draft",
+  "rule_version": "admission-rules-1",
+  "input": {
+    "schema_version": 2,
+    "kind": "admission_input",
+    "snapshot": {
+      "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+      "base_commit_id": "cmt_00000001-0000-4000-8000-000000000001",
+      "primary_epoch": 1,
+      "policy_watermark": 1,
+      "deletion_watermark": 1
+    },
+    "operation_id": "op_00000001-0000-4000-8000-000000000001",
+    "actor": {
+      "actor_id": "prn_00000002-0000-4000-8000-000000000001",
+      "actor_type": "system"
+    },
+    "policy": {
+      "policy_id": "pol_00000001-0000-4000-8000-000000000001",
+      "revision": 1,
+      "hash": "4f8140f564c08b8d87cc4f904abbf76c2a760b270acfaa7d93aa13b012ae722b"
+    },
+    "producer_version": "synthetic-analysis-1",
+    "model_version": null,
+    "subject_id": "sub_00000001-0000-4000-8000-000000000001",
+    "project_id": null,
+    "content": "Synthetic subject said they prefer quiet workspaces.",
+    "interpretation": "clear_self_report",
+    "input_refs": [
+      {
+        "source_id": "src_00000001-0000-4000-8000-000000000001",
+        "source_revision": 1
+      },
+      {
+        "source_id": "src_00000002-0000-4000-8000-000000000001",
+        "source_revision": 1
+      }
+    ],
+    "evidence": [
+      {
+        "source_id": "src_00000001-0000-4000-8000-000000000001",
+        "source_revision": 1,
+        "locator": {
+          "kind": "json_pointer",
+          "pointer": "/mapping/b1/message/content"
+        },
+        "object_hash": "1bcb7e22aeceeedc14a62c504fbb3d1e0af52c2cb7e229c4a2c902c8745b7298",
+        "evidence_class": "user_statement",
+        "supports": "content"
+      }
+    ],
+    "context_source_refs": [
+      {
+        "source_id": "src_00000002-0000-4000-8000-000000000001",
+        "source_revision": 1
+      }
+    ],
+    "target": null,
+    "result": {
+      "memory_id": "mem_00000001-0000-4000-8000-000000000001",
+      "revision": 1
+    },
+    "sensitivity": "private",
+    "access_policy_id": "pol_00000002-0000-4000-8000-000000000001",
+    "egress_policy_id": "pol_00000003-0000-4000-8000-000000000001"
+  },
+  "outcome": {
+    "knowledge": "attributed_statement",
+    "adoption": "adopted",
+    "reassessment": null
+  }
+}

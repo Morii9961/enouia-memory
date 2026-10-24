@@ -51,6 +51,18 @@ MV-1 update: rows whose "Later behavior" names MV-1 now have store evidence (com
 
 ## Rule coverage
 
+Core-1 (ADR-MEM-85) adds isolated `next` document rules without changing v1
+record/set validation. `tests/fixtures/next/manifest.json` compares schema shape
+with native rules for versions, System identity, budgets, evidence, outcomes
+and planned commit identity. `tests/next_admission.rs` in the contract crate
+covers current policy/snapshot binding, dependency closure, source freshness,
+access/sensitivity inheritance, exact evidence/subject attribution, duplicate
+origins, target revisions and prospective commit association. These require
+trusted context and cannot be established by JSON Schema alone. The independent
+Python checker reads the same manifest. See
+[the contract](CORE1_AUTOMATIC_ADMISSION.md) for limits: no authentication,
+semantic-quality proof, production writer or successful-commit receipt.
+
 MV-7 adds Provider invocation and optional extraction-job schemas. Invocation terminal/error shape is checked by both schema and typed validation. Extraction selection count, fixed version/binding and scalar budgets are schema rules; offset order/span and combined-byte limits, cursor/array agreement and cursor budget are typed rules. `extraction-job-cases.json` explicitly records these differences for both validators. Set validation binds the job to its saved input/source references, exact source content hashes, existing candidate IDs and immutable history, including paused/completed progress. Scoped validation explicitly loads the selected source revisions; synthetic tests compare it with whole-set validation. Native execution verifies actual source/snippet hashes, UTF-8 offsets, egress, exact quoted support, backlog and receipt recovery. These synthetic checks do not prove live model/account behavior.
 
 The pre-MV-7 coverage inventory counted 265 stable rule identifiers, with 156 asserted by a named negative fixture or test. The new Provider/extraction families above are additional; that inventory has not yet been recounted. The rest are implemented, and several of them fire as side effects of other cases, but no fixture targets them individually yet; they are mostly field-consistency checks within the families above. Adding dedicated cases for them is cheap MV-1 hardening. `tests/fixtures/memory/*-manifest.json` lists every case with the rule it proves.

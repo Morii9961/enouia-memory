@@ -1,0 +1,453 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.enouia-memory.invalid/next/automation-v2.schema.json",
+  "title": "Core-1 isolated automation documents; not Vault records",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/policy"
+    },
+    {
+      "$ref": "#/$defs/input"
+    },
+    {
+      "$ref": "#/$defs/decision"
+    },
+    {
+      "$ref": "#/$defs/commit"
+    }
+  ],
+  "$defs": {
+    "systemActor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "actor_id",
+        "actor_type"
+      ],
+      "properties": {
+        "actor_id": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/principalId"
+        },
+        "actor_type": {
+          "const": "system"
+        }
+      }
+    },
+    "snapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "vault_id",
+        "base_commit_id",
+        "primary_epoch",
+        "policy_watermark",
+        "deletion_watermark"
+      ],
+      "properties": {
+        "vault_id": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/vaultId"
+        },
+        "base_commit_id": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/commitId"
+        },
+        "primary_epoch": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/revision"
+        },
+        "policy_watermark": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/revision"
+        },
+        "deletion_watermark": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/revision"
+        }
+      }
+    },
+    "policyRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "policy_id",
+        "revision",
+        "hash"
+      ],
+      "properties": {
+        "policy_id": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/policyId"
+        },
+        "revision": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/revision"
+        },
+        "hash": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/sha256"
+        }
+      }
+    },
+    "memoryRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "memory_id",
+        "revision"
+      ],
+      "properties": {
+        "memory_id": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/memoryId"
+        },
+        "revision": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/revision"
+        }
+      }
+    },
+    "targetRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "memory",
+        "hash"
+      ],
+      "properties": {
+        "memory": {
+          "$ref": "#/$defs/memoryRef"
+        },
+        "hash": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/sha256"
+        }
+      }
+    },
+    "policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "kind",
+        "policy_id",
+        "revision",
+        "rule_version",
+        "system_actor",
+        "vault_id",
+        "subject_id",
+        "project_id",
+        "source_ids",
+        "allow_create",
+        "target_ids",
+        "max_sensitivity",
+        "access_policy_id",
+        "egress_policy_id",
+        "active",
+        "valid_from",
+        "valid_until"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": 2
+        },
+        "kind": {
+          "const": "automation_policy"
+        },
+        "policy_id": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/policyId"
+        },
+        "revision": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/revision"
+        },
+        "rule_version": {
+          "const": "admission-rules-1"
+        },
+        "system_actor": {
+          "$ref": "#/$defs/systemActor"
+        },
+        "vault_id": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/vaultId"
+        },
+        "subject_id": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/subjectId"
+        },
+        "project_id": {
+          "anyOf": [
+            {
+              "$ref": "../memory/common-v1.schema.json#/$defs/projectId"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "source_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "../memory/common-v1.schema.json#/$defs/sourceId"
+          },
+          "minItems": 1,
+          "maxItems": 128,
+          "uniqueItems": true
+        },
+        "allow_create": {
+          "type": "boolean"
+        },
+        "target_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "../memory/common-v1.schema.json#/$defs/memoryId"
+          },
+          "minItems": 0,
+          "maxItems": 128,
+          "uniqueItems": true
+        },
+        "max_sensitivity": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/sensitivity"
+        },
+        "access_policy_id": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/policyId"
+        },
+        "egress_policy_id": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/policyId"
+        },
+        "active": {
+          "type": "boolean"
+        },
+        "valid_from": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/timestamp"
+        },
+        "valid_until": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/timestamp"
+        }
+      }
+    },
+    "input": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "kind",
+        "snapshot",
+        "operation_id",
+        "actor",
+        "policy",
+        "producer_version",
+        "model_version",
+        "subject_id",
+        "project_id",
+        "content",
+        "interpretation",
+        "input_refs",
+        "evidence",
+        "context_source_refs",
+        "target",
+        "result",
+        "sensitivity",
+        "access_policy_id",
+        "egress_policy_id"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": 2
+        },
+        "kind": {
+          "const": "admission_input"
+        },
+        "snapshot": {
+          "$ref": "#/$defs/snapshot"
+        },
+        "operation_id": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/operationId"
+        },
+        "actor": {
+          "$ref": "#/$defs/systemActor"
+        },
+        "policy": {
+          "$ref": "#/$defs/policyRef"
+        },
+        "producer_version": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "model_version": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "subject_id": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/subjectId"
+        },
+        "project_id": {
+          "anyOf": [
+            {
+              "$ref": "../memory/common-v1.schema.json#/$defs/projectId"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "content": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 16384
+        },
+        "interpretation": {
+          "enum": [
+            "clear_self_report",
+            "inference",
+            "ambiguous",
+            "conflicting"
+          ]
+        },
+        "input_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "../memory/common-v1.schema.json#/$defs/sourceRevisionRef"
+          },
+          "minItems": 1,
+          "maxItems": 128,
+          "uniqueItems": true
+        },
+        "evidence": {
+          "type": "array",
+          "items": {
+            "$ref": "../memory/common-v1.schema.json#/$defs/evidenceRef"
+          },
+          "minItems": 1,
+          "maxItems": 128,
+          "uniqueItems": true
+        },
+        "context_source_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "../memory/common-v1.schema.json#/$defs/sourceRevisionRef"
+          },
+          "minItems": 0,
+          "maxItems": 128,
+          "uniqueItems": true
+        },
+        "target": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/targetRef"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "result": {
+          "$ref": "#/$defs/memoryRef"
+        },
+        "sensitivity": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/sensitivity"
+        },
+        "access_policy_id": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/policyId"
+        },
+        "egress_policy_id": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/policyId"
+        }
+      }
+    },
+    "outcome": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "knowledge",
+        "adoption",
+        "reassessment"
+      ],
+      "properties": {
+        "knowledge": {
+          "enum": [
+            "attributed_statement",
+            "hypothesis",
+            "uncertain",
+            "disputed"
+          ]
+        },
+        "adoption": {
+          "enum": [
+            "adopted",
+            "staged"
+          ]
+        },
+        "reassessment": {
+          "anyOf": [
+            {
+              "const": "on_evidence_or_policy_change"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "decision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "kind",
+        "rule_version",
+        "input",
+        "outcome"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": 2
+        },
+        "kind": {
+          "const": "admission_draft"
+        },
+        "rule_version": {
+          "const": "admission-rules-1"
+        },
+        "input": {
+          "$ref": "#/$defs/input"
+        },
+        "outcome": {
+          "$ref": "#/$defs/outcome"
+        }
+      }
+    },
+    "commit": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "kind",
+        "snapshot",
+        "planned_commit_id",
+        "operation_id",
+        "decision_hash",
+        "result"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": 2
+        },
+        "kind": {
+          "const": "planned_commit"
+        },
+        "snapshot": {
+          "$ref": "#/$defs/snapshot"
+        },
+        "planned_commit_id": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/commitId"
+        },
+        "operation_id": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/operationId"
+        },
+        "decision_hash": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/sha256"
+        },
+        "result": {
+          "$ref": "#/$defs/memoryRef"
+        }
+      }
+    }
+  }
+}
