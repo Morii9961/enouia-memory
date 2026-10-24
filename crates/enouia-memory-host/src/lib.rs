@@ -1,6 +1,7 @@
 //! Native single-Host service, session gate and opt-in Windows pipe adapters.
 //! No automatic spawn, adoption or embedded fallback.
 
+pub mod automation;
 #[cfg(windows)]
 pub mod broker;
 mod compatibility;

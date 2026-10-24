@@ -51,6 +51,7 @@ FILES = {
     "contracts/host/server-hello-v1.schema.json": "host-session",
     "crates/enouia-memory-host/Cargo.toml": "host-session",
     "crates/enouia-memory-vault/src/lib.rs": "vault-api",
+    "crates/enouia-memory-vault/src/fs.rs": "managed-job-storage",
     "crates/enouia-memory-vault/src/host_authority.rs": "host-control",
     "crates/enouia-memory-vault/src/fault.rs": "host-control",
     "crates/enouia-memory-contract/src/store.rs": "host-publication",

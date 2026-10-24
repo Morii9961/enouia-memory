@@ -429,6 +429,13 @@ and planned-commit documents with System identity, exact revisions, evidence and
 context dependencies, deterministic attribution/staging and pure binding checks.
 No default writer, legacy owner-history change, IPC or Runtime activation.
 
+### ADR-MEM-86 — Durable isolated automation jobs (Core-2)
+
+[Decision](086-durable-automation-jobs.md): bounded atomic synthetic job journal,
+exact Core-1 inputs, original-identity dedupe, restart/cursor recovery, durable
+pre-dispatch reservations and unknown outcomes, lifecycle cancellation and one
+private foreground-aware worker. No default Host wiring or memory application.
+
 ## Relation to Enouia Runtime's register
 
 

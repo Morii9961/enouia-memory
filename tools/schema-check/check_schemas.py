@@ -215,6 +215,20 @@ def main():
             failures.append(f"next case {case['id']}: disagreement")
     counts["next_documents"] = len(next_manifest["valid"]) + len(next_manifest["invalid"])
 
+    jobs_dir = ROOT / "tests" / "fixtures" / "automation"
+    jobs = load(jobs_dir / "manifest.json")
+    base = load(jobs_dir / jobs["valid"])
+    if not valid(jobs["schema"], base):
+        failures.append("valid automation journal rejected")
+    if not valid(jobs["schema"], load(jobs_dir / jobs["generated"])):
+        failures.append("valid generated automation journal rejected")
+    for case in jobs["invalid"]:
+        value = copy.deepcopy(base)
+        apply_ops(value, case["ops"])
+        if valid(jobs["schema"], value) != (case["schema"] == "accept"):
+            failures.append(f"automation case {case['id']}: disagreement")
+    counts["automation_documents"] = 2 + len(jobs["invalid"])
+
     invocation_cases = load(FIXTURES / "provider-invocation-cases.json")
     for case in invocation_cases["cases"]:
         value = copy.deepcopy(invocation_cases["base"])

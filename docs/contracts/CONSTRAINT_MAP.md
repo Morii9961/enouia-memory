@@ -51,6 +51,14 @@ MV-1 update: rows whose "Later behavior" names MV-1 now have store evidence (com
 
 ## Rule coverage
 
+Core-2 (ADR-MEM-86) adds the isolated native `memory_job_journal` schema and
+`host::automation::Journal` validator. The synthetic automation manifest compares
+schema shape with cursor/state/key/reservation consistency. Host automation tests
+exercise actual atomic files, lifetime OS exclusion, process termination,
+current Core-1 admission, original-ID dedupe, foreground/cancellation gates,
+budgets, deadlines, panics and unknown publication recovery. These are job-state
+checks, not Canonical set validation or real Provider/Runtime acceptance.
+
 Core-1 (ADR-MEM-85) adds isolated `next` document rules without changing v1
 record/set validation. `tests/fixtures/next/manifest.json` compares schema shape
 with native rules for versions, System identity, budgets, evidence, outcomes
