@@ -579,6 +579,20 @@
         "responseHash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
         "cursor": 0
       }
+    },
+    {
+      "schemaVersion": 1,
+      "requestId": "req_00000000-0000-4000-8000-00000000000c",
+      "command": "history_compare",
+      "idempotencyKey": null,
+      "arguments": {
+        "batches": [
+          {
+            "taskId": "ses_00000000-0000-4000-8000-000000000001",
+            "batchIndex": 1
+          }
+        ]
+      }
     }
   ],
   "invalid_requests": [
@@ -1442,6 +1456,265 @@
       ],
       "schema": "reject",
       "rust_rule": "shape"
+    },
+    {
+      "id": "history_compare-empty",
+      "base": 55,
+      "ops": [
+        {
+          "op": "set",
+          "path": "/arguments/batches",
+          "value": []
+        }
+      ],
+      "schema": "reject",
+      "rust_rule": "workspace.history_selection"
+    },
+    {
+      "id": "history_compare-too-many",
+      "base": 55,
+      "ops": [
+        {
+          "op": "set",
+          "path": "/arguments/batches",
+          "value": [
+            {
+              "taskId": "ses_00000000-0000-4000-8000-000000000001",
+              "batchIndex": 0
+            },
+            {
+              "taskId": "ses_00000000-0000-4000-8000-000000000001",
+              "batchIndex": 1
+            },
+            {
+              "taskId": "ses_00000000-0000-4000-8000-000000000001",
+              "batchIndex": 2
+            },
+            {
+              "taskId": "ses_00000000-0000-4000-8000-000000000001",
+              "batchIndex": 3
+            },
+            {
+              "taskId": "ses_00000000-0000-4000-8000-000000000001",
+              "batchIndex": 4
+            },
+            {
+              "taskId": "ses_00000000-0000-4000-8000-000000000001",
+              "batchIndex": 5
+            },
+            {
+              "taskId": "ses_00000000-0000-4000-8000-000000000001",
+              "batchIndex": 6
+            },
+            {
+              "taskId": "ses_00000000-0000-4000-8000-000000000001",
+              "batchIndex": 7
+            },
+            {
+              "taskId": "ses_00000000-0000-4000-8000-000000000001",
+              "batchIndex": 8
+            },
+            {
+              "taskId": "ses_00000000-0000-4000-8000-000000000001",
+              "batchIndex": 9
+            },
+            {
+              "taskId": "ses_00000000-0000-4000-8000-000000000001",
+              "batchIndex": 10
+            },
+            {
+              "taskId": "ses_00000000-0000-4000-8000-000000000001",
+              "batchIndex": 11
+            },
+            {
+              "taskId": "ses_00000000-0000-4000-8000-000000000001",
+              "batchIndex": 12
+            },
+            {
+              "taskId": "ses_00000000-0000-4000-8000-000000000001",
+              "batchIndex": 13
+            },
+            {
+              "taskId": "ses_00000000-0000-4000-8000-000000000001",
+              "batchIndex": 14
+            },
+            {
+              "taskId": "ses_00000000-0000-4000-8000-000000000001",
+              "batchIndex": 15
+            },
+            {
+              "taskId": "ses_00000000-0000-4000-8000-000000000001",
+              "batchIndex": 16
+            },
+            {
+              "taskId": "ses_00000000-0000-4000-8000-000000000001",
+              "batchIndex": 17
+            },
+            {
+              "taskId": "ses_00000000-0000-4000-8000-000000000001",
+              "batchIndex": 18
+            },
+            {
+              "taskId": "ses_00000000-0000-4000-8000-000000000001",
+              "batchIndex": 19
+            },
+            {
+              "taskId": "ses_00000000-0000-4000-8000-000000000001",
+              "batchIndex": 20
+            },
+            {
+              "taskId": "ses_00000000-0000-4000-8000-000000000001",
+              "batchIndex": 21
+            },
+            {
+              "taskId": "ses_00000000-0000-4000-8000-000000000001",
+              "batchIndex": 22
+            },
+            {
+              "taskId": "ses_00000000-0000-4000-8000-000000000001",
+              "batchIndex": 23
+            },
+            {
+              "taskId": "ses_00000000-0000-4000-8000-000000000001",
+              "batchIndex": 24
+            },
+            {
+              "taskId": "ses_00000000-0000-4000-8000-000000000001",
+              "batchIndex": 25
+            },
+            {
+              "taskId": "ses_00000000-0000-4000-8000-000000000001",
+              "batchIndex": 26
+            },
+            {
+              "taskId": "ses_00000000-0000-4000-8000-000000000001",
+              "batchIndex": 27
+            },
+            {
+              "taskId": "ses_00000000-0000-4000-8000-000000000001",
+              "batchIndex": 28
+            },
+            {
+              "taskId": "ses_00000000-0000-4000-8000-000000000001",
+              "batchIndex": 29
+            },
+            {
+              "taskId": "ses_00000000-0000-4000-8000-000000000001",
+              "batchIndex": 30
+            },
+            {
+              "taskId": "ses_00000000-0000-4000-8000-000000000001",
+              "batchIndex": 31
+            },
+            {
+              "taskId": "ses_00000000-0000-4000-8000-000000000001",
+              "batchIndex": 32
+            }
+          ]
+        }
+      ],
+      "schema": "reject",
+      "rust_rule": "workspace.history_selection"
+    },
+    {
+      "id": "history_compare-duplicate",
+      "base": 55,
+      "ops": [
+        {
+          "op": "set",
+          "path": "/arguments/batches",
+          "value": [
+            {
+              "taskId": "ses_00000000-0000-4000-8000-000000000001",
+              "batchIndex": 1
+            },
+            {
+              "taskId": "ses_00000000-0000-4000-8000-000000000001",
+              "batchIndex": 1
+            }
+          ]
+        }
+      ],
+      "schema": "reject",
+      "rust_rule": "workspace.history_selection"
+    },
+    {
+      "id": "history_compare-forbid-actor",
+      "base": 55,
+      "ops": [
+        {
+          "op": "set",
+          "path": "/arguments/actor",
+          "value": "owner"
+        }
+      ],
+      "schema": "reject",
+      "rust_rule": "shape"
+    },
+    {
+      "id": "history_compare-forbid-path",
+      "base": 55,
+      "ops": [
+        {
+          "op": "set",
+          "path": "/arguments/path",
+          "value": "synthetic"
+        }
+      ],
+      "schema": "reject",
+      "rust_rule": "shape"
+    },
+    {
+      "id": "history_compare-forbid-runId",
+      "base": 55,
+      "ops": [
+        {
+          "op": "set",
+          "path": "/arguments/runId",
+          "value": "synthetic"
+        }
+      ],
+      "schema": "reject",
+      "rust_rule": "shape"
+    },
+    {
+      "id": "history_compare-forbid-model",
+      "base": 55,
+      "ops": [
+        {
+          "op": "set",
+          "path": "/arguments/model",
+          "value": "synthetic"
+        }
+      ],
+      "schema": "reject",
+      "rust_rule": "shape"
+    },
+    {
+      "id": "history_compare-nested-run",
+      "base": 55,
+      "ops": [
+        {
+          "op": "set",
+          "path": "/arguments/batches/0/runId",
+          "value": "forged"
+        }
+      ],
+      "schema": "reject",
+      "rust_rule": "shape"
+    },
+    {
+      "id": "history_compare-write-key",
+      "base": 55,
+      "ops": [
+        {
+          "op": "set",
+          "path": "/idempotencyKey",
+          "value": "synthetic-key-0001"
+        }
+      ],
+      "schema": "reject",
+      "rust_rule": "ipc.idempotency_key"
     }
   ],
   "valid_responses": [
@@ -1599,6 +1872,18 @@
         "schemaVersion": 1,
         "requestId": "req_00000000-0000-4000-8000-00000000000c",
         "kind": "extraction_job",
+        "vaultCommitId": null,
+        "operationId": null,
+        "result": {},
+        "error": null
+      }
+    },
+    {
+      "command": "history_compare",
+      "message": {
+        "schemaVersion": 1,
+        "requestId": "req_00000000-0000-4000-8000-00000000000c",
+        "kind": "history_comparison",
         "vaultCommitId": null,
         "operationId": null,
         "result": {},

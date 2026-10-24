@@ -1271,3 +1271,194 @@ fn history_batch_application_recovers_admission_without_a_candidate_after_backlo
     );
     assert_eq!(ports.calls.load(Ordering::SeqCst), 1);
 }
+
+#[test]
+fn history_compare_is_read_only_and_preserves_originals_and_current_edits_without_ports() {
+    let env = Env::new("history-compare");
+    let (task, template, provider) = batch_setup(&env);
+    let mut selected = Vec::new();
+    let mut used_ports = Vec::new();
+    for index in [0, 1] {
+        let open = env.ws.open().unwrap();
+        let task_id = serde_json::from_value(task["taskId"].clone()).unwrap();
+        let batch = crate::materialization::selected_batch(&open, &task_id, index).unwrap();
+        let job = enouia_memory_provider::extraction::job(
+            &open.vault,
+            &open.owner,
+            &batch.session_id,
+            &batch.run_id,
+        )
+        .unwrap();
+        let first = &job.sources[0];
+        let pin = open.vault.pin_current().unwrap();
+        let source: SourceRecord = parse(
+            &open
+                .vault
+                .read_record(
+                    &pin,
+                    &RecordRef::new(
+                        RecordKind::Source,
+                        first.source.source_id.as_str(),
+                        first.source.source_revision,
+                    ),
+                )
+                .unwrap(),
+        )
+        .unwrap();
+        let text = enouia_memory_import::locate::resolve(RAW, &source.locator).unwrap();
+        let quote = std::str::from_utf8(&text[first.start as usize..first.end as usize]).unwrap();
+        let ports = Arc::new(BatchPorts {
+            reads: AtomicU64::new(0),
+            calls: AtomicU64::new(0),
+            text: Some(
+                json!({"candidates":[{"kind":"fact",
+                "content":format!("Synthetic comparison statement {index}"),
+                "quote":quote,"source_index":0,"claim_key":"synthetic_compare"}]})
+                .to_string(),
+            ),
+        });
+        let mut configured = provider.clone();
+        configured.secrets = ports.clone();
+        configured.transport = ports.clone();
+        env.ws.set_native_provider(Some(configured)).unwrap();
+        let mut args = template.clone();
+        args["batchIndex"] = json!(index);
+        let prepared = env.ok("history_batch_prepare", args);
+        let done = env.wait(&env.ok(
+            "external_send",
+            json!({"callId":prepared["callId"],"wireHash":prepared["wireHash"]}),
+        ));
+        assert_eq!(done["state"], "succeeded", "{done}");
+        selected.push(json!({"taskId":task["taskId"],"batchIndex":index}));
+        used_ports.push(ports);
+    }
+    env.ws.set_native_provider(None).unwrap();
+    let args = json!({"batches":selected});
+    let open = env.ws.open().unwrap();
+    let head = open.vault.pin_current().unwrap();
+    let initial = env.ok("history_compare", args.clone());
+    assert_eq!(open.vault.pin_current().unwrap(), head);
+    assert_eq!(initial["batches"].as_array().unwrap().len(), 2);
+    assert_eq!(initial["runs"].as_array().unwrap().len(), 2);
+    assert_eq!(initial["topics"].as_array().unwrap().len(), 1);
+    let topic = &initial["topics"][0];
+    assert_eq!(topic["entries"].as_array().unwrap().len(), 2);
+    assert_eq!(topic["comparisons"].as_array().unwrap().len(), 1);
+    for (i, selected) in selected.iter().enumerate() {
+        let preview = env.ok("history_batch_preview", selected.clone());
+        assert_eq!(initial["batches"][i]["sessionId"], preview["sessionId"]);
+        assert_eq!(initial["runs"][i]["response_hash"], preview["responseHash"]);
+        let entry = topic["entries"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|e| e["sessionId"] == preview["sessionId"])
+            .unwrap();
+        for field in [
+            "content",
+            "quote",
+            "selectedText",
+            "occurredAt",
+            "capturedAt",
+            "speakerRole",
+            "evidenceClass",
+        ] {
+            assert_eq!(entry[field], preview["items"][0][field], "{field}");
+        }
+    }
+    assert!(
+        open.vault
+            .record_entries(&head, RecordKind::Candidate)
+            .unwrap()
+            .is_empty()
+    );
+    assert!(
+        open.vault
+            .record_entries(&head, RecordKind::Memory)
+            .unwrap()
+            .is_empty()
+    );
+    let preview = env.ok("history_batch_preview", selected[0].clone());
+    let mut apply = selected[0].clone();
+    apply["responseHash"] = preview["responseHash"].clone();
+    apply["cursor"] = json!(0);
+    let applied = env.ok("history_batch_apply", apply);
+    let candidate = applied["job"]["candidates"][0].as_str().unwrap();
+    rewrite::<enouia_memory_contract::candidate::CandidateRecord>(
+        &env,
+        RecordKind::Candidate,
+        candidate,
+        |c| {
+            c["proposed_content"] = json!("Synthetic owner edited content");
+            c["proposed_details"]["claim_key"] = json!("synthetic_owner_edited_key");
+        },
+    );
+    let head = open.vault.pin_current().unwrap();
+    let edited = env.ok("history_compare", args.clone());
+    assert_eq!(open.vault.pin_current().unwrap(), head);
+    let entry = edited["topics"][0]["entries"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|e| e["candidate"].is_object())
+        .unwrap();
+    assert_eq!(entry["content"], "Synthetic comparison statement 0");
+    assert_eq!(entry["details"]["claim_key"], "synthetic_compare");
+    assert_eq!(
+        entry["candidate"]["content"],
+        "Synthetic owner edited content"
+    );
+    assert_eq!(
+        entry["candidate"]["details"]["claim_key"],
+        "synthetic_owner_edited_key"
+    );
+    if let Some(path) = std::env::var_os("MEMORY_HISTORY_COMPARE_FIXTURE") {
+        std::fs::write(
+            path,
+            serde_json::to_vec_pretty(&json!({"batches":selected,"response":edited})).unwrap(),
+        )
+        .unwrap();
+    }
+    assert!(
+        entry["flags"]
+            .as_array()
+            .unwrap()
+            .contains(&json!("OwnerEdited"))
+    );
+    assert_eq!(entry["candidate"]["status"], "pending");
+    assert!(
+        open.vault
+            .record_entries(&head, RecordKind::Memory)
+            .unwrap()
+            .is_empty()
+    );
+    env.ws.shutdown();
+    env.ws.open_root(&env.base.join("vault")).unwrap();
+    assert_eq!(env.ok("history_compare", args.clone()), edited);
+    assert_eq!(
+        env.err(
+            "history_compare",
+            json!({"batches":[{"taskId":task["taskId"],"batchIndex":999}]})
+        )["code"],
+        "invalid_request"
+    );
+    let open = env.ws.open().unwrap();
+    let policy = env.ws.policy(&open).unwrap().to_string();
+    rewrite::<PolicyRecord>(&env, RecordKind::Policy, &policy, |p| {
+        p["scopes"]
+            .as_array_mut()
+            .unwrap()
+            .retain(|s| s != "source:read");
+    });
+    assert_eq!(
+        env.err("history_compare", args.clone())["code"],
+        "permission_denied"
+    );
+    env.ok("vault_lock", json!({}));
+    assert_eq!(env.err("history_compare", args)["code"], "vault_locked");
+    assert!(!HostSurface::QuickSearch.allows(&json!({"command":"history_compare"})));
+    for ports in used_ports {
+        assert_eq!(ports.reads.load(Ordering::SeqCst), 1);
+        assert_eq!(ports.calls.load(Ordering::SeqCst), 1);
+    }
+}
