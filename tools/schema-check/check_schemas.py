@@ -203,6 +203,94 @@ def main():
             failures.append(f"host case {case['id']}: independent validator accepted={accepted}")
     counts["host_documents"] = len(host["valid"]) + len(host["invalid"])
 
+    next_dir = ROOT / "tests" / "fixtures" / "next"
+    next_manifest = load(next_dir / "manifest.json")
+    for entry in next_manifest["valid"]:
+        if not valid(entry["schema"], load(next_dir / entry["file"])):
+            failures.append(f"valid next document rejected: {entry['file']}")
+    for case in next_manifest["invalid"]:
+        value = load(next_dir / case["base"])
+        apply_ops(value, case["ops"])
+        if valid("next/automation-v2.schema.json", value) != (case["schema"] == "accept"):
+            failures.append(f"next case {case['id']}: disagreement")
+    counts["next_documents"] = len(next_manifest["valid"]) + len(next_manifest["invalid"])
+
+    jobs_dir = ROOT / "tests" / "fixtures" / "automation"
+    jobs = load(jobs_dir / "manifest.json")
+    base = load(jobs_dir / jobs["valid"])
+    if not valid(jobs["schema"], base):
+        failures.append("valid automation journal rejected")
+    if not valid(jobs["schema"], load(jobs_dir / jobs["generated"])):
+        failures.append("valid generated automation journal rejected")
+    for case in jobs["invalid"]:
+        value = copy.deepcopy(base)
+        apply_ops(value, case["ops"])
+        if valid(jobs["schema"], value) != (case["schema"] == "accept"):
+            failures.append(f"automation case {case['id']}: disagreement")
+    counts["automation_documents"] = 2 + len(jobs["invalid"])
+
+    automation_store_dir = ROOT / "tests" / "fixtures" / "automation-vault"
+    automation_store = load(automation_store_dir / "manifest.json")
+    for entry in automation_store["valid"]:
+        if not valid(automation_store["schema"], load(automation_store_dir / entry["file"])):
+            failures.append(f"valid automation store document rejected: {entry['file']}")
+    for case in automation_store["invalid"]:
+        value = load(automation_store_dir / case["base"])
+        apply_ops(value, case["ops"])
+        if valid(automation_store["schema"], value) != (case["schema"] == "accept"):
+            failures.append(f"automation store case {case['id']}: disagreement")
+    counts["automation_store_documents"] = len(automation_store["valid"]) + len(automation_store["invalid"])
+
+    continuation_dir = ROOT / "tests" / "fixtures" / "continuation"
+    continuation = load(continuation_dir / "manifest.json")
+    for entry in continuation["valid"]:
+        if not valid(continuation["schema"], load(continuation_dir / entry["file"])):
+            failures.append(f"valid continuation document rejected: {entry['file']}")
+    for case in continuation["invalid"]:
+        value = load(continuation_dir / case["base"])
+        apply_ops(value, case["ops"])
+        if valid(continuation["schema"], value) != (case["schema"] == "accept"):
+            failures.append(f"continuation case {case['id']}: disagreement")
+    counts["continuation_documents"] = len(continuation["valid"]) + len(continuation["invalid"])
+
+    formation_dir = ROOT / "tests" / "fixtures" / "formation"
+    formation = load(formation_dir / "manifest.json")
+    base = load(formation_dir / formation["valid"])
+    if not valid(formation["schema"], base):
+        failures.append("valid formation dimensions rejected")
+    if not valid("next/automation-v2.schema.json", load(formation_dir / formation["policy"])):
+        failures.append("valid dimensional policy rejected")
+    for case in formation["invalid"]:
+        value = copy.deepcopy(base)
+        apply_ops(value, case["ops"])
+        if valid(formation["schema"], value) != (case["schema"] == "accept"):
+            failures.append(f"formation case {case['id']}: disagreement")
+    counts["formation_documents"] = 2 + len(formation["invalid"])
+
+    attention_dir = ROOT / "tests" / "fixtures" / "attention"
+    attention = load(attention_dir / "manifest.json")
+    for entry in attention["valid"]:
+        if not valid(attention["schema"], load(attention_dir / entry["file"])):
+            failures.append(f"valid attention document rejected: {entry['file']}")
+    for case in attention["invalid"]:
+        value = load(attention_dir / case["base"])
+        apply_ops(value, case["ops"])
+        if valid(attention["schema"], value) != (case["schema"] == "accept"):
+            failures.append(f"attention case {case['id']}: disagreement")
+    counts["attention_documents"] = len(attention["valid"]) + len(attention["invalid"])
+
+    read_model_dir = ROOT / "tests" / "fixtures" / "read-model"
+    read_model = load(read_model_dir / "manifest.json")
+    for entry in read_model["valid"]:
+        if not valid(read_model["schema"], load(read_model_dir / entry["file"])):
+            failures.append(f"valid read-model document rejected: {entry['file']}")
+    for case in read_model["invalid"]:
+        value = load(read_model_dir / case["base"])
+        apply_ops(value, case["ops"])
+        if valid(read_model["schema"], value) != (case["schema"] == "accept"):
+            failures.append(f"read-model case {case['id']}: disagreement")
+    counts["read_model_documents"] = len(read_model["valid"]) + len(read_model["invalid"])
+
     invocation_cases = load(FIXTURES / "provider-invocation-cases.json")
     for case in invocation_cases["cases"]:
         value = copy.deepcopy(invocation_cases["base"])

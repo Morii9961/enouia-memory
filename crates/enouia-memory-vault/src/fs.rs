@@ -140,7 +140,7 @@ impl ManagedRoot {
 
     /// Bound allocation before reading bytes, including a concurrently grown
     /// file. Existing managed-path and reparse checks still apply.
-    pub(crate) fn read_bounded(&self, rel: &str, max_bytes: usize) -> Result<Option<Vec<u8>>> {
+    pub fn read_bounded(&self, rel: &str, max_bytes: usize) -> Result<Option<Vec<u8>>> {
         let path = self.resolve(rel)?;
         self.check_components(rel)?;
         let file = match File::open(path) {

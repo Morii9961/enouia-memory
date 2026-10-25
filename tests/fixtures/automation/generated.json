@@ -1,0 +1,98 @@
+{
+  "schema_version": 2,
+  "kind": "memory_job_journal",
+  "limits": {
+    "max_jobs": 4,
+    "total_tokens": 1000,
+    "total_cost_microusd": 100,
+    "call_tokens": 100,
+    "call_cost_microusd": 10,
+    "call_timeout_ms": 2000,
+    "max_result_bytes": 262144
+  },
+  "reserved_tokens": 100,
+  "reserved_cost_microusd": 10,
+  "last_ms": 1792843200000,
+  "jobs": [
+    {
+      "key": "1081da317dcc9650137926072479838fa7d9d617c49db43f30fe0b34f3bb2349",
+      "inputs": [
+        {
+          "schema_version": 2,
+          "kind": "admission_input",
+          "snapshot": {
+            "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+            "base_commit_id": "cmt_00000001-0000-4000-8000-000000000001",
+            "primary_epoch": 1,
+            "policy_watermark": 1,
+            "deletion_watermark": 1
+          },
+          "operation_id": "op_00000001-0000-4000-8000-000000000001",
+          "actor": {
+            "actor_id": "prn_00000002-0000-4000-8000-000000000001",
+            "actor_type": "system"
+          },
+          "policy": {
+            "policy_id": "pol_00000001-0000-4000-8000-000000000001",
+            "revision": 1,
+            "hash": "4f8140f564c08b8d87cc4f904abbf76c2a760b270acfaa7d93aa13b012ae722b"
+          },
+          "producer_version": "synthetic-analysis-1",
+          "model_version": null,
+          "subject_id": "sub_00000001-0000-4000-8000-000000000001",
+          "project_id": null,
+          "content": "Synthetic subject said they prefer quiet workspaces.",
+          "interpretation": "clear_self_report",
+          "input_refs": [
+            {
+              "source_id": "src_00000001-0000-4000-8000-000000000001",
+              "source_revision": 1
+            },
+            {
+              "source_id": "src_00000002-0000-4000-8000-000000000001",
+              "source_revision": 1
+            }
+          ],
+          "evidence": [
+            {
+              "source_id": "src_00000001-0000-4000-8000-000000000001",
+              "source_revision": 1,
+              "locator": {
+                "kind": "json_pointer",
+                "pointer": "/mapping/b1/message/content"
+              },
+              "object_hash": "1bcb7e22aeceeedc14a62c504fbb3d1e0af52c2cb7e229c4a2c902c8745b7298",
+              "evidence_class": "user_statement",
+              "supports": "content"
+            }
+          ],
+          "context_source_refs": [
+            {
+              "source_id": "src_00000002-0000-4000-8000-000000000001",
+              "source_revision": 1
+            }
+          ],
+          "target": null,
+          "result": {
+            "memory_id": "mem_00000001-0000-4000-8000-000000000001",
+            "revision": 1
+          },
+          "sensitivity": "private",
+          "access_policy_id": "pol_00000002-0000-4000-8000-000000000001",
+          "egress_policy_id": "pol_00000003-0000-4000-8000-000000000001"
+        }
+      ],
+      "state": "generated",
+      "cursor": 1,
+      "attempts": 1,
+      "uncertain": false,
+      "results": [
+        {
+          "input_hash": "a9f54b746df59c483b468a332074f3cf128ea2f3d5813bbd42639400b5c1f4b1",
+          "response_hash": "2435f900d3e04363d7c59981204eedfc153b74e68ec37ad04790eb0e6976fb84",
+          "response_json": "{\"synthetic\":\"generated analysis; not a memory commit\"}"
+        }
+      ]
+    }
+  ]
+}

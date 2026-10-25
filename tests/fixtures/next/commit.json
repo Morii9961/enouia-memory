@@ -1,0 +1,18 @@
+{
+  "schema_version": 2,
+  "kind": "planned_commit",
+  "snapshot": {
+    "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+    "base_commit_id": "cmt_00000001-0000-4000-8000-000000000001",
+    "primary_epoch": 1,
+    "policy_watermark": 1,
+    "deletion_watermark": 1
+  },
+  "planned_commit_id": "cmt_00000002-0000-4000-8000-000000000001",
+  "operation_id": "op_00000001-0000-4000-8000-000000000001",
+  "decision_hash": "8002cb70330e59eb8edc0cb1485d5e2892da8be17e7ca357e67966da62e0fc34",
+  "result": {
+    "memory_id": "mem_00000001-0000-4000-8000-000000000001",
+    "revision": 1
+  }
+}

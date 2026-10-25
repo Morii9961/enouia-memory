@@ -51,6 +51,7 @@ FILES = {
     "contracts/host/server-hello-v1.schema.json": "host-session",
     "crates/enouia-memory-host/Cargo.toml": "host-session",
     "crates/enouia-memory-vault/src/lib.rs": "vault-api",
+    "crates/enouia-memory-vault/src/fs.rs": "managed-job-storage",
     "crates/enouia-memory-vault/src/host_authority.rs": "host-control",
     "crates/enouia-memory-vault/src/fault.rs": "host-control",
     "crates/enouia-memory-contract/src/store.rs": "host-publication",
@@ -81,6 +82,10 @@ FILES = {
 
 # Directories recorded completely: a new file there is a surface change.
 DIRECTORIES = {
+    "crates/enouia-memory-vault/src/automation": "automatic-memory-storage",
+    # Isolated Core-1 contracts, not exposed through existing page/MCP IPC.
+    "crates/enouia-memory-contract/src/next": "automation-contract",
+    "contracts/next": "automation-contract",
     "crates/enouia-memory-host/src": "host-session",
     "crates/enouia-memory-workspace/src": "core",
     # Native Provider dispatch the Core hosts (ADR-MEM-48).

@@ -1,0 +1,190 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.enouia-memory.invalid/next/attention-v2.schema.json",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/profile"
+    },
+    {
+      "$ref": "#/$defs/projection"
+    }
+  ],
+  "$defs": {
+    "profile": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "const": 2
+        },
+        "kind": {
+          "const": "attention_profile"
+        },
+        "revision": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/revision"
+        },
+        "algorithm": {
+          "const": "attention-rank-1"
+        },
+        "fade_after_days": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 36500
+        },
+        "archive_after_days": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 36500
+        },
+        "protected_forms": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "fact",
+              "preference",
+              "episode",
+              "project_state",
+              "plan",
+              "open_loop",
+              "relationship_experience",
+              "subjective_understanding",
+              "theme"
+            ]
+          },
+          "minItems": 0,
+          "maxItems": 9
+        },
+        "protected_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "../memory/common-v1.schema.json#/$defs/memoryId"
+          },
+          "minItems": 0,
+          "maxItems": 128
+        },
+        "aliases": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "cue": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 256
+              },
+              "terms": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 256
+                },
+                "minItems": 1,
+                "maxItems": 8
+              }
+            },
+            "required": [
+              "cue",
+              "terms"
+            ]
+          },
+          "minItems": 0,
+          "maxItems": 16
+        },
+        "max_items": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 32
+        },
+        "max_bytes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 65536
+        },
+        "maintenance_interval_ms": {
+          "type": "integer",
+          "minimum": 100,
+          "maximum": 60000
+        }
+      },
+      "required": [
+        "schema_version",
+        "kind",
+        "revision",
+        "algorithm",
+        "fade_after_days",
+        "archive_after_days",
+        "protected_forms",
+        "protected_ids",
+        "aliases",
+        "max_items",
+        "max_bytes",
+        "maintenance_interval_ms"
+      ]
+    },
+    "projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "const": 2
+        },
+        "kind": {
+          "const": "attention_projection"
+        },
+        "algorithm": {
+          "const": "attention-rank-1"
+        },
+        "snapshot": {
+          "$ref": "automation-v2.schema.json#/$defs/snapshot"
+        },
+        "profile_hash": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/sha256"
+        },
+        "at": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/timestamp"
+        },
+        "rows": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "memory": {
+                "$ref": "automation-v2.schema.json#/$defs/memoryRef"
+              },
+              "state": {
+                "enum": [
+                  "active",
+                  "fading",
+                  "archived",
+                  "protected"
+                ]
+              },
+              "source_time": {
+                "$ref": "../memory/common-v1.schema.json#/$defs/timestamp"
+              }
+            },
+            "required": [
+              "memory",
+              "state",
+              "source_time"
+            ]
+          },
+          "minItems": 0,
+          "maxItems": 128
+        }
+      },
+      "required": [
+        "schema_version",
+        "kind",
+        "algorithm",
+        "snapshot",
+        "profile_hash",
+        "at",
+        "rows"
+      ]
+    }
+  }
+}

@@ -1,0 +1,37 @@
+{
+  "schema_version": 2,
+  "kind": "memory_recall_simulation",
+  "capability": "memory-native-read-1",
+  "effect": "synthetic_fixture",
+  "trace": {
+    "algorithm": "attention-rank-1",
+    "snapshot": {
+      "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+      "base_commit_id": "cmt_00000002-0000-4000-8000-000000000001",
+      "primary_epoch": 1,
+      "policy_watermark": 1,
+      "deletion_watermark": 1
+    },
+    "profile_hash": "1111111111111111111111111111111111111111111111111111111111111111",
+    "at": "2026-10-24T12:00:00.000Z",
+    "authorized_at": "2026-10-24T12:00:00.000Z",
+    "considered": 1,
+    "selected": [
+      {
+        "memory": {
+          "memory_id": "mem_00000001-0000-4000-8000-000000000001",
+          "revision": 1
+        },
+        "attention": "active",
+        "score": 103,
+        "reasons": [
+          "lexical",
+          "fresh"
+        ]
+      }
+    ],
+    "excluded": [],
+    "rendered_bytes": 27
+  },
+  "rendered_context": "Synthetic qualified recall."
+}

@@ -1,0 +1,83 @@
+{
+  "scope": "independent synthetic representation units; not model quality judgments",
+  "units": [
+    {
+      "id": "S02",
+      "source": "When debugging, explain details; otherwise keep it short.",
+      "required_kind": "preference",
+      "required_state": null,
+      "required_conditions": [
+        "During debugging"
+      ],
+      "required_event_time": null
+    },
+    {
+      "id": "S04",
+      "source": "I cancelled that trip; it never happened.",
+      "required_kind": "plan",
+      "required_state": "cancelled",
+      "required_conditions": [],
+      "required_event_time": null
+    },
+    {
+      "id": "S08",
+      "source": "Some time ago I made a cup.",
+      "required_kind": "episode",
+      "required_state": null,
+      "required_conditions": [],
+      "required_event_time": null
+    },
+    {
+      "id": "S24",
+      "source": "The project is paused for summer, not abandoned.",
+      "required_kind": "project_state",
+      "required_state": "paused",
+      "required_conditions": [
+        "During summer"
+      ],
+      "required_event_time": null
+    },
+    {
+      "id": "OPEN",
+      "source": "I still need to choose a course.",
+      "required_kind": "open_loop",
+      "required_state": "open",
+      "required_conditions": [],
+      "required_event_time": null
+    },
+    {
+      "id": "REL",
+      "source": "I remember our shared first lesson.",
+      "required_kind": "relationship_experience",
+      "required_state": null,
+      "required_conditions": [],
+      "required_event_time": null
+    },
+    {
+      "id": "S30",
+      "source": "The system wonders whether this marks a new learning phase.",
+      "required_kind": "subjective_understanding",
+      "required_state": null,
+      "required_conditions": [],
+      "required_event_time": null
+    },
+    {
+      "id": "FACT",
+      "source": "I said the venue is closed today.",
+      "required_kind": "fact",
+      "required_state": null,
+      "required_conditions": [
+        "Today only"
+      ],
+      "required_event_time": null
+    },
+    {
+      "id": "THEME",
+      "source": "A system reflection across two independent events.",
+      "required_kind": "theme",
+      "required_state": null,
+      "required_conditions": [],
+      "required_event_time": null
+    }
+  ]
+}

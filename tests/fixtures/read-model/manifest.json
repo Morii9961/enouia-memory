@@ -1,0 +1,324 @@
+{
+  "schema": "next/read-model-v2.schema.json",
+  "valid": [
+    {
+      "file": "page.json",
+      "type": "page"
+    },
+    {
+      "file": "detail.json",
+      "type": "detail"
+    },
+    {
+      "file": "simulation.json",
+      "type": "simulation"
+    }
+  ],
+  "invalid": [
+    {
+      "id": "major",
+      "base": "page.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/schema_version",
+          "value": 99
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "capability",
+      "base": "page.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/capability",
+          "value": "memory-native-read-99"
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "owner-impersonation",
+      "base": "page.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/items/0/system_actor/actor_type",
+          "value": "owner"
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "missing-receipt",
+      "base": "page.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/items/0/receipt",
+          "value": null
+        }
+      ],
+      "schema": "accept"
+    },
+    {
+      "id": "fake-global-graph",
+      "base": "page.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/capabilities/global_graph",
+          "value": true
+        }
+      ],
+      "schema": "accept"
+    },
+    {
+      "id": "truth-inflation",
+      "base": "page.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/items/0/knowledge",
+          "value": "verified"
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "duplicate-row",
+      "base": "page.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/items",
+          "value": [
+            {
+              "memory": {
+                "memory_id": "mem_00000001-0000-4000-8000-000000000001",
+                "revision": 1
+              },
+              "system_actor": {
+                "actor_id": "prn_00000002-0000-4000-8000-000000000001",
+                "actor_type": "system"
+              },
+              "subject_id": "sub_00000001-0000-4000-8000-000000000001",
+              "project_id": null,
+              "content": "Synthetic subject says: I prefer quiet workspaces.",
+              "knowledge": "attributed_statement",
+              "adoption": "adopted",
+              "dimensions": {
+                "kind": "preference",
+                "occurrence": "unknown",
+                "state": null,
+                "change": "initial",
+                "conditions": [
+                  "When debugging, preserve the reasoning steps."
+                ],
+                "event_time": null,
+                "valid_time": null,
+                "counter_sources": [],
+                "derived_from": [],
+                "reverts_to": null
+              },
+              "policy": {
+                "policy_id": "pol_00000001-0000-4000-8000-000000000001",
+                "revision": 1,
+                "hash": "f310cd4149124c63b7537ad259f016b7d4d1546c826ff8e136afd61c51deb256"
+              },
+              "rule_version": "admission-rules-3",
+              "committed_in": "cmt_00000003-0000-4000-8000-000000000001",
+              "learned_at": "2026-10-24T12:00:00.000Z",
+              "source_captured_at": "2026-10-24T12:00:00.000Z",
+              "attention": "active",
+              "evidence": [
+                {
+                  "source_id": "src_00000001-0000-4000-8000-000000000001",
+                  "source_revision": 1,
+                  "locator": {
+                    "event_id": "evt_00000015-0000-4000-8000-000000000015",
+                    "kind": "runtime_event"
+                  },
+                  "object_hash": "452c51c0e5d693cc71a4434687ce9f7984b288c9b5f70cfa79440ae0fbd98f4f",
+                  "evidence_class": "user_statement",
+                  "supports": "content"
+                }
+              ],
+              "context_source_refs": [],
+              "receipt": {
+                "job_key": "da524a29403882da69261073fcf5fb537491fdfe7c9a96b38dd18d1715da5ceb",
+                "binding_hash": "8a692126e05261a25bf1aa405bcfd187e8e8045219b8489d7746071fc98fbd5c",
+                "operation_id": "op_00000001-0000-4000-8000-000000000001",
+                "request_hash": "e995a9d9bb772891d87742a20879b462d3317085c858afcaf97fea06ce145e3a",
+                "response_hash": "cf59cc6c546caf79aec547c722766579034d11afe2edfd70a32d230c93944294",
+                "decision_hash": "f0800b287b9a5da0fc81cb701727494d119988398575d9e62b70837c7ee6384e",
+                "committed_in": "cmt_00000003-0000-4000-8000-000000000001",
+                "sequence": 3,
+                "result": {
+                  "memory_id": "mem_00000001-0000-4000-8000-000000000001",
+                  "revision": 1
+                }
+              },
+              "validity": "unspecified"
+            },
+            {
+              "memory": {
+                "memory_id": "mem_00000001-0000-4000-8000-000000000001",
+                "revision": 1
+              },
+              "system_actor": {
+                "actor_id": "prn_00000002-0000-4000-8000-000000000001",
+                "actor_type": "system"
+              },
+              "subject_id": "sub_00000001-0000-4000-8000-000000000001",
+              "project_id": null,
+              "content": "Synthetic subject says: I prefer quiet workspaces.",
+              "knowledge": "attributed_statement",
+              "adoption": "adopted",
+              "dimensions": {
+                "kind": "preference",
+                "occurrence": "unknown",
+                "state": null,
+                "change": "initial",
+                "conditions": [
+                  "When debugging, preserve the reasoning steps."
+                ],
+                "event_time": null,
+                "valid_time": null,
+                "counter_sources": [],
+                "derived_from": [],
+                "reverts_to": null
+              },
+              "policy": {
+                "policy_id": "pol_00000001-0000-4000-8000-000000000001",
+                "revision": 1,
+                "hash": "f310cd4149124c63b7537ad259f016b7d4d1546c826ff8e136afd61c51deb256"
+              },
+              "rule_version": "admission-rules-3",
+              "committed_in": "cmt_00000003-0000-4000-8000-000000000001",
+              "learned_at": "2026-10-24T12:00:00.000Z",
+              "source_captured_at": "2026-10-24T12:00:00.000Z",
+              "attention": "active",
+              "evidence": [
+                {
+                  "source_id": "src_00000001-0000-4000-8000-000000000001",
+                  "source_revision": 1,
+                  "locator": {
+                    "event_id": "evt_00000015-0000-4000-8000-000000000015",
+                    "kind": "runtime_event"
+                  },
+                  "object_hash": "452c51c0e5d693cc71a4434687ce9f7984b288c9b5f70cfa79440ae0fbd98f4f",
+                  "evidence_class": "user_statement",
+                  "supports": "content"
+                }
+              ],
+              "context_source_refs": [],
+              "receipt": {
+                "job_key": "da524a29403882da69261073fcf5fb537491fdfe7c9a96b38dd18d1715da5ceb",
+                "binding_hash": "8a692126e05261a25bf1aa405bcfd187e8e8045219b8489d7746071fc98fbd5c",
+                "operation_id": "op_00000001-0000-4000-8000-000000000001",
+                "request_hash": "e995a9d9bb772891d87742a20879b462d3317085c858afcaf97fea06ce145e3a",
+                "response_hash": "cf59cc6c546caf79aec547c722766579034d11afe2edfd70a32d230c93944294",
+                "decision_hash": "f0800b287b9a5da0fc81cb701727494d119988398575d9e62b70837c7ee6384e",
+                "committed_in": "cmt_00000003-0000-4000-8000-000000000001",
+                "sequence": 3,
+                "result": {
+                  "memory_id": "mem_00000001-0000-4000-8000-000000000001",
+                  "revision": 1
+                }
+              },
+              "validity": "unspecified"
+            }
+          ]
+        }
+      ],
+      "schema": "accept"
+    },
+    {
+      "id": "foreign-receipt",
+      "base": "detail.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/item/receipt/result/revision",
+          "value": 99
+        }
+      ],
+      "schema": "accept"
+    },
+    {
+      "id": "body-hash",
+      "base": "detail.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/sources/0/text",
+          "value": "not original text"
+        }
+      ],
+      "schema": "accept"
+    },
+    {
+      "id": "changed-byte-count",
+      "base": "simulation.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/trace/rendered_bytes",
+          "value": 0
+        }
+      ],
+      "schema": "accept"
+    },
+    {
+      "id": "unknown-effect",
+      "base": "simulation.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/effect",
+          "value": "saved_experiment"
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "wrong-validity-label",
+      "base": "page.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/items/0/validity",
+          "value": "expired"
+        }
+      ],
+      "schema": "accept"
+    },
+    {
+      "id": "future-learned-time",
+      "base": "page.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/items/0/learned_at",
+          "value": "2035-01-01T00:00:00.000Z"
+        }
+      ],
+      "schema": "accept"
+    },
+    {
+      "id": "synthetic-page-cannot-claim-native-receipt",
+      "base": "page.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/effect",
+          "value": "synthetic_fixture"
+        }
+      ],
+      "schema": "accept"
+    }
+  ]
+}

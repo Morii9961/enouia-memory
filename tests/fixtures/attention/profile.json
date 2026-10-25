@@ -1,0 +1,25 @@
+{
+  "schema_version": 2,
+  "kind": "attention_profile",
+  "revision": 1,
+  "algorithm": "attention-rank-1",
+  "fade_after_days": 30,
+  "archive_after_days": 180,
+  "protected_forms": [
+    "episode",
+    "relationship_experience"
+  ],
+  "protected_ids": [],
+  "aliases": [
+    {
+      "cue": "ceramics",
+      "terms": [
+        "pottery",
+        "cup"
+      ]
+    }
+  ],
+  "max_items": 8,
+  "max_bytes": 16384,
+  "maintenance_interval_ms": 1000
+}

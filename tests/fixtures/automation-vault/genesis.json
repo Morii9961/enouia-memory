@@ -1,0 +1,71 @@
+{
+  "schema_version": 2,
+  "kind": "automation_commit",
+  "commit_id": "cmt_00000001-0000-4000-8000-000000000001",
+  "sequence": 1,
+  "parent": null,
+  "actor": {
+    "actor_id": "prn_00000001-0000-4000-8000-000000000001",
+    "actor_type": "owner"
+  },
+  "created_at": "2026-10-24T12:00:00.000Z",
+  "change": "genesis",
+  "data": {
+    "policy": {
+      "schema_version": 2,
+      "kind": "automation_policy",
+      "policy_id": "pol_00000001-0000-4000-8000-000000000001",
+      "revision": 1,
+      "rule_version": "admission-rules-2",
+      "system_actor": {
+        "actor_id": "prn_00000002-0000-4000-8000-000000000001",
+        "actor_type": "system"
+      },
+      "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+      "subject_id": "sub_00000001-0000-4000-8000-000000000001",
+      "project_id": null,
+      "source_ids": [
+        "src_00000001-0000-4000-8000-000000000001",
+        "src_00000002-0000-4000-8000-000000000001"
+      ],
+      "allow_create": true,
+      "target_ids": [
+        "mem_00000002-0000-4000-8000-000000000001"
+      ],
+      "max_sensitivity": "private",
+      "access_policy_id": "pol_00000002-0000-4000-8000-000000000001",
+      "egress_policy_id": "pol_00000003-0000-4000-8000-000000000001",
+      "active": true,
+      "valid_from": "2026-10-24T00:00:00.000Z",
+      "valid_until": "2026-10-25T00:00:00.000Z",
+      "allow_revise_created": true
+    },
+    "policy_watermark": 1,
+    "deletion_watermark": 1,
+    "sources": [],
+    "memories": [],
+    "receipts": [],
+    "deleted_sources": [],
+    "deleted_memories": []
+  },
+  "authority": {
+    "schema_version": 1,
+    "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+    "revision": 1,
+    "primary": {
+      "host_id": "dev_00000001-0000-4000-8000-000000000001",
+      "primary_epoch": 1
+    },
+    "checkpoint": {
+      "commit_id": "cmt_00000001-0000-4000-8000-000000000001",
+      "commit_sequence": 1,
+      "snapshot_hash": "3451e6c9900b165adde220fa80758a22d6a5106f61d683c5f2b0f974f0c5e61e",
+      "policy_epoch": 1,
+      "deletion_epoch": 1
+    },
+    "phase": {
+      "state": "active"
+    },
+    "promotions": []
+  }
+}

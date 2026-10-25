@@ -7,6 +7,7 @@
 //! service. Durability claims are limited to process crashes (V09).
 
 pub mod audit;
+pub mod automation;
 pub mod backup;
 pub mod error;
 pub mod fault;
