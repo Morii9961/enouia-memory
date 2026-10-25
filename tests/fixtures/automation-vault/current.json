@@ -1,0 +1,8 @@
+{
+  "schema_version": 2,
+  "kind": "automation_current",
+  "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+  "commit_id": "cmt_00000003-0000-4000-8000-000000000001",
+  "sequence": 3,
+  "manifest_sha256": "aedfed48ab4cca017ccbdce44cbb81a74bd6dba25f0e8b516df89de616715849"
+}

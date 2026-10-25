@@ -1,0 +1,121 @@
+{
+  "schema_version": 2,
+  "kind": "continuous_generation_journal",
+  "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+  "owner": {
+    "actor_id": "prn_00000001-0000-4000-8000-000000000001",
+    "actor_type": "owner"
+  },
+  "system_actor": {
+    "actor_id": "prn_00000002-0000-4000-8000-000000000001",
+    "actor_type": "system"
+  },
+  "policy": {
+    "schema_version": 2,
+    "kind": "continuous_generation_policy",
+    "policy_id": "pol_00000003-0000-4000-8000-000000000001",
+    "revision": 1,
+    "granted_by": {
+      "actor_id": "prn_00000001-0000-4000-8000-000000000001",
+      "actor_type": "owner"
+    },
+    "system_actor": {
+      "actor_id": "prn_00000002-0000-4000-8000-000000000001",
+      "actor_type": "system"
+    },
+    "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+    "admission_policy": {
+      "policy_id": "pol_00000001-0000-4000-8000-000000000001",
+      "revision": 1,
+      "hash": "4f8140f564c08b8d87cc4f904abbf76c2a760b270acfaa7d93aa13b012ae722b"
+    },
+    "subject_id": "sub_00000001-0000-4000-8000-000000000001",
+    "project_id": null,
+    "source_ids": [
+      "src_00000001-0000-4000-8000-000000000001",
+      "src_00000002-0000-4000-8000-000000000001"
+    ],
+    "producer_version": "synthetic-analysis-1",
+    "destination": {
+      "api": "synthetic",
+      "model": "fake-model-1",
+      "adapter_version": "fake-1"
+    },
+    "max_sensitivity": "private",
+    "call_tokens": 100,
+    "call_cost_microusd": 10,
+    "total_tokens": 200,
+    "total_cost_microusd": 20,
+    "active": true,
+    "valid_from": "2026-10-24T00:00:00.000Z",
+    "valid_until": "2026-10-25T00:00:00.000Z"
+  },
+  "policy_history": [
+    {
+      "schema_version": 2,
+      "kind": "continuous_generation_policy",
+      "policy_id": "pol_00000003-0000-4000-8000-000000000001",
+      "revision": 1,
+      "granted_by": {
+        "actor_id": "prn_00000001-0000-4000-8000-000000000001",
+        "actor_type": "owner"
+      },
+      "system_actor": {
+        "actor_id": "prn_00000002-0000-4000-8000-000000000001",
+        "actor_type": "system"
+      },
+      "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+      "admission_policy": {
+        "policy_id": "pol_00000001-0000-4000-8000-000000000001",
+        "revision": 1,
+        "hash": "4f8140f564c08b8d87cc4f904abbf76c2a760b270acfaa7d93aa13b012ae722b"
+      },
+      "subject_id": "sub_00000001-0000-4000-8000-000000000001",
+      "project_id": null,
+      "source_ids": [
+        "src_00000001-0000-4000-8000-000000000001",
+        "src_00000002-0000-4000-8000-000000000001"
+      ],
+      "producer_version": "synthetic-analysis-1",
+      "destination": {
+        "api": "synthetic",
+        "model": "fake-model-1",
+        "adapter_version": "fake-1"
+      },
+      "max_sensitivity": "private",
+      "call_tokens": 100,
+      "call_cost_microusd": 10,
+      "total_tokens": 200,
+      "total_cost_microusd": 20,
+      "active": true,
+      "valid_from": "2026-10-24T00:00:00.000Z",
+      "valid_until": "2026-10-25T00:00:00.000Z"
+    }
+  ],
+  "last_ms": 1792843200000,
+  "attempts": [
+    {
+      "work_key": "1111111111111111111111111111111111111111111111111111111111111111",
+      "operation_id": "op_00000001-0000-4000-8000-000000000001",
+      "input_hash": "2222222222222222222222222222222222222222222222222222222222222222",
+      "policy": {
+        "policy_id": "pol_00000003-0000-4000-8000-000000000001",
+        "revision": 1,
+        "hash": "85ca0df921fba6975709bf9877eceefdd592a3d4bf514280aeb57b2a91160fee"
+      },
+      "snapshot": {
+        "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+        "base_commit_id": "cmt_00000001-0000-4000-8000-000000000001",
+        "primary_epoch": 1,
+        "policy_watermark": 1,
+        "deletion_watermark": 1
+      },
+      "state": "outcome_unknown",
+      "reserved_tokens": 100,
+      "reserved_cost_microusd": 10,
+      "tokens_used": null,
+      "cost_microusd": null,
+      "response_hash": null
+    }
+  ]
+}

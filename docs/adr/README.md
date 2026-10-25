@@ -422,6 +422,58 @@ The [full remember replay and target freshness acceptance](../validation/MV-6-fu
 
 [Decision](084-host-agent-checkpoints.md): same-Host SessionPropose over authorized existing events and exact branch/range coverage, generated Agent provenance, stable keys excluding generated item IDs and provisional-only receipts. Existing owner whole-branch behavior stays unchanged.
 
+### ADR-MEM-85 — Isolated machine admission drafts (Core-1)
+
+[Decision](085-machine-admission-drafts.md): separate schema-2 policy/input/decision
+and planned-commit documents with System identity, exact revisions, evidence and
+context dependencies, deterministic attribution/staging and pure binding checks.
+No default writer, legacy owner-history change, IPC or Runtime activation.
+
+### ADR-MEM-86 — Durable isolated automation jobs (Core-2)
+
+[Decision](086-durable-automation-jobs.md): bounded atomic synthetic job journal,
+exact Core-1 inputs, original-identity dedupe, restart/cursor recovery, durable
+pre-dispatch reservations and unknown outcomes, lifecycle cancellation and one
+private foreground-aware worker. No default Host wiring or memory application.
+
+### ADR-MEM-87 — Automatic memory transactions (Core-3)
+
+[Decision](087-automatic-memory-transactions.md): explicit schema-2 synthetic
+root, native System formation/correction and witnessed atomic batch receipts,
+append-only data/authority closure, exact forward publication recovery and
+attributed current recall. Rule-2 optionally delegates revision of same-policy
+machine results; legacy owner history and all default routes remain unchanged.
+
+### ADR-MEM-88 — Continuous generation policy (Core-4)
+
+[Decision](088-continuous-generation-policy.md): isolated standing native egress
+policy with exact input/destination scope, persistent reservations, conservative
+unknown/overrun charges, automatic no-policy pause and shared withdrawal/application
+barrier. Fake transport only; V1 private approvals and Runtime pins are unchanged.
+
+### ADR-MEM-89 — Dimensional formation and reversible consolidation (Core-5)
+
+[Decision](089-dimensional-formation.md): opt-in layout `automation-host-v2`
+and rule 3, explicit formation/state/condition/time dimensions, exact original
+source derivation, staged System interpretation and new-revision historical
+reversion. No old-root upgrade, fabricated experience or owner approval.
+
+### ADR-MEM-90 — Contextual recall and attention maintenance (Core-6)
+
+[Decision](090-contextual-recall-maintenance.md): current authorization before
+deterministic lexical/alias/condition/time selection, separate fading/protection
+and historical rescue, read-without-reinforcement, and one cancellable native
+worker maintaining a disposable metadata projection. No truth/state mutation,
+Activity input, notification, default route or Runtime adoption.
+
+### ADR-MEM-91 — Authorized bounded read model (Core-7)
+
+[Decision](091-authorized-memory-read-model.md): `memory-native-read-1` pages,
+selected currently authorized history/source details, exact local lineage and
+explicit synthetic/native read-only simulations. Snapshot/filter/profile-bound
+cursors and bounded JSON preserve scope/completeness; no global graph/timeline,
+saved experiment, new IPC/MCP, Runtime pin or shell adoption.
+
 ## Relation to Enouia Runtime's register
 
 

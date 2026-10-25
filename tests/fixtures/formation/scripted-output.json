@@ -1,0 +1,146 @@
+{
+  "scope": "scripted dimension outputs; not live extraction",
+  "outputs": [
+    {
+      "unit_id": "S02",
+      "dimensions": {
+        "kind": "preference",
+        "occurrence": "unknown",
+        "state": null,
+        "change": "initial",
+        "conditions": [
+          "During debugging"
+        ],
+        "event_time": null,
+        "valid_time": null,
+        "counter_sources": [],
+        "derived_from": [],
+        "reverts_to": null
+      }
+    },
+    {
+      "unit_id": "S04",
+      "dimensions": {
+        "kind": "plan",
+        "occurrence": "intended",
+        "state": "cancelled",
+        "change": "initial",
+        "conditions": [],
+        "event_time": null,
+        "valid_time": null,
+        "counter_sources": [],
+        "derived_from": [],
+        "reverts_to": null
+      }
+    },
+    {
+      "unit_id": "S08",
+      "dimensions": {
+        "kind": "episode",
+        "occurrence": "reported_occurred",
+        "state": null,
+        "change": "initial",
+        "conditions": [],
+        "event_time": null,
+        "valid_time": null,
+        "counter_sources": [],
+        "derived_from": [],
+        "reverts_to": null
+      }
+    },
+    {
+      "unit_id": "S24",
+      "dimensions": {
+        "kind": "project_state",
+        "occurrence": "unknown",
+        "state": "paused",
+        "change": "initial",
+        "conditions": [
+          "During summer"
+        ],
+        "event_time": null,
+        "valid_time": null,
+        "counter_sources": [],
+        "derived_from": [],
+        "reverts_to": null
+      }
+    },
+    {
+      "unit_id": "OPEN",
+      "dimensions": {
+        "kind": "open_loop",
+        "occurrence": "unknown",
+        "state": "open",
+        "change": "initial",
+        "conditions": [],
+        "event_time": null,
+        "valid_time": null,
+        "counter_sources": [],
+        "derived_from": [],
+        "reverts_to": null
+      }
+    },
+    {
+      "unit_id": "REL",
+      "dimensions": {
+        "kind": "relationship_experience",
+        "occurrence": "unknown",
+        "state": null,
+        "change": "initial",
+        "conditions": [],
+        "event_time": null,
+        "valid_time": null,
+        "counter_sources": [],
+        "derived_from": [],
+        "reverts_to": null
+      }
+    },
+    {
+      "unit_id": "S30",
+      "dimensions": {
+        "kind": "subjective_understanding",
+        "occurrence": "unknown",
+        "state": null,
+        "change": "initial",
+        "conditions": [],
+        "event_time": null,
+        "valid_time": null,
+        "counter_sources": [],
+        "derived_from": [],
+        "reverts_to": null
+      }
+    },
+    {
+      "unit_id": "FACT",
+      "dimensions": {
+        "kind": "fact",
+        "occurrence": "unknown",
+        "state": null,
+        "change": "initial",
+        "conditions": [
+          "Today only"
+        ],
+        "event_time": null,
+        "valid_time": null,
+        "counter_sources": [],
+        "derived_from": [],
+        "reverts_to": null
+      }
+    },
+    {
+      "unit_id": "THEME",
+      "dimensions": {
+        "kind": "theme",
+        "occurrence": "unknown",
+        "state": null,
+        "change": "initial",
+        "conditions": [],
+        "event_time": null,
+        "valid_time": null,
+        "counter_sources": [],
+        "derived_from": [],
+        "reverts_to": null
+      }
+    }
+  ]
+}

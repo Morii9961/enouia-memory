@@ -1,0 +1,198 @@
+{
+  "schema": "next/job-journal-v2.schema.json",
+  "valid": "queued.json",
+  "invalid": [
+    {
+      "id": "unsupported-major",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/schema_version",
+          "value": 3
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "wrong-kind",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/kind",
+          "value": "memory"
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "zero-token-reservation",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/limits/call_tokens",
+          "value": 0
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "unsafe-cost",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/limits/total_cost_microusd",
+          "value": 9007199254740992
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "missing-input",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/jobs/0/inputs",
+          "value": []
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "future-cursor",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/jobs/0/cursor",
+          "value": 1
+        }
+      ],
+      "schema": "accept"
+    },
+    {
+      "id": "free-dispatch",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/jobs/0/state",
+          "value": "running"
+        }
+      ],
+      "schema": "accept"
+    },
+    {
+      "id": "unearned-result",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/jobs/0/state",
+          "value": "generated"
+        }
+      ],
+      "schema": "accept"
+    },
+    {
+      "id": "budget-accounting",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/reserved_tokens",
+          "value": 100
+        }
+      ],
+      "schema": "accept"
+    },
+    {
+      "id": "false-work-key",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/jobs/0/key",
+          "value": "0000000000000000000000000000000000000000000000000000000000000000"
+        }
+      ],
+      "schema": "accept"
+    },
+    {
+      "id": "unknown-state",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/jobs/0/state",
+          "value": "applied"
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "too-large-capacity",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/limits/max_jobs",
+          "value": 17
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "missing-system",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/jobs/0/inputs/0/actor/actor_type",
+          "value": "owner"
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "blocked-after-dispatch",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/jobs/0/state",
+          "value": "budget_blocked"
+        },
+        {
+          "op": "set",
+          "path": "/jobs/0/uncertain",
+          "value": true
+        }
+      ],
+      "schema": "accept"
+    },
+    {
+      "id": "known-failure-claims-unknown",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/jobs/0/state",
+          "value": "failed"
+        },
+        {
+          "op": "set",
+          "path": "/jobs/0/uncertain",
+          "value": true
+        }
+      ],
+      "schema": "accept"
+    },
+    {
+      "id": "unreserved-cancel-claims-unknown",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/jobs/0/state",
+          "value": "cancelled"
+        },
+        {
+          "op": "set",
+          "path": "/jobs/0/uncertain",
+          "value": true
+        }
+      ],
+      "schema": "accept"
+    }
+  ],
+  "generated": "generated.json"
+}

@@ -1,0 +1,187 @@
+{
+  "schema": "next/continuation-v2.schema.json",
+  "valid": [
+    {
+      "file": "policy.json",
+      "type": "policy"
+    },
+    {
+      "file": "journal.json",
+      "type": "journal"
+    },
+    {
+      "file": "unknown.json",
+      "type": "journal"
+    }
+  ],
+  "invalid": [
+    {
+      "id": "unknown-major",
+      "base": "policy.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/schema_version",
+          "value": 99
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "system-impersonates-owner",
+      "base": "policy.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/granted_by/actor_type",
+          "value": "system"
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "owner-impersonates-system",
+      "base": "policy.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/system_actor/actor_type",
+          "value": "owner"
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "highly-sensitive",
+      "base": "policy.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/max_sensitivity",
+          "value": "highly_sensitive"
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "no-sources",
+      "base": "policy.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/source_ids",
+          "value": []
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "wrong-api",
+      "base": "policy.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/destination/api",
+          "value": "unbounded"
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "no-deadline",
+      "base": "policy.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/valid_until",
+          "value": null
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "zero-budget",
+      "base": "policy.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/total_tokens",
+          "value": 0
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "unbounded-budget",
+      "base": "policy.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/total_cost_microusd",
+          "value": 9007199254740992
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "invalid-time-order",
+      "base": "policy.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/valid_until",
+          "value": "2026-10-24T00:00:00.000Z"
+        }
+      ],
+      "schema": "accept"
+    },
+    {
+      "id": "call-exceeds-total",
+      "base": "policy.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/total_tokens",
+          "value": 1
+        }
+      ],
+      "schema": "accept"
+    },
+    {
+      "id": "policy-history-loss",
+      "base": "journal.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/policy_history",
+          "value": []
+        }
+      ],
+      "schema": "accept"
+    },
+    {
+      "id": "receipt-without-completion",
+      "base": "unknown.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/attempts/0/response_hash",
+          "value": "3333333333333333333333333333333333333333333333333333333333333333"
+        }
+      ],
+      "schema": "accept"
+    },
+    {
+      "id": "history-policy-mismatch",
+      "base": "unknown.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/attempts/0/policy/hash",
+          "value": "9999999999999999999999999999999999999999999999999999999999999999"
+        }
+      ],
+      "schema": "accept"
+    }
+  ]
+}

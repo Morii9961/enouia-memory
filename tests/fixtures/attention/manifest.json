@@ -1,0 +1,169 @@
+{
+  "schema": "next/attention-v2.schema.json",
+  "valid": [
+    {
+      "file": "profile.json",
+      "type": "profile"
+    },
+    {
+      "file": "projection.json",
+      "type": "projection"
+    }
+  ],
+  "invalid": [
+    {
+      "id": "major",
+      "base": "profile.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/schema_version",
+          "value": 99
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "algorithm",
+      "base": "profile.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/algorithm",
+          "value": "attention-rank-99"
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "zero-fade",
+      "base": "profile.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/fade_after_days",
+          "value": 0
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "archive-before-fade",
+      "base": "profile.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/archive_after_days",
+          "value": 1
+        }
+      ],
+      "schema": "accept"
+    },
+    {
+      "id": "unbounded-output",
+      "base": "profile.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/max_bytes",
+          "value": 65537
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "fast-unbounded-timer",
+      "base": "profile.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/maintenance_interval_ms",
+          "value": 0
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "invalid-alias",
+      "base": "profile.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/aliases/0/terms",
+          "value": []
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "unknown-protection",
+      "base": "profile.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/protected_forms",
+          "value": [
+            "all_user_data"
+          ]
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "duplicate-protected",
+      "base": "profile.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/protected_forms",
+          "value": [
+            "episode",
+            "episode"
+          ]
+        }
+      ],
+      "schema": "accept"
+    },
+    {
+      "id": "unknown-attention",
+      "base": "projection.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/rows/0/state",
+          "value": "approved"
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "duplicate-row",
+      "base": "projection.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/rows",
+          "value": [
+            {
+              "memory": {
+                "memory_id": "mem_00000001-0000-4000-8000-000000000001",
+                "revision": 1
+              },
+              "state": "protected",
+              "source_time": "2026-10-24T00:00:00.000Z"
+            },
+            {
+              "memory": {
+                "memory_id": "mem_00000001-0000-4000-8000-000000000001",
+                "revision": 1
+              },
+              "state": "protected",
+              "source_time": "2026-10-24T00:00:00.000Z"
+            }
+          ]
+        }
+      ],
+      "schema": "accept"
+    }
+  ]
+}

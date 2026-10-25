@@ -1,0 +1,14 @@
+{
+  "kind": "preference",
+  "occurrence": "unknown",
+  "state": null,
+  "change": "initial",
+  "conditions": [
+    "When debugging, preserve the reasoning steps."
+  ],
+  "event_time": null,
+  "valid_time": null,
+  "counter_sources": [],
+  "derived_from": [],
+  "reverts_to": null
+}

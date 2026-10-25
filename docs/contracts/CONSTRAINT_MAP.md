@@ -51,6 +51,75 @@ MV-1 update: rows whose "Later behavior" names MV-1 now have store evidence (com
 
 ## Rule coverage
 
+Core-7 (ADR-MEM-91) adds closed page/detail/simulation DTOs with explicit native
+capability/effect and unavailable product capabilities. Schema/native fixture
+cases cover identity, receipt binding, unknown versions, false capability flags,
+source hashes, duplicates and simulation byte counts. Native read-model cases
+test scope before counts/edges, cursor snapshot/filter/profile/sensitivity binding,
+selected history/source text/actual commit times, deletion/lock and no-write
+simulation. Typed consistency checks additionally reject non-progressing page
+cursors, duplicate/unordered or contradictory history, duplicate source revisions
+and unbalanced/duplicate selected/excluded recall identities. Native tests cover
+event-window boundaries/unknown dates, validity distinct from adoption/state,
+partial byte-bounded output and clock rollback.
+Parsing these DTOs is not authentication or a new write/approval authority.
+
+Core-6 (ADR-MEM-90) adds closed attention profile/projection schemas and native
+selection over an already authorized set. Pure tests cover aliases, fixed-clock
+replay, conditions/time/staging, accessibility-only decay, historical rescue,
+budgets and duplicate observations. Native cases additionally prove permission
+before counts, current validity independent of ranking time, cache nonauthority,
+source deletion/lock and single cancellable periodic maintenance. None changes
+record truth, adoption or plan state, and no notification/Activity source exists.
+
+Core-5 (ADR-MEM-89) adds `next/formation-v2.schema.json`, policy rule-3/layout
+gates and source-bound semantic dimensions. Pure formation tests check states,
+unknown time, source/parent closure, qualified understanding, exact reversion
+and independent omission detection. Native formation cases exercise the same
+transactions across restart, correction/pause/cancel, source-preserving repeated
+synthesis, stale parents, expiry and Core-4 fake policy. The comparison is
+typed representation, not extraction/relationship/emotion quality evidence.
+
+Core-4 (ADR-MEM-88) adds `next/continuation-v2.schema.json`, 17 schema/native
+fixture cases and three contract tests for scope, history and conservative
+charges. Native automatic-loop continuation cases test policy absence/grant,
+withdrawal before/after generation, lifetime budgets, expiry/lock, unknown and
+overrun costs, write failures, corrupt versions, leases and child-process crash.
+The shared policy barrier also gates Core-3 application. No V1 private-send
+approval rule is relaxed; all transports in this slice are fake.
+
+Core-3 (ADR-MEM-87) adds closed descriptor/current/commit/publication documents
+in `next/storage-v2.schema.json`. The automation-vault fixture manifest checks
+17 schema/native cases; `tests/automation_storage.rs` additionally checks full
+set/delta, authority, exact batches and immutable history. `next_admission.rs`
+checks rule-2 same-policy native creation provenance and legacy-owner refusal.
+Native `host/tests/automatic_loop.rs` exercises real files/leases, short writer
+exclusion, automatic completion, exact replay, current authorization, legacy
+byte preservation and actual child-process termination at three publication
+boundaries. Schema checks shape, typed rules check semantic closure, and native
+tests check publication/recovery; none establishes model quality or real
+Provider/Runtime acceptance. See [Core-3 evidence](../validation/CORE3-automatic-loop.md).
+
+Core-2 (ADR-MEM-86) adds the isolated native `memory_job_journal` schema and
+`host::automation::Journal` validator. The synthetic automation manifest compares
+schema shape with cursor/state/key/reservation consistency. Host automation tests
+exercise actual atomic files, lifetime OS exclusion, process termination,
+current Core-1 admission, original-ID dedupe, foreground/cancellation gates,
+budgets, deadlines, panics and unknown publication recovery. These are job-state
+checks, not Canonical set validation or real Provider/Runtime acceptance.
+
+Core-1 (ADR-MEM-85) adds isolated `next` document rules without changing v1
+record/set validation. `tests/fixtures/next/manifest.json` compares schema shape
+with native rules for versions, System identity, budgets, evidence, outcomes
+and planned commit identity. `tests/next_admission.rs` in the contract crate
+covers current policy/snapshot binding, dependency closure, source freshness,
+access/sensitivity inheritance, exact evidence/subject attribution, duplicate
+origins, target revisions and prospective commit association. These require
+trusted context and cannot be established by JSON Schema alone. The independent
+Python checker reads the same manifest. See
+[the contract](CORE1_AUTOMATIC_ADMISSION.md) for limits: no authentication,
+semantic-quality proof, production writer or successful-commit receipt.
+
 MV-7 adds Provider invocation and optional extraction-job schemas. Invocation terminal/error shape is checked by both schema and typed validation. Extraction selection count, fixed version/binding and scalar budgets are schema rules; offset order/span and combined-byte limits, cursor/array agreement and cursor budget are typed rules. `extraction-job-cases.json` explicitly records these differences for both validators. Set validation binds the job to its saved input/source references, exact source content hashes, existing candidate IDs and immutable history, including paused/completed progress. Scoped validation explicitly loads the selected source revisions; synthetic tests compare it with whole-set validation. Native execution verifies actual source/snippet hashes, UTF-8 offsets, egress, exact quoted support, backlog and receipt recovery. These synthetic checks do not prove live model/account behavior.
 
 The pre-MV-7 coverage inventory counted 265 stable rule identifiers, with 156 asserted by a named negative fixture or test. The new Provider/extraction families above are additional; that inventory has not yet been recounted. The rest are implemented, and several of them fire as side effects of other cases, but no fixture targets them individually yet; they are mostly field-consistency checks within the families above. Adding dedicated cases for them is cheap MV-1 hardening. `tests/fixtures/memory/*-manifest.json` lists every case with the rule it proves.

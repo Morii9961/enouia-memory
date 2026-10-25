@@ -1,0 +1,359 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.enouia-memory.invalid/next/storage-v2.schema.json",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/descriptor"
+    },
+    {
+      "$ref": "#/$defs/current"
+    },
+    {
+      "$ref": "#/$defs/commit"
+    },
+    {
+      "$ref": "#/$defs/publication"
+    }
+  ],
+  "$defs": {
+    "descriptor": {
+      "type": "object",
+      "required": [
+        "schema_version",
+        "kind",
+        "layout",
+        "vault_id",
+        "host_id",
+        "created_by",
+        "system_actor"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "const": 2
+        },
+        "kind": {
+          "const": "automation_vault"
+        },
+        "layout": {
+          "enum": [
+            "automation-host-v1",
+            "automation-host-v2"
+          ]
+        },
+        "vault_id": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/vaultId"
+        },
+        "host_id": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/deviceId"
+        },
+        "created_by": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/ownerRef"
+        },
+        "system_actor": {
+          "$ref": "automation-v2.schema.json#/$defs/systemActor"
+        }
+      }
+    },
+    "current": {
+      "type": "object",
+      "required": [
+        "schema_version",
+        "kind",
+        "vault_id",
+        "commit_id",
+        "sequence",
+        "manifest_sha256"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "const": 2
+        },
+        "kind": {
+          "const": "automation_current"
+        },
+        "vault_id": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/vaultId"
+        },
+        "commit_id": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/commitId"
+        },
+        "sequence": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/revision"
+        },
+        "manifest_sha256": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/sha256"
+        }
+      }
+    },
+    "source": {
+      "type": "object",
+      "required": [
+        "record",
+        "text",
+        "attributed_subject"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "record": {
+          "$ref": "../memory/source-v1.schema.json"
+        },
+        "text": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 16384
+        },
+        "attributed_subject": {
+          "anyOf": [
+            {
+              "$ref": "../memory/common-v1.schema.json#/$defs/subjectId"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "memory": {
+      "type": "object",
+      "required": [
+        "schema_version",
+        "kind",
+        "memory",
+        "request",
+        "decision",
+        "response_hash",
+        "committed_in",
+        "response_json"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "const": 2
+        },
+        "kind": {
+          "const": "machine_memory"
+        },
+        "memory": {
+          "$ref": "automation-v2.schema.json#/$defs/memoryRef"
+        },
+        "request": {
+          "$ref": "automation-v2.schema.json#/$defs/input"
+        },
+        "decision": {
+          "$ref": "automation-v2.schema.json#/$defs/decision"
+        },
+        "response_hash": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/sha256"
+        },
+        "committed_in": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/commitId"
+        },
+        "response_json": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 262144
+        }
+      }
+    },
+    "receipt": {
+      "type": "object",
+      "required": [
+        "job_key",
+        "binding_hash",
+        "operation_id",
+        "request_hash",
+        "response_hash",
+        "decision_hash",
+        "committed_in",
+        "sequence",
+        "result"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "job_key": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/sha256"
+        },
+        "binding_hash": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/sha256"
+        },
+        "operation_id": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/operationId"
+        },
+        "request_hash": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/sha256"
+        },
+        "response_hash": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/sha256"
+        },
+        "decision_hash": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/sha256"
+        },
+        "committed_in": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/commitId"
+        },
+        "sequence": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/revision"
+        },
+        "result": {
+          "$ref": "automation-v2.schema.json#/$defs/memoryRef"
+        }
+      }
+    },
+    "data": {
+      "type": "object",
+      "required": [
+        "policy",
+        "policy_watermark",
+        "deletion_watermark",
+        "sources",
+        "memories",
+        "receipts",
+        "deleted_sources",
+        "deleted_memories"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "policy": {
+          "$ref": "automation-v2.schema.json#/$defs/policy"
+        },
+        "policy_watermark": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/revision"
+        },
+        "deletion_watermark": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/revision"
+        },
+        "sources": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/source"
+          },
+          "maxItems": 128
+        },
+        "memories": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/memory"
+          },
+          "maxItems": 128
+        },
+        "receipts": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/receipt"
+          },
+          "maxItems": 128
+        },
+        "deleted_sources": {
+          "type": "array",
+          "items": {
+            "$ref": "../memory/common-v1.schema.json#/$defs/sourceId"
+          },
+          "maxItems": 128
+        },
+        "deleted_memories": {
+          "type": "array",
+          "items": {
+            "$ref": "../memory/common-v1.schema.json#/$defs/memoryId"
+          },
+          "maxItems": 128
+        }
+      }
+    },
+    "commit": {
+      "type": "object",
+      "required": [
+        "schema_version",
+        "kind",
+        "commit_id",
+        "sequence",
+        "parent",
+        "actor",
+        "created_at",
+        "change",
+        "data",
+        "authority"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "const": 2
+        },
+        "kind": {
+          "const": "automation_commit"
+        },
+        "commit_id": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/commitId"
+        },
+        "sequence": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/revision"
+        },
+        "parent": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/current"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "actor": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/actorRef"
+        },
+        "created_at": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/timestamp"
+        },
+        "change": {
+          "enum": [
+            "genesis",
+            "capture",
+            "admit_batch",
+            "policy",
+            "delete_source",
+            "delete_memory"
+          ]
+        },
+        "data": {
+          "$ref": "#/$defs/data"
+        },
+        "authority": {
+          "$ref": "../host/authority-v1.schema.json"
+        }
+      }
+    },
+    "publication": {
+      "type": "object",
+      "required": [
+        "schema_version",
+        "kind",
+        "before",
+        "after"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "const": 2
+        },
+        "kind": {
+          "const": "automation_publication"
+        },
+        "before": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/current"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "after": {
+          "$ref": "#/$defs/current"
+        }
+      }
+    }
+  }
+}
