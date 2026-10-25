@@ -3,6 +3,12 @@
 Date: 2026-10-24. Status: Adopted for isolated native/synthetic use.
 Morii authorized continued Core work; Runtime adoption remains independent.
 
+2026-10-25 completion clarification: cursor scope also binds the native read
+sensitivity ceiling. Typed validation rejects non-progressing pages, duplicate
+or contradictory history/source identities and unbalanced recall accounting.
+No wire fields or document version change. Discard cursors from the WIP
+checkpoint and restart pagination; they confer no read authority.
+
 Freeze `memory-native-read-1` over explicit HostV2 roots. Return currently
 authorized bounded pages/details, exact snapshot/cursor binding, machine identity,
 knowledge/adoption, conditions, occurrence/event/valid/learned/source time,

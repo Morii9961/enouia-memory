@@ -1,10 +1,12 @@
 # Core-7 授权读模型与模拟端口验证
 
-状态：WIP；因额度达到 98% 按用户要求停止并关机，Core-7 未宣布完成。
+状态：完成独立 native/合成实现与验证；不等于 Runtime 已采用或真实模型质量验收。
 
-日期：2026-10-24。基线 Core-6 `be6115348a737bcf1e429bcb0ee0d7ec2044e5ed`。
-分支 `codex/core7-authorized-read-model`。Morii 的继续授权覆盖本片；接近限额后
-停止新增功能，完成本片检查点。没有开始 Runtime 的 Core-8 采用。
+日期：2026-10-24～25。基线 Core-6 `be6115348a737bcf1e429bcb0ee0d7ec2044e5ed`。
+分支 `codex/core7-authorized-read-model`。Morii 的继续授权覆盖本片。
+10 月 24 日按额度停止要求保存 WIP `49c24956b92e15e7d6a20ee97d2d53eb7a8d34a2`；
+次日按 Morii 的继续指令复核、补强并重新验证。本片提交不含 Runtime 修改；
+Core-8 已在接续过程中由 Morii 另行明确授权，并在独立 Runtime 工作树推进。
 
 ## owned-file allowlist
 
@@ -14,6 +16,7 @@
 - `crates/enouia-memory-host/src/automation/{mod,application,read_model}.rs`
 - `crates/enouia-memory-host/tests/automatic_loop.rs`
 - `crates/enouia-memory-host/tests/automatic_loop/read_model_cases.rs`
+- `crates/enouia-memory-host/tests/automatic_loop/continuation_cases.rs`（必要状态观察测试修复）
 - `contracts/next/read-model-v2.schema.json`
 - `tests/fixtures/read-model/{page,detail,simulation,manifest}.json`
 - `tools/schema-check/check_schemas.py`
@@ -33,7 +36,8 @@
 没有新 RecordKind、v1 IPC/MCP 工具、默认路由、依赖或 Runtime pin。
 
 所有计数、正文、来源和关系边先通过当前身份/策略/删除/来源/lineage/敏感门槛。
-页游标绑定 root snapshot、filter 和 profile。source text 默认不返回，需明确
+页游标绑定 root snapshot、filter、profile 和 native sensitivity ceiling。
+变化后拒绝续页，WIP 版本游标需重新从首页开始。source text 默认不返回，需明确
 选中详情请求；JSON 有界，详情优先省略可选正文/旧返回历史，标明 scope 内
 部分结果，必需当前数据放不下则拒绝。不可访问详情与不存在一样返回空。
 
@@ -49,25 +53,47 @@
 
 ## 实际检查
 
-2 项契约测试通过，read-model fixture 共 17 个 schema/native 正反例，覆盖
+3 项契约测试通过，read-model fixture 共 17 个 schema/native 正反例，覆盖
 版本/capability、System 身份、回执、假全局能力、重复行、来源 hash、字节数、
 错误有效性标签、未来 learned time 及 synthetic effect 假冒 native receipt。
 新增负例暴露 page 有效性检查遗漏后已修正，并重跑通过。
+接续增加 6 个纯验证负例：缺失进度游标、重复历史、同修订内容矛盾、重复来源、
+召回总数矛盾及重复选择。补强严格页顺序、游标与末行绑定、历史修订顺序与
+上界、当前历史值一致性、来源唯一性和 selected/excluded 的完整唯一计数。
+其中缺失进度游标已先复现验证器接受错误结果，再修复通过。
 
-4 项 native read-model 测试通过：
+5 项 native read-model 测试通过：
 
-- 两页稳定读取，snapshot/filter/profile 变化拒绝 cursor；Public 对 Private
+- 两页稳定读取，snapshot/filter/profile/sensitivity 变化拒绝 cursor；Public 对 Private
   的 items/count/unknown-date count 皆为空，隐藏详情同样不存在；
 - 原生纠正形成两条授权历史、按需原文、原 UserStatement；commit 时间与
   captured 时间相差 5/6 秒，证明不同字段；读取不改 CURRENT，超小预算拒绝；
 - 局部派生边只在授权端点之间出现，来源删除后详情/列表不复活，锁定拒读；
 - 两个模拟 effect 明确，选中结果可比，均无记录、preview、实验或索引写入。
+- 事件窗上界排除，未知日期单独统计；expired/adopted/open 三轴保持独立；
+  受保护 episode 仍受保护；source text 与历史按字节预算分别省略并标记部分覆盖，
+  必需当前项不变；native 时钟回退拒绝读取。
 
-focused clippy 通过。用户要求额度将尽时停工关机；额度达到 98% 时停止，
-全 workspace 检查尚未完成，不宣称本片完整验证通过。本提交是 WIP 检查点，
-后续必须重新完成 fmt、workspace test、workspace clippy 后才能宣布 Core-7 完成。
+10 月 24 日额度达到 98% 时保存 WIP，没有在当时宣称完整验证通过。
+次日发现旧日志中全套最终均返回 0；因本次补强有代码变更，重新执行全套，
+最终结果见下方收尾记录。初次沙箱内 native 测试在合成作业根初始化时返回
+StorageUnknown；在正常 Windows 文件权限下同组测试通过，未放宽产品持久化规则。
+默认并行全套曾有两项旧 Workspace 竞态返回 `fault.writer_busy`：已有 2 秒 writer
+等待上限，而失败 trace 中赢家在约 3.2 秒后完成；单独运行 10 项并发测试均通过。
+全套限定 `RUST_TEST_THREADS=4`，仍保留每项测试内部真实并发，未改产品等待或幂等语义。
+该次检查另暴露旧 Core-4 测试对非阻塞 `status()` 的单次 unwrap；它允许返回 Busy。
+测试现改用既有有界状态观察 helper，未重试生成，原生成次数/总预算/修订账本断言保留；
+focused 回归通过后重跑全套。
 独立 Python 3.12 / jsonschema 4.26.0 已通过：50 个 schema、read-model 17 个正反例。
 runtime-surface 已生成并在 RUNTIME.md 登记，55 条 Workspace 命令不变。
+
+2026-10-25 最终收尾：Rust 1.98.1，`CARGO_NET_OFFLINE=true`；
+`cargo fmt --all -- --check` 通过；在 `RUST_TEST_THREADS=4` 下
+`cargo test --workspace --locked` 共 629 项通过、0 失败；
+`cargo clippy --workspace --all-targets --locked -- -D warnings` 通过。
+独立 Python 3.12 / jsonschema 4.26.0 校验通过，50 个 schema / 17 个读模型 fixture；
+Runtime surface 为 `4369ee7d336402945117f0e571c08c6a70c7d43e96efbff43a815a1cd3abdfb5`，
+已在同提交登记。公共内容、owned-file 边界、文档本地链接与 diff whitespace 检查通过。
 
 ## 采用影响与边界
 

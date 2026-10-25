@@ -44,9 +44,10 @@ are not silently placed on source/commit dates.
 
 The optional event window uses event ranges; callers explicitly choose whether
 unknown dates remain in that result. Stable identity order and at most 32 rows
-per page support grids/lists. A cursor binds exact root snapshot plus filter
-and profile hash. Changed root, deletion/policy watermark, filter or profile
-refuses the cursor instead of silently rebasing it. Empty/oversized pages that
+per page support grids/lists. A cursor binds the exact root snapshot plus a hash
+of the filter, profile and native sensitivity ceiling. Changing the root,
+deletion/policy watermark, filter, profile or sensitivity ceiling invalidates
+the cursor. Empty/oversized pages that
 cannot progress return an error. Output JSON is bounded by a caller ceiling
 between 1 KiB and 256 KiB; metadata headroom may shorten a page.
 
@@ -55,6 +56,12 @@ life/history coverage. Source bodies, invisible versions, hidden endpoints and
 their counts do not enter the page. Attention is computed from the returned
 profile hash; `maintenance_worker_alive` only reports the native thread's running
 flag, not successful ticks, product health or an end-to-end adoption claim.
+Rows use strictly increasing identity order; partial pages require a cursor
+whose `after` is the final returned identity. Selected history uses increasing,
+unique revisions no newer than the current item. If history includes the current
+revision, it must equal the current item. Source identities/revisions are unique. Simulation traces
+account for each considered identity exactly once across selection/exclusion.
+These are structural consistency checks; they do not authenticate JSON.
 
 ## Meaning of each item
 

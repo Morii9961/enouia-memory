@@ -55,8 +55,13 @@ Core-7 (ADR-MEM-91) adds closed page/detail/simulation DTOs with explicit native
 capability/effect and unavailable product capabilities. Schema/native fixture
 cases cover identity, receipt binding, unknown versions, false capability flags,
 source hashes, duplicates and simulation byte counts. Native read-model cases
-test scope before counts/edges, cursor snapshot/filter/profile binding, selected
-history/source text/actual commit times, deletion/lock and no-write simulation.
+test scope before counts/edges, cursor snapshot/filter/profile/sensitivity binding,
+selected history/source text/actual commit times, deletion/lock and no-write
+simulation. Typed consistency checks additionally reject non-progressing page
+cursors, duplicate/unordered or contradictory history, duplicate source revisions
+and unbalanced/duplicate selected/excluded recall identities. Native tests cover
+event-window boundaries/unknown dates, validity distinct from adoption/state,
+partial byte-bounded output and clock rollback.
 Parsing these DTOs is not authentication or a new write/approval authority.
 
 Core-6 (ADR-MEM-90) adds closed attention profile/projection schemas and native

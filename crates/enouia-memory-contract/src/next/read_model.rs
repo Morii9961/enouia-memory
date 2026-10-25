@@ -176,9 +176,17 @@ impl NextDocument for MemoryReadPage {
                     || i.receipt.is_none()
             })
             || self
-                .next
-                .as_ref()
-                .is_some_and(|c| c.snapshot != self.snapshot || self.complete_in_scope)
+                .items
+                .windows(2)
+                .any(|w| w[0].memory.memory_id >= w[1].memory.memory_id)
+            || self.complete_in_scope != self.next.is_none()
+            || self.next.as_ref().is_some_and(|c| {
+                c.snapshot != self.snapshot
+                    || self
+                        .items
+                        .last()
+                        .is_none_or(|i| i.memory.memory_id != c.after)
+            })
         {
             vec![Violation::new("read_model.page", "")]
         } else {
@@ -245,7 +253,20 @@ impl NextDocument for MemoryReadDetail {
                     || i.learned_at > self.authorized_at
                     || i.receipt.is_none()
                     || i.memory.memory_id != self.item.memory.memory_id
+                    || i.memory.revision > self.item.memory.revision
+                    || (i.memory == self.item.memory && i != &self.item)
             })
+            || self
+                .history
+                .windows(2)
+                .any(|w| w[0].memory.revision >= w[1].memory.revision)
+            || self
+                .sources
+                .iter()
+                .map(|s| (&s.record.source_id, s.record.revision))
+                .collect::<BTreeSet<_>>()
+                .len()
+                != self.sources.len()
             || self.sources.iter().any(|s| {
                 !s.record.validate().is_empty()
                     || s.text.as_ref().is_some_and(|t| {
@@ -282,6 +303,16 @@ impl NextDocument for MemoryReadSimulation {
             || self.trace.excluded.len() > 128
             || self.trace.rendered_bytes != self.rendered_context.len()
             || self.rendered_context.len() > 65536
+            || self.trace.selected.len() + self.trace.excluded.len() != self.trace.considered
+            || self
+                .trace
+                .selected
+                .iter()
+                .map(|s| &s.memory.memory_id)
+                .chain(self.trace.excluded.iter().map(|(m, _)| &m.memory_id))
+                .collect::<BTreeSet<_>>()
+                .len()
+                != self.trace.considered
         {
             vec![Violation::new("read_model.simulation", "")]
         } else {

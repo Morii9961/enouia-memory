@@ -81,6 +81,18 @@ fn pages_are_current_authorized_snapshot_bound_and_preserve_real_formation_meani
     assert_eq!(public.unknown_event_time_in_scope, 0);
     assert!(public.items.is_empty());
     assert!(
+        host.memory_page_native(
+            &p,
+            &f,
+            Some(cursor),
+            1,
+            MAX_DOCUMENT_BYTES,
+            Sensitivity::Public,
+        )
+        .is_err(),
+        "a cursor must not silently resume with a different read scope"
+    );
+    assert!(
         host.memory_detail_native(
             &p,
             &first.items[0].memory.memory_id,
@@ -186,6 +198,37 @@ fn selected_history_sources_and_learned_time_come_from_actual_currently_authoriz
             .all(|s| s.record.evidence_class == EvidenceClass::UserStatement)
     );
     assert!(parse_document::<MemoryReadDetail>(&canonical_bytes(&source).unwrap()).is_ok());
+    let text_budget = canonical_bytes(&source).unwrap().len() - 1;
+    let bounded = host
+        .memory_detail_native(
+            &p,
+            &first.memory.memory_id,
+            None,
+            true,
+            text_budget,
+            Sensitivity::Private,
+        )
+        .unwrap()
+        .unwrap();
+    assert!(!bounded.complete_in_scope);
+    assert!(bounded.sources.iter().all(|s| s.text.is_none()));
+    assert!(canonical_bytes(&bounded).unwrap().len() <= text_budget);
+    let history_budget = canonical_bytes(&detail).unwrap().len() - 1;
+    let bounded = host
+        .memory_detail_native(
+            &p,
+            &first.memory.memory_id,
+            None,
+            false,
+            history_budget,
+            Sensitivity::Private,
+        )
+        .unwrap()
+        .unwrap();
+    assert!(!bounded.complete_in_scope);
+    assert!(bounded.history.len() < detail.history.len());
+    assert_eq!(bounded.item, detail.item);
+    assert!(canonical_bytes(&bounded).unwrap().len() <= history_budget);
     assert_eq!(
         std::fs::read(e.root.path().join("vault/CURRENT")).unwrap(),
         before
@@ -200,6 +243,125 @@ fn selected_history_sources_and_learned_time_come_from_actual_currently_authoriz
             Sensitivity::Private
         )
         .is_err()
+    );
+    drop(host);
+    thread.join().unwrap();
+}
+
+#[test]
+fn event_windows_keep_unknown_dates_separate_and_expiry_does_not_relabel_adoption_or_state() {
+    let e = env();
+    let jobs = e.jobs();
+    let host = e.host(e.vault(Faults::none()), jobs.clone());
+    let thread = jobs.spawn(DimensionalModel).unwrap();
+    let at = |offset| Timestamp::from_unix_ms(NOW + offset).unwrap();
+    let mut episode = dims(FormationKind::Episode, None, FormationChange::Initial);
+    episode.event_time = Some(FormationTime {
+        from: at(0),
+        until: None,
+    });
+    let happened = form(&e, &host, &jobs, 1, "I made a cup.", episode, None);
+    let mut pending = dims(
+        FormationKind::OpenLoop,
+        Some(FormationState::Open),
+        FormationChange::Initial,
+    );
+    pending.valid_time = Some(FormationTime {
+        from: at(0),
+        until: Some(at(1000)),
+    });
+    let open = form(
+        &e,
+        &host,
+        &jobs,
+        2,
+        "I need to choose a class.",
+        pending,
+        None,
+    );
+    e.clock.set(NOW + 1000);
+    let p = profile();
+    let mut filter = MemoryReadFilter {
+        event_window: Some(FormationTime {
+            from: at(0),
+            until: Some(at(1000)),
+        }),
+        ..MemoryReadFilter::default()
+    };
+    let page = host
+        .memory_page_native(
+            &p,
+            &filter,
+            None,
+            32,
+            MAX_DOCUMENT_BYTES,
+            Sensitivity::Private,
+        )
+        .unwrap();
+    assert_eq!(page.matched_in_scope, 1);
+    assert_eq!(page.unknown_event_time_in_scope, 1);
+    assert_eq!(page.items[0].memory, happened.memory);
+    assert_eq!(page.items[0].attention, AttentionState::Protected);
+    filter.include_unknown_event_time = true;
+    let page = host
+        .memory_page_native(
+            &p,
+            &filter,
+            None,
+            32,
+            MAX_DOCUMENT_BYTES,
+            Sensitivity::Private,
+        )
+        .unwrap();
+    assert_eq!(page.matched_in_scope, 2);
+    let item = page.items.iter().find(|i| i.memory == open.memory).unwrap();
+    assert_eq!(item.validity, MemoryValidity::Expired);
+    assert_eq!(item.adoption, AdoptionState::Adopted);
+    assert_eq!(item.dimensions.state, Some(FormationState::Open));
+    filter.include_unknown_event_time = false;
+    filter.event_window = Some(FormationTime {
+        from: at(-1000),
+        until: Some(at(0)),
+    });
+    let page = host
+        .memory_page_native(
+            &p,
+            &filter,
+            None,
+            32,
+            MAX_DOCUMENT_BYTES,
+            Sensitivity::Private,
+        )
+        .unwrap();
+    assert_eq!(
+        page.matched_in_scope, 0,
+        "the upper event boundary is exclusive"
+    );
+    assert_eq!(page.unknown_event_time_in_scope, 1);
+    filter.form = Some(FormationKind::Episode);
+    let page = host
+        .memory_page_native(
+            &p,
+            &filter,
+            None,
+            32,
+            MAX_DOCUMENT_BYTES,
+            Sensitivity::Private,
+        )
+        .unwrap();
+    assert_eq!(page.unknown_event_time_in_scope, 0);
+    e.clock.set(NOW - 1);
+    assert!(
+        host.memory_page_native(
+            &p,
+            &filter,
+            None,
+            32,
+            MAX_DOCUMENT_BYTES,
+            Sensitivity::Private,
+        )
+        .is_err(),
+        "clock rollback must not invent a learned timestamp"
     );
     drop(host);
     thread.join().unwrap();

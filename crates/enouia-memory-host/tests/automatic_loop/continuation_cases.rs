@@ -406,7 +406,9 @@ fn total_budget_is_shared_across_jobs_and_a_revision_does_not_reset_charges() {
     wait(&jobs, &first, JobState::Generated);
     let second = host.prepare_submit(vec![input(&e, 2)]).unwrap();
     std::thread::sleep(Duration::from_millis(50));
-    assert_eq!(jobs.status(&second).unwrap().state, JobState::Queued);
+    // Status deliberately uses try_lock; a worker snapshot can report Busy.
+    // Observe the queued state without retrying generation or changing charges.
+    wait(&jobs, &second, JobState::Queued);
     assert_eq!(
         c.paused(&saved_input(&e, &second), &p.destination, &limits()),
         Some(PauseReason::Budget)

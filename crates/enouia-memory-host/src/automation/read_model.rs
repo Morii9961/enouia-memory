@@ -98,7 +98,7 @@ impl AutomationHost {
             return Err(ApplicationFault::Invalid);
         }
         let data = self.vault.authorized_read_data(&self.system, max, None)?;
-        let filter_hash = digest(&(filter, profile));
+        let filter_hash = digest(&(filter, profile, max));
         if cursor.is_some_and(|c| c.snapshot != data.snapshot || c.filter_hash != filter_hash) {
             return Err(enouia_memory_vault::automation::AutomationFault::Stale.into());
         }
