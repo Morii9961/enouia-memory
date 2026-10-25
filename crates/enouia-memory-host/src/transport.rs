@@ -31,7 +31,7 @@ impl From<ServiceFault> for TransportFault {
         Self::Service(e)
     }
 }
-fn read(pipe: &mut Pipe, client: bool, timeout: Duration) -> Result<(Tag, Vec<u8>)> {
+pub(crate) fn read(pipe: &mut Pipe, client: bool, timeout: Duration) -> Result<(Tag, Vec<u8>)> {
     let deadline = Instant::now() + timeout;
     let mut header = [0; 5];
     pipe.read_exact(&mut header, deadline)?;
@@ -44,7 +44,7 @@ fn read(pipe: &mut Pipe, client: bool, timeout: Duration) -> Result<(Tag, Vec<u8
     pipe.read_exact(&mut body, deadline)?;
     Ok((tag, body))
 }
-fn write(pipe: &mut Pipe, tag: Tag, value: &Value, timeout: Duration) -> Result<()> {
+pub(crate) fn write(pipe: &mut Pipe, tag: Tag, value: &Value, timeout: Duration) -> Result<()> {
     let body = encode(value, tag.limit())?;
     let mut header = [tag as u8, 0, 0, 0, 0];
     header[1..].copy_from_slice(&(body.len() as u32).to_le_bytes());

@@ -712,3 +712,81 @@ fn broker_lost_reply_after_real_commit_is_uncertain_and_never_retried() {
         server.join().unwrap();
     });
 }
+
+#[test]
+fn native_agent_stdio_launcher_runs_six_tools_and_releases_the_only_writer_on_eof() {
+    let f = Fixture::new();
+    let before = f.current();
+    let principal = PrincipalId::from_random(OsIdSource.random_16());
+    let mut bridge = Server(
+        Command::new(env!("CARGO_BIN_EXE_enouia-memory-mcp"))
+            .arg("--host-executable")
+            .arg(env!("CARGO_BIN_EXE_enouia-memory-host"))
+            .arg("--vault")
+            .arg(&f.root)
+            .arg("--vault-id")
+            .arg(f.vault.vault_id().as_str())
+            .arg("--host-id")
+            .arg(f.identity.as_str())
+            .arg("--agent-id")
+            .arg(principal.as_str())
+            .args([
+                "--agent-scopes",
+                "memory:read,source:read,memory:propose,context:read,session:propose",
+            ])
+            .creation_flags(0x08000000)
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::null())
+            .spawn()
+            .unwrap(),
+    );
+    let output = bridge.0.stdout.take().unwrap();
+    let (tx, rx) = mpsc::channel();
+    let reader = std::thread::spawn(move || {
+        for line in BufReader::new(output).lines() {
+            let value: Value =
+                serde_json::from_str(&line.unwrap()).expect("only MCP JSON on stdout");
+            let _ = tx.send(value);
+        }
+    });
+    let mut input = bridge.0.stdin.take().unwrap();
+    let mut send = |v: Value| {
+        use std::io::Write;
+        writeln!(input, "{v}").unwrap();
+        input.flush().unwrap();
+    };
+    send(
+        json!({"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"synthetic-stdio-agent","version":"0"}}}),
+    );
+    assert_eq!(
+        rx.recv_timeout(TIMEOUT).unwrap()["result"]["protocolVersion"],
+        "2025-11-25"
+    );
+    send(json!({"jsonrpc":"2.0","method":"notifications/initialized"}));
+    send(json!({"jsonrpc":"2.0","id":2,"method":"tools/list"}));
+    let catalog = rx.recv_timeout(TIMEOUT).unwrap();
+    assert_eq!(catalog["result"]["tools"].as_array().unwrap().len(), 6);
+    send(
+        json!({"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"memory_search","arguments":{
+        "schemaVersion":1,"requestId":"req_00000001-0000-4000-8000-000000000001","operation":"memory_search","idempotencyKey":null,
+        "arguments":{"query":"synthetic","types":[],"projectIds":[],"includeHistorical":false,"timeMode":{"asOf":null,"knownAtCommitId":null},"cursor":null,"limit":20}}}}),
+    );
+    let result = rx.recv_timeout(TIMEOUT).unwrap();
+    assert_eq!(
+        result["result"]["structuredContent"]["result"]["items"],
+        json!([])
+    );
+    drop(input);
+    bridge.finish(true);
+    reader.join().unwrap();
+    assert_eq!(f.current(), before);
+    let verified = verify_data_root(&f.root, &RootPolicy::default()).unwrap();
+    let reopened = enouia_memory_host::service::HostService::open(
+        &verified,
+        f.identity.clone(),
+        Default::default(),
+    )
+    .unwrap();
+    drop(reopened);
+}

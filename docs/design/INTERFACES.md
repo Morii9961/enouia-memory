@@ -129,3 +129,7 @@ MV-10 保持单一 Primary writer。其他设备可以读授权副本、产生�
 迁移 Primary：冻结旧主写入 → 备份并验证 → 新机导入 → 校验同一 vault/提交点 → 轮换 primary_epoch 和设备凭据 → 明确撤销旧主同步资格 → 新主恢复写入。旧主遗失时通过恢复密钥和操作记录办理接管，旧机以后出现只能只读并提交冲突候选，不能自动恢复主身份。
 
 G4 在源电脑关机期间运行时沿用相同编译规则与发布版本，只面对批准子集；规则不由 VPS 管理员任意重写。缺少来源、过期或 policy 版本未知时拒绝输出。服务器可计算子集始终可丢弃重建，不是唯一完整记忆库。
+
+### MCP native Agent continuation (2026-10-25)
+
+The [native Agent v1 contract](../contracts/MCP_NATIVE_AGENT_V1.md) adds a separately enrolled local pipe/stdio bridge over the existing six tools and sole Host. It supports schema-1 host-current-v2 only; automation-host-v2 is refused before business decode/query/count. It never forwards Owner Workspace or System native reads.

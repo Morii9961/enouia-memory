@@ -490,3 +490,7 @@ Runtime [ADR-025](https://github.com/Morii9961/enouia-runtime/blob/main/docs/adr
 ### ADR-MEM-83 — Workspace explicit supersession draft preview (Adopted, local integration)
 
 [Decision](083-workspace-supersession-preview.md): expose the existing read-only helper with explicit candidate/target revisions and business time. Preserve edits and provenance; no publication, plan, approval, Runtime adoption or activation. [Evidence](../validation/Workspace-supersession-preview-v1.md).
+
+### ADR-MEM-92 — Native Agent local transport (Adopted, synthetic)
+
+[Decision](092-native-agent-local-transport.md): explicit native process enrollment, scoped six-tool local pipe and fail-closed version/lifecycle boundaries; automation V2 Agent reads remain separate.
