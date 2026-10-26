@@ -67,7 +67,7 @@ selected history/source detail, Context delivery, saved experiments, global
 timeline/graph or legacy owner history. Existing read-1 ports remain unchanged.
 Runtime must explicitly adopt read-2; it cannot feed these roots to an old pin.
 
-Every selection carries algorithm `literal-alias-catalog-1`, version 1,
+Current selections carry algorithm `literal-family-catalog-2`, version 2,
 profile hash, exact snapshot, withdrawal watermark, authorized-set hash,
 query hash and evaluation time. The owner ledger is currently empty, so its
 withdrawal watermark is exactly 1. G08 will implement native changes.
@@ -135,12 +135,13 @@ through up to 100 values at a time under the same selection. Byte pressure
 shortens groups with a valid continuation or refuses if minimum metadata does
 not fit. Counts of returned values remain exact.
 
-Theme membership currently means **recorded_derivation_only**: an authorized
-current theme's exact `derived_from` references, with both endpoints visible.
-Its title is an interpretation, not a newly inferred human relationship or
-the later G05 family projection. G05 must add larger rebuildable memberships
-before Runtime can claim whole-corpus topic families. Time buckets, graph,
-activity/change feed, conflict groups and owner actions remain subsequent work.
+The original catalog algorithm v1 used **recorded_derivation_only**. ADR100's
+current v2 uses **recorded_shared_entity_families**: exact recorded members and
+qualified non-subject shared-entity suggestions from the authorized set. See
+[projection contract](UI_V2_PROJECTIONS.md) for stable IDs, bounds and typed
+membership/graph/time semantics. Old v1 DTOs retain their original meaning;
+their cursors cannot continue in v2. Activity/change feed, conflict groups and
+owner actions remain subsequent work.
 
 ## Synthetic acceptance
 

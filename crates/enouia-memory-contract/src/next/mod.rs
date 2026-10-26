@@ -107,3 +107,6 @@ pub use segmented::*;
 
 mod catalog_read;
 pub use catalog_read::*;
+
+mod projections;
+pub use projections::*;

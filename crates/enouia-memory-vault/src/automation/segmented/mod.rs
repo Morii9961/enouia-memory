@@ -18,6 +18,7 @@ pub struct AuthorizedSegmentedRead<'a> {
     pub memories: Vec<&'a SegmentedMemory>,
     pub sources: BTreeMap<SourceId, &'a CapturedSource>,
     pub entities: BTreeMap<String, &'a EntityRecord>,
+    pub conversations: BTreeMap<SessionId, &'a ConversationRecord>,
 }
 pub struct SegmentedAutomationVault {
     native: AutomationVault,

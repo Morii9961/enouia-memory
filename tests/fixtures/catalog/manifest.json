@@ -44,6 +44,21 @@
       "file": "filter.json",
       "type": "filter",
       "schema": "next/catalog-v2.schema.json"
+    },
+    {
+      "file": "page-v2.json",
+      "type": "page",
+      "schema": "next/catalog-v2.schema.json"
+    },
+    {
+      "file": "stats-v2.json",
+      "type": "stats",
+      "schema": "next/catalog-v2.schema.json"
+    },
+    {
+      "file": "facets-v2.json",
+      "type": "facets",
+      "schema": "next/catalog-v2.schema.json"
     }
   ],
   "invalid": [
@@ -9346,6 +9361,18 @@
           "value": 2
         }
       ]
+    },
+    {
+      "id": "new-family-algorithm-old-version",
+      "base": "page-v2.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/selection/version",
+          "value": 1
+        }
+      ],
+      "schema": "reject"
     }
   ]
 }

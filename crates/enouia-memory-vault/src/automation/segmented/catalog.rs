@@ -327,8 +327,28 @@ impl State {
             snapshot: self.snapshot()?,
             now,
             memories,
-            sources,
+            conversations: self
+                .conversations
+                .iter()
+                .filter_map(|(id, versions)| {
+                    let c = versions.last()?;
+                    (!c.turns.is_empty()
+                        && c.sensitivity <= max
+                        && c.turns.iter().all(|t| {
+                            sources
+                                .get(&t.source.source_id)
+                                .is_some_and(|s| s.record.revision == t.source.source_revision)
+                        })
+                        && c.participants.iter().all(|p| {
+                            p.entity_id
+                                .as_ref()
+                                .is_none_or(|id| entities.contains_key(id))
+                        }))
+                    .then_some((id.clone(), c))
+                })
+                .collect(),
             entities,
+            sources,
         })
     }
 }

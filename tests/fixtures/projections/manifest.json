@@ -1,0 +1,357 @@
+{
+  "valid": [
+    {
+      "file": "time.json",
+      "type": "time",
+      "schema": "next/projections-v2.schema.json"
+    },
+    {
+      "file": "theme.json",
+      "type": "theme",
+      "schema": "next/projections-v2.schema.json"
+    },
+    {
+      "file": "graph.json",
+      "type": "graph",
+      "schema": "next/projections-v2.schema.json"
+    }
+  ],
+  "invalid": [
+    {
+      "id": "time-old-algorithm",
+      "base": "time.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/header/algorithm",
+          "value": "unversioned"
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "time-unsupported-version",
+      "base": "time.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/header/version",
+          "value": 2
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "time-old-selection",
+      "base": "time.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/header/selection/algorithm",
+          "value": "literal-alias-catalog-1"
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "time-write-effect",
+      "base": "time.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/effect",
+          "value": "context_preview"
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "time-hidden-count",
+      "base": "time.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/header/included_inputs",
+          "value": 65537
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "time-future-authorization",
+      "base": "time.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/header/authorized_at",
+          "value": "2024-01-01T00:00:00.000Z"
+        }
+      ],
+      "schema": "accept"
+    },
+    {
+      "id": "theme-old-algorithm",
+      "base": "theme.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/header/algorithm",
+          "value": "unversioned"
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "theme-unsupported-version",
+      "base": "theme.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/header/version",
+          "value": 2
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "theme-old-selection",
+      "base": "theme.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/header/selection/algorithm",
+          "value": "literal-alias-catalog-1"
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "theme-write-effect",
+      "base": "theme.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/effect",
+          "value": "context_preview"
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "theme-hidden-count",
+      "base": "theme.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/header/included_inputs",
+          "value": 65537
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "theme-future-authorization",
+      "base": "theme.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/header/authorized_at",
+          "value": "2024-01-01T00:00:00.000Z"
+        }
+      ],
+      "schema": "accept"
+    },
+    {
+      "id": "graph-old-algorithm",
+      "base": "graph.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/header/algorithm",
+          "value": "unversioned"
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "graph-unsupported-version",
+      "base": "graph.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/header/version",
+          "value": 2
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "graph-old-selection",
+      "base": "graph.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/header/selection/algorithm",
+          "value": "literal-alias-catalog-1"
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "graph-write-effect",
+      "base": "graph.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/effect",
+          "value": "context_preview"
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "graph-hidden-count",
+      "base": "graph.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/header/included_inputs",
+          "value": 65537
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "graph-future-authorization",
+      "base": "graph.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/header/authorized_at",
+          "value": "2024-01-01T00:00:00.000Z"
+        }
+      ],
+      "schema": "accept"
+    },
+    {
+      "id": "time-no-buckets",
+      "base": "time.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/buckets",
+          "value": []
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "time-counter-disagreement",
+      "base": "time.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/buckets/0/possible_records",
+          "value": 1
+        }
+      ],
+      "schema": "accept"
+    },
+    {
+      "id": "time-capture-fallback",
+      "base": "time.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/material_axis",
+          "value": "event"
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "time-reversed-boundaries",
+      "base": "time.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/buckets/0/until",
+          "value": "2023-12-01T00:00:00.000Z"
+        }
+      ],
+      "schema": "accept"
+    },
+    {
+      "id": "theme-invalid-score",
+      "base": "theme.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/items/0/score_milli",
+          "value": 1001
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "theme-untyped-membership",
+      "base": "theme.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/items/0/basis",
+          "value": "semantic_truth"
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "graph-self-edge",
+      "base": "graph.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/edges/0/to",
+          "value": "mem_00000001-0000-4000-8000-000000000001"
+        }
+      ],
+      "schema": "accept"
+    },
+    {
+      "id": "graph-fake-fact",
+      "base": "graph.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/edges/0/class",
+          "value": "algorithm_suggestion"
+        }
+      ],
+      "schema": "accept"
+    },
+    {
+      "id": "graph-count-disagreement",
+      "base": "graph.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/edge_coverage/0/retained",
+          "value": 2
+        }
+      ],
+      "schema": "accept"
+    },
+    {
+      "id": "graph-phantom-vectors",
+      "base": "graph.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/semantic_neighbors_available",
+          "value": true
+        }
+      ],
+      "schema": "reject"
+    }
+  ]
+}

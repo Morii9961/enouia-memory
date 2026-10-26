@@ -57,6 +57,8 @@ impl CatalogFilter {
 pub enum CatalogReadAlgorithm {
     #[serde(rename = "literal-alias-catalog-1")]
     V1,
+    #[serde(rename = "literal-family-catalog-2")]
+    V2,
 }
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -202,7 +204,7 @@ pub struct CatalogMemoryPage {
 }
 impl NextDocument for CatalogMemoryPage {
     fn validate(&self) -> Vec<Violation> {
-        let valid = self.selection.version.get() == 1
+        let valid = self.selection.valid()
             && self.effect == MemoryReadEffect::NativeRead
             && self.count_exact
             && self.scope == "authorized_current_machine_revisions"
@@ -258,7 +260,7 @@ pub struct CatalogMemoryStats {
 }
 impl NextDocument for CatalogMemoryStats {
     fn validate(&self) -> Vec<Violation> {
-        if self.selection.version.get() != 1
+        if !self.selection.valid()
             || self.effect != MemoryReadEffect::NativeRead
             || !self.count_exact
             || self.scope != "authorized_current_machine_revisions"
@@ -269,7 +271,12 @@ impl NextDocument for CatalogMemoryStats {
                 .groups
                 .iter()
                 .any(|g| g.count_scope != FacetCountScope::Matched || !g.valid(&self.selection))
-            || self.theme_membership != "recorded_derivation_only"
+            || self.theme_membership
+                != if self.selection.algorithm == CatalogReadAlgorithm::V1 {
+                    "recorded_derivation_only"
+                } else {
+                    "recorded_shared_entity_families"
+                }
         {
             vec![Violation::new("catalog.stats", "")]
         } else {
@@ -295,7 +302,7 @@ pub struct CatalogMemoryFacets {
 }
 impl NextDocument for CatalogMemoryFacets {
     fn validate(&self) -> Vec<Violation> {
-        if self.selection.version.get() == 1
+        if self.selection.valid()
             && self.effect == MemoryReadEffect::NativeRead
             && self.selection.evaluated_at <= self.authorized_at
             && self.group.valid(&self.selection)
@@ -312,5 +319,15 @@ pub fn catalog_query_hash(
     profile: &AttentionProfile,
     max: Sensitivity,
 ) -> Sha256Hex {
-    digest(&(CatalogReadAlgorithm::V1, 1u32, filter, profile, max))
+    digest(&(CatalogReadAlgorithm::V2, 2u32, filter, profile, max))
+}
+
+impl CatalogSelection {
+    pub fn valid(&self) -> bool {
+        self.version.get()
+            == match self.algorithm {
+                CatalogReadAlgorithm::V1 => 1,
+                CatalogReadAlgorithm::V2 => 2,
+            }
+    }
 }

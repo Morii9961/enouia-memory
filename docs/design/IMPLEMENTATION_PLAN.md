@@ -1,3 +1,8 @@
+> UI v2 third slice: [ADR100](../adr/100-native-time-theme-graph.md) adds
+> G03/G05/G04 native projections; see [contract](../contracts/UI_V2_PROJECTIONS.md)
+> and [synthetic validation](../validation/UI-v2-projections.md). Owner overlay
+> execution/name inheritance waits for the already authorized G08 slice.
+
 > 2026-10-26 接续：Morii 在第一片字段报告后确认继续。第二片按
 > [ADR-MEM-94](../adr/094-segmented-native-memory-reads.md)实现 G01 → G06 → G23；
 > 新物理布局保留已冻结的记录字段，不原地升级旧根。见
