@@ -1,0 +1,36 @@
+{
+  "schema_version": 2,
+  "kind": "catalog_memory_facets",
+  "capability": "memory-native-read-2",
+  "effect": "native_read",
+  "selection": {
+    "snapshot": {
+      "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+      "base_commit_id": "cmt_00000004-0000-4000-8000-000000000001",
+      "primary_epoch": 1,
+      "policy_watermark": 2,
+      "deletion_watermark": 1
+    },
+    "scope_hash": "a0a1c9e7908d23c948cfd1030a801fbec05955c27665298506e9f1ba3f866b27",
+    "query_hash": "ae230739a240a963c7a8226ca19215e759dce070001d23e092ad6ddc41f42db6",
+    "evaluated_at": "2026-10-24T12:00:00.000Z",
+    "algorithm": "literal-alias-catalog-1",
+    "version": 1,
+    "profile_hash": "e23dce3de472f5e99f52511a55d98426dcb5624957b2def3325645a065426642",
+    "withdrawal_watermark": 1
+  },
+  "authorized_at": "2026-10-24T12:00:00.000Z",
+  "group": {
+    "axis": "form",
+    "count_scope": "matched",
+    "values": [
+      {
+        "value": "preference",
+        "label": "preference",
+        "count": 1
+      }
+    ],
+    "total_values": 1,
+    "next": null
+  }
+}

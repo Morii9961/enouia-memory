@@ -1,3 +1,8 @@
+> 2026-10-26 接续：Morii 在第一片字段报告后确认继续。第二片按
+> [ADR-MEM-94](../adr/094-segmented-native-memory-reads.md)实现 G01 → G06 → G23；
+> 新物理布局保留已冻结的记录字段，不原地升级旧根。见
+> [读取契约](../contracts/UI_V2_CATALOG.md)和[验证](../validation/UI-v2-catalog.md)。
+
 > 2026-10-26 UI v2 第一片：[ADR-MEM-93](../adr/093-ui-v2-record-layout.md)
 > 冻结 `automation-host-v3` 记录字段与投影规则；合成根类型、校验、发布和重开验证见
 > [记录契约](../contracts/UI_V2_RECORDS.md)及[验证报告](../validation/UI-v2-record-contract.md)。

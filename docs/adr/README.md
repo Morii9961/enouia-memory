@@ -483,6 +483,14 @@ and authorization/snapshot/deletion rules for later projections. Synthetic
 validation only; stop for owner field acceptance before initialization/adoption.
 Number 92 is left for the separately owned MCP transport work.
 
+### ADR-MEM-94 — Segmented automatic roots and scalable native catalog
+
+[Decision](094-segmented-native-memory-reads.md): preserve the accepted UI v2
+record fields in new `automation-segmented-host-v1` roots; immutable bounded
+deltas, exact scoped policies and witnessed recovery replace full snapshots.
+Native read-2 adds authorization-first 100-row/byte-bound pages, literal/alias
+filters, scoped facets and exact statistics. Old layouts/ports stay unchanged.
+
 ## Relation to Enouia Runtime's register
 
 
@@ -516,3 +524,7 @@ Runtime [ADR-025](https://github.com/Morii9961/enouia-runtime/blob/main/docs/adr
 ### ADR-MEM-97 — Explicit Agent UI-record reads
 
 [Decision](097-agent-ui-record-reads.md): native HostV3 delegation and complete frozen fields over explicitly negotiated MCP, with entity-source closure and byte-accounted shared recall trace. Segmented reads and Runtime capture remain separate.
+
+### ADR-MEM-98 — Separate segmented Agent delegation
+
+[Decision](098-segmented-agent-memory-reads.md): native instance/policy/source-bound delegation before segmented rows, history and counts. The first checkpoint exposes no segmented MCP tools; the existing System read port is not an Agent capability.

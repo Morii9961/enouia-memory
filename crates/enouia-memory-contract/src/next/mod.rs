@@ -101,3 +101,9 @@ pub(super) fn checked(errors: Vec<Violation>) -> Result<(), ContractError> {
         Err(ContractError::Invalid(errors))
     }
 }
+
+mod segmented;
+pub use segmented::*;
+
+mod catalog_read;
+pub use catalog_read::*;

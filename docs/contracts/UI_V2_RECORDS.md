@@ -7,7 +7,9 @@ Native types: `enouia_memory_contract::next`.
 
 This freezes the first slice of the Runtime UI v2 handoff, documents 01 and 02
 dated 2026-10-26. Those documents are requirements; this ADR/contract defines
-Memory's semantics. Morii's acceptance of these fields is still pending.
+Memory's semantics. Morii confirmed field continuation on 2026-10-26 after
+the first-slice report. The segmented physical layout added by ADR-MEM-94
+preserves these record fields and does not upgrade an existing root.
 
 ## Layout and storage
 
@@ -122,8 +124,8 @@ Plans and confirmations are structurally checkable but cannot grant authority.
 `validate_owner_action_binding` takes native identity/current snapshot/time,
 checks exact owner/digest/operation/window, and produces no success receipt.
 System/Agent/Provider/Client cannot pass as owner even when all JSON fields
-claim consent. Machine AdmissionInput and AutomationData have no owner-action
-field; CapturedSource still refuses manual_assertion. G08 owns authenticated
+claim consent. Machine AdmissionInput has no owner-action field; AutomationData reserves
+an owner ledger that machine transactions cannot modify; CapturedSource still refuses manual_assertion. G08 owns authenticated
 planning, one-use confirmation, commit, operation lookup and unknown outcomes;
 none is automatically retried or implemented by these pure types.
 The root already stores the empty ledger and withdrawal watermark (initially 1,
