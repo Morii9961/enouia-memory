@@ -38,7 +38,8 @@
         "layout": {
           "enum": [
             "automation-host-v1",
-            "automation-host-v2"
+            "automation-host-v2",
+            "automation-host-v3"
           ]
         },
         "vault_id": {
@@ -113,6 +114,9 @@
               "type": "null"
             }
           ]
+        },
+        "record_fields": {
+          "$ref": "ui-records-v2.schema.json#/$defs/sourceFields"
         }
       }
     },
@@ -259,6 +263,12 @@
             "$ref": "../memory/common-v1.schema.json#/$defs/memoryId"
           },
           "maxItems": 128
+        },
+        "record_catalog": {
+          "$ref": "ui-records-v2.schema.json#/$defs/catalog"
+        },
+        "owner_actions": {
+          "$ref": "ui-records-v2.schema.json#/$defs/ownerLedger"
         }
       }
     },
@@ -313,7 +323,8 @@
             "admit_batch",
             "policy",
             "delete_source",
-            "delete_memory"
+            "delete_memory",
+            "owner_action"
           ]
         },
         "data": {

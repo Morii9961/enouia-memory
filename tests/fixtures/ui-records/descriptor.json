@@ -1,0 +1,15 @@
+{
+  "schema_version": 2,
+  "kind": "automation_vault",
+  "layout": "automation-host-v3",
+  "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+  "host_id": "dev_00000001-0000-4000-8000-000000000001",
+  "created_by": {
+    "actor_id": "prn_00000001-0000-4000-8000-000000000001",
+    "actor_type": "owner"
+  },
+  "system_actor": {
+    "actor_id": "prn_00000002-0000-4000-8000-000000000001",
+    "actor_type": "system"
+  }
+}
