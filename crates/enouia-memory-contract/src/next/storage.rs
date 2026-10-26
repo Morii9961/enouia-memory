@@ -35,6 +35,8 @@ pub enum AutomationLayout {
     HostV1,
     #[serde(rename = "automation-host-v2")]
     HostV2,
+    #[serde(rename = "automation-host-v3")]
+    HostV3,
 }
 kind!(DescriptorKind, AutomationVault, "automation_vault");
 kind!(CurrentKind, AutomationCurrent, "automation_current");
@@ -91,6 +93,12 @@ impl NextDocument for AutomationCurrent {
 pub struct CapturedSource {
     pub record: SourceRecord,
     pub text: String,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "super::record_fields::present"
+    )]
+    pub record_fields: Option<SourceRecordFields>,
     #[serde(deserialize_with = "crate::json::nullable")]
     pub attributed_subject: Option<SubjectId>,
 }
@@ -103,6 +111,9 @@ impl CapturedSource {
     }
     pub fn validate(&self) -> Vec<Violation> {
         let mut errors = self.record.validate();
+        if self.record_fields.as_ref().is_some_and(|f| !f.valid(self)) {
+            errors.push(Violation::new("ui.source_fields", "/record_fields"));
+        }
         if self.record.source_kind != SourceKind::RuntimeEvent
             || self.record.completeness != Completeness::Complete
             || self.text.trim().is_empty()
@@ -166,6 +177,18 @@ pub struct MemoryReceipt {
 #[serde(deny_unknown_fields)]
 pub struct AutomationData {
     pub policy: AutomationPolicy,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "super::record_fields::present"
+    )]
+    pub record_catalog: Option<RecordCatalog>,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "super::record_fields::present"
+    )]
+    pub owner_actions: Option<OwnerActionLedger>,
     pub policy_watermark: Revision,
     pub deletion_watermark: Revision,
     pub sources: Vec<CapturedSource>,
@@ -177,6 +200,12 @@ pub struct AutomationData {
 impl AutomationData {
     pub fn validate(&self) -> Vec<Violation> {
         let mut errors = self.policy.validate();
+        if let Some(catalog) = &self.record_catalog {
+            errors.extend(catalog.validate(&self.sources));
+        }
+        if let Some(ledger) = &self.owner_actions {
+            errors.extend(ledger.validate());
+        }
         if [
             self.sources.len(),
             self.memories.len(),
@@ -205,6 +234,11 @@ impl AutomationData {
         let mut operations = BTreeSet::new();
         for memory in &self.memories {
             errors.extend(memory.request.validate());
+            if memory.decision.input.record_fields.is_some()
+                && !super::record_fields::validate_record_evidence(&memory.decision.input, self)
+            {
+                errors.push(Violation::new("ui.evidence_closure", "/memories"));
+            }
             errors.extend(memory.decision.validate());
             if !memories.insert((memory.memory.memory_id.clone(), memory.memory.revision))
                 || !operations.insert(memory.decision.input.operation_id.clone())
@@ -254,6 +288,8 @@ pub enum AutomationChange {
     Policy,
     DeleteSource,
     DeleteMemory,
+    /// Wire shape reserved now; no publication entry until G08.
+    OwnerAction,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]

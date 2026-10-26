@@ -1,3 +1,8 @@
+> 2026-10-26 UI v2 第一片：[ADR-MEM-93](../adr/093-ui-v2-record-layout.md)
+> 冻结 `automation-host-v3` 记录字段与投影规则；合成根类型、校验、发布和重开验证见
+> [记录契约](../contracts/UI_V2_RECORDS.md)及[验证报告](../validation/UI-v2-record-contract.md)。
+> 本片提交推送后停在 Morii 字段确认点；不启动真实初始化、MCP 采集、Runtime 采用或 G01。
+
 > 2026-10-24 整合说明：Morii 已授权合并既有工作；下文各片原先“禁止合并”属于历史交付边界。本次只合入既有 MCP/Host 实现，不启动真实客户端、不激活 Host/MCP、不采用 Runtime 新 pin；ADR 重号按 [映射](../handoff/MCP_MAINLINE_ADR_MAP_2026-10-24.md) 处理，并行 Core 85/86 保留。\n\n# Enouia Memory · 分阶段实施计划
 
 原始计划：设计包 v1.0 / 2026-09-28；v1.3 路线修订：2026-10-11。本文定义阶段与出口；实际进度以对应 validation 报告为准。

@@ -474,6 +474,15 @@ explicit synthetic/native read-only simulations. Snapshot/filter/profile-bound
 cursors and bounded JSON preserve scope/completeness; no global graph/timeline,
 saved experiment, new IPC/MCP, Runtime pin or shell adoption.
 
+### ADR-MEM-93 — UI v2 revision fields and projection rules
+
+[Decision](093-ui-v2-record-layout.md): opt-in `automation-host-v3`, required
+revision-bound title/language/rich-time/quoted evidence/formation metadata,
+append-only entity and conversation catalog, separate owner action shapes,
+and authorization/snapshot/deletion rules for later projections. Synthetic
+validation only; stop for owner field acceptance before initialization/adoption.
+Number 92 is left for the separately owned MCP transport work.
+
 ## Relation to Enouia Runtime's register
 
 

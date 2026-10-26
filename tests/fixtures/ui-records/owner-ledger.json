@@ -1,0 +1,50 @@
+{
+  "records": [
+    {
+      "schema_version": 2,
+      "kind": "owner_action_record",
+      "plan": {
+        "schema_version": 2,
+        "kind": "owner_action_plan",
+        "operation_id": "op_00000001-0000-4000-8000-000000000001",
+        "snapshot": {
+          "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+          "base_commit_id": "cmt_00000001-0000-4000-8000-000000000001",
+          "primary_epoch": 1,
+          "policy_watermark": 1,
+          "deletion_watermark": 1
+        },
+        "owner": {
+          "actor_id": "prn_00000001-0000-4000-8000-000000000001",
+          "actor_type": "owner"
+        },
+        "planned_at": "2026-10-24T12:00:00.000Z",
+        "expires_at": "2026-10-24T13:00:00.000Z",
+        "action": {
+          "action": "withdraw",
+          "target": {
+            "memory": {
+              "memory_id": "mem_00000001-0000-4000-8000-000000000001",
+              "revision": 1
+            },
+            "hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          "reason": null
+        }
+      },
+      "confirmation": {
+        "operation_id": "op_00000001-0000-4000-8000-000000000001",
+        "plan_hash": "0f6eef244c819ba6375fa62e2c16c2fb4557f6eb30bcd993c47bdf1aa0a0d808",
+        "owner": {
+          "actor_id": "prn_00000001-0000-4000-8000-000000000001",
+          "actor_type": "owner"
+        },
+        "surface": "trusted_local_cli",
+        "confirmed_at": "2026-10-24T12:00:00.000Z"
+      },
+      "committed_in": "cmt_00000009-0000-4000-8000-000000000001",
+      "sequence": 9
+    }
+  ],
+  "withdrawal_watermark": 2
+}

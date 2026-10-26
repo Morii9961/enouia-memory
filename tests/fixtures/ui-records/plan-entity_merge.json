@@ -1,0 +1,24 @@
+{
+  "schema_version": 2,
+  "kind": "owner_action_plan",
+  "operation_id": "op_00000001-0000-4000-8000-000000000001",
+  "snapshot": {
+    "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+    "base_commit_id": "cmt_00000001-0000-4000-8000-000000000001",
+    "primary_epoch": 1,
+    "policy_watermark": 1,
+    "deletion_watermark": 1
+  },
+  "owner": {
+    "actor_id": "prn_00000001-0000-4000-8000-000000000001",
+    "actor_type": "owner"
+  },
+  "planned_at": "2026-10-24T12:00:00.000Z",
+  "expires_at": "2026-10-24T13:00:00.000Z",
+  "action": {
+    "action": "entity_merge",
+    "from_entity": "ent_00000001-0000-4000-8000-000000000001",
+    "into_entity": "ent_00000002-0000-4000-8000-000000000001",
+    "reason": null
+  }
+}

@@ -1,0 +1,37 @@
+{
+  "schema_version": 2,
+  "kind": "projection_metadata",
+  "algorithm": "synthetic-projection",
+  "version": 1,
+  "snapshot": {
+    "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+    "base_commit_id": "cmt_00000001-0000-4000-8000-000000000001",
+    "primary_epoch": 1,
+    "policy_watermark": 1,
+    "deletion_watermark": 1
+  },
+  "withdrawal_watermark": 1,
+  "scope_hash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "coverage": {
+    "scope": "current-authorized-latest",
+    "complete_in_scope": true,
+    "authorized_inputs": 1,
+    "included_inputs": 1,
+    "limits": []
+  },
+  "source_dependencies": [
+    {
+      "source_id": "src_00000001-0000-4000-8000-000000000001",
+      "source_revision": 1
+    }
+  ],
+  "memory_dependencies": [
+    {
+      "memory": {
+        "memory_id": "mem_00000001-0000-4000-8000-000000000001",
+        "revision": 1
+      },
+      "hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    }
+  ]
+}

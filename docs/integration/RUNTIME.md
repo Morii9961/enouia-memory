@@ -271,3 +271,26 @@ Each row records the surface aggregate printed by `tools/integration/runtime_sur
 | 2026-10-25 | `4369ee7d336402945117f0e571c08c6a70c7d43e96efbff43a815a1cd3abdfb5` | Core-7 completion strengthens cursor scope binding to include the native sensitivity ceiling, progressing page order, unique ordered history/source revisions, matching current revision values and exact recall trace accounting. Synthetic tests also cover event-window boundaries, unknown dates, expired-but-adopted open loops and explicit partial source/history output under byte limits. No wire field, layout, dependency or v1 command change. | Restart pagination after changing the sensitivity ceiling or using a cursor from the WIP checkpoint. Preserve partial coverage and separate validity/adoption/state; schema parsing is not authentication. Runtime checkout/pin/adapters remain unchanged. Core-8 native adoption and real Provider/private migration require their independent integration boundaries. See [Core-7 evidence](../validation/CORE7-read-model.md). |
 
 | 2026-10-25 | `01cfc998a6707897b1956ef31248dbd44102578440ff558095ab5566917f5b82` | Integrate Core-1 through Core-7 with current main, preserving Provider hardening, Host/MCP delivery and saved history comparison/brief/supersession. Workspace remains schema 1 with all 58 current commands; automatic admission and native read capability stay isolated. | Runtime must adopt this integrated exact revision and aggregate, retaining current v1 history consumers plus explicit synthetic Core-8 capability. No old-root initialization, production System capture, actual Provider, migration or activation is implied. |
+
+### 2026-10-26 — UI v2 record layout, first slice (ADR-MEM-93)
+
+Surface aggregate: `8e9fc69d931c86f14bbd7501f7cb806f5146d7e6103c13c26cbc45d7fdbb108d`.
+
+Additive native types and an opt-in **new root layout** `automation-host-v3`
+(schema 2, admission-rules-3): revision-bound title/language/rich time/exact
+quotes/formation annotations, source metadata, and an atomic append-only entity
+and conversation catalog. Separate owner action plan/confirmation/record shapes
+and shared projection metadata are contracts, not execution or read endpoints.
+The v3 root reserves the empty owner ledger/withdrawal watermark now; machine
+transactions cannot alter it, and owner_action execution is gated off until G08.
+See [field mapping and differences](../contracts/UI_V2_RECORDS.md).
+
+This is incompatible with old readers at the descriptor gate. HostV1/2 keep
+their old serialized bytes and reject new fields; they are not upgraded in place.
+Existing Core-7 native reads remain HostV2-only until the next reading slice.
+Runtime must separately adopt the exact pin/manifest, layout/capability gate,
+then new read ports and field meanings. Never point the current pin at a v3 root,
+map machine adoption to owner confirmation, or treat syntax checks as semantic
+quality. No Runtime file, pin, adapter, default Host route or MCP tool changed.
+Morii confirms the field contract before S2 initialization/S3 collection adoption;
+G01 and later slices remain pending. This entry does not activate a real root.

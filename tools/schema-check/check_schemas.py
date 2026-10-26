@@ -291,6 +291,19 @@ def main():
             failures.append(f"read-model case {case['id']}: disagreement")
     counts["read_model_documents"] = len(read_model["valid"]) + len(read_model["invalid"])
 
+    ui_dir = ROOT / "tests" / "fixtures" / "ui-records"
+    ui = load(ui_dir / "manifest.json")
+    ui_schemas = {e["file"]: e["schema"] for e in ui["valid"]}
+    for entry in ui["valid"]:
+        if not valid(entry["schema"], load(ui_dir / entry["file"])):
+            failures.append(f"valid UI record rejected: {entry['file']}")
+    for case in ui["invalid"]:
+        value = load(ui_dir / case["base"])
+        apply_ops(value, case["ops"])
+        if valid(ui_schemas[case["base"]], value) != (case["schema"] == "accept"):
+            failures.append(f"UI record case {case['id']}: disagreement")
+    counts["ui_record_documents"] = len(ui["valid"]) + len(ui["invalid"])
+
     invocation_cases = load(FIXTURES / "provider-invocation-cases.json")
     for case in invocation_cases["cases"]:
         value = copy.deepcopy(invocation_cases["base"])

@@ -131,6 +131,10 @@ impl AutomationVault {
         }
         let data = AutomationData {
             policy,
+            record_catalog: (descriptor.layout == AutomationLayout::HostV3)
+                .then(RecordCatalog::default),
+            owner_actions: (descriptor.layout == AutomationLayout::HostV3)
+                .then(OwnerActionLedger::default),
             policy_watermark: Revision::new(1).unwrap(),
             deletion_watermark: Revision::new(1).unwrap(),
             sources: Vec::new(),
@@ -282,6 +286,11 @@ impl AutomationVault {
         input.content =
             serde_json::to_string(&selected).map_err(|_| AutomationFault::Unavailable)?;
         input.interpretation = Interpretation::Ambiguous;
+        if let Some(fields) = &mut input.record_fields
+            && let Some(annotations) = &mut fields.annotations
+        {
+            annotations.memory = input.result.clone();
+        }
         if let Some(revert) = input
             .dimensions
             .as_ref()
@@ -377,6 +386,15 @@ impl AutomationVault {
         Ok(after)
     }
     pub fn capture(&self, actor: &ActorRef, source: CapturedSource) -> Result<AutomationCurrent> {
+        self.capture_with_records(actor, source, None)
+    }
+    /// Atomically append source and revisioned entity/conversation catalog.
+    pub fn capture_with_records(
+        &self,
+        actor: &ActorRef,
+        source: CapturedSource,
+        catalog: Option<RecordCatalog>,
+    ) -> Result<AutomationCurrent> {
         self.system(actor)?;
         self.available()?;
         let _writer = lock::acquire(&self.root, Duration::ZERO)?;
@@ -387,7 +405,11 @@ impl AutomationVault {
             .iter()
             .find(|s| s.reference() == source.reference())
         {
-            return if old == &source {
+            return if old == &source
+                && catalog
+                    .as_ref()
+                    .is_none_or(|c| before.data.record_catalog.as_ref() == Some(c))
+            {
                 Ok(before.current())
             } else {
                 Err(AutomationFault::Conflict)
@@ -395,6 +417,9 @@ impl AutomationVault {
         }
         let mut data = before.data.clone();
         data.sources.push(source);
+        if let Some(catalog) = catalog {
+            data.record_catalog = Some(catalog);
+        }
         Ok(self
             .commit(
                 &before,
