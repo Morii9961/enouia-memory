@@ -303,3 +303,33 @@ G01 and later slices remain pending. This entry does not activate a real root.
 | 2026-10-26 | `11575fe13c2694d0a82e2761b73d82da6c4b726ef732189352fab94dd5bde9c4` | ADR-MEM-97 adopts frozen UI fields for an explicitly scoped automation-host-v3 Agent reader and five-tool pipe/stdio endpoint, capability memory-agent-record-read-1. Preserve exact title/language/time/quoted evidence/formation annotations, selected source fields and policy-authorized entity labels; authorization precedes counts and metadata. Full rendered fields count toward recall/output budgets and native Context returns the same actual response. Existing System and HostV2 endpoints retain their gates. Workspace IPC58 and dependencies unchanged. | Opt-in backend only. Match exact layout/capability/schema hash and enroll the actual bridge process; do not point old clients at new roots. The bounded HostV3 layout is not the parallel segmented layout and supplies no large-history claim. Runtime adapters/pin/capture hook, real initialization/provider/client configuration and deployment remain unadopted. Runtime-only collection and Asia/Shanghai default provenance constrain MCP-3. See [contract](../contracts/MCP_AGENT_RECORD_READS_V1.md). |
 
 | 2026-10-26 | `0e07de075054c3ea0398e5b3ae3771381743194c996f8b3c573d2a66764257b8` | ADR-MEM-97 Agent record projections now filter non-authoritative suggested-relation endpoints to current readable revisions before output and context rendering. Always declare annotations_scope=authorized_current_targets without leaking hidden-target counts or changing stored annotations. Readable claims remain available. | Adopt the exact compatibility hash. Claim fields and source gates are unchanged; suggestions remain model hints, not a completed graph or owner actions. Runtime pin/UI/client activation remain separate. |
+Morii confirmed continuation after the field report; S2/S3 must still adopt
+the exact accepted contract. Subsequent read work is recorded below. This entry does not activate a real root.
+
+### 2026-10-26 — Segmented roots and catalog read-2 (ADR-MEM-94)
+
+Surface aggregate: `f02fe5f5de82ea141f509a3693b8f058e30f69268a6708ffda8bf1b1203b5d09`.
+
+G01/G06/G23 add new-empty-root `automation-segmented-host-v1` (schema 2),
+immutable linked delta storage, native System admission with witnessed receipts,
+and explicitly authenticated `SegmentedMemoryReader` page/facets/statistics.
+The accepted ADR93 record fields stay unchanged. Read capability is
+`memory-native-read-2`, algorithm `literal-alias-catalog-1` version 1. See
+[contract and limits](../contracts/UI_V2_CATALOG.md) and
+[synthetic evidence](../validation/UI-v2-catalog.md).
+
+Runtime must adopt the exact revision/manifest and descriptor/read capability,
+new native capture/application entry, explicit System identity/lifecycle gate,
+selection-bound continuation, byte/value coverage, and qualified row axes.
+Do not send segmented roots through old AutomationVault/read-1 paths. Counts,
+labels and memberships follow current exact grants before filtering; entity
+alias evidence must be within each memory's own policy. Unknown time remains
+unknown; theme filtering currently covers recorded derivations only, pending
+G05 family projection. Read-2 does not yet supply source/history detail,
+Context, time buckets, graph, conflict groups or owner actions. Owner ledger
+publication stays disabled until G08. No Runtime pin, checkout, default Host,
+Workspace commands or MCP route changed. No external dependency was added.
+20,000 native synthetic records are an isolated test, not initialization,
+Provider quality, private-data acceptance or production activation.
+
+| 2026-10-26 | `5f5bb358ddf2e01e1aff9daaaa4cdfe3352c3c6fedac22922213fe1183665df8` | MCP-2c checkpoint 1 integrates exact segmented dependency b2c5c1a and adds a separate sealed native Agent gate before segmented rows/history/counts. Share the existing read-only MCP initialization/request-ID/closure state machine, preserving HostV2/3 tool schemas and 256-request limits. | No Runtime pin/UI/adoption or System forwarding. This checkpoint exposes no segmented MCP tools; Host lifecycle, typed tool outputs and scalable trace binding remain next. Native registration must independently authenticate the Owner and process. |

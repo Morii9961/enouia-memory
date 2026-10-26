@@ -4,6 +4,7 @@
 pub mod agent_read;
 pub mod application;
 pub mod attention;
+pub mod catalog;
 pub mod continuation;
 mod model;
 pub mod read_model;

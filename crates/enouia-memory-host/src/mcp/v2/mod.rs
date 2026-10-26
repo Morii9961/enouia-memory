@@ -3,22 +3,18 @@ mod schemas;
 pub use schemas::schema;
 #[cfg(windows)]
 pub mod native;
-use super::{
-    MAX_INPUT_BYTES, MAX_OUTPUT_BYTES, MAX_REQUESTS, PROTOCOL_VERSION, Phase, closed, error, reply,
-    tool_result,
-};
+use super::{MAX_OUTPUT_BYTES, MAX_REQUESTS, closed, error, reply, tool_result};
 use crate::automation::agent_read::{AgentReader, AgentSearchFilter};
 use crate::automation::application::ApplicationFault;
 use enouia_memory_contract::{
     ids::{MemoryId, RequestId, SourceId},
-    json::{MAX_SAFE_INTEGER, Revision, nullable},
+    json::{Revision, nullable},
     next::*,
     time::Timestamp,
 };
 use enouia_memory_vault::automation::AutomationFault;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
-use std::collections::BTreeSet;
 const TOOLS: [&str; 5] = [
     "memory_search",
     "memory_read",
@@ -118,8 +114,7 @@ pub struct ReadCounts {
 pub struct Server<'a, 'host> {
     reader: &'a AgentReader<'host>,
     profile: &'a AttentionProfile,
-    phase: Phase,
-    ids: BTreeSet<String>,
+    session: super::read_session::ReadSession,
     pub counts: ReadCounts,
 }
 impl<'a, 'host> Server<'a, 'host> {
@@ -131,78 +126,20 @@ impl<'a, 'host> Server<'a, 'host> {
         Some(Self {
             reader,
             profile,
-            phase: Phase::New,
-            ids: BTreeSet::new(),
+            session: super::read_session::ReadSession::new("enouia-memory-agent-v2", MAX_REQUESTS),
             counts: ReadCounts::default(),
         })
     }
     pub fn closed(&self) -> bool {
-        self.phase == Phase::Closed
+        self.session.closed()
     }
     pub fn handle(&mut self, message: &Value) -> Option<Value> {
-        if message.to_string().len() > MAX_INPUT_BYTES
-            || !closed(message, &["jsonrpc", "id", "method", "params"])
-            || message["jsonrpc"] != "2.0"
-            || !message["method"].is_string()
-        {
-            return Some(error(Value::Null, -32600, "invalid_request"));
-        }
-        let method = message["method"].as_str().expect("checked");
-        let params = message.get("params").cloned().unwrap_or_else(|| json!({}));
-        let Some(id) = message.get("id") else {
-            if method == "notifications/initialized"
-                && self.phase == Phase::Initializing
-                && closed(&params, &["_meta"])
-            {
-                self.phase = Phase::Ready;
-            }
-            return None;
+        use super::read_session::Route;
+        let (id, method, params) = match self.session.route(message) {
+            Route::Response(response) => return response,
+            Route::Ready { id, method, params } => (id, method, params),
         };
-        if !id.as_str().is_some_and(|s| !s.is_empty() && s.len() <= 128)
-            && !id
-                .as_i64()
-                .is_some_and(|i| i.unsigned_abs() <= MAX_SAFE_INTEGER)
-        {
-            return Some(error(Value::Null, -32600, "invalid_request_id"));
-        }
-        let id = id.clone();
-        if self.closed() {
-            return Some(error(id, -32000, "session_closed"));
-        }
-        if self.ids.len() >= MAX_REQUESTS {
-            self.phase = Phase::Closed;
-            return Some(error(id, -32000, "session_request_limit"));
-        }
-        if !self.ids.insert(id.to_string()) {
-            return Some(error(id, -32600, "duplicate_request_id"));
-        }
-        if method == "ping" && closed(&params, &["_meta"]) {
-            return Some(reply(id, json!({})));
-        }
-        if method == "initialize" {
-            if self.phase != Phase::New {
-                return Some(error(id, -32600, "already_initialized"));
-            }
-            if !closed(
-                &params,
-                &["protocolVersion", "capabilities", "clientInfo", "_meta"],
-            ) || !params["protocolVersion"].is_string()
-                || !params["capabilities"].is_object()
-                || !params["clientInfo"]["name"].is_string()
-                || !params["clientInfo"]["version"].is_string()
-            {
-                return Some(error(id, -32602, "invalid_initialize"));
-            }
-            self.phase = Phase::Initializing;
-            return Some(reply(
-                id,
-                json!({"protocolVersion":PROTOCOL_VERSION,"capabilities":{"tools":{}},"serverInfo":{"name":"enouia-memory-agent-v2","version":env!("CARGO_PKG_VERSION")}}),
-            ));
-        }
-        if self.phase != Phase::Ready {
-            return Some(error(id, -32000, "not_initialized"));
-        }
-        match method {
+        match method.as_str() {
             "tools/list" => {
                 if !closed(&params, &["_meta"]) {
                     return Some(error(id, -32602, "invalid_tool_cursor"));
@@ -312,7 +249,7 @@ impl<'a, 'host> Server<'a, 'host> {
                         // A known per-tool refusal does not revoke a still-live
                         // connection (for example, no source:read permission).
                         if self.reader.check_connection().is_err() {
-                            self.phase = Phase::Closed;
+                            self.session.close();
                         }
                         "permission_denied"
                     }
@@ -324,7 +261,7 @@ impl<'a, 'host> Server<'a, 'host> {
         let failed = !fault.is_null();
         let value = json!({"schema_version":2,"kind":"agent_read_response","capability":self.reader.capability(),"request_id":packet.request_id,"operation":packet.operation,"principal":self.reader.principal(),"scope_hash":self.reader.scope_hash(),"data":data,"error":fault,"coverage":schemas::coverage(self.reader.records())});
         if value.to_string().len() > MAX_OUTPUT_BYTES / 3 {
-            self.phase = Phase::Closed;
+            self.session.close();
             return error(id, -32000, "output_budget");
         }
         reply(id, tool_result(value, failed))

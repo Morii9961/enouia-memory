@@ -37,6 +37,8 @@ pub enum AutomationLayout {
     HostV2,
     #[serde(rename = "automation-host-v3")]
     HostV3,
+    #[serde(rename = "automation-segmented-host-v1")]
+    SegmentedV1,
 }
 kind!(DescriptorKind, AutomationVault, "automation_vault");
 kind!(CurrentKind, AutomationCurrent, "automation_current");

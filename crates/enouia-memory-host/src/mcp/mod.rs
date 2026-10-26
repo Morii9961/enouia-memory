@@ -4,6 +4,7 @@ mod json;
 #[cfg(windows)]
 pub mod native;
 mod read;
+mod read_session;
 pub mod v2;
 pub use read::{HostPort, ReadPort};
 
