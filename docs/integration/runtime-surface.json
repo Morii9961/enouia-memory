@@ -255,7 +255,7 @@
     {
       "path": "contracts/next/catalog-v2.schema.json",
       "role": "automation-contract",
-      "sha256": "4a5f64927d78960a7a121d600fb8e4064d6715b0594911ae8bc87ecebc68f5c8"
+      "sha256": "9394056532fd49ed128f9dc7c8271bcbf54fcddb530aeee9c1d227e5b26244b1"
     },
     {
       "path": "contracts/next/continuation-v2.schema.json",
@@ -271,6 +271,11 @@
       "path": "contracts/next/job-journal-v2.schema.json",
       "role": "automation-contract",
       "sha256": "8eae5c36d9943f183d7256b7646b88d022ac7b0feb097e24ff06cd70909ed24f"
+    },
+    {
+      "path": "contracts/next/projections-v2.schema.json",
+      "role": "automation-contract",
+      "sha256": "0ae50268e3ec367409fe7c340e2d2366086ed61c59ce3bd80aaa79c744647341"
     },
     {
       "path": "contracts/next/read-model-v2.schema.json",
@@ -355,7 +360,7 @@
     {
       "path": "crates/enouia-memory-contract/src/next/catalog_read.rs",
       "role": "automation-contract",
-      "sha256": "aec4624a1cb56d7aee420c5fdd4ee79b5216d298f4d016e31b79d13433e8909c"
+      "sha256": "dcd687afe115f45833d865a86be3046c06b700929a59b2a521203ee43fb5c7c0"
     },
     {
       "path": "crates/enouia-memory-contract/src/next/continuation.rs",
@@ -370,7 +375,7 @@
     {
       "path": "crates/enouia-memory-contract/src/next/mod.rs",
       "role": "automation-contract",
-      "sha256": "3f81018efb0ed25725ca26da99958ae7bfecfcb2a27ffaaf28cb016853cbbc4a"
+      "sha256": "a503d06eb44570ff32ff72c5fe8c51d79dc39d69e703fecfe756a339a48652cb"
     },
     {
       "path": "crates/enouia-memory-contract/src/next/owner_actions.rs",
@@ -381,6 +386,11 @@
       "path": "crates/enouia-memory-contract/src/next/projection_rules.rs",
       "role": "automation-contract",
       "sha256": "639f7890fff77312d29246c6ab001f267d8185480eb7848744fa34873035930d"
+    },
+    {
+      "path": "crates/enouia-memory-contract/src/next/projections.rs",
+      "role": "automation-contract",
+      "sha256": "ae41dd2c664c574f59e3689d46fbdf30bb7b2ae242978817083be4f7fde0ea7d"
     },
     {
       "path": "crates/enouia-memory-contract/src/next/read_model.rs",
@@ -450,7 +460,7 @@
     {
       "path": "crates/enouia-memory-host/Cargo.toml",
       "role": "host-session",
-      "sha256": "e2363541d97bc6b52c10788b3de81d8a48458d5ee10d0692e1017ebe80917f7c"
+      "sha256": "b0baf8f20269cee988b9696a00f1bae6be4bc735c23d8dc8c878e8c3bb4ba7d9"
     },
     {
       "path": "crates/enouia-memory-host/src/automation/application.rs",
@@ -465,7 +475,12 @@
     {
       "path": "crates/enouia-memory-host/src/automation/catalog.rs",
       "role": "host-session",
-      "sha256": "188a40b1cea8542d6100bad1bfd30233b1a3988adbb24d43feff0651500ba750"
+      "sha256": "096092d65ff5ad3fa4f71c6bfd119e351457e7e5f2b0f9cb2a8e8d46005fd9ba"
+    },
+    {
+      "path": "crates/enouia-memory-host/src/automation/catalog/projections.rs",
+      "role": "host-session",
+      "sha256": "440c1c27c77a976904297410b4caf8b44dadb6cee6cc7678b13a5c5f029961ee"
     },
     {
       "path": "crates/enouia-memory-host/src/automation/continuation.rs",
@@ -685,12 +700,12 @@
     {
       "path": "crates/enouia-memory-vault/src/automation/segmented/catalog.rs",
       "role": "automatic-memory-storage",
-      "sha256": "c8dffa8dd1f4bcf8dd88d4693c6a6b3ece21673dee4c2ecdf567114a7cd156d1"
+      "sha256": "e8d6b64a0c0ecf61cc2b0985b48d278cb8aa8fb13c0afad72c3f60a0440da917"
     },
     {
       "path": "crates/enouia-memory-vault/src/automation/segmented/mod.rs",
       "role": "automatic-memory-storage",
-      "sha256": "9b62cb2ec12caf5fb386b7a03f2ed908915910da81aaf65951e787f7bedf0b8a"
+      "sha256": "395d5d7c2de7472a5d647d615f125e56340017a2d592d16cd93b037c60b57f41"
     },
     {
       "path": "crates/enouia-memory-vault/src/automation/segmented/state.rs",
@@ -843,5 +858,5 @@
       "sha256": "3603c1855d9f9ec9b3585143a0191508980b260b1ffd26c82b3e6f9b7223a75d"
     }
   ],
-  "aggregate": "f02fe5f5de82ea141f509a3693b8f058e30f69268a6708ffda8bf1b1203b5d09"
+  "aggregate": "d64a21005cf3f60b71dce246f4644be74894860e8a360bd4e005f06b918ad2d6"
 }

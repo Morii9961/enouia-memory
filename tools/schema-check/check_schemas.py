@@ -317,6 +317,19 @@ def main():
             failures.append(f"catalog case {case['id']}: disagreement")
     counts["catalog_documents"] = len(catalog["valid"]) + len(catalog["invalid"])
 
+    projection_dir = ROOT / "tests" / "fixtures" / "projections"
+    projection = load(projection_dir / "manifest.json")
+    projection_schemas = {e["file"]: e["schema"] for e in projection["valid"]}
+    for entry in projection["valid"]:
+        if not valid(entry["schema"], load(projection_dir / entry["file"])):
+            failures.append(f"valid projection document rejected: {entry['file']}")
+    for case in projection["invalid"]:
+        value = load(projection_dir / case["base"])
+        apply_ops(value, case["ops"])
+        if valid(projection_schemas[case["base"]], value) != (case["schema"] == "accept"):
+            failures.append(f"projection case {case['id']}: disagreement")
+    counts["projection_documents"] = len(projection["valid"]) + len(projection["invalid"])
+
     invocation_cases = load(FIXTURES / "provider-invocation-cases.json")
     for case in invocation_cases["cases"]:
         value = copy.deepcopy(invocation_cases["base"])

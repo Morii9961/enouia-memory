@@ -491,6 +491,14 @@ deltas, exact scoped policies and witnessed recovery replace full snapshots.
 Native read-2 adds authorization-first 100-row/byte-bound pages, literal/alias
 filters, scoped facets and exact statistics. Old layouts/ports stay unchanged.
 
+### ADR-MEM-100 — Native time, theme and graph projections
+
+[Decision](100-native-time-theme-graph.md): explicit bundled-IANA buckets,
+lazy recorded/shared-entity theme memberships and bounded typed graph chunks.
+Catalog algorithm version 2, current authorization before every projection;
+no stored record/layout change or Runtime/MCP activation. Owner application
+and history correction relations remain in their later slices.
+
 ## Relation to Enouia Runtime's register
 
 

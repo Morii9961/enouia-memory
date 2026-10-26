@@ -57,7 +57,7 @@ struct Row<'a> {
     validity: MemoryValidity,
     attention: AttentionState,
     entities: Vec<&'a EntityRecord>,
-    themes: Vec<(MemoryId, String)>,
+    themes: Arc<BTreeMap<MemoryId, projections::ThemeSeed<'a>>>,
 }
 impl Row<'_> {
     fn id(&self) -> &MemoryId {
@@ -119,10 +119,11 @@ impl Row<'_> {
                     .as_ref()
                     .is_none_or(|v| i.project_id.as_ref() == Some(v)))
             && (except == Some(CatalogFacetAxis::Theme)
-                || filter
-                    .theme
-                    .as_ref()
-                    .is_none_or(|v| self.themes.iter().any(|(id, _)| id == v)))
+                || filter.theme.as_ref().is_none_or(|v| {
+                    self.themes
+                        .get(v)
+                        .is_some_and(|seed| seed.score(self.entry).is_some())
+                }))
             && (without_time || self.time_matches(filter))
     }
     fn range(&self, axis: CatalogTimeAxis) -> (Option<&Timestamp>, Option<&Timestamp>) {
@@ -191,6 +192,25 @@ impl Row<'_> {
                 .collect(),
         }
     }
+    fn theme_values(&self) -> impl Iterator<Item = (&MemoryId, &str)> {
+        self.themes
+            .iter()
+            .filter(|(_, seed)| seed.score(self.entry).is_some())
+            .map(|(id, seed)| {
+                (
+                    id,
+                    seed.entry
+                        .memory
+                        .decision
+                        .input
+                        .record_fields
+                        .as_ref()
+                        .unwrap()
+                        .title
+                        .as_str(),
+                )
+            })
+    }
     fn values(&self, axis: CatalogFacetAxis) -> Vec<(String, String)> {
         let i = &self.entry.memory.decision.input;
         let d = i.dimensions.as_ref().unwrap();
@@ -220,9 +240,8 @@ impl Row<'_> {
                     .map_or_else(|| "none".into(), |p| p.to_string()),
             ),
             CatalogFacetAxis::Theme => self
-                .themes
-                .iter()
-                .map(|(id, title)| (id.to_string(), title.clone()))
+                .theme_values()
+                .map(|(id, title)| (id.to_string(), title.to_owned()))
                 .collect(),
         }
     }
@@ -232,18 +251,7 @@ fn rows<'a>(
     profile: &AttentionProfile,
     at: &Timestamp,
 ) -> ApplicationResult<Vec<Row<'a>>> {
-    let mut themes: BTreeMap<MemoryId, Vec<(MemoryId, String)>> = BTreeMap::new();
-    for entry in &data.memories {
-        let i = &entry.memory.decision.input;
-        if i.dimensions.as_ref().unwrap().kind == FormationKind::Theme {
-            for t in &i.dimensions.as_ref().unwrap().derived_from {
-                themes.entry(t.memory.memory_id.clone()).or_default().push((
-                    entry.memory.memory.memory_id.clone(),
-                    i.record_fields.as_ref().unwrap().title.clone(),
-                ));
-            }
-        }
-    }
+    let themes = Arc::new(projections::seeds(data));
     data.memories
         .iter()
         .map(|entry| {
@@ -276,10 +284,7 @@ fn rows<'a>(
                 validity: memory_validity(i.dimensions.as_ref().unwrap(), at),
                 attention: attention_state(profile, &entry.memory, &captured, at),
                 entities,
-                themes: themes
-                    .get(&entry.memory.memory.memory_id)
-                    .cloned()
-                    .unwrap_or_default(),
+                themes: themes.clone(),
             })
         })
         .collect()
@@ -291,8 +296,8 @@ fn selection(
 ) -> ApplicationResult<CatalogSelection> {
     let scope_hash = digest(&data.memories.iter().map(|m| &m.target).collect::<Vec<_>>());
     let selected = CatalogSelection {
-        algorithm: CatalogReadAlgorithm::V1,
-        version: enouia_memory_contract::json::Revision::new(1).unwrap(),
+        algorithm: CatalogReadAlgorithm::V2,
+        version: enouia_memory_contract::json::Revision::new(2).unwrap(),
         profile_hash: digest(request.profile),
         withdrawal_watermark: data.withdrawal_watermark,
         snapshot: data.snapshot.clone(),
@@ -457,6 +462,7 @@ impl SegmentedMemoryReader {
                 })
                 .count() as u64;
             let facets = if request.options.include_facets {
+                projections::theme_budget(&data, data.memories.len())?;
                 AXES.iter()
                     .map(|axis| {
                         facet(
@@ -528,6 +534,7 @@ impl SegmentedMemoryReader {
                 .iter()
                 .filter(|r| r.matches(request.filter, request.profile, None, false))
                 .count() as u64;
+            projections::theme_budget(&data, data.memories.len())?;
             let groups = AXES
                 .iter()
                 .map(|axis| {
@@ -553,7 +560,7 @@ impl SegmentedMemoryReader {
                 count_exact: true,
                 scope: "authorized_current_machine_revisions".into(),
                 groups,
-                theme_membership: "recorded_derivation_only".into(),
+                theme_membership: "recorded_shared_entity_families".into(),
             };
             while bytes(&stats)? > request.options.max_bytes {
                 let Some(group) = stats
@@ -590,6 +597,9 @@ impl SegmentedMemoryReader {
             }
             let selection = selection(&data, request, cursor.map(|c| &c.selection).or(expected))?;
             let rows = rows(&data, request.profile, &selection.evaluated_at)?;
+            if axis == CatalogFacetAxis::Theme {
+                projections::theme_budget(&data, data.memories.len())?;
+            }
             let group = facet(
                 &rows,
                 request,
@@ -620,3 +630,5 @@ impl SegmentedMemoryReader {
         })
     }
 }
+
+mod projections;

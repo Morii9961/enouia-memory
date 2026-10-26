@@ -1,0 +1,605 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.enouia-memory.invalid/next/projections-v2.schema.json",
+  "title": "Native UI v2 disposable projections (ADR-MEM-100)",
+  "anyOf": [
+    {
+      "$ref": "#/$defs/time"
+    },
+    {
+      "$ref": "#/$defs/theme"
+    },
+    {
+      "$ref": "#/$defs/graph"
+    }
+  ],
+  "$defs": {
+    "header": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "selection",
+        "algorithm",
+        "version",
+        "parameters_hash",
+        "authorized_at",
+        "scope",
+        "matched_inputs",
+        "included_inputs",
+        "complete_in_scope",
+        "limits"
+      ],
+      "properties": {
+        "selection": {
+          "$ref": "catalog-v2.schema.json#/$defs/selection"
+        },
+        "algorithm": {
+          "enum": [
+            "iana-overlap-buckets-1",
+            "recorded-shared-entity-families-1",
+            "typed-authorized-graph-1"
+          ]
+        },
+        "version": {
+          "const": 1
+        },
+        "parameters_hash": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/sha256"
+        },
+        "authorized_at": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/timestamp"
+        },
+        "scope": {
+          "const": "authorized_current_machine_revisions"
+        },
+        "matched_inputs": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 65536
+        },
+        "included_inputs": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 65536
+        },
+        "complete_in_scope": {
+          "type": "boolean"
+        },
+        "limits": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          },
+          "maxItems": 16,
+          "minItems": 0
+        }
+      }
+    },
+    "time": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "kind",
+        "capability",
+        "effect",
+        "header",
+        "query",
+        "timezone_database",
+        "interval_rule",
+        "material_axis",
+        "unknown_time_in_scope",
+        "buckets",
+        "material_scope",
+        "authorized_material_in_scope"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": 2
+        },
+        "kind": {
+          "const": "memory_time_buckets"
+        },
+        "capability": {
+          "const": "memory-native-read-2"
+        },
+        "effect": {
+          "const": "native_read"
+        },
+        "header": {
+          "$ref": "#/$defs/header"
+        },
+        "query": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "axis",
+            "timezone",
+            "granularity",
+            "from_date",
+            "until_date"
+          ],
+          "properties": {
+            "axis": {
+              "enum": [
+                "event",
+                "valid",
+                "learned",
+                "source_captured"
+              ]
+            },
+            "timezone": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "granularity": {
+              "enum": [
+                "day",
+                "month"
+              ]
+            },
+            "from_date": {
+              "type": "string",
+              "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+            },
+            "until_date": {
+              "type": "string",
+              "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+            }
+          }
+        },
+        "timezone_database": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "interval_rule": {
+          "const": "possible_overlap_half_open_not_additive"
+        },
+        "material_axis": {
+          "const": "source_captured"
+        },
+        "unknown_time_in_scope": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 65536
+        },
+        "buckets": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "local_start",
+              "from",
+              "until",
+              "possible_records",
+              "staged",
+              "adopted",
+              "captured_material"
+            ],
+            "properties": {
+              "local_start": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 10
+              },
+              "from": {
+                "$ref": "../memory/common-v1.schema.json#/$defs/timestamp"
+              },
+              "until": {
+                "$ref": "../memory/common-v1.schema.json#/$defs/timestamp"
+              },
+              "possible_records": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 65536
+              },
+              "staged": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 65536
+              },
+              "adopted": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 65536
+              },
+              "captured_material": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 65536
+              }
+            }
+          },
+          "maxItems": 366,
+          "minItems": 1
+        },
+        "material_scope": {
+          "const": "authorized_current_sources_unfiltered"
+        },
+        "authorized_material_in_scope": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 65536
+        }
+      }
+    },
+    "theme": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "kind",
+        "capability",
+        "effect",
+        "header",
+        "family",
+        "items",
+        "next"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": 2
+        },
+        "kind": {
+          "const": "memory_theme_members"
+        },
+        "capability": {
+          "const": "memory-native-read-2"
+        },
+        "effect": {
+          "const": "native_read"
+        },
+        "header": {
+          "$ref": "#/$defs/header"
+        },
+        "family": {
+          "oneOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "theme",
+                "name",
+                "member_count",
+                "owner_named",
+                "pinned"
+              ],
+              "properties": {
+                "theme": {
+                  "$ref": "automation-v2.schema.json#/$defs/targetRef"
+                },
+                "name": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 60
+                },
+                "member_count": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 65536
+                },
+                "owner_named": {
+                  "type": "boolean"
+                },
+                "pinned": {
+                  "type": "boolean"
+                }
+              }
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "memory",
+              "score_milli",
+              "basis"
+            ],
+            "properties": {
+              "memory": {
+                "$ref": "automation-v2.schema.json#/$defs/targetRef"
+              },
+              "score_milli": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 1000
+              },
+              "basis": {
+                "enum": [
+                  "recorded_derivation",
+                  "shared_entity_suggestion"
+                ]
+              }
+            }
+          },
+          "maxItems": 100,
+          "minItems": 0
+        },
+        "next": {
+          "oneOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "header",
+                "theme",
+                "after"
+              ],
+              "properties": {
+                "header": {
+                  "$ref": "#/$defs/header"
+                },
+                "theme": {
+                  "$ref": "../memory/common-v1.schema.json#/$defs/memoryId"
+                },
+                "after": {
+                  "$ref": "../memory/common-v1.schema.json#/$defs/memoryId"
+                }
+              }
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "graph": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "kind",
+        "capability",
+        "effect",
+        "header",
+        "nodes",
+        "edges",
+        "edge_coverage",
+        "semantic_neighbors_available",
+        "next"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": 2
+        },
+        "kind": {
+          "const": "memory_graph_page"
+        },
+        "capability": {
+          "const": "memory-native-read-2"
+        },
+        "effect": {
+          "const": "native_read"
+        },
+        "header": {
+          "$ref": "#/$defs/header"
+        },
+        "nodes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "memory",
+              "title",
+              "form",
+              "knowledge",
+              "adoption",
+              "validity",
+              "attention",
+              "event_time",
+              "entities",
+              "themes"
+            ],
+            "properties": {
+              "memory": {
+                "$ref": "automation-v2.schema.json#/$defs/targetRef"
+              },
+              "title": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 60
+              },
+              "form": {
+                "enum": [
+                  "fact",
+                  "preference",
+                  "episode",
+                  "project_state",
+                  "plan",
+                  "open_loop",
+                  "relationship_experience",
+                  "subjective_understanding",
+                  "theme"
+                ]
+              },
+              "knowledge": {
+                "enum": [
+                  "attributed_statement",
+                  "hypothesis",
+                  "uncertain",
+                  "disputed"
+                ]
+              },
+              "adoption": {
+                "enum": [
+                  "adopted",
+                  "staged"
+                ]
+              },
+              "validity": {
+                "enum": [
+                  "unspecified",
+                  "in_range",
+                  "not_yet_valid",
+                  "expired"
+                ]
+              },
+              "attention": {
+                "enum": [
+                  "active",
+                  "fading",
+                  "archived",
+                  "protected"
+                ]
+              },
+              "event_time": {
+                "$ref": "ui-records-v2.schema.json#/$defs/recordTime"
+              },
+              "entities": {
+                "type": "array",
+                "items": {
+                  "$ref": "ui-records-v2.schema.json#/$defs/entityId"
+                },
+                "maxItems": 32,
+                "minItems": 0
+              },
+              "themes": {
+                "type": "array",
+                "items": {
+                  "$ref": "../memory/common-v1.schema.json#/$defs/memoryId"
+                },
+                "maxItems": 65536,
+                "minItems": 0
+              }
+            }
+          },
+          "maxItems": 100,
+          "minItems": 0
+        },
+        "edges": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "from",
+              "to",
+              "relation",
+              "class",
+              "witness",
+              "score_milli"
+            ],
+            "properties": {
+              "from": {
+                "$ref": "../memory/common-v1.schema.json#/$defs/memoryId"
+              },
+              "to": {
+                "$ref": "../memory/common-v1.schema.json#/$defs/memoryId"
+              },
+              "relation": {
+                "enum": [
+                  "derived_from",
+                  "reversion",
+                  "same_conversation",
+                  "same_entity",
+                  "theme_cooccurrence"
+                ]
+              },
+              "class": {
+                "enum": [
+                  "recorded_relation",
+                  "algorithm_suggestion"
+                ]
+              },
+              "witness": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 256
+              },
+              "score_milli": {
+                "oneOf": [
+                  {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 1000
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            }
+          },
+          "maxItems": 100,
+          "minItems": 0
+        },
+        "edge_coverage": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "relation",
+              "candidates",
+              "retained"
+            ],
+            "properties": {
+              "relation": {
+                "enum": [
+                  "derived_from",
+                  "reversion",
+                  "same_conversation",
+                  "same_entity",
+                  "theme_cooccurrence"
+                ]
+              },
+              "candidates": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 1599680000
+              },
+              "retained": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 20000
+              }
+            }
+          },
+          "maxItems": 5,
+          "minItems": 0
+        },
+        "semantic_neighbors_available": {
+          "const": false
+        },
+        "next": {
+          "oneOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "header",
+                "offset"
+              ],
+              "properties": {
+                "header": {
+                  "$ref": "#/$defs/header"
+                },
+                "offset": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 105000
+                }
+              }
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    }
+  }
+}

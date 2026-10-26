@@ -320,3 +320,26 @@ publication stays disabled until G08. No Runtime pin, checkout, default Host,
 Workspace commands or MCP route changed. No external dependency was added.
 20,000 native synthetic records are an isolated test, not initialization,
 Provider quality, private-data acceptance or production activation.
+
+### 2026-10-26 — Time, family and typed graph reads (ADR-MEM-100)
+
+Surface aggregate: `d64a21005cf3f60b71dce246f4644be74894860e8a360bd4e005f06b918ad2d6`.
+
+Add native read-2 time buckets, theme-member pages and graph chunks; catalog
+now emits `literal-family-catalog-2` version 2. Stored schema-2 fields and
+`automation-segmented-host-v1` stay unchanged. Adopt the exact pin/manifest,
+new ports/DTOs, algorithm gate, extra-parameter binding, possible/nonadditive
+interval counts, separately scoped material capture axis and edge/member
+classification. Restart old v1 catalog cursors; do not relabel them as v2.
+
+Host adds direct edges to already locked exact Jiff 0.2.37 / jiff-tzdb 0.1.8.
+Read compiled IANA 2026c TZif bytes directly; never use OS/default timezone or
+silently resolve another data release. Preserve matched/included coverage,
+selected-node edge candidate/retention counters, resource refusal and explicit
+semantic-neighbor unavailability. Shared-entity membership is an algorithm
+suggestion; current source/conversation/participant dependencies must authorize
+labels/relations before counts. Historical correction relations and actual
+owner overlays remain G15/G08. No v1 command, default Host/MCP route, Runtime
+file/pin, Provider or production activation changed. See
+[contract](../contracts/UI_V2_PROJECTIONS.md) and
+[synthetic evidence](../validation/UI-v2-projections.md).
