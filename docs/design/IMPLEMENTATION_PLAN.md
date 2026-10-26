@@ -1,3 +1,9 @@
+> 2026-10-27 UI v2 第四片：[ADR101](../adr/101-native-process-detail-reads.md)
+> 实现 G07 → G13 → G15 → G16 → G19，并补齐 G14 原生会话/来源读取。
+> 记录字段与 segmented-v1 布局不变；采用前需重启旧游标。见
+> [过程契约](../contracts/UI_V2_PROCESS.md)与[验证](../validation/UI-v2-process.md)。
+> G08 主人动作仍需真实原生计划/确认/提交；本片不产生主人记录。
+
 > UI v2 third slice: [ADR100](../adr/100-native-time-theme-graph.md) adds
 > G03/G05/G04 native projections; see [contract](../contracts/UI_V2_PROJECTIONS.md)
 > and [synthetic validation](../validation/UI-v2-projections.md). Owner overlay

@@ -163,6 +163,19 @@ impl State {
             {
                 return Err(AutomationFault::Denied);
             }
+            if self
+                .conversations
+                .get(&c.conversation_id)
+                .is_some_and(|versions| {
+                    c.turns.iter().any(|t| {
+                        versions.iter().flat_map(|old| &old.turns).any(|old| {
+                            old.source.source_id == t.source.source_id && old.turn_id != t.turn_id
+                        })
+                    })
+                })
+            {
+                return Err(AutomationFault::Denied);
+            }
         }
         for s in incoming {
             if let Some(id) = s
@@ -322,31 +335,72 @@ impl State {
             .filter(|(id, _)| eligible(id, &scope, &mut memo, 0))
             .map(|(_, v)| v.last().unwrap())
             .collect();
+        let conversations: BTreeMap<_, _> = self
+            .conversations
+            .iter()
+            .filter_map(|(id, versions)| {
+                let c = versions.last()?;
+                (!c.turns.is_empty()
+                    && c.sensitivity <= max
+                    && c.turns.iter().all(|t| {
+                        sources
+                            .get(&t.source.source_id)
+                            .is_some_and(|s| s.record.revision == t.source.source_revision)
+                    })
+                    && c.participants.iter().all(|p| {
+                        p.entity_id
+                            .as_ref()
+                            .is_none_or(|id| entities.contains_key(id))
+                    }))
+                .then_some((id.clone(), c))
+            })
+            .collect();
+        let mut turns: BTreeMap<SessionId, BTreeMap<SourceId, AuthorizedConversationTurn>> =
+            BTreeMap::new();
+        for (id, versions) in &self.conversations {
+            if !conversations.contains_key(id) {
+                continue;
+            }
+            for c in versions {
+                // A public source does not declassify turn/branch metadata recorded
+                // in a more sensitive conversation fragment.
+                if c.sensitivity > max || c.access_policy_id != conversations[id].access_policy_id {
+                    continue;
+                }
+                for t in &c.turns {
+                    if sources.get(&t.source.source_id).is_some_and(|s| {
+                        s.record.revision == t.source.source_revision
+                            && s.record_fields
+                                .as_ref()
+                                .and_then(|f| f.conversation_id.as_ref())
+                                == Some(id)
+                    }) {
+                        let mut projected = t.clone();
+                        projected.parent_source = projected.parent_source.filter(|p| {
+                            sources
+                                .get(&p.source_id)
+                                .is_some_and(|s| s.record.revision == p.source_revision)
+                        });
+                        turns.entry(id.clone()).or_default().insert(
+                            t.source.source_id.clone(),
+                            AuthorizedConversationTurn {
+                                turn: projected,
+                                effective_sensitivity: c
+                                    .sensitivity
+                                    .max(sources[&t.source.source_id].record.sensitivity),
+                            },
+                        );
+                    }
+                }
+            }
+        }
         Ok(AuthorizedSegmentedRead {
             withdrawal_watermark: Revision::new(1).unwrap(),
             snapshot: self.snapshot()?,
             now,
             memories,
-            conversations: self
-                .conversations
-                .iter()
-                .filter_map(|(id, versions)| {
-                    let c = versions.last()?;
-                    (!c.turns.is_empty()
-                        && c.sensitivity <= max
-                        && c.turns.iter().all(|t| {
-                            sources
-                                .get(&t.source.source_id)
-                                .is_some_and(|s| s.record.revision == t.source.source_revision)
-                        })
-                        && c.participants.iter().all(|p| {
-                            p.entity_id
-                                .as_ref()
-                                .is_none_or(|id| entities.contains_key(id))
-                        }))
-                    .then_some((id.clone(), c))
-                })
-                .collect(),
+            conversations,
+            turns,
             entities,
             sources,
         })

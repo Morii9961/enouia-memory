@@ -542,6 +542,7 @@ impl SegmentedMemoryReader {
                     let f = i.record_fields.as_ref().unwrap();
                     let node = MemoryGraphNode {
                         memory: row.entry.target.clone(),
+                        effective_sensitivity: Some(effective(row.entry)),
                         title: f.title.clone(),
                         form: i.dimensions.as_ref().unwrap().kind,
                         knowledge: row.entry.memory.decision.outcome.knowledge,

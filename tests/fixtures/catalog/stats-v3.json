@@ -1,0 +1,149 @@
+{
+  "authorized_at": "2026-10-24T12:00:00.000Z",
+  "capability": "memory-native-read-2",
+  "count_exact": true,
+  "effect": "native_read",
+  "groups": [
+    {
+      "axis": "form",
+      "count_scope": "matched",
+      "next": null,
+      "total_values": 1,
+      "values": [
+        {
+          "count": 3,
+          "label": "preference",
+          "value": "preference"
+        }
+      ]
+    },
+    {
+      "axis": "knowledge",
+      "count_scope": "matched",
+      "next": null,
+      "total_values": 3,
+      "values": [
+        {
+          "count": 1,
+          "label": "attributed_statement",
+          "value": "attributed_statement"
+        },
+        {
+          "count": 1,
+          "label": "disputed",
+          "value": "disputed"
+        },
+        {
+          "count": 1,
+          "label": "hypothesis",
+          "value": "hypothesis"
+        }
+      ]
+    },
+    {
+      "axis": "adoption",
+      "count_scope": "matched",
+      "next": null,
+      "total_values": 2,
+      "values": [
+        {
+          "count": 1,
+          "label": "adopted",
+          "value": "adopted"
+        },
+        {
+          "count": 2,
+          "label": "staged",
+          "value": "staged"
+        }
+      ]
+    },
+    {
+      "axis": "validity",
+      "count_scope": "matched",
+      "next": null,
+      "total_values": 1,
+      "values": [
+        {
+          "count": 3,
+          "label": "unspecified",
+          "value": "unspecified"
+        }
+      ]
+    },
+    {
+      "axis": "attention",
+      "count_scope": "matched",
+      "next": null,
+      "total_values": 1,
+      "values": [
+        {
+          "count": 3,
+          "label": "active",
+          "value": "active"
+        }
+      ]
+    },
+    {
+      "axis": "state",
+      "count_scope": "matched",
+      "next": null,
+      "total_values": 1,
+      "values": [
+        {
+          "count": 3,
+          "label": "not_applicable",
+          "value": "not_applicable"
+        }
+      ]
+    },
+    {
+      "axis": "entity",
+      "count_scope": "matched",
+      "next": null,
+      "total_values": 0,
+      "values": []
+    },
+    {
+      "axis": "project",
+      "count_scope": "matched",
+      "next": null,
+      "total_values": 1,
+      "values": [
+        {
+          "count": 3,
+          "label": "none",
+          "value": "none"
+        }
+      ]
+    },
+    {
+      "axis": "theme",
+      "count_scope": "matched",
+      "next": null,
+      "total_values": 0,
+      "values": []
+    }
+  ],
+  "kind": "catalog_memory_stats",
+  "matched_in_scope": 3,
+  "schema_version": 2,
+  "scope": "authorized_current_machine_revisions",
+  "selection": {
+    "algorithm": "qualified-family-catalog-3",
+    "evaluated_at": "2026-10-24T12:00:00.000Z",
+    "profile_hash": "e23dce3de472f5e99f52511a55d98426dcb5624957b2def3325645a065426642",
+    "query_hash": "2290b08f18a2502127ebb5c5adb3aa2945841af4ca300e82cbece1dc08405e69",
+    "scope_hash": "a929f2bc6e049d9aaf9b99577c12171547f7d37c82f8517069aef68cff01b47d",
+    "snapshot": {
+      "base_commit_id": "cmt_bc83a327-286a-48d9-8abf-c1df7b2d5e9b",
+      "deletion_watermark": 1,
+      "policy_watermark": 2,
+      "primary_epoch": 1,
+      "vault_id": "vlt_00000001-0000-4000-8000-000000000001"
+    },
+    "version": 3,
+    "withdrawal_watermark": 1
+  },
+  "theme_membership": "recorded_shared_entity_families"
+}

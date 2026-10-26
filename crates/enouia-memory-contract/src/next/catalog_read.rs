@@ -59,6 +59,8 @@ pub enum CatalogReadAlgorithm {
     V1,
     #[serde(rename = "literal-family-catalog-2")]
     V2,
+    #[serde(rename = "qualified-family-catalog-3")]
+    V3,
 }
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -158,10 +160,18 @@ pub struct CatalogReadItem {
     pub event_time: RecordTime,
     pub valid_time: RecordTime,
     pub entities: Vec<CatalogEntity>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub effective_sensitivity: Option<Sensitivity>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub formation_reason: Option<MemoryFormationReason>,
 }
 impl CatalogReadItem {
-    fn valid(&self, at: &Timestamp) -> bool {
+    pub(super) fn valid(&self, at: &Timestamp) -> bool {
         self.base.valid()
+            && self
+                .formation_reason
+                .as_ref()
+                .is_none_or(|r| r.valid() && r.rule_version == self.base.rule_version)
             && self.base.system_actor.actor_type == ActorType::System
             && self.base.receipt.is_some()
             && self.base.learned_at <= *at
@@ -213,10 +223,11 @@ impl NextDocument for CatalogMemoryPage {
             && self.matched_in_scope <= MAX_SEGMENTED_REVISIONS as u64
             && self.unknown_time_in_scope <= MAX_SEGMENTED_REVISIONS as u64
             && self.items.len() as u64 <= self.matched_in_scope
-            && self
-                .items
-                .iter()
-                .all(|v| v.valid(&self.selection.evaluated_at))
+            && self.items.iter().all(|v| {
+                v.valid(&self.selection.evaluated_at)
+                    && (self.selection.algorithm != CatalogReadAlgorithm::V3
+                        || (v.effective_sensitivity.is_some() && v.formation_reason.is_some()))
+            })
             && self
                 .items
                 .windows(2)
@@ -319,7 +330,7 @@ pub fn catalog_query_hash(
     profile: &AttentionProfile,
     max: Sensitivity,
 ) -> Sha256Hex {
-    digest(&(CatalogReadAlgorithm::V2, 2u32, filter, profile, max))
+    digest(&(CatalogReadAlgorithm::V3, 3u32, filter, profile, max))
 }
 
 impl CatalogSelection {
@@ -328,6 +339,7 @@ impl CatalogSelection {
             == match self.algorithm {
                 CatalogReadAlgorithm::V1 => 1,
                 CatalogReadAlgorithm::V2 => 2,
+                CatalogReadAlgorithm::V3 => 3,
             }
     }
 }

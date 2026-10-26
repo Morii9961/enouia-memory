@@ -13,6 +13,8 @@ pub struct SegmentedMemory {
 #[derive(Default)]
 pub(super) struct State {
     pub head: Option<SegmentedCommit>,
+    pub published: Vec<super::process::PublishedChange>,
+    pub publication_positions: BTreeMap<CommitId, usize>,
     pub policies: BTreeMap<PolicyId, AutomationPolicy>,
     pub sources: BTreeMap<SourceId, Vec<CapturedSource>>,
     pub memories: BTreeMap<MemoryId, Vec<SegmentedMemory>>,
@@ -280,7 +282,8 @@ impl State {
         descriptor: &AutomationDescriptor,
         c: &SegmentedCommit,
     ) -> Result<Vec<SegmentedMemory>> {
-        if !c.validate().is_empty()
+        if self.publication_positions.contains_key(&c.commit_id)
+            || !c.validate().is_empty()
             || c.vault_id != descriptor.vault_id
             || c.authority.primary.host_id != descriptor.host_id
             || c.authority.primary.primary_epoch.get() != 1
@@ -485,6 +488,10 @@ impl State {
         Ok(admitted)
     }
     pub fn apply(&mut self, c: SegmentedCommit, admitted: Vec<SegmentedMemory>, bytes: usize) {
+        self.publication_positions
+            .insert(c.commit_id.clone(), self.published.len());
+        self.published
+            .push(super::process::PublishedChange::from_commit(&c));
         match &c.delta {
             SegmentedDelta::Policy { policy } => {
                 self.policies

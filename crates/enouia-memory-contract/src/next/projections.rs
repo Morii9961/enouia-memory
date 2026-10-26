@@ -20,7 +20,10 @@ pub struct ProjectionHeader {
 impl ProjectionHeader {
     pub fn valid(&self, algorithm: &str) -> bool {
         self.selection.valid()
-            && self.selection.algorithm == CatalogReadAlgorithm::V2
+            && matches!(
+                self.selection.algorithm,
+                CatalogReadAlgorithm::V2 | CatalogReadAlgorithm::V3
+            )
             && self.algorithm == algorithm
             && self.version.get() == 1
             && self.selection.evaluated_at <= self.authorized_at
@@ -220,6 +223,8 @@ pub struct MemoryGraphNode {
     pub event_time: RecordTime,
     pub entities: Vec<String>,
     pub themes: Vec<MemoryId>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub effective_sensitivity: Option<crate::common::Sensitivity>,
 }
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -258,6 +263,8 @@ impl NextDocument for MemoryGraphPage {
             && self.nodes.len() + self.edges.len() <= 100
             && self.nodes.iter().all(|n| {
                 record_fields::text(&n.title, 60)
+                    && (self.header.selection.algorithm != CatalogReadAlgorithm::V3
+                        || n.effective_sensitivity.is_some())
                     && n.event_time.valid()
                     && n.entities.len() <= 32
                     && n.entities

@@ -11,6 +11,10 @@ pub use state::SegmentedMemory;
 use state::State;
 use std::{collections::BTreeMap, sync::Mutex};
 
+pub struct AuthorizedConversationTurn {
+    pub turn: ConversationTurn,
+    pub effective_sensitivity: Sensitivity,
+}
 pub struct AuthorizedSegmentedRead<'a> {
     pub withdrawal_watermark: Revision,
     pub snapshot: SnapshotBinding,
@@ -19,6 +23,7 @@ pub struct AuthorizedSegmentedRead<'a> {
     pub sources: BTreeMap<SourceId, &'a CapturedSource>,
     pub entities: BTreeMap<String, &'a EntityRecord>,
     pub conversations: BTreeMap<SessionId, &'a ConversationRecord>,
+    pub turns: BTreeMap<SessionId, BTreeMap<SourceId, AuthorizedConversationTurn>>,
 }
 pub struct SegmentedAutomationVault {
     native: AutomationVault,
@@ -589,3 +594,8 @@ impl SegmentedAutomationVault {
         )?))
     }
 }
+
+mod process;
+pub use process::{
+    AuthorizedCapture, AuthorizedMachineEvent, AuthorizedProcessRead, PublicationStamp,
+};

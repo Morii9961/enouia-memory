@@ -1,0 +1,51 @@
+{
+  "all_projections_invalidated": true,
+  "capability": "memory-native-read-2",
+  "complete_in_scope": true,
+  "effect": "native_read",
+  "header": {
+    "algorithm": "authorized-native-changes-1",
+    "authorized_at": "2026-10-24T12:00:00.000Z",
+    "parameters_hash": "38e0b9de817f645c4bec37c0d4a3e58baecccb040f5718dc069a72c7385a0bed",
+    "permission_hash": "428971d83ae8185c85ad98d54274984d4245b646cfb7d4ec490bca8f04012810",
+    "scope": "authorized_current_dependencies",
+    "selection": {
+      "algorithm": "qualified-family-catalog-3",
+      "evaluated_at": "2026-10-24T12:00:00.000Z",
+      "profile_hash": "e23dce3de472f5e99f52511a55d98426dcb5624957b2def3325645a065426642",
+      "query_hash": "2290b08f18a2502127ebb5c5adb3aa2945841af4ca300e82cbece1dc08405e69",
+      "scope_hash": "5fd6193662a1441f0b654a271bd503d54248ec1bb67b0d5da715a80326ff085d",
+      "snapshot": {
+        "base_commit_id": "cmt_b6dbc602-4516-4e6b-9f68-d679a236f163",
+        "deletion_watermark": 1,
+        "policy_watermark": 2,
+        "primary_epoch": 1,
+        "vault_id": "vlt_00000001-0000-4000-8000-000000000001"
+      },
+      "version": 3,
+      "withdrawal_watermark": 1
+    },
+    "version": 1
+  },
+  "kind": "memory_changes",
+  "memories": [
+    {
+      "memory_id": "mem_cfdc3ea2-4d9f-4085-8efa-61d3a52a62f7",
+      "revision": 1
+    }
+  ],
+  "next_anchor": {
+    "permission_hash": "428971d83ae8185c85ad98d54274984d4245b646cfb7d4ec490bca8f04012810",
+    "query_hash": "2290b08f18a2502127ebb5c5adb3aa2945841af4ca300e82cbece1dc08405e69",
+    "snapshot": {
+      "base_commit_id": "cmt_b6dbc602-4516-4e6b-9f68-d679a236f163",
+      "deletion_watermark": 1,
+      "policy_watermark": 2,
+      "primary_epoch": 1,
+      "vault_id": "vlt_00000001-0000-4000-8000-000000000001"
+    }
+  },
+  "schema_version": 2,
+  "sources": [],
+  "status": "changed"
+}

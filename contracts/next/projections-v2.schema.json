@@ -473,6 +473,16 @@
                 },
                 "maxItems": 65536,
                 "minItems": 0
+              },
+              "effective_sensitivity": {
+                "oneOf": [
+                  {
+                    "$ref": "../memory/common-v1.schema.json#/$defs/sensitivity"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
               }
             }
           },
@@ -599,7 +609,42 @@
             }
           ]
         }
-      }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "header": {
+                "properties": {
+                  "selection": {
+                    "properties": {
+                      "algorithm": {
+                        "const": "qualified-family-catalog-3"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "nodes": {
+                "items": {
+                  "required": [
+                    "effective_sensitivity"
+                  ],
+                  "properties": {
+                    "effective_sensitivity": {
+                      "$ref": "../memory/common-v1.schema.json#/$defs/sensitivity"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
     }
   }
 }

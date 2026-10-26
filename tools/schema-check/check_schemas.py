@@ -330,6 +330,19 @@ def main():
             failures.append(f"projection case {case['id']}: disagreement")
     counts["projection_documents"] = len(projection["valid"]) + len(projection["invalid"])
 
+    process_dir = ROOT / "tests" / "fixtures" / "process"
+    process = load(process_dir / "manifest.json")
+    process_schemas = {e["file"]: e["schema"] for e in process["valid"]}
+    for entry in process["valid"]:
+        if not valid(entry["schema"], load(process_dir / entry["file"])):
+            failures.append(f"valid process document rejected: {entry['file']}")
+    for case in process["invalid"]:
+        value = load(process_dir / case["base"])
+        apply_ops(value, case["ops"])
+        if valid(process_schemas[case["base"]], value) != (case["schema"] == "accept"):
+            failures.append(f"process case {case['id']}: disagreement")
+    counts["process_documents"] = len(process["valid"]) + len(process["invalid"])
+
     invocation_cases = load(FIXTURES / "provider-invocation-cases.json")
     for case in invocation_cases["cases"]:
         value = copy.deepcopy(invocation_cases["base"])
