@@ -376,6 +376,9 @@
         },
         "dimensions": {
           "$ref": "formation-v2.schema.json"
+        },
+        "record_fields": {
+          "$ref": "ui-records-v2.schema.json#/$defs/memoryFields"
         }
       }
     },

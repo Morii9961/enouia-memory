@@ -276,3 +276,30 @@ Each row records the surface aggregate printed by `tools/integration/runtime_sur
 
 
 | 2026-10-26 | `f54a0a612504d9ae8b84fbc164235e1b6f8fad40622697c644541adb85e2c578` | ADR-MEM-95/96 add native scoped Agent reads and an explicitly versioned five-tool MCP endpoint for automation-host-v2: search/read/source/related/recall, bundled input/output schemas, read-only annotations, qualified formation/time/history/receipt views and actual recall trace shared with native Context. Protected pipe enrollment binds the live Agent; optional stdio attach uses the existing Host without opening another writer. All projections/counts honor current policy, scope, source/deletion and lifecycle before output. No dependency or Workspace IPC58 change. | Opt-in backend only; Runtime pin, adapters and UI remain unchanged. Match memory-agent-pipe-2, schema 2, automation-host-v2, memory-agent-read-1 and compatibility hash explicitly; legacy six tools still reject new roots. Adopt the same native reader/context trace, independent source-read and unavailable-field coverage. Title/language/entities/time precision/bound/tz-basis, extended formation/typed edges and capture/correction/session tools are pending their frozen contracts/slices, not empty-success support. See [contract](../contracts/MCP_AGENT_READ_V2.md) and [synthetic evidence](../validation/MCP-2-automation-agent-reads.md). |
+### 2026-10-26 — UI v2 record layout, first slice (ADR-MEM-93)
+
+Surface aggregate: `8e9fc69d931c86f14bbd7501f7cb806f5146d7e6103c13c26cbc45d7fdbb108d`.
+
+Additive native types and an opt-in **new root layout** `automation-host-v3`
+(schema 2, admission-rules-3): revision-bound title/language/rich time/exact
+quotes/formation annotations, source metadata, and an atomic append-only entity
+and conversation catalog. Separate owner action plan/confirmation/record shapes
+and shared projection metadata are contracts, not execution or read endpoints.
+The v3 root reserves the empty owner ledger/withdrawal watermark now; machine
+transactions cannot alter it, and owner_action execution is gated off until G08.
+See [field mapping and differences](../contracts/UI_V2_RECORDS.md).
+
+This is incompatible with old readers at the descriptor gate. HostV1/2 keep
+their old serialized bytes and reject new fields; they are not upgraded in place.
+Existing Core-7 native reads remain HostV2-only until the next reading slice.
+Runtime must separately adopt the exact pin/manifest, layout/capability gate,
+then new read ports and field meanings. Never point the current pin at a v3 root,
+map machine adoption to owner confirmation, or treat syntax checks as semantic
+quality. No Runtime file, pin, adapter, default Host route or MCP tool changed.
+Morii confirms the field contract before S2 initialization/S3 collection adoption;
+G01 and later slices remain pending. This entry does not activate a real root.
+
+
+| 2026-10-26 | `11575fe13c2694d0a82e2761b73d82da6c4b726ef732189352fab94dd5bde9c4` | ADR-MEM-97 adopts frozen UI fields for an explicitly scoped automation-host-v3 Agent reader and five-tool pipe/stdio endpoint, capability memory-agent-record-read-1. Preserve exact title/language/time/quoted evidence/formation annotations, selected source fields and policy-authorized entity labels; authorization precedes counts and metadata. Full rendered fields count toward recall/output budgets and native Context returns the same actual response. Existing System and HostV2 endpoints retain their gates. Workspace IPC58 and dependencies unchanged. | Opt-in backend only. Match exact layout/capability/schema hash and enroll the actual bridge process; do not point old clients at new roots. The bounded HostV3 layout is not the parallel segmented layout and supplies no large-history claim. Runtime adapters/pin/capture hook, real initialization/provider/client configuration and deployment remain unadopted. Runtime-only collection and Asia/Shanghai default provenance constrain MCP-3. See [contract](../contracts/MCP_AGENT_RECORD_READS_V1.md). |
+
+| 2026-10-26 | `0e07de075054c3ea0398e5b3ae3771381743194c996f8b3c573d2a66764257b8` | ADR-MEM-97 Agent record projections now filter non-authoritative suggested-relation endpoints to current readable revisions before output and context rendering. Always declare annotations_scope=authorized_current_targets without leaking hidden-target counts or changing stored annotations. Readable claims remain available. | Adopt the exact compatibility hash. Claim fields and source gates are unchanged; suggestions remain model hints, not a completed graph or owner actions. Runtime pin/UI/client activation remain separate. |

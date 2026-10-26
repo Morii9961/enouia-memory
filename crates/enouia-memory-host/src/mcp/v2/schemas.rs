@@ -4,6 +4,14 @@ use std::collections::BTreeMap;
 pub(super) fn documents() -> BTreeMap<&'static str, &'static str> {
     BTreeMap::from([
         (
+            "agent-record-read-v2.schema.json",
+            include_str!("../../../../../contracts/next/agent-record-read-v2.schema.json"),
+        ),
+        (
+            "ui-records-v2.schema.json",
+            include_str!("../../../../../contracts/next/ui-records-v2.schema.json"),
+        ),
+        (
             "agent-read-v2.schema.json",
             include_str!("../../../../../contracts/next/agent-read-v2.schema.json"),
         ),
@@ -89,6 +97,9 @@ fn walk(
     }
 }
 pub fn schema(tool: &str, output: bool) -> Option<Value> {
+    schema_for(tool, output, false)
+}
+pub(super) fn schema_for(tool: &str, output: bool, records: bool) -> Option<Value> {
     let short = tool.strip_prefix("memory_")?;
     if !["search", "read", "source", "related", "recall"].contains(&short) {
         return None;
@@ -101,7 +112,11 @@ pub fn schema(tool: &str, output: bool) -> Option<Value> {
     let mut defs = BTreeMap::new();
     walk(
         &mut schema,
-        "agent-read-v2.schema.json",
+        if records {
+            "agent-record-read-v2.schema.json"
+        } else {
+            "agent-read-v2.schema.json"
+        },
         &docs,
         &mut BTreeMap::new(),
         &mut defs,
@@ -110,8 +125,14 @@ pub fn schema(tool: &str, output: bool) -> Option<Value> {
     schema["$defs"] = json!(defs);
     Some(schema)
 }
-pub(super) fn coverage() -> Value {
-    let schema: Value =
-        serde_json::from_str(documents()["agent-read-v2.schema.json"]).expect("frozen schema");
+pub(super) fn coverage(records: bool) -> Value {
+    let schema: Value = serde_json::from_str(
+        documents()[if records {
+            "agent-record-read-v2.schema.json"
+        } else {
+            "agent-read-v2.schema.json"
+        }],
+    )
+    .expect("frozen schema");
     schema["$defs"]["coverage"]["const"].clone()
 }

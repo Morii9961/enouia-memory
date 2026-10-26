@@ -18,6 +18,18 @@ pub enum SearchTimeAxis {
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct AgentSearchFilter {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub entity_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub content_lang: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub precision: Option<RecordPrecision>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub knowledge: Option<KnowledgeState>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub validity: Option<MemoryValidity>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub attention: Option<AttentionState>,
     #[serde(default)]
     pub query: String,
     #[serde(default)]
@@ -52,6 +64,8 @@ pub struct AgentSource {
     pub snapshot: SnapshotBinding,
     pub authorized_at: Timestamp,
     pub record: SourceRecord,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub record_fields: Option<SourceRecordFields>,
     pub attributed_subject: Option<enouia_memory_contract::ids::SubjectId>,
     pub excerpt: String,
     pub excerpt_hash: Sha256Hex,
@@ -73,6 +87,8 @@ pub struct AgentRecall {
     pub trace: RecallTrace,
     pub rendered_context: String,
     pub items: Vec<MemoryReadItem>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub record_fields: Option<Vec<AgentRecordProjection>>,
     pub complete_in_scope: bool,
 }
 #[derive(Serialize)]
@@ -127,6 +143,20 @@ impl AgentReader<'_> {
         let _gate = self.host.gate()?;
         self.live()?;
         if filter.query.len() > 2048
+            || (!self.records()
+                && (filter.entity_id.is_some()
+                    || filter.content_lang.is_some()
+                    || filter.precision.is_some()
+                    || filter.knowledge.is_some()
+                    || filter.validity.is_some()
+                    || filter.attention.is_some()))
+            || filter.entity_id.as_ref().is_some_and(|s| {
+                enouia_memory_contract::ids::check_prefixed_uuid(s, "ent").is_err()
+            })
+            || filter
+                .content_lang
+                .as_ref()
+                .is_some_and(|s| !valid_content_lang(s))
             || filter
                 .window
                 .as_ref()
@@ -148,11 +178,44 @@ impl AgentReader<'_> {
             .vault
             .authorized_agent_read_data(&self.permit, None)?;
         let mut selected = std::collections::BTreeSet::new();
+        let fields = record_fields::projections(&data)?;
         let mut unknown = 0;
         for memory in &data.current {
             let item = super::super::read_model::item(&data, memory, profile)?;
-            let lower_content = item.content.to_lowercase();
+            let fields = fields
+                .as_ref()
+                .and_then(|v| v.iter().find(|f| f.memory == item.memory));
+            let mut lower_content = item.content.to_lowercase();
+            if let Some(fields) = fields {
+                lower_content.push(' ');
+                lower_content.push_str(&fields.fields.title.to_lowercase());
+                for entity in &fields.entities {
+                    lower_content.push(' ');
+                    lower_content.push_str(&entity.display_name.to_lowercase());
+                    for alias in &entity.aliases {
+                        lower_content.push(' ');
+                        lower_content.push_str(&alias.name.to_lowercase());
+                    }
+                }
+            }
             if filter.form.is_some_and(|f| item.dimensions.kind != f)
+                || filter.knowledge.is_some_and(|v| item.knowledge != v)
+                || filter.validity.is_some_and(|v| item.validity != v)
+                || filter.attention.is_some_and(|v| item.attention != v)
+                || filter.entity_id.as_ref().is_some_and(|id| {
+                    fields.is_none_or(|f| !f.entities.iter().any(|e| &e.entity_id == id))
+                })
+                || filter
+                    .content_lang
+                    .as_ref()
+                    .is_some_and(|lang| fields.is_none_or(|f| &f.fields.content_lang != lang))
+                || filter
+                    .precision
+                    .is_some_and(|v| fields.is_none_or(|f| match filter.time_axis {
+                        SearchTimeAxis::Event => f.fields.event_time.precision,
+                        SearchTimeAxis::Valid => f.fields.valid_time.precision,
+                        SearchTimeAxis::Learned | SearchTimeAxis::SourceCaptured => RecordPrecision::Instant,
+                    } != v))
                 || filter.adoption.is_some_and(|a| item.adoption != a)
                 || filter
                     .state
@@ -179,6 +242,12 @@ impl AgentReader<'_> {
         }
         data.current
             .retain(|m| selected.contains(&m.memory.memory_id));
+        let hash = digest(&(
+            filter,
+            profile,
+            self.permit.max_sensitivity(),
+            self.scope_hash(),
+        ));
         let page = project_page(
             data,
             profile,
@@ -187,19 +256,14 @@ impl AgentReader<'_> {
             limit,
             max_bytes - 1024,
             PageScope {
-                filter_hash: digest(&(
-                    filter,
-                    profile,
-                    self.permit.max_sensitivity(),
-                    self.scope_hash(),
-                )),
+                filter_hash: hash.clone(),
                 maintenance_worker_alive: false,
             },
         )?;
         let page = AgentPage {
             schema_version: NextVersion,
             kind: "agent_memory_page",
-            capability: CAPABILITY,
+            capability: self.capability(),
             effect: "agent_read",
             principal: self.principal().clone(),
             scope_hash: self.scope_hash().clone(),
@@ -207,11 +271,13 @@ impl AgentReader<'_> {
             authorized_at: page.authorized_at,
             profile_hash: page.profile_hash,
             items: page.items,
+            record_fields: fields,
             matched_in_scope: page.matched_in_scope,
             unknown_event_time_in_scope: page.unknown_event_time_in_scope,
             complete_in_scope: page.complete_in_scope,
             next: page.next,
         };
+        let page = self.finish_page(page, hash, max_bytes - 256)?;
         self.finish(
             AgentSearchResult {
                 page,
@@ -269,13 +335,14 @@ impl AgentReader<'_> {
             AgentSource {
                 schema_version: NextVersion,
                 kind: "agent_memory_source",
-                capability: CAPABILITY,
+                capability: self.capability(),
                 effect: "agent_read",
                 principal: self.principal().clone(),
                 scope_hash: self.scope_hash().clone(),
                 snapshot,
                 authorized_at,
                 record: source.record,
+                record_fields: source.record_fields,
                 attributed_subject: source.attributed_subject,
                 excerpt_hash: sha256(excerpt.as_bytes()),
                 excerpt,
@@ -312,7 +379,7 @@ impl AgentReader<'_> {
             AgentRelated {
                 schema_version: NextVersion,
                 kind: "agent_memory_related",
-                capability: CAPABILITY,
+                capability: self.capability(),
                 effect: "agent_read",
                 principal: self.principal().clone(),
                 scope_hash: self.scope_hash().clone(),
@@ -340,10 +407,22 @@ impl AgentReader<'_> {
             .host
             .vault
             .authorized_agent_read_data(&self.permit, None)?;
+        let fields = record_fields::projections(&data)?;
         let rendered: Vec<_> = data
             .current
             .iter()
-            .map(super::super::application::render_memory)
+            .map(|m| {
+                let text = super::super::application::render_memory(m);
+                fields
+                    .as_ref()
+                    .and_then(|v| v.iter().find(|f| f.memory == m.memory))
+                    .map_or(text.clone(), |fields| {
+                        format!(
+                            "{text}\nRecord fields: {}",
+                            serde_json::to_string(fields).expect("typed record fields")
+                        )
+                    })
+            })
             .collect();
         let candidates: Vec<_> = data
             .current
@@ -387,17 +466,23 @@ impl AgentReader<'_> {
                 profile,
             )?);
         }
+        let fields = fields.map(|v| {
+            v.into_iter()
+                .filter(|v| items.iter().any(|i| i.memory == v.memory))
+                .collect()
+        });
         let result = self.finish(
             AgentRecall {
                 schema_version: NextVersion,
                 kind: "agent_memory_recall",
-                capability: CAPABILITY,
+                capability: self.capability(),
                 effect: "agent_read",
                 request_id,
                 principal: self.principal().clone(),
                 scope_hash: self.scope_hash().clone(),
                 rendered_context: text.join("\n"),
                 items,
+                record_fields: fields,
                 complete_in_scope: !trace
                     .excluded
                     .iter()

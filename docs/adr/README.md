@@ -474,6 +474,15 @@ explicit synthetic/native read-only simulations. Snapshot/filter/profile-bound
 cursors and bounded JSON preserve scope/completeness; no global graph/timeline,
 saved experiment, new IPC/MCP, Runtime pin or shell adoption.
 
+### ADR-MEM-93 — UI v2 revision fields and projection rules
+
+[Decision](093-ui-v2-record-layout.md): opt-in `automation-host-v3`, required
+revision-bound title/language/rich-time/quoted evidence/formation metadata,
+append-only entity and conversation catalog, separate owner action shapes,
+and authorization/snapshot/deletion rules for later projections. Synthetic
+validation only; stop for owner field acceptance before initialization/adoption.
+Number 92 is left for the separately owned MCP transport work.
+
 ## Relation to Enouia Runtime's register
 
 
@@ -502,3 +511,8 @@ Runtime [ADR-025](https://github.com/Morii9961/enouia-runtime/blob/main/docs/adr
 ### ADR-MEM-96 — Versioned automation-root MCP reads
 
 [Decision](096-versioned-automation-agent-mcp.md): five explicitly versioned read tools, bundled output schemas, scoped recall and the same computed trace for native Context; legacy pipe remains unchanged.
+
+
+### ADR-MEM-97 — Explicit Agent UI-record reads
+
+[Decision](097-agent-ui-record-reads.md): native HostV3 delegation and complete frozen fields over explicitly negotiated MCP, with entity-source closure and byte-accounted shared recall trace. Segmented reads and Runtime capture remain separate.

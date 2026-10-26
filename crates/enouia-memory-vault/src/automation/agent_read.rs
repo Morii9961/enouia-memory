@@ -20,6 +20,7 @@ pub struct AgentReadScope {
 /// Issued only by the live Vault after trusted native Owner registration.
 /// No serialization/Clone/field constructor; a new Vault cannot adopt it.
 pub struct AgentReadPermit {
+    layout: AutomationLayout,
     instance: Arc<()>,
     principal: ActorRef,
     scope: AgentReadScope,
@@ -30,6 +31,9 @@ pub struct AgentReadPermit {
     active: AtomicBool,
 }
 impl AgentReadPermit {
+    pub fn records(&self) -> bool {
+        self.layout == AutomationLayout::HostV3
+    }
     pub fn principal(&self) -> &ActorRef {
         &self.principal
     }
@@ -86,6 +90,23 @@ impl AgentReadPermit {
                 .input_refs
                 .iter()
                 .all(|r| self.scope.source_ids.contains(&r.source_id))
+            && (!self.records()
+                || input.record_fields.as_ref().is_some_and(|fields| {
+                    fields.entities.iter().all(|mention| {
+                        commit
+                            .data
+                            .record_catalog
+                            .as_ref()
+                            .and_then(|catalog| {
+                                catalog
+                                    .entities
+                                    .iter()
+                                    .rev()
+                                    .find(|e| e.entity_id == mention.entity_id)
+                            })
+                            .is_some_and(|entity| self.allows_entity(commit, entity))
+                    })
+                }))
             && input.dimensions.as_ref().is_some_and(|d| {
                 d.derived_from
                     .iter()
@@ -107,6 +128,31 @@ impl AgentReadPermit {
         stack.remove(&key);
         permitted
     }
+    fn allows_entity(&self, commit: &AutomationCommit, entity: &EntityRecord) -> bool {
+        entity.sensitivity <= self.scope.max_sensitivity
+            && entity.access_policy_id == commit.data.policy.access_policy_id
+            && entity
+                .evidence
+                .iter()
+                .chain(entity.aliases.iter().flat_map(|a| &a.evidence))
+                .all(|q| {
+                    let id = &q.reference.source_id;
+                    self.scope.source_ids.contains(id)
+                        && commit.data.policy.source_ids.contains(id)
+                        && !commit.data.deleted_sources.contains(id)
+                        && commit
+                            .data
+                            .sources
+                            .iter()
+                            .rev()
+                            .find(|s| &s.record.source_id == id)
+                            .is_some_and(|source| {
+                                source.record.revision == q.reference.source_revision
+                                    && source.record.sensitivity <= self.scope.max_sensitivity
+                                    && source.record.access_policy_id == entity.access_policy_id
+                            })
+                })
+    }
 }
 impl AutomationVault {
     /// Native Owner assertion must be authenticated independently, never from JSON.
@@ -115,11 +161,28 @@ impl AutomationVault {
         &self,
         owner: &ActorRef,
         principal: ActorRef,
+        scope: AgentReadScope,
+    ) -> Result<AgentReadPermit> {
+        self.authorize_agent_layout(AutomationLayout::HostV2, owner, principal, scope)
+    }
+    pub fn authorize_agent_record_read(
+        &self,
+        owner: &ActorRef,
+        principal: ActorRef,
+        scope: AgentReadScope,
+    ) -> Result<AgentReadPermit> {
+        self.authorize_agent_layout(AutomationLayout::HostV3, owner, principal, scope)
+    }
+    fn authorize_agent_layout(
+        &self,
+        layout: AutomationLayout,
+        owner: &ActorRef,
+        principal: ActorRef,
         mut scope: AgentReadScope,
     ) -> Result<AgentReadPermit> {
         if owner != &self.descriptor.created_by
             || principal.actor_type != ActorType::Agent
-            || self.descriptor.layout != AutomationLayout::HostV2
+            || self.descriptor.layout != layout
         {
             return Err(AutomationFault::Denied);
         }
@@ -148,10 +211,11 @@ impl AutomationVault {
         }
         scope.source_ids.sort();
         let scope_hash = sha256(&canonical_bytes(&serde_json::json!({
-            "capability":"memory-agent-read-1","vault":self.descriptor.vault_id,
+            "capability":if layout == AutomationLayout::HostV3 { "memory-agent-record-read-1" } else { "memory-agent-read-1" },"vault":self.descriptor.vault_id,
             "principal":principal,"scope":scope,"policy":p.reference(),"nonce":self.ids.random_16()
         }))?);
         Ok(AgentReadPermit {
+            layout,
             instance: self.agent_instance.clone(),
             principal,
             scope,
@@ -181,6 +245,7 @@ impl AutomationVault {
             return Err(AutomationFault::Denied);
         }
         self.read_data_with(
+            permit.layout,
             permit.scope.max_sensitivity,
             selected,
             |commit, _| {
@@ -211,7 +276,7 @@ impl AutomationVault {
         let _writer = lock::acquire(&self.root, Duration::ZERO)?;
         let (commit, _) = self.current_locked()?;
         let now = self.now()?;
-        if self.descriptor.layout != AutomationLayout::HostV2
+        if self.descriptor.layout != permit.layout
             || commit.data.policy.reference() != permit.policy
             || !commit.data.policy.active
             || now < commit.created_at

@@ -143,3 +143,13 @@ It reuses pure Core-7 projection after Agent authorization, never System identit
 Native Context can obtain the same actual ephemeral recall trace. Legacy tools
 still reject new roots; capture/correction/session tools and unavailable UI fields
 remain separate prerequisites. Workspace IPC v1 stays at 58 commands.
+
+
+### Frozen UI record Agent reads (2026-10-26)
+
+[Record read version 1](../contracts/MCP_AGENT_RECORD_READS_V1.md) explicitly
+adopts automation-host-v3 and memory-agent-record-read-1. Exact revision-bound
+fields and scoped entity metadata accompany page/detail/recall; independent
+source permission applies to SourceRecordFields. Existing HostV2/v1 clients
+refuse this layout. Runtime-only capture is a subsequent ingress, not enabled by
+this reader. The parallel segmented layout is not implicitly supported.

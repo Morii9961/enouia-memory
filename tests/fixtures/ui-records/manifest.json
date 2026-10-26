@@ -1,0 +1,484 @@
+{
+  "valid": [
+    {
+      "file": "input.json",
+      "type": "input",
+      "schema": "next/automation-v2.schema.json"
+    },
+    {
+      "file": "source.json",
+      "type": "source",
+      "schema": "next/ui-records-v2.schema.json"
+    },
+    {
+      "file": "catalog.json",
+      "type": "catalog",
+      "schema": "next/ui-records-v2.schema.json"
+    },
+    {
+      "file": "plan.json",
+      "type": "plan",
+      "schema": "next/ui-records-v2.schema.json"
+    },
+    {
+      "file": "projection.json",
+      "type": "projection",
+      "schema": "next/ui-records-v2.schema.json"
+    },
+    {
+      "file": "confirmation.json",
+      "type": "confirmation",
+      "schema": "next/ui-records-v2.schema.json"
+    },
+    {
+      "file": "descriptor.json",
+      "type": "descriptor",
+      "schema": "next/storage-v2.schema.json"
+    },
+    {
+      "file": "owner-record.json",
+      "type": "owner-record",
+      "schema": "next/ui-records-v2.schema.json"
+    },
+    {
+      "file": "plan-correct.json",
+      "type": "plan",
+      "schema": "next/ui-records-v2.schema.json"
+    },
+    {
+      "file": "plan-forget.json",
+      "type": "plan",
+      "schema": "next/ui-records-v2.schema.json"
+    },
+    {
+      "file": "plan-attention.json",
+      "type": "plan",
+      "schema": "next/ui-records-v2.schema.json"
+    },
+    {
+      "file": "plan-theme_rename.json",
+      "type": "plan",
+      "schema": "next/ui-records-v2.schema.json"
+    },
+    {
+      "file": "plan-theme_pin.json",
+      "type": "plan",
+      "schema": "next/ui-records-v2.schema.json"
+    },
+    {
+      "file": "plan-theme_dissolve.json",
+      "type": "plan",
+      "schema": "next/ui-records-v2.schema.json"
+    },
+    {
+      "file": "plan-entity_merge.json",
+      "type": "plan",
+      "schema": "next/ui-records-v2.schema.json"
+    },
+    {
+      "file": "plan-entity_split.json",
+      "type": "plan",
+      "schema": "next/ui-records-v2.schema.json"
+    },
+    {
+      "file": "plan-tag.json",
+      "type": "plan",
+      "schema": "next/ui-records-v2.schema.json"
+    },
+    {
+      "file": "empty-ledger.json",
+      "type": "ledger",
+      "schema": "next/ui-records-v2.schema.json"
+    },
+    {
+      "file": "owner-ledger.json",
+      "type": "ledger",
+      "schema": "next/ui-records-v2.schema.json"
+    }
+  ],
+  "invalid": [
+    {
+      "id": "title-required",
+      "base": "input.json",
+      "schema": "reject",
+      "ops": [
+        {
+          "op": "remove",
+          "path": "/record_fields/title"
+        }
+      ]
+    },
+    {
+      "id": "title-too-long",
+      "base": "input.json",
+      "schema": "reject",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/record_fields/title",
+          "value": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+        }
+      ]
+    },
+    {
+      "id": "language-malformed",
+      "base": "input.json",
+      "schema": "accept",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/record_fields/content_lang",
+          "value": "zh_Hans"
+        }
+      ]
+    },
+    {
+      "id": "unknown-time-has-date",
+      "base": "input.json",
+      "schema": "accept",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/record_fields/event_time/from",
+          "value": "2026-01-01T00:00:00.000Z"
+        }
+      ]
+    },
+    {
+      "id": "unknown-time-source-basis",
+      "base": "input.json",
+      "schema": "accept",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/record_fields/event_time/basis",
+          "value": "source_time"
+        }
+      ]
+    },
+    {
+      "id": "unrecognized-time-precision",
+      "base": "input.json",
+      "schema": "reject",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/record_fields/event_time/precision",
+          "value": "approximate"
+        }
+      ]
+    },
+    {
+      "id": "unrecognized-timezone-syntax",
+      "base": "input.json",
+      "schema": "accept",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/record_fields/event_time/tz",
+          "value": "../local"
+        }
+      ]
+    },
+    {
+      "id": "empty-entity-evidence",
+      "base": "input.json",
+      "schema": "reject",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/record_fields/entities/0/evidence",
+          "value": []
+        }
+      ]
+    },
+    {
+      "id": "quote-not-exact",
+      "base": "catalog.json",
+      "schema": "accept",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/entities/0/evidence/0/quote",
+          "value": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+        }
+      ]
+    },
+    {
+      "id": "speaker-spoof",
+      "base": "catalog.json",
+      "schema": "accept",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/entities/0/evidence/0/speaker",
+          "value": "assistant"
+        }
+      ]
+    },
+    {
+      "id": "quote-offset-wrong",
+      "base": "input.json",
+      "schema": "accept",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/record_fields/evidence/0/end",
+          "value": 1
+        }
+      ]
+    },
+    {
+      "id": "backfill-missing-batch",
+      "base": "input.json",
+      "schema": "accept",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/record_fields/formation/mode",
+          "value": "backfill"
+        }
+      ]
+    },
+    {
+      "id": "annotation-wrong-revision",
+      "base": "input.json",
+      "schema": "accept",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/record_fields/annotations/memory/revision",
+          "value": 2
+        }
+      ]
+    },
+    {
+      "id": "emotion-claimed-as-fact",
+      "base": "input.json",
+      "schema": "reject",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/record_fields/feeling",
+          "value": "happy"
+        }
+      ]
+    },
+    {
+      "id": "owner-action-in-machine",
+      "base": "input.json",
+      "schema": "reject",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/record_fields/owner_action",
+          "value": {
+            "action": "withdraw",
+            "target": {
+              "memory": {
+                "memory_id": "mem_00000001-0000-4000-8000-000000000001",
+                "revision": 1
+              },
+              "hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            },
+            "reason": null
+          }
+        }
+      ]
+    },
+    {
+      "id": "unknown-entity-ref",
+      "base": "catalog.json",
+      "schema": "accept",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/conversations/0/participants/0/entity_id",
+          "value": "ent_00000009-0000-4000-8000-000000000001"
+        }
+      ]
+    },
+    {
+      "id": "turn-count-invented",
+      "base": "catalog.json",
+      "schema": "accept",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/conversations/0/turn_count",
+          "value": 2
+        }
+      ]
+    },
+    {
+      "id": "turn-parent-loop",
+      "base": "catalog.json",
+      "schema": "accept",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/conversations/0/turns/0/parent_source",
+          "value": {
+            "source_id": "src_00000001-0000-4000-8000-000000000001",
+            "source_revision": 1
+          }
+        }
+      ]
+    },
+    {
+      "id": "catalog-body-leaks-at-lower-sensitivity",
+      "base": "catalog.json",
+      "schema": "accept",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/conversations/0/sensitivity",
+          "value": "public"
+        }
+      ]
+    },
+    {
+      "id": "source-model-for-user",
+      "base": "source.json",
+      "schema": "accept",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/record_fields/assistant_model",
+          "value": "synthetic-model"
+        }
+      ]
+    },
+    {
+      "id": "owner-plan-machine-actor",
+      "base": "plan.json",
+      "schema": "reject",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/owner/actor_type",
+          "value": "system"
+        }
+      ]
+    },
+    {
+      "id": "owner-plan-expired-window",
+      "base": "plan.json",
+      "schema": "accept",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/expires_at",
+          "value": "2026-10-24T12:00:00.000Z"
+        }
+      ]
+    },
+    {
+      "id": "projection-hidden-slot-count",
+      "base": "projection.json",
+      "schema": "accept",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/coverage/included_inputs",
+          "value": 2
+        }
+      ]
+    },
+    {
+      "id": "projection-missing-snapshot",
+      "base": "projection.json",
+      "schema": "reject",
+      "ops": [
+        {
+          "op": "remove",
+          "path": "/snapshot"
+        }
+      ]
+    },
+    {
+      "id": "projection-unknown-field",
+      "base": "projection.json",
+      "schema": "reject",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/raw_hidden_count",
+          "value": 4
+        }
+      ]
+    },
+    {
+      "id": "owner-record-rebind",
+      "base": "owner-record.json",
+      "schema": "accept",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/plan/action/reason",
+          "value": "forged revision"
+        }
+      ]
+    },
+    {
+      "id": "owner-attention-expired",
+      "base": "plan-attention.json",
+      "schema": "accept",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/action/until",
+          "value": "2026-10-24T12:00:00.000Z"
+        }
+      ]
+    },
+    {
+      "id": "owner-merge-same-entity",
+      "base": "plan-entity_merge.json",
+      "schema": "accept",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/action/into_entity",
+          "value": "ent_00000001-0000-4000-8000-000000000001"
+        }
+      ]
+    },
+    {
+      "id": "owner-correction-blank",
+      "base": "plan-correct.json",
+      "schema": "accept",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/action/assertion_text",
+          "value": "  "
+        }
+      ]
+    },
+    {
+      "id": "null-is-not-missing-record-fields",
+      "base": "input.json",
+      "schema": "reject",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/record_fields",
+          "value": null
+        }
+      ]
+    },
+    {
+      "id": "withdrawal-watermark-not-count",
+      "base": "empty-ledger.json",
+      "schema": "accept",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/withdrawal_watermark",
+          "value": 2
+        }
+      ]
+    }
+  ]
+}

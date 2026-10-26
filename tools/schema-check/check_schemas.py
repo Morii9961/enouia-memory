@@ -300,6 +300,15 @@ def main():
             failures.append(f"invalid Agent read request accepted: {case['name']}")
     counts["agent_read_documents"] = len(agent["valid"]) + len(agent["invalid"])
 
+    records = load(ROOT / "tests" / "fixtures" / "agent-record-read" / "manifest.json")
+    for value in records["valid"]:
+        if not valid(records["schema"], value):
+            failures.append("valid Agent record request rejected")
+    for case in records["invalid"]:
+        if valid(records["schema"], case["value"]):
+            failures.append(f"invalid Agent record request accepted: {case['name']}")
+    counts["agent_record_documents"] = len(records["valid"]) + len(records["invalid"])
+
     if len(sys.argv) != 1:
         if len(sys.argv) != 3 or sys.argv[1] != "--mcp2-transcript":
             raise SystemExit("usage: check_schemas.py [--mcp2-transcript FILE]")
@@ -314,7 +323,24 @@ def main():
                                ("outputSchema", exchange["response"]["result"]["structuredContent"])):
                 if not Draft202012Validator(tool[key]).is_valid(value):
                     failures.append(f"MCP-2 live {exchange['tool']} {key}: rejected")
+        for case in transcript.get("negative_outputs", []):
+            tool = tools[case["tool"]]
+            if Draft202012Validator(tool["outputSchema"]).is_valid(case["value"]):
+                failures.append(f"MCP live invalid output accepted: {case['tool']}")
         counts["mcp2_live_exchanges"] = len(transcript["exchanges"])
+        counts["mcp_live_invalid_outputs"] = len(transcript.get("negative_outputs", []))
+    ui_dir = ROOT / "tests" / "fixtures" / "ui-records"
+    ui = load(ui_dir / "manifest.json")
+    ui_schemas = {e["file"]: e["schema"] for e in ui["valid"]}
+    for entry in ui["valid"]:
+        if not valid(entry["schema"], load(ui_dir / entry["file"])):
+            failures.append(f"valid UI record rejected: {entry['file']}")
+    for case in ui["invalid"]:
+        value = load(ui_dir / case["base"])
+        apply_ops(value, case["ops"])
+        if valid(ui_schemas[case["base"]], value) != (case["schema"] == "accept"):
+            failures.append(f"UI record case {case['id']}: disagreement")
+    counts["ui_record_documents"] = len(ui["valid"]) + len(ui["invalid"])
 
     invocation_cases = load(FIXTURES / "provider-invocation-cases.json")
     for case in invocation_cases["cases"]:

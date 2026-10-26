@@ -7,6 +7,7 @@ pub struct AuthorizedReadData {
     pub sources: Vec<CapturedSource>,
     pub receipts: Vec<MemoryReceipt>,
     pub learned_times: BTreeMap<CommitId, Timestamp>,
+    pub record_catalog: Option<RecordCatalog>,
 }
 impl AutomationVault {
     /// Same live native gates for rows, selected history, source text and links.
@@ -18,18 +19,25 @@ impl AutomationVault {
         selected: Option<&MemoryId>,
     ) -> Result<AuthorizedReadData> {
         self.system(actor)?;
-        self.read_data_with(max, selected, |_, _| Ok(()), |_, _| true)
+        self.read_data_with(
+            AutomationLayout::HostV2,
+            max,
+            selected,
+            |_, _| Ok(()),
+            |_, _| true,
+        )
     }
 
     pub(super) fn read_data_with(
         &self,
+        expected_layout: AutomationLayout,
         max: Sensitivity,
         selected: Option<&MemoryId>,
         verify: impl FnOnce(&AutomationCommit, &Timestamp) -> Result<()>,
         allowed: impl Fn(&AutomationCommit, &MachineMemory) -> bool,
     ) -> Result<AuthorizedReadData> {
         self.available()?;
-        if self.descriptor.layout != AutomationLayout::HostV2 {
+        if self.descriptor.layout != expected_layout {
             return Err(AutomationFault::Denied);
         }
         let _writer = lock::acquire(&self.root, Duration::ZERO)?;
@@ -123,6 +131,7 @@ impl AutomationVault {
             sources,
             receipts,
             learned_times,
+            record_catalog: commit.data.record_catalog.clone(),
         })
     }
 }

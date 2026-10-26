@@ -7,7 +7,7 @@ use super::{
     MAX_INPUT_BYTES, MAX_OUTPUT_BYTES, MAX_REQUESTS, PROTOCOL_VERSION, Phase, closed, error, reply,
     tool_result,
 };
-use crate::automation::agent_read::{AgentReader, AgentSearchFilter, CAPABILITY};
+use crate::automation::agent_read::{AgentReader, AgentSearchFilter};
 use crate::automation::application::ApplicationFault;
 use enouia_memory_contract::{
     ids::{MemoryId, RequestId, SourceId},
@@ -207,7 +207,7 @@ impl<'a, 'host> Server<'a, 'host> {
                 if !closed(&params, &["_meta"]) {
                     return Some(error(id, -32602, "invalid_tool_cursor"));
                 }
-                let tools:Vec<_>=TOOLS.iter().map(|name|json!({"name":name,"description":"Scoped automation-root read. Attributed statements are subject statements, not verified facts; staged remains automatic reassessment. Unsupported UI fields are declared in coverage.","inputSchema":schema(name,false).expect("tool"),"outputSchema":schema(name,true).expect("tool"),"annotations":{"readOnlyHint":true,"destructiveHint":false,"idempotentHint":true,"openWorldHint":false}})).collect();
+                let tools:Vec<_>=TOOLS.iter().map(|name|json!({"name":name,"description":"Scoped automation-root read. Attributed statements are subject statements, not verified facts; staged remains automatic reassessment. Unsupported UI fields are declared in coverage.","inputSchema":schemas::schema_for(name,false,self.reader.records()).expect("tool"),"outputSchema":schemas::schema_for(name,true,self.reader.records()).expect("tool"),"annotations":{"readOnlyHint":true,"destructiveHint":false,"idempotentHint":true,"openWorldHint":false}})).collect();
                 Some(reply(id, json!({"tools":tools})))
             }
             "tools/call" => Some(self.call(id, &params)),
@@ -225,7 +225,7 @@ impl<'a, 'host> Server<'a, 'host> {
         };
         let _version = packet.schema_version;
         if packet.kind != "agent_read_request"
-            || packet.capability != CAPABILITY
+            || packet.capability != self.reader.capability()
             || serde_json::to_value(packet.operation).ok().as_ref() != Some(&params["name"])
         {
             return error(id, -32602, "unsupported_request");
@@ -322,7 +322,7 @@ impl<'a, 'host> Server<'a, 'host> {
             }
         };
         let failed = !fault.is_null();
-        let value = json!({"schema_version":2,"kind":"agent_read_response","capability":CAPABILITY,"request_id":packet.request_id,"operation":packet.operation,"principal":self.reader.principal(),"scope_hash":self.reader.scope_hash(),"data":data,"error":fault,"coverage":schemas::coverage()});
+        let value = json!({"schema_version":2,"kind":"agent_read_response","capability":self.reader.capability(),"request_id":packet.request_id,"operation":packet.operation,"principal":self.reader.principal(),"scope_hash":self.reader.scope_hash(),"data":data,"error":fault,"coverage":schemas::coverage(self.reader.records())});
         if value.to_string().len() > MAX_OUTPUT_BYTES / 3 {
             self.phase = Phase::Closed;
             return error(id, -32000, "output_budget");

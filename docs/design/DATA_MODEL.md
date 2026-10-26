@@ -142,3 +142,14 @@ Tombstone 记录 delete_id、target IDs/对象、scope、requested_by、review_i
 Canonical → Review → Candidate/ManualAssertion → Source → 原始对象可解；临时 checkpoint → SessionEvent 可解；Capsule → 确切记忆修订与来源可解。来源缺失时允许保留陈述供用户修复，但必须标 broken_provenance 并排除自动外发。
 
 主动删除来源后，相关记忆一并删除或经用户重新陈述建立新来源；不得留下看似可验证的悬空证据。需要保留历史删除事实时只能展示不含已删除正文的 tombstone。
+
+## UI v2 automatic record layout amendment (2026-10-26)
+
+[ADR-MEM-93](../adr/093-ui-v2-record-layout.md) and the
+[revision field table](../contracts/UI_V2_RECORDS.md) freeze `automation-host-v3`:
+required title/language/rich event and valid time, exact quote/speaker/range,
+entity/conversation revisions and formation/annotation provenance. Owner action
+plans/confirmations/committed shapes stay separate from machine admission;
+projection metadata binds live authorization, snapshot, coverage and deletion.
+This amends automatic roots only, not the legacy owner Canonical sections above.
+No old-root upgrade, automatic owner confirmation or real initialization occurs.
