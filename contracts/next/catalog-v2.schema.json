@@ -1,0 +1,856 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.enouia-memory.invalid/next/catalog-v2.schema.json",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/segment"
+    },
+    {
+      "$ref": "#/$defs/page"
+    },
+    {
+      "$ref": "#/$defs/stats"
+    },
+    {
+      "$ref": "#/$defs/facets"
+    },
+    {
+      "$ref": "#/$defs/filter"
+    }
+  ],
+  "$defs": {
+    "binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "operation_id",
+        "input_hash",
+        "response_hash"
+      ],
+      "properties": {
+        "operation_id": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/operationId"
+        },
+        "input_hash": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/sha256"
+        },
+        "response_hash": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/sha256"
+        }
+      }
+    },
+    "segment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "kind",
+        "vault_id",
+        "commit_id",
+        "sequence",
+        "parent",
+        "actor",
+        "created_at",
+        "policy_watermark",
+        "deletion_watermark",
+        "delta",
+        "authority"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": 2
+        },
+        "kind": {
+          "const": "segmented_automation_commit"
+        },
+        "vault_id": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/vaultId"
+        },
+        "commit_id": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/commitId"
+        },
+        "sequence": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/revision"
+        },
+        "parent": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "storage-v2.schema.json#/$defs/current"
+            }
+          ]
+        },
+        "actor": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/actorRef"
+        },
+        "created_at": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/timestamp"
+        },
+        "policy_watermark": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/revision"
+        },
+        "deletion_watermark": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/revision"
+        },
+        "delta": {
+          "oneOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "change",
+                "owner_actions"
+              ],
+              "properties": {
+                "change": {
+                  "const": "genesis"
+                },
+                "owner_actions": {
+                  "$ref": "ui-records-v2.schema.json#/$defs/ownerLedger"
+                }
+              }
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "change",
+                "policy"
+              ],
+              "properties": {
+                "change": {
+                  "const": "policy"
+                },
+                "policy": {
+                  "$ref": "automation-v2.schema.json#/$defs/policy"
+                }
+              }
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "change",
+                "sources",
+                "catalog"
+              ],
+              "properties": {
+                "change": {
+                  "const": "capture"
+                },
+                "sources": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "storage-v2.schema.json#/$defs/source"
+                  },
+                  "maxItems": 64,
+                  "minItems": 1
+                },
+                "catalog": {
+                  "$ref": "ui-records-v2.schema.json#/$defs/catalog"
+                }
+              }
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "change",
+                "job_key",
+                "requests",
+                "responses",
+                "bindings"
+              ],
+              "properties": {
+                "change": {
+                  "const": "admit"
+                },
+                "job_key": {
+                  "$ref": "../memory/common-v1.schema.json#/$defs/sha256"
+                },
+                "requests": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "automation-v2.schema.json#/$defs/input"
+                  },
+                  "maxItems": 8,
+                  "minItems": 1
+                },
+                "responses": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 262144
+                  },
+                  "maxItems": 8,
+                  "minItems": 1
+                },
+                "bindings": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/binding"
+                  },
+                  "maxItems": 8,
+                  "minItems": 1
+                }
+              }
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "change",
+                "sources",
+                "memories"
+              ],
+              "properties": {
+                "change": {
+                  "const": "delete"
+                },
+                "sources": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "../memory/common-v1.schema.json#/$defs/sourceId"
+                  },
+                  "maxItems": 128,
+                  "minItems": 0
+                },
+                "memories": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "../memory/common-v1.schema.json#/$defs/memoryId"
+                  },
+                  "maxItems": 128,
+                  "minItems": 0
+                }
+              }
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "change",
+                "record"
+              ],
+              "properties": {
+                "change": {
+                  "const": "owner_action"
+                },
+                "record": {
+                  "$ref": "ui-records-v2.schema.json#/$defs/ownerRecord"
+                }
+              }
+            }
+          ]
+        },
+        "authority": {
+          "$ref": "../host/authority-v1.schema.json"
+        }
+      }
+    },
+    "filter": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "text",
+        "include_unknown_time"
+      ],
+      "properties": {
+        "text": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 2048
+        },
+        "form": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "enum": [
+                "fact",
+                "preference",
+                "episode",
+                "project_state",
+                "plan",
+                "open_loop",
+                "relationship_experience",
+                "subjective_understanding",
+                "theme"
+              ]
+            }
+          ]
+        },
+        "state": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "enum": [
+                "planned",
+                "decided",
+                "implemented",
+                "tested",
+                "released",
+                "open",
+                "paused",
+                "cancelled",
+                "completed"
+              ]
+            }
+          ]
+        },
+        "knowledge": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "enum": [
+                "attributed_statement",
+                "hypothesis",
+                "uncertain",
+                "disputed"
+              ]
+            }
+          ]
+        },
+        "adoption": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "enum": [
+                "adopted",
+                "staged"
+              ]
+            }
+          ]
+        },
+        "validity": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "enum": [
+                "unspecified",
+                "in_range",
+                "not_yet_valid",
+                "expired"
+              ]
+            }
+          ]
+        },
+        "attention": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "enum": [
+                "active",
+                "fading",
+                "archived",
+                "protected"
+              ]
+            }
+          ]
+        },
+        "entity": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "ui-records-v2.schema.json#/$defs/entityId"
+            }
+          ]
+        },
+        "project": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "../memory/common-v1.schema.json#/$defs/projectId"
+            }
+          ]
+        },
+        "theme": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "../memory/common-v1.schema.json#/$defs/memoryId"
+            }
+          ]
+        },
+        "time_axis": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "enum": [
+                "event",
+                "valid",
+                "learned",
+                "source_captured"
+              ]
+            }
+          ]
+        },
+        "time_window": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "from",
+                "until"
+              ],
+              "properties": {
+                "from": {
+                  "$ref": "../memory/common-v1.schema.json#/$defs/timestamp"
+                },
+                "until": {
+                  "oneOf": [
+                    {
+                      "type": "null"
+                    },
+                    {
+                      "$ref": "../memory/common-v1.schema.json#/$defs/timestamp"
+                    }
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        "include_unknown_time": {
+          "type": "boolean"
+        }
+      }
+    },
+    "selection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "snapshot",
+        "scope_hash",
+        "query_hash",
+        "evaluated_at",
+        "algorithm",
+        "version",
+        "profile_hash",
+        "withdrawal_watermark"
+      ],
+      "properties": {
+        "snapshot": {
+          "$ref": "automation-v2.schema.json#/$defs/snapshot"
+        },
+        "scope_hash": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/sha256"
+        },
+        "query_hash": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/sha256"
+        },
+        "evaluated_at": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/timestamp"
+        },
+        "algorithm": {
+          "const": "literal-alias-catalog-1"
+        },
+        "version": {
+          "const": 1
+        },
+        "profile_hash": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/sha256"
+        },
+        "withdrawal_watermark": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/revision"
+        }
+      }
+    },
+    "cursor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "selection",
+        "after"
+      ],
+      "properties": {
+        "selection": {
+          "$ref": "#/$defs/selection"
+        },
+        "after": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/memoryId"
+        }
+      }
+    },
+    "axis": {
+      "enum": [
+        "form",
+        "state",
+        "knowledge",
+        "adoption",
+        "validity",
+        "attention",
+        "entity",
+        "project",
+        "theme"
+      ]
+    },
+    "countScope": {
+      "enum": [
+        "other_filters",
+        "matched"
+      ]
+    },
+    "facetCursor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "selection",
+        "axis",
+        "count_scope",
+        "after"
+      ],
+      "properties": {
+        "selection": {
+          "$ref": "#/$defs/selection"
+        },
+        "axis": {
+          "$ref": "#/$defs/axis"
+        },
+        "count_scope": {
+          "$ref": "#/$defs/countScope"
+        },
+        "after": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        }
+      }
+    },
+    "facetValue": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "value",
+        "label",
+        "count"
+      ],
+      "properties": {
+        "value": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "label": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "count": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 65536
+        }
+      }
+    },
+    "group": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "axis",
+        "count_scope",
+        "values",
+        "total_values",
+        "next"
+      ],
+      "properties": {
+        "axis": {
+          "$ref": "#/$defs/axis"
+        },
+        "count_scope": {
+          "$ref": "#/$defs/countScope"
+        },
+        "values": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/facetValue"
+          },
+          "maxItems": 100,
+          "minItems": 0
+        },
+        "total_values": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 65536
+        },
+        "next": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/facetCursor"
+            }
+          ]
+        }
+      }
+    },
+    "item": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "base",
+        "title",
+        "content_lang",
+        "event_time",
+        "valid_time",
+        "entities"
+      ],
+      "properties": {
+        "base": {
+          "$ref": "read-model-v2.schema.json#/$defs/item"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 60
+        },
+        "content_lang": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 63
+        },
+        "event_time": {
+          "$ref": "ui-records-v2.schema.json#/$defs/recordTime"
+        },
+        "valid_time": {
+          "$ref": "ui-records-v2.schema.json#/$defs/recordTime"
+        },
+        "entities": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "entity_id",
+              "role"
+            ],
+            "properties": {
+              "entity_id": {
+                "$ref": "ui-records-v2.schema.json#/$defs/entityId"
+              },
+              "role": {
+                "enum": [
+                  "subject",
+                  "participant",
+                  "mentioned",
+                  "place",
+                  "project",
+                  "organization"
+                ]
+              }
+            }
+          },
+          "maxItems": 32,
+          "minItems": 0
+        }
+      }
+    },
+    "page": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "kind",
+        "capability",
+        "effect",
+        "selection",
+        "authorized_at",
+        "matched_in_scope",
+        "unknown_time_in_scope",
+        "count_exact",
+        "scope",
+        "items",
+        "complete_in_scope",
+        "next",
+        "facets"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": 2
+        },
+        "kind": {
+          "const": "catalog_memory_page"
+        },
+        "capability": {
+          "const": "memory-native-read-2"
+        },
+        "effect": {
+          "const": "native_read"
+        },
+        "selection": {
+          "$ref": "#/$defs/selection"
+        },
+        "authorized_at": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/timestamp"
+        },
+        "matched_in_scope": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 65536
+        },
+        "unknown_time_in_scope": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 65536
+        },
+        "count_exact": {
+          "const": true
+        },
+        "scope": {
+          "const": "authorized_current_machine_revisions"
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/item"
+          },
+          "maxItems": 100,
+          "minItems": 0
+        },
+        "complete_in_scope": {
+          "type": "boolean"
+        },
+        "next": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/cursor"
+            }
+          ]
+        },
+        "facets": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/group"
+          },
+          "maxItems": 9,
+          "minItems": 0
+        }
+      }
+    },
+    "stats": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "kind",
+        "capability",
+        "effect",
+        "selection",
+        "authorized_at",
+        "matched_in_scope",
+        "count_exact",
+        "scope",
+        "groups",
+        "theme_membership"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": 2
+        },
+        "kind": {
+          "const": "catalog_memory_stats"
+        },
+        "capability": {
+          "const": "memory-native-read-2"
+        },
+        "effect": {
+          "const": "native_read"
+        },
+        "selection": {
+          "$ref": "#/$defs/selection"
+        },
+        "authorized_at": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/timestamp"
+        },
+        "matched_in_scope": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 65536
+        },
+        "count_exact": {
+          "const": true
+        },
+        "scope": {
+          "const": "authorized_current_machine_revisions"
+        },
+        "groups": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/group"
+          },
+          "maxItems": 9,
+          "minItems": 0
+        },
+        "theme_membership": {
+          "const": "recorded_derivation_only"
+        }
+      }
+    },
+    "facets": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "kind",
+        "capability",
+        "effect",
+        "selection",
+        "authorized_at",
+        "group"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": 2
+        },
+        "kind": {
+          "const": "catalog_memory_facets"
+        },
+        "capability": {
+          "const": "memory-native-read-2"
+        },
+        "effect": {
+          "const": "native_read"
+        },
+        "selection": {
+          "$ref": "#/$defs/selection"
+        },
+        "authorized_at": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/timestamp"
+        },
+        "group": {
+          "$ref": "#/$defs/group"
+        }
+      }
+    }
+  }
+}

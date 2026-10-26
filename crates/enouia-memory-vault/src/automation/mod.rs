@@ -2,6 +2,7 @@
 //! writer activation. One Host lease, short Writer transactions, exact witness.
 mod attention;
 mod read_model;
+pub mod segmented;
 pub use read_model::AuthorizedReadData;
 mod publication;
 pub use attention::{ATTENTION_PROJECTION, AuthorizedRecallSet};
@@ -185,6 +186,9 @@ impl AutomationVault {
             .read_bounded(&layout::vault_descriptor(), 16 * 1024)?
             .ok_or(AutomationFault::Unavailable)?;
         let descriptor = parse_document::<AutomationDescriptor>(&bytes)?;
+        if descriptor.layout == AutomationLayout::SegmentedV1 {
+            return Err(AutomationFault::Denied);
+        }
         let vault = Self::acquire(root, descriptor, host, clock, ids, faults)?;
         vault.inspect()?;
         Ok(vault)

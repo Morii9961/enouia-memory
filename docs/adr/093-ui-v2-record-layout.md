@@ -1,7 +1,7 @@
 # ADR-MEM-93: UI v2 record fields and projection rules
 
-Date: 2026-10-26. Status: implemented for synthetic validation; field acceptance
-by Morii pending. Based on main `c9bf1be7819dba19915adf6031b1900c032b73d1`.
+Date: 2026-10-26. Status: implemented for synthetic validation; Morii confirmed
+field continuation after the first-slice report on 2026-10-26. Based on main `c9bf1be7819dba19915adf6031b1900c032b73d1`.
 
 ## Decision
 
