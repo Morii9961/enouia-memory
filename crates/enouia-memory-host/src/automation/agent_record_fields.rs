@@ -9,6 +9,7 @@ pub struct AgentRecordProjection {
     pub memory: MemoryRevisionRef,
     pub producer_version: String,
     pub model_version: Option<String>,
+    pub annotations_scope: &'static str,
     pub fields: MemoryRecordFields,
     pub entities: Vec<EntityRecord>,
 }
@@ -24,17 +25,30 @@ pub(super) fn projections(
         return Ok(None);
     };
     let mut seen = BTreeSet::new();
+    let current: BTreeSet<_> = data
+        .current
+        .iter()
+        .map(|m| (m.memory.memory_id.clone(), m.memory.revision))
+        .collect();
     data.current
         .iter()
         .chain(&data.history)
         .filter(|m| seen.insert((m.memory.memory_id.clone(), m.memory.revision)))
         .map(|m| {
-            let fields = m
+            let mut fields = m
                 .decision
                 .input
                 .record_fields
                 .clone()
                 .ok_or(ApplicationFault::Invalid)?;
+            // Model hints are not claim dependencies or permission grants.
+            // Project their endpoints before exposing identifiers; do not leak
+            // hidden-target counts or rewrite the stored annotations.
+            if let Some(annotations) = &mut fields.annotations {
+                annotations
+                    .suggested_relations
+                    .retain(|r| current.contains(&(r.target.memory_id.clone(), r.target.revision)));
+            }
             let mut ids = BTreeSet::new();
             let entities = fields
                 .entities
@@ -54,6 +68,7 @@ pub(super) fn projections(
                 memory: m.memory.clone(),
                 producer_version: m.decision.input.producer_version.clone(),
                 model_version: m.decision.input.model_version.clone(),
+                annotations_scope: "authorized_current_targets",
                 fields,
                 entities,
             })

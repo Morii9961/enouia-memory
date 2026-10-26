@@ -250,7 +250,7 @@
     {
       "path": "contracts/next/agent-record-read-v2.schema.json",
       "role": "automation-contract",
-      "sha256": "c6a71ff68e504f2ec12137ddc6e2e9c0a953d23fea55920943d320de78cd6d80"
+      "sha256": "7aad2be3082178f2141b0cbb581ce96cc69777d70f9e49bcffcd3a7507cb6152"
     },
     {
       "path": "contracts/next/attention-v2.schema.json",
@@ -455,7 +455,7 @@
     {
       "path": "crates/enouia-memory-host/src/automation/agent_record_fields.rs",
       "role": "host-session",
-      "sha256": "81a95eec0a2fa5101ed8b0cfe04338e003ed0cab69bdc3144b9282ff969358d1"
+      "sha256": "b4beb54d981288bfa0283eaedc3ec581c294a9e67125a6fb52993863b5403fcd"
     },
     {
       "path": "crates/enouia-memory-host/src/automation/agent_tools.rs",
@@ -863,5 +863,5 @@
       "sha256": "3603c1855d9f9ec9b3585143a0191508980b260b1ffd26c82b3e6f9b7223a75d"
     }
   ],
-  "aggregate": "11575fe13c2694d0a82e2761b73d82da6c4b726ef732189352fab94dd5bde9c4"
+  "aggregate": "0e07de075054c3ea0398e5b3ae3771381743194c996f8b3c573d2a66764257b8"
 }

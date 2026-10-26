@@ -25,8 +25,8 @@ supply current authorization. This is not a cached System grant.
 
 Five tools retain their distinct schema-2 envelope/operations but require this
 capability. `record_fields` on page/detail/recall is a revision-keyed array:
-`{memory, producer_version, model_version, fields, entities}`. `fields` is the
-exact stored MemoryRecordFields; `entities` contains authorized current
+`{memory, producer_version, model_version, annotations_scope, fields, entities}`.
+`fields` preserves stored claim/time/formation values; `entities` contains authorized current
 EntityRecord revisions. Base items retain separate knowledge/adoption, dimensions,
 actual learned/capture times, System provenance, policy and witnessed receipts.
 Nothing upgrades a subject statement or Agent claim into Owner confirmation.
@@ -54,9 +54,13 @@ so trace budgets include them. Native Context returns the same actual response,
 including metadata, and refuses stale snapshots/authority. Reads do not reinforce
 attention, allocate operations/receipts or persist Context.
 
-Related still returns actual derivation/reversion only. Stored suggested-relations
-annotations remain hints in their originating record; a global fact/suggestion
-edge projection, topics and segmented-layout reads are unavailable here.
+Related still returns actual derivation/reversion only. Suggested-relations
+annotations are hints: their projected endpoints must be currently readable in
+this Agent scope. All projections declare annotations_scope=authorized_current_targets;
+no hidden-target count or omission flag is returned. The original stored hints
+remain unchanged, and ordinary claim records are not hidden merely because a
+non-authoritative hint names an unavailable target. A global fact/suggestion edge
+projection, topics and segmented-layout reads are unavailable here.
 
 ## Transport and compatibility
 

@@ -1012,3 +1012,159 @@ fn mcp2b_legacy_and_hostv2_clients_cannot_negotiate_record_root() {
         assert_eq!(bytes(e.root.path()), before);
     }
 }
+
+#[test]
+fn mcp2b_suggested_annotation_targets_do_not_leak_hidden_ids_or_change_stored_hints() {
+    let e = record_env();
+    let vault = e.vault(Faults::none());
+    let source: CapturedSource =
+        serde_json::from_value(support::fixture("../ui-records/source.json")).unwrap();
+    let mut catalog: RecordCatalog =
+        serde_json::from_value(support::fixture("../ui-records/catalog.json")).unwrap();
+    vault
+        .capture_with_records(
+            &e.descriptor.system_actor,
+            source.clone(),
+            Some(catalog.clone()),
+        )
+        .unwrap();
+    let event = id("evt", 22);
+    let adapt = |v: Value| -> Value {
+        serde_json::from_str(
+            &serde_json::to_string(&v)
+                .unwrap()
+                .replace("src_00000001-", "src_00000002-")
+                .replace("ent_00000001-", "ent_00000002-")
+                .replace("evt_00000015-0000-4000-8000-000000000015", &event),
+        )
+        .unwrap()
+    };
+    let mut other: CapturedSource =
+        serde_json::from_value(adapt(serde_json::to_value(&source).unwrap())).unwrap();
+    other.record.original_conversation_id = None;
+    other.record.original_message_id = None;
+    other.record_fields.as_mut().unwrap().conversation_id = None;
+    catalog.entities.push(
+        serde_json::from_value(adapt(serde_json::to_value(&catalog.entities[0]).unwrap())).unwrap(),
+    );
+    vault
+        .capture_with_records(&e.descriptor.system_actor, other, Some(catalog))
+        .unwrap();
+    let seed: AdmissionInput =
+        serde_json::from_value(support::fixture("../ui-records/input.json")).unwrap();
+    let apply = |input: AdmissionInput, hint: Option<MemoryRevisionRef>| -> MemoryReceipt {
+        let request = vault.prepare(&e.descriptor.system_actor, input).unwrap();
+        let mut generated = request.clone();
+        generated.interpretation = Interpretation::ClearSelfReport;
+        if let Some(target) = hint {
+            generated
+                .record_fields
+                .as_mut()
+                .unwrap()
+                .annotations
+                .as_mut()
+                .unwrap()
+                .suggested_relations = vec![SuggestedRelation {
+                target,
+                relation: SuggestedRelationKind::RelatedTo,
+            }];
+        }
+        let state = vault.inspect().unwrap();
+        let decision = with_stored_context(
+            &state.data,
+            &state.snapshot(),
+            &e.descriptor.system_actor,
+            &vault.current_time().unwrap(),
+            |ctx| evaluate(&generated, ctx),
+        )
+        .unwrap();
+        let response = serde_json::to_string(&decision).unwrap();
+        let binding = GenerationBinding {
+            operation_id: request.operation_id.clone(),
+            input_hash: digest(&request),
+            response_hash: sha256(response.as_bytes()),
+        };
+        vault
+            .apply_batch(
+                &e.descriptor.system_actor,
+                admission_batch_key(std::slice::from_ref(&request)),
+                vec![request],
+                vec![decision],
+                vec![binding],
+                vec![response],
+            )
+            .unwrap()
+            .remove(0)
+    };
+    let hidden = apply(
+        serde_json::from_value(adapt(serde_json::to_value(&seed).unwrap())).unwrap(),
+        None,
+    );
+    let visible = apply(seed, Some(hidden.result.clone()));
+    let host = e.host(vault, e.jobs());
+    let reader = host
+        .agent_record_reader(&e.descriptor.created_by, agent(), scope(&e, true))
+        .unwrap();
+    let before = bytes(e.root.path());
+    let page = reader
+        .page(&profile(), &Default::default(), None, 32, 262144)
+        .unwrap();
+    assert_eq!(page.matched_in_scope, 1);
+    assert_eq!(page.items[0].memory, visible.result);
+    let json = serde_json::to_value(&page).unwrap();
+    assert!(!json.to_string().contains(hidden.result.memory_id.as_str()));
+    assert!(
+        page.record_fields.unwrap()[0]
+            .fields
+            .annotations
+            .as_ref()
+            .unwrap()
+            .suggested_relations
+            .is_empty()
+    );
+    assert!(
+        host.inspect_native()
+            .unwrap()
+            .data
+            .memories
+            .iter()
+            .find(|m| m.memory == visible.result)
+            .unwrap()
+            .decision
+            .input
+            .record_fields
+            .as_ref()
+            .unwrap()
+            .annotations
+            .as_ref()
+            .unwrap()
+            .suggested_relations
+            .iter()
+            .any(|r| r.target == hidden.result)
+    );
+    let mut allowed_scope = scope(&e, true);
+    allowed_scope.source_ids.push(id_source(2));
+    let allowed_reader = host
+        .agent_record_reader(&e.descriptor.created_by, agent(), allowed_scope)
+        .unwrap();
+    let allowed_page = allowed_reader
+        .page(&profile(), &Default::default(), None, 32, 262144)
+        .unwrap();
+    assert_eq!(allowed_page.matched_in_scope, 2);
+    assert!(
+        allowed_page
+            .record_fields
+            .unwrap()
+            .iter()
+            .find(|p| p.memory == visible.result)
+            .unwrap()
+            .fields
+            .annotations
+            .as_ref()
+            .unwrap()
+            .suggested_relations
+            .iter()
+            .any(|r| r.target == hidden.result)
+    );
+    assert_eq!(bytes(e.root.path()), before);
+}

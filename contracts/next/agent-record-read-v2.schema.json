@@ -1376,6 +1376,9 @@
           ],
           "minLength": 1,
           "maxLength": 128
+        },
+        "annotations_scope": {
+          "const": "authorized_current_targets"
         }
       },
       "required": [
@@ -1383,7 +1386,8 @@
         "fields",
         "entities",
         "producer_version",
-        "model_version"
+        "model_version",
+        "annotations_scope"
       ]
     },
     "source_record_projection": {

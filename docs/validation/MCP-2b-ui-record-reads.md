@@ -28,7 +28,7 @@ SourceRecordFields 独立受 SourceRead 控制。Source ID 与会话链接不是
 | --- | --- | --- | --- | --- |
 | 旧六工具 | 保留旧义 | 拒绝 | 拒绝 | 拒绝 |
 | MCP-2a 五工具 | 拒绝 | 支持原 Core-7 字段 | 拒绝 | 拒绝 |
-| 本片记录读取 | 拒绝 | 拒绝 | 完整冻结字段，只读 | 尚未适配，拒绝 |
+| 本片记录读取 | 拒绝 | 拒绝 | 冻结字段与范围内附注，只读 | 尚未适配，拒绝 |
 
 HostV3 仍有原 128 条／64 次提交等边界；本片不宣称 20,000 条规模或分段布局支持。
 相同 schema major、升级 pin 或 Agent 参数不能跨过 layout/capability/hash 及原生身份门禁。
@@ -36,7 +36,7 @@ Core-7 System 端口没有直接转交 Agent，普通 Agent 也不能创建 Owne
 
 ## 实际证据
 
-五组新增合成回归覆盖：
+六组新增合成回归覆盖：
 
 - 新根真实合法事务形成回执后，page/detail/source/recall 的原字段、EntityRecord、来源权限、
   未知时间和准确 trace；读取前后所有业务文件逐字节一致（OS 独占锁文件除外）。
@@ -44,6 +44,8 @@ Core-7 System 端口没有直接转交 Agent，普通 Agent 也不能创建 Owne
   再次隐藏。SourceRead 缺失时来源及 source_record_fields 均为空，原文请求拒绝。
 - 真实独立 Agent 的五工具及完整字段筛选；正常召回与预算排除均提供真实 trace，原生
   Context 逐值相等。错误的 Owner-confirmed 排除原因必须被 Schema 拒绝。
+- 附注关系的未授权目标 ID 在序列化／渲染前移除，annotations_scope 固定声明当前授权
+  目标；不暴露隐藏数量或省略标记。扩大合法 scope 后可见原建议；原始附注和业务字节不变。
 - 两种旧客户端在握手阶段拒绝 HostV3，业务文件不变。
 - 实际 `enouia-memory-mcp --protocol automation-records-v1` 经 stdio／管道接入既有 Host，
   EOF 后自有进程退出，未开第二个 writer，未写业务数据。
@@ -62,10 +64,10 @@ input/outputSchema、6 次真实字段工具交换和 1 个错误输出；旧 Ho
 | 实际检查 | 结果 |
 | --- | --- |
 | cargo fmt --all -- --check | 通过 |
-| cargo test --workspace --locked -- --test-threads=1 | 700 项通过，零失败；automatic_loop 合计 67 项 |
+| cargo test --workspace --locked -- --test-threads=1 | 701 项通过，零失败；automatic_loop 合计 68 项（含附注隐私回归） |
 | cargo clippy --workspace --all-targets --locked -- -D warnings | 通过；CARGO_INCREMENTAL=0 避免本机缓存硬链接警告 |
 | pinned Python 3.12 / python-jsonschema 4.26.0 | 53 schemas、50 UI 字段用例、12 新请求正反例通过；6 次新根交换＋1 错误输出与 106 次 HostV2 交换分别通过 |
-| python tools/integration/runtime_surface.py | 通过，58 命令，aggregate 11575fe13c2694d0a82e2761b73d82da6c4b726ef732189352fab94dd5bde9c4 已登记 |
+| python tools/integration/runtime_surface.py | 通过，58 命令，aggregate 0e07de075054c3ea0398e5b3ae3771381743194c996f8b3c573d2a66764257b8 已登记 |
 | git diff --check、公开内容及修改面审查 | 通过，61 文件在 owned／精确依赖范围内，无私人路径／凭据形态／冲突标记 |
 
 传输／ACL 场景用正常 Windows 用户令牌运行，没有放宽产品 ACL。日志、两份实际合成
@@ -79,7 +81,7 @@ input/outputSchema、6 次真实字段工具交换和 1 个错误输出；旧 Ho
 真实初始化应采用最终确认的存储／字段／读取版本，不能把这份合成证据当作私人库已切换。
 
 尚未交付：分段布局 Agent 适配、全局主题／事实／建议边、实际 Runtime UI 采用，以及
-MCP-3～5 的采集／纠正／开场。记录中的 suggested_relations 只保留为有来源的模型附注，
+MCP-3～5 的采集／纠正／开场。记录中的 suggested_relations 按当前可读目标投影为有来源的模型附注，
 不伪装为已实现的关系图。下一片先适配已提交的分段读取接口，再接 Runtime-only 采集。
 缺失时区使用 Asia/Shanghai 并保留默认来源，未知事件日期不补造。外部 Agent 宿主 hook
 已明确取消；本仓库不改 Runtime 或真实 MCP 客户端配置。

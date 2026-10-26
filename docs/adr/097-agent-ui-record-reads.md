@@ -14,7 +14,7 @@ also fit the same policy, source revision/deletion and Agent source scope before
 an item can contribute to any result/count. Reuse only authorized pure projection,
 never a System native port. No Owner action, writer or broader Context is added.
 
-Return exact stored MemoryRecordFields plus authorized current EntityRecord
+Return stored claim/time/formation fields plus authorized current EntityRecord
 metadata, keyed by the same memory revision as each page/detail/recall item.
 Return SourceRecordFields only with independent source-read permission. Unknown
 time stays unknown; title/language, quoted speaker/scalar ranges, precision/bound/
@@ -27,3 +27,10 @@ until its committed native interfaces are explicitly adopted. Synthetic temporar
 roots are sufficient: no private initialization, provider/embedding, real-client
 configuration, Runtime edit, production switch or deployment is needed or claimed.
 Runtime-only capture and Asia/Shanghai default provenance remain MCP-3 inputs.
+
+
+Suggested relation hints are not authoritative claim dependencies. Project them
+to current authorized target revisions before serialization/rendering and always
+declare annotations_scope=authorized_current_targets. Return no hidden-target
+counts/flags and do not modify stored annotations or suppress an otherwise
+readable claim because a hint names a hidden or stale target.
