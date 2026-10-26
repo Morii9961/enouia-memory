@@ -494,3 +494,11 @@ Runtime [ADR-025](https://github.com/Morii9961/enouia-runtime/blob/main/docs/adr
 ### ADR-MEM-92 — Native Agent local transport (Adopted, synthetic)
 
 [Decision](092-native-agent-local-transport.md): explicit native process enrollment, scoped six-tool local pipe and fail-closed version/lifecycle boundaries; automation V2 Agent reads remain separate.
+
+### ADR-MEM-95 — Scoped native Agent automation reads
+
+[Decision](095-native-agent-automation-reads.md): separate native Agent policy/instance/lifecycle gate before V2 page/detail projection and counts; no System forwarding or implicit six-tool upgrade.
+
+### ADR-MEM-96 — Versioned automation-root MCP reads
+
+[Decision](096-versioned-automation-agent-mcp.md): five explicitly versioned read tools, bundled output schemas, scoped recall and the same computed trace for native Context; legacy pipe remains unchanged.

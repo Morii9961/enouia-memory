@@ -18,6 +18,16 @@ impl AutomationVault {
         selected: Option<&MemoryId>,
     ) -> Result<AuthorizedReadData> {
         self.system(actor)?;
+        self.read_data_with(max, selected, |_, _| Ok(()), |_, _| true)
+    }
+
+    pub(super) fn read_data_with(
+        &self,
+        max: Sensitivity,
+        selected: Option<&MemoryId>,
+        verify: impl FnOnce(&AutomationCommit, &Timestamp) -> Result<()>,
+        allowed: impl Fn(&AutomationCommit, &MachineMemory) -> bool,
+    ) -> Result<AuthorizedReadData> {
         self.available()?;
         if self.descriptor.layout != AutomationLayout::HostV2 {
             return Err(AutomationFault::Denied);
@@ -32,13 +42,14 @@ impl AutomationVault {
         {
             return Err(AutomationFault::Denied);
         }
+        verify(&commit, &now)?;
         let mut latest = BTreeMap::new();
         for m in &commit.data.memories {
             latest.insert(&m.memory.memory_id, m);
         }
         let current: Vec<_> = latest
             .values()
-            .filter(|m| self.eligible(&commit, m, max, true).is_ok())
+            .filter(|m| self.eligible(&commit, m, max, true).is_ok() && allowed(&commit, m))
             .map(|m| (*m).clone())
             .collect();
         let history =
@@ -50,6 +61,7 @@ impl AutomationVault {
                     .filter(|m| {
                         Some(&m.memory.memory_id) == selected
                             && self.eligible(&commit, m, max, true).is_ok()
+                            && allowed(&commit, m)
                     })
                     .cloned()
                     .collect()

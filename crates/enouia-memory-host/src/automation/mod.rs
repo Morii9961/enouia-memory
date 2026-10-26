@@ -1,6 +1,7 @@
 //! Core-2 opt-in synthetic job coordinator. No default Host wiring, Provider
 //! adapter or default writer. The opt-in `application` module connects Core-3's
 //! separate V2 synthetic transactions; the coordinator alone never applies them.
+pub mod agent_read;
 pub mod application;
 pub mod attention;
 pub mod continuation;

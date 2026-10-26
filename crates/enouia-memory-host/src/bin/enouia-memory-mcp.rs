@@ -51,6 +51,9 @@ fn run() -> Result<(), ()> {
             "--host-id",
             "--agent-id",
             "--agent-scopes",
+            "--protocol",
+            "--pipe",
+            "--host-pid",
         ]
         .contains(&key.as_str())
         {
@@ -59,6 +62,51 @@ fn run() -> Result<(), ()> {
         if options.insert(key, args.next().ok_or(())?).is_some() {
             return Err(());
         }
+    }
+    if options.contains_key("--protocol")
+        || options.contains_key("--pipe")
+        || options.contains_key("--host-pid")
+    {
+        if options.len() != 4
+            || !["--protocol", "--pipe", "--host-pid", "--vault-id"]
+                .iter()
+                .all(|key| options.contains_key(*key))
+        {
+            return Err(());
+        }
+        let vault = VaultId::parse(options["--vault-id"].to_str().ok_or(())?).map_err(|_| ())?;
+        let pipe =
+            enouia_memory_contract::hash::Sha256Hex::parse(options["--pipe"].to_str().ok_or(())?)
+                .ok_or(())?;
+        let pid: u32 = options["--host-pid"]
+            .to_str()
+            .ok_or(())?
+            .parse()
+            .map_err(|_| ())?;
+        let peer = ProcessPeer::enroll(pid, HostSurface::QuickSearch).map_err(|_| ())?;
+        let pipe = Pipe::connect(&pipe).map_err(|_| ())?;
+        return match options["--protocol"].to_str().ok_or(())? {
+            "automation-v2" => {
+                let mut client = enouia_memory_host::mcp::v2::native::Client::connect(
+                    pipe,
+                    peer,
+                    &vault,
+                    Duration::from_secs(10),
+                )
+                .map_err(|_| ())?;
+                client
+                    .serve_stdio(&mut std::io::stdin().lock(), &mut std::io::stdout().lock())
+                    .map_err(|_| ())
+            }
+            "legacy-v1" => {
+                let mut client =
+                    Client::connect(pipe, peer, &vault, Duration::from_secs(10)).map_err(|_| ())?;
+                client
+                    .serve_stdio(&mut std::io::stdin().lock(), &mut std::io::stdout().lock())
+                    .map_err(|_| ())
+            }
+            _ => Err(()),
+        };
     }
     if options.len() != 6 {
         return Err(());

@@ -1,6 +1,8 @@
 //! Core-3 explicit V2 synthetic authority. No legacy-format adoption or default
 //! writer activation. One Host lease, short Writer transactions, exact witness.
+mod agent_read;
 mod attention;
+pub use agent_read::{AgentReadPermit, AgentReadScope};
 mod read_model;
 pub use read_model::AuthorizedReadData;
 mod publication;
@@ -74,6 +76,7 @@ pub struct AutomationVault {
     clock: Arc<dyn Clock + Send + Sync>,
     ids: Arc<dyn IdSource + Send + Sync>,
     poisoned: AtomicBool,
+    agent_instance: Arc<()>,
 }
 impl AutomationVault {
     fn acquire(
@@ -112,6 +115,7 @@ impl AutomationVault {
             clock,
             ids,
             poisoned: AtomicBool::new(false),
+            agent_instance: Arc::new(()),
         })
     }
     pub fn create(

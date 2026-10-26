@@ -30,6 +30,7 @@ pub struct AutomationHost {
     unlocked: RwLock<bool>,
     continuation: Option<super::continuation::ContinuousPolicyHost>,
     pub(super) maintenance_running: Arc<AtomicBool>,
+    pub(super) agent_generation: Mutex<Arc<AtomicBool>>,
 }
 impl AutomationHost {
     /// Caller authenticates the native System identity separately. Never fill
@@ -51,6 +52,7 @@ impl AutomationHost {
             unlocked: RwLock::new(true),
             continuation: None,
             maintenance_running: Arc::new(AtomicBool::new(false)),
+            agent_generation: Mutex::new(Arc::new(AtomicBool::new(true))),
         })
     }
     /// Bind before workers start; application shares the policy revoke barrier.
@@ -82,10 +84,15 @@ impl AutomationHost {
         Ok(guard)
     }
     pub fn lock(&self) -> ApplicationResult<()> {
-        *self
+        let mut unlocked = self
             .unlocked
             .write()
-            .map_err(|_| ApplicationFault::Locked)? = false;
+            .map_err(|_| ApplicationFault::Locked)?;
+        *unlocked = false;
+        self.agent_generation
+            .lock()
+            .map_err(|_| ApplicationFault::Locked)?
+            .store(false, Ordering::SeqCst);
         self.jobs.lock()?;
         Ok(())
     }
@@ -93,11 +100,18 @@ impl AutomationHost {
         if system != &self.system {
             return Err(ApplicationFault::Invalid);
         }
-        self.vault.inspect()?;
-        *self
+        let mut unlocked = self
             .unlocked
             .write()
-            .map_err(|_| ApplicationFault::Locked)? = true;
+            .map_err(|_| ApplicationFault::Locked)?;
+        self.vault.inspect()?;
+        let mut generation = self
+            .agent_generation
+            .lock()
+            .map_err(|_| ApplicationFault::Locked)?;
+        generation.store(false, Ordering::SeqCst);
+        *generation = Arc::new(AtomicBool::new(true));
+        *unlocked = true;
         Ok(())
     }
     pub fn inspect_native(&self) -> ApplicationResult<AutomationCommit> {

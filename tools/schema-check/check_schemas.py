@@ -291,6 +291,31 @@ def main():
             failures.append(f"read-model case {case['id']}: disagreement")
     counts["read_model_documents"] = len(read_model["valid"]) + len(read_model["invalid"])
 
+    agent = load(ROOT / "tests" / "fixtures" / "agent-read" / "manifest.json")
+    for value in agent["valid"]:
+        if not valid(agent["schema"], value):
+            failures.append("valid Agent read request rejected")
+    for case in agent["invalid"]:
+        if valid(agent["schema"], case["value"]):
+            failures.append(f"invalid Agent read request accepted: {case['name']}")
+    counts["agent_read_documents"] = len(agent["valid"]) + len(agent["invalid"])
+
+    if len(sys.argv) != 1:
+        if len(sys.argv) != 3 or sys.argv[1] != "--mcp2-transcript":
+            raise SystemExit("usage: check_schemas.py [--mcp2-transcript FILE]")
+        transcript = load(pathlib.Path(sys.argv[2]))
+        tools = {tool["name"]: tool for tool in transcript["catalog"]}
+        for tool in tools.values():
+            for key in ("inputSchema", "outputSchema"):
+                Draft202012Validator.check_schema(tool[key])
+        for exchange in transcript["exchanges"]:
+            tool = tools[exchange["tool"]]
+            for key, value in (("inputSchema", exchange["arguments"]),
+                               ("outputSchema", exchange["response"]["result"]["structuredContent"])):
+                if not Draft202012Validator(tool[key]).is_valid(value):
+                    failures.append(f"MCP-2 live {exchange['tool']} {key}: rejected")
+        counts["mcp2_live_exchanges"] = len(transcript["exchanges"])
+
     invocation_cases = load(FIXTURES / "provider-invocation-cases.json")
     for case in invocation_cases["cases"]:
         value = copy.deepcopy(invocation_cases["base"])
