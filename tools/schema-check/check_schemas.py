@@ -304,6 +304,19 @@ def main():
             failures.append(f"UI record case {case['id']}: disagreement")
     counts["ui_record_documents"] = len(ui["valid"]) + len(ui["invalid"])
 
+    catalog_dir = ROOT / "tests" / "fixtures" / "catalog"
+    catalog = load(catalog_dir / "manifest.json")
+    catalog_schemas = {e["file"]: e["schema"] for e in catalog["valid"]}
+    for entry in catalog["valid"]:
+        if not valid(entry["schema"], load(catalog_dir / entry["file"])):
+            failures.append(f"valid catalog document rejected: {entry['file']}")
+    for case in catalog["invalid"]:
+        value = load(catalog_dir / case["base"])
+        apply_ops(value, case["ops"])
+        if valid(catalog_schemas[case["base"]], value) != (case["schema"] == "accept"):
+            failures.append(f"catalog case {case['id']}: disagreement")
+    counts["catalog_documents"] = len(catalog["valid"]) + len(catalog["invalid"])
+
     invocation_cases = load(FIXTURES / "provider-invocation-cases.json")
     for case in invocation_cases["cases"]:
         value = copy.deepcopy(invocation_cases["base"])

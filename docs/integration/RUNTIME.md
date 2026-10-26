@@ -292,5 +292,31 @@ Runtime must separately adopt the exact pin/manifest, layout/capability gate,
 then new read ports and field meanings. Never point the current pin at a v3 root,
 map machine adoption to owner confirmation, or treat syntax checks as semantic
 quality. No Runtime file, pin, adapter, default Host route or MCP tool changed.
-Morii confirms the field contract before S2 initialization/S3 collection adoption;
-G01 and later slices remain pending. This entry does not activate a real root.
+Morii confirmed continuation after the field report; S2/S3 must still adopt
+the exact accepted contract. Subsequent read work is recorded below. This entry does not activate a real root.
+
+### 2026-10-26 — Segmented roots and catalog read-2 (ADR-MEM-94)
+
+Surface aggregate: `f02fe5f5de82ea141f509a3693b8f058e30f69268a6708ffda8bf1b1203b5d09`.
+
+G01/G06/G23 add new-empty-root `automation-segmented-host-v1` (schema 2),
+immutable linked delta storage, native System admission with witnessed receipts,
+and explicitly authenticated `SegmentedMemoryReader` page/facets/statistics.
+The accepted ADR93 record fields stay unchanged. Read capability is
+`memory-native-read-2`, algorithm `literal-alias-catalog-1` version 1. See
+[contract and limits](../contracts/UI_V2_CATALOG.md) and
+[synthetic evidence](../validation/UI-v2-catalog.md).
+
+Runtime must adopt the exact revision/manifest and descriptor/read capability,
+new native capture/application entry, explicit System identity/lifecycle gate,
+selection-bound continuation, byte/value coverage, and qualified row axes.
+Do not send segmented roots through old AutomationVault/read-1 paths. Counts,
+labels and memberships follow current exact grants before filtering; entity
+alias evidence must be within each memory's own policy. Unknown time remains
+unknown; theme filtering currently covers recorded derivations only, pending
+G05 family projection. Read-2 does not yet supply source/history detail,
+Context, time buckets, graph, conflict groups or owner actions. Owner ledger
+publication stays disabled until G08. No Runtime pin, checkout, default Host,
+Workspace commands or MCP route changed. No external dependency was added.
+20,000 native synthetic records are an isolated test, not initialization,
+Provider quality, private-data acceptance or production activation.

@@ -39,7 +39,8 @@
           "enum": [
             "automation-host-v1",
             "automation-host-v2",
-            "automation-host-v3"
+            "automation-host-v3",
+            "automation-segmented-host-v1"
           ]
         },
         "vault_id": {

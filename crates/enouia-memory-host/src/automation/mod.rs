@@ -3,6 +3,7 @@
 //! separate V2 synthetic transactions; the coordinator alone never applies them.
 pub mod application;
 pub mod attention;
+pub mod catalog;
 pub mod continuation;
 mod model;
 pub mod read_model;

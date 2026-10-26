@@ -483,6 +483,14 @@ and authorization/snapshot/deletion rules for later projections. Synthetic
 validation only; stop for owner field acceptance before initialization/adoption.
 Number 92 is left for the separately owned MCP transport work.
 
+### ADR-MEM-94 — Segmented automatic roots and scalable native catalog
+
+[Decision](094-segmented-native-memory-reads.md): preserve the accepted UI v2
+record fields in new `automation-segmented-host-v1` roots; immutable bounded
+deltas, exact scoped policies and witnessed recovery replace full snapshots.
+Native read-2 adds authorization-first 100-row/byte-bound pages, literal/alias
+filters, scoped facets and exact statistics. Old layouts/ports stay unchanged.
+
 ## Relation to Enouia Runtime's register
 
 
