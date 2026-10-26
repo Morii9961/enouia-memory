@@ -343,3 +343,26 @@ owner overlays remain G15/G08. No v1 command, default Host/MCP route, Runtime
 file/pin, Provider or production activation changed. See
 [contract](../contracts/UI_V2_PROJECTIONS.md) and
 [synthetic evidence](../validation/UI-v2-projections.md).
+
+### 2026-10-27 — Process, detail and session reads (ADR-MEM-101)
+
+Surface aggregate: `191617ddd3d82065a5012e70b644a7ac69d6768b02216739da6ce410f1912599`.
+
+Adopt the exact manifest and native read-2 activity/change/history/conflict/diff/
+neighbor/source/conversation ports described in [contract](../contracts/UI_V2_PROCESS.md).
+Catalog now emits `qualified-family-catalog-3` version 3; restart older cursors.
+Rows carry effective sensitivity and recorded machine formation reason; native
+graph nodes carry effective sensitivity. Keep recorded envelope versus caller
+ceiling, real witnessed publication actor/time versus logical formation axes,
+qualified counter-source overlap versus verified contradiction, and captured
+turn/source counts versus platform totals distinct.
+
+Changes can request reload instead of an incomplete exact delta; zero scoped IDs
+can still invalidate projections after a snapshot change. Historical access
+requires current identity and original current dependencies. Historical turn
+fragments retain their own sensitivity floor. Source-unavailable states do not
+distinguish absence, deletion or lack of access. Time-derived activity events
+remain unavailable; no fake fading/archive jobs or owner confirmations.
+Stored record fields/layout stay unchanged. G08 owner execution is still pending.
+No Runtime file/pin, MCP route, real root/provider or deployment changed. See
+[synthetic validation](../validation/UI-v2-process.md).

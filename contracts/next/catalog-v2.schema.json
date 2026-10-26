@@ -471,13 +471,15 @@
         "algorithm": {
           "enum": [
             "literal-alias-catalog-1",
-            "literal-family-catalog-2"
+            "literal-family-catalog-2",
+            "qualified-family-catalog-3"
           ]
         },
         "version": {
           "enum": [
             1,
-            2
+            2,
+            3
           ]
         },
         "profile_hash": {
@@ -505,6 +507,16 @@
             },
             "version": {
               "const": 2
+            }
+          }
+        },
+        {
+          "properties": {
+            "algorithm": {
+              "const": "qualified-family-catalog-3"
+            },
+            "version": {
+              "const": 3
             }
           }
         }
@@ -697,6 +709,26 @@
           },
           "maxItems": 32,
           "minItems": 0
+        },
+        "effective_sensitivity": {
+          "oneOf": [
+            {
+              "$ref": "../memory/common-v1.schema.json#/$defs/sensitivity"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "formation_reason": {
+          "oneOf": [
+            {
+              "$ref": "process-v2.schema.json#/$defs/MemoryFormationReason"
+            },
+            {
+              "type": "null"
+            }
+          ]
         }
       }
     },
@@ -783,7 +815,50 @@
           "maxItems": 9,
           "minItems": 0
         }
-      }
+      },
+      "anyOf": [
+        {
+          "properties": {
+            "selection": {
+              "properties": {
+                "algorithm": {
+                  "enum": [
+                    "literal-alias-catalog-1",
+                    "literal-family-catalog-2"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        {
+          "properties": {
+            "selection": {
+              "properties": {
+                "algorithm": {
+                  "const": "qualified-family-catalog-3"
+                }
+              }
+            },
+            "items": {
+              "items": {
+                "required": [
+                  "effective_sensitivity",
+                  "formation_reason"
+                ],
+                "properties": {
+                  "effective_sensitivity": {
+                    "$ref": "../memory/common-v1.schema.json#/$defs/sensitivity"
+                  },
+                  "formation_reason": {
+                    "$ref": "process-v2.schema.json#/$defs/MemoryFormationReason"
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
     },
     "stats": {
       "type": "object",

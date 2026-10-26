@@ -59,6 +59,16 @@
       "file": "facets-v2.json",
       "type": "facets",
       "schema": "next/catalog-v2.schema.json"
+    },
+    {
+      "file": "page-v3.json",
+      "type": "page",
+      "schema": "next/catalog-v2.schema.json"
+    },
+    {
+      "file": "stats-v3.json",
+      "type": "stats",
+      "schema": "next/catalog-v2.schema.json"
     }
   ],
   "invalid": [
@@ -9370,6 +9380,28 @@
           "op": "set",
           "path": "/selection/version",
           "value": 1
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "v3-without-effective-sensitivity",
+      "base": "page-v3.json",
+      "ops": [
+        {
+          "op": "remove",
+          "path": "/items/0/effective_sensitivity"
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "v3-without-recorded-reason",
+      "base": "page-v3.json",
+      "ops": [
+        {
+          "op": "remove",
+          "path": "/items/0/formation_reason"
         }
       ],
       "schema": "reject"

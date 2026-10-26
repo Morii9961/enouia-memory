@@ -499,6 +499,13 @@ Catalog algorithm version 2, current authorization before every projection;
 no stored record/layout change or Runtime/MCP activation. Owner application
 and history correction relations remain in their later slices.
 
+### ADR-MEM-101 — Native process, history and conversation reads (Implemented, synthetic)
+
+[Decision](101-native-process-detail-reads.md): witnessed activity, scoped change
+anchors, authorized conflict/diff/history/neighbor/source/session ports and v3
+sensitivity/reason qualifications. No stored record/layout change, owner
+execution, Runtime adoption or MCP activation.
+
 ## Relation to Enouia Runtime's register
 
 

@@ -182,6 +182,8 @@ impl Row<'_> {
             content_lang: f.content_lang.clone(),
             event_time: f.event_time.clone(),
             valid_time: f.valid_time.clone(),
+            effective_sensitivity: Some(effective(self.entry)),
+            formation_reason: Some(reason(self.entry)),
             entities: f
                 .entities
                 .iter()
@@ -296,8 +298,8 @@ fn selection(
 ) -> ApplicationResult<CatalogSelection> {
     let scope_hash = digest(&data.memories.iter().map(|m| &m.target).collect::<Vec<_>>());
     let selected = CatalogSelection {
-        algorithm: CatalogReadAlgorithm::V2,
-        version: enouia_memory_contract::json::Revision::new(2).unwrap(),
+        algorithm: CatalogReadAlgorithm::V3,
+        version: enouia_memory_contract::json::Revision::new(3).unwrap(),
         profile_hash: digest(request.profile),
         withdrawal_watermark: data.withdrawal_watermark,
         snapshot: data.snapshot.clone(),
@@ -632,3 +634,28 @@ impl SegmentedMemoryReader {
 }
 
 mod projections;
+
+fn effective(entry: &SegmentedMemory) -> Sensitivity {
+    // Publication/current-read validation proves this declared floor covers every
+    // original source, entity/alias dependency and recursively current parent.
+    // A policy or caller ceiling is a limit, never the record's classification.
+    entry.memory.decision.input.sensitivity
+}
+fn reason(entry: &SegmentedMemory) -> MemoryFormationReason {
+    let i = &entry.memory.decision.input;
+    let f = i.record_fields.as_ref().unwrap();
+    MemoryFormationReason {
+        interpretation: i.interpretation,
+        rule_version: entry.memory.decision.rule_version,
+        prompt_version: f.formation.prompt_version.clone(),
+        model_version: f.annotations.as_ref().and_then(|a| a.model_version.clone()),
+        mode: f.formation.mode,
+        import_batch_id: f.formation.import_batch_id.clone(),
+        note: f
+            .annotations
+            .as_ref()
+            .and_then(|a| a.formation_note.clone()),
+        note_is_machine_annotation: true,
+    }
+}
+mod process;
