@@ -506,6 +506,14 @@ anchors, authorized conflict/diff/history/neighbor/source/session ports and v3
 sensitivity/reason qualifications. No stored record/layout change, owner
 execution, Runtime adoption or MCP activation.
 
+### ADR-MEM-103 — Owner correction subject binding (Proposed; awaiting owner)
+
+[Proposal](103-owner-correction-subject-binding-proposal.md): choose an explicit
+owner-subject binding in a new empty owner-capable root, or unattributed staged
+owner corrections. Current Owner ActorRef does not prove a SubjectId. No new
+layout/field/writer is implemented or authorized by this proposal. ADR102 is
+reserved for the concurrent Runtime capture session.
+
 ## Relation to Enouia Runtime's register
 
 

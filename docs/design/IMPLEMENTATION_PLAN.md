@@ -1,3 +1,8 @@
+> 2026-10-27 G08 设计检查点：[ADR103 提案](../adr/103-owner-correction-subject-binding-proposal.md)
+> 发现 Owner ActorRef 与 SubjectId 缺少可信绑定；等待 Morii 选择根描述符显式绑定，
+> 或无主体归属且保持暂存的纠正语义。当前未实现新布局/字段或主人发布入口。
+> 这不会撤销 ADR93 的字段确认；初始化不得把提案当成已实现契约。
+
 > 2026-10-27 UI v2 第四片：[ADR101](../adr/101-native-process-detail-reads.md)
 > 实现 G07 → G13 → G15 → G16 → G19，并补齐 G14 原生会话/来源读取。
 > 记录字段与 segmented-v1 布局不变；采用前需重启旧游标。见
