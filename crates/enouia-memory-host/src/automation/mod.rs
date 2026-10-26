@@ -8,6 +8,7 @@ pub mod catalog;
 pub mod continuation;
 mod model;
 pub mod read_model;
+pub mod segmented_agent;
 mod worker;
 pub use model::*;
 pub use worker::{Generated, Generation, Generator, PendingGeneration, StopToken};

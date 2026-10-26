@@ -1,3 +1,9 @@
+> 2026-10-26 MCP 接续：按 [ADR-MEM-98](../adr/098-segmented-agent-memory-reads.md)
+> 先交付独立分段 Agent gate，再接五工具与显式大集合 trace 覆盖。
+> 各检查点以 [MCP-2c 报告](../validation/MCP-2c-segmented-agent-reads.md)记录实际检查；
+> 后续采集只接 Runtime 宿主，缺时区使用 Asia/Shanghai 并记录默认来源。
+> 无私人初始化也继续使用临时合成根开发；不隐式激活 Runtime 或真实客户端。
+
 > 2026-10-26 接续：Morii 在第一片字段报告后确认继续。第二片按
 > [ADR-MEM-94](../adr/094-segmented-native-memory-reads.md)实现 G01 → G06 → G23；
 > 新物理布局保留已冻结的记录字段，不原地升级旧根。见

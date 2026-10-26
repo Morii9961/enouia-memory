@@ -24,6 +24,7 @@ use enouia_memory_contract::{
     ids::*,
     json::{Revision, canonical_bytes},
     next::*,
+    ports::IdSource,
     source::{SourceKind, SourceRecord},
     time::Timestamp,
 };
@@ -58,9 +59,10 @@ fn root(label: &str) -> VerifiedRoot {
     let base = std::fs::canonicalize(base).unwrap();
     let base = PathBuf::from(base.to_string_lossy().trim_start_matches(r"\\?\"));
     let path = base.join(format!(
-        "{label}-{}-{}",
+        "{label}-{}-{}-{}",
         std::process::id(),
-        ROOTS.fetch_add(1, Ordering::SeqCst)
+        ROOTS.fetch_add(1, Ordering::SeqCst),
+        format_uuid_v4(OsIdSource.random_16())
     ));
     std::fs::create_dir(&path).unwrap();
     verify_data_root(&path, &RootPolicy::default()).unwrap()
@@ -285,6 +287,21 @@ fn wait(jobs: &SyntheticJobs, key: &Sha256Hex, state: JobState) {
         }
         assert!(Instant::now() < until, "{:?}", jobs.status(key));
         std::thread::sleep(Duration::from_millis(5));
+    }
+}
+// Status is deliberately nonblocking. A worker may hold its mutex even after
+// the previous observation, so retry only this content-free Busy observation.
+// Never retry a generation, publication or unknown operation here.
+fn observed_status(jobs: &SyntheticJobs, key: &Sha256Hex) -> Status {
+    let until = Instant::now() + Duration::from_secs(15);
+    loop {
+        match jobs.status(key) {
+            Ok(status) => return status,
+            Err(Fault::Busy) if Instant::now() < until => {
+                std::thread::sleep(Duration::from_millis(5));
+            }
+            other => panic!("job status observation: {other:?}"),
+        }
     }
 }
 fn worker(jobs: &SyntheticJobs, mode: ModelMode) -> std::thread::JoinHandle<()> {
@@ -593,7 +610,7 @@ fn current_deletion_policy_lock_and_native_control_invalidate_old_jobs() {
             }
         }
         assert!(host.apply_job(&key).is_err());
-        assert_ne!(jobs.status(&key).unwrap().state, JobState::Generated);
+        assert_ne!(observed_status(&jobs, &key).state, JobState::Generated);
         if action == "lock" {
             host.unlock(&e.descriptor.system_actor).unwrap();
         }
@@ -944,16 +961,21 @@ fn core3_publication_child() {
 fn actual_process_crash_preserves_one_result_and_the_same_receipt() {
     for point in ["intent", "current", "witness"] {
         let e = Env::new();
-        let status = Command::new(std::env::current_exe().unwrap())
+        let output = Command::new(std::env::current_exe().unwrap())
             .args(["--exact", "core3_publication_child", "--nocapture"])
             .env("ENOU_CORE3_DATA_ROOT", e.root.path())
             .env("ENOU_CORE3_JOB_ROOT", e.jobs_root.path())
             .env("ENOU_CORE3_POINT", point)
             .stdout(Stdio::null())
-            .stderr(Stdio::null())
-            .status()
+            .stderr(Stdio::piped())
+            .output()
             .unwrap();
-        assert_eq!(status.code(), Some(3));
+        assert_eq!(
+            output.status.code(),
+            Some(3),
+            "owned {point} child: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
         let vault = AutomationVault::recover(
             &e.root,
             e.descriptor.host_id.clone(),

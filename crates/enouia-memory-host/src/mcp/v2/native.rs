@@ -93,6 +93,16 @@ pub struct Client {
     inner: crate::mcp::native::Client,
 }
 impl Client {
+    pub(in crate::mcp) fn connect_expected(
+        pipe: Pipe,
+        host: ProcessPeer,
+        hello: Value,
+        timeout: Duration,
+    ) -> Result<Self> {
+        Ok(Self {
+            inner: crate::mcp::native::Client::connect_expected(pipe, host, hello, timeout)?,
+        })
+    }
     pub fn connect_records(
         pipe: Pipe,
         host: ProcessPeer,
