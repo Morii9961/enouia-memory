@@ -89,6 +89,14 @@ impl HostService {
     }
 }
 
+#[cfg(windows)]
+impl HostPort<'_> {
+    pub(super) fn check_live(&self) -> std::result::Result<(), ServiceFault> {
+        let connection = self.connection.as_ref().ok_or(SessionFault::Revoked)?;
+        self.host.dispatch_agent(connection, |_| ())
+    }
+}
+
 impl AgentPort for HostPort<'_> {
     fn call(
         &mut self,

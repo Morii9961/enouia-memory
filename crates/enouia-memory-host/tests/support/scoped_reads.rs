@@ -1867,3 +1867,6 @@ fn scoped_agent_context_actual_witness_fault_preserves_requestid_for_explicit_re
     );
     assert_eq!(host.vault.pin_current().unwrap(), after);
 }
+
+#[path = "native_agent.rs"]
+mod native_agent;

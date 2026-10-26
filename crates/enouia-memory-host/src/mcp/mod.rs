@@ -1,6 +1,8 @@
 //! Restricted MCP 2025-11-25 boundary (ADR-MEM-80).
-//! No native enrollment, Vault access, owner Workspace bridge or automatic retry.
+//! Opt-in native enrollment lives in `native`; no owner bridge or automatic retry.
 mod json;
+#[cfg(windows)]
+pub mod native;
 mod read;
 pub use read::{HostPort, ReadPort};
 
