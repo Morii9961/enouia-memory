@@ -42,3 +42,14 @@ Late verification found UI ADR 093 at 24a03e02bdf18094d60bc4d3268d380bd1b669a1
 introduces automation-host-v3. This endpoint intentionally remains HostV2-only;
 MCP-2b must adopt that root and its complete fields before claiming UI v2 parity.
 The parallel segmented-read work is not modified or treated as merged here.
+
+
+## Capture scope clarification (2026-10-26)
+
+Morii selected Runtime-host-only daily conversation capture, replacing the
+interim both-hosts choice. External Agent-host hooks are outside this route;
+Agent MCP reads remain authorized and Agent hints keep Agent provenance.
+Missing timezone uses Asia/Shanghai with explicit default-source provenance;
+unknown event time remains unknown. These decisions constrain MCP-3, without
+activating capture, granting Owner authority or changing the record schema.
+See the [confirmed capture decisions](../contracts/MCP_AGENT_READ_V2.md#capture-decisions-confirmed-by-morii-2026-10-26).

@@ -137,7 +137,36 @@ capture times are preserved.
 
 MCP-3 must use the frozen record fields and the same System/live formation pipeline
 as initialization. Agent hints remain hints and Agent speech never becomes native
-Owner confirmation. Capture hooks/default timezone and forget-hide policy require
-Morii's decisions at their respective slices. No migration, real Provider or
-embedding, private Vault, Activity/Usage, Runtime edit, remote opening or deployment
-is part of this delivery. See [synthetic evidence](../validation/MCP-2-automation-agent-reads.md).
+Owner confirmation. Morii's capture/timezone decisions below govern the next
+capture slice; forget-hide policy still requires a decision before MCP-4.
+No migration, real Provider or embedding, private Vault, Activity/Usage, Runtime
+edit, remote opening or deployment is part of this delivery.
+See [synthetic evidence](../validation/MCP-2-automation-agent-reads.md).
+
+## Capture decisions confirmed by Morii (2026-10-26)
+
+Daily raw-conversation collection is **Runtime-host-only**. This supersedes the
+earlier choice of both Runtime and Agent-host hooks. Do not implement Codex,
+Claude or other external Agent-host collection hooks in this route. Agent MCP
+reads remain in scope; optional Agent notes stay Agent hints/provenance and do
+not become authenticated Runtime conversation capture or Owner confirmation.
+
+The future capture ingress must authenticate native Runtime registration;
+clientInfo, speaker labels, tool arguments or an Agent claim cannot establish
+Runtime origin. Only conversations actually available to that Runtime host are
+collected. This decision grants no access to other applications' chat histories.
+Retries retain the original packet/key and conflict on changed work; removing
+the second hook does not authorize duplicate formation or automatic resend.
+The concrete versioned capture API/permission is still an MCP-3 deliverable.
+
+For missing source timezone use the owner-selected default **Asia/Shanghai**,
+and preserve explicit provenance that the timezone came from that default.
+Keep an explicitly supplied timezone. This default supplies no unknown event
+instant/date and must not replace RecordTime.basis with an unfrozen enum value.
+The exact provenance field and normalization follow the frozen record contract
+and the capture implementation, not an invented record-schema extension.
+
+These are backend implementation inputs, not evidence of a working Runtime
+hook. Runtime-side code/adoption is a separate integration; this repository
+continues to own the authenticated backend ingress, validation, idempotency and
+shared System formation pipeline. No real client configuration is authorized.
