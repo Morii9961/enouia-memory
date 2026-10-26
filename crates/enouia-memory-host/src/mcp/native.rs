@@ -60,6 +60,17 @@ impl Enrollment {
             until: Instant::now() + TTL,
         })
     }
+    pub(super) fn allows_v2_reader(&self, principal: &ActorRef, source_read: bool) -> bool {
+        self.grant.principal == *principal
+            && self.grant.scopes.contains(&Scope::MemoryRead)
+            && self
+                .grant
+                .scopes
+                .iter()
+                .all(|s| matches!(s, Scope::MemoryRead | Scope::SourceRead))
+            && (!source_read || self.grant.scopes.contains(&Scope::SourceRead))
+    }
+
     /// Native revocation handle; shared with the server, not serialized.
     pub fn revocation(&self) -> Grant {
         self.grant.clone()
@@ -73,12 +84,12 @@ impl Enrollment {
         }
         Ok(())
     }
-    fn check(&self, pipe: &Pipe) -> Result<()> {
+    pub(super) fn check(&self, pipe: &Pipe) -> Result<()> {
         self.live()?;
         self.peer.verify_client(pipe)?;
         Ok(())
     }
-    fn timeout(&self, timeout: Duration) -> Duration {
+    pub(super) fn timeout(&self, timeout: Duration) -> Duration {
         timeout.min(self.until.saturating_duration_since(Instant::now()))
     }
 }
@@ -163,13 +174,20 @@ pub struct Client {
 }
 impl Client {
     pub fn connect(
-        mut pipe: Pipe,
+        pipe: Pipe,
         host: ProcessPeer,
         vault: &VaultId,
         timeout: Duration,
     ) -> Result<Self> {
+        Self::connect_expected(pipe, host, hello(vault), timeout)
+    }
+    pub(super) fn connect_expected(
+        mut pipe: Pipe,
+        host: ProcessPeer,
+        expected: Value,
+        timeout: Duration,
+    ) -> Result<Self> {
         host.verify_server(&pipe)?;
-        let expected = hello(vault);
         write(&mut pipe, Tag::Hello, &expected, timeout)?;
         let (tag, bytes) = read(&mut pipe, false, timeout)?;
         host.verify_server(&pipe)?;
@@ -247,6 +265,13 @@ impl Client {
                 Err(fail(ExchangeFault::OutcomeUnknown))
             }
         }
+    }
+    pub(super) fn close(&mut self) {
+        self.poisoned = true;
+    }
+    pub(super) fn retain_output_unknown(&mut self, message: &Value) {
+        self.poisoned = true;
+        self.original_unknown = Some(message.clone());
     }
     pub fn original_unknown(&self) -> Option<&Value> {
         self.original_unknown.as_ref()

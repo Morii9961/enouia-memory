@@ -133,3 +133,13 @@ G4 在源电脑关机期间运行时沿用相同编译规则与发布版本，�
 ### MCP native Agent continuation (2026-10-25)
 
 The [native Agent v1 contract](../contracts/MCP_NATIVE_AGENT_V1.md) adds a separately enrolled local pipe/stdio bridge over the existing six tools and sole Host. It supports schema-1 host-current-v2 only; automation-host-v2 is refused before business decode/query/count. It never forwards Owner Workspace or System native reads.
+
+### MCP automation Agent reads (2026-10-26)
+
+The [Agent V2 read contract](../contracts/MCP_AGENT_READ_V2.md) adds a distinct
+native scoped reader and memory-agent-pipe-2 for automation-host-v2, exposing
+memory_search/read/source/related/recall with outputSchema and read-only hints.
+It reuses pure Core-7 projection after Agent authorization, never System identity.
+Native Context can obtain the same actual ephemeral recall trace. Legacy tools
+still reject new roots; capture/correction/session tools and unavailable UI fields
+remain separate prerequisites. Workspace IPC v1 stays at 58 commands.

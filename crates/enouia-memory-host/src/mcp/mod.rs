@@ -4,6 +4,7 @@ mod json;
 #[cfg(windows)]
 pub mod native;
 mod read;
+pub mod v2;
 pub use read::{HostPort, ReadPort};
 
 use enouia_memory_contract::common::{ActorRef, ActorType};
