@@ -11,6 +11,10 @@ mod tools;
 pub use tools::*;
 
 pub const CAPABILITY: &str = "memory-agent-read-1";
+pub const RECORD_CAPABILITY: &str = "memory-agent-record-read-1";
+#[path = "agent_record_fields.rs"]
+mod record_fields;
+pub use record_fields::{AgentRecordProjection, AgentSourceRecordProjection};
 #[derive(Serialize)]
 pub struct AgentPage {
     schema_version: NextVersion,
@@ -23,6 +27,8 @@ pub struct AgentPage {
     pub authorized_at: Timestamp,
     pub profile_hash: Sha256Hex,
     pub items: Vec<MemoryReadItem>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub record_fields: Option<Vec<AgentRecordProjection>>,
     pub matched_in_scope: u64,
     pub unknown_event_time_in_scope: u64,
     pub complete_in_scope: bool,
@@ -41,7 +47,11 @@ pub struct AgentDetail {
     pub profile_hash: Sha256Hex,
     pub item: MemoryReadItem,
     pub history: Vec<MemoryReadItem>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub record_fields: Option<Vec<AgentRecordProjection>>,
     pub sources: Vec<MemorySourceView>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub source_record_fields: Option<Vec<AgentSourceRecordProjection>>,
     pub source_read: bool,
     pub neighbors: Vec<MemoryReadLink>,
     pub complete_in_scope: bool,
@@ -61,10 +71,31 @@ impl AutomationHost {
         principal: ActorRef,
         scope: AgentReadScope,
     ) -> ApplicationResult<AgentReader<'_>> {
+        self.agent_reader_for(native_owner, principal, scope, false)
+    }
+    pub fn agent_record_reader(
+        &self,
+        native_owner: &ActorRef,
+        principal: ActorRef,
+        scope: AgentReadScope,
+    ) -> ApplicationResult<AgentReader<'_>> {
+        self.agent_reader_for(native_owner, principal, scope, true)
+    }
+    fn agent_reader_for(
+        &self,
+        native_owner: &ActorRef,
+        principal: ActorRef,
+        scope: AgentReadScope,
+        records: bool,
+    ) -> ApplicationResult<AgentReader<'_>> {
         let _gate = self.gate()?;
-        let permit = self
-            .vault
-            .authorize_agent_read(native_owner, principal, scope)?;
+        let permit = if records {
+            self.vault
+                .authorize_agent_record_read(native_owner, principal, scope)?
+        } else {
+            self.vault
+                .authorize_agent_read(native_owner, principal, scope)?
+        };
         let generation = self
             .agent_generation
             .lock()
@@ -79,6 +110,16 @@ impl AutomationHost {
     }
 }
 impl AgentReader<'_> {
+    pub fn records(&self) -> bool {
+        self.permit.records()
+    }
+    pub fn capability(&self) -> &'static str {
+        if self.records() {
+            RECORD_CAPABILITY
+        } else {
+            CAPABILITY
+        }
+    }
     pub fn vault_id(&self) -> &enouia_memory_contract::ids::VaultId {
         &self.host.vault.descriptor().vault_id
     }
@@ -130,6 +171,13 @@ impl AgentReader<'_> {
             .host
             .vault
             .authorized_agent_read_data(&self.permit, None)?;
+        let fields = record_fields::projections(&data)?;
+        let hash = digest(&(
+            filter,
+            profile,
+            self.permit.max_sensitivity(),
+            self.permit.scope_hash(),
+        ));
         let p = project_page(
             data,
             profile,
@@ -138,20 +186,15 @@ impl AgentReader<'_> {
             limit,
             max_bytes - 1024,
             PageScope {
-                filter_hash: digest(&(
-                    filter,
-                    profile,
-                    self.permit.max_sensitivity(),
-                    self.permit.scope_hash(),
-                )),
+                filter_hash: hash.clone(),
                 maintenance_worker_alive: false,
             },
         )?;
-        self.finish(
+        self.finish_page(
             AgentPage {
                 schema_version: NextVersion,
                 kind: "agent_memory_page",
-                capability: CAPABILITY,
+                capability: self.capability(),
                 effect: "agent_read",
                 principal: self.principal().clone(),
                 scope_hash: self.scope_hash().clone(),
@@ -159,11 +202,13 @@ impl AgentReader<'_> {
                 authorized_at: p.authorized_at,
                 profile_hash: p.profile_hash,
                 items: p.items,
+                record_fields: fields,
                 matched_in_scope: p.matched_in_scope,
                 unknown_event_time_in_scope: p.unknown_event_time_in_scope,
                 complete_in_scope: p.complete_in_scope,
                 next: p.next,
             },
+            hash,
             max_bytes,
         )
     }
@@ -186,6 +231,20 @@ impl AgentReader<'_> {
             .host
             .vault
             .authorized_agent_read_data(&self.permit, Some(id))?;
+        let fields = record_fields::projections(&data)?;
+        let source_fields = self.records().then(|| {
+            data.sources
+                .iter()
+                .filter_map(|s| {
+                    s.record_fields
+                        .clone()
+                        .map(|fields| AgentSourceRecordProjection {
+                            source: s.reference(),
+                            fields,
+                        })
+                })
+                .collect::<Vec<_>>()
+        });
         let Some(d) = project_detail(
             data,
             profile,
@@ -199,11 +258,29 @@ impl AgentReader<'_> {
             self.live()?;
             return Ok(None);
         };
+        let references: Vec<_> = std::iter::once(d.item.memory.clone())
+            .chain(d.history.iter().map(|i| i.memory.clone()))
+            .collect();
+        let fields = fields.map(|v| {
+            v.into_iter()
+                .filter(|v| references.contains(&v.memory))
+                .collect()
+        });
+        let source_fields = source_fields.map(|v| {
+            v.into_iter()
+                .filter(|v| {
+                    d.sources.iter().any(|s| {
+                        s.record.source_id == v.source.source_id
+                            && s.record.revision == v.source.source_revision
+                    })
+                })
+                .collect()
+        });
         self.finish(
             AgentDetail {
                 schema_version: NextVersion,
                 kind: "agent_memory_detail",
-                capability: CAPABILITY,
+                capability: self.capability(),
                 effect: "agent_read",
                 principal: self.principal().clone(),
                 scope_hash: self.scope_hash().clone(),
@@ -212,7 +289,9 @@ impl AgentReader<'_> {
                 profile_hash: d.profile_hash,
                 item: d.item,
                 history: d.history,
+                record_fields: fields,
                 sources: d.sources,
+                source_record_fields: source_fields,
                 source_read: self.permit.source_read(),
                 neighbors: d.neighbors,
                 complete_in_scope: d.complete_in_scope,

@@ -14,7 +14,13 @@ use enouia_memory_contract::{
 use serde_json::{Value, json};
 use std::time::Duration;
 pub fn hello(vault: &VaultId) -> Value {
-    let descriptor = json!({"protocol":"memory-agent-pipe-2","recordSchema":2,"layout":"automation-host-v2","capability":CAPABILITY,"mcpVersion":PROTOCOL_VERSION,"memoryVersion":2});
+    hello_for(vault, false)
+}
+pub fn record_hello(vault: &VaultId) -> Value {
+    hello_for(vault, true)
+}
+fn hello_for(vault: &VaultId, records: bool) -> Value {
+    let descriptor = json!({"protocol":"memory-agent-pipe-2","recordSchema":2,"layout":if records {"automation-host-v3"} else {"automation-host-v2"},"capability":if records {crate::automation::agent_read::RECORD_CAPABILITY} else {CAPABILITY},"mcpVersion":PROTOCOL_VERSION,"memoryVersion":2});
     let texts: std::collections::BTreeMap<_, _> = schemas::documents()
         .into_iter()
         .map(|(k, v)| (k, v.replace("\r\n", "\n")))
@@ -51,7 +57,7 @@ pub fn serve_connection(
         .map_err(|_| TransportFault::Incompatible)?;
     let (tag, bytes) = read(pipe, true, enrollment.timeout(timeout))?;
     enrollment.check(pipe)?;
-    let expected = hello(reader.vault_id());
+    let expected = hello_for(reader.vault_id(), reader.records());
     if tag != Tag::Hello || unique::parse(&bytes).ok().as_ref() != Some(&expected) {
         return Err(TransportFault::Incompatible);
     }
@@ -87,6 +93,21 @@ pub struct Client {
     inner: crate::mcp::native::Client,
 }
 impl Client {
+    pub fn connect_records(
+        pipe: Pipe,
+        host: ProcessPeer,
+        vault: &VaultId,
+        timeout: Duration,
+    ) -> Result<Self> {
+        Ok(Self {
+            inner: crate::mcp::native::Client::connect_expected(
+                pipe,
+                host,
+                record_hello(vault),
+                timeout,
+            )?,
+        })
+    }
     pub fn connect(
         pipe: Pipe,
         host: ProcessPeer,

@@ -1,0 +1,1406 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.enouia-memory.invalid/next/agent-record-read-v2.schema.json",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/search_request"
+    },
+    {
+      "$ref": "#/$defs/search_response"
+    },
+    {
+      "$ref": "#/$defs/read_request"
+    },
+    {
+      "$ref": "#/$defs/read_response"
+    },
+    {
+      "$ref": "#/$defs/source_request"
+    },
+    {
+      "$ref": "#/$defs/source_response"
+    },
+    {
+      "$ref": "#/$defs/related_request"
+    },
+    {
+      "$ref": "#/$defs/related_response"
+    },
+    {
+      "$ref": "#/$defs/recall_request"
+    },
+    {
+      "$ref": "#/$defs/recall_response"
+    }
+  ],
+  "$defs": {
+    "time": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "from": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/timestamp"
+        },
+        "until": {
+          "oneOf": [
+            {
+              "$ref": "../memory/common-v1.schema.json#/$defs/timestamp"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "from",
+        "until"
+      ]
+    },
+    "search_filter": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "query": {
+          "type": "string",
+          "maxLength": 2048
+        },
+        "form": {
+          "oneOf": [
+            {
+              "enum": [
+                "fact",
+                "preference",
+                "episode",
+                "project_state",
+                "plan",
+                "open_loop",
+                "relationship_experience",
+                "subjective_understanding",
+                "theme"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "adoption": {
+          "oneOf": [
+            {
+              "enum": [
+                "adopted",
+                "staged"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "state": {
+          "oneOf": [
+            {
+              "enum": [
+                "planned",
+                "decided",
+                "implemented",
+                "tested",
+                "released",
+                "open",
+                "paused",
+                "cancelled",
+                "completed"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "project_id": {
+          "oneOf": [
+            {
+              "$ref": "../memory/common-v1.schema.json#/$defs/projectId"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "time_axis": {
+          "enum": [
+            "event",
+            "valid",
+            "learned",
+            "source_captured"
+          ]
+        },
+        "window": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/time"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "include_unknown_time": {
+          "type": "boolean"
+        },
+        "entity_id": {
+          "$ref": "ui-records-v2.schema.json#/$defs/entityId"
+        },
+        "content_lang": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 63
+        },
+        "precision": {
+          "enum": [
+            "instant",
+            "minute",
+            "hour",
+            "day",
+            "month",
+            "year",
+            "unknown"
+          ]
+        },
+        "knowledge": {
+          "enum": [
+            "attributed_statement",
+            "hypothesis",
+            "uncertain",
+            "disputed"
+          ]
+        },
+        "validity": {
+          "enum": [
+            "unspecified",
+            "in_range",
+            "not_yet_valid",
+            "expired"
+          ]
+        },
+        "attention": {
+          "enum": [
+            "active",
+            "fading",
+            "archived",
+            "protected"
+          ]
+        }
+      },
+      "required": []
+    },
+    "agent": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "actor_type": {
+          "const": "agent"
+        },
+        "actor_id": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/principalId"
+        }
+      },
+      "required": [
+        "actor_type",
+        "actor_id"
+      ]
+    },
+    "coverage": {
+      "const": {
+        "record_contract": "ui-records-v2",
+        "attention_effect": "none",
+        "counts": "authorized_scope",
+        "unavailable_fields": [
+          "topics",
+          "fact_edges",
+          "suggested_edges",
+          "segmented_layout"
+        ],
+        "knowledge_labels": {
+          "attributed_statement": "主体说过（未经独立核实）",
+          "hypothesis": "假说",
+          "uncertain": "不确定",
+          "disputed": "有冲突",
+          "staged": "自动暂存与重评"
+        }
+      }
+    },
+    "page": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "const": 2
+        },
+        "capability": {
+          "const": "memory-agent-record-read-1"
+        },
+        "effect": {
+          "const": "agent_read"
+        },
+        "principal": {
+          "$ref": "#/$defs/agent"
+        },
+        "scope_hash": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/sha256"
+        },
+        "kind": {
+          "const": "agent_memory_page"
+        },
+        "snapshot": {
+          "$ref": "read-model-v2.schema.json#/$defs/page/properties/snapshot"
+        },
+        "authorized_at": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/timestamp"
+        },
+        "profile_hash": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/sha256"
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "read-model-v2.schema.json#/$defs/item"
+          },
+          "maxItems": 32
+        },
+        "matched_in_scope": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 128
+        },
+        "unknown_event_time_in_scope": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 128
+        },
+        "complete_in_scope": {
+          "type": "boolean"
+        },
+        "next": {
+          "$ref": "read-model-v2.schema.json#/$defs/page/properties/next"
+        },
+        "record_fields": {
+          "type": "array",
+          "maxItems": 128,
+          "items": {
+            "$ref": "#/$defs/record_projection"
+          }
+        }
+      },
+      "required": [
+        "schema_version",
+        "capability",
+        "effect",
+        "principal",
+        "scope_hash",
+        "kind",
+        "snapshot",
+        "authorized_at",
+        "profile_hash",
+        "items",
+        "matched_in_scope",
+        "unknown_event_time_in_scope",
+        "complete_in_scope",
+        "next",
+        "record_fields"
+      ]
+    },
+    "search_data": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "page": {
+          "$ref": "#/$defs/page"
+        },
+        "time_axis": {
+          "enum": [
+            "event",
+            "valid",
+            "learned",
+            "source_captured"
+          ]
+        },
+        "unknown_time_in_scope": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 128
+        }
+      },
+      "required": [
+        "page",
+        "time_axis",
+        "unknown_time_in_scope"
+      ]
+    },
+    "detail_data": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "const": 2
+        },
+        "capability": {
+          "const": "memory-agent-record-read-1"
+        },
+        "effect": {
+          "const": "agent_read"
+        },
+        "principal": {
+          "$ref": "#/$defs/agent"
+        },
+        "scope_hash": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/sha256"
+        },
+        "kind": {
+          "const": "agent_memory_detail"
+        },
+        "snapshot": {
+          "$ref": "read-model-v2.schema.json#/$defs/page/properties/snapshot"
+        },
+        "authorized_at": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/timestamp"
+        },
+        "profile_hash": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/sha256"
+        },
+        "item": {
+          "$ref": "read-model-v2.schema.json#/$defs/item"
+        },
+        "history": {
+          "type": "array",
+          "items": {
+            "$ref": "read-model-v2.schema.json#/$defs/item"
+          },
+          "maxItems": 128
+        },
+        "sources": {
+          "$ref": "read-model-v2.schema.json#/$defs/detail/properties/sources"
+        },
+        "source_read": {
+          "type": "boolean"
+        },
+        "neighbors": {
+          "$ref": "read-model-v2.schema.json#/$defs/detail/properties/neighbors"
+        },
+        "complete_in_scope": {
+          "type": "boolean"
+        },
+        "record_fields": {
+          "type": "array",
+          "maxItems": 128,
+          "items": {
+            "$ref": "#/$defs/record_projection"
+          }
+        },
+        "source_record_fields": {
+          "type": "array",
+          "maxItems": 128,
+          "items": {
+            "$ref": "#/$defs/source_record_projection"
+          }
+        }
+      },
+      "required": [
+        "schema_version",
+        "capability",
+        "effect",
+        "principal",
+        "scope_hash",
+        "kind",
+        "snapshot",
+        "authorized_at",
+        "profile_hash",
+        "item",
+        "history",
+        "sources",
+        "source_read",
+        "neighbors",
+        "complete_in_scope",
+        "record_fields",
+        "source_record_fields"
+      ]
+    },
+    "source_data": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "const": 2
+        },
+        "capability": {
+          "const": "memory-agent-record-read-1"
+        },
+        "effect": {
+          "const": "agent_read"
+        },
+        "principal": {
+          "$ref": "#/$defs/agent"
+        },
+        "scope_hash": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/sha256"
+        },
+        "kind": {
+          "const": "agent_memory_source"
+        },
+        "snapshot": {
+          "$ref": "read-model-v2.schema.json#/$defs/page/properties/snapshot"
+        },
+        "authorized_at": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/timestamp"
+        },
+        "record": {
+          "$ref": "../memory/source-v1.schema.json"
+        },
+        "attributed_subject": {
+          "oneOf": [
+            {
+              "$ref": "../memory/common-v1.schema.json#/$defs/subjectId"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "excerpt": {
+          "type": "string",
+          "maxLength": 8192
+        },
+        "excerpt_hash": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/sha256"
+        },
+        "from_byte": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 16384
+        },
+        "to_byte": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 16384
+        },
+        "full_byte_len": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 16384
+        },
+        "complete": {
+          "type": "boolean"
+        },
+        "next_start": {
+          "oneOf": [
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 16384
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "record_fields": {
+          "$ref": "ui-records-v2.schema.json#/$defs/sourceFields"
+        }
+      },
+      "required": [
+        "schema_version",
+        "capability",
+        "effect",
+        "principal",
+        "scope_hash",
+        "kind",
+        "snapshot",
+        "authorized_at",
+        "record",
+        "attributed_subject",
+        "excerpt",
+        "excerpt_hash",
+        "from_byte",
+        "to_byte",
+        "full_byte_len",
+        "complete",
+        "next_start",
+        "record_fields"
+      ]
+    },
+    "related_data": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "const": 2
+        },
+        "capability": {
+          "const": "memory-agent-record-read-1"
+        },
+        "effect": {
+          "const": "agent_read"
+        },
+        "principal": {
+          "$ref": "#/$defs/agent"
+        },
+        "scope_hash": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/sha256"
+        },
+        "kind": {
+          "const": "agent_memory_related"
+        },
+        "snapshot": {
+          "$ref": "read-model-v2.schema.json#/$defs/page/properties/snapshot"
+        },
+        "memory": {
+          "$ref": "automation-v2.schema.json#/$defs/memoryRef"
+        },
+        "provenance_edges": {
+          "$ref": "read-model-v2.schema.json#/$defs/detail/properties/neighbors"
+        },
+        "fact_edges": {
+          "type": "array",
+          "maxItems": 0
+        },
+        "suggested_edges": {
+          "type": "array",
+          "maxItems": 0
+        },
+        "unavailable": {
+          "const": [
+            "fact_edges",
+            "suggested_edges"
+          ]
+        },
+        "complete_in_scope": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "schema_version",
+        "capability",
+        "effect",
+        "principal",
+        "scope_hash",
+        "kind",
+        "snapshot",
+        "memory",
+        "provenance_edges",
+        "fact_edges",
+        "suggested_edges",
+        "unavailable",
+        "complete_in_scope"
+      ]
+    },
+    "recall_data": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "const": 2
+        },
+        "capability": {
+          "const": "memory-agent-record-read-1"
+        },
+        "effect": {
+          "const": "agent_read"
+        },
+        "principal": {
+          "$ref": "#/$defs/agent"
+        },
+        "scope_hash": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/sha256"
+        },
+        "kind": {
+          "const": "agent_memory_recall"
+        },
+        "request_id": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/requestId"
+        },
+        "trace": {
+          "$ref": "read-model-v2.schema.json#/$defs/simulation/properties/trace"
+        },
+        "rendered_context": {
+          "type": "string",
+          "maxLength": 65536
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "read-model-v2.schema.json#/$defs/item"
+          },
+          "maxItems": 32
+        },
+        "complete_in_scope": {
+          "type": "boolean"
+        },
+        "record_fields": {
+          "type": "array",
+          "maxItems": 128,
+          "items": {
+            "$ref": "#/$defs/record_projection"
+          }
+        }
+      },
+      "required": [
+        "schema_version",
+        "capability",
+        "effect",
+        "principal",
+        "scope_hash",
+        "kind",
+        "request_id",
+        "trace",
+        "rendered_context",
+        "items",
+        "complete_in_scope",
+        "record_fields"
+      ]
+    },
+    "search_args": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "filter": {
+          "$ref": "#/$defs/search_filter"
+        },
+        "cursor": {
+          "$ref": "read-model-v2.schema.json#/$defs/page/properties/next"
+        },
+        "limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 32
+        },
+        "max_bytes": {
+          "type": "integer",
+          "minimum": 2048,
+          "maximum": 262144
+        }
+      },
+      "required": [
+        "filter",
+        "cursor",
+        "limit",
+        "max_bytes"
+      ]
+    },
+    "read_args": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "memory_id": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/memoryId"
+        },
+        "expected": {
+          "oneOf": [
+            {
+              "$ref": "read-model-v2.schema.json#/$defs/page/properties/snapshot"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "include_source_text": {
+          "type": "boolean"
+        },
+        "max_bytes": {
+          "type": "integer",
+          "minimum": 2048,
+          "maximum": 262144
+        }
+      },
+      "required": [
+        "memory_id",
+        "expected",
+        "include_source_text",
+        "max_bytes"
+      ]
+    },
+    "source_args": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "source_id": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/sourceId"
+        },
+        "revision": {
+          "oneOf": [
+            {
+              "$ref": "../memory/common-v1.schema.json#/$defs/revision"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "from_byte": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 16384
+        },
+        "to_byte": {
+          "oneOf": [
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 16384
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "max_bytes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 8192
+        }
+      },
+      "required": [
+        "source_id",
+        "revision",
+        "from_byte",
+        "to_byte",
+        "max_bytes"
+      ]
+    },
+    "related_args": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "memory_id": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/memoryId"
+        },
+        "expected": {
+          "oneOf": [
+            {
+              "$ref": "read-model-v2.schema.json#/$defs/page/properties/snapshot"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "max_bytes": {
+          "type": "integer",
+          "minimum": 2048,
+          "maximum": 262144
+        }
+      },
+      "required": [
+        "memory_id",
+        "expected",
+        "max_bytes"
+      ]
+    },
+    "recall_args": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "text": {
+          "type": "string",
+          "maxLength": 2048
+        },
+        "conditions": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          },
+          "maxItems": 8
+        },
+        "event_window": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/time"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "at": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/timestamp"
+        },
+        "intent": {
+          "enum": [
+            "current",
+            "historical",
+            "browse"
+          ]
+        },
+        "limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 32
+        },
+        "max_bytes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 65536
+        }
+      },
+      "required": [
+        "text",
+        "conditions",
+        "event_window",
+        "at",
+        "intent",
+        "limit",
+        "max_bytes"
+      ]
+    },
+    "error": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "enum": [
+            "invalid_request",
+            "permission_denied",
+            "stale_scope",
+            "unavailable",
+            "outcome_unknown"
+          ]
+        },
+        "retryable": {
+          "const": false
+        }
+      },
+      "required": [
+        "code",
+        "retryable"
+      ]
+    },
+    "search_request": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "const": 2
+        },
+        "kind": {
+          "const": "agent_read_request"
+        },
+        "capability": {
+          "const": "memory-agent-record-read-1"
+        },
+        "request_id": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/requestId"
+        },
+        "operation": {
+          "const": "memory_search"
+        },
+        "arguments": {
+          "$ref": "#/$defs/search_args"
+        }
+      },
+      "required": [
+        "schema_version",
+        "kind",
+        "capability",
+        "request_id",
+        "operation",
+        "arguments"
+      ]
+    },
+    "search_response": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "const": 2
+        },
+        "kind": {
+          "const": "agent_read_response"
+        },
+        "capability": {
+          "const": "memory-agent-record-read-1"
+        },
+        "request_id": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/requestId"
+        },
+        "operation": {
+          "const": "memory_search"
+        },
+        "principal": {
+          "$ref": "#/$defs/agent"
+        },
+        "scope_hash": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/sha256"
+        },
+        "data": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/search_data"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "error": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/error"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "coverage": {
+          "$ref": "#/$defs/coverage"
+        }
+      },
+      "required": [
+        "schema_version",
+        "kind",
+        "capability",
+        "request_id",
+        "operation",
+        "principal",
+        "scope_hash",
+        "data",
+        "error",
+        "coverage"
+      ]
+    },
+    "read_request": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "const": 2
+        },
+        "kind": {
+          "const": "agent_read_request"
+        },
+        "capability": {
+          "const": "memory-agent-record-read-1"
+        },
+        "request_id": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/requestId"
+        },
+        "operation": {
+          "const": "memory_read"
+        },
+        "arguments": {
+          "$ref": "#/$defs/read_args"
+        }
+      },
+      "required": [
+        "schema_version",
+        "kind",
+        "capability",
+        "request_id",
+        "operation",
+        "arguments"
+      ]
+    },
+    "read_response": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "const": 2
+        },
+        "kind": {
+          "const": "agent_read_response"
+        },
+        "capability": {
+          "const": "memory-agent-record-read-1"
+        },
+        "request_id": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/requestId"
+        },
+        "operation": {
+          "const": "memory_read"
+        },
+        "principal": {
+          "$ref": "#/$defs/agent"
+        },
+        "scope_hash": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/sha256"
+        },
+        "data": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/detail_data"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "error": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/error"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "coverage": {
+          "$ref": "#/$defs/coverage"
+        }
+      },
+      "required": [
+        "schema_version",
+        "kind",
+        "capability",
+        "request_id",
+        "operation",
+        "principal",
+        "scope_hash",
+        "data",
+        "error",
+        "coverage"
+      ]
+    },
+    "source_request": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "const": 2
+        },
+        "kind": {
+          "const": "agent_read_request"
+        },
+        "capability": {
+          "const": "memory-agent-record-read-1"
+        },
+        "request_id": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/requestId"
+        },
+        "operation": {
+          "const": "memory_source"
+        },
+        "arguments": {
+          "$ref": "#/$defs/source_args"
+        }
+      },
+      "required": [
+        "schema_version",
+        "kind",
+        "capability",
+        "request_id",
+        "operation",
+        "arguments"
+      ]
+    },
+    "source_response": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "const": 2
+        },
+        "kind": {
+          "const": "agent_read_response"
+        },
+        "capability": {
+          "const": "memory-agent-record-read-1"
+        },
+        "request_id": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/requestId"
+        },
+        "operation": {
+          "const": "memory_source"
+        },
+        "principal": {
+          "$ref": "#/$defs/agent"
+        },
+        "scope_hash": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/sha256"
+        },
+        "data": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/source_data"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "error": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/error"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "coverage": {
+          "$ref": "#/$defs/coverage"
+        }
+      },
+      "required": [
+        "schema_version",
+        "kind",
+        "capability",
+        "request_id",
+        "operation",
+        "principal",
+        "scope_hash",
+        "data",
+        "error",
+        "coverage"
+      ]
+    },
+    "related_request": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "const": 2
+        },
+        "kind": {
+          "const": "agent_read_request"
+        },
+        "capability": {
+          "const": "memory-agent-record-read-1"
+        },
+        "request_id": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/requestId"
+        },
+        "operation": {
+          "const": "memory_related"
+        },
+        "arguments": {
+          "$ref": "#/$defs/related_args"
+        }
+      },
+      "required": [
+        "schema_version",
+        "kind",
+        "capability",
+        "request_id",
+        "operation",
+        "arguments"
+      ]
+    },
+    "related_response": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "const": 2
+        },
+        "kind": {
+          "const": "agent_read_response"
+        },
+        "capability": {
+          "const": "memory-agent-record-read-1"
+        },
+        "request_id": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/requestId"
+        },
+        "operation": {
+          "const": "memory_related"
+        },
+        "principal": {
+          "$ref": "#/$defs/agent"
+        },
+        "scope_hash": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/sha256"
+        },
+        "data": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/related_data"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "error": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/error"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "coverage": {
+          "$ref": "#/$defs/coverage"
+        }
+      },
+      "required": [
+        "schema_version",
+        "kind",
+        "capability",
+        "request_id",
+        "operation",
+        "principal",
+        "scope_hash",
+        "data",
+        "error",
+        "coverage"
+      ]
+    },
+    "recall_request": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "const": 2
+        },
+        "kind": {
+          "const": "agent_read_request"
+        },
+        "capability": {
+          "const": "memory-agent-record-read-1"
+        },
+        "request_id": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/requestId"
+        },
+        "operation": {
+          "const": "memory_recall"
+        },
+        "arguments": {
+          "$ref": "#/$defs/recall_args"
+        }
+      },
+      "required": [
+        "schema_version",
+        "kind",
+        "capability",
+        "request_id",
+        "operation",
+        "arguments"
+      ]
+    },
+    "recall_response": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "const": 2
+        },
+        "kind": {
+          "const": "agent_read_response"
+        },
+        "capability": {
+          "const": "memory-agent-record-read-1"
+        },
+        "request_id": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/requestId"
+        },
+        "operation": {
+          "const": "memory_recall"
+        },
+        "principal": {
+          "$ref": "#/$defs/agent"
+        },
+        "scope_hash": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/sha256"
+        },
+        "data": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/recall_data"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "error": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/error"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "coverage": {
+          "$ref": "#/$defs/coverage"
+        }
+      },
+      "required": [
+        "schema_version",
+        "kind",
+        "capability",
+        "request_id",
+        "operation",
+        "principal",
+        "scope_hash",
+        "data",
+        "error",
+        "coverage"
+      ]
+    },
+    "record_projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "memory": {
+          "$ref": "automation-v2.schema.json#/$defs/memoryRef"
+        },
+        "fields": {
+          "$ref": "ui-records-v2.schema.json#/$defs/memoryFields"
+        },
+        "entities": {
+          "type": "array",
+          "maxItems": 32,
+          "items": {
+            "$ref": "ui-records-v2.schema.json#/$defs/entity"
+          }
+        },
+        "producer_version": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "model_version": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      "required": [
+        "memory",
+        "fields",
+        "entities",
+        "producer_version",
+        "model_version"
+      ]
+    },
+    "source_record_projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "source": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/sourceRevisionRef"
+        },
+        "fields": {
+          "$ref": "ui-records-v2.schema.json#/$defs/sourceFields"
+        }
+      },
+      "required": [
+        "source",
+        "fields"
+      ]
+    }
+  }
+}

@@ -15,6 +15,8 @@ mod formation_cases;
 mod read_model_cases;
 #[path = "../../enouia-memory-contract/tests/support/mod.rs"]
 mod support;
+#[path = "automatic_loop/ui_record_cases.rs"]
+mod ui_record_cases;
 use enouia_memory_contract::{
     common::*,
     foundation::FakeClock,
@@ -164,6 +166,7 @@ impl Env {
         CapturedSource {
             record,
             text: text.into(),
+            record_fields: None,
             attributed_subject: (role == SpeakerRole::User).then(|| self.policy.subject_id.clone()),
         }
     }

@@ -166,8 +166,17 @@ fn mcp2_process_child() {
         event(json!({"legacy_refused":true}));
         return;
     }
-    let mut client =
-        v2::native::Client::connect(Pipe::connect(&id).unwrap(), peer, &vault, TIMEOUT).unwrap();
+    let connection = if config["records"] == true {
+        v2::native::Client::connect_records(Pipe::connect(&id).unwrap(), peer, &vault, TIMEOUT)
+    } else {
+        v2::native::Client::connect(Pipe::connect(&id).unwrap(), peer, &vault, TIMEOUT)
+    };
+    if config["expect_refusal"] == true {
+        assert!(connection.is_err());
+        event(json!({"version_refused":true}));
+        return;
+    }
+    let mut client = connection.unwrap();
     event(json!({"connected":true}));
     loop {
         line.clear();
@@ -518,30 +527,53 @@ fn mcp2_invalidated_native_connections_retain_original_and_never_reconnect() {
 
 #[test]
 fn mcp2_stdio_binary_attaches_to_the_existing_host_without_opening_a_writer() {
-    let e = super::formation_cases::env();
-    let jobs = e.jobs();
-    let host = e.host(e.vault(Faults::none()), jobs.clone());
-    let worker = jobs.spawn(DimensionalModel).unwrap();
-    form(
-        &e,
-        &host,
-        &jobs,
-        1,
-        "A synthetic stdio pottery episode.",
-        dims(FormationKind::Episode, None, FormationChange::Initial),
-        None,
-    );
-    stop(&jobs, worker);
-    let reader = host
-        .agent_reader(&e.descriptor.created_by, agent(), scope(&e, true))
-        .unwrap();
+    stdio_roundtrip(false);
+}
+#[test]
+fn mcp2b_stdio_records_attaches_without_opening_a_writer() {
+    stdio_roundtrip(true);
+}
+fn stdio_roundtrip(records: bool) {
+    let e = if records {
+        record_env()
+    } else {
+        super::formation_cases::env()
+    };
+    let host = if records {
+        record_host(&e, false).0
+    } else {
+        let jobs = e.jobs();
+        let host = e.host(e.vault(Faults::none()), jobs.clone());
+        let worker = jobs.spawn(DimensionalModel).unwrap();
+        form(
+            &e,
+            &host,
+            &jobs,
+            1,
+            "A synthetic stdio pottery episode.",
+            dims(FormationKind::Episode, None, FormationChange::Initial),
+            None,
+        );
+        stop(&jobs, worker);
+        host
+    };
+    let reader = if records {
+        host.agent_record_reader(&e.descriptor.created_by, agent(), scope(&e, true))
+    } else {
+        host.agent_reader(&e.descriptor.created_by, agent(), scope(&e, true))
+    }
+    .unwrap();
     let p = profile();
     let id = sha256(&enouia_memory_vault::OsIdSource.random_16());
     let mut pipe = Pipe::listen(&id).unwrap();
     let mut bridge = Command::new(env!("CARGO_BIN_EXE_enouia-memory-mcp"))
         .args([
             "--protocol",
-            "automation-v2",
+            if records {
+                "automation-records-v1"
+            } else {
+                "automation-v2"
+            },
             "--pipe",
             id.as_str(),
             "--host-pid",
@@ -595,10 +627,10 @@ fn mcp2_stdio_binary_attaches_to_the_existing_host_without_opening_a_writer() {
             child.event()["result"]["tools"].as_array().unwrap().len(),
             5
         );
-        let call = packet(
+        let call = if records { record_packet } else { packet }(
             3,
             "memory_recall",
-            json!({"text":"pottery","conditions":[],"event_window":null,"at":Timestamp::from_unix_ms(NOW).unwrap(),"intent":"current","limit":8,"max_bytes":4096}),
+            json!({"text":if records {"quiet"} else {"pottery"},"conditions":[],"event_window":null,"at":Timestamp::from_unix_ms(NOW).unwrap(),"intent":"current","limit":8,"max_bytes":16384}),
         );
         let request =
             RequestId::parse(call["params"]["arguments"]["request_id"].as_str().unwrap()).unwrap();
@@ -623,4 +655,360 @@ fn mcp2_stdio_binary_attaches_to_the_existing_host_without_opening_a_writer() {
         }
         assert!(server.join().unwrap().is_err());
     });
+}
+
+fn record_env() -> Env {
+    let mut e = super::formation_cases::env();
+    e.descriptor.layout = AutomationLayout::HostV3;
+    e
+}
+fn record_host(e: &Env, extra_alias: bool) -> (AutomationHost, MemoryReceipt) {
+    let vault = e.vault(Faults::none());
+    let source: CapturedSource =
+        serde_json::from_value(support::fixture("../ui-records/source.json")).unwrap();
+    let mut catalog: RecordCatalog =
+        serde_json::from_value(support::fixture("../ui-records/catalog.json")).unwrap();
+    vault
+        .capture_with_records(
+            &e.descriptor.system_actor,
+            source.clone(),
+            Some(catalog.clone()),
+        )
+        .unwrap();
+    if extra_alias {
+        let mut other = source;
+        other.record.source_id = id_source(2);
+        other.record.original_conversation_id = None;
+        other.record.original_message_id = None;
+        other.record.locator =
+            serde_json::from_value(json!({"kind":"runtime_event","event_id":id("evt", 22)}))
+                .unwrap();
+        other.record_fields.as_mut().unwrap().conversation_id = None;
+        let mut entity = catalog.entities[0].clone();
+        entity.revision = Revision::new(2).unwrap();
+        entity.aliases[0].evidence[0].reference.source_id = id_source(2);
+        entity.aliases[0].evidence[0].reference.locator = other.record.locator.clone();
+        catalog.entities.push(entity);
+        vault
+            .capture_with_records(&e.descriptor.system_actor, other, Some(catalog))
+            .unwrap();
+    }
+    let seed: AdmissionInput =
+        serde_json::from_value(support::fixture("../ui-records/input.json")).unwrap();
+    let request = vault.prepare(&e.descriptor.system_actor, seed).unwrap();
+    let current = vault.inspect().unwrap();
+    let mut generated = request.clone();
+    generated.interpretation = Interpretation::ClearSelfReport;
+    let decision = with_stored_context(
+        &current.data,
+        &current.snapshot(),
+        &e.descriptor.system_actor,
+        &vault.current_time().unwrap(),
+        |ctx| evaluate(&generated, ctx),
+    )
+    .unwrap();
+    let response = serde_json::to_string(&decision).unwrap();
+    let binding = GenerationBinding {
+        operation_id: request.operation_id.clone(),
+        input_hash: digest(&request),
+        response_hash: sha256(response.as_bytes()),
+    };
+    let receipt = vault
+        .apply_batch(
+            &e.descriptor.system_actor,
+            admission_batch_key(std::slice::from_ref(&request)),
+            vec![request],
+            vec![decision],
+            vec![binding],
+            vec![response],
+        )
+        .unwrap()
+        .remove(0);
+    (e.host(vault, e.jobs()), receipt)
+}
+fn record_packet(n: usize, op: &str, args: Value) -> Value {
+    let mut v = packet(n, op, args);
+    v["params"]["arguments"]["capability"] = json!("memory-agent-record-read-1");
+    v
+}
+#[test]
+fn mcp2b_native_records_preserve_fields_sources_unknown_time_and_exact_trace_without_writes() {
+    let e = record_env();
+    let (host, receipt) = record_host(&e, false);
+    assert!(
+        host.agent_reader(&e.descriptor.created_by, agent(), scope(&e, true))
+            .is_err()
+    );
+    let reader = host
+        .agent_record_reader(&e.descriptor.created_by, agent(), scope(&e, true))
+        .unwrap();
+    let before = bytes(e.root.path());
+    let p = profile();
+    let page = reader
+        .search(&p, &Default::default(), None, 32, 262144)
+        .unwrap();
+    assert_eq!(page.page.matched_in_scope, 1);
+    let fields = page.page.record_fields.unwrap();
+    assert_eq!(fields[0].memory, receipt.result);
+    assert_eq!(fields[0].fields.title, "Quiet workspaces");
+    assert_eq!(
+        fields[0].fields.event_time.precision,
+        RecordPrecision::Unknown
+    );
+    assert!(fields[0].fields.event_time.from.is_none());
+    assert_eq!(fields[0].entities[0].display_name, "Workspaces");
+    let detail = reader
+        .detail(&p, &receipt.result.memory_id, None, true, 262144)
+        .unwrap()
+        .unwrap();
+    assert_eq!(detail.record_fields.as_ref().unwrap().len(), 1);
+    assert_eq!(
+        detail.source_record_fields.as_ref().unwrap()[0]
+            .fields
+            .content_lang,
+        "en"
+    );
+    assert_eq!(
+        detail.record_fields.unwrap()[0].fields.evidence[0].quote,
+        *detail.sources[0].text.as_ref().unwrap()
+    );
+    assert!(
+        reader
+            .page(&p, &Default::default(), None, 32, 2048)
+            .is_err()
+    );
+    let query = RecallQuery {
+        text: "quiet".into(),
+        conditions: vec![],
+        event_window: None,
+        at: Timestamp::from_unix_ms(NOW).unwrap(),
+        intent: RecallIntent::Current,
+        limit: 8,
+        max_bytes: 16384,
+    };
+    let req = RequestId::parse(&id("req", 122)).unwrap();
+    let recall = reader.recall(&p, &query, req.clone()).unwrap();
+    assert_eq!(recall.items.len(), 1);
+    assert!(recall.rendered_context.contains("Quiet workspaces"));
+    assert_eq!(
+        serde_json::to_value(&recall).unwrap(),
+        serde_json::to_value(reader.context_trace(&req).unwrap().unwrap()).unwrap()
+    );
+    assert_eq!(bytes(e.root.path()), before);
+    let no_source = host
+        .agent_record_reader(&e.descriptor.created_by, agent(), scope(&e, false))
+        .unwrap();
+    let detail = no_source
+        .detail(&p, &receipt.result.memory_id, None, false, 262144)
+        .unwrap()
+        .unwrap();
+    assert!(detail.sources.is_empty());
+    assert!(detail.source_record_fields.unwrap().is_empty());
+    assert!(
+        no_source
+            .source(&id_source(1), None, 0, None, 8192)
+            .is_err()
+    );
+    host.lock().unwrap();
+    host.unlock(&e.descriptor.system_actor).unwrap();
+    assert!(reader.context_trace(&req).is_err());
+}
+#[test]
+fn mcp2b_entity_alias_dependencies_are_authorized_before_counts_and_delete_invalidates_all() {
+    let e = record_env();
+    let (host, _) = record_host(&e, true);
+    let narrow = host
+        .agent_record_reader(&e.descriptor.created_by, agent(), scope(&e, true))
+        .unwrap();
+    let page = narrow
+        .search(&profile(), &Default::default(), None, 32, 262144)
+        .unwrap();
+    assert_eq!(page.page.matched_in_scope, 0);
+    assert!(page.page.items.is_empty());
+    assert!(page.page.record_fields.unwrap().is_empty());
+    let mut both = scope(&e, true);
+    both.source_ids.push(id_source(2));
+    let broad = host
+        .agent_record_reader(&e.descriptor.created_by, agent(), both)
+        .unwrap();
+    assert_eq!(
+        broad
+            .search(&profile(), &Default::default(), None, 32, 262144)
+            .unwrap()
+            .page
+            .matched_in_scope,
+        1
+    );
+    host.delete_source_native(&e.descriptor.created_by, id_source(2))
+        .unwrap();
+    assert_eq!(
+        broad
+            .search(&profile(), &Default::default(), None, 32, 262144)
+            .unwrap()
+            .page
+            .matched_in_scope,
+        0
+    );
+}
+#[test]
+fn mcp2b_all_five_record_tools_use_a_real_agent_and_advertise_conforming_output_schemas() {
+    let e = record_env();
+    let (host, receipt) = record_host(&e, false);
+    let reader = host
+        .agent_record_reader(&e.descriptor.created_by, agent(), scope(&e, true))
+        .unwrap();
+    let p = profile();
+    let id = sha256(&enouia_memory_vault::OsIdSource.random_16());
+    let mut pipe = Pipe::listen(&id).unwrap();
+    let mut child = Agent::spawn();
+    let enrollment = Enrollment::enroll(
+        child.child.id(),
+        agent(),
+        vec![Scope::MemoryRead, Scope::SourceRead],
+    )
+    .unwrap();
+    let before = bytes(e.root.path());
+    std::thread::scope(|scope| {
+        let server = scope.spawn(|| {
+            pipe.accept(TIMEOUT).unwrap();
+            let r = v2::native::serve_connection(&reader, &p, &mut pipe, enrollment, TIMEOUT);
+            let _ = pipe.disconnect();
+            r
+        });
+        child.send(json!({"pipe":id,"host_pid":std::process::id(),"vault_id":e.descriptor.vault_id,"records":true}));
+        assert_eq!(child.event(), json!({"connected":true}));
+        child.initialize();
+        let catalog = child.rpc(json!({"jsonrpc":"2.0","id":2,"method":"tools/list"}))["response"]
+            ["result"]["tools"]
+            .clone();
+        assert_eq!(catalog.as_array().unwrap().len(), 5);
+        for tool in catalog.as_array().unwrap() {
+            for key in ["inputSchema", "outputSchema"] {
+                local_refs(&tool[key], &tool[key]);
+            }
+        }
+        let mut search = search();
+        search["filter"] = json!({"query":"spaces","entity_id":"ent_00000001-0000-4000-8000-000000000001","content_lang":"en","precision":"unknown","knowledge":"attributed_statement"});
+        let calls = [
+            record_packet(3, "memory_search", search),
+            record_packet(
+                4,
+                "memory_read",
+                json!({"memory_id":receipt.result.memory_id,"expected":null,"include_source_text":true,"max_bytes":262144}),
+            ),
+            record_packet(
+                5,
+                "memory_source",
+                json!({"source_id":id_source(1),"revision":null,"from_byte":0,"to_byte":null,"max_bytes":8192}),
+            ),
+            record_packet(
+                6,
+                "memory_related",
+                json!({"memory_id":receipt.result.memory_id,"expected":null,"max_bytes":262144}),
+            ),
+            record_packet(
+                7,
+                "memory_recall",
+                json!({"text":"quiet","conditions":[],"event_window":null,"at":Timestamp::from_unix_ms(NOW).unwrap(),"intent":"current","limit":8,"max_bytes":16384}),
+            ),
+            record_packet(
+                8,
+                "memory_recall",
+                json!({"text":"quiet","conditions":[],"event_window":null,"at":Timestamp::from_unix_ms(NOW).unwrap(),"intent":"current","limit":8,"max_bytes":1}),
+            ),
+        ];
+        let schemas = support::schema::SchemaStore::load();
+        let mut exchanges = Vec::new();
+        let mut negative_outputs = Vec::new();
+        for call in calls {
+            let response = child.rpc(call.clone())["response"].clone();
+            assert!(response["error"].is_null(), "{response}");
+            let body = &response["result"]["structuredContent"];
+            assert!(body["error"].is_null(), "{body}");
+            assert!(
+                schemas
+                    .validate("next/agent-record-read-v2.schema.json", body)
+                    .is_empty(),
+                "{:?}",
+                schemas.validate("next/agent-record-read-v2.schema.json", body)
+            );
+            if call["params"]["name"] == "memory_search" {
+                assert_eq!(body["data"]["page"]["matched_in_scope"], 1);
+            }
+            if call["params"]["name"] == "memory_recall" {
+                let req =
+                    RequestId::parse(call["params"]["arguments"]["request_id"].as_str().unwrap())
+                        .unwrap();
+                assert_eq!(
+                    body["data"],
+                    serde_json::to_value(reader.context_trace(&req).unwrap().unwrap()).unwrap()
+                );
+            }
+            if call["id"] == 8 {
+                assert_eq!(body["data"]["trace"]["selected"], json!([]));
+                assert_eq!(
+                    body["data"]["trace"]["excluded"].as_array().unwrap().len(),
+                    1
+                );
+                assert_eq!(body["data"]["complete_in_scope"], false);
+                let mut bad = body.clone();
+                bad["data"]["trace"]["excluded"][0][1] = json!("owner_confirmed");
+                assert!(
+                    !schemas
+                        .validate("next/agent-record-read-v2.schema.json", &bad)
+                        .is_empty()
+                );
+                negative_outputs.push(json!({"tool":"memory_recall","value":bad}));
+            }
+            exchanges.push(json!({"tool":call["params"]["name"],"arguments":call["params"]["arguments"],"response":response}));
+        }
+        assert_eq!(bytes(e.root.path()), before);
+        if let Some(path) = std::env::var_os("ENOUIA_MCP_RECORD_SCHEMA_TRANSCRIPT") {
+            std::fs::write(
+                path,
+                serde_json::to_vec(&json!({"catalog":catalog,"exchanges":exchanges,"negative_outputs":negative_outputs})).unwrap(),
+            )
+            .unwrap();
+        }
+        child.finish();
+        assert!(server.join().unwrap().is_err());
+    });
+}
+
+#[test]
+fn mcp2b_legacy_and_hostv2_clients_cannot_negotiate_record_root() {
+    for legacy in [true, false] {
+        let e = record_env();
+        let (host, _) = record_host(&e, false);
+        let reader = host
+            .agent_record_reader(&e.descriptor.created_by, agent(), scope(&e, false))
+            .unwrap();
+        let p = profile();
+        let id = sha256(&enouia_memory_vault::OsIdSource.random_16());
+        let mut pipe = Pipe::listen(&id).unwrap();
+        let mut child = Agent::spawn();
+        let enrollment =
+            Enrollment::enroll(child.child.id(), agent(), vec![Scope::MemoryRead]).unwrap();
+        let before = bytes(e.root.path());
+        std::thread::scope(|scope| {
+            let server = scope.spawn(|| {
+                pipe.accept(TIMEOUT).unwrap();
+                let result =
+                    v2::native::serve_connection(&reader, &p, &mut pipe, enrollment, TIMEOUT);
+                let _ = pipe.disconnect();
+                result
+            });
+            child.send(json!({"pipe":id,"host_pid":std::process::id(),"vault_id":e.descriptor.vault_id,"legacy":legacy,"expect_refusal":true}));
+            assert_eq!(
+                child.event(),
+                if legacy {
+                    json!({"legacy_refused":true})
+                } else {
+                    json!({"version_refused":true})
+                }
+            );
+            assert!(server.join().unwrap().is_err());
+        });
+        assert_eq!(bytes(e.root.path()), before);
+    }
 }

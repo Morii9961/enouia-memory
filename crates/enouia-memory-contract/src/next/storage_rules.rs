@@ -15,6 +15,15 @@ pub fn admission_batch_key(inputs: &[AdmissionInput]) -> Sha256Hex {
         let object = input.as_object_mut().expect("input object");
         object.remove("operation_id");
         object.remove("result");
+        // The annotation's revision binding repeats the native-generated result;
+        // it must not turn an identical prepared retry into different work.
+        if let Some(annotations) = object
+            .get_mut("record_fields")
+            .and_then(|f| f.get_mut("annotations"))
+            .and_then(|a| a.as_object_mut())
+        {
+            annotations.remove("memory");
+        }
     }
     digest(&values)
 }
@@ -41,6 +50,14 @@ pub fn check_generation_binding(
         || result.sensitivity < request.sensitivity
     {
         return Err(super::invalid("automation.generation_binding", ""));
+    }
+    if request.record_fields.as_ref().map(|r| &r.formation)
+        != result.record_fields.as_ref().map(|r| &r.formation)
+    {
+        return Err(super::invalid(
+            "ui.generation_origin",
+            "/record_fields/formation",
+        ));
     }
     if request.dimensions.as_ref().is_some_and(|d| {
         result.dimensions.as_ref().is_none_or(|r| {
@@ -142,24 +159,47 @@ pub fn validate_delta(
     super::checked(descriptor.validate())?;
     super::checked(after.validate())?;
     require(
-        match descriptor.layout {
-            AutomationLayout::HostV1 => {
-                after.data.policy.rule_version != RuleVersion::V3
-                    && after
-                        .data
-                        .memories
-                        .iter()
-                        .all(|m| m.decision.input.dimensions.is_none())
-            }
-            AutomationLayout::HostV2 => {
-                after.data.policy.rule_version == RuleVersion::V3
-                    && after
-                        .data
-                        .memories
-                        .iter()
-                        .all(|m| m.decision.input.dimensions.is_some())
-            }
-        },
+        (descriptor.layout == AutomationLayout::HostV3
+            || (after.data.record_catalog.is_none()
+                && after.data.owner_actions.is_none()
+                && after.data.sources.iter().all(|s| s.record_fields.is_none())
+                && after.data.memories.iter().all(|m| {
+                    m.request.record_fields.is_none() && m.decision.input.record_fields.is_none()
+                })))
+            && match descriptor.layout {
+                AutomationLayout::HostV1 => {
+                    after.data.policy.rule_version != RuleVersion::V3
+                        && after
+                            .data
+                            .memories
+                            .iter()
+                            .all(|m| m.decision.input.dimensions.is_none())
+                }
+                AutomationLayout::HostV3 => {
+                    after.data.policy.rule_version == RuleVersion::V3
+                        && after.data.record_catalog.is_some()
+                        && after.data.owner_actions.as_ref().is_some_and(|l| {
+                            l.records.iter().all(|r| {
+                                r.plan.owner == descriptor.created_by
+                                    && r.plan.snapshot.vault_id == descriptor.vault_id
+                            })
+                        })
+                        && after.data.sources.iter().all(|s| s.record_fields.is_some())
+                        && after.data.memories.iter().all(|m| {
+                            m.request.record_fields.is_some()
+                                && m.decision.input.record_fields.is_some()
+                                && m.decision.input.dimensions.is_some()
+                        })
+                }
+                AutomationLayout::HostV2 => {
+                    after.data.policy.rule_version == RuleVersion::V3
+                        && after
+                            .data
+                            .memories
+                            .iter()
+                            .all(|m| m.decision.input.dimensions.is_some())
+                }
+            },
         "formation.layout",
     )?;
     require(
@@ -178,7 +218,17 @@ pub fn validate_delta(
                     && after.data.policy.revision.get() == 1
                     && after.data.policy_watermark.get() == 1
                     && after.data.deletion_watermark.get() == 1
+                    && after
+                        .data
+                        .record_catalog
+                        .as_ref()
+                        .is_none_or(RecordCatalog::is_empty)
                     && after.data.sources.is_empty()
+                    && after
+                        .data
+                        .owner_actions
+                        .as_ref()
+                        .is_none_or(|l| *l == OwnerActionLedger::default())
                     && after.data.memories.is_empty()
                     && after.data.receipts.is_empty()
                     && after.data.deleted_sources.is_empty()
@@ -213,6 +263,9 @@ pub fn validate_delta(
             require(after.authority == authority, "automation.authority")?;
             let mut expected = before.data.clone();
             match after.change {
+                AutomationChange::OwnerAction => {
+                    return Err(super::invalid("ui.owner_entry_unavailable", ""));
+                }
                 AutomationChange::Genesis => return Err(super::invalid("automation.genesis", "")),
                 AutomationChange::Capture => {
                     require(
@@ -266,6 +319,12 @@ pub fn validate_delta(
                         "automation.source_revision",
                     )?;
                     expected.sources.push(source.clone());
+                    if let (Some(old), Some(new)) =
+                        (&before.data.record_catalog, &after.data.record_catalog)
+                    {
+                        require(new.extends(old), "ui.catalog_append")?;
+                        expected.record_catalog = Some(new.clone());
+                    }
                 }
                 AutomationChange::Policy => {
                     require(
