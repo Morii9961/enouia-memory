@@ -1,5 +1,5 @@
 //! MCP-2: explicit schema-2, scoped read-only tools; legacy six tools unchanged.
-mod schemas;
+pub(super) mod schemas;
 pub use schemas::schema;
 #[cfg(windows)]
 pub mod native;

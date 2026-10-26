@@ -1,7 +1,7 @@
 //! Reachable-only schema bundling; clients need no file or network references.
 use serde_json::{Value, json};
 use std::collections::BTreeMap;
-pub(super) fn documents() -> BTreeMap<&'static str, &'static str> {
+pub(in crate::mcp) fn documents() -> BTreeMap<&'static str, &'static str> {
     BTreeMap::from([
         (
             "agent-record-read-v2.schema.json",
@@ -104,26 +104,33 @@ pub(super) fn schema_for(tool: &str, output: bool, records: bool) -> Option<Valu
     if !["search", "read", "source", "related", "recall"].contains(&short) {
         return None;
     }
-    let docs: BTreeMap<_, Value> = documents()
-        .into_iter()
-        .map(|(k, v)| (k, serde_json::from_str(v).expect("frozen schema")))
-        .collect();
-    let mut schema = json!({"type":"object","$ref":format!("#/$defs/{short}_{}",if output{"response"}else{"request"})});
-    let mut defs = BTreeMap::new();
-    walk(
-        &mut schema,
+    Some(bundle(
+        documents(),
         if records {
             "agent-record-read-v2.schema.json"
         } else {
             "agent-read-v2.schema.json"
         },
-        &docs,
-        &mut BTreeMap::new(),
-        &mut defs,
-    );
+        short,
+        output,
+    ))
+}
+pub(in crate::mcp) fn bundle(
+    documents: BTreeMap<&str, &str>,
+    root: &str,
+    short: &str,
+    output: bool,
+) -> Value {
+    let docs: BTreeMap<_, Value> = documents
+        .into_iter()
+        .map(|(k, v)| (k, serde_json::from_str(v).expect("frozen schema")))
+        .collect();
+    let mut schema = json!({"type":"object","$ref":format!("#/$defs/{short}_{}",if output{"response"}else{"request"})});
+    let mut defs = BTreeMap::new();
+    walk(&mut schema, root, &docs, &mut BTreeMap::new(), &mut defs);
     schema["$schema"] = json!("https://json-schema.org/draft/2020-12/schema");
     schema["$defs"] = json!(defs);
-    Some(schema)
+    schema
 }
 pub(super) fn coverage(records: bool) -> Value {
     let schema: Value = serde_json::from_str(

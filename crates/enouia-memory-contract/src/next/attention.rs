@@ -194,11 +194,40 @@ pub fn select_recall(
     current_time: &Timestamp,
     candidates: &[RecallCandidate<'_>],
 ) -> Result<RecallTrace, crate::ContractError> {
+    select_with_limit(profile, query, snapshot, current_time, candidates, 128)
+}
+/// Explicit scalable native selection. Its potentially large exclusion vector
+/// is not a legacy wire trace; transports must declare bounded trace coverage.
+/// Callers supply only independently authorized current candidates.
+pub fn select_catalog_recall(
+    profile: &AttentionProfile,
+    query: &RecallQuery,
+    snapshot: &SnapshotBinding,
+    current_time: &Timestamp,
+    candidates: &[RecallCandidate<'_>],
+) -> Result<RecallTrace, crate::ContractError> {
+    select_with_limit(
+        profile,
+        query,
+        snapshot,
+        current_time,
+        candidates,
+        MAX_SEGMENTED_REVISIONS,
+    )
+}
+fn select_with_limit(
+    profile: &AttentionProfile,
+    query: &RecallQuery,
+    snapshot: &SnapshotBinding,
+    current_time: &Timestamp,
+    candidates: &[RecallCandidate<'_>],
+    max_candidates: usize,
+) -> Result<RecallTrace, crate::ContractError> {
     super::checked(profile.validate())?;
     if !query.valid(profile) {
         return Err(super::invalid("attention.query", ""));
     }
-    if candidates.len() > 128
+    if candidates.len() > max_candidates
         || candidates
             .iter()
             .map(|c| &c.memory.memory.memory_id)

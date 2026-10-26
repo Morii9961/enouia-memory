@@ -309,6 +309,15 @@ def main():
             failures.append(f"invalid Agent record request accepted: {case['name']}")
     counts["agent_record_documents"] = len(records["valid"]) + len(records["invalid"])
 
+    catalog_agent = load(ROOT / "tests" / "fixtures" / "agent-catalog-read" / "manifest.json")
+    for value in catalog_agent["valid"]:
+        if not valid(catalog_agent["schema"], value):
+            failures.append("valid segmented Agent request rejected")
+    for case in catalog_agent["invalid"]:
+        if valid(catalog_agent["schema"], case["value"]):
+            failures.append(f"invalid segmented Agent request accepted: {case['name']}")
+    counts["agent_catalog_documents"] = len(catalog_agent["valid"]) + len(catalog_agent["invalid"])
+
     if len(sys.argv) != 1:
         if len(sys.argv) != 3 or sys.argv[1] != "--mcp2-transcript":
             raise SystemExit("usage: check_schemas.py [--mcp2-transcript FILE]")

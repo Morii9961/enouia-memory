@@ -153,3 +153,14 @@ fields and scoped entity metadata accompany page/detail/recall; independent
 source permission applies to SourceRecordFields. Existing HostV2/v1 clients
 refuse this layout. Runtime-only capture is a subsequent ingress, not enabled by
 this reader. The parallel segmented layout is not implicitly supported.
+
+### Segmented Agent read version 1 (2026-10-26)
+
+[Catalog Agent reads](../contracts/MCP_AGENT_CATALOG_READ_V1.md) explicitly bind
+schema 2 / automation-segmented-host-v1 to memory-agent-catalog-read-1 and
+memory-agent-pipe-3. The independent native gate precedes catalog filtering,
+counts and field projection. Five read tools share the actual native Context
+response; scalable recall declares bounded exclusion details and exact in-scope
+reason counts. Old readers and their limits remain unchanged. Source text needs
+SourceRead, and reads never reinforce attention. Runtime adoption, daily capture
+and newer UI family/graph/process projections remain separate.
