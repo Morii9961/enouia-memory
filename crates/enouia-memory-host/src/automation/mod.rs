@@ -8,6 +8,8 @@ pub mod catalog;
 pub mod continuation;
 mod model;
 pub mod read_model;
+#[cfg(windows)]
+pub mod runtime_capture;
 pub mod segmented_agent;
 mod worker;
 pub use model::*;

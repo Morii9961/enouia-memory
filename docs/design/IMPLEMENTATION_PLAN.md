@@ -1,3 +1,9 @@
+> 2026-10-27 MCP-3 原生前置片：按 [ADR-MEM-102](../adr/102-runtime-only-capture-boundary.md)
+> 接 Runtime-only 原始轮次和无写入预检；[契约](../contracts/RUNTIME_CAPTURE_NATIVE_V1.md)
+> 与[验证报告](../validation/MCP-3-runtime-capture-native.md)区分来源事务和形成作业。
+> 未接 durable live 管线前不广告 conversation_capture，不伪造作业回执。
+> 后续继续 Runtime 本地传输、同对话异步形成和 Agent 提示，不启动私人初始化。
+
 > 2026-10-26 MCP 接续：按 [ADR-MEM-98](../adr/098-segmented-agent-memory-reads.md)
 > 先交付独立分段 Agent gate，再接五工具与显式大集合 trace 覆盖。
 > 各检查点以 [MCP-2c 报告](../validation/MCP-2c-segmented-agent-reads.md)记录实际检查；

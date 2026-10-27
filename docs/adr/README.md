@@ -528,3 +528,7 @@ Runtime [ADR-025](https://github.com/Morii9961/enouia-runtime/blob/main/docs/adr
 ### ADR-MEM-98 — Separate segmented Agent delegation
 
 [Decision](098-segmented-agent-memory-reads.md): native instance/policy/source-bound delegation before segmented rows, history and counts. The first checkpoint exposes no segmented MCP tools; the existing System read port is not an Agent capability.
+
+### ADR-MEM-102 — Runtime-only native daily capture
+
+[Decision](102-runtime-only-capture-boundary.md): retained Runtime OS peer, sealed current-policy source-pool delegation, exact raw turns and explicit default-timezone provenance. No-write preflight shares real capture admission. This checkpoint schedules no formation and exposes no public capture tool.

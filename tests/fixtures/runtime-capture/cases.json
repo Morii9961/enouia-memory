@@ -1,0 +1,23 @@
+{
+  "base": {
+    "schema_version": 2, "kind": "runtime_capture_request", "capability": "memory-runtime-capture-native-1",
+    "request_id": "req_00000001-0000-4000-8000-000000000001", "conversation_id": "synthetic-only", "title": null,
+    "turns": [{"message_id": "m1", "parent_message_id": null, "branch_id": "main", "sequence": 1,
+      "speaker": "user", "text": "Synthetic exact raw turn.\nＡ B", "original_time": null, "original_timezone": null,
+      "occurred_at": null, "content_lang": "en", "assistant_model": null, "attachments": []}]
+  },
+  "cases": [
+    {"name":"valid raw turn", "ops":[], "schema":true, "native":true},
+    {"name":"old version", "ops":[{"op":"set","path":"/schema_version","value":1}], "schema":false, "native":false},
+    {"name":"forged principal", "ops":[{"op":"set","path":"/principal","value":"owner"}], "schema":false, "native":false},
+    {"name":"scope parameter", "ops":[{"op":"set","path":"/source_ids","value":[]}], "schema":false, "native":false},
+    {"name":"wrong capability", "ops":[{"op":"set","path":"/capability","value":"memory-agent-catalog-read-1"}], "schema":false, "native":false},
+    {"name":"claim confirmation", "ops":[{"op":"set","path":"/turns/0/knowledge","value":"user_confirmed"}], "schema":false, "native":false},
+    {"name":"zero sequence", "ops":[{"op":"set","path":"/turns/0/sequence","value":0}], "schema":false, "native":false},
+    {"name":"empty turns", "ops":[{"op":"set","path":"/turns","value":[]}], "schema":false, "native":false},
+    {"name":"duplicate message", "ops":[{"op":"append","path":"/turns","value_from":"/turns/0"}], "schema":true, "native":false},
+    {"name":"whitespace text", "ops":[{"op":"set","path":"/turns/0/text","value":"   "}], "schema":true, "native":false},
+    {"name":"user model", "ops":[{"op":"set","path":"/turns/0/assistant_model","value":"synthetic-model"}], "schema":true, "native":false},
+    {"name":"missing nullable field", "ops":[{"op":"remove","path":"/turns/0/original_timezone"}], "schema":false, "native":false}
+  ]
+}
