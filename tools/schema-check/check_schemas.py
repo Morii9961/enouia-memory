@@ -364,6 +364,14 @@ def main():
             failures.append(f"catalog case {case['id']}: disagreement")
     counts["catalog_documents"] = len(catalog["valid"]) + len(catalog["invalid"])
 
+    capture_cases = load(ROOT / "tests/fixtures/runtime-capture/cases.json")
+    for case in capture_cases["cases"]:
+        value = copy.deepcopy(capture_cases["base"])
+        apply_ops(value, case["ops"])
+        if valid("next/runtime-capture-v2.schema.json", value) != case["schema"]:
+            failures.append(f"Runtime capture case {case['name']}: disagreement")
+    counts["runtime_capture_cases"] = len(capture_cases["cases"])
+
     invocation_cases = load(FIXTURES / "provider-invocation-cases.json")
     for case in invocation_cases["cases"]:
         value = copy.deepcopy(invocation_cases["base"])

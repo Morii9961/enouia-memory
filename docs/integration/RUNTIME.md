@@ -1,5 +1,19 @@
 # Runtime integration (ADR-MEM-45)
 
+2026-10-27: ADR-MEM-102 adds opt-in native Runtime source capture, capability
+`memory-runtime-capture-native-1`, on an existing leased segmented root only.
+Aggregate: `1c5124c281348297d55dce0458887fce96210bf30e7a2eea2aa0eff813ef553f`.
+Runtime adoption must independently authenticate/enroll its actual process and
+bind exact current policy/source pool, account alias and Asia/Shanghai default
+timezone. Raw source metadata preserves missing original timezone/date and
+records explicit default origin; machine roles never become Owner confirmation.
+Preflight uses the same transaction admission without publication. Capture
+returns actual source witness, not a formed-memory or queued-job receipt.
+Existing System/Agent reads, layouts and Workspace IPC58 remain unchanged.
+No Runtime hook/transport/pin/UI adoption, live formation, private initialization,
+Provider or public MCP capture tool is activated by this native checkpoint.
+See [contract](../contracts/RUNTIME_CAPTURE_NATIVE_V1.md).
+
 2026-10-23 clarification: Runtime already hosts Memory's product UI through its
 pinned embedded Core adapter. `apps/workspace` remains the reference shell only.
 Pending MV-8.1j adoption means adoption of the native Host backend specifically;

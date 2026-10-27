@@ -2,6 +2,7 @@
 mod agent;
 mod catalog;
 pub use agent::{AuthorizedSegmentedAgentRead, SegmentedAgentPermit, SegmentedAgentScope};
+mod runtime_capture;
 mod state;
 use super::*;
 use enouia_memory_contract::{
@@ -9,6 +10,7 @@ use enouia_memory_contract::{
     hash::sha256,
     host::{AuthorityState, Checkpoint},
 };
+pub use runtime_capture::{NativeRuntimeCapture, RuntimeCapturePermit, RuntimeCaptureScope};
 pub use state::SegmentedMemory;
 use state::State;
 use std::{collections::BTreeMap, sync::Mutex};
@@ -249,6 +251,16 @@ impl SegmentedAutomationVault {
         actor: ActorRef,
         delta: SegmentedDelta,
     ) -> Result<AutomationCurrent> {
+        self.commit_checked(state, actor, delta, false)
+    }
+    /// Shares all transaction admission/size checks with native no-write preflight.
+    fn commit_checked(
+        &self,
+        state: &mut State,
+        actor: ActorRef,
+        delta: SegmentedDelta,
+        preflight: bool,
+    ) -> Result<AutomationCurrent> {
         let before = state.head.as_ref();
         let now = self.native.now()?;
         let sequence = before.map_or(Ok(Revision::new(1).unwrap()), |h| next(h.sequence))?;
@@ -311,6 +323,9 @@ impl SegmentedAutomationVault {
             return Err(AutomationFault::Capacity);
         }
         let pointer = c.current();
+        if preflight {
+            return Ok(pointer);
+        }
         let intent = AutomationPublication {
             schema_version: NextVersion,
             kind: PublicationKind::AutomationPublication,
