@@ -8,13 +8,17 @@ use enouia_memory_vault::automation::{
         NativeRuntimeCapture, RuntimeCapturePermit, RuntimeCaptureScope, SegmentedAutomationVault,
     },
 };
-use std::sync::{Arc, Mutex};
+use std::sync::{
+    Arc, Mutex,
+    atomic::{AtomicBool, Ordering},
+};
 
 pub struct RuntimeCaptureHost {
     vault: Arc<SegmentedAutomationVault>,
     peer: ProcessPeer,
     permit: RuntimeCapturePermit,
     unknown: Mutex<Option<RuntimeCaptureRequest>>,
+    connection_bound: AtomicBool,
 }
 impl RuntimeCaptureHost {
     /// Native Owner setup supplies the actual Runtime process and selected
@@ -42,6 +46,7 @@ impl RuntimeCaptureHost {
             peer,
             permit,
             unknown: Mutex::new(None),
+            connection_bound: AtomicBool::new(false),
         })
     }
     /// Lock/withdrawal is permanent for this enrollment. Fresh native setup is
@@ -51,6 +56,16 @@ impl RuntimeCaptureHost {
     }
     pub fn principal(&self) -> &ActorRef {
         self.permit.principal()
+    }
+    pub(crate) fn vault_id(&self) -> &enouia_memory_contract::ids::VaultId {
+        &self.vault.descriptor().vault_id
+    }
+    pub(crate) fn bind_connection(&self) -> ApplicationResult<()> {
+        self.live()?;
+        self.connection_bound
+            .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
+            .map_err(|_| ApplicationFault::Locked)?;
+        Ok(())
     }
     fn live(&self) -> ApplicationResult<()> {
         if self

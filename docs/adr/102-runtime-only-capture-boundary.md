@@ -29,3 +29,11 @@ as an operational Agent tool or claim queued formation until the Runtime-only
 local transport and durable per-conversation live pipeline are connected and
 tested. All text, identities and processes used for verification are synthetic.
 No private initialization, provider, Runtime edit or client configuration.
+
+Checkpoint 2 binds that same producer to memory-runtime-capture-pipe-1,
+with exact layout/capability/transitive-schema handshake. One enrollment binds
+at most one connection and is revoked on exit. Native control may retain the
+Host in an Arc and revoke an active connection; no lock/unlock or registration
+packet exists. The Runtime client retains the full original call on uncertainty.
+This source-only transport still schedules no formation and is not an Agent
+MCP capture tool. It never forwards the legacy Workspace surface marker.

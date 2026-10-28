@@ -10,6 +10,8 @@ mod model;
 pub mod read_model;
 #[cfg(windows)]
 pub mod runtime_capture;
+#[cfg(windows)]
+pub mod runtime_capture_transport;
 pub mod segmented_agent;
 mod worker;
 pub use model::*;
