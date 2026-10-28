@@ -1,0 +1,336 @@
+{
+  "authorized_at": "2026-10-24T12:00:00.000Z",
+  "capability": "memory-native-read-2",
+  "complete_in_scope": true,
+  "count_exact": true,
+  "effect": "native_read",
+  "facets": [],
+  "items": [
+    {
+      "base": {
+        "adoption": "staged",
+        "attention": "active",
+        "committed_in": "cmt_bc83a327-286a-48d9-8abf-c1df7b2d5e9b",
+        "content": "Synthetic item 1: I prefer moonlight walks.",
+        "context_source_refs": [
+          {
+            "source_id": "src_00000003-0000-4000-8000-000000000001",
+            "source_revision": 1
+          }
+        ],
+        "dimensions": {
+          "change": "initial",
+          "conditions": [],
+          "counter_sources": [
+            {
+              "source_id": "src_00000003-0000-4000-8000-000000000001",
+              "source_revision": 1
+            }
+          ],
+          "derived_from": [],
+          "event_time": null,
+          "kind": "preference",
+          "occurrence": "unknown",
+          "reverts_to": null,
+          "state": null,
+          "valid_time": null
+        },
+        "evidence": [
+          {
+            "evidence_class": "user_statement",
+            "locator": {
+              "event_id": "evt_00000001-0000-4000-8000-000000000001",
+              "kind": "runtime_event"
+            },
+            "object_hash": "ce99ab13eb301afeaf1efecb3de7437699e76d49406d98b5f236c847d98ed51b",
+            "source_id": "src_00000001-0000-4000-8000-000000000001",
+            "source_revision": 1,
+            "supports": "content"
+          }
+        ],
+        "knowledge": "disputed",
+        "learned_at": "2026-10-24T12:00:00.000Z",
+        "memory": {
+          "memory_id": "mem_0b3d9caf-0ee2-4dd8-bd6c-42237804d118",
+          "revision": 1
+        },
+        "policy": {
+          "hash": "88263688c567b67626dbac834ae83aa7ded3b3396db7fa8ae49720ccb50d8878",
+          "policy_id": "pol_000003e9-0000-4000-8000-000000000001",
+          "revision": 1
+        },
+        "project_id": null,
+        "receipt": {
+          "binding_hash": "556a81a1813b5cc9c3c0d947df9a95295ab1a97264dfc3a0a5230f494d8bcb91",
+          "committed_in": "cmt_bc83a327-286a-48d9-8abf-c1df7b2d5e9b",
+          "decision_hash": "6e81e333dff822aa88bce21c07edb60e6e47d3e78fcd8aa96d6ada0eaa1a8bbc",
+          "job_key": "5e1b983df9c90b2a0c15f8bc3f68b006a433461891e12688925ad531b42ed932",
+          "operation_id": "op_3f199829-6592-4513-9031-c4685108e927",
+          "request_hash": "bc4cb64593abaf19602fd7e728c16c220d6e15ce1f720317ff41cc8e4d975146",
+          "response_hash": "317ce9fd0992f9c7ea7826da5e3b42b20bc44ce078474e3d6680ecc8baa8b254",
+          "result": {
+            "memory_id": "mem_0b3d9caf-0ee2-4dd8-bd6c-42237804d118",
+            "revision": 1
+          },
+          "sequence": 7
+        },
+        "rule_version": "admission-rules-3",
+        "source_captured_at": "2026-10-24T12:00:00.000Z",
+        "subject_id": "sub_00000001-0000-4000-8000-000000000001",
+        "system_actor": {
+          "actor_id": "prn_00000002-0000-4000-8000-000000000001",
+          "actor_type": "system"
+        },
+        "validity": "unspecified"
+      },
+      "content_lang": "en",
+      "effective_sensitivity": "public",
+      "entities": [],
+      "event_time": {
+        "basis": "unknown",
+        "bound": "within",
+        "from": null,
+        "precision": "unknown",
+        "tz": null,
+        "until": null
+      },
+      "formation_reason": {
+        "import_batch_id": null,
+        "interpretation": "conflicting",
+        "mode": "live",
+        "model_version": null,
+        "note": null,
+        "note_is_machine_annotation": true,
+        "prompt_version": "synthetic-ui-1",
+        "rule_version": "admission-rules-3"
+      },
+      "title": "Synthetic item 1",
+      "valid_time": {
+        "basis": "unknown",
+        "bound": "within",
+        "from": null,
+        "precision": "unknown",
+        "tz": null,
+        "until": null
+      }
+    },
+    {
+      "base": {
+        "adoption": "adopted",
+        "attention": "active",
+        "committed_in": "cmt_969f74bd-1a0e-419d-be2b-30be563d905b",
+        "content": "合成条目 2：我喜欢夜间散步。",
+        "context_source_refs": [],
+        "dimensions": {
+          "change": "correction",
+          "conditions": [],
+          "counter_sources": [],
+          "derived_from": [],
+          "event_time": null,
+          "kind": "preference",
+          "occurrence": "unknown",
+          "reverts_to": null,
+          "state": null,
+          "valid_time": null
+        },
+        "evidence": [
+          {
+            "evidence_class": "user_statement",
+            "locator": {
+              "event_id": "evt_00000002-0000-4000-8000-000000000001",
+              "kind": "runtime_event"
+            },
+            "object_hash": "3e4e30862bb791195b35a50400c6abc97044e74b14a7a435476ef850d90e0e91",
+            "source_id": "src_00000002-0000-4000-8000-000000000001",
+            "source_revision": 1,
+            "supports": "content"
+          }
+        ],
+        "knowledge": "attributed_statement",
+        "learned_at": "2026-10-24T12:00:00.000Z",
+        "memory": {
+          "memory_id": "mem_21732658-0741-4598-914d-b156de3e1ff5",
+          "revision": 2
+        },
+        "policy": {
+          "hash": "88263688c567b67626dbac834ae83aa7ded3b3396db7fa8ae49720ccb50d8878",
+          "policy_id": "pol_000003e9-0000-4000-8000-000000000001",
+          "revision": 1
+        },
+        "project_id": null,
+        "receipt": {
+          "binding_hash": "0874538b7c87450d372f09735513df1557cf14327ac5f9e0c5f9550bae82878c",
+          "committed_in": "cmt_969f74bd-1a0e-419d-be2b-30be563d905b",
+          "decision_hash": "a44c985a689c35d0aa05deeaf345f885883231f3d67ba42d2db494e180ba084d",
+          "job_key": "50cafd6594e929c6a4b8f7429f07cd4b482b2ffa1e288890cecc4147afd3d748",
+          "operation_id": "op_9a0dd069-c2be-47a8-bf32-fa9134cc4d88",
+          "request_hash": "85420f87efe8f98b7737018bbe13ada0aeb3a82b86fa18c1e2a81c2662776a75",
+          "response_hash": "04b88036d509c2c6ea30eb4ac41b260b86d96f3162612367e514b1229850c6ef",
+          "result": {
+            "memory_id": "mem_21732658-0741-4598-914d-b156de3e1ff5",
+            "revision": 2
+          },
+          "sequence": 6
+        },
+        "rule_version": "admission-rules-3",
+        "source_captured_at": "2026-10-24T12:00:00.000Z",
+        "subject_id": "sub_00000001-0000-4000-8000-000000000001",
+        "system_actor": {
+          "actor_id": "prn_00000002-0000-4000-8000-000000000001",
+          "actor_type": "system"
+        },
+        "validity": "unspecified"
+      },
+      "content_lang": "zh-Hans",
+      "effective_sensitivity": "public",
+      "entities": [],
+      "event_time": {
+        "basis": "unknown",
+        "bound": "within",
+        "from": null,
+        "precision": "unknown",
+        "tz": null,
+        "until": null
+      },
+      "formation_reason": {
+        "import_batch_id": null,
+        "interpretation": "clear_self_report",
+        "mode": "live",
+        "model_version": null,
+        "note": "A recorded synthetic reason from the same formation.",
+        "note_is_machine_annotation": true,
+        "prompt_version": "synthetic-ui-1",
+        "rule_version": "admission-rules-3"
+      },
+      "title": "合成条目 2",
+      "valid_time": {
+        "basis": "unknown",
+        "bound": "within",
+        "from": null,
+        "precision": "unknown",
+        "tz": null,
+        "until": null
+      }
+    },
+    {
+      "base": {
+        "adoption": "staged",
+        "attention": "active",
+        "committed_in": "cmt_b6dbc602-4516-4e6b-9f68-d679a236f163",
+        "content": "Synthetic item 3: I prefer moonlight walks.",
+        "context_source_refs": [],
+        "dimensions": {
+          "change": "initial",
+          "conditions": [],
+          "counter_sources": [],
+          "derived_from": [],
+          "event_time": null,
+          "kind": "preference",
+          "occurrence": "unknown",
+          "reverts_to": null,
+          "state": null,
+          "valid_time": null
+        },
+        "evidence": [
+          {
+            "evidence_class": "user_statement",
+            "locator": {
+              "event_id": "evt_00000003-0000-4000-8000-000000000001",
+              "kind": "runtime_event"
+            },
+            "object_hash": "f2f7cb28961b245b1c0248f03c071925c3b32780c04bf34cf69e729ada783233",
+            "source_id": "src_00000003-0000-4000-8000-000000000001",
+            "source_revision": 1,
+            "supports": "content"
+          }
+        ],
+        "knowledge": "hypothesis",
+        "learned_at": "2026-10-24T12:00:00.000Z",
+        "memory": {
+          "memory_id": "mem_cfdc3ea2-4d9f-4085-8efa-61d3a52a62f7",
+          "revision": 1
+        },
+        "policy": {
+          "hash": "88263688c567b67626dbac834ae83aa7ded3b3396db7fa8ae49720ccb50d8878",
+          "policy_id": "pol_000003e9-0000-4000-8000-000000000001",
+          "revision": 1
+        },
+        "project_id": null,
+        "receipt": {
+          "binding_hash": "01aefedfeb33e647c76a6a93d8562dec04384b4663d87a1b49f90bbe796335e6",
+          "committed_in": "cmt_b6dbc602-4516-4e6b-9f68-d679a236f163",
+          "decision_hash": "0803f9757ce32c4e3c3c5c1cae2022243451455ea2bf7050a598fe9827f05501",
+          "job_key": "35ae85af71a8332aabd81876b7b979c8aeb253626d5665e6b6825d2ec3bdb72c",
+          "operation_id": "op_f774379f-ceee-480a-8960-fb6cfeb93249",
+          "request_hash": "adab423a104063491f601e3949d63b2a4c77be432164c56f3e9c0e94d98c5cc9",
+          "response_hash": "d50bead58df48461d51c47bf919f036bf95e946520026f7635a68ec880ffbec0",
+          "result": {
+            "memory_id": "mem_cfdc3ea2-4d9f-4085-8efa-61d3a52a62f7",
+            "revision": 1
+          },
+          "sequence": 5
+        },
+        "rule_version": "admission-rules-3",
+        "source_captured_at": "2026-10-24T12:00:00.000Z",
+        "subject_id": "sub_00000001-0000-4000-8000-000000000001",
+        "system_actor": {
+          "actor_id": "prn_00000002-0000-4000-8000-000000000001",
+          "actor_type": "system"
+        },
+        "validity": "unspecified"
+      },
+      "content_lang": "en",
+      "effective_sensitivity": "public",
+      "entities": [],
+      "event_time": {
+        "basis": "unknown",
+        "bound": "within",
+        "from": null,
+        "precision": "unknown",
+        "tz": null,
+        "until": null
+      },
+      "formation_reason": {
+        "import_batch_id": null,
+        "interpretation": "inference",
+        "mode": "live",
+        "model_version": null,
+        "note": null,
+        "note_is_machine_annotation": true,
+        "prompt_version": "synthetic-ui-1",
+        "rule_version": "admission-rules-3"
+      },
+      "title": "Synthetic item 3",
+      "valid_time": {
+        "basis": "unknown",
+        "bound": "within",
+        "from": null,
+        "precision": "unknown",
+        "tz": null,
+        "until": null
+      }
+    }
+  ],
+  "kind": "catalog_memory_page",
+  "matched_in_scope": 3,
+  "next": null,
+  "schema_version": 2,
+  "scope": "authorized_current_machine_revisions",
+  "selection": {
+    "algorithm": "qualified-family-catalog-3",
+    "evaluated_at": "2026-10-24T12:00:00.000Z",
+    "profile_hash": "e23dce3de472f5e99f52511a55d98426dcb5624957b2def3325645a065426642",
+    "query_hash": "2290b08f18a2502127ebb5c5adb3aa2945841af4ca300e82cbece1dc08405e69",
+    "scope_hash": "a929f2bc6e049d9aaf9b99577c12171547f7d37c82f8517069aef68cff01b47d",
+    "snapshot": {
+      "base_commit_id": "cmt_bc83a327-286a-48d9-8abf-c1df7b2d5e9b",
+      "deletion_watermark": 1,
+      "policy_watermark": 2,
+      "primary_epoch": 1,
+      "vault_id": "vlt_00000001-0000-4000-8000-000000000001"
+    },
+    "version": 3,
+    "withdrawal_watermark": 1
+  },
+  "unknown_time_in_scope": 3
+}

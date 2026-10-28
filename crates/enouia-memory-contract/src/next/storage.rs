@@ -39,6 +39,8 @@ pub enum AutomationLayout {
     HostV3,
     #[serde(rename = "automation-segmented-host-v1")]
     SegmentedV1,
+    #[serde(rename = "automation-segmented-owner-v1")]
+    SegmentedOwnerV1,
 }
 kind!(DescriptorKind, AutomationVault, "automation_vault");
 kind!(CurrentKind, AutomationCurrent, "automation_current");
@@ -60,10 +62,19 @@ pub struct AutomationDescriptor {
     pub host_id: DeviceId,
     pub created_by: ActorRef,
     pub system_actor: ActorRef,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "super::record_fields::present"
+    )]
+    pub owner_subject_id: Option<SubjectId>,
 }
 impl NextDocument for AutomationDescriptor {
     fn validate(&self) -> Vec<Violation> {
         let mut errors = Vec::new();
+        if (self.layout == AutomationLayout::SegmentedOwnerV1) != self.owner_subject_id.is_some() {
+            errors.push(Violation::new("owner.subject_binding", "/owner_subject_id"));
+        }
         if self.created_by.actor_type != ActorType::Owner
             || self.system_actor.actor_type != ActorType::System
             || self.created_by.actor_id == self.system_actor.actor_id

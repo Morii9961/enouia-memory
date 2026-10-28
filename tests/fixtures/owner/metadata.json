@@ -1,0 +1,35 @@
+{
+  "content_lang": "en",
+  "dimensions": {
+    "change": "correction",
+    "conditions": [],
+    "counter_sources": [],
+    "derived_from": [],
+    "event_time": null,
+    "kind": "preference",
+    "occurrence": "unknown",
+    "reverts_to": null,
+    "state": null,
+    "valid_time": null
+  },
+  "entities": [],
+  "event_time": {
+    "basis": "unknown",
+    "bound": "within",
+    "from": null,
+    "precision": "unknown",
+    "tz": null,
+    "until": null
+  },
+  "interpretation": "clear_self_report",
+  "sensitivity": "public",
+  "title": "Synthetic owner correction",
+  "valid_time": {
+    "basis": "unknown",
+    "bound": "within",
+    "from": null,
+    "precision": "unknown",
+    "tz": null,
+    "until": null
+  }
+}

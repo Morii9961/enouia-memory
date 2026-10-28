@@ -167,7 +167,7 @@ pub fn validate_delta(
                     m.request.record_fields.is_none() && m.decision.input.record_fields.is_none()
                 })))
             && match descriptor.layout {
-                AutomationLayout::SegmentedV1 => false,
+                AutomationLayout::SegmentedV1 | AutomationLayout::SegmentedOwnerV1 => false,
                 AutomationLayout::HostV1 => {
                     after.data.policy.rule_version != RuleVersion::V3
                         && after

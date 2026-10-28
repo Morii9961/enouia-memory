@@ -1,0 +1,1104 @@
+{
+  "valid": [
+    {
+      "file": "activity.json",
+      "type": "MemoryActivityPage",
+      "schema": "next/process-v2.schema.json"
+    },
+    {
+      "file": "changes.json",
+      "type": "MemoryChanges",
+      "schema": "next/process-v2.schema.json"
+    },
+    {
+      "file": "detail.json",
+      "type": "NativeMemoryDetail",
+      "schema": "next/process-v2.schema.json"
+    },
+    {
+      "file": "conflicts.json",
+      "type": "MemoryConflictGroup",
+      "schema": "next/process-v2.schema.json"
+    },
+    {
+      "file": "diff.json",
+      "type": "MemoryRevisionDiff",
+      "schema": "next/process-v2.schema.json"
+    },
+    {
+      "file": "neighbors.json",
+      "type": "NativeMemoryNeighbors",
+      "schema": "next/process-v2.schema.json"
+    },
+    {
+      "file": "source.json",
+      "type": "NativeSourceExcerpt",
+      "schema": "next/process-v2.schema.json"
+    },
+    {
+      "file": "conversations.json",
+      "type": "NativeConversationPage",
+      "schema": "next/process-v2.schema.json"
+    },
+    {
+      "file": "conversation-detail.json",
+      "type": "NativeConversationDetail",
+      "schema": "next/process-v2.schema.json"
+    },
+    {
+      "file": "activity-v4.json",
+      "type": "MemoryActivityPage",
+      "schema": "next/process-v2.schema.json"
+    },
+    {
+      "file": "changes-v4.json",
+      "type": "MemoryChanges",
+      "schema": "next/process-v2.schema.json"
+    },
+    {
+      "file": "detail-v4.json",
+      "type": "NativeMemoryDetail",
+      "schema": "next/process-v2.schema.json"
+    },
+    {
+      "file": "conflicts-v4.json",
+      "type": "MemoryConflictGroup",
+      "schema": "next/process-v2.schema.json"
+    },
+    {
+      "file": "diff-v4.json",
+      "type": "MemoryRevisionDiff",
+      "schema": "next/process-v2.schema.json"
+    },
+    {
+      "file": "neighbors-v4.json",
+      "type": "NativeMemoryNeighbors",
+      "schema": "next/process-v2.schema.json"
+    },
+    {
+      "file": "source-v4.json",
+      "type": "NativeSourceExcerpt",
+      "schema": "next/process-v2.schema.json"
+    },
+    {
+      "file": "conversations-v4.json",
+      "type": "NativeConversationPage",
+      "schema": "next/process-v2.schema.json"
+    },
+    {
+      "file": "conversation-detail-v4.json",
+      "type": "NativeConversationDetail",
+      "schema": "next/process-v2.schema.json"
+    }
+  ],
+  "invalid": [
+    {
+      "id": "activity-old-schema",
+      "base": "activity.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/schema_version",
+          "value": 1
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "activity-fake-owner-flag",
+      "base": "activity.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/owner_confirmed",
+          "value": true
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "activity-wrong-effect",
+      "base": "activity.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/effect",
+          "value": "context_preview"
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "activity-bad-permission-hash",
+      "base": "activity.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/header/permission_hash",
+          "value": "not-a-hash"
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "activity-unsupported-algorithm-version",
+      "base": "activity.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/header/version",
+          "value": 2
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "activity-future-authorization",
+      "base": "activity.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/header/authorized_at",
+          "value": "2024-01-01T00:00:00.000Z"
+        }
+      ],
+      "schema": "accept"
+    },
+    {
+      "id": "changes-old-schema",
+      "base": "changes.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/schema_version",
+          "value": 1
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "changes-fake-owner-flag",
+      "base": "changes.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/owner_confirmed",
+          "value": true
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "changes-wrong-effect",
+      "base": "changes.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/effect",
+          "value": "context_preview"
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "changes-bad-permission-hash",
+      "base": "changes.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/header/permission_hash",
+          "value": "not-a-hash"
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "changes-unsupported-algorithm-version",
+      "base": "changes.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/header/version",
+          "value": 2
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "changes-future-authorization",
+      "base": "changes.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/header/authorized_at",
+          "value": "2024-01-01T00:00:00.000Z"
+        }
+      ],
+      "schema": "accept"
+    },
+    {
+      "id": "detail-old-schema",
+      "base": "detail.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/schema_version",
+          "value": 1
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "detail-fake-owner-flag",
+      "base": "detail.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/owner_confirmed",
+          "value": true
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "detail-wrong-effect",
+      "base": "detail.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/effect",
+          "value": "context_preview"
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "detail-bad-permission-hash",
+      "base": "detail.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/header/permission_hash",
+          "value": "not-a-hash"
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "detail-unsupported-algorithm-version",
+      "base": "detail.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/header/version",
+          "value": 2
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "detail-future-authorization",
+      "base": "detail.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/header/authorized_at",
+          "value": "2024-01-01T00:00:00.000Z"
+        }
+      ],
+      "schema": "accept"
+    },
+    {
+      "id": "conflicts-old-schema",
+      "base": "conflicts.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/schema_version",
+          "value": 1
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "conflicts-fake-owner-flag",
+      "base": "conflicts.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/owner_confirmed",
+          "value": true
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "conflicts-wrong-effect",
+      "base": "conflicts.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/effect",
+          "value": "context_preview"
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "conflicts-bad-permission-hash",
+      "base": "conflicts.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/header/permission_hash",
+          "value": "not-a-hash"
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "conflicts-unsupported-algorithm-version",
+      "base": "conflicts.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/header/version",
+          "value": 2
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "conflicts-future-authorization",
+      "base": "conflicts.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/header/authorized_at",
+          "value": "2024-01-01T00:00:00.000Z"
+        }
+      ],
+      "schema": "accept"
+    },
+    {
+      "id": "diff-old-schema",
+      "base": "diff.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/schema_version",
+          "value": 1
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "diff-fake-owner-flag",
+      "base": "diff.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/owner_confirmed",
+          "value": true
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "diff-wrong-effect",
+      "base": "diff.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/effect",
+          "value": "context_preview"
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "diff-bad-permission-hash",
+      "base": "diff.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/header/permission_hash",
+          "value": "not-a-hash"
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "diff-unsupported-algorithm-version",
+      "base": "diff.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/header/version",
+          "value": 2
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "diff-future-authorization",
+      "base": "diff.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/header/authorized_at",
+          "value": "2024-01-01T00:00:00.000Z"
+        }
+      ],
+      "schema": "accept"
+    },
+    {
+      "id": "neighbors-old-schema",
+      "base": "neighbors.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/schema_version",
+          "value": 1
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "neighbors-fake-owner-flag",
+      "base": "neighbors.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/owner_confirmed",
+          "value": true
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "neighbors-wrong-effect",
+      "base": "neighbors.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/effect",
+          "value": "context_preview"
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "neighbors-bad-permission-hash",
+      "base": "neighbors.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/header/permission_hash",
+          "value": "not-a-hash"
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "neighbors-unsupported-algorithm-version",
+      "base": "neighbors.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/header/version",
+          "value": 2
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "neighbors-future-authorization",
+      "base": "neighbors.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/header/authorized_at",
+          "value": "2024-01-01T00:00:00.000Z"
+        }
+      ],
+      "schema": "accept"
+    },
+    {
+      "id": "source-old-schema",
+      "base": "source.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/schema_version",
+          "value": 1
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "source-fake-owner-flag",
+      "base": "source.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/owner_confirmed",
+          "value": true
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "source-wrong-effect",
+      "base": "source.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/effect",
+          "value": "context_preview"
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "source-bad-permission-hash",
+      "base": "source.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/header/permission_hash",
+          "value": "not-a-hash"
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "source-unsupported-algorithm-version",
+      "base": "source.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/header/version",
+          "value": 2
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "source-future-authorization",
+      "base": "source.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/header/authorized_at",
+          "value": "2024-01-01T00:00:00.000Z"
+        }
+      ],
+      "schema": "accept"
+    },
+    {
+      "id": "conversations-old-schema",
+      "base": "conversations.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/schema_version",
+          "value": 1
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "conversations-fake-owner-flag",
+      "base": "conversations.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/owner_confirmed",
+          "value": true
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "conversations-wrong-effect",
+      "base": "conversations.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/effect",
+          "value": "context_preview"
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "conversations-bad-permission-hash",
+      "base": "conversations.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/header/permission_hash",
+          "value": "not-a-hash"
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "conversations-unsupported-algorithm-version",
+      "base": "conversations.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/header/version",
+          "value": 2
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "conversations-future-authorization",
+      "base": "conversations.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/header/authorized_at",
+          "value": "2024-01-01T00:00:00.000Z"
+        }
+      ],
+      "schema": "accept"
+    },
+    {
+      "id": "conversation-detail-old-schema",
+      "base": "conversation-detail.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/schema_version",
+          "value": 1
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "conversation-detail-fake-owner-flag",
+      "base": "conversation-detail.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/owner_confirmed",
+          "value": true
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "conversation-detail-wrong-effect",
+      "base": "conversation-detail.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/effect",
+          "value": "context_preview"
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "conversation-detail-bad-permission-hash",
+      "base": "conversation-detail.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/header/permission_hash",
+          "value": "not-a-hash"
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "conversation-detail-unsupported-algorithm-version",
+      "base": "conversation-detail.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/header/version",
+          "value": 2
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "conversation-detail-future-authorization",
+      "base": "conversation-detail.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/header/authorized_at",
+          "value": "2024-01-01T00:00:00.000Z"
+        }
+      ],
+      "schema": "accept"
+    },
+    {
+      "id": "activity-forged-owner-actor",
+      "base": "activity.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/items/1/proof/actor/actor_type",
+          "value": "owner"
+        }
+      ],
+      "schema": "accept"
+    },
+    {
+      "id": "activity-false-count",
+      "base": "activity.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/matched_in_scope",
+          "value": 0
+        }
+      ],
+      "schema": "accept"
+    },
+    {
+      "id": "changes-false-unchanged",
+      "base": "changes.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/status",
+          "value": "unchanged_in_scope"
+        }
+      ],
+      "schema": "accept"
+    },
+    {
+      "id": "changes-wrong-anchor",
+      "base": "changes.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/next_anchor/query_hash",
+          "value": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        }
+      ],
+      "schema": "accept"
+    },
+    {
+      "id": "detail-unavailable-with-body",
+      "base": "detail.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/item",
+          "value": null
+        }
+      ],
+      "schema": "accept"
+    },
+    {
+      "id": "detail-bad-history-title",
+      "base": "detail.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/history/0/title",
+          "value": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "conflict-false-count",
+      "base": "conflicts.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/matched_in_scope",
+          "value": 0
+        }
+      ],
+      "schema": "accept"
+    },
+    {
+      "id": "diff-nonstructural-claim",
+      "base": "diff.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/structural_only",
+          "value": false
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "diff-nonadjacent",
+      "base": "diff.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/after/memory/revision",
+          "value": 3
+        }
+      ],
+      "schema": "accept"
+    },
+    {
+      "id": "neighbor-fact-as-suggestion",
+      "base": "neighbors.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/items/0/relations/0/class",
+          "value": "algorithm_suggestion"
+        }
+      ],
+      "schema": "accept"
+    },
+    {
+      "id": "neighbor-false-witness-completeness",
+      "base": "neighbors.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/items/0/relations/0/witnesses_complete",
+          "value": false
+        }
+      ],
+      "schema": "accept"
+    },
+    {
+      "id": "source-reversed-range",
+      "base": "source.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/end",
+          "value": 0
+        }
+      ],
+      "schema": "accept"
+    },
+    {
+      "id": "source-trusted-extension-claim",
+      "base": "source.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/source_record/extensions_are_untrusted_data",
+          "value": false
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "conversation-false-count",
+      "base": "conversations.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/matched_in_scope",
+          "value": 0
+        }
+      ],
+      "schema": "accept"
+    },
+    {
+      "id": "conversation-turn-source-mismatch",
+      "base": "conversation-detail.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/turns/0/source_record/reference/source_revision",
+          "value": 2
+        }
+      ],
+      "schema": "accept"
+    },
+    {
+      "id": "activity-v4-old-header-version",
+      "base": "activity-v4.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/header/version",
+          "value": 1
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "changes-v4-old-header-version",
+      "base": "changes-v4.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/header/version",
+          "value": 1
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "detail-v4-old-header-version",
+      "base": "detail-v4.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/header/version",
+          "value": 1
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "conflicts-v4-old-header-version",
+      "base": "conflicts-v4.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/header/version",
+          "value": 1
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "diff-v4-old-header-version",
+      "base": "diff-v4.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/header/version",
+          "value": 1
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "neighbors-v4-old-header-version",
+      "base": "neighbors-v4.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/header/version",
+          "value": 1
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "source-v4-old-header-version",
+      "base": "source-v4.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/header/version",
+          "value": 1
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "conversations-v4-old-header-version",
+      "base": "conversations-v4.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/header/version",
+          "value": 1
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "conversation-detail-v4-old-header-version",
+      "base": "conversation-detail-v4.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/header/version",
+          "value": 1
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "detail-v4-no-global-sequence-history",
+      "base": "detail-v4.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/history/0/receipt/sequence",
+          "value": 1
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "detail-v4-no-global-sequence-item",
+      "base": "detail-v4.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/item/base/receipt/sequence",
+          "value": 1
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "neighbors-v4-no-global-sequence-items",
+      "base": "neighbors-v4.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/items/0/other/receipt/sequence",
+          "value": 1
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "conversations-v4-hidden-turn-ordinals",
+      "base": "conversations-v4.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/items/0/conversation/turns",
+          "value": []
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "conversation-detail-v4-hidden-turn-ordinals",
+      "base": "conversation-detail-v4.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/conversation/turns",
+          "value": []
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "conflicts-v4-global-sequence",
+      "base": "conflicts-v4.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/items/0/base/receipt/sequence",
+          "value": 1
+        }
+      ],
+      "schema": "reject"
+    }
+  ]
+}

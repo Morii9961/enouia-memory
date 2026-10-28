@@ -1,0 +1,2158 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.enouia-memory.invalid/next/process-v2.schema.json",
+  "title": "Scoped native process reads; v4 omits hidden global ordinals",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/MemoryActivityPage"
+    },
+    {
+      "$ref": "#/$defs/MemoryChanges"
+    },
+    {
+      "$ref": "#/$defs/NativeMemoryDetail"
+    },
+    {
+      "$ref": "#/$defs/MemoryConflictGroup"
+    },
+    {
+      "$ref": "#/$defs/MemoryRevisionDiff"
+    },
+    {
+      "$ref": "#/$defs/NativeMemoryNeighbors"
+    },
+    {
+      "$ref": "#/$defs/NativeSourceExcerpt"
+    },
+    {
+      "$ref": "#/$defs/NativeConversationPage"
+    },
+    {
+      "$ref": "#/$defs/NativeConversationDetail"
+    }
+  ],
+  "$defs": {
+    "NativeReadReceipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "job_key",
+        "binding_hash",
+        "operation_id",
+        "request_hash",
+        "response_hash",
+        "decision_hash",
+        "committed_in",
+        "result"
+      ],
+      "properties": {
+        "job_key": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/sha256"
+        },
+        "binding_hash": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/sha256"
+        },
+        "operation_id": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/operationId"
+        },
+        "request_hash": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/sha256"
+        },
+        "response_hash": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/sha256"
+        },
+        "decision_hash": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/sha256"
+        },
+        "committed_in": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/commitId"
+        },
+        "sequence": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/revision"
+        },
+        "result": {
+          "$ref": "automation-v2.schema.json#/$defs/memoryRef"
+        }
+      }
+    },
+    "MemoryFormationReason": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "interpretation",
+        "rule_version",
+        "prompt_version",
+        "model_version",
+        "mode",
+        "import_batch_id",
+        "note",
+        "note_is_machine_annotation"
+      ],
+      "properties": {
+        "interpretation": {
+          "enum": [
+            "clear_self_report",
+            "inference",
+            "ambiguous",
+            "conflicting"
+          ]
+        },
+        "rule_version": {
+          "enum": [
+            "admission-rules-1",
+            "admission-rules-2",
+            "admission-rules-3"
+          ]
+        },
+        "prompt_version": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "model_version": {
+          "oneOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "mode": {
+          "enum": [
+            "backfill",
+            "live"
+          ]
+        },
+        "import_batch_id": {
+          "oneOf": [
+            {
+              "$ref": "../memory/common-v1.schema.json#/$defs/importId"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "note": {
+          "oneOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 500
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "note_is_machine_annotation": {
+          "const": true
+        }
+      }
+    },
+    "ProcessHeader": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "selection",
+        "algorithm",
+        "version",
+        "parameters_hash",
+        "permission_hash",
+        "authorized_at",
+        "scope"
+      ],
+      "properties": {
+        "selection": {
+          "$ref": "catalog-v2.schema.json#/$defs/selection"
+        },
+        "algorithm": {
+          "enum": [
+            "witnessed-native-activity-1",
+            "authorized-native-changes-1",
+            "authorized-native-detail-1",
+            "recorded-counter-evidence-1",
+            "structural-revision-diff-1",
+            "typed-selected-neighbors-1",
+            "selected-source-excerpt-1",
+            "authorized-conversation-list-1",
+            "authorized-conversation-turns-1",
+            "witnessed-native-activity-2",
+            "authorized-native-changes-2",
+            "authorized-native-detail-2",
+            "recorded-counter-evidence-2",
+            "structural-revision-diff-2",
+            "typed-selected-neighbors-2",
+            "selected-source-excerpt-2",
+            "authorized-conversation-list-2",
+            "authorized-conversation-turns-2"
+          ]
+        },
+        "version": {
+          "enum": [
+            1,
+            2
+          ]
+        },
+        "parameters_hash": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/sha256"
+        },
+        "permission_hash": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/sha256"
+        },
+        "authorized_at": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/timestamp"
+        },
+        "scope": {
+          "const": "authorized_current_dependencies"
+        }
+      },
+      "allOf": [
+        {
+          "properties": {
+            "selection": {
+              "properties": {
+                "algorithm": {
+                  "enum": [
+                    "qualified-family-catalog-3",
+                    "owner-qualified-catalog-4"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "selection": {
+                "properties": {
+                  "algorithm": {
+                    "const": "owner-qualified-catalog-4"
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "version": {
+                "const": 2
+              },
+              "algorithm": {
+                "enum": [
+                  "witnessed-native-activity-2",
+                  "authorized-native-changes-2",
+                  "authorized-native-detail-2",
+                  "recorded-counter-evidence-2",
+                  "structural-revision-diff-2",
+                  "typed-selected-neighbors-2",
+                  "selected-source-excerpt-2",
+                  "authorized-conversation-list-2",
+                  "authorized-conversation-turns-2"
+                ]
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "version": {
+                "const": 1
+              },
+              "algorithm": {
+                "enum": [
+                  "witnessed-native-activity-1",
+                  "authorized-native-changes-1",
+                  "authorized-native-detail-1",
+                  "recorded-counter-evidence-1",
+                  "structural-revision-diff-1",
+                  "typed-selected-neighbors-1",
+                  "selected-source-excerpt-1",
+                  "authorized-conversation-list-1",
+                  "authorized-conversation-turns-1"
+                ]
+              }
+            }
+          }
+        }
+      ]
+    },
+    "ActivityQuery": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "memory",
+        "event_kind",
+        "include_sources"
+      ],
+      "properties": {
+        "memory": {
+          "oneOf": [
+            {
+              "$ref": "../memory/common-v1.schema.json#/$defs/memoryId"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "event_kind": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/NativeActivityKind"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "include_sources": {
+          "type": "boolean"
+        }
+      }
+    },
+    "NativePublicationProof": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "commit_id",
+        "commit_hash",
+        "actor",
+        "written_at"
+      ],
+      "properties": {
+        "commit_id": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/commitId"
+        },
+        "commit_hash": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/sha256"
+        },
+        "actor": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/actorRef"
+        },
+        "written_at": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/timestamp"
+        }
+      }
+    },
+    "MemoryActivityEvent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "event_id",
+        "event_kind",
+        "memory",
+        "source",
+        "title",
+        "change",
+        "knowledge",
+        "adoption",
+        "effective_sensitivity",
+        "formation_reason",
+        "proof",
+        "receipt"
+      ],
+      "properties": {
+        "owner_action": {
+          "oneOf": [
+            {
+              "$ref": "owner-execution-v2.schema.json#/$defs/OwnerActionProof"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "event_id": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/sha256"
+        },
+        "event_kind": {
+          "$ref": "#/$defs/NativeActivityKind"
+        },
+        "memory": {
+          "oneOf": [
+            {
+              "$ref": "automation-v2.schema.json#/$defs/memoryRef"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "source": {
+          "oneOf": [
+            {
+              "$ref": "../memory/common-v1.schema.json#/$defs/sourceRevisionRef"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "title": {
+          "oneOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 60
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "change": {
+          "oneOf": [
+            {
+              "enum": [
+                "initial",
+                "update",
+                "correction",
+                "pause",
+                "resume",
+                "cancellation",
+                "completion",
+                "synthesis",
+                "reversion"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "knowledge": {
+          "oneOf": [
+            {
+              "enum": [
+                "attributed_statement",
+                "hypothesis",
+                "uncertain",
+                "disputed"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "adoption": {
+          "oneOf": [
+            {
+              "enum": [
+                "adopted",
+                "staged"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "effective_sensitivity": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/sensitivity"
+        },
+        "formation_reason": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/MemoryFormationReason"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "proof": {
+          "$ref": "#/$defs/NativePublicationProof"
+        },
+        "receipt": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/NativeReadReceipt"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "ActivityCursor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "header",
+        "after_time",
+        "after_id"
+      ],
+      "properties": {
+        "header": {
+          "$ref": "#/$defs/ProcessHeader"
+        },
+        "after_time": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/timestamp"
+        },
+        "after_id": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/sha256"
+        }
+      }
+    },
+    "MemoryActivityPage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "kind",
+        "capability",
+        "effect",
+        "header",
+        "matched_in_scope",
+        "items",
+        "next",
+        "complete_in_scope",
+        "time_derived_events_available"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": 2
+        },
+        "kind": {
+          "const": "memory_activity_page"
+        },
+        "capability": {
+          "const": "memory-native-read-2"
+        },
+        "effect": {
+          "const": "native_read"
+        },
+        "header": {
+          "$ref": "#/$defs/ProcessHeader"
+        },
+        "matched_in_scope": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 196608
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/MemoryActivityEvent"
+          },
+          "maxItems": 100
+        },
+        "next": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/ActivityCursor"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "complete_in_scope": {
+          "type": "boolean"
+        },
+        "time_derived_events_available": {
+          "const": false
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "header": {
+                "properties": {
+                  "selection": {
+                    "properties": {
+                      "algorithm": {
+                        "const": "owner-qualified-catalog-4"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "items": {
+                "items": {
+                  "properties": {
+                    "receipt": {
+                      "anyOf": [
+                        {
+                          "type": "null"
+                        },
+                        {
+                          "not": {
+                            "required": [
+                              "sequence"
+                            ]
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "ChangeAnchor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "snapshot",
+        "permission_hash",
+        "query_hash"
+      ],
+      "properties": {
+        "snapshot": {
+          "$ref": "automation-v2.schema.json#/$defs/snapshot"
+        },
+        "permission_hash": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/sha256"
+        },
+        "query_hash": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/sha256"
+        }
+      }
+    },
+    "MemoryChanges": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "kind",
+        "capability",
+        "effect",
+        "header",
+        "status",
+        "next_anchor",
+        "memories",
+        "sources",
+        "all_projections_invalidated",
+        "complete_in_scope"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": 2
+        },
+        "kind": {
+          "const": "memory_changes"
+        },
+        "capability": {
+          "const": "memory-native-read-2"
+        },
+        "effect": {
+          "const": "native_read"
+        },
+        "header": {
+          "$ref": "#/$defs/ProcessHeader"
+        },
+        "status": {
+          "$ref": "#/$defs/ChangeStatus"
+        },
+        "next_anchor": {
+          "$ref": "#/$defs/ChangeAnchor"
+        },
+        "memories": {
+          "type": "array",
+          "items": {
+            "$ref": "automation-v2.schema.json#/$defs/memoryRef"
+          },
+          "maxItems": 100
+        },
+        "sources": {
+          "type": "array",
+          "items": {
+            "$ref": "../memory/common-v1.schema.json#/$defs/sourceRevisionRef"
+          },
+          "maxItems": 100
+        },
+        "all_projections_invalidated": {
+          "type": "boolean"
+        },
+        "complete_in_scope": {
+          "const": true
+        }
+      }
+    },
+    "NativeRevisionSummary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "memory",
+        "title",
+        "knowledge",
+        "adoption",
+        "interpretation",
+        "change",
+        "learned_at",
+        "effective_sensitivity",
+        "receipt"
+      ],
+      "properties": {
+        "owner_correction": {
+          "oneOf": [
+            {
+              "$ref": "owner-execution-v2.schema.json#/$defs/OwnerActionProof"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "memory": {
+          "$ref": "automation-v2.schema.json#/$defs/targetRef"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 60
+        },
+        "knowledge": {
+          "enum": [
+            "attributed_statement",
+            "hypothesis",
+            "uncertain",
+            "disputed"
+          ]
+        },
+        "adoption": {
+          "enum": [
+            "adopted",
+            "staged"
+          ]
+        },
+        "interpretation": {
+          "enum": [
+            "clear_self_report",
+            "inference",
+            "ambiguous",
+            "conflicting"
+          ]
+        },
+        "change": {
+          "enum": [
+            "initial",
+            "update",
+            "correction",
+            "pause",
+            "resume",
+            "cancellation",
+            "completion",
+            "synthesis",
+            "reversion"
+          ]
+        },
+        "learned_at": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/timestamp"
+        },
+        "effective_sensitivity": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/sensitivity"
+        },
+        "receipt": {
+          "$ref": "#/$defs/NativeReadReceipt"
+        }
+      }
+    },
+    "HistoryCursor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "header",
+        "memory",
+        "before_revision"
+      ],
+      "properties": {
+        "header": {
+          "$ref": "#/$defs/ProcessHeader"
+        },
+        "memory": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/memoryId"
+        },
+        "before_revision": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/revision"
+        }
+      }
+    },
+    "NativeMemoryDetail": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "kind",
+        "capability",
+        "effect",
+        "header",
+        "item",
+        "fields",
+        "history",
+        "history_count_in_scope",
+        "next_history"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": 2
+        },
+        "kind": {
+          "const": "native_memory_detail"
+        },
+        "capability": {
+          "const": "memory-native-read-2"
+        },
+        "effect": {
+          "const": "native_read"
+        },
+        "header": {
+          "$ref": "#/$defs/ProcessHeader"
+        },
+        "item": {
+          "oneOf": [
+            {
+              "$ref": "catalog-v2.schema.json#/$defs/item"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "fields": {
+          "oneOf": [
+            {
+              "$ref": "ui-records-v2.schema.json#/$defs/memoryFields"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "history": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/NativeRevisionSummary"
+          },
+          "maxItems": 32
+        },
+        "history_count_in_scope": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 131072
+        },
+        "next_history": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/HistoryCursor"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "header": {
+                "properties": {
+                  "selection": {
+                    "properties": {
+                      "algorithm": {
+                        "const": "owner-qualified-catalog-4"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "item": {
+                "anyOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "required": [
+                      "owner_marks"
+                    ],
+                    "properties": {
+                      "base": {
+                        "properties": {
+                          "receipt": {
+                            "not": {
+                              "required": [
+                                "sequence"
+                              ]
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                ]
+              },
+              "history": {
+                "items": {
+                  "properties": {
+                    "receipt": {
+                      "not": {
+                        "required": [
+                          "sequence"
+                        ]
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "ConflictCursor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "header",
+        "memory",
+        "after"
+      ],
+      "properties": {
+        "header": {
+          "$ref": "#/$defs/ProcessHeader"
+        },
+        "memory": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/memoryId"
+        },
+        "after": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/memoryId"
+        }
+      }
+    },
+    "MemoryConflictGroup": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "kind",
+        "capability",
+        "effect",
+        "header",
+        "selected",
+        "basis",
+        "counter_evidence",
+        "matched_in_scope",
+        "items",
+        "next"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": 2
+        },
+        "kind": {
+          "const": "memory_conflict_group"
+        },
+        "capability": {
+          "const": "memory-native-read-2"
+        },
+        "effect": {
+          "const": "native_read"
+        },
+        "header": {
+          "$ref": "#/$defs/ProcessHeader"
+        },
+        "selected": {
+          "oneOf": [
+            {
+              "$ref": "automation-v2.schema.json#/$defs/memoryRef"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "basis": {
+          "const": "recorded_counter_source_overlap_not_independent_verification"
+        },
+        "counter_evidence": {
+          "type": "array",
+          "items": {
+            "$ref": "../memory/common-v1.schema.json#/$defs/sourceRevisionRef"
+          },
+          "maxItems": 128
+        },
+        "matched_in_scope": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 131072
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "catalog-v2.schema.json#/$defs/item"
+          },
+          "maxItems": 100
+        },
+        "next": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/ConflictCursor"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "header": {
+                "properties": {
+                  "selection": {
+                    "properties": {
+                      "algorithm": {
+                        "const": "owner-qualified-catalog-4"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "items": {
+                "items": {
+                  "required": [
+                    "owner_marks"
+                  ],
+                  "properties": {
+                    "base": {
+                      "properties": {
+                        "receipt": {
+                          "not": {
+                            "required": [
+                              "sequence"
+                            ]
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "RevisionFieldDiff": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "field",
+        "before",
+        "after"
+      ],
+      "properties": {
+        "field": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "before": {},
+        "after": {}
+      }
+    },
+    "MemoryRevisionDiff": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "kind",
+        "capability",
+        "effect",
+        "header",
+        "before",
+        "after",
+        "fields",
+        "structural_only"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": 2
+        },
+        "kind": {
+          "const": "memory_revision_diff"
+        },
+        "capability": {
+          "const": "memory-native-read-2"
+        },
+        "effect": {
+          "const": "native_read"
+        },
+        "header": {
+          "$ref": "#/$defs/ProcessHeader"
+        },
+        "before": {
+          "oneOf": [
+            {
+              "$ref": "automation-v2.schema.json#/$defs/targetRef"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "after": {
+          "oneOf": [
+            {
+              "$ref": "automation-v2.schema.json#/$defs/targetRef"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "fields": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/RevisionFieldDiff"
+          },
+          "maxItems": 16
+        },
+        "structural_only": {
+          "const": true
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "header": {
+                "properties": {
+                  "selection": {
+                    "properties": {
+                      "algorithm": {
+                        "const": "owner-qualified-catalog-4"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "before": {
+                "anyOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "properties": {
+                      "receipt": {
+                        "not": {
+                          "required": [
+                            "sequence"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                ]
+              },
+              "after": {
+                "anyOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "properties": {
+                      "receipt": {
+                        "not": {
+                          "required": [
+                            "sequence"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ]
+    },
+    "NativeNeighborRelation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "relation",
+        "class",
+        "direction",
+        "witnesses",
+        "witness_count_in_scope",
+        "witnesses_complete"
+      ],
+      "properties": {
+        "owner_relations": {
+          "type": "array",
+          "items": {
+            "$ref": "owner-execution-v2.schema.json#/$defs/OwnerActionProof"
+          },
+          "maxItems": 64
+        },
+        "relation": {
+          "enum": [
+            "derived_from",
+            "reversion",
+            "revises",
+            "corrects",
+            "same_entity",
+            "same_conversation",
+            "theme_cooccurrence"
+          ]
+        },
+        "class": {
+          "enum": [
+            "recorded_relation",
+            "algorithm_suggestion"
+          ]
+        },
+        "direction": {
+          "enum": [
+            "incoming",
+            "outgoing",
+            "undirected"
+          ]
+        },
+        "witnesses": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          },
+          "maxItems": 128,
+          "minItems": 1
+        },
+        "witness_count_in_scope": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 131072
+        },
+        "witnesses_complete": {
+          "type": "boolean"
+        }
+      }
+    },
+    "NativeMemoryNeighbor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "other",
+        "relations"
+      ],
+      "properties": {
+        "other": {
+          "$ref": "#/$defs/NativeRevisionSummary"
+        },
+        "relations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/NativeNeighborRelation"
+          },
+          "maxItems": 7,
+          "minItems": 1
+        }
+      }
+    },
+    "NeighborCursor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "header",
+        "memory",
+        "after"
+      ],
+      "properties": {
+        "header": {
+          "$ref": "#/$defs/ProcessHeader"
+        },
+        "memory": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/memoryId"
+        },
+        "after": {
+          "$ref": "automation-v2.schema.json#/$defs/memoryRef"
+        }
+      }
+    },
+    "NativeMemoryNeighbors": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "kind",
+        "capability",
+        "effect",
+        "header",
+        "selected",
+        "matched_in_scope",
+        "items",
+        "next"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": 2
+        },
+        "kind": {
+          "const": "native_memory_neighbors"
+        },
+        "capability": {
+          "const": "memory-native-read-2"
+        },
+        "effect": {
+          "const": "native_read"
+        },
+        "header": {
+          "$ref": "#/$defs/ProcessHeader"
+        },
+        "selected": {
+          "oneOf": [
+            {
+              "$ref": "automation-v2.schema.json#/$defs/targetRef"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "matched_in_scope": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 131072
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/NativeMemoryNeighbor"
+          },
+          "maxItems": 100
+        },
+        "next": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/NeighborCursor"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "header": {
+                "properties": {
+                  "selection": {
+                    "properties": {
+                      "algorithm": {
+                        "const": "owner-qualified-catalog-4"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "items": {
+                "items": {
+                  "properties": {
+                    "other": {
+                      "properties": {
+                        "receipt": {
+                          "not": {
+                            "required": [
+                              "sequence"
+                            ]
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "NativeSourceMetadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "reference",
+        "source_kind",
+        "locator",
+        "speaker",
+        "author_label",
+        "evidence_class",
+        "original_conversation_id",
+        "original_message_id",
+        "original_time",
+        "original_timezone",
+        "occurred_at",
+        "captured_at",
+        "time_precision",
+        "content_hash",
+        "anchor_hash",
+        "effective_sensitivity",
+        "extensions",
+        "extensions_are_untrusted_data"
+      ],
+      "properties": {
+        "reference": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/sourceRevisionRef"
+        },
+        "source_kind": {
+          "enum": [
+            "export_message",
+            "runtime_event",
+            "imported_document",
+            "manual_assertion",
+            "external_event",
+            "agent_submission"
+          ]
+        },
+        "locator": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/locator"
+        },
+        "speaker": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/speakerRole"
+        },
+        "author_label": {
+          "oneOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 256
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "evidence_class": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/evidenceClass"
+        },
+        "original_conversation_id": {
+          "oneOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 256
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "original_message_id": {
+          "oneOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 256
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "original_time": {
+          "oneOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 256
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "original_timezone": {
+          "oneOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 256
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "occurred_at": {
+          "oneOf": [
+            {
+              "$ref": "../memory/common-v1.schema.json#/$defs/timestamp"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "captured_at": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/timestamp"
+        },
+        "time_precision": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/timePrecision"
+        },
+        "content_hash": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/sha256"
+        },
+        "anchor_hash": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/sha256"
+        },
+        "effective_sensitivity": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/sensitivity"
+        },
+        "extensions": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/extensions"
+        },
+        "extensions_are_untrusted_data": {
+          "const": true
+        }
+      }
+    },
+    "NativeSourceExcerpt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "kind",
+        "capability",
+        "effect",
+        "header",
+        "source",
+        "source_record",
+        "fields",
+        "excerpt",
+        "start",
+        "end",
+        "total_characters",
+        "complete_in_scope"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": 2
+        },
+        "kind": {
+          "const": "native_source_excerpt"
+        },
+        "capability": {
+          "const": "memory-native-read-2"
+        },
+        "effect": {
+          "const": "native_read"
+        },
+        "header": {
+          "$ref": "#/$defs/ProcessHeader"
+        },
+        "source": {
+          "oneOf": [
+            {
+              "$ref": "../memory/common-v1.schema.json#/$defs/sourceRevisionRef"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "source_record": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/NativeSourceMetadata"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "fields": {
+          "oneOf": [
+            {
+              "$ref": "ui-records-v2.schema.json#/$defs/sourceFields"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "excerpt": {
+          "oneOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 256
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "start": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 16384
+        },
+        "end": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 16384
+        },
+        "total_characters": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 16384
+        },
+        "complete_in_scope": {
+          "type": "boolean"
+        }
+      }
+    },
+    "NativeConversationMetadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "conversation_id",
+        "revision",
+        "platform",
+        "account_scope",
+        "original_conversation_id",
+        "title",
+        "participants",
+        "started_at",
+        "ended_at",
+        "import_batch_id",
+        "complete_in_scope",
+        "sensitivity",
+        "access_policy_id"
+      ],
+      "properties": {
+        "owner_relations": {
+          "type": "array",
+          "items": {
+            "$ref": "owner-execution-v2.schema.json#/$defs/OwnerActionProof"
+          },
+          "maxItems": 64
+        },
+        "conversation_id": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/sessionId"
+        },
+        "revision": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/revision"
+        },
+        "platform": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "account_scope": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "original_conversation_id": {
+          "oneOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 256
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "title": {
+          "oneOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 256
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "participants": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "label",
+              "speaker",
+              "entity_id"
+            ],
+            "properties": {
+              "label": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128
+              },
+              "speaker": {
+                "$ref": "../memory/common-v1.schema.json#/$defs/speakerRole"
+              },
+              "entity_id": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "ui-records-v2.schema.json#/$defs/entityId"
+                  }
+                ]
+              }
+            }
+          },
+          "maxItems": 100
+        },
+        "started_at": {
+          "$ref": "ui-records-v2.schema.json#/$defs/recordTime"
+        },
+        "ended_at": {
+          "$ref": "ui-records-v2.schema.json#/$defs/recordTime"
+        },
+        "turns": {
+          "type": "array",
+          "items": {
+            "$ref": "ui-records-v2.schema.json#/$defs/turn"
+          },
+          "maxItems": 100
+        },
+        "turn_count": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 131072
+        },
+        "branches": {
+          "type": "array",
+          "items": {
+            "$ref": "../memory/common-v1.schema.json#/$defs/branchId"
+          },
+          "maxItems": 100
+        },
+        "import_batch_id": {
+          "oneOf": [
+            {
+              "$ref": "../memory/common-v1.schema.json#/$defs/importId"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "complete_in_scope": {
+          "type": "boolean"
+        },
+        "sensitivity": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/sensitivity"
+        },
+        "access_policy_id": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/policyId"
+        },
+        "turn_sequence_scope": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        }
+      }
+    },
+    "ConversationSummary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "conversation",
+        "visible_captured_turns",
+        "visible_captured_sources",
+        "effective_sensitivity",
+        "platform_complete_not_claimed"
+      ],
+      "properties": {
+        "conversation": {
+          "$ref": "#/$defs/NativeConversationMetadata"
+        },
+        "visible_captured_turns": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 131072
+        },
+        "visible_captured_sources": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 131072
+        },
+        "effective_sensitivity": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/sensitivity"
+        },
+        "platform_complete_not_claimed": {
+          "const": true
+        }
+      }
+    },
+    "ConversationCursor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "header",
+        "after"
+      ],
+      "properties": {
+        "header": {
+          "$ref": "#/$defs/ProcessHeader"
+        },
+        "after": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/sessionId"
+        }
+      }
+    },
+    "NativeConversationPage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "kind",
+        "capability",
+        "effect",
+        "header",
+        "matched_in_scope",
+        "items",
+        "next"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": 2
+        },
+        "kind": {
+          "const": "native_conversation_page"
+        },
+        "capability": {
+          "const": "memory-native-read-2"
+        },
+        "effect": {
+          "const": "native_read"
+        },
+        "header": {
+          "$ref": "#/$defs/ProcessHeader"
+        },
+        "matched_in_scope": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 131072
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ConversationSummary"
+          },
+          "maxItems": 100
+        },
+        "next": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/ConversationCursor"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "header": {
+                "properties": {
+                  "selection": {
+                    "properties": {
+                      "algorithm": {
+                        "const": "owner-qualified-catalog-4"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "items": {
+                "items": {
+                  "properties": {
+                    "conversation": {
+                      "not": {
+                        "anyOf": [
+                          {
+                            "required": [
+                              "turns"
+                            ]
+                          },
+                          {
+                            "required": [
+                              "turn_count"
+                            ]
+                          },
+                          {
+                            "required": [
+                              "branches"
+                            ]
+                          }
+                        ]
+                      },
+                      "required": [
+                        "turn_sequence_scope"
+                      ],
+                      "properties": {
+                        "turn_sequence_scope": {
+                          "const": "authorized_captured_branch_order"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "NativeConversationTurn": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "turn",
+        "source_record",
+        "fields"
+      ],
+      "properties": {
+        "turn": {
+          "$ref": "ui-records-v2.schema.json#/$defs/turn"
+        },
+        "source_record": {
+          "$ref": "#/$defs/NativeSourceMetadata"
+        },
+        "fields": {
+          "$ref": "ui-records-v2.schema.json#/$defs/sourceFields"
+        }
+      }
+    },
+    "ConversationTurnCursor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "header",
+        "conversation",
+        "after_source"
+      ],
+      "properties": {
+        "header": {
+          "$ref": "#/$defs/ProcessHeader"
+        },
+        "conversation": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/sessionId"
+        },
+        "after_source": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/sourceId"
+        }
+      }
+    },
+    "NativeConversationDetail": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "kind",
+        "capability",
+        "effect",
+        "header",
+        "conversation",
+        "effective_sensitivity",
+        "visible_captured_turns",
+        "visible_captured_sources",
+        "turns",
+        "next",
+        "platform_complete_not_claimed"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": 2
+        },
+        "kind": {
+          "const": "native_conversation_detail"
+        },
+        "capability": {
+          "const": "memory-native-read-2"
+        },
+        "effect": {
+          "const": "native_read"
+        },
+        "header": {
+          "$ref": "#/$defs/ProcessHeader"
+        },
+        "conversation": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/NativeConversationMetadata"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "effective_sensitivity": {
+          "oneOf": [
+            {
+              "$ref": "../memory/common-v1.schema.json#/$defs/sensitivity"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "visible_captured_turns": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 131072
+        },
+        "visible_captured_sources": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 131072
+        },
+        "turns": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/NativeConversationTurn"
+          },
+          "maxItems": 100
+        },
+        "next": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/ConversationTurnCursor"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "platform_complete_not_claimed": {
+          "const": true
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "header": {
+                "properties": {
+                  "selection": {
+                    "properties": {
+                      "algorithm": {
+                        "const": "owner-qualified-catalog-4"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "conversation": {
+                "anyOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "not": {
+                      "anyOf": [
+                        {
+                          "required": [
+                            "turns"
+                          ]
+                        },
+                        {
+                          "required": [
+                            "turn_count"
+                          ]
+                        },
+                        {
+                          "required": [
+                            "branches"
+                          ]
+                        }
+                      ]
+                    },
+                    "required": [
+                      "turn_sequence_scope"
+                    ],
+                    "properties": {
+                      "turn_sequence_scope": {
+                        "const": "authorized_captured_branch_order"
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ]
+    },
+    "NativeActivityKind": {
+      "enum": [
+        "material_captured",
+        "formation",
+        "reevaluation",
+        "synthesis",
+        "correction",
+        "reversion",
+        "state_change",
+        "owner_action"
+      ]
+    },
+    "ChangeStatus": {
+      "enum": [
+        "initialize",
+        "unchanged_in_scope",
+        "changed",
+        "reload_required"
+      ]
+    }
+  }
+}

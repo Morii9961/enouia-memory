@@ -1,0 +1,16 @@
+{
+  "created_by": {
+    "actor_id": "prn_00000001-0000-4000-8000-000000000001",
+    "actor_type": "owner"
+  },
+  "host_id": "dev_00000001-0000-4000-8000-000000000001",
+  "kind": "automation_vault",
+  "layout": "automation-segmented-owner-v1",
+  "owner_subject_id": "sub_00000001-0000-4000-8000-000000000001",
+  "schema_version": 2,
+  "system_actor": {
+    "actor_id": "prn_00000002-0000-4000-8000-000000000001",
+    "actor_type": "system"
+  },
+  "vault_id": "vlt_00000001-0000-4000-8000-000000000001"
+}

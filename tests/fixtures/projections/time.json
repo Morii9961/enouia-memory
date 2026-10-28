@@ -1,0 +1,57 @@
+{
+  "kind": "memory_time_buckets",
+  "schema_version": 2,
+  "capability": "memory-native-read-2",
+  "effect": "native_read",
+  "header": {
+    "selection": {
+      "snapshot": {
+        "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+        "base_commit_id": "cmt_00000004-0000-4000-8000-000000000001",
+        "primary_epoch": 1,
+        "policy_watermark": 2,
+        "deletion_watermark": 1
+      },
+      "scope_hash": "a0a1c9e7908d23c948cfd1030a801fbec05955c27665298506e9f1ba3f866b27",
+      "query_hash": "ae230739a240a963c7a8226ca19215e759dce070001d23e092ad6ddc41f42db6",
+      "evaluated_at": "2026-10-24T12:00:00.000Z",
+      "algorithm": "literal-family-catalog-2",
+      "version": 2,
+      "profile_hash": "e23dce3de472f5e99f52511a55d98426dcb5624957b2def3325645a065426642",
+      "withdrawal_watermark": 1
+    },
+    "algorithm": "iana-overlap-buckets-1",
+    "version": 1,
+    "parameters_hash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "authorized_at": "2026-10-24T12:00:00.000Z",
+    "scope": "authorized_current_machine_revisions",
+    "matched_inputs": 3,
+    "included_inputs": 3,
+    "complete_in_scope": true,
+    "limits": []
+  },
+  "query": {
+    "axis": "event",
+    "timezone": "Asia/Shanghai",
+    "granularity": "day",
+    "from_date": "2024-01-01",
+    "until_date": "2024-01-02"
+  },
+  "timezone_database": "jiff-0.2.37/jiff-tzdb-0.1.8-bundled",
+  "interval_rule": "possible_overlap_half_open_not_additive",
+  "material_axis": "source_captured",
+  "unknown_time_in_scope": 1,
+  "buckets": [
+    {
+      "local_start": "2024-01-01",
+      "from": "2023-12-31T16:00:00.000Z",
+      "until": "2024-01-01T16:00:00.000Z",
+      "possible_records": 2,
+      "staged": 1,
+      "adopted": 1,
+      "captured_material": 3
+    }
+  ],
+  "material_scope": "authorized_current_sources_unfiltered",
+  "authorized_material_in_scope": 3
+}
