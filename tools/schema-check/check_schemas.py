@@ -318,9 +318,20 @@ def main():
             failures.append(f"invalid segmented Agent request accepted: {case['name']}")
     counts["agent_catalog_documents"] = len(catalog_agent["valid"]) + len(catalog_agent["invalid"])
 
-    if len(sys.argv) != 1:
+    if len(sys.argv) == 3 and sys.argv[1] == "--runtime-capture-transcript":
+        transcript = load(pathlib.Path(sys.argv[2]))
+        for exchange in transcript["exchanges"]:
+            for key in ("call", "reply"):
+                if not valid("next/runtime-capture-pipe-v2.schema.json", exchange[key]):
+                    failures.append(f"Runtime capture live {key}: rejected")
+        for value in transcript.get("negative_replies", []):
+            if valid("next/runtime-capture-pipe-v2.schema.json", value):
+                failures.append("Runtime capture live invalid reply accepted")
+        counts["runtime_capture_live_exchanges"] = len(transcript["exchanges"])
+        counts["runtime_capture_invalid_replies"] = len(transcript.get("negative_replies", []))
+    elif len(sys.argv) != 1:
         if len(sys.argv) != 3 or sys.argv[1] != "--mcp2-transcript":
-            raise SystemExit("usage: check_schemas.py [--mcp2-transcript FILE]")
+            raise SystemExit("usage: check_schemas.py [--mcp2-transcript FILE | --runtime-capture-transcript FILE]")
         transcript = load(pathlib.Path(sys.argv[2]))
         tools = {tool["name"]: tool for tool in transcript["catalog"]}
         for tool in tools.values():
@@ -371,6 +382,13 @@ def main():
         if valid("next/runtime-capture-v2.schema.json", value) != case["schema"]:
             failures.append(f"Runtime capture case {case['name']}: disagreement")
     counts["runtime_capture_cases"] = len(capture_cases["cases"])
+    wire_cases = load(ROOT / "tests/fixtures/runtime-capture/wire-cases.json")
+    for case in wire_cases["cases"]:
+        value = {"mode": "write", "request": copy.deepcopy(capture_cases["base"])}
+        apply_ops(value, case["ops"])
+        if valid("next/runtime-capture-pipe-v2.schema.json", value) != case["accept"]:
+            failures.append(f"Runtime capture wire case {case['name']}: disagreement")
+    counts["runtime_capture_wire_cases"] = len(wire_cases["cases"])
 
     invocation_cases = load(FIXTURES / "provider-invocation-cases.json")
     for case in invocation_cases["cases"]:

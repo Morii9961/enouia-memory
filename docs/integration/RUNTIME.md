@@ -1,5 +1,15 @@
 # Runtime integration (ADR-MEM-45)
 
+2026-10-27: Runtime capture checkpoint 2 adds memory-runtime-capture-pipe-1,
+exact schema/layout negotiation, retained kernel peer checks, single-use native
+binding, active revocation and original-call retention after uncertain IO.
+Aggregate: `83ad27888db46956d64acb6a29ceaa783577fb4bfa5b5c94d54ce603b9f3c99d`.
+Adopt [the explicit Runtime pipe contract](../contracts/RUNTIME_CAPTURE_PIPE_V1.md)
+and keep native RuntimeCaptureHost reachable for lock/revoke control. This is a
+source-only Runtime endpoint; no Agent capture permission, Workspace forwarding,
+live formation, newer owner-layout adoption, real hook/pin or private root is
+activated. Existing MCP readers and Workspace IPC58 retain their meanings.
+
 2026-10-27: ADR-MEM-102 adds opt-in native Runtime source capture, capability
 `memory-runtime-capture-native-1`, on an existing leased segmented root only.
 Aggregate: `1c5124c281348297d55dce0458887fce96210bf30e7a2eea2aa0eff813ef553f`.

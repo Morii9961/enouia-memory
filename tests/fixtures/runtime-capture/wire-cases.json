@@ -1,0 +1,11 @@
+{"cases":[
+  {"name":"write","ops":[],"accept":true},
+  {"name":"preflight","ops":[{"op":"set","path":"/mode","value":"preflight"}],"accept":true},
+  {"name":"owner control","ops":[{"op":"set","path":"/mode","value":"owner_confirm"}],"accept":false},
+  {"name":"owner identity","ops":[{"op":"set","path":"/principal","value":"owner"}],"accept":false},
+  {"name":"claimed pid","ops":[{"op":"set","path":"/pid","value":12345}],"accept":false},
+  {"name":"claimed source pool","ops":[{"op":"set","path":"/source_ids","value":[]}],"accept":false},
+  {"name":"major","ops":[{"op":"set","path":"/request/schema_version","value":1}],"accept":false},
+  {"name":"Agent read capability","ops":[{"op":"set","path":"/request/capability","value":"memory-agent-catalog-read-1"}],"accept":false},
+  {"name":"missing mode","ops":[{"op":"remove","path":"/mode"}],"accept":false}
+]}
