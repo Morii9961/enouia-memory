@@ -20,6 +20,7 @@ use enouia_memory_contract::{
     ids::*,
     json::{Revision, canonical_bytes},
     next::*,
+    ports::IdSource,
     source::{SourceKind, SourceRecord},
     time::Timestamp,
 };
@@ -43,7 +44,6 @@ use std::{
     },
     time::{Duration, Instant},
 };
-static ROOTS: AtomicU64 = AtomicU64::new(0);
 const NOW: i64 = 1_792_843_200_000;
 fn id(pre: &str, n: u8) -> String {
     format!("{pre}_{n:08x}-0000-4000-8000-000000000001")
@@ -53,10 +53,11 @@ fn root(label: &str) -> VerifiedRoot {
     std::fs::create_dir_all(&base).unwrap();
     let base = std::fs::canonicalize(base).unwrap();
     let base = PathBuf::from(base.to_string_lossy().trim_start_matches(r"\\?\"));
+    // Aborted child processes intentionally leave files behind. PID reuse must
+    // not collide with those roots on a later test run.
     let path = base.join(format!(
-        "{label}-{}-{}",
-        std::process::id(),
-        ROOTS.fetch_add(1, Ordering::SeqCst)
+        "{label}-{}",
+        format_uuid_v4(OsIdSource.random_16())
     ));
     std::fs::create_dir(&path).unwrap();
     verify_data_root(&path, &RootPolicy::default()).unwrap()
@@ -160,6 +161,7 @@ impl Env {
         record.captured_at = Timestamp::from_unix_ms(NOW).unwrap();
         record.created_at = record.captured_at.clone();
         CapturedSource {
+            attachments: Vec::new(),
             record,
             text: text.into(),
             record_fields: None,
@@ -940,16 +942,20 @@ fn core3_publication_child() {
 fn actual_process_crash_preserves_one_result_and_the_same_receipt() {
     for point in ["intent", "current", "witness"] {
         let e = Env::new();
-        let status = Command::new(std::env::current_exe().unwrap())
+        let child = Command::new(std::env::current_exe().unwrap())
             .args(["--exact", "core3_publication_child", "--nocapture"])
             .env("ENOU_CORE3_DATA_ROOT", e.root.path())
             .env("ENOU_CORE3_JOB_ROOT", e.jobs_root.path())
             .env("ENOU_CORE3_POINT", point)
-            .stdout(Stdio::null())
-            .stderr(Stdio::null())
-            .status()
+            .output()
             .unwrap();
-        assert_eq!(status.code(), Some(3));
+        assert_eq!(
+            child.status.code(),
+            Some(3),
+            "point={point}; stdout={}; stderr={}",
+            String::from_utf8_lossy(&child.stdout),
+            String::from_utf8_lossy(&child.stderr)
+        );
         let vault = AutomationVault::recover(
             &e.root,
             e.descriptor.host_id.clone(),

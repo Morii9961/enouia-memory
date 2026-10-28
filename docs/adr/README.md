@@ -506,6 +506,13 @@ anchors, authorized conflict/diff/history/neighbor/source/session ports and v3
 sensitivity/reason qualifications. No stored record/layout change, owner
 execution, Runtime adoption or MCP activation.
 
+### ADR-MEM-104 — Synthetic initialization through shared formation (Implemented, synthetic)
+
+[Decision](104-synthetic-initialization-intake.md): explicit selected originals,
+source/attachment preservation, native legacy-review evidence, durable bounded
+backfill/live batches and seven rebuildable projection groups. No real model,
+owner action or Runtime adoption. [Evidence](../validation/Memory-init-pipeline.md).
+
 ## Relation to Enouia Runtime's register
 
 

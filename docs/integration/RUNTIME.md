@@ -366,3 +366,25 @@ remain unavailable; no fake fading/archive jobs or owner confirmations.
 Stored record fields/layout stay unchanged. G08 owner execution is still pending.
 No Runtime file/pin, MCP route, real root/provider or deployment changed. See
 [synthetic validation](../validation/UI-v2-process.md).
+
+### 2026-10-28 — Synthetic initialization intake (ADR-MEM-104)
+
+Surface aggregate: `de0a9b5026b10438e311354ee54fb3aa0816613fb73dd80ab70563af5f94d1d0`.
+
+Adopt the exact manifest before consuming initialized synthetic segmented roots.
+CapturedSource can now carry optional typed v1 AttachmentRecords, bound to its
+source/ref/sensitivity and verified original bytes. Empty arrays are omitted;
+existing fixtures retain their hashes. Native import capture accepts selected
+export/document/agent sources; ordinary runtime capture stays runtime-event-only.
+Legacy confirmation additionally requires independent native owner selection and
+an exact validated original Review witness. No new owner action is generated.
+Older strict consumers reject these source payloads; never offer the new roots
+to an older pin. There is no old-root migration or compatibility shim.
+
+The separate initializer crate uses existing native formation and read ports.
+Its saved seven-group bundles are inspection artifacts bound to snapshot,
+scope and deletion/withdrawal barriers, never frontend read authority. Runtime
+must still implement its separately authorized six-view adoption and Core-8
+switching. No Runtime checkout, pin, Workspace/IPC/MCP command, Provider, real
+root or deployment changed. See [ADR104](../adr/104-synthetic-initialization-intake.md)
+and [actual coverage and gaps](../validation/Memory-init-pipeline.md).

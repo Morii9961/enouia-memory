@@ -399,6 +399,15 @@ impl AutomationVault {
         source: CapturedSource,
         catalog: Option<RecordCatalog>,
     ) -> Result<AutomationCurrent> {
+        // Arbitrary imports use the separately bound initializer entry. Never
+        // widen the existing runtime-event entry or admit claimed approvals.
+        if source.record.source_kind != enouia_memory_contract::source::SourceKind::RuntimeEvent
+            || source.record.completeness != enouia_memory_contract::source::Completeness::Complete
+            || source.record.evidence_class
+                == enouia_memory_contract::common::EvidenceClass::UserConfirmation
+        {
+            return Err(AutomationFault::Denied);
+        }
         self.system(actor)?;
         self.available()?;
         let _writer = lock::acquire(&self.root, Duration::ZERO)?;

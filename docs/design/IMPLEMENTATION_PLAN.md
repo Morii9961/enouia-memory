@@ -1,3 +1,9 @@
+> 2026-10-28 初始化合成切片：[ADR104](../adr/104-synthetic-initialization-intake.md)。
+> Morii 已在本会话确认 ADR93，并允许最小共享来源文件交集；仅新建临时合成根。
+> 原件保全、预检、分层账本、可恢复批次、共享形成与投影的实际覆盖见
+> [验证报告](../validation/Memory-init-pipeline.md)。真实数据/模型/外发/默认时区、
+> G08 主人动作、Runtime 采用和 Core-8 切换继续由各自授权与切片负责。
+
 > 2026-10-27 UI v2 第四片：[ADR101](../adr/101-native-process-detail-reads.md)
 > 实现 G07 → G13 → G15 → G16 → G19，并补齐 G14 原生会话/来源读取。
 > 记录字段与 segmented-v1 布局不变；采用前需重启旧游标。见
