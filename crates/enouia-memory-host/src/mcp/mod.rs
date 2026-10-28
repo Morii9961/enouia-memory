@@ -4,6 +4,7 @@ pub mod catalog;
 pub(crate) mod json;
 #[cfg(windows)]
 pub mod native;
+pub mod quote_locator;
 mod read;
 mod read_session;
 pub mod v2;

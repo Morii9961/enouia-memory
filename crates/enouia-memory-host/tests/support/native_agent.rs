@@ -77,7 +77,13 @@ impl Agent {
         assert!(self.exchange(json!({"jsonrpc":"2.0","method":"notifications/initialized"}))["response"].is_null());
     }
     fn rpc(&mut self, message: Value) -> Value {
-        self.exchange(message)["response"].clone()
+        let exchange = self.exchange(message);
+        assert!(
+            exchange.get("response").is_some(),
+            "owned Agent exchange failed: {}",
+            exchange["failure"]
+        );
+        exchange["response"].clone()
     }
     fn finish(&mut self) {
         self.send(json!({"exit":true}));
@@ -199,7 +205,8 @@ fn native_agent_current_policy_source_scope_sensitivity_and_deletion() {
             2,
             false,
         );
-        assert!(content(&a.rpc(tool(4, "memory_read", read(&env.memory))))["result"].is_object());
+        let allowed = content(&a.rpc(tool(4, "memory_read", read(&env.memory))));
+        assert!(allowed["result"].is_object(), "authorized read: {allowed}");
         assert_eq!(
             content(&a.rpc(tool(5, "memory_source", source_args(&env.source))))["error"]["code"],
             "not_found"

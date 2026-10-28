@@ -37,3 +37,11 @@ Host in an Arc and revoke an active connection; no lock/unlock or registration
 packet exists. The Runtime client retains the full original call on uncertainty.
 This source-only transport still schedules no formation and is not an Agent
 MCP capture tool. It never forwards the legacy Workspace surface marker.
+
+Checkpoint 3 adds a pure bounded quote locator for subsequent Agent hints.
+Use pinned ICU NFKD plus explicit whitespace/quote folding only for locating;
+return the exact captured text and original scalar offsets, reject ambiguous
+spans and independently recheck the complete candidate. The existing strict
+evidence validator and native authorization/provenance gates remain mandatory.
+See [MCP_QUOTE_LOCATOR_V1](../contracts/MCP_QUOTE_LOCATOR_V1.md). No new MCP tool
+or formation/publication capability is granted by this helper.
