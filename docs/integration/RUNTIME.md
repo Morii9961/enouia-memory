@@ -1,5 +1,15 @@
 # Runtime integration (ADR-MEM-45)
 
+2026-10-28: MCP-3 quote-location helper memory-quote-nfkd-1 uses explicitly
+pinned ICU4X 2.3.0 compiled normalization data and returns exact original scalar
+spans. Aggregate:
+`3a3055e9f59468e108f1107c39ed7166fceff94b1e79e2ae74023644187cbeb9`.
+See [the quote contract](../contracts/MCP_QUOTE_LOCATOR_V1.md). Native callers
+must separately authorize the current source revision and preserve actual
+speaker/evidence class, then apply unchanged strict evidence validation.
+No IPC/MCP tool, root/layout capability, owner authority or formation endpoint
+is added. Runtime hook/pin/UI and shared live-pipeline adoption remain separate.
+
 2026-10-27: Runtime capture checkpoint 2 adds memory-runtime-capture-pipe-1,
 exact schema/layout negotiation, retained kernel peer checks, single-use native
 binding, active revocation and original-call retention after uncertain IO.

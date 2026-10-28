@@ -769,6 +769,7 @@ dependencies = [
  "enouia-memory-index",
  "enouia-memory-vault",
  "enouia-memory-workspace",
+ "icu_normalizer",
  "serde",
  "serde_json",
  "windows-sys 0.61.2",
