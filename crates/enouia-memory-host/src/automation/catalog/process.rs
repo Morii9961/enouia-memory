@@ -11,8 +11,8 @@ fn process_header(
     let selection = selection(&data.current, request, expected.map(|h| &h.selection))?;
     let h = ProcessHeader {
         selection,
-        algorithm: algorithm.into(),
-        version: Revision::new(1).unwrap(),
+        algorithm: format!("{}-2", algorithm.strip_suffix("-1").unwrap_or(algorithm)),
+        version: Revision::new(2).unwrap(),
         parameters_hash: digest(parameters),
         permission_hash: data.permission_hash.clone(),
         authorized_at: data.current.now.clone(),
@@ -46,9 +46,21 @@ fn proof(stamp: &PublicationStamp) -> NativePublicationProof {
         written_at: stamp.at.clone(),
     }
 }
-fn summary(entry: &SegmentedMemory) -> NativeRevisionSummary {
+fn summary(entry: &SegmentedMemory, data: &AuthorizedProcessRead<'_>) -> NativeRevisionSummary {
     let i = &entry.memory.decision.input;
     NativeRevisionSummary {
+        owner_correction: data
+            .current
+            .owner_actions
+            .iter()
+            .find(|a| {
+                a.effects
+                    .correction
+                    .as_ref()
+                    .is_some_and(|c| c.decision.input.result == entry.memory.memory)
+                    && a.record.committed_in == entry.receipt.committed_in
+            })
+            .map(|a| OwnerActionProof::from_record(a.record)),
         memory: entry.target.clone(),
         title: i.record_fields.as_ref().unwrap().title.clone(),
         knowledge: entry.memory.decision.outcome.knowledge,
@@ -57,7 +69,7 @@ fn summary(entry: &SegmentedMemory) -> NativeRevisionSummary {
         change: i.dimensions.as_ref().unwrap().change,
         learned_at: entry.learned_at.clone(),
         effective_sensitivity: effective(entry),
-        receipt: entry.receipt.clone(),
+        receipt: (&entry.receipt).into(),
     }
 }
 fn activity_kind(entry: &SegmentedMemory) -> NativeActivityKind {
@@ -133,6 +145,22 @@ impl SegmentedMemoryReader {
                 })
                 .map(|r| r.id())
                 .collect();
+            let owner_events: BTreeMap<_, _> = data
+                .owner_events
+                .iter()
+                .map(|e| (&e.record.plan.operation_id, e.record))
+                .collect();
+            let owner_floors: BTreeMap<_, _> = data
+                .current
+                .owner_actions
+                .iter()
+                .map(|a| (&a.record.plan.operation_id, a.effects.sensitivity))
+                .collect();
+            let selected_rows: BTreeMap<_, _> = all
+                .iter()
+                .filter(|r| selected.contains(r.id()))
+                .map(|r| (r.id(), r))
+                .collect();
             let mut events = Vec::new();
             if query.include_sources
                 && query
@@ -141,6 +169,7 @@ impl SegmentedMemoryReader {
             {
                 for e in &data.captures {
                     events.push(MemoryActivityEvent {
+                        owner_action: None,
                         event_id: digest(&(
                             "source-captured",
                             &e.stamp.commit_id,
@@ -168,6 +197,9 @@ impl SegmentedMemoryReader {
                     && query.event_kind.is_none_or(|k| k == kind)
                 {
                     events.push(MemoryActivityEvent {
+                        owner_action: owner_events
+                            .get(&e.receipt.operation_id)
+                            .map(|r| OwnerActionProof::from_record(r)),
                         event_id: digest(&(
                             "machine-publication",
                             &event.stamp.commit_id,
@@ -183,7 +215,61 @@ impl SegmentedMemoryReader {
                         effective_sensitivity: effective(e),
                         formation_reason: Some(reason(e)),
                         proof: proof(event.stamp),
-                        receipt: Some(e.receipt.clone()),
+                        receipt: Some((&e.receipt).into()),
+                    });
+                }
+            }
+            if query
+                .event_kind
+                .is_none_or(|k| k == NativeActivityKind::OwnerAction)
+            {
+                for event in &data.owner_events {
+                    if matches!(event.record.plan.action, OwnerAction::Correct { .. }) {
+                        continue;
+                    }
+                    let targets: Vec<_> = match &event.record.plan.action {
+                        OwnerAction::Attention { target, .. } => vec![target],
+                        OwnerAction::ThemeRename { theme, .. }
+                        | OwnerAction::ThemePin { theme, .. }
+                        | OwnerAction::ThemeDissolve { theme, .. } => vec![theme],
+                        OwnerAction::Tag { targets, .. } => targets.iter().collect(),
+                        _ => vec![],
+                    };
+                    let row = targets
+                        .iter()
+                        .filter_map(|t| selected_rows.get(&t.memory.memory_id).copied())
+                        .min_by_key(|r| r.id());
+                    if row.is_none()
+                        && !(targets.is_empty()
+                            && query.memory.is_none()
+                            && request.filter == &CatalogFilter::default())
+                    {
+                        continue;
+                    }
+                    events.push(MemoryActivityEvent {
+                        owner_action: Some(OwnerActionProof::from_record(event.record)),
+                        event_id: digest(&("owner-action", &event.record.plan.operation_id)),
+                        event_kind: NativeActivityKind::OwnerAction,
+                        memory: row.map(|r| r.entry.memory.memory.clone()),
+                        source: None,
+                        title: row.map(|r| {
+                            r.entry
+                                .memory
+                                .decision
+                                .input
+                                .record_fields
+                                .as_ref()
+                                .unwrap()
+                                .title
+                                .clone()
+                        }),
+                        change: None,
+                        knowledge: None,
+                        adoption: None,
+                        effective_sensitivity: owner_floors[&event.record.plan.operation_id],
+                        formation_reason: None,
+                        proof: proof(event.stamp),
+                        receipt: None,
                     });
                 }
             }
@@ -355,7 +441,7 @@ impl SegmentedMemoryReader {
             };
             let mut used = bytes(&detail)? + 2048;
             for entry in remaining.iter().take(request.options.limit.min(32)) {
-                let value = summary(entry);
+                let value = summary(entry, &data);
                 let size = cost(&value)?;
                 if used + size > request.options.max_bytes {
                     break;

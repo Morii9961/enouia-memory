@@ -23,6 +23,13 @@ pub const MAX_SEGMENTED_POLICIES: usize = 1024;
 pub enum SegmentedDelta {
     Genesis {
         owner_actions: OwnerActionLedger,
+        /// New Owner roots bind their immutable native descriptor at creation.
+        #[serde(
+            default,
+            skip_serializing_if = "Option::is_none",
+            deserialize_with = "super::record_fields::present"
+        )]
+        descriptor_hash: Option<Sha256Hex>,
     },
     Policy {
         policy: Box<AutomationPolicy>,
@@ -43,6 +50,7 @@ pub enum SegmentedDelta {
     },
     OwnerAction {
         record: Box<OwnerActionRecord>,
+        effects: Box<OwnerActionEffects>,
     },
 }
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -114,7 +122,7 @@ impl NextDocument for SegmentedCommit {
             out.push(Violation::new("segmented.commit", ""));
         }
         let valid = match &self.delta {
-            SegmentedDelta::Genesis { owner_actions } => {
+            SegmentedDelta::Genesis { owner_actions, .. } => {
                 *owner_actions == OwnerActionLedger::default()
             }
             SegmentedDelta::Policy { policy } => {
@@ -157,7 +165,13 @@ impl NextDocument for SegmentedCommit {
             SegmentedDelta::Delete { sources, memories } => {
                 !sources.is_empty() || !memories.is_empty()
             }
-            SegmentedDelta::OwnerAction { .. } => false,
+            SegmentedDelta::OwnerAction { record, effects } => {
+                record.validate().is_empty()
+                    && effects.valid()
+                    && record.committed_in == self.commit_id
+                    && record.sequence == self.sequence
+                    && record.plan.owner == self.actor
+            }
         };
         if !valid {
             out.push(Violation::new("segmented.delta", "/delta"));

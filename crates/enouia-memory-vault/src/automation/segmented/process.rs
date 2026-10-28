@@ -34,6 +34,14 @@ impl PublishedChange {
                 memories = requests.iter().map(|r| r.result.clone()).collect();
                 requests.iter().any(|r| r.result.revision.get() > 1)
             }
+            SegmentedDelta::OwnerAction { effects, .. } => {
+                memories = effects
+                    .correction
+                    .iter()
+                    .map(|c| c.decision.input.result.clone())
+                    .collect();
+                true
+            }
             _ => true,
         };
         Self {
@@ -58,7 +66,12 @@ pub struct AuthorizedMachineEvent<'a> {
     pub entry: &'a SegmentedMemory,
     pub stamp: &'a PublicationStamp,
 }
+pub struct AuthorizedOwnerEvent<'a> {
+    pub record: &'a OwnerActionRecord,
+    pub stamp: &'a PublicationStamp,
+}
 pub struct AuthorizedProcessRead<'a> {
+    pub owner_events: Vec<AuthorizedOwnerEvent<'a>>,
     pub current: AuthorizedSegmentedRead<'a>,
     pub history: Vec<&'a SegmentedMemory>,
     pub captures: Vec<AuthorizedCapture<'a>>,
@@ -222,7 +235,24 @@ impl State {
             .filter(|(id, _)| source_ids.contains(id))
             .map(|(_, s)| *s)
             .collect();
+        let owner_events = if include_history {
+            scope
+                .owner_actions
+                .iter()
+                .filter_map(|a| {
+                    self.publication_positions
+                        .get(&a.record.committed_in)
+                        .map(|n| AuthorizedOwnerEvent {
+                            record: a.record,
+                            stamp: &self.published[*n].stamp,
+                        })
+                })
+                .collect()
+        } else {
+            vec![]
+        };
         AuthorizedProcessRead {
+            owner_events,
             current: scope,
             history,
             captures,

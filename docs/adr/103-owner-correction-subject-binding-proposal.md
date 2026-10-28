@@ -1,7 +1,8 @@
-# ADR-MEM-103: Owner correction subject binding (proposal)
+# ADR-MEM-103: Native Owner actions and explicit subject binding
 
-Date: 2026-10-27. Status: **Proposed; owner decision required**.
-This document grants no authority and implements no owner-action writer.
+Date: 2026-10-27. Status: **Accepted A by Morii; implemented with synthetic validation**.
+The human explicitly selected A: bind `owner_subject_id` in the new root.
+The alternatives below preserve the decision rationale; B was not selected.
 ADR102 is reserved by the concurrent Runtime capture/MCP session.
 
 ## Problem and current evidence
@@ -11,7 +12,7 @@ target-bound correction through the System pipeline. ADR93 froze the owner
 action/plan/confirmation/record shapes. That record proves the owner's action,
 not independent truth or the identity of a statement's subject.
 
-`AutomationDescriptor` currently binds `created_by: ActorRef` and
+Before this decision, `AutomationDescriptor` bound `created_by: ActorRef` and
 `system_actor: ActorRef`; it has no Owner-to-Subject relation. `ActorId` and
 `SubjectId` are different types. An automation policy names the target's subject,
 not a proof that this subject is the authenticated owner. The API cannot derive
@@ -58,7 +59,7 @@ Prospective descriptor fragment:
 }
 ```
 
-This fragment is explanatory, not a valid fixture or an implemented descriptor.
+This fragment is explanatory, not a complete valid descriptor fixture.
 Existing fields are omitted here only for readability.
 
 For the first G08 entry, owner correction is allowed only when the selected
@@ -130,9 +131,69 @@ exact replay, old-layout rejection, deletion propagation, unauthorized alias
 merging and no machine-generated owner badge. No real provider, private root,
 Runtime edit/pin, MCP writer or deployment is part of this work.
 
-## Decision requested
+## Implemented decision
 
-Choose A or B before changing the owner-capable descriptor or implementing its
-correction publication. A is recommended because it records the identity relation
-explicitly and preserves attributed self-report semantics. No code/schema/root
-change has been made for either choice in this checkpoint.
+A is implemented as `automation-segmented-owner-v1`, created empty with explicit
+native Owner and `owner_subject_id`. Existing roots refuse the added binding;
+there is no in-place upgrade. ADR93 record fields stay unchanged. The Owner delta
+adds replayable `OwnerActionEffects` next to the frozen action record: scope hash,
+caller ceiling, recorded sensitivity floor, full native family membership and an
+optional exact literal correction policy/source/decision. No serialized effects
+or prospective record confer publication authority.
+
+`NativeMemoryOwner` wraps an explicitly authenticated native principal. Its
+plan/gesture-confirm/commit entry uses a five-minute snapshot-bound plan, exact
+plan/effects hashes and a private non-Clone/non-deserializable one-use capability.
+Lock discards pending capabilities. Commit repeats current authorization, native
+clock, snapshot, trusted surface and expiry checks, then publishes one witnessed
+Owner transaction. System handles the correction's admission decision under a
+new narrow reserved policy; its logical actor remains System. A plan/confirmation
+writes no root data. Unknown outcomes require existing forward recovery and
+lookup by the original operation ID, never automatic resubmission.
+
+Correction is literal transcription only. It uses a new `manual_assertion` /
+`user_statement` source, the actual trusted native confirmation surface/time,
+explicit bound subject, original target scope and Core-1/Core-5 rules. It does not
+invoke a model or independently verify the assertion. Correction policies cannot
+be reused by the generic System admission path or edited as ordinary grants.
+Foreign-subject and Theme correction revisions refuse.
+
+Withdraw/forget logically suppress the current target, advance deletion barriers
+and hide dependent projections. They retain original sources and immutable
+history; no physical purge is claimed. Exact same subject/project/content from
+the same evidence SourceId is suppressed even under a new memory ID after reopen;
+semantic paraphrase or a newly captured source is not a claimed deduplication rule.
+Protect/pin and tags are distinct Owner overlays. Theme rename/pin/dissolve use
+full authorized membership, bounded display previews and Jaccard >= 0.5; no
+hidden family or deleted original theme can lend its name/provenance. Entity
+merge/split require compatible existing authorized entities and every affected
+memory's own policy; selected quoted evidence scopes split. Projected aliases,
+participants, facets and same-entity relations carry actual Owner provenance.
+
+Read selection version 4 (`owner-qualified-catalog-4`) binds the changed projection
+semantics and invalidates old cursors. Process headers use per-port algorithm 2.
+Current read receipts omit global commit sequence; conversation metadata omits
+raw captured-turn arrays/totals/branches and ranks authorized captured turns
+densely per branch. Stored receipts and conversation records remain unchanged.
+Old v3 DTO fixtures remain parseable, but native v4 output must not include those
+hidden global ordinals. All counts/proofs/edges/marks require current authorization.
+
+Bounds include 64 pending plans, five-minute validity, existing 65,536 commit and
+record limits, 1,024 policies (including correction policies), 128 preview targets,
+64 displayed unique tags with exact qualified count/completeness, and 16,777,216
+identity-action/memory or lazy theme-comparison work. Capacity failures are explicit;
+no silent partial exact count is substituted. Source-only original material may
+remain readable after target deletion because deletion does not authorize source
+purge. Runtime must wire native gestures; MCP receives no Owner factory or token.
+See [contract](../contracts/UI_V2_OWNER_ACTIONS.md) and
+[synthetic evidence](../validation/UI-v2-owner-actions.md).
+
+
+The Owner layout's genesis delta includes `descriptor_hash = digest(descriptor)`,
+covered by its immutable checkpoint/witness. Replay requires this exact binding
+for Owner roots and forbids it for old segmented roots. Editing only an old root's
+header cannot grant Owner capability; editing an initialized Owner subject also
+refuses. This is native layout metadata, not a change to ADR93 memory/entity/
+conversation/OwnerActionRecord fields. The stored Owner delta schema includes both
+the frozen record and execution effects; native-emitted genesis/action segments
+are included in the independent corpus.

@@ -22,7 +22,7 @@ impl ProjectionHeader {
         self.selection.valid()
             && matches!(
                 self.selection.algorithm,
-                CatalogReadAlgorithm::V2 | CatalogReadAlgorithm::V3
+                CatalogReadAlgorithm::V2 | CatalogReadAlgorithm::V3 | CatalogReadAlgorithm::V4
             )
             && self.algorithm == algorithm
             && self.version.get() == 1
@@ -119,6 +119,8 @@ pub struct ThemeMembership {
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct ThemeFamily {
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub owner_proofs: Vec<OwnerActionProof>,
     pub theme: TargetRef,
     pub name: String,
     pub member_count: u64,
@@ -154,6 +156,9 @@ impl NextDocument for MemoryThemeMembers {
                 !f.name.trim().is_empty()
                     && f.name.chars().count() <= 60
                     && f.member_count <= self.header.matched_inputs
+                    && f.owner_proofs.iter().all(OwnerActionProof::valid)
+                    && (!f.owner_named || f.owner_proofs.iter().any(|p| p.action == "theme_rename"))
+                    && (!f.pinned || f.owner_proofs.iter().any(|p| p.action == "theme_pin"))
             })
             && self.items.iter().all(|m| {
                 m.score_milli <= 1000
@@ -196,6 +201,8 @@ pub enum GraphEdgeClass {
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct MemoryGraphEdge {
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub owner_relations: Vec<OwnerActionProof>,
     pub from: MemoryId,
     pub to: MemoryId,
     pub relation: GraphEdgeKind,
@@ -213,6 +220,8 @@ pub struct GraphEdgeCoverage {
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct MemoryGraphNode {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub owner_marks: Option<OwnerMemoryMarks>,
     pub memory: TargetRef,
     pub title: String,
     pub form: FormationKind,
@@ -263,8 +272,13 @@ impl NextDocument for MemoryGraphPage {
             && self.nodes.len() + self.edges.len() <= 100
             && self.nodes.iter().all(|n| {
                 record_fields::text(&n.title, 60)
-                    && (self.header.selection.algorithm != CatalogReadAlgorithm::V3
-                        || n.effective_sensitivity.is_some())
+                    && n.owner_marks.as_ref().is_none_or(OwnerMemoryMarks::valid)
+                    && (self.header.selection.algorithm != CatalogReadAlgorithm::V4
+                        || n.owner_marks.is_some())
+                    && (!matches!(
+                        self.header.selection.algorithm,
+                        CatalogReadAlgorithm::V3 | CatalogReadAlgorithm::V4
+                    ) || n.effective_sensitivity.is_some())
                     && n.event_time.valid()
                     && n.entities.len() <= 32
                     && n.entities
@@ -293,6 +307,11 @@ impl NextDocument for MemoryGraphPage {
                 .all(|c| c.retained <= c.candidates && c.retained <= 20_000)
             && self.edges.iter().all(|e| {
                 e.from != e.to
+                    && e.owner_relations.len() <= 64
+                    && e.owner_relations.iter().all(|p| {
+                        p.valid() && ["entity_merge", "entity_split"].contains(&p.action.as_str())
+                    })
+                    && (e.owner_relations.is_empty() || e.relation == GraphEdgeKind::SameEntity)
                     && if e.relation == GraphEdgeKind::ThemeCooccurrence {
                         e.class == GraphEdgeClass::AlgorithmSuggestion
                             && e.score_milli.is_some_and(|s| s <= 1000)

@@ -186,7 +186,10 @@ impl AutomationVault {
             .read_bounded(&layout::vault_descriptor(), 16 * 1024)?
             .ok_or(AutomationFault::Unavailable)?;
         let descriptor = parse_document::<AutomationDescriptor>(&bytes)?;
-        if descriptor.layout == AutomationLayout::SegmentedV1 {
+        if matches!(
+            descriptor.layout,
+            AutomationLayout::SegmentedV1 | AutomationLayout::SegmentedOwnerV1
+        ) {
             return Err(AutomationFault::Denied);
         }
         let vault = Self::acquire(root, descriptor, host, clock, ids, faults)?;

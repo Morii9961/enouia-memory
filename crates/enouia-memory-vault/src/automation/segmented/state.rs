@@ -13,6 +13,10 @@ pub struct SegmentedMemory {
 #[derive(Default)]
 pub(super) struct State {
     pub head: Option<SegmentedCommit>,
+    pub owner_actions: BTreeMap<OperationId, (OwnerActionRecord, OwnerActionEffects)>,
+    pub owner_policies: BTreeSet<PolicyId>,
+    pub withdrawal_watermark: u64,
+    pub suppressed_claims: BTreeSet<(Sha256Hex, SourceId)>,
     pub published: Vec<super::process::PublishedChange>,
     pub publication_positions: BTreeMap<CommitId, usize>,
     pub policies: BTreeMap<PolicyId, AutomationPolicy>,
@@ -58,13 +62,29 @@ impl State {
         now: &Timestamp,
         f: impl FnOnce(&EvaluationContext<'_>) -> T,
     ) -> Result<T> {
-        let policy = self.policy(input).ok_or_else(deny)?;
+        self.context_with(input, actor, now, None, None, f)
+    }
+    pub(super) fn context_with<T>(
+        &self,
+        input: &AdmissionInput,
+        actor: &ActorRef,
+        now: &Timestamp,
+        owner_policy: Option<&AutomationPolicy>,
+        owner_source: Option<&CapturedSource>,
+        f: impl FnOnce(&EvaluationContext<'_>) -> T,
+    ) -> Result<T> {
+        let policy = owner_policy
+            .or_else(|| self.policy(input))
+            .ok_or_else(deny)?;
         let snapshot = self.snapshot()?;
         let sources: Vec<_> = input
             .input_refs
             .iter()
             .map(|r| {
-                let source = self.source(r).ok_or_else(deny)?;
+                let source = owner_source
+                    .filter(|s| s.reference() == *r)
+                    .or_else(|| self.source(r))
+                    .ok_or_else(deny)?;
                 Ok(SourceView {
                     record: &source.record,
                     attributed_subject: source.attributed_subject.clone(),
@@ -173,8 +193,18 @@ impl State {
             })
     }
     pub(super) fn record_fields(&self, input: &AdmissionInput) -> Result<()> {
+        self.record_fields_with(input, None, None)
+    }
+    pub(super) fn record_fields_with(
+        &self,
+        input: &AdmissionInput,
+        owner_policy: Option<&AutomationPolicy>,
+        owner_source: Option<&CapturedSource>,
+    ) -> Result<()> {
         let fields = input.record_fields.as_ref().ok_or_else(deny)?;
-        let policy = self.policy(input).ok_or_else(deny)?;
+        let policy = owner_policy
+            .or_else(|| self.policy(input))
+            .ok_or_else(deny)?;
         if fields
             .entities
             .iter()
@@ -226,7 +256,13 @@ impl State {
         let selected: Vec<_> = input
             .input_refs
             .iter()
-            .map(|r| self.source(r).cloned().ok_or_else(deny))
+            .map(|r| {
+                owner_source
+                    .filter(|s| s.reference() == *r)
+                    .or_else(|| self.source(r))
+                    .cloned()
+                    .ok_or_else(deny)
+            })
             .collect::<Result<_>>()?;
         if !fields.evidence.iter().all(|q| q.resolves(&selected))
             || [&fields.event_time, &fields.valid_time]
@@ -294,7 +330,8 @@ impl State {
             (h.policy_watermark.get(), h.deletion_watermark.get())
         });
         let policy_change = matches!(c.delta, SegmentedDelta::Policy { .. });
-        let delete = matches!(c.delta, SegmentedDelta::Delete { .. });
+        let delete = matches!(c.delta, SegmentedDelta::Delete { .. })
+            || matches!(&c.delta, SegmentedDelta::OwnerAction { record, .. } if matches!(record.plan.action, OwnerAction::Withdraw { .. } | OwnerAction::Forget { .. }));
         if let Some(before) = &self.head {
             if c.parent != Some(before.current())
                 || c.created_at < before.created_at
@@ -330,13 +367,23 @@ impl State {
         }
         let mut admitted = Vec::new();
         match &c.delta {
-            SegmentedDelta::Genesis { .. } => {
-                if self.head.is_some() || c.actor != descriptor.created_by {
+            SegmentedDelta::Genesis {
+                descriptor_hash, ..
+            } => {
+                let binding_valid = match descriptor.layout {
+                    AutomationLayout::SegmentedOwnerV1 => {
+                        descriptor_hash.as_ref() == Some(&digest(descriptor))
+                    }
+                    AutomationLayout::SegmentedV1 => descriptor_hash.is_none(),
+                    _ => false,
+                };
+                if self.head.is_some() || c.actor != descriptor.created_by || !binding_valid {
                     return Err(deny());
                 }
             }
             SegmentedDelta::Policy { policy: p } => {
                 if c.actor != descriptor.created_by
+                    || self.owner_policies.contains(&p.policy_id)
                     || p.vault_id != descriptor.vault_id
                     || p.system_actor != descriptor.system_actor
                     || p.revision.get()
@@ -411,7 +458,13 @@ impl State {
                 let mut ids = BTreeSet::new();
                 let mut operations = BTreeSet::new();
                 for ((request, response), binding) in requests.iter().zip(responses).zip(bindings) {
-                    if !ids.insert(&request.result.memory_id)
+                    if request.evidence.iter().any(|e| {
+                        self.suppressed_claims.contains(&(
+                            digest(&(&request.subject_id, &request.project_id, &request.content)),
+                            e.source_id.clone(),
+                        ))
+                    }) || self.owner_policies.contains(&request.policy.policy_id)
+                        || !ids.insert(&request.result.memory_id)
                         || !operations.insert(&request.operation_id)
                         || self.operations.contains_key(&request.operation_id)
                     {
@@ -483,7 +536,9 @@ impl State {
                     return Err(deny());
                 }
             }
-            SegmentedDelta::OwnerAction { .. } => return Err(deny()),
+            SegmentedDelta::OwnerAction { record, effects } => {
+                admitted = self.check_owner(descriptor, c, record, effects)?;
+            }
         }
         Ok(admitted)
     }
@@ -546,6 +601,63 @@ impl State {
             SegmentedDelta::Delete { sources, memories } => {
                 self.deleted_sources.extend(sources.iter().cloned());
                 self.deleted_memories.extend(memories.iter().cloned());
+            }
+            SegmentedDelta::OwnerAction { record, effects } => {
+                if let Some(correction) = &effects.correction {
+                    self.owner_policies
+                        .insert(correction.policy.policy_id.clone());
+                    self.policies.insert(
+                        correction.policy.policy_id.clone(),
+                        correction.policy.clone(),
+                    );
+                    self.source_revisions += 1;
+                    self.sources
+                        .entry(correction.source.record.source_id.clone())
+                        .or_default()
+                        .push(correction.source.clone());
+                    self.memory_revisions += admitted.len();
+                    for m in admitted {
+                        self.operations.insert(
+                            m.receipt.operation_id.clone(),
+                            (m.receipt.job_key.clone(), m.receipt.request_hash.clone()),
+                        );
+                        self.memories
+                            .entry(m.memory.memory.memory_id.clone())
+                            .or_default()
+                            .push(m);
+                    }
+                }
+                if let OwnerAction::Withdraw { target, .. } | OwnerAction::Forget { target, .. } =
+                    &record.plan.action
+                    && let Some(m) = self
+                        .memories
+                        .get(&target.memory.memory_id)
+                        .and_then(|v| v.last())
+                {
+                    let i = &m.memory.decision.input;
+                    let hash = digest(&(&i.subject_id, &i.project_id, &i.content));
+                    self.suppressed_claims.extend(
+                        i.evidence
+                            .iter()
+                            .map(|e| (hash.clone(), e.source_id.clone())),
+                    );
+                }
+                match &record.plan.action {
+                    OwnerAction::Withdraw { target, .. } => {
+                        self.deleted_memories
+                            .insert(target.memory.memory_id.clone());
+                        self.withdrawal_watermark += 1;
+                    }
+                    OwnerAction::Forget { target, .. } => {
+                        self.deleted_memories
+                            .insert(target.memory.memory_id.clone());
+                    }
+                    _ => {}
+                }
+                self.owner_actions.insert(
+                    record.plan.operation_id.clone(),
+                    ((**record).clone(), (**effects).clone()),
+                );
             }
             _ => {}
         }

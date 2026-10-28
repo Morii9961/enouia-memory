@@ -51,12 +51,20 @@ fn wire(v: &impl serde::Serialize) -> String {
         .unwrap()
         .to_owned()
 }
+struct RowEntity {
+    entity_id: String,
+    recorded_entity_id: String,
+    owner_relation: Option<OwnerActionProof>,
+    display_name: String,
+    aliases: Vec<String>,
+}
 struct Row<'a> {
     entry: &'a SegmentedMemory,
     captured: Timestamp,
     validity: MemoryValidity,
     attention: AttentionState,
-    entities: Vec<&'a EntityRecord>,
+    owner_marks: OwnerMemoryMarks,
+    entities: Vec<RowEntity>,
     themes: Arc<BTreeMap<MemoryId, projections::ThemeSeed<'a>>>,
 }
 impl Row<'_> {
@@ -87,9 +95,7 @@ impl Row<'_> {
                     self.entry.search_text.contains(cue)
                         || self.entities.iter().any(|e| {
                             e.display_name.to_lowercase().contains(cue)
-                                || e.aliases
-                                    .iter()
-                                    .any(|a| a.name.to_lowercase().contains(cue))
+                                || e.aliases.iter().any(|a| a.to_lowercase().contains(cue))
                         })
                 })
             });
@@ -158,7 +164,8 @@ impl Row<'_> {
         let i = &m.decision.input;
         let f = i.record_fields.as_ref().unwrap();
         CatalogReadItem {
-            base: MemoryReadItem {
+            owner_marks: Some(self.owner_marks.clone()),
+            base: NativeCatalogMemoryBase {
                 memory: m.memory.clone(),
                 system_actor: i.actor.clone(),
                 subject_id: i.subject_id.clone(),
@@ -176,7 +183,7 @@ impl Row<'_> {
                 validity: self.validity,
                 evidence: i.evidence.clone(),
                 context_source_refs: i.context_source_refs.clone(),
-                receipt: Some(self.entry.receipt.clone()),
+                receipt: Some((&self.entry.receipt).into()),
             },
             title: f.title.clone(),
             content_lang: f.content_lang.clone(),
@@ -187,9 +194,20 @@ impl Row<'_> {
             entities: f
                 .entities
                 .iter()
-                .map(|e| CatalogEntity {
-                    entity_id: e.entity_id.clone(),
-                    role: e.role,
+                .filter_map(|recorded| {
+                    self.entities
+                        .iter()
+                        .find(|e| e.recorded_entity_id == recorded.entity_id)
+                        .map(|e| CatalogEntity {
+                            entity_id: e.entity_id.clone(),
+                            role: recorded.role,
+                            recorded_entity_id: if e.owner_relation.is_some() {
+                                Some(e.recorded_entity_id.clone())
+                            } else {
+                                None
+                            },
+                            owner_relation: e.owner_relation.clone(),
+                        })
                 })
                 .collect(),
         }
@@ -198,20 +216,7 @@ impl Row<'_> {
         self.themes
             .iter()
             .filter(|(_, seed)| seed.score(self.entry).is_some())
-            .map(|(id, seed)| {
-                (
-                    id,
-                    seed.entry
-                        .memory
-                        .decision
-                        .input
-                        .record_fields
-                        .as_ref()
-                        .unwrap()
-                        .title
-                        .as_str(),
-                )
-            })
+            .map(|(id, seed)| (id, seed.name.as_str()))
     }
     fn values(&self, axis: CatalogFacetAxis) -> Vec<(String, String)> {
         let i = &self.entry.memory.decision.input;
@@ -235,6 +240,8 @@ impl Row<'_> {
                 .entities
                 .iter()
                 .map(|e| (e.entity_id.clone(), e.display_name.clone()))
+                .collect::<BTreeMap<_, _>>()
+                .into_iter()
                 .collect(),
             CatalogFacetAxis::Project => single(
                 i.project_id
@@ -253,7 +260,8 @@ fn rows<'a>(
     profile: &AttentionProfile,
     at: &Timestamp,
 ) -> ApplicationResult<Vec<Row<'a>>> {
-    let themes = Arc::new(projections::seeds(data));
+    let themes = Arc::new(projections::seeds(data)?);
+    let marks = owner_marks(data, at);
     data.memories
         .iter()
         .map(|entry| {
@@ -278,13 +286,48 @@ fn rows<'a>(
                 .collect();
             let entities = ids
                 .into_iter()
-                .map(|id| data.entities.get(id).copied().ok_or_else(invalid))
+                .map(|id| {
+                    let original = data.entities.get(id).copied().ok_or_else(invalid)?;
+                    let key = (entry.memory.memory.memory_id.clone(), id.clone());
+                    let canonical = data.entity_redirects.get(&key).unwrap_or(id);
+                    let entity = data.entities.get(canonical).copied().ok_or_else(invalid)?;
+                    let mut aliases: std::collections::BTreeSet<String> =
+                        entity.aliases.iter().map(|a| a.name.clone()).collect();
+                    if let Some(owner_aliases) = data
+                        .entity_aliases
+                        .get(&(entry.memory.memory.memory_id.clone(), canonical.clone()))
+                    {
+                        aliases.extend(owner_aliases.iter().cloned());
+                    }
+                    if canonical != id {
+                        aliases.insert(original.display_name.clone());
+                        aliases.extend(original.aliases.iter().map(|a| a.name.clone()));
+                    }
+                    Ok(RowEntity {
+                        entity_id: canonical.clone(),
+                        recorded_entity_id: id.clone(),
+                        owner_relation: data.entity_proofs.get(&key).cloned(),
+                        display_name: entity.display_name.clone(),
+                        aliases: aliases.into_iter().collect(),
+                    })
+                })
                 .collect::<ApplicationResult<_>>()?;
             Ok(Row {
                 entry,
                 captured: captured.clone(),
                 validity: memory_validity(i.dimensions.as_ref().unwrap(), at),
-                attention: attention_state(profile, &entry.memory, &captured, at),
+                attention: if marks
+                    .get(&entry.memory.memory.memory_id)
+                    .is_some_and(|m| m.attention.is_some())
+                {
+                    AttentionState::Protected
+                } else {
+                    attention_state(profile, &entry.memory, &captured, at)
+                },
+                owner_marks: marks
+                    .get(&entry.memory.memory.memory_id)
+                    .cloned()
+                    .unwrap_or_else(OwnerMemoryMarks::empty),
                 entities,
                 themes: themes.clone(),
             })
@@ -298,8 +341,8 @@ fn selection(
 ) -> ApplicationResult<CatalogSelection> {
     let scope_hash = digest(&data.memories.iter().map(|m| &m.target).collect::<Vec<_>>());
     let selected = CatalogSelection {
-        algorithm: CatalogReadAlgorithm::V3,
-        version: enouia_memory_contract::json::Revision::new(3).unwrap(),
+        algorithm: CatalogReadAlgorithm::V4,
+        version: enouia_memory_contract::json::Revision::new(4).unwrap(),
         profile_hash: digest(request.profile),
         withdrawal_watermark: data.withdrawal_watermark,
         snapshot: data.snapshot.clone(),
@@ -659,3 +702,72 @@ fn reason(entry: &SegmentedMemory) -> MemoryFormationReason {
     }
 }
 mod process;
+
+fn owner_marks(
+    data: &AuthorizedSegmentedRead<'_>,
+    at: &Timestamp,
+) -> BTreeMap<MemoryId, OwnerMemoryMarks> {
+    let live: BTreeMap<_, _> = data
+        .memories
+        .iter()
+        .map(|m| (m.memory.memory.memory_id.clone(), &m.memory.memory))
+        .collect();
+    let mut result: BTreeMap<MemoryId, OwnerMemoryMarks> = BTreeMap::new();
+    let mut tags: BTreeMap<MemoryId, BTreeMap<String, OwnerActionProof>> = BTreeMap::new();
+    for action in &data.owner_actions {
+        let proof = OwnerActionProof::from_record(action.record);
+        match &action.record.plan.action {
+            OwnerAction::Correct { target, .. } => {
+                if !action.effects.correction.as_ref().is_some_and(|c| {
+                    live.get(&c.decision.input.result.memory_id)
+                        .is_some_and(|r| **r == c.decision.input.result)
+                }) {
+                    continue;
+                }
+                result
+                    .entry(target.memory.memory_id.clone())
+                    .or_insert_with(OwnerMemoryMarks::empty)
+                    .corrected = Some(proof);
+            }
+            OwnerAction::Attention {
+                target,
+                annotation,
+                until,
+            } => {
+                let mark = result
+                    .entry(target.memory.memory_id.clone())
+                    .or_insert_with(OwnerMemoryMarks::empty);
+                mark.attention = if until.as_ref().is_none_or(|t| t > at) {
+                    Some(OwnerAttentionMark {
+                        annotation: *annotation,
+                        until: until.clone(),
+                        proof,
+                    })
+                } else {
+                    None
+                };
+            }
+            OwnerAction::Tag { name, targets } => {
+                for target in targets {
+                    if live.contains_key(&target.memory.memory_id) {
+                        tags.entry(target.memory.memory_id.clone())
+                            .or_default()
+                            .insert(name.clone(), proof.clone());
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+    for (id, values) in tags {
+        let mark = result.entry(id).or_insert_with(OwnerMemoryMarks::empty);
+        mark.tag_count_in_scope = values.len() as u64;
+        mark.tags = values
+            .into_iter()
+            .take(64)
+            .map(|(name, proof)| OwnerTagMark { name, proof })
+            .collect();
+        mark.tags_complete = mark.tags.len() as u64 == mark.tag_count_in_scope;
+    }
+    result
+}
