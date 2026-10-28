@@ -16,6 +16,10 @@ The Runtime-side counterpart is Runtime [ADR-025](https://github.com/Morii9961/e
 
 ## Ownership
 
+For initialized segmented roots, follow [formal adoption and private data
+ownership](INITIALIZED_VAULT.md). A stable owner data directory is separate from
+the checkout; it does not itself activate a Vault or make an older pin compatible.
+
 | Item | Owner | Notes |
 |---|---|---|
 | Contracts, Vault format, import, review rules, index, Context, Sessions, Mock (`crates/*`, `contracts/*`) | Memory | Runtime never calls these crates directly. |
