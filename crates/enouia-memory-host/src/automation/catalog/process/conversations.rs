@@ -22,6 +22,92 @@ fn source_metadata(source: &CapturedSource) -> NativeSourceMetadata {
         extensions_are_untrusted_data: true,
     }
 }
+fn projected_metadata(
+    data: &AuthorizedSegmentedRead<'_>,
+    record: &ConversationRecord,
+) -> ApplicationResult<NativeConversationMetadata> {
+    let mut value = NativeConversationMetadata::from_record(record);
+    for action in &data.owner_actions {
+        if action.effects.sensitivity > record.sensitivity {
+            continue;
+        }
+        let (from, into, selected) = match &action.record.plan.action {
+            OwnerAction::EntityMerge {
+                from_entity,
+                into_entity,
+                ..
+            } => (from_entity, into_entity, None),
+            OwnerAction::EntitySplit {
+                from_entity,
+                into_entity,
+                evidence,
+                ..
+            } => (from_entity, into_entity, Some(evidence)),
+            _ => continue,
+        };
+        let Some(entity) = data.entities.get(into) else {
+            continue;
+        };
+        if entity.access_policy_id != record.access_policy_id
+            || entity.sensitivity > record.sensitivity
+        {
+            continue;
+        }
+        let turns = data.turns.get(&record.conversation_id);
+        let selected_turn = |source: &SourceRevisionRef| {
+            selected.is_none_or(|qs| {
+                qs.iter().any(|q| {
+                    q.reference.source_id == source.source_id
+                        && q.reference.source_revision == source.source_revision
+                })
+            })
+        };
+        if selected.is_some()
+            && !turns.is_some_and(|t| t.values().any(|t| selected_turn(&t.turn.source)))
+        {
+            continue;
+        }
+        let all_selected = turns.is_some_and(|t| t.values().all(|t| selected_turn(&t.turn.source)));
+        let mut changed = false;
+        let mut added = Vec::new();
+        let existing_participants = value.participants.len();
+        for p in &mut value.participants {
+            if p.entity_id.as_ref() != Some(from) {
+                continue;
+            }
+            let mapped = ConversationParticipant {
+                entity_id: Some(into.clone()),
+                label: entity.display_name.clone(),
+                speaker: p.speaker,
+            };
+            if selected.is_some() && !all_selected {
+                if existing_participants + added.len() >= 32 {
+                    return Err(AutomationFault::Capacity.into());
+                }
+                added.push(mapped);
+                changed = true;
+            } else {
+                *p = mapped;
+                changed = true;
+            }
+        }
+        value.participants.extend(added);
+        let mut seen = BTreeSet::new();
+        value.participants.retain(|p| {
+            seen.insert((
+                p.entity_id.clone(),
+                format!("{:?}", p.speaker),
+                p.label.clone(),
+            ))
+        });
+        if changed {
+            value
+                .owner_relations
+                .push(OwnerActionProof::from_record(action.record));
+        }
+    }
+    Ok(value)
+}
 fn conversation_counts(
     data: &AuthorizedSegmentedRead<'_>,
     id: &SessionId,
@@ -152,7 +238,7 @@ impl SegmentedMemoryReader {
             for (id, record) in remaining.iter().take(request.options.limit) {
                 let (turns, sources, sensitivity) = conversation_counts(&data.current, id);
                 let item = ConversationSummary {
-                    conversation: (**record).clone(),
+                    conversation: projected_metadata(&data.current, record)?,
                     visible_captured_turns: turns,
                     visible_captured_sources: sources,
                     effective_sensitivity: sensitivity,
@@ -209,7 +295,9 @@ impl SegmentedMemoryReader {
                 capability: CatalogCapability::V2,
                 effect: MemoryReadEffect::NativeRead,
                 header: h.clone(),
-                conversation: record.cloned(),
+                conversation: record
+                    .map(|r| projected_metadata(&data.current, r))
+                    .transpose()?,
                 effective_sensitivity: record.map(|_| sensitivity),
                 visible_captured_turns: turns,
                 visible_captured_sources: sources,

@@ -1,0 +1,30 @@
+{
+  "action": {
+    "action": "correct",
+    "assertion_text": "I prefer morning walks; this is a synthetic owner assertion.",
+    "source_id": "src_1f22f825-ff69-46a6-a03b-d38929f80b62",
+    "target": {
+      "hash": "91c83c5a988cc4072a2c0f18920599da1c5036e4b1f4c279b9d43d2ef7bbcba9",
+      "memory": {
+        "memory_id": "mem_8283a87e-6ac9-448e-9ba8-f69e09cae675",
+        "revision": 1
+      }
+    }
+  },
+  "expires_at": "2026-10-24T12:05:00.000Z",
+  "kind": "owner_action_plan",
+  "operation_id": "op_914c8d5c-627e-4bfc-a44b-40782c55edce",
+  "owner": {
+    "actor_id": "prn_00000001-0000-4000-8000-000000000001",
+    "actor_type": "owner"
+  },
+  "planned_at": "2026-10-24T12:00:00.000Z",
+  "schema_version": 2,
+  "snapshot": {
+    "base_commit_id": "cmt_b2228236-b786-4cec-865a-52f2289ba05f",
+    "deletion_watermark": 1,
+    "policy_watermark": 2,
+    "primary_epoch": 1,
+    "vault_id": "vlt_00000001-0000-4000-8000-000000000001"
+  }
+}

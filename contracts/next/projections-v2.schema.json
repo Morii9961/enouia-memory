@@ -288,6 +288,13 @@
                 },
                 "pinned": {
                   "type": "boolean"
+                },
+                "owner_proofs": {
+                  "type": "array",
+                  "maxItems": 64,
+                  "items": {
+                    "$ref": "owner-execution-v2.schema.json#/$defs/OwnerActionProof"
+                  }
                 }
               }
             },
@@ -483,6 +490,16 @@
                     "type": "null"
                   }
                 ]
+              },
+              "owner_marks": {
+                "oneOf": [
+                  {
+                    "$ref": "owner-execution-v2.schema.json#/$defs/OwnerMemoryMarks"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
               }
             }
           },
@@ -540,6 +557,13 @@
                     "type": "null"
                   }
                 ]
+              },
+              "owner_relations": {
+                "type": "array",
+                "maxItems": 64,
+                "items": {
+                  "$ref": "owner-execution-v2.schema.json#/$defs/OwnerActionProof"
+                }
               }
             }
           },
@@ -619,7 +643,7 @@
                   "selection": {
                     "properties": {
                       "algorithm": {
-                        "const": "qualified-family-catalog-3"
+                        "const": "owner-qualified-catalog-4"
                       }
                     }
                   }
@@ -632,11 +656,11 @@
               "nodes": {
                 "items": {
                   "required": [
-                    "effective_sensitivity"
+                    "owner_marks"
                   ],
                   "properties": {
-                    "effective_sensitivity": {
-                      "$ref": "../memory/common-v1.schema.json#/$defs/sensitivity"
+                    "owner_marks": {
+                      "$ref": "owner-execution-v2.schema.json#/$defs/OwnerMemoryMarks"
                     }
                   }
                 }

@@ -366,3 +366,44 @@ remain unavailable; no fake fading/archive jobs or owner confirmations.
 Stored record fields/layout stay unchanged. G08 owner execution is still pending.
 No Runtime file/pin, MCP route, real root/provider or deployment changed. See
 [synthetic validation](../validation/UI-v2-process.md).
+
+
+### 2026-10-27 — Native Owner execution and read qualification (ADR-MEM-103)
+
+Surface aggregate: `862eb802156dfb168e4eeba16979352699094eab8ab3c978a4ac1d5bf862eec4`.
+
+Morii explicitly selected A. Initialization must create a new empty
+`automation-segmented-owner-v1` descriptor with the trusted `owner_subject_id`;
+old roots cannot gain Owner capability by header editing. Keep frozen ADR93 record
+fields and the separate native Owner/System principals. Adopt `NativeMemoryOwner`
+only behind actual native authentication and human gestures: plan / confirm the
+exact native preview / consume a private one-use native token / query the original
+operation after explicit recovery. Never deserialize a token or route this through
+MCP/model/page-provided identity. Lock invalidates all pending plans.
+
+Correct transcribes the confirmed bound-subject assertion into one real manual
+source and a target-bound System admission revision. No model call or independent
+verification; Core-5 Theme correction remains refused. Withdraw/forget are logical
+barriers with retained original sources, not physical purge. Owner attention/tags,
+family rename/pin/dissolve and compatible evidence-scoped entity merge/split drive
+all qualified native views. Do not infer Owner badges from machine annotations.
+
+Restart old cursors: selection is now `owner-qualified-catalog-4`, version 4;
+process headers use each port's `-2` algorithm/version 2. Scoped receipt DTOs omit
+global sequence. Conversation metadata omits raw turns/count/branches; displayed
+authorized captured branch order is dense and never a platform-total claim.
+Owner proofs identify actual witnessed actions without global ordinals. Reserved
+correction policies count toward the 1,024 policy capacity and cannot be reused by
+ordinary System admission. See [contract](../contracts/UI_V2_OWNER_ACTIONS.md) and
+[synthetic evidence](../validation/UI-v2-owner-actions.md).
+
+Runtime factory/gesture wiring, product UI, pin change, MCP support for this new
+layout, real root initialization and deployment remain separate adoption work.
+This commit changes none of those external surfaces. Concurrent MCP/native intake
+modules are not included and require a deliberate semantic merge of shared module
+registration/private commit helpers before adoption.
+
+Owner roots also bind `digest(descriptor)` in their witnessed genesis delta.
+Replay refuses header-only adoption of an old segmented root and rebinding an
+initialized Owner subject. Store/read schemas now include both execution effects
+and actual genesis/action examples; ADR93 business record fields remain intact.

@@ -343,6 +343,19 @@ def main():
             failures.append(f"process case {case['id']}: disagreement")
     counts["process_documents"] = len(process["valid"]) + len(process["invalid"])
 
+    owner_dir = ROOT / "tests" / "fixtures" / "owner"
+    owner = load(owner_dir / "manifest.json")
+    owner_schemas = {e["file"]: e["schema"] for e in owner["valid"]}
+    for entry in owner["valid"]:
+        if not valid(entry["schema"], load(owner_dir / entry["file"])):
+            failures.append(f"valid owner document rejected: {entry['file']}")
+    for case in owner["invalid"]:
+        value = load(owner_dir / case["base"])
+        apply_ops(value, case["ops"])
+        if valid(owner_schemas[case["base"]], value) != (case["schema"] == "accept"):
+            failures.append(f"owner case {case['id']}: disagreement")
+    counts["owner_documents"] = len(owner["valid"]) + len(owner["invalid"])
+
     invocation_cases = load(FIXTURES / "provider-invocation-cases.json")
     for case in invocation_cases["cases"]:
         value = copy.deepcopy(invocation_cases["base"])

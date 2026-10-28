@@ -114,3 +114,14 @@ may say “source unavailable” without distinguishing those private states.
 
 Pages obey the existing 1–100 row and 1 KiB–256 KiB caller bounds. A complete
 selected row/header that cannot fit refuses instead of silently dropping data.
+
+
+## ADR103 native read qualification
+
+The later Owner slice emits selection `owner-qualified-catalog-4` version 4.
+Process headers use algorithm/version 2. Restart older cursors. Current scoped
+receipts omit global commit sequence; current conversation metadata omits raw
+turn arrays/totals/branch lists and ranks authorized captured turns densely per
+branch. Actual Owner marks, family/identity overlays and provenance require the
+same fresh authorization and native action records. Stored records and legacy
+v3 fixture parsing remain unchanged. See [Owner contract](UI_V2_OWNER_ACTIONS.md).
