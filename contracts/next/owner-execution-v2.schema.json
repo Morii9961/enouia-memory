@@ -1,0 +1,364 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.enouia-memory.invalid/next/owner-execution-v2.schema.json",
+  "title": "Native Owner execution data; no serialized consent grants authority",
+  "anyOf": [
+    {
+      "$ref": "#/$defs/OwnerCorrectionMetadata"
+    },
+    {
+      "$ref": "#/$defs/OwnerActionEffects"
+    },
+    {
+      "$ref": "#/$defs/NativeOwnerOutcome"
+    },
+    {
+      "$ref": "#/$defs/OwnerActionProof"
+    },
+    {
+      "$ref": "#/$defs/OwnerMemoryMarks"
+    }
+  ],
+  "$defs": {
+    "OwnerEntityMention": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "entity_id",
+        "role"
+      ],
+      "properties": {
+        "entity_id": {
+          "$ref": "ui-records-v2.schema.json#/$defs/entityId"
+        },
+        "role": {
+          "enum": [
+            "subject",
+            "participant",
+            "mentioned",
+            "place",
+            "project",
+            "organization"
+          ]
+        }
+      }
+    },
+    "OwnerCorrectionMetadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "title",
+        "content_lang",
+        "sensitivity",
+        "interpretation",
+        "dimensions",
+        "event_time",
+        "valid_time",
+        "entities"
+      ],
+      "properties": {
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 60
+        },
+        "content_lang": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 63
+        },
+        "sensitivity": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/sensitivity"
+        },
+        "interpretation": {
+          "enum": [
+            "clear_self_report",
+            "inference",
+            "ambiguous",
+            "conflicting"
+          ]
+        },
+        "dimensions": {
+          "$ref": "formation-v2.schema.json"
+        },
+        "event_time": {
+          "$ref": "ui-records-v2.schema.json#/$defs/recordTime"
+        },
+        "valid_time": {
+          "$ref": "ui-records-v2.schema.json#/$defs/recordTime"
+        },
+        "entities": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/OwnerEntityMention"
+          },
+          "maxItems": 32
+        }
+      }
+    },
+    "OwnerCorrection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "policy",
+        "source",
+        "decision"
+      ],
+      "properties": {
+        "policy": {
+          "$ref": "automation-v2.schema.json#/$defs/policy"
+        },
+        "source": {
+          "$ref": "storage-v2.schema.json#/$defs/source"
+        },
+        "decision": {
+          "$ref": "automation-v2.schema.json#/$defs/decision"
+        }
+      }
+    },
+    "OwnerActionEffects": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "scope_hash",
+        "max_sensitivity",
+        "sensitivity",
+        "family_members",
+        "correction"
+      ],
+      "properties": {
+        "scope_hash": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/sha256"
+        },
+        "max_sensitivity": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/sensitivity"
+        },
+        "sensitivity": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/sensitivity"
+        },
+        "family_members": {
+          "type": "array",
+          "items": {
+            "$ref": "automation-v2.schema.json#/$defs/targetRef"
+          },
+          "maxItems": 65536
+        },
+        "correction": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/OwnerCorrection"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "NativeOwnerOutcome": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "kind",
+        "operation_id",
+        "plan_hash",
+        "committed_in",
+        "actor",
+        "action",
+        "memory_result",
+        "physical_purge"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": 2
+        },
+        "kind": {
+          "const": "native_owner_outcome"
+        },
+        "operation_id": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/operationId"
+        },
+        "plan_hash": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/sha256"
+        },
+        "committed_in": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/commitId"
+        },
+        "actor": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/ownerRef"
+        },
+        "action": {
+          "enum": [
+            "correct",
+            "withdraw",
+            "forget",
+            "attention",
+            "theme_rename",
+            "theme_pin",
+            "theme_dissolve",
+            "entity_merge",
+            "entity_split",
+            "tag"
+          ]
+        },
+        "memory_result": {
+          "oneOf": [
+            {
+              "$ref": "automation-v2.schema.json#/$defs/memoryRef"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "physical_purge": {
+          "const": false
+        }
+      }
+    },
+    "OwnerActionProof": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "operation_id",
+        "committed_in",
+        "owner",
+        "confirmed_at",
+        "action",
+        "entities"
+      ],
+      "properties": {
+        "operation_id": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/operationId"
+        },
+        "committed_in": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/commitId"
+        },
+        "owner": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/ownerRef"
+        },
+        "confirmed_at": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/timestamp"
+        },
+        "action": {
+          "enum": [
+            "correct",
+            "withdraw",
+            "forget",
+            "attention",
+            "theme_rename",
+            "theme_pin",
+            "theme_dissolve",
+            "entity_merge",
+            "entity_split",
+            "tag"
+          ]
+        },
+        "entities": {
+          "type": "array",
+          "maxItems": 2,
+          "items": {
+            "$ref": "ui-records-v2.schema.json#/$defs/entityId"
+          }
+        }
+      }
+    },
+    "OwnerAttentionMark": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "annotation",
+        "until",
+        "proof"
+      ],
+      "properties": {
+        "annotation": {
+          "enum": [
+            "protect",
+            "pin"
+          ]
+        },
+        "until": {
+          "oneOf": [
+            {
+              "$ref": "../memory/common-v1.schema.json#/$defs/timestamp"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "proof": {
+          "$ref": "#/$defs/OwnerActionProof"
+        }
+      }
+    },
+    "OwnerTagMark": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "proof"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "proof": {
+          "$ref": "#/$defs/OwnerActionProof"
+        }
+      }
+    },
+    "OwnerMemoryMarks": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "corrected",
+        "attention",
+        "tags",
+        "tag_count_in_scope",
+        "tags_complete"
+      ],
+      "properties": {
+        "corrected": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/OwnerActionProof"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "attention": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/OwnerAttentionMark"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/OwnerTagMark"
+          },
+          "maxItems": 64
+        },
+        "tag_count_in_scope": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 65536
+        },
+        "tags_complete": {
+          "type": "boolean"
+        }
+      }
+    }
+  }
+}

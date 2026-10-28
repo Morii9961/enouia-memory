@@ -137,6 +137,7 @@ impl SegmentedAutomationVault {
     ) -> Result<RuntimeCapturePermit> {
         self.native.owner(owner)?;
         if principal.actor_type != ActorType::Client
+            || self.native.descriptor.layout != AutomationLayout::SegmentedV1
             || scope.platform != "enouia-runtime"
             || !enouia_memory_contract::source::is_account_alias(&scope.account_scope)
             || !valid_timezone(&scope.default_timezone)

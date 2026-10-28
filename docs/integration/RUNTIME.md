@@ -1,5 +1,17 @@
 # Runtime integration (ADR-MEM-45)
 
+2026-10-28: MCP adoption checkpoint integrates published Owner dependency
+34709b9d2abcb60188c0e3488b15f40c33d6ee16 and its ADR100/101 prerequisites,
+preserving original author/history and both sides' contract validation.
+Aggregate: `31e2b482d57a4d085d55bc4b226674c7a00bc90a0a57b3c677afa99e61c8392e`.
+Existing Agent catalog factory and Runtime capture delegation explicitly refuse
+automation-segmented-owner-v1 before snapshot or source/policy transaction work.
+No old MCP tool, System reader or native Owner consent entry becomes an Agent
+capability. Native Runtime integration must still adopt the exact pin and
+contracts. Initialized-root Agent reads, shared live intake, Runtime hook/UI,
+private initialization and real Provider remain separate. See
+[boundary contract](../contracts/MCP_INITIALIZED_AGENT_READ_V1.md).
+
 2026-10-28: MCP-3 quote-location helper memory-quote-nfkd-1 uses explicitly
 pinned ICU4X 2.3.0 compiled normalization data and returns exact original scalar
 spans. Aggregate:
@@ -368,3 +380,90 @@ Provider quality, private-data acceptance or production activation.
 
 | 2026-10-26 | `5f5bb358ddf2e01e1aff9daaaa4cdfe3352c3c6fedac22922213fe1183665df8` | MCP-2c checkpoint 1 integrates exact segmented dependency b2c5c1a and adds a separate sealed native Agent gate before segmented rows/history/counts. Share the existing read-only MCP initialization/request-ID/closure state machine, preserving HostV2/3 tool schemas and 256-request limits. | No Runtime pin/UI/adoption or System forwarding. This checkpoint exposes no segmented MCP tools; Host lifecycle, typed tool outputs and scalable trace binding remain next. Native registration must independently authenticate the Owner and process. |
 | 2026-10-26 | `551d4fe38bcb47b032806e27fda2c28e521c3c436800ea68676246154364a71b` | MCP-2c checkpoint 2 adds explicit segmented Agent five-tool reads, bundled output schemas, SourceRead-gated excerpts and complete frozen fields, snapshot/scope/profile-bound cursors and shared actual Context response. Core-6 catalog selection ranks the whole authorized set; exclusion details are bounded with exact reason counts. | Native embedding reuses the existing leased Vault and must route Agent lock/unlock through SegmentedAgentHost. System memory-native-read-2 grants no Agent authority. Old capabilities retain their layouts and 256-request limit; catalog explicitly allows 4096. Runtime pin/UI binding, G03/G05/G04/process projection adoption, daily capture, provider and private initialization remain separate. |
+
+### 2026-10-26 — Time, family and typed graph reads (ADR-MEM-100)
+
+Surface aggregate: `d64a21005cf3f60b71dce246f4644be74894860e8a360bd4e005f06b918ad2d6`.
+
+Add native read-2 time buckets, theme-member pages and graph chunks; catalog
+now emits `literal-family-catalog-2` version 2. Stored schema-2 fields and
+`automation-segmented-host-v1` stay unchanged. Adopt the exact pin/manifest,
+new ports/DTOs, algorithm gate, extra-parameter binding, possible/nonadditive
+interval counts, separately scoped material capture axis and edge/member
+classification. Restart old v1 catalog cursors; do not relabel them as v2.
+
+Host adds direct edges to already locked exact Jiff 0.2.37 / jiff-tzdb 0.1.8.
+Read compiled IANA 2026c TZif bytes directly; never use OS/default timezone or
+silently resolve another data release. Preserve matched/included coverage,
+selected-node edge candidate/retention counters, resource refusal and explicit
+semantic-neighbor unavailability. Shared-entity membership is an algorithm
+suggestion; current source/conversation/participant dependencies must authorize
+labels/relations before counts. Historical correction relations and actual
+owner overlays remain G15/G08. No v1 command, default Host/MCP route, Runtime
+file/pin, Provider or production activation changed. See
+[contract](../contracts/UI_V2_PROJECTIONS.md) and
+[synthetic evidence](../validation/UI-v2-projections.md).
+
+### 2026-10-27 — Process, detail and session reads (ADR-MEM-101)
+
+Surface aggregate: `191617ddd3d82065a5012e70b644a7ac69d6768b02216739da6ce410f1912599`.
+
+Adopt the exact manifest and native read-2 activity/change/history/conflict/diff/
+neighbor/source/conversation ports described in [contract](../contracts/UI_V2_PROCESS.md).
+Catalog now emits `qualified-family-catalog-3` version 3; restart older cursors.
+Rows carry effective sensitivity and recorded machine formation reason; native
+graph nodes carry effective sensitivity. Keep recorded envelope versus caller
+ceiling, real witnessed publication actor/time versus logical formation axes,
+qualified counter-source overlap versus verified contradiction, and captured
+turn/source counts versus platform totals distinct.
+
+Changes can request reload instead of an incomplete exact delta; zero scoped IDs
+can still invalidate projections after a snapshot change. Historical access
+requires current identity and original current dependencies. Historical turn
+fragments retain their own sensitivity floor. Source-unavailable states do not
+distinguish absence, deletion or lack of access. Time-derived activity events
+remain unavailable; no fake fading/archive jobs or owner confirmations.
+Stored record fields/layout stay unchanged. G08 owner execution is still pending.
+No Runtime file/pin, MCP route, real root/provider or deployment changed. See
+[synthetic validation](../validation/UI-v2-process.md).
+
+
+### 2026-10-27 — Native Owner execution and read qualification (ADR-MEM-103)
+
+Surface aggregate: `862eb802156dfb168e4eeba16979352699094eab8ab3c978a4ac1d5bf862eec4`.
+
+Morii explicitly selected A. Initialization must create a new empty
+`automation-segmented-owner-v1` descriptor with the trusted `owner_subject_id`;
+old roots cannot gain Owner capability by header editing. Keep frozen ADR93 record
+fields and the separate native Owner/System principals. Adopt `NativeMemoryOwner`
+only behind actual native authentication and human gestures: plan / confirm the
+exact native preview / consume a private one-use native token / query the original
+operation after explicit recovery. Never deserialize a token or route this through
+MCP/model/page-provided identity. Lock invalidates all pending plans.
+
+Correct transcribes the confirmed bound-subject assertion into one real manual
+source and a target-bound System admission revision. No model call or independent
+verification; Core-5 Theme correction remains refused. Withdraw/forget are logical
+barriers with retained original sources, not physical purge. Owner attention/tags,
+family rename/pin/dissolve and compatible evidence-scoped entity merge/split drive
+all qualified native views. Do not infer Owner badges from machine annotations.
+
+Restart old cursors: selection is now `owner-qualified-catalog-4`, version 4;
+process headers use each port's `-2` algorithm/version 2. Scoped receipt DTOs omit
+global sequence. Conversation metadata omits raw turns/count/branches; displayed
+authorized captured branch order is dense and never a platform-total claim.
+Owner proofs identify actual witnessed actions without global ordinals. Reserved
+correction policies count toward the 1,024 policy capacity and cannot be reused by
+ordinary System admission. See [contract](../contracts/UI_V2_OWNER_ACTIONS.md) and
+[synthetic evidence](../validation/UI-v2-owner-actions.md).
+
+Runtime factory/gesture wiring, product UI, pin change, MCP support for this new
+layout, real root initialization and deployment remain separate adoption work.
+This commit changes none of those external surfaces. Concurrent MCP/native intake
+modules are not included and require a deliberate semantic merge of shared module
+registration/private commit helpers before adoption.
+
+Owner roots also bind `digest(descriptor)` in their witnessed genesis delta.
+Replay refuses header-only adoption of an old segmented root and rebinding an
+initialized Owner subject. Store/read schemas now include both execution effects
+and actual genesis/action examples; ADR93 business record fields remain intact.

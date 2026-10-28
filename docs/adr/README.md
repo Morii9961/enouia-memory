@@ -491,6 +491,30 @@ deltas, exact scoped policies and witnessed recovery replace full snapshots.
 Native read-2 adds authorization-first 100-row/byte-bound pages, literal/alias
 filters, scoped facets and exact statistics. Old layouts/ports stay unchanged.
 
+### ADR-MEM-100 — Native time, theme and graph projections
+
+[Decision](100-native-time-theme-graph.md): explicit bundled-IANA buckets,
+lazy recorded/shared-entity theme memberships and bounded typed graph chunks.
+Catalog algorithm version 2, current authorization before every projection;
+no stored record/layout change or Runtime/MCP activation. Owner application
+and history correction relations remain in their later slices.
+
+### ADR-MEM-101 — Native process, history and conversation reads (Implemented, synthetic)
+
+[Decision](101-native-process-detail-reads.md): witnessed activity, scoped change
+anchors, authorized conflict/diff/history/neighbor/source/session ports and v3
+sensitivity/reason qualifications. No stored record/layout change, owner
+execution, Runtime adoption or MCP activation.
+
+### ADR-MEM-103 — Native Owner actions and subject binding (Accepted A; synthetic implementation)
+
+[Decision](103-owner-correction-subject-binding-proposal.md): explicit Owner-to-Subject
+binding in a new empty `automation-segmented-owner-v1` root, native snapshot-bound
+plan/gesture/one-use commit and witnessed recovery, literal correction admission,
+withdrawal/forget barriers and qualified Owner overlays. Read selection v4 removes
+global receipt/turn ordinal leaks. No Runtime/MCP adoption or private initialization.
+ADR102 remains reserved for the concurrent Runtime capture session.
+
 ## Relation to Enouia Runtime's register
 
 
@@ -532,3 +556,10 @@ Runtime [ADR-025](https://github.com/Morii9961/enouia-runtime/blob/main/docs/adr
 ### ADR-MEM-102 — Runtime-only native daily capture
 
 [Decision](102-runtime-only-capture-boundary.md): retained Runtime OS peer, sealed current-policy source-pool delegation, exact raw turns and explicit default-timezone provenance. No-write preflight shares real capture admission. This checkpoint schedules no formation and exposes no public capture tool.
+
+### ADR-MEM-105 — Explicit initialized-root Agent adoption
+
+[Decision](105-initialized-agent-reader-boundary.md): integrate published Owner
+dependencies without widening existing Agent/Runtime capture capabilities.
+Descriptor-level refusal precedes current snapshot and transaction work. A
+separate initialized-root reader and shared live binding remain unadvertised.

@@ -17,6 +17,9 @@ serde_json.workspace = true
 serde.workspace = true
 icu_normalizer = { version = "=2.3.0", default-features = false, features = ["compiled_data"] }
 
+jiff = { version = "=0.2.37", default-features = false, features = ["std"] }
+jiff-tzdb = "=0.1.8"
+
 [target.'cfg(windows)'.dependencies]
 windows-sys = { version = "=0.61.2", features = [
     "Win32_Foundation",

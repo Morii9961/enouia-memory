@@ -40,7 +40,8 @@
             "automation-host-v1",
             "automation-host-v2",
             "automation-host-v3",
-            "automation-segmented-host-v1"
+            "automation-segmented-host-v1",
+            "automation-segmented-owner-v1"
           ]
         },
         "vault_id": {
@@ -54,8 +55,34 @@
         },
         "system_actor": {
           "$ref": "automation-v2.schema.json#/$defs/systemActor"
+        },
+        "owner_subject_id": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/subjectId"
         }
-      }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "layout": {
+                "const": "automation-segmented-owner-v1"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "owner_subject_id"
+            ]
+          },
+          "else": {
+            "not": {
+              "required": [
+                "owner_subject_id"
+              ]
+            }
+          }
+        }
+      ]
     },
     "current": {
       "type": "object",

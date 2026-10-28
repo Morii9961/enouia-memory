@@ -10,6 +10,23 @@
 > 后续采集只接 Runtime 宿主，缺时区使用 Asia/Shanghai 并记录默认来源。
 > 无私人初始化也继续使用临时合成根开发；不隐式激活 Runtime 或真实客户端。
 
+> 2026-10-27 UI v2 第五片：Morii 已明确选择 A；[ADR103](../adr/103-owner-correction-subject-binding-proposal.md)
+> 采用新建空根 `automation-segmented-owner-v1` 与显式 `owner_subject_id`，实现 G08 原生
+> 主人计划 → 手势确认 → 单次提交及恢复查询。记录字段继续沿用 ADR93；读取投影采用 v4，
+> 旧游标需重启。见[主人契约](../contracts/UI_V2_OWNER_ACTIONS.md)与[合成验证](../validation/UI-v2-owner-actions.md)。
+> Runtime 原生手势接线、Memory pin、MCP 采用及私人初始化均另行进行；本会话到 G08 停止。
+
+> 2026-10-27 UI v2 第四片：[ADR101](../adr/101-native-process-detail-reads.md)
+> 实现 G07 → G13 → G15 → G16 → G19，并补齐 G14 原生会话/来源读取。
+> 记录字段与 segmented-v1 布局不变；采用前需重启旧游标。见
+> [过程契约](../contracts/UI_V2_PROCESS.md)与[验证](../validation/UI-v2-process.md)。
+> G08 主人动作仍需真实原生计划/确认/提交；本片不产生主人记录。
+
+> UI v2 third slice: [ADR100](../adr/100-native-time-theme-graph.md) adds
+> G03/G05/G04 native projections; see [contract](../contracts/UI_V2_PROJECTIONS.md)
+> and [synthetic validation](../validation/UI-v2-projections.md). Owner overlay
+> execution/name inheritance waits for the already authorized G08 slice.
+
 > 2026-10-26 接续：Morii 在第一片字段报告后确认继续。第二片按
 > [ADR-MEM-94](../adr/094-segmented-native-memory-reads.md)实现 G01 → G06 → G23；
 > 新物理布局保留已冻结的记录字段，不原地升级旧根。见

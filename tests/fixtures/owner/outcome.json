@@ -1,0 +1,17 @@
+{
+  "action": "correct",
+  "actor": {
+    "actor_id": "prn_00000001-0000-4000-8000-000000000001",
+    "actor_type": "owner"
+  },
+  "committed_in": "cmt_ae7ec51b-e8b2-4fa8-8742-7ac5596fba55",
+  "kind": "native_owner_outcome",
+  "memory_result": {
+    "memory_id": "mem_8283a87e-6ac9-448e-9ba8-f69e09cae675",
+    "revision": 2
+  },
+  "operation_id": "op_914c8d5c-627e-4bfc-a44b-40782c55edce",
+  "physical_purge": false,
+  "plan_hash": "731cb345591d022e8017ac1e3cbf70a4286e198294ecfc9fcf834dcf70fd43df",
+  "schema_version": 2
+}

@@ -44,6 +44,31 @@
       "file": "filter.json",
       "type": "filter",
       "schema": "next/catalog-v2.schema.json"
+    },
+    {
+      "file": "page-v2.json",
+      "type": "page",
+      "schema": "next/catalog-v2.schema.json"
+    },
+    {
+      "file": "stats-v2.json",
+      "type": "stats",
+      "schema": "next/catalog-v2.schema.json"
+    },
+    {
+      "file": "facets-v2.json",
+      "type": "facets",
+      "schema": "next/catalog-v2.schema.json"
+    },
+    {
+      "file": "page-v3.json",
+      "type": "page",
+      "schema": "next/catalog-v2.schema.json"
+    },
+    {
+      "file": "stats-v3.json",
+      "type": "stats",
+      "schema": "next/catalog-v2.schema.json"
     }
   ],
   "invalid": [
@@ -9277,9 +9302,9 @@
       ]
     },
     {
-      "id": "owner-action-not-enabled",
+      "id": "owner-action-without-execution-effects",
       "base": "genesis.json",
-      "schema": "accept",
+      "schema": "reject",
       "ops": [
         {
           "op": "set",
@@ -9346,6 +9371,40 @@
           "value": 2
         }
       ]
+    },
+    {
+      "id": "new-family-algorithm-old-version",
+      "base": "page-v2.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/selection/version",
+          "value": 1
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "v3-without-effective-sensitivity",
+      "base": "page-v3.json",
+      "ops": [
+        {
+          "op": "remove",
+          "path": "/items/0/effective_sensitivity"
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "v3-without-recorded-reason",
+      "base": "page-v3.json",
+      "ops": [
+        {
+          "op": "remove",
+          "path": "/items/0/formation_reason"
+        }
+      ],
+      "schema": "reject"
     }
   ]
 }

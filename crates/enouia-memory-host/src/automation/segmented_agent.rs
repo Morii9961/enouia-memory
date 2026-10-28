@@ -39,7 +39,10 @@ impl SegmentedAgentHost {
         vault: Arc<SegmentedAutomationVault>,
         owner: ActorRef,
     ) -> ApplicationResult<Self> {
-        if owner.actor_type != ActorType::Owner || owner != vault.descriptor().created_by {
+        if owner.actor_type != ActorType::Owner
+            || owner != vault.descriptor().created_by
+            || vault.descriptor().layout != AutomationLayout::SegmentedV1
+        {
             return Err(AutomationFault::Denied.into());
         }
         vault.snapshot()?;

@@ -390,6 +390,45 @@ def main():
             failures.append(f"Runtime capture wire case {case['name']}: disagreement")
     counts["runtime_capture_wire_cases"] = len(wire_cases["cases"])
 
+    projection_dir = ROOT / "tests" / "fixtures" / "projections"
+    projection = load(projection_dir / "manifest.json")
+    projection_schemas = {e["file"]: e["schema"] for e in projection["valid"]}
+    for entry in projection["valid"]:
+        if not valid(entry["schema"], load(projection_dir / entry["file"])):
+            failures.append(f"valid projection document rejected: {entry['file']}")
+    for case in projection["invalid"]:
+        value = load(projection_dir / case["base"])
+        apply_ops(value, case["ops"])
+        if valid(projection_schemas[case["base"]], value) != (case["schema"] == "accept"):
+            failures.append(f"projection case {case['id']}: disagreement")
+    counts["projection_documents"] = len(projection["valid"]) + len(projection["invalid"])
+
+    process_dir = ROOT / "tests" / "fixtures" / "process"
+    process = load(process_dir / "manifest.json")
+    process_schemas = {e["file"]: e["schema"] for e in process["valid"]}
+    for entry in process["valid"]:
+        if not valid(entry["schema"], load(process_dir / entry["file"])):
+            failures.append(f"valid process document rejected: {entry['file']}")
+    for case in process["invalid"]:
+        value = load(process_dir / case["base"])
+        apply_ops(value, case["ops"])
+        if valid(process_schemas[case["base"]], value) != (case["schema"] == "accept"):
+            failures.append(f"process case {case['id']}: disagreement")
+    counts["process_documents"] = len(process["valid"]) + len(process["invalid"])
+
+    owner_dir = ROOT / "tests" / "fixtures" / "owner"
+    owner = load(owner_dir / "manifest.json")
+    owner_schemas = {e["file"]: e["schema"] for e in owner["valid"]}
+    for entry in owner["valid"]:
+        if not valid(entry["schema"], load(owner_dir / entry["file"])):
+            failures.append(f"valid owner document rejected: {entry['file']}")
+    for case in owner["invalid"]:
+        value = load(owner_dir / case["base"])
+        apply_ops(value, case["ops"])
+        if valid(owner_schemas[case["base"]], value) != (case["schema"] == "accept"):
+            failures.append(f"owner case {case['id']}: disagreement")
+    counts["owner_documents"] = len(owner["valid"]) + len(owner["invalid"])
+
     invocation_cases = load(FIXTURES / "provider-invocation-cases.json")
     for case in invocation_cases["cases"]:
         value = copy.deepcopy(invocation_cases["base"])

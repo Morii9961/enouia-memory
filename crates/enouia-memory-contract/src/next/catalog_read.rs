@@ -1,7 +1,7 @@
 //! ADR-MEM-94 transport-neutral scalable read results. Parsing is not authority.
 use super::*;
 use crate::{
-    common::{ActorType, Sensitivity},
+    common::{ActorRef, ActorType, EvidenceRef, Sensitivity, SourceRevisionRef},
     error::Violation,
     hash::Sha256Hex,
     ids::*,
@@ -57,6 +57,12 @@ impl CatalogFilter {
 pub enum CatalogReadAlgorithm {
     #[serde(rename = "literal-alias-catalog-1")]
     V1,
+    #[serde(rename = "literal-family-catalog-2")]
+    V2,
+    #[serde(rename = "qualified-family-catalog-3")]
+    V3,
+    #[serde(rename = "owner-qualified-catalog-4")]
+    V4,
 }
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -144,22 +150,39 @@ impl CatalogFacetGroup {
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct CatalogEntity {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub recorded_entity_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub owner_relation: Option<OwnerActionProof>,
     pub entity_id: String,
     pub role: EntityRole,
 }
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct CatalogReadItem {
-    pub base: MemoryReadItem,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub owner_marks: Option<OwnerMemoryMarks>,
+    pub base: NativeCatalogMemoryBase,
     pub title: String,
     pub content_lang: String,
     pub event_time: RecordTime,
     pub valid_time: RecordTime,
     pub entities: Vec<CatalogEntity>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub effective_sensitivity: Option<Sensitivity>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub formation_reason: Option<MemoryFormationReason>,
 }
 impl CatalogReadItem {
-    fn valid(&self, at: &Timestamp) -> bool {
-        self.base.valid()
+    pub(super) fn valid(&self, at: &Timestamp) -> bool {
+        self.owner_marks
+            .as_ref()
+            .is_none_or(OwnerMemoryMarks::valid)
+            && self.base.valid()
+            && self
+                .formation_reason
+                .as_ref()
+                .is_none_or(|r| r.valid() && r.rule_version == self.base.rule_version)
             && self.base.system_actor.actor_type == ActorType::System
             && self.base.receipt.is_some()
             && self.base.learned_at <= *at
@@ -171,10 +194,16 @@ impl CatalogReadItem {
             && self.event_time.matches(&self.base.dimensions.event_time)
             && self.valid_time.matches(&self.base.dimensions.valid_time)
             && self.entities.len() <= 32
-            && self
-                .entities
-                .iter()
-                .all(|e| crate::ids::check_prefixed_uuid(&e.entity_id, "ent").is_ok())
+            && self.entities.iter().all(|e| {
+                crate::ids::check_prefixed_uuid(&e.entity_id, "ent").is_ok()
+                    && e.recorded_entity_id
+                        .as_ref()
+                        .is_none_or(|id| crate::ids::check_prefixed_uuid(id, "ent").is_ok())
+                    && e.owner_relation.as_ref().is_none_or(|p| {
+                        p.valid() && ["entity_merge", "entity_split"].contains(&p.action.as_str())
+                    })
+                    && e.recorded_entity_id.is_some() == e.owner_relation.is_some()
+            })
     }
 }
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -202,7 +231,7 @@ pub struct CatalogMemoryPage {
 }
 impl NextDocument for CatalogMemoryPage {
     fn validate(&self) -> Vec<Violation> {
-        let valid = self.selection.version.get() == 1
+        let valid = self.selection.valid()
             && self.effect == MemoryReadEffect::NativeRead
             && self.count_exact
             && self.scope == "authorized_current_machine_revisions"
@@ -211,10 +240,19 @@ impl NextDocument for CatalogMemoryPage {
             && self.matched_in_scope <= MAX_SEGMENTED_REVISIONS as u64
             && self.unknown_time_in_scope <= MAX_SEGMENTED_REVISIONS as u64
             && self.items.len() as u64 <= self.matched_in_scope
-            && self
-                .items
-                .iter()
-                .all(|v| v.valid(&self.selection.evaluated_at))
+            && self.items.iter().all(|v| {
+                v.valid(&self.selection.evaluated_at)
+                    && (self.selection.algorithm != CatalogReadAlgorithm::V4
+                        || (v.owner_marks.is_some()
+                            && v.base
+                                .receipt
+                                .as_ref()
+                                .is_some_and(|r| r.sequence.is_none())))
+                    && (!matches!(
+                        self.selection.algorithm,
+                        CatalogReadAlgorithm::V3 | CatalogReadAlgorithm::V4
+                    ) || (v.effective_sensitivity.is_some() && v.formation_reason.is_some()))
+            })
             && self
                 .items
                 .windows(2)
@@ -258,7 +296,7 @@ pub struct CatalogMemoryStats {
 }
 impl NextDocument for CatalogMemoryStats {
     fn validate(&self) -> Vec<Violation> {
-        if self.selection.version.get() != 1
+        if !self.selection.valid()
             || self.effect != MemoryReadEffect::NativeRead
             || !self.count_exact
             || self.scope != "authorized_current_machine_revisions"
@@ -269,7 +307,12 @@ impl NextDocument for CatalogMemoryStats {
                 .groups
                 .iter()
                 .any(|g| g.count_scope != FacetCountScope::Matched || !g.valid(&self.selection))
-            || self.theme_membership != "recorded_derivation_only"
+            || self.theme_membership
+                != if self.selection.algorithm == CatalogReadAlgorithm::V1 {
+                    "recorded_derivation_only"
+                } else {
+                    "recorded_shared_entity_families"
+                }
         {
             vec![Violation::new("catalog.stats", "")]
         } else {
@@ -295,7 +338,7 @@ pub struct CatalogMemoryFacets {
 }
 impl NextDocument for CatalogMemoryFacets {
     fn validate(&self) -> Vec<Violation> {
-        if self.selection.version.get() == 1
+        if self.selection.valid()
             && self.effect == MemoryReadEffect::NativeRead
             && self.selection.evaluated_at <= self.authorized_at
             && self.group.valid(&self.selection)
@@ -312,5 +355,63 @@ pub fn catalog_query_hash(
     profile: &AttentionProfile,
     max: Sensitivity,
 ) -> Sha256Hex {
-    digest(&(CatalogReadAlgorithm::V1, 1u32, filter, profile, max))
+    digest(&(CatalogReadAlgorithm::V4, 4u32, filter, profile, max))
+}
+
+impl CatalogSelection {
+    pub fn valid(&self) -> bool {
+        self.version.get()
+            == match self.algorithm {
+                CatalogReadAlgorithm::V1 => 1,
+                CatalogReadAlgorithm::V2 => 2,
+                CatalogReadAlgorithm::V3 => 3,
+                CatalogReadAlgorithm::V4 => 4,
+            }
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct NativeCatalogMemoryBase {
+    pub memory: MemoryRevisionRef,
+    pub system_actor: ActorRef,
+    pub subject_id: SubjectId,
+    #[serde(deserialize_with = "crate::json::nullable")]
+    pub project_id: Option<ProjectId>,
+    pub content: String,
+    pub knowledge: KnowledgeState,
+    pub adoption: AdoptionState,
+    pub dimensions: FormationDimensions,
+    pub policy: PolicyRef,
+    pub rule_version: RuleVersion,
+    pub committed_in: CommitId,
+    pub learned_at: Timestamp,
+    pub source_captured_at: Timestamp,
+    pub attention: AttentionState,
+    pub validity: MemoryValidity,
+    pub evidence: Vec<EvidenceRef>,
+    pub context_source_refs: Vec<SourceRevisionRef>,
+    #[serde(deserialize_with = "crate::json::nullable")]
+    pub receipt: Option<NativeReadReceipt>,
+}
+impl NativeCatalogMemoryBase {
+    pub(super) fn valid(&self) -> bool {
+        self.system_actor.actor_type == ActorType::System
+            && ((self.knowledge == KnowledgeState::AttributedStatement)
+                == (self.adoption == AdoptionState::Adopted))
+            && (!matches!(
+                self.dimensions.kind,
+                FormationKind::Theme | FormationKind::SubjectiveUnderstanding
+            ) || self.knowledge != KnowledgeState::AttributedStatement)
+            && self.rule_version == RuleVersion::V3
+            && !self.content.trim().is_empty()
+            && self.content.len() <= 16 * 1024
+            && self.dimensions.validate().is_empty()
+            && self.evidence.len() <= 128
+            && self.context_source_refs.len() <= 128
+            && self
+                .receipt
+                .as_ref()
+                .is_none_or(|r| r.result == self.memory && r.committed_in == self.committed_in)
+    }
 }

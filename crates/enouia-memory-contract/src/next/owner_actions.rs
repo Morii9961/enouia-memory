@@ -1,4 +1,4 @@
-//! Planned owner actions only. G08 supplies authentication and publication.
+//! Owner action data. ADR103 supplies the separate native authentication/publication capability.
 use super::*;
 use crate::{common::*, error::Violation, hash::Sha256Hex, ids::*, time::Timestamp};
 use serde::{Deserialize, Serialize};
@@ -94,8 +94,7 @@ pub enum OwnerRecordKind {
     #[serde(rename = "owner_action_record")]
     OwnerActionRecord,
 }
-/// Prospective committed shape, not a witnessed receipt when decoded from JSON.
-/// No machine publication transaction accepts it in this slice.
+/// Stored shape; decoding JSON never creates consent or a witnessed native publication.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct OwnerActionRecord {

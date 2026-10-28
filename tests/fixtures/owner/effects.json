@@ -1,0 +1,219 @@
+{
+  "correction": {
+    "decision": {
+      "input": {
+        "access_policy_id": "pol_00000002-0000-4000-8000-000000000001",
+        "actor": {
+          "actor_id": "prn_00000002-0000-4000-8000-000000000001",
+          "actor_type": "system"
+        },
+        "content": "I prefer morning walks; this is a synthetic owner assertion.",
+        "context_source_refs": [],
+        "dimensions": {
+          "change": "correction",
+          "conditions": [],
+          "counter_sources": [],
+          "derived_from": [],
+          "event_time": null,
+          "kind": "preference",
+          "occurrence": "unknown",
+          "reverts_to": null,
+          "state": null,
+          "valid_time": null
+        },
+        "egress_policy_id": "pol_00000003-0000-4000-8000-000000000001",
+        "evidence": [
+          {
+            "evidence_class": "user_statement",
+            "locator": {
+              "kind": "manual_input"
+            },
+            "object_hash": "44523331c0fbd18776d8dd68a2f5fe7ae55fba0fb447a98405a3f886c93c3693",
+            "source_id": "src_1f22f825-ff69-46a6-a03b-d38929f80b62",
+            "source_revision": 1,
+            "supports": "content"
+          }
+        ],
+        "input_refs": [
+          {
+            "source_id": "src_1f22f825-ff69-46a6-a03b-d38929f80b62",
+            "source_revision": 1
+          }
+        ],
+        "interpretation": "clear_self_report",
+        "kind": "admission_input",
+        "model_version": null,
+        "operation_id": "op_914c8d5c-627e-4bfc-a44b-40782c55edce",
+        "policy": {
+          "hash": "3406720d1489f7aa9807898f06174c0944cc409dd4bf614f2e9a0caaebc30b34",
+          "policy_id": "pol_914c8d5c-627e-4bfc-a44b-40782c55edce",
+          "revision": 1
+        },
+        "producer_version": "owner-native-literal-1",
+        "project_id": null,
+        "record_fields": {
+          "annotations": null,
+          "content_lang": "en",
+          "entities": [],
+          "event_time": {
+            "basis": "unknown",
+            "bound": "within",
+            "from": null,
+            "precision": "unknown",
+            "tz": null,
+            "until": null
+          },
+          "evidence": [
+            {
+              "end": 60,
+              "quote": "I prefer morning walks; this is a synthetic owner assertion.",
+              "reference": {
+                "evidence_class": "user_statement",
+                "locator": {
+                  "kind": "manual_input"
+                },
+                "object_hash": "44523331c0fbd18776d8dd68a2f5fe7ae55fba0fb447a98405a3f886c93c3693",
+                "source_id": "src_1f22f825-ff69-46a6-a03b-d38929f80b62",
+                "source_revision": 1,
+                "supports": "content"
+              },
+              "speaker": "user",
+              "start": 0
+            }
+          ],
+          "formation": {
+            "import_batch_id": null,
+            "mode": "live",
+            "prompt_version": "owner-native-literal-1"
+          },
+          "title": "Synthetic owner correction",
+          "valid_time": {
+            "basis": "unknown",
+            "bound": "within",
+            "from": null,
+            "precision": "unknown",
+            "tz": null,
+            "until": null
+          }
+        },
+        "result": {
+          "memory_id": "mem_8283a87e-6ac9-448e-9ba8-f69e09cae675",
+          "revision": 2
+        },
+        "schema_version": 2,
+        "sensitivity": "public",
+        "snapshot": {
+          "base_commit_id": "cmt_b2228236-b786-4cec-865a-52f2289ba05f",
+          "deletion_watermark": 1,
+          "policy_watermark": 2,
+          "primary_epoch": 1,
+          "vault_id": "vlt_00000001-0000-4000-8000-000000000001"
+        },
+        "subject_id": "sub_00000001-0000-4000-8000-000000000001",
+        "target": {
+          "hash": "91c83c5a988cc4072a2c0f18920599da1c5036e4b1f4c279b9d43d2ef7bbcba9",
+          "memory": {
+            "memory_id": "mem_8283a87e-6ac9-448e-9ba8-f69e09cae675",
+            "revision": 1
+          }
+        }
+      },
+      "kind": "admission_draft",
+      "outcome": {
+        "adoption": "adopted",
+        "knowledge": "attributed_statement",
+        "reassessment": null
+      },
+      "rule_version": "admission-rules-3",
+      "schema_version": 2
+    },
+    "policy": {
+      "access_policy_id": "pol_00000002-0000-4000-8000-000000000001",
+      "active": true,
+      "allow_create": false,
+      "allowed_forms": [
+        "preference"
+      ],
+      "egress_policy_id": "pol_00000003-0000-4000-8000-000000000001",
+      "kind": "automation_policy",
+      "max_sensitivity": "public",
+      "policy_id": "pol_914c8d5c-627e-4bfc-a44b-40782c55edce",
+      "project_id": null,
+      "revision": 1,
+      "rule_version": "admission-rules-3",
+      "schema_version": 2,
+      "source_ids": [
+        "src_1f22f825-ff69-46a6-a03b-d38929f80b62"
+      ],
+      "subject_id": "sub_00000001-0000-4000-8000-000000000001",
+      "system_actor": {
+        "actor_id": "prn_00000002-0000-4000-8000-000000000001",
+        "actor_type": "system"
+      },
+      "target_ids": [
+        "mem_8283a87e-6ac9-448e-9ba8-f69e09cae675"
+      ],
+      "valid_from": "2026-10-24T12:00:00.000Z",
+      "valid_until": "9999-12-31T23:59:59.999Z",
+      "vault_id": "vlt_00000001-0000-4000-8000-000000000001"
+    },
+    "source": {
+      "attributed_subject": "sub_00000001-0000-4000-8000-000000000001",
+      "record": {
+        "access_policy_id": "pol_00000002-0000-4000-8000-000000000001",
+        "account_scope": null,
+        "agent_submission": null,
+        "attachment_refs": [],
+        "author_label": null,
+        "branch_id": null,
+        "captured_at": "2026-10-24T12:00:00.000Z",
+        "completeness": "complete",
+        "content_hash": "44523331c0fbd18776d8dd68a2f5fe7ae55fba0fb447a98405a3f886c93c3693",
+        "created_at": "2026-10-24T12:00:00.000Z",
+        "evidence_class": "user_statement",
+        "extensions": {},
+        "import_id": null,
+        "locator": {
+          "kind": "manual_input"
+        },
+        "manual_assertion": {
+          "confirmation_method": "exact_text_confirm_dialog",
+          "confirmed_at": "2026-10-24T12:00:00.000Z",
+          "input_text": "I prefer morning walks; this is a synthetic owner assertion.",
+          "operator": {
+            "actor_id": "prn_00000001-0000-4000-8000-000000000001",
+            "actor_type": "owner"
+          },
+          "trusted_surface": "trusted_windows_app"
+        },
+        "occurred_at": null,
+        "original_conversation_id": null,
+        "original_message_id": null,
+        "original_time": null,
+        "original_timezone": null,
+        "parent_source_ids": [],
+        "parse_warnings": [],
+        "parser_version": "owner-native-literal-1",
+        "provider": null,
+        "raw_object_hash": null,
+        "revision": 1,
+        "schema_version": 1,
+        "sensitivity": "public",
+        "source_id": "src_1f22f825-ff69-46a6-a03b-d38929f80b62",
+        "source_kind": "manual_assertion",
+        "speaker_role": "user",
+        "time_precision": "unknown"
+      },
+      "record_fields": {
+        "assistant_model": null,
+        "content_lang": "en",
+        "conversation_id": null
+      },
+      "text": "I prefer morning walks; this is a synthetic owner assertion."
+    }
+  },
+  "family_members": [],
+  "max_sensitivity": "private",
+  "scope_hash": "773ae1429f39a9dc9f7a9187d3191a1d317225d80040ea639d9e14fdd37d7760",
+  "sensitivity": "public"
+}

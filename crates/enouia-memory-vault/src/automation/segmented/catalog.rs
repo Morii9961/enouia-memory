@@ -163,6 +163,19 @@ impl State {
             {
                 return Err(AutomationFault::Denied);
             }
+            if self
+                .conversations
+                .get(&c.conversation_id)
+                .is_some_and(|versions| {
+                    c.turns.iter().any(|t| {
+                        versions.iter().flat_map(|old| &old.turns).any(|old| {
+                            old.source.source_id == t.source.source_id && old.turn_id != t.turn_id
+                        })
+                    })
+                })
+            {
+                return Err(AutomationFault::Denied);
+            }
         }
         for s in incoming {
             if let Some(id) = s
@@ -316,19 +329,259 @@ impl State {
             sources: &sources,
             entities: &entities,
         };
-        let memories = self
+        let memories: Vec<&SegmentedMemory> = self
             .memories
             .iter()
             .filter(|(id, _)| eligible(id, &scope, &mut memo, 0))
             .map(|(_, v)| v.last().unwrap())
             .collect();
+        let conversations: BTreeMap<_, _> = self
+            .conversations
+            .iter()
+            .filter_map(|(id, versions)| {
+                let c = versions.last()?;
+                (!c.turns.is_empty()
+                    && c.sensitivity <= max
+                    && c.turns.iter().all(|t| {
+                        sources
+                            .get(&t.source.source_id)
+                            .is_some_and(|s| s.record.revision == t.source.source_revision)
+                    })
+                    && c.participants.iter().all(|p| {
+                        p.entity_id
+                            .as_ref()
+                            .is_none_or(|id| entities.contains_key(id))
+                    }))
+                .then_some((id.clone(), c))
+            })
+            .collect();
+        let mut turns: BTreeMap<SessionId, BTreeMap<SourceId, AuthorizedConversationTurn>> =
+            BTreeMap::new();
+        for (id, versions) in &self.conversations {
+            if !conversations.contains_key(id) {
+                continue;
+            }
+            for c in versions {
+                // A public source does not declassify turn/branch metadata recorded
+                // in a more sensitive conversation fragment.
+                if c.sensitivity > max || c.access_policy_id != conversations[id].access_policy_id {
+                    continue;
+                }
+                for t in &c.turns {
+                    if sources.get(&t.source.source_id).is_some_and(|s| {
+                        s.record.revision == t.source.source_revision
+                            && s.record_fields
+                                .as_ref()
+                                .and_then(|f| f.conversation_id.as_ref())
+                                == Some(id)
+                    }) {
+                        let mut projected = t.clone();
+                        projected.parent_source = projected.parent_source.filter(|p| {
+                            sources
+                                .get(&p.source_id)
+                                .is_some_and(|s| s.record.revision == p.source_revision)
+                        });
+                        turns.entry(id.clone()).or_default().insert(
+                            t.source.source_id.clone(),
+                            AuthorizedConversationTurn {
+                                turn: projected,
+                                effective_sensitivity: c
+                                    .sensitivity
+                                    .max(sources[&t.source.source_id].record.sensitivity),
+                            },
+                        );
+                    }
+                }
+            }
+        }
+        // Densely rank only authorized captured turns; original ordinals must not
+        // reveal withheld fragment sizes or leave visible holes.
+        for group in turns.values_mut() {
+            let visible: BTreeSet<_> = group.values().map(|v| v.turn.source.clone()).collect();
+            for value in group.values_mut() {
+                value.turn.parent_source = value
+                    .turn
+                    .parent_source
+                    .take()
+                    .filter(|p| visible.contains(p));
+            }
+            let mut ordered: Vec<_> = group
+                .values()
+                .map(|v| {
+                    (
+                        v.turn.branch_id.clone(),
+                        v.turn.sequence,
+                        v.turn.turn_id.clone(),
+                    )
+                })
+                .collect();
+            ordered.sort();
+            let mut ranks = BTreeMap::new();
+            let mut totals: BTreeMap<BranchId, u32> = BTreeMap::new();
+            for (branch, _, turn) in ordered {
+                if !ranks.contains_key(&(branch.clone(), turn.clone())) {
+                    let next = totals.entry(branch.clone()).or_default();
+                    *next += 1;
+                    ranks.insert((branch, turn), *next);
+                }
+            }
+            for value in group.values_mut() {
+                value.turn.sequence =
+                    ranks[&(value.turn.branch_id.clone(), value.turn.turn_id.clone())];
+            }
+        }
+        let targets: BTreeMap<_, _> = memories
+            .iter()
+            .map(|m| (&m.memory.memory.memory_id, *m))
+            .collect();
+        let mut owner_actions: Vec<_> = self
+            .owner_actions
+            .values()
+            .filter(|(r, e)| {
+                e.sensitivity <= max
+                    && match &r.plan.action {
+                        OwnerAction::Correct { .. } => e.correction.as_ref().is_some_and(|c| {
+                            targets.contains_key(&c.decision.input.result.memory_id)
+                                && self.policy(&c.decision.input).is_some_and(|p| {
+                                    p.active
+                                        && now >= p.valid_from
+                                        && now < p.valid_until
+                                        && self.source_in_policy(
+                                            &c.source.reference(),
+                                            p,
+                                            c.decision.input.sensitivity,
+                                        )
+                                })
+                        }),
+                        OwnerAction::Attention { target, .. } => {
+                            targets.contains_key(&target.memory.memory_id)
+                        }
+                        OwnerAction::ThemeRename { theme, .. }
+                        | OwnerAction::ThemePin { theme, .. }
+                        | OwnerAction::ThemeDissolve { theme, .. } => {
+                            targets.contains_key(&theme.memory.memory_id)
+                        }
+                        OwnerAction::Tag {
+                            targets: tagged, ..
+                        } => tagged
+                            .iter()
+                            .any(|t| targets.contains_key(&t.memory.memory_id)),
+                        OwnerAction::EntityMerge {
+                            from_entity,
+                            into_entity,
+                            ..
+                        }
+                        | OwnerAction::EntitySplit {
+                            from_entity,
+                            into_entity,
+                            ..
+                        } => {
+                            entities.contains_key(from_entity) && entities.contains_key(into_entity)
+                        }
+                        OwnerAction::Withdraw { .. } | OwnerAction::Forget { .. } => false,
+                    }
+            })
+            .map(|(record, effects)| AuthorizedOwnerAction { record, effects })
+            .collect();
+        owner_actions.sort_by_key(|a| a.record.sequence);
+        let mut entity_redirects: BTreeMap<(MemoryId, String), String> = BTreeMap::new();
+        let mut entity_proofs = BTreeMap::new();
+        let mut entity_aliases: BTreeMap<(MemoryId, String), BTreeSet<String>> = BTreeMap::new();
+        let identity_actions = owner_actions
+            .iter()
+            .filter(|a| {
+                matches!(
+                    a.record.plan.action,
+                    OwnerAction::EntityMerge { .. } | OwnerAction::EntitySplit { .. }
+                )
+            })
+            .count();
+        if identity_actions.saturating_mul(memories.len()) > 16_777_216 {
+            return Err(AutomationFault::Capacity);
+        }
+
+        for action in &owner_actions {
+            let (from, into, selected) = match &action.record.plan.action {
+                OwnerAction::EntityMerge {
+                    from_entity,
+                    into_entity,
+                    ..
+                } => (from_entity, into_entity, None),
+                OwnerAction::EntitySplit {
+                    from_entity,
+                    into_entity,
+                    evidence,
+                    ..
+                } => (from_entity, into_entity, Some(evidence)),
+                _ => continue,
+            };
+            for m in &memories {
+                let i = &m.memory.decision.input;
+                if i.sensitivity > action.effects.max_sensitivity {
+                    continue;
+                }
+                let Some(policy) = self.policy(i) else {
+                    continue;
+                };
+                if !self.entity_in_policy(into, policy, i.sensitivity) {
+                    continue;
+                }
+                for mention in &i.record_fields.as_ref().unwrap().entities {
+                    let key = (m.memory.memory.memory_id.clone(), mention.entity_id.clone());
+                    let resolved = entity_redirects.get(&key).unwrap_or(&mention.entity_id);
+                    if resolved != from {
+                        continue;
+                    }
+                    if selected.is_some_and(|evidence| {
+                        !evidence.iter().any(|q| {
+                            mention.evidence.iter().any(|m| {
+                                q.reference.source_id == m.reference.source_id
+                                    && q.reference.source_revision == m.reference.source_revision
+                                    && q.start < m.end
+                                    && m.start < q.end
+                            })
+                        })
+                    }) {
+                        continue;
+                    }
+                    entity_redirects.insert(key.clone(), into.clone());
+                    entity_proofs.insert(key, OwnerActionProof::from_record(action.record));
+                }
+                if selected.is_none() && self.entity_in_policy(from, policy, i.sensitivity) {
+                    let reaches_into = i.record_fields.as_ref().unwrap().entities.iter().any(|e| {
+                        entity_redirects
+                            .get(&(m.memory.memory.memory_id.clone(), e.entity_id.clone()))
+                            .unwrap_or(&e.entity_id)
+                            == into
+                    });
+                    if reaches_into {
+                        let old = (m.memory.memory.memory_id.clone(), from.clone());
+                        let mut names = entity_aliases.get(&old).cloned().unwrap_or_default();
+                        if let Some(e) = entities.get(from) {
+                            names.insert(e.display_name.clone());
+                            names.extend(e.aliases.iter().map(|a| a.name.clone()));
+                        }
+                        entity_aliases
+                            .entry((m.memory.memory.memory_id.clone(), into.clone()))
+                            .or_default()
+                            .extend(names);
+                    }
+                }
+            }
+        }
         Ok(AuthorizedSegmentedRead {
-            withdrawal_watermark: Revision::new(1).unwrap(),
+            owner_actions,
+            entity_redirects,
+            entity_proofs,
+            entity_aliases,
+            withdrawal_watermark: Revision::new(1 + self.withdrawal_watermark).unwrap(),
             snapshot: self.snapshot()?,
             now,
             memories,
-            sources,
+            conversations,
+            turns,
             entities,
+            sources,
         })
     }
 }
