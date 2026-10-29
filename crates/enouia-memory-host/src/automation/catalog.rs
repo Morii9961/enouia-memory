@@ -486,86 +486,7 @@ impl SegmentedMemoryReader {
         request: &CatalogReadRequest<'_>,
         cursor: Option<&CatalogCursor>,
     ) -> ApplicationResult<CatalogMemoryPage> {
-        self.read(request, |data| {
-            let selection = selection(&data, request, cursor.map(|c| &c.selection))?;
-            let rows = rows(&data, request.profile, &selection.evaluated_at)?;
-            let matched: Vec<_> = rows
-                .iter()
-                .filter(|r| r.matches(request.filter, request.profile, None, false))
-                .collect();
-            let remaining: Vec<_> = matched
-                .iter()
-                .filter(|r| cursor.is_none_or(|c| r.id() > &c.after))
-                .collect();
-            let unknown_time_in_scope = rows
-                .iter()
-                .filter(|r| {
-                    r.matches(request.filter, request.profile, None, true)
-                        && r.range(request.filter.time_axis.unwrap_or(CatalogTimeAxis::Event))
-                            .0
-                            .is_none()
-                })
-                .count() as u64;
-            let facets = if request.options.include_facets {
-                projections::theme_budget(&data, data.memories.len())?;
-                AXES.iter()
-                    .map(|axis| {
-                        facet(
-                            &rows,
-                            request,
-                            *axis,
-                            FacetCountScope::OtherFilters,
-                            &selection,
-                            None,
-                            16,
-                        )
-                    })
-                    .collect()
-            } else {
-                vec![]
-            };
-            let mut page = CatalogMemoryPage {
-                schema_version: NextVersion,
-                kind: CatalogPageKind::Page,
-                capability: CatalogCapability::V2,
-                effect: MemoryReadEffect::NativeRead,
-                selection: selection.clone(),
-                authorized_at: data.now,
-                matched_in_scope: matched.len() as u64,
-                unknown_time_in_scope,
-                count_exact: true,
-                scope: "authorized_current_machine_revisions".into(),
-                items: vec![],
-                complete_in_scope: true,
-                next: None,
-                facets,
-            };
-            let mut used = bytes(&page)?.saturating_add(1024);
-            for row in remaining.iter().take(request.options.limit) {
-                let item = row.item();
-                let encoded = canonical_bytes(&item).map_err(|_| invalid())?;
-                let cost = encoded.len() + 4 * encoded.iter().filter(|b| **b == b'\n').count() + 8;
-                if used.saturating_add(cost) > request.options.max_bytes {
-                    break;
-                }
-                used += cost;
-                page.items.push(item);
-            }
-            page.complete_in_scope = page.items.len() == remaining.len();
-            if !page.complete_in_scope {
-                page.next = page.items.last().map(|i| CatalogCursor {
-                    selection: selection.clone(),
-                    after: i.base.memory.memory_id.clone(),
-                });
-                if page.next.is_none() {
-                    return Err(invalid());
-                }
-            }
-            if bytes(&page)? > request.options.max_bytes || !page.validate().is_empty() {
-                return Err(invalid());
-            }
-            Ok(page)
-        })
+        self.read(request, |data| project_page(&data, request, cursor, None))
     }
     pub fn memory_stats_native(
         &self,
@@ -770,4 +691,109 @@ fn owner_marks(
         mark.tags_complete = mark.tags.len() as u64 == mark.tag_count_in_scope;
     }
     result
+}
+
+/// Pure projection; callers must supply an independently authorized view.
+pub(crate) fn project_page(
+    data: &AuthorizedSegmentedRead<'_>,
+    request: &CatalogReadRequest<'_>,
+    cursor: Option<&CatalogCursor>,
+    scope: Option<&Sha256Hex>,
+) -> ApplicationResult<CatalogMemoryPage> {
+    let selection = selection_scoped(data, request, cursor.map(|c| &c.selection), scope)?;
+    let rows = rows(data, request.profile, &selection.evaluated_at)?;
+    let matched: Vec<_> = rows
+        .iter()
+        .filter(|r| r.matches(request.filter, request.profile, None, false))
+        .collect();
+    let remaining: Vec<_> = matched
+        .iter()
+        .filter(|r| cursor.is_none_or(|c| r.id() > &c.after))
+        .collect();
+    let unknown_time_in_scope = rows
+        .iter()
+        .filter(|r| {
+            r.matches(request.filter, request.profile, None, true)
+                && r.range(request.filter.time_axis.unwrap_or(CatalogTimeAxis::Event))
+                    .0
+                    .is_none()
+        })
+        .count() as u64;
+    let facets = if request.options.include_facets {
+        projections::theme_budget(data, data.memories.len())?;
+        AXES.iter()
+            .map(|axis| {
+                facet(
+                    &rows,
+                    request,
+                    *axis,
+                    FacetCountScope::OtherFilters,
+                    &selection,
+                    None,
+                    16,
+                )
+            })
+            .collect()
+    } else {
+        vec![]
+    };
+    let mut page = CatalogMemoryPage {
+        schema_version: NextVersion,
+        kind: CatalogPageKind::Page,
+        capability: CatalogCapability::V2,
+        effect: MemoryReadEffect::NativeRead,
+        selection: selection.clone(),
+        authorized_at: data.now.clone(),
+        matched_in_scope: matched.len() as u64,
+        unknown_time_in_scope,
+        count_exact: true,
+        scope: "authorized_current_machine_revisions".into(),
+        items: vec![],
+        complete_in_scope: true,
+        next: None,
+        facets,
+    };
+    let mut used = bytes(&page)?.saturating_add(1024);
+    for row in remaining.iter().take(request.options.limit) {
+        let item = row.item();
+        let encoded = canonical_bytes(&item).map_err(|_| invalid())?;
+        let cost = encoded.len() + 4 * encoded.iter().filter(|b| **b == b'\n').count() + 8;
+        if used.saturating_add(cost) > request.options.max_bytes {
+            break;
+        }
+        used += cost;
+        page.items.push(item);
+    }
+    page.complete_in_scope = page.items.len() == remaining.len();
+    if !page.complete_in_scope {
+        page.next = page.items.last().map(|i| CatalogCursor {
+            selection: selection.clone(),
+            after: i.base.memory.memory_id.clone(),
+        });
+        if page.next.is_none() {
+            return Err(invalid());
+        }
+    }
+    if bytes(&page)? > request.options.max_bytes || !page.validate().is_empty() {
+        return Err(invalid());
+    }
+    Ok(page)
+}
+fn selection_scoped(
+    data: &AuthorizedSegmentedRead<'_>,
+    request: &CatalogReadRequest<'_>,
+    expected: Option<&CatalogSelection>,
+    scope: Option<&Sha256Hex>,
+) -> ApplicationResult<CatalogSelection> {
+    let Some(scope) = scope else {
+        return selection(data, request, expected);
+    };
+    let mut value = selection(data, request, None)?;
+    value.scope_hash = scope.clone();
+    value.query_hash = digest(&(value.query_hash.clone(), scope));
+    value.evaluated_at = expected.map_or_else(|| data.now.clone(), |old| old.evaluated_at.clone());
+    if value.evaluated_at > data.now || expected.is_some_and(|old| old != &value) {
+        return Err(AutomationFault::Stale.into());
+    }
+    Ok(value)
 }

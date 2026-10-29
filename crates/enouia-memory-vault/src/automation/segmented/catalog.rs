@@ -430,6 +430,32 @@ impl State {
                     ranks[&(value.turn.branch_id.clone(), value.turn.turn_id.clone())];
             }
         }
+        let mut data = AuthorizedSegmentedRead {
+            owner_actions: Vec::new(),
+            entity_redirects: BTreeMap::new(),
+            entity_proofs: BTreeMap::new(),
+            entity_aliases: BTreeMap::new(),
+            withdrawal_watermark: Revision::new(1 + self.withdrawal_watermark).unwrap(),
+            snapshot: self.snapshot()?,
+            now,
+            memories,
+            conversations,
+            turns,
+            entities,
+            sources,
+        };
+        self.refresh_owner_overlays(&mut data, max)?;
+        Ok(data)
+    }
+    /// Pure qualification over the supplied current view. No System read port.
+    pub(super) fn refresh_owner_overlays<'a>(
+        &'a self,
+        data: &mut AuthorizedSegmentedRead<'a>,
+        max: Sensitivity,
+    ) -> Result<()> {
+        let memories = data.memories.as_slice();
+        let entities = &data.entities;
+        let now = data.now.clone();
         let targets: BTreeMap<_, _> = memories
             .iter()
             .map(|m| (&m.memory.memory.memory_id, *m))
@@ -515,7 +541,7 @@ impl State {
                 } => (from_entity, into_entity, Some(evidence)),
                 _ => continue,
             };
-            for m in &memories {
+            for m in memories {
                 let i = &m.memory.decision.input;
                 if i.sensitivity > action.effects.max_sensitivity {
                     continue;
@@ -569,19 +595,11 @@ impl State {
                 }
             }
         }
-        Ok(AuthorizedSegmentedRead {
-            owner_actions,
-            entity_redirects,
-            entity_proofs,
-            entity_aliases,
-            withdrawal_watermark: Revision::new(1 + self.withdrawal_watermark).unwrap(),
-            snapshot: self.snapshot()?,
-            now,
-            memories,
-            conversations,
-            turns,
-            entities,
-            sources,
-        })
+
+        data.owner_actions = owner_actions;
+        data.entity_redirects = entity_redirects;
+        data.entity_proofs = entity_proofs;
+        data.entity_aliases = entity_aliases;
+        Ok(())
     }
 }
