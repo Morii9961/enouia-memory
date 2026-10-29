@@ -30,6 +30,7 @@ const ASSERTIONS: &[&str] = &[
     "additionalProperties",
     "propertyNames",
     "items",
+    "prefixItems",
     "minItems",
     "maxItems",
     "uniqueItems",
@@ -240,8 +241,14 @@ impl SchemaStore {
                     }
                 }
             }
+            let prefix = map.get("prefixItems").and_then(Value::as_array);
+            if let Some(prefix) = prefix {
+                for (i, (item, item_schema)) in items.iter().zip(prefix).enumerate() {
+                    self.node(doc, item_schema, item, &format!("{at}/{i}"), errors);
+                }
+            }
             if let Some(item_schema) = map.get("items") {
-                for (i, item) in items.iter().enumerate() {
+                for (i, item) in items.iter().enumerate().skip(prefix.map_or(0, Vec::len)) {
                     self.node(doc, item_schema, item, &format!("{at}/{i}"), errors);
                 }
             }

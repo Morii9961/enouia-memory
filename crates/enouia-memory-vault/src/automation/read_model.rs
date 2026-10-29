@@ -7,6 +7,7 @@ pub struct AuthorizedReadData {
     pub sources: Vec<CapturedSource>,
     pub receipts: Vec<MemoryReceipt>,
     pub learned_times: BTreeMap<CommitId, Timestamp>,
+    pub record_catalog: Option<RecordCatalog>,
 }
 impl AutomationVault {
     /// Same live native gates for rows, selected history, source text and links.
@@ -18,8 +19,25 @@ impl AutomationVault {
         selected: Option<&MemoryId>,
     ) -> Result<AuthorizedReadData> {
         self.system(actor)?;
+        self.read_data_with(
+            AutomationLayout::HostV2,
+            max,
+            selected,
+            |_, _| Ok(()),
+            |_, _| true,
+        )
+    }
+
+    pub(super) fn read_data_with(
+        &self,
+        expected_layout: AutomationLayout,
+        max: Sensitivity,
+        selected: Option<&MemoryId>,
+        verify: impl FnOnce(&AutomationCommit, &Timestamp) -> Result<()>,
+        allowed: impl Fn(&AutomationCommit, &MachineMemory) -> bool,
+    ) -> Result<AuthorizedReadData> {
         self.available()?;
-        if self.descriptor.layout != AutomationLayout::HostV2 {
+        if self.descriptor.layout != expected_layout {
             return Err(AutomationFault::Denied);
         }
         let _writer = lock::acquire(&self.root, Duration::ZERO)?;
@@ -32,13 +50,14 @@ impl AutomationVault {
         {
             return Err(AutomationFault::Denied);
         }
+        verify(&commit, &now)?;
         let mut latest = BTreeMap::new();
         for m in &commit.data.memories {
             latest.insert(&m.memory.memory_id, m);
         }
         let current: Vec<_> = latest
             .values()
-            .filter(|m| self.eligible(&commit, m, max, true).is_ok())
+            .filter(|m| self.eligible(&commit, m, max, true).is_ok() && allowed(&commit, m))
             .map(|m| (*m).clone())
             .collect();
         let history =
@@ -50,6 +69,7 @@ impl AutomationVault {
                     .filter(|m| {
                         Some(&m.memory.memory_id) == selected
                             && self.eligible(&commit, m, max, true).is_ok()
+                            && allowed(&commit, m)
                     })
                     .cloned()
                     .collect()
@@ -111,6 +131,7 @@ impl AutomationVault {
             sources,
             receipts,
             learned_times,
+            record_catalog: commit.data.record_catalog.clone(),
         })
     }
 }

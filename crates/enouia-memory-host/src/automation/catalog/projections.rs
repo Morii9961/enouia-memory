@@ -9,7 +9,12 @@ pub(super) struct Family {
 }
 pub(super) struct ThemeSeed<'a> {
     pub entry: &'a SegmentedMemory,
-    entities: BTreeSet<&'a str>,
+    entities: BTreeSet<String>,
+    redirects: Arc<BTreeMap<(MemoryId, String), String>>,
+    pub(super) name: String,
+    owner_named: bool,
+    pinned: bool,
+    owner_proofs: Vec<OwnerActionProof>,
 }
 impl ThemeSeed<'_> {
     pub(super) fn score(&self, entry: &SegmentedMemory) -> Option<(u16, &'static str)> {
@@ -38,12 +43,23 @@ impl ThemeSeed<'_> {
             .unwrap()
             .entities
             .iter()
-            .any(|e| e.role != EntityRole::Subject && self.entities.contains(e.entity_id.as_str()))
+            .any(|e| {
+                e.role != EntityRole::Subject
+                    && self.entities.contains(
+                        self.redirects
+                            .get(&(entry.memory.memory.memory_id.clone(), e.entity_id.clone()))
+                            .unwrap_or(&e.entity_id),
+                    )
+            })
             .then_some((750, "shared_entity_suggestion"))
     }
 }
-pub(super) fn seeds<'a>(data: &AuthorizedSegmentedRead<'a>) -> BTreeMap<MemoryId, ThemeSeed<'a>> {
-    data.memories
+pub(super) fn seeds<'a>(
+    data: &AuthorizedSegmentedRead<'a>,
+) -> ApplicationResult<BTreeMap<MemoryId, ThemeSeed<'a>>> {
+    let redirects = Arc::new(data.entity_redirects.clone());
+    let mut seeds: BTreeMap<_, _> = data
+        .memories
         .iter()
         .filter_map(|entry| {
             let i = &entry.memory.decision.input;
@@ -59,17 +75,128 @@ pub(super) fn seeds<'a>(data: &AuthorizedSegmentedRead<'a>) -> BTreeMap<MemoryId
                             .entities
                             .iter()
                             .filter(|e| e.role != EntityRole::Subject)
-                            .map(|e| e.entity_id.as_str())
+                            .map(|e| {
+                                redirects
+                                    .get(&(
+                                        entry.memory.memory.memory_id.clone(),
+                                        e.entity_id.clone(),
+                                    ))
+                                    .unwrap_or(&e.entity_id)
+                                    .clone()
+                            })
                             .collect(),
+                        redirects: redirects.clone(),
+                        name: i.record_fields.as_ref().unwrap().title.clone(),
+                        owner_named: false,
+                        pinned: false,
+                        owner_proofs: vec![],
                     },
                 )
             })
         })
-        .collect()
+        .collect();
+    let relevant: Vec<_> = data
+        .owner_actions
+        .iter()
+        .filter(|a| {
+            matches!(
+                a.record.plan.action,
+                OwnerAction::ThemeRename { .. }
+                    | OwnerAction::ThemePin { .. }
+                    | OwnerAction::ThemeDissolve { .. }
+            )
+        })
+        .collect();
+    let mut cache: BTreeMap<MemoryId, BTreeSet<MemoryId>> = BTreeMap::new();
+    let mut work = 0usize;
+    let mut dissolved = BTreeSet::new();
+    for action in relevant {
+        let original = match &action.record.plan.action {
+            OwnerAction::ThemeRename { theme, .. }
+            | OwnerAction::ThemePin { theme, .. }
+            | OwnerAction::ThemeDissolve { theme, .. } => &theme.memory.memory_id,
+            _ => unreachable!(),
+        };
+        let old: BTreeSet<_> = action
+            .effects
+            .family_members
+            .iter()
+            .map(|t| t.memory.memory_id.clone())
+            .collect();
+        let chosen = {
+            let mut score = |id: &MemoryId| -> ApplicationResult<Option<(usize, usize)>> {
+                if !cache.contains_key(id) {
+                    work = work.saturating_add(data.memories.len());
+                    if work > 16_777_216 {
+                        return Err(AutomationFault::Capacity.into());
+                    }
+                    let seed = &seeds[id];
+                    cache.insert(
+                        id.clone(),
+                        data.memories
+                            .iter()
+                            .filter(|m| seed.score(m).is_some())
+                            .map(|m| m.memory.memory.memory_id.clone())
+                            .collect(),
+                    );
+                }
+                let current = &cache[id];
+                let intersection = old.intersection(current).count();
+                let union = old.union(current).count();
+                Ok((union > 0 && intersection * 2 >= union).then_some((intersection, union)))
+            };
+            // Prefer the same stable family before searching for an inherited replacement.
+            if seeds.contains_key(original) && score(original)?.is_some() {
+                Some(original.clone())
+            } else {
+                let mut best: Option<(usize, usize, MemoryId)> = None;
+                for id in seeds.keys() {
+                    if let Some((i, u)) = score(id)?
+                        && best.as_ref().is_none_or(|(bi, bu, bid)| {
+                            i * bu > bi * u || (i * bu == bi * u && id < bid)
+                        })
+                    {
+                        best = Some((i, u, id.clone()));
+                    }
+                }
+                best.map(|(_, _, id)| id)
+            }
+        };
+        let Some(id) = chosen else {
+            continue;
+        };
+        let seed = seeds.get_mut(&id).unwrap();
+        let proof = OwnerActionProof::from_record(action.record);
+        match &action.record.plan.action {
+            OwnerAction::ThemeRename { name, .. } => {
+                seed.name = name.clone();
+                seed.owner_named = true;
+                seed.owner_proofs.retain(|p| p.action != "theme_rename");
+                seed.owner_proofs.push(proof);
+            }
+            OwnerAction::ThemePin { .. } => {
+                seed.pinned = true;
+                seed.owner_proofs.retain(|p| p.action != "theme_pin");
+                seed.owner_proofs.push(proof);
+            }
+            OwnerAction::ThemeDissolve { .. } => {
+                dissolved.insert(id);
+            }
+            _ => {}
+        }
+    }
+    seeds.retain(|id, _| !dissolved.contains(id));
+    Ok(seeds)
 }
-fn family(data: &AuthorizedSegmentedRead<'_>, theme: &MemoryId) -> Option<Family> {
-    let seeds = seeds(data);
-    let seed = seeds.get(theme)?;
+
+fn family(
+    data: &AuthorizedSegmentedRead<'_>,
+    theme: &MemoryId,
+) -> ApplicationResult<Option<Family>> {
+    let seeds = seeds(data)?;
+    let Some(seed) = seeds.get(theme) else {
+        return Ok(None);
+    };
     let members: Vec<_> = data
         .memories
         .iter()
@@ -82,25 +209,17 @@ fn family(data: &AuthorizedSegmentedRead<'_>, theme: &MemoryId) -> Option<Family
                 })
         })
         .collect();
-    Some(Family {
+    Ok(Some(Family {
         family: ThemeFamily {
             theme: seed.entry.target.clone(),
-            name: seed
-                .entry
-                .memory
-                .decision
-                .input
-                .record_fields
-                .as_ref()
-                .unwrap()
-                .title
-                .clone(),
+            name: seed.name.clone(),
             member_count: members.len() as u64,
-            owner_named: false,
-            pinned: false,
+            owner_named: seed.owner_named,
+            pinned: seed.pinned,
+            owner_proofs: seed.owner_proofs.clone(),
         },
         members,
-    })
+    }))
 }
 pub(super) fn theme_budget(
     data: &AuthorizedSegmentedRead<'_>,
@@ -306,7 +425,7 @@ impl SegmentedMemoryReader {
                 .filter(|r| r.matches(request.filter, request.profile, None, false))
                 .map(|r| r.id())
                 .collect();
-            let mut family = family(&data, theme);
+            let mut family = family(&data, theme)?;
             if let Some(family) = &mut family {
                 family
                     .members
@@ -435,6 +554,7 @@ impl SegmentedMemoryReader {
                                     to: target.memory.memory_id.clone(),
                                     relation: kind,
                                     class: GraphEdgeClass::RecordedRelation,
+                                    owner_relations: vec![],
                                     witness: digest(target).to_string(),
                                     score_milli: None,
                                 });
@@ -494,6 +614,20 @@ impl SegmentedMemoryReader {
                                     } else {
                                         GraphEdgeClass::RecordedRelation
                                     },
+                                    owner_relations: if kind == GraphEdgeKind::SameEntity {
+                                        selected
+                                            .iter()
+                                            .filter(|r| r.id() == a || r.id() == b)
+                                            .flat_map(|r| r.entities.iter())
+                                            .filter(|e| e.entity_id == witness)
+                                            .filter_map(|e| e.owner_relation.clone())
+                                            .map(|p| (p.operation_id.clone(), p))
+                                            .collect::<BTreeMap<_, _>>()
+                                            .into_values()
+                                            .collect()
+                                    } else {
+                                        vec![]
+                                    },
                                     witness: witness.clone(),
                                     score_milli: if kind == GraphEdgeKind::ThemeCooccurrence {
                                         Some(750)
@@ -541,6 +675,7 @@ impl SegmentedMemoryReader {
                     let i = &row.entry.memory.decision.input;
                     let f = i.record_fields.as_ref().unwrap();
                     let node = MemoryGraphNode {
+                        owner_marks: Some(row.owner_marks.clone()),
                         memory: row.entry.target.clone(),
                         effective_sensitivity: Some(effective(row.entry)),
                         title: f.title.clone(),

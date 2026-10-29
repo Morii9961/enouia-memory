@@ -1,0 +1,112 @@
+{
+  "capability": "memory-native-read-2",
+  "edge_coverage": [
+    {
+      "candidates": 0,
+      "relation": "derived_from",
+      "retained": 0
+    },
+    {
+      "candidates": 0,
+      "relation": "reversion",
+      "retained": 0
+    },
+    {
+      "candidates": 0,
+      "relation": "same_conversation",
+      "retained": 0
+    },
+    {
+      "candidates": 0,
+      "relation": "same_entity",
+      "retained": 0
+    },
+    {
+      "candidates": 0,
+      "relation": "theme_cooccurrence",
+      "retained": 0
+    }
+  ],
+  "edges": [],
+  "effect": "native_read",
+  "header": {
+    "algorithm": "typed-authorized-graph-1",
+    "authorized_at": "2026-10-24T12:00:00.000Z",
+    "complete_in_scope": true,
+    "included_inputs": 1,
+    "limits": [
+      "edge_candidates_and_retention_describe_only_selected_nodes",
+      "semantic_neighbors_unavailable_no_model_or_embeddings",
+      "same_entity_is_a_recorded_mention_relation_not_independent_verification"
+    ],
+    "matched_inputs": 1,
+    "parameters_hash": "851d33599b2103bc702a2594edcb191ac7cb268957f82063f8d2d403c00e17d4",
+    "scope": "authorized_current_machine_revisions",
+    "selection": {
+      "algorithm": "owner-qualified-catalog-4",
+      "evaluated_at": "2026-10-24T12:00:00.000Z",
+      "profile_hash": "e23dce3de472f5e99f52511a55d98426dcb5624957b2def3325645a065426642",
+      "query_hash": "0b4b2e01266a9b23ef15e0fe443756138831012a17d0ce689ca17a9f386ec39a",
+      "scope_hash": "43ea559439dd9206307f8abc1e7fae53a860227892ba6a4c3eae9338dd5be828",
+      "snapshot": {
+        "base_commit_id": "cmt_ae7ec51b-e8b2-4fa8-8742-7ac5596fba55",
+        "deletion_watermark": 1,
+        "policy_watermark": 2,
+        "primary_epoch": 1,
+        "vault_id": "vlt_00000001-0000-4000-8000-000000000001"
+      },
+      "version": 4,
+      "withdrawal_watermark": 1
+    },
+    "version": 1
+  },
+  "kind": "memory_graph_page",
+  "next": null,
+  "nodes": [
+    {
+      "adoption": "adopted",
+      "attention": "active",
+      "effective_sensitivity": "public",
+      "entities": [],
+      "event_time": {
+        "basis": "unknown",
+        "bound": "within",
+        "from": null,
+        "precision": "unknown",
+        "tz": null,
+        "until": null
+      },
+      "form": "preference",
+      "knowledge": "attributed_statement",
+      "memory": {
+        "hash": "5f631fb47df99eae81e0d76c1d7fdb3d048c4a5a7f1ca43eed87f4ac9a0eb47e",
+        "memory": {
+          "memory_id": "mem_8283a87e-6ac9-448e-9ba8-f69e09cae675",
+          "revision": 2
+        }
+      },
+      "owner_marks": {
+        "attention": null,
+        "corrected": {
+          "action": "correct",
+          "committed_in": "cmt_ae7ec51b-e8b2-4fa8-8742-7ac5596fba55",
+          "confirmed_at": "2026-10-24T12:00:00.000Z",
+          "entities": [],
+          "operation_id": "op_914c8d5c-627e-4bfc-a44b-40782c55edce",
+          "owner": {
+            "actor_id": "prn_00000001-0000-4000-8000-000000000001",
+            "actor_type": "owner"
+          }
+        },
+        "tag_count_in_scope": 0,
+        "tags": [],
+        "tags_complete": true
+      },
+      "themes": [],
+      "title": "Synthetic owner correction",
+      "validity": "unspecified"
+    }
+  ],
+  "schema_version": 2,
+  "semantic_neighbors_available": false
+}

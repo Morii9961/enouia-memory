@@ -111,3 +111,14 @@ reduce the window/filters if these bounds refuse. Every page declares each
 kind's candidate/retained counts. Filtering/deletion cannot leave hidden empty
 node slots, endpoint edges or cluster names, and any changed snapshot refuses
 old continuation. Frontend layout and visual acceptance belong to Runtime.
+
+
+## ADR103 native read qualification
+
+The later Owner slice emits selection `owner-qualified-catalog-4` version 4.
+Process headers use algorithm/version 2. Restart older cursors. Current scoped
+receipts omit global commit sequence; current conversation metadata omits raw
+turn arrays/totals/branch lists and ranks authorized captured turns densely per
+branch. Actual Owner marks, family/identity overlays and provenance require the
+same fresh authorization and native action records. Stored records and legacy
+v3 fixture parsing remain unchanged. See [Owner contract](UI_V2_OWNER_ACTIONS.md).

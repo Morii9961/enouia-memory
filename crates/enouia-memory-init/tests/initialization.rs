@@ -10,6 +10,13 @@ use fixture::*;
 use serde_json::{Value, json};
 use std::sync::Arc;
 
+fn owner_env() -> Env {
+    let mut e = Env::new();
+    e.descriptor.layout = AutomationLayout::SegmentedOwnerV1;
+    e.descriptor.owner_subject_id = Some(e.policy(1, 1, 1).subject_id);
+    e
+}
+
 fn materials() -> Vec<Material> {
     vec![Material{alias:"synthetic-chat".into(),format:Format::Auto,account_alias:"synthetic".into(),bytes:serde_json::to_vec(&json!([{
         "conversation_id":"synthetic-c1","title":"Synthetic choices","current_node":"n3","mapping":{
@@ -66,7 +73,7 @@ fn bundle(init: &Initializer) -> Value {
 
 #[test]
 fn full_native_initialization_preflight_reopen_revision_and_seven_deletion_projections() {
-    let e = Env::new();
+    let e = owner_env();
     let mut inputs = materials();
     let mut raw: Value = serde_json::from_slice(&inputs[0].bytes).unwrap();
     raw[0]["mapping"]["n1"]["message"]["content"]["parts"] = json!([
@@ -169,7 +176,7 @@ fn full_native_initialization_preflight_reopen_revision_and_seven_deletion_proje
 
 #[test]
 fn unknown_application_is_lookup_only_and_does_not_reapply() {
-    let e = Env::new();
+    let e = owner_env();
     let prep = prepare(&materials()).unwrap();
     let p = plan(
         &e,
@@ -184,7 +191,7 @@ fn unknown_application_is_lookup_only_and_does_not_reapply() {
     drop(init);
     // Emulate interruption after witnessed commit but before local cursor save.
     let managed = ManagedRoot::new(e.root.path(), Faults::none());
-    let path = "sync-state/initialization-1.json";
+    let path = "sync-state/initialization-owner-1.json";
     let mut journal: Value = serde_json::from_slice(
         &managed
             .read_bounded(path, 16 * 1024 * 1024)
@@ -226,7 +233,7 @@ fn parser_preserves_unknowns_duplicate_bytes_roles_and_unsupported_objects() {
     assert_eq!(prep.unsupported, 1);
     assert_eq!(prep.objects.len(), 2);
     assert_eq!(sha256(&inputs[0].bytes), prep.inputs[0].1);
-    let e = Env::new();
+    let e = owner_env();
     let mut bad = statement(0, "A fabricated quote.");
     assert!(
         Plan::build(
@@ -256,7 +263,7 @@ fn parser_preserves_unknowns_duplicate_bytes_roles_and_unsupported_objects() {
 
 #[test]
 fn s01_to_s32_scripted_inputs_pass_real_native_formation_but_are_not_model_scores() {
-    let e = Env::new();
+    let e = owner_env();
     let suite = enouia_memory_init::synthetic::suite();
     assert_eq!(suite.scenarios.as_array().unwrap().len(), 32);
     let p = plan(
@@ -277,7 +284,7 @@ fn s01_to_s32_scripted_inputs_pass_real_native_formation_but_are_not_model_score
 
 #[test]
 fn live_preempts_backfill_and_unwitnessed_unknown_never_reapplies() {
-    let e = Env::new();
+    let e = owner_env();
     let prep = prepare(&materials()).unwrap();
     let mut init = initializer(&e);
     init.enqueue(
@@ -324,7 +331,7 @@ fn live_preempts_backfill_and_unwitnessed_unknown_never_reapplies() {
     init.step().unwrap(); // backfill capture
     drop(init);
     let managed = ManagedRoot::new(e.root.path(), Faults::none());
-    let path = "sync-state/initialization-1.json";
+    let path = "sync-state/initialization-owner-1.json";
     let mut journal: Value = serde_json::from_slice(
         &managed
             .read_bounded(path, 16 * 1024 * 1024)
@@ -351,7 +358,7 @@ fn live_preempts_backfill_and_unwitnessed_unknown_never_reapplies() {
 
 #[test]
 fn theme_original_context_deletion_invalidates_all_derived_outputs() {
-    let e = Env::new();
+    let e = owner_env();
     let prep = prepare(&materials()).unwrap();
     let a = statement(0, "I enjoy pottery.");
     let b = statement(2, "I changed my preference to music.");
@@ -415,7 +422,7 @@ fn selected_runtime_claude_document_and_bucket_metadata_survive_without_owner_pr
         .unwrap();
     assert_eq!(bucket.metadata["pinned"], true);
     assert_eq!(bucket.evidence, EvidenceClass::ModelClaim);
-    let e = Env::new();
+    let e = owner_env();
     let statements: Vec<_> = prep
         .messages
         .iter()
@@ -464,7 +471,7 @@ fn legacy_snapshot_is_read_only_and_confirmed_history_requires_valid_original_re
     // to fit this synthetic policy. Their exact bytes remain in the snapshot.
     prep.messages
         .retain(|m| m.sensitivity <= Sensitivity::Private);
-    let e = Env::new();
+    let e = owner_env();
     let statements: Vec<_> = prep
         .messages
         .iter()
@@ -515,7 +522,7 @@ fn attachments_have_typed_metadata_refs_and_verified_original_bytes() {
     .unwrap();
     assert_eq!(prep.messages.len(), 1);
     assert_eq!(prep.messages[0].attachments.len(), 2);
-    let e = Env::new();
+    let e = owner_env();
     let p = plan(&e, &prep, &[], FormationMode::Backfill);
     assert_eq!(p.sources[0].attachments.len(), 2);
     assert_eq!(p.sources[0].record.attachment_refs.len(), 2);
@@ -539,7 +546,7 @@ fn attachments_have_typed_metadata_refs_and_verified_original_bytes() {
 
 #[test]
 fn month_within_span_and_stated_instant_are_distinct_from_source_capture_time() {
-    let e = Env::new();
+    let e = owner_env();
     let mut input = materials();
     let mut raw: Value = serde_json::from_slice(&input[0].bytes).unwrap();
     raw[0]["mapping"]["n1"]["message"]["content"]["parts"] = json!([
@@ -618,7 +625,7 @@ fn repeated_export_bytes_dedupe_only_inside_the_same_account_namespace() {
     let prep = prepare(&[original, changed]).unwrap();
     assert_eq!(prep.messages.len(), 4);
     assert_eq!(prep.duplicate_messages, 2);
-    let e = Env::new();
+    let e = owner_env();
     assert!(
         Plan::build(
             &prep,
@@ -634,7 +641,7 @@ fn repeated_export_bytes_dedupe_only_inside_the_same_account_namespace() {
 
 #[test]
 fn unsupported_title_is_not_published_as_new_information() {
-    let e = Env::new();
+    let e = owner_env();
     let prep = prepare(&materials()).unwrap();
     let mut s = statement(0, "I enjoy pottery.");
     s.title = "Owns a palace on Mars".into();
@@ -670,7 +677,7 @@ fn selected_document_metadata_and_advisory_values_survive_native_formation() {
     assert_ne!(plain.watermark(), prep.watermark());
     assert_eq!(prep.messages[0].author.as_deref(), Some("Synthetic author"));
     assert!(prep.messages[0].occurred_at.is_some());
-    let e = Env::new();
+    let e = owner_env();
     let mut s = statement(0, &prep.messages[0].text);
     s.interpretation = Interpretation::Inference;
     s.annotations = AnalysisAnnotations {
@@ -707,4 +714,166 @@ fn selected_document_metadata_and_advisory_values_survive_native_formation() {
     assert_eq!(annotation.tone.unwrap().arousal_milli, 100);
     assert!(annotation.current_state_note.is_some());
     assert_eq!(bundle(&init)["coverage"]["unknown_time"]["percent"], 100.0);
+}
+
+#[test]
+fn old_or_unbound_root_descriptors_are_refused_before_creation() {
+    let mut e = Env::new();
+    for layout in [
+        AutomationLayout::SegmentedV1,
+        AutomationLayout::SegmentedOwnerV1,
+    ] {
+        e.descriptor.layout = layout;
+        e.descriptor.owner_subject_id = None;
+        assert!(
+            Initializer::create_synthetic(
+                &e.root,
+                e.descriptor.clone(),
+                e.clock.clone(),
+                Arc::new(OsIdSource)
+            )
+            .is_err()
+        );
+        assert!(std::fs::read_dir(e.root.path()).unwrap().next().is_none());
+    }
+}
+
+#[test]
+fn owner_subject_and_journal_descriptor_binding_refuse_changed_identity() {
+    let e = owner_env();
+    let prep = prepare(&materials()).unwrap();
+    let mut p = e.policy(1, 1, 1);
+    p.subject_id = enouia_memory_contract::ids::SubjectId::parse(&id("sub", 900)).unwrap();
+    let foreign = Plan::build(
+        &prep,
+        &[statement(0, "I enjoy pottery.")],
+        p,
+        FormationMode::Backfill,
+        Timestamp::from_unix_ms(NOW).unwrap(),
+        &OsIdSource,
+    )
+    .unwrap();
+    let mut init = initializer(&e);
+    let before = init.vault.snapshot().unwrap();
+    assert!(init.enqueue(foreign, &prep).is_err());
+    assert_eq!(init.vault.snapshot().unwrap(), before);
+    assert!(init.plans().is_empty());
+    drop(init);
+    let managed = ManagedRoot::new(e.root.path(), Faults::none());
+    let path = "sync-state/initialization-owner-1.json";
+    let mut journal: Value = serde_json::from_slice(
+        &managed
+            .read_bounded(path, 16 * 1024 * 1024)
+            .unwrap()
+            .unwrap(),
+    )
+    .unwrap();
+    journal["descriptor_hash"] = json!("0".repeat(64));
+    managed
+        .write_atomic(path, &canonical_bytes(&journal).unwrap())
+        .unwrap();
+    assert!(
+        Initializer::open_synthetic(
+            &e.root,
+            e.descriptor.host_id.clone(),
+            e.clock.clone(),
+            Arc::new(OsIdSource)
+        )
+        .is_err()
+    );
+}
+
+#[test]
+fn selected_owner_input_forms_one_record_and_native_owner_actions_remain_separate() {
+    use enouia_memory_host::automation::owner::NativeMemoryOwner;
+    let packet = json!({"content":"A synthetic agent chose the name Lumen.","content_lang":"en",
+        "intake_key":"synthetic-agent-name","original_quote":"I choose Lumen.","original_quote_speaker":"assistant",
+        "owner_approved":true});
+    let m = Material {
+        alias: "synthetic-owner-input".into(),
+        format: Format::OwnerProvided,
+        bytes: serde_json::to_vec(&packet).unwrap(),
+        account_alias: "synthetic".into(),
+    };
+    // Consent-looking JSON cannot select a trusted parser path by itself.
+    assert!(
+        prepare(&[Material {
+            format: Format::Auto,
+            ..m.clone()
+        }])
+        .unwrap()
+        .messages
+        .is_empty()
+    );
+    let prep = prepare(&[m]).unwrap();
+    assert_eq!(prep.messages.len(), 2);
+    assert_eq!(prep.messages[0].evidence, EvidenceClass::UserStatement);
+    assert_eq!(prep.messages[1].evidence, EvidenceClass::ModelClaim);
+    assert_eq!(prep.messages[1].role, SpeakerRole::Assistant);
+    let e = owner_env();
+    let mut assertion = statement(0, &prep.messages[0].text);
+    assertion.dimensions = dimensions(FormationKind::Fact);
+    let p = plan(&e, &prep, &[assertion], FormationMode::Backfill);
+    let mut init = initializer(&e);
+    init.enqueue(p, &prep).unwrap();
+    while init.step().unwrap() {}
+    let (target, actions) = init
+        .vault
+        .read(&e.descriptor.system_actor, Sensitivity::Private, |d| {
+            (d.memories[0].target.clone(), d.owner_actions.len())
+        })
+        .unwrap();
+    assert_eq!(init.plans()[0].completed(), 1);
+    assert_eq!(actions, 0);
+    assert_eq!(
+        init.vault
+            .read(&e.descriptor.system_actor, Sensitivity::Private, |d| d
+                .memories[0]
+                .memory
+                .decision
+                .outcome
+                .adoption)
+            .unwrap(),
+        AdoptionState::Adopted
+    );
+    let b = bundle(&init);
+    assert_eq!(b["selection"]["version"], 4);
+    assert_eq!(b["coverage"]["evidence"]["percent"], 100.0);
+    let owner = NativeMemoryOwner::from_authenticated_owner(
+        init.vault.clone(),
+        e.descriptor.created_by.clone(),
+    )
+    .unwrap();
+    let preview = owner
+        .plan(
+            OwnerAction::Attention {
+                target,
+                annotation: AttentionAnnotation::Protect,
+                until: None,
+            },
+            Sensitivity::Private,
+            None,
+        )
+        .unwrap();
+    // Synthetic native gesture exercises G08 after initialization, never a JSON
+    // confirmation or an action manufactured by source parsing/formation.
+    let consent = owner
+        .confirm_from_owner_gesture(
+            &preview.plan.operation_id,
+            &digest(&preview.plan),
+            &preview.effects_hash,
+            TrustedSurface::TrustedWindowsApp,
+        )
+        .unwrap();
+    owner.commit(consent).unwrap();
+    let b = bundle(&init);
+    assert_eq!(b["pages"][0]["items"][0]["base"]["attention"], "protected");
+    assert_eq!(
+        init.vault
+            .read(&e.descriptor.system_actor, Sensitivity::Private, |d| d
+                .owner_actions
+                .len())
+            .unwrap(),
+        1
+    );
 }

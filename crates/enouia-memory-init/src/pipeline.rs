@@ -23,7 +23,8 @@ use serde_json::{Value, json};
 use std::{collections::BTreeMap, fs::File, sync::Arc};
 
 type Result<T> = std::result::Result<T, AutomationFault>;
-const JOURNAL: &str = "sync-state/initialization-1.json";
+const JOURNAL: &str = "sync-state/initialization-owner-1.json";
+const LEASE: &str = "sync-state/initialization-owner-1.lock";
 fn revision() -> Revision {
     Revision::new(1).unwrap()
 }
@@ -755,6 +756,7 @@ impl Plan {
 struct Journal {
     version: u32,
     vault_id: VaultId,
+    descriptor_hash: Sha256Hex,
     plans: Vec<Plan>,
 }
 
@@ -774,6 +776,12 @@ impl Initializer {
         clock: Arc<dyn Clock + Send + Sync>,
         ids: Arc<dyn IdSource + Send + Sync>,
     ) -> Result<Self> {
+        if descriptor.layout != AutomationLayout::SegmentedOwnerV1
+            || descriptor.owner_subject_id.is_none()
+        {
+            return Err(AutomationFault::Denied);
+        }
+        let descriptor_hash = digest(&descriptor);
         let vault = Arc::new(SegmentedAutomationVault::create(
             root,
             descriptor.clone(),
@@ -782,7 +790,7 @@ impl Initializer {
             Faults::none(),
         )?);
         let managed = ManagedRoot::new(root.path(), Faults::none());
-        let lease = managed.open_lock_file("sync-state/initialization-1.lock")?;
+        let lease = managed.open_lock_file(LEASE)?;
         lease.try_lock().map_err(|_| AutomationFault::Busy)?;
         let this = Self {
             vault,
@@ -792,6 +800,7 @@ impl Initializer {
             journal: Journal {
                 version: 1,
                 vault_id: descriptor.vault_id,
+                descriptor_hash,
                 plans: vec![],
             },
             _lease: lease,
@@ -807,7 +816,7 @@ impl Initializer {
         ids: Arc<dyn IdSource + Send + Sync>,
     ) -> Result<Self> {
         let managed = ManagedRoot::new(root.path(), Faults::none());
-        let lease = managed.open_lock_file("sync-state/initialization-1.lock")?;
+        let lease = managed.open_lock_file(LEASE)?;
         lease.try_lock().map_err(|_| AutomationFault::Busy)?;
         let raw = managed
             .read_bounded(JOURNAL, 16 * 1024 * 1024)?
@@ -823,6 +832,8 @@ impl Initializer {
         )?);
         if journal.version != 1
             || journal.vault_id != vault.descriptor().vault_id
+            || vault.descriptor().layout != AutomationLayout::SegmentedOwnerV1
+            || journal.descriptor_hash != digest(vault.descriptor())
             || journal
                 .plans
                 .iter()
@@ -858,6 +869,11 @@ impl Initializer {
         }
         if plan.policy.vault_id != self.vault.descriptor().vault_id
             || plan.policy.system_actor != self.system
+            || plan.sources.iter().any(|s| {
+                s.attributed_subject.is_some()
+                    && s.attributed_subject.as_ref()
+                        != self.vault.descriptor().owner_subject_id.as_ref()
+            })
         {
             return Err(AutomationFault::Denied);
         }
@@ -929,7 +945,8 @@ impl Initializer {
         }
         let plans = &self.journal.plans;
         Ok(
-            json!({"root":{"vault_id":self.vault.descriptor().vault_id,"schema_version":2,"layout":self.vault.descriptor().layout},
+            json!({"root":{"vault_id":self.vault.descriptor().vault_id,"schema_version":2,"layout":self.vault.descriptor().layout,
+                "owner_subject_id":self.vault.descriptor().owner_subject_id,"descriptor_hash":self.journal.descriptor_hash},
             "received":{"objects":hashes.len(),"verified":verified,"bytes":bytes,"platform_total_history":null},
             "parsed":{"sources":plans.iter().map(|p|p.sources.len()).sum::<usize>(),"unparseable":plans.iter().map(|p|p.preflight.unparseable).sum::<usize>(),
                 "unsupported":plans.iter().map(|p|p.preflight.unsupported).sum::<usize>(),"excluded_by_legacy_deletion":plans.iter().map(|p|p.preflight.excluded_by_legacy_deletion).sum::<usize>()},

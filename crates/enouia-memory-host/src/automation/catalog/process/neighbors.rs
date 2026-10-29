@@ -6,6 +6,7 @@ fn relation(
     count: usize,
 ) -> NativeNeighborRelation {
     NativeNeighborRelation {
+        owner_relations: vec![],
         relation: name.into(),
         class: if name == "theme_cooccurrence" {
             GraphEdgeClass::AlgorithmSuggestion
@@ -89,7 +90,14 @@ fn relations(
             .unwrap()
             .entities
             .iter()
-            .map(|e| &e.entity_id)
+            .map(|e| {
+                data.entity_redirects
+                    .get(&(
+                        selected.memory.memory.memory_id.clone(),
+                        e.entity_id.clone(),
+                    ))
+                    .unwrap_or(&e.entity_id)
+            })
             .collect();
         let their: BTreeSet<_> = theirs
             .record_fields
@@ -97,12 +105,32 @@ fn relations(
             .unwrap()
             .entities
             .iter()
-            .map(|e| &e.entity_id)
+            .map(|e| {
+                data.entity_redirects
+                    .get(&(other.memory.memory.memory_id.clone(), e.entity_id.clone()))
+                    .unwrap_or(&e.entity_id)
+            })
             .collect();
         let shared: Vec<_> = own.intersection(&their).map(|id| (**id).clone()).collect();
         if !shared.is_empty() {
             let n = shared.len();
-            out.push(relation("same_entity", "undirected", shared, n));
+            let mut relation = relation("same_entity", "undirected", shared.clone(), n);
+            relation.owner_relations = data
+                .entity_proofs
+                .iter()
+                .filter(|((id, original), _)| {
+                    (id == &selected.memory.memory.memory_id
+                        || id == &other.memory.memory.memory_id)
+                        && data
+                            .entity_redirects
+                            .get(&(id.clone(), original.clone()))
+                            .is_some_and(|e| shared.contains(e))
+                })
+                .map(|(_, p)| (p.operation_id.clone(), p.clone()))
+                .collect::<BTreeMap<_, _>>()
+                .into_values()
+                .collect();
+            out.push(relation);
         }
         let own = conversations(data, selected);
         let their = conversations(data, other);
@@ -171,7 +199,7 @@ impl SegmentedMemoryReader {
                         data.current.memories.len(),
                     )?;
                 }
-                let seeds = super::super::projections::seeds(&data.current);
+                let seeds = super::super::projections::seeds(&data.current)?;
                 let mut candidates: BTreeMap<_, _> = all
                     .iter()
                     .filter(|r| {
@@ -226,7 +254,7 @@ impl SegmentedMemoryReader {
                     remaining += 1;
                     if collecting && page.items.len() < request.options.limit {
                         let item = NativeMemoryNeighbor {
-                            other: summary(other),
+                            other: summary(other, &data),
                             relations: values,
                         };
                         let size = cost(&item)?;

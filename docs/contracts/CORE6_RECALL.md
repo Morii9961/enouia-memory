@@ -109,3 +109,11 @@ deterministic replay, permission/deletion, conditions, date/age, byte budgets
 and real native periodic-thread checks. Alias fixtures do not establish general
 semantic recall quality. Real-model evaluation, vectors, graph expansion,
 personal data, production tuning and Runtime UI/native adoption are separate.
+
+MCP-2c adds the explicit `select_catalog_recall` entry point for up to 65,536
+already-authorized current candidates, using the same deterministic selection
+logic. `select_recall`, attention projections and legacy simulation schemas keep
+their 128-candidate limits. Its potentially large internal trace is published
+only through the separate [catalog Agent contract](MCP_AGENT_CATALOG_READ_V1.md),
+with bounded exclusion identities and exact coverage/reason counts; it must not
+be mislabeled as a complete legacy trace.

@@ -109,6 +109,9 @@
                 },
                 "owner_actions": {
                   "$ref": "ui-records-v2.schema.json#/$defs/ownerLedger"
+                },
+                "descriptor_hash": {
+                  "$ref": "../memory/common-v1.schema.json#/$defs/sha256"
                 }
               }
             },
@@ -233,7 +236,8 @@
               "additionalProperties": false,
               "required": [
                 "change",
-                "record"
+                "record",
+                "effects"
               ],
               "properties": {
                 "change": {
@@ -241,6 +245,9 @@
                 },
                 "record": {
                   "$ref": "ui-records-v2.schema.json#/$defs/ownerRecord"
+                },
+                "effects": {
+                  "$ref": "owner-execution-v2.schema.json#/$defs/OwnerActionEffects"
                 }
               }
             }
@@ -472,14 +479,16 @@
           "enum": [
             "literal-alias-catalog-1",
             "literal-family-catalog-2",
-            "qualified-family-catalog-3"
+            "qualified-family-catalog-3",
+            "owner-qualified-catalog-4"
           ]
         },
         "version": {
           "enum": [
             1,
             2,
-            3
+            3,
+            4
           ]
         },
         "profile_hash": {
@@ -517,6 +526,16 @@
             },
             "version": {
               "const": 3
+            }
+          }
+        },
+        {
+          "properties": {
+            "algorithm": {
+              "const": "owner-qualified-catalog-4"
+            },
+            "version": {
+              "const": 4
             }
           }
         }
@@ -664,7 +683,7 @@
       ],
       "properties": {
         "base": {
-          "$ref": "read-model-v2.schema.json#/$defs/item"
+          "$ref": "#/$defs/nativeBase"
         },
         "title": {
           "type": "string",
@@ -704,6 +723,12 @@
                   "project",
                   "organization"
                 ]
+              },
+              "recorded_entity_id": {
+                "$ref": "ui-records-v2.schema.json#/$defs/entityId"
+              },
+              "owner_relation": {
+                "$ref": "owner-execution-v2.schema.json#/$defs/OwnerActionProof"
               }
             }
           },
@@ -724,6 +749,16 @@
           "oneOf": [
             {
               "$ref": "process-v2.schema.json#/$defs/MemoryFormationReason"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "owner_marks": {
+          "oneOf": [
+            {
+              "$ref": "owner-execution-v2.schema.json#/$defs/OwnerMemoryMarks"
             },
             {
               "type": "null"
@@ -836,7 +871,10 @@
             "selection": {
               "properties": {
                 "algorithm": {
-                  "const": "qualified-family-catalog-3"
+                  "enum": [
+                    "qualified-family-catalog-3",
+                    "owner-qualified-catalog-4"
+                  ]
                 }
               }
             },
@@ -852,6 +890,48 @@
                   },
                   "formation_reason": {
                     "$ref": "process-v2.schema.json#/$defs/MemoryFormationReason"
+                  }
+                }
+              }
+            }
+          }
+        }
+      ],
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "selection": {
+                "properties": {
+                  "algorithm": {
+                    "const": "owner-qualified-catalog-4"
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "items": {
+                "items": {
+                  "required": [
+                    "owner_marks"
+                  ],
+                  "properties": {
+                    "owner_marks": {
+                      "$ref": "owner-execution-v2.schema.json#/$defs/OwnerMemoryMarks"
+                    },
+                    "base": {
+                      "properties": {
+                        "receipt": {
+                          "not": {
+                            "required": [
+                              "sequence"
+                            ]
+                          }
+                        }
+                      }
+                    }
                   }
                 }
               }
@@ -957,6 +1037,128 @@
           "$ref": "#/$defs/group"
         }
       }
+    },
+    "nativeBase": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "memory": {
+          "$ref": "automation-v2.schema.json#/$defs/memoryRef"
+        },
+        "system_actor": {
+          "$ref": "automation-v2.schema.json#/$defs/systemActor"
+        },
+        "subject_id": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/subjectId"
+        },
+        "project_id": {
+          "oneOf": [
+            {
+              "$ref": "../memory/common-v1.schema.json#/$defs/projectId"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "content": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 16384
+        },
+        "knowledge": {
+          "enum": [
+            "attributed_statement",
+            "hypothesis",
+            "uncertain",
+            "disputed"
+          ]
+        },
+        "adoption": {
+          "enum": [
+            "adopted",
+            "staged"
+          ]
+        },
+        "dimensions": {
+          "$ref": "formation-v2.schema.json"
+        },
+        "policy": {
+          "$ref": "automation-v2.schema.json#/$defs/policyRef"
+        },
+        "rule_version": {
+          "const": "admission-rules-3"
+        },
+        "committed_in": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/commitId"
+        },
+        "learned_at": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/timestamp"
+        },
+        "source_captured_at": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/timestamp"
+        },
+        "attention": {
+          "enum": [
+            "active",
+            "fading",
+            "archived",
+            "protected"
+          ]
+        },
+        "evidence": {
+          "type": "array",
+          "items": {
+            "$ref": "../memory/common-v1.schema.json#/$defs/evidenceRef"
+          },
+          "maxItems": 128
+        },
+        "context_source_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "../memory/common-v1.schema.json#/$defs/sourceRevisionRef"
+          },
+          "maxItems": 128
+        },
+        "receipt": {
+          "oneOf": [
+            {
+              "$ref": "process-v2.schema.json#/$defs/NativeReadReceipt"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "validity": {
+          "enum": [
+            "unspecified",
+            "in_range",
+            "not_yet_valid",
+            "expired"
+          ]
+        }
+      },
+      "required": [
+        "memory",
+        "system_actor",
+        "subject_id",
+        "project_id",
+        "content",
+        "knowledge",
+        "adoption",
+        "dimensions",
+        "policy",
+        "rule_version",
+        "committed_in",
+        "learned_at",
+        "source_captured_at",
+        "attention",
+        "evidence",
+        "context_source_refs",
+        "receipt",
+        "validity"
+      ]
     }
   }
 }

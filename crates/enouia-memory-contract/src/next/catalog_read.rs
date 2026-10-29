@@ -1,7 +1,7 @@
 //! ADR-MEM-94 transport-neutral scalable read results. Parsing is not authority.
 use super::*;
 use crate::{
-    common::{ActorType, Sensitivity},
+    common::{ActorRef, ActorType, EvidenceRef, Sensitivity, SourceRevisionRef},
     error::Violation,
     hash::Sha256Hex,
     ids::*,
@@ -61,6 +61,8 @@ pub enum CatalogReadAlgorithm {
     V2,
     #[serde(rename = "qualified-family-catalog-3")]
     V3,
+    #[serde(rename = "owner-qualified-catalog-4")]
+    V4,
 }
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -148,13 +150,19 @@ impl CatalogFacetGroup {
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct CatalogEntity {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub recorded_entity_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub owner_relation: Option<OwnerActionProof>,
     pub entity_id: String,
     pub role: EntityRole,
 }
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct CatalogReadItem {
-    pub base: MemoryReadItem,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub owner_marks: Option<OwnerMemoryMarks>,
+    pub base: NativeCatalogMemoryBase,
     pub title: String,
     pub content_lang: String,
     pub event_time: RecordTime,
@@ -167,7 +175,10 @@ pub struct CatalogReadItem {
 }
 impl CatalogReadItem {
     pub(super) fn valid(&self, at: &Timestamp) -> bool {
-        self.base.valid()
+        self.owner_marks
+            .as_ref()
+            .is_none_or(OwnerMemoryMarks::valid)
+            && self.base.valid()
             && self
                 .formation_reason
                 .as_ref()
@@ -183,10 +194,16 @@ impl CatalogReadItem {
             && self.event_time.matches(&self.base.dimensions.event_time)
             && self.valid_time.matches(&self.base.dimensions.valid_time)
             && self.entities.len() <= 32
-            && self
-                .entities
-                .iter()
-                .all(|e| crate::ids::check_prefixed_uuid(&e.entity_id, "ent").is_ok())
+            && self.entities.iter().all(|e| {
+                crate::ids::check_prefixed_uuid(&e.entity_id, "ent").is_ok()
+                    && e.recorded_entity_id
+                        .as_ref()
+                        .is_none_or(|id| crate::ids::check_prefixed_uuid(id, "ent").is_ok())
+                    && e.owner_relation.as_ref().is_none_or(|p| {
+                        p.valid() && ["entity_merge", "entity_split"].contains(&p.action.as_str())
+                    })
+                    && e.recorded_entity_id.is_some() == e.owner_relation.is_some()
+            })
     }
 }
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -225,8 +242,16 @@ impl NextDocument for CatalogMemoryPage {
             && self.items.len() as u64 <= self.matched_in_scope
             && self.items.iter().all(|v| {
                 v.valid(&self.selection.evaluated_at)
-                    && (self.selection.algorithm != CatalogReadAlgorithm::V3
-                        || (v.effective_sensitivity.is_some() && v.formation_reason.is_some()))
+                    && (self.selection.algorithm != CatalogReadAlgorithm::V4
+                        || (v.owner_marks.is_some()
+                            && v.base
+                                .receipt
+                                .as_ref()
+                                .is_some_and(|r| r.sequence.is_none())))
+                    && (!matches!(
+                        self.selection.algorithm,
+                        CatalogReadAlgorithm::V3 | CatalogReadAlgorithm::V4
+                    ) || (v.effective_sensitivity.is_some() && v.formation_reason.is_some()))
             })
             && self
                 .items
@@ -330,7 +355,7 @@ pub fn catalog_query_hash(
     profile: &AttentionProfile,
     max: Sensitivity,
 ) -> Sha256Hex {
-    digest(&(CatalogReadAlgorithm::V3, 3u32, filter, profile, max))
+    digest(&(CatalogReadAlgorithm::V4, 4u32, filter, profile, max))
 }
 
 impl CatalogSelection {
@@ -340,6 +365,53 @@ impl CatalogSelection {
                 CatalogReadAlgorithm::V1 => 1,
                 CatalogReadAlgorithm::V2 => 2,
                 CatalogReadAlgorithm::V3 => 3,
+                CatalogReadAlgorithm::V4 => 4,
             }
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct NativeCatalogMemoryBase {
+    pub memory: MemoryRevisionRef,
+    pub system_actor: ActorRef,
+    pub subject_id: SubjectId,
+    #[serde(deserialize_with = "crate::json::nullable")]
+    pub project_id: Option<ProjectId>,
+    pub content: String,
+    pub knowledge: KnowledgeState,
+    pub adoption: AdoptionState,
+    pub dimensions: FormationDimensions,
+    pub policy: PolicyRef,
+    pub rule_version: RuleVersion,
+    pub committed_in: CommitId,
+    pub learned_at: Timestamp,
+    pub source_captured_at: Timestamp,
+    pub attention: AttentionState,
+    pub validity: MemoryValidity,
+    pub evidence: Vec<EvidenceRef>,
+    pub context_source_refs: Vec<SourceRevisionRef>,
+    #[serde(deserialize_with = "crate::json::nullable")]
+    pub receipt: Option<NativeReadReceipt>,
+}
+impl NativeCatalogMemoryBase {
+    pub(super) fn valid(&self) -> bool {
+        self.system_actor.actor_type == ActorType::System
+            && ((self.knowledge == KnowledgeState::AttributedStatement)
+                == (self.adoption == AdoptionState::Adopted))
+            && (!matches!(
+                self.dimensions.kind,
+                FormationKind::Theme | FormationKind::SubjectiveUnderstanding
+            ) || self.knowledge != KnowledgeState::AttributedStatement)
+            && self.rule_version == RuleVersion::V3
+            && !self.content.trim().is_empty()
+            && self.content.len() <= 16 * 1024
+            && self.dimensions.validate().is_empty()
+            && self.evidence.len() <= 128
+            && self.context_source_refs.len() <= 128
+            && self
+                .receipt
+                .as_ref()
+                .is_none_or(|r| r.result == self.memory && r.committed_in == self.committed_in)
     }
 }

@@ -9302,9 +9302,9 @@
       ]
     },
     {
-      "id": "owner-action-not-enabled",
+      "id": "owner-action-without-execution-effects",
       "base": "genesis.json",
-      "schema": "accept",
+      "schema": "reject",
       "ops": [
         {
           "op": "set",

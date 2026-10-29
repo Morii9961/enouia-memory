@@ -28,6 +28,8 @@ fn main() {
     ))
     .unwrap();
     policy.vault_id = descriptor.vault_id.clone();
+    descriptor.layout = AutomationLayout::SegmentedOwnerV1;
+    descriptor.owner_subject_id = Some(policy.subject_id.clone());
     let clock = Arc::new(FakeClock::new(1_792_843_200_000));
     let suite = synthetic::display_suite();
     let plan = Plan::build(

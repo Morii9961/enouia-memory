@@ -44,6 +44,51 @@
       "file": "conversation-detail.json",
       "type": "NativeConversationDetail",
       "schema": "next/process-v2.schema.json"
+    },
+    {
+      "file": "activity-v4.json",
+      "type": "MemoryActivityPage",
+      "schema": "next/process-v2.schema.json"
+    },
+    {
+      "file": "changes-v4.json",
+      "type": "MemoryChanges",
+      "schema": "next/process-v2.schema.json"
+    },
+    {
+      "file": "detail-v4.json",
+      "type": "NativeMemoryDetail",
+      "schema": "next/process-v2.schema.json"
+    },
+    {
+      "file": "conflicts-v4.json",
+      "type": "MemoryConflictGroup",
+      "schema": "next/process-v2.schema.json"
+    },
+    {
+      "file": "diff-v4.json",
+      "type": "MemoryRevisionDiff",
+      "schema": "next/process-v2.schema.json"
+    },
+    {
+      "file": "neighbors-v4.json",
+      "type": "NativeMemoryNeighbors",
+      "schema": "next/process-v2.schema.json"
+    },
+    {
+      "file": "source-v4.json",
+      "type": "NativeSourceExcerpt",
+      "schema": "next/process-v2.schema.json"
+    },
+    {
+      "file": "conversations-v4.json",
+      "type": "NativeConversationPage",
+      "schema": "next/process-v2.schema.json"
+    },
+    {
+      "file": "conversation-detail-v4.json",
+      "type": "NativeConversationDetail",
+      "schema": "next/process-v2.schema.json"
     }
   ],
   "invalid": [
@@ -874,6 +919,186 @@
         }
       ],
       "schema": "accept"
+    },
+    {
+      "id": "activity-v4-old-header-version",
+      "base": "activity-v4.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/header/version",
+          "value": 1
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "changes-v4-old-header-version",
+      "base": "changes-v4.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/header/version",
+          "value": 1
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "detail-v4-old-header-version",
+      "base": "detail-v4.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/header/version",
+          "value": 1
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "conflicts-v4-old-header-version",
+      "base": "conflicts-v4.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/header/version",
+          "value": 1
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "diff-v4-old-header-version",
+      "base": "diff-v4.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/header/version",
+          "value": 1
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "neighbors-v4-old-header-version",
+      "base": "neighbors-v4.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/header/version",
+          "value": 1
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "source-v4-old-header-version",
+      "base": "source-v4.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/header/version",
+          "value": 1
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "conversations-v4-old-header-version",
+      "base": "conversations-v4.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/header/version",
+          "value": 1
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "conversation-detail-v4-old-header-version",
+      "base": "conversation-detail-v4.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/header/version",
+          "value": 1
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "detail-v4-no-global-sequence-history",
+      "base": "detail-v4.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/history/0/receipt/sequence",
+          "value": 1
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "detail-v4-no-global-sequence-item",
+      "base": "detail-v4.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/item/base/receipt/sequence",
+          "value": 1
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "neighbors-v4-no-global-sequence-items",
+      "base": "neighbors-v4.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/items/0/other/receipt/sequence",
+          "value": 1
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "conversations-v4-hidden-turn-ordinals",
+      "base": "conversations-v4.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/items/0/conversation/turns",
+          "value": []
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "conversation-detail-v4-hidden-turn-ordinals",
+      "base": "conversation-detail-v4.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/conversation/turns",
+          "value": []
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "conflicts-v4-global-sequence",
+      "base": "conflicts-v4.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/items/0/base/receipt/sequence",
+          "value": 1
+        }
+      ],
+      "schema": "reject"
     }
   ]
 }

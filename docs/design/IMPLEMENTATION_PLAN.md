@@ -3,6 +3,27 @@
 > 原件保全、预检、分层账本、可恢复批次、共享形成与投影的实际覆盖见
 > [验证报告](../validation/Memory-init-pipeline.md)。真实数据/模型/外发/默认时区、
 > G08 主人动作、Runtime 采用和 Core-8 切换继续由各自授权与切片负责。
+> 2026-10-29 同片承接 `14125f5` 的 Owner 新根/创世绑定，保留导入和附件载体；
+> 显式主人输入正常形成，无额外待审队列。合成初始化本身不制造主人动作；
+> 已采集来源精确修订的仅入队 API、正式入口及 Runtime 采用仍未交付。
+
+> 2026-10-27 MCP-3 原生前置片：按 [ADR-MEM-102](../adr/102-runtime-only-capture-boundary.md)
+> 接 Runtime-only 原始轮次和无写入预检；[契约](../contracts/RUNTIME_CAPTURE_NATIVE_V1.md)
+> 与[验证报告](../validation/MCP-3-runtime-capture-native.md)区分来源事务和形成作业。
+> 未接 durable live 管线前不广告 conversation_capture，不伪造作业回执。
+> 后续继续 Runtime 本地传输、同对话异步形成和 Agent 提示，不启动私人初始化。
+
+> 2026-10-26 MCP 接续：按 [ADR-MEM-98](../adr/098-segmented-agent-memory-reads.md)
+> 先交付独立分段 Agent gate，再接五工具与显式大集合 trace 覆盖。
+> 各检查点以 [MCP-2c 报告](../validation/MCP-2c-segmented-agent-reads.md)记录实际检查；
+> 后续采集只接 Runtime 宿主，缺时区使用 Asia/Shanghai 并记录默认来源。
+> 无私人初始化也继续使用临时合成根开发；不隐式激活 Runtime 或真实客户端。
+
+> 2026-10-27 UI v2 第五片：Morii 已明确选择 A；[ADR103](../adr/103-owner-correction-subject-binding-proposal.md)
+> 采用新建空根 `automation-segmented-owner-v1` 与显式 `owner_subject_id`，实现 G08 原生
+> 主人计划 → 手势确认 → 单次提交及恢复查询。记录字段继续沿用 ADR93；读取投影采用 v4，
+> 旧游标需重启。见[主人契约](../contracts/UI_V2_OWNER_ACTIONS.md)与[合成验证](../validation/UI-v2-owner-actions.md)。
+> Runtime 原生手势接线、Memory pin、MCP 采用及私人初始化均另行进行；本会话到 G08 停止。
 
 > 2026-10-27 UI v2 第四片：[ADR101](../adr/101-native-process-detail-reads.md)
 > 实现 G07 → G13 → G15 → G16 → G19，并补齐 G14 原生会话/来源读取。

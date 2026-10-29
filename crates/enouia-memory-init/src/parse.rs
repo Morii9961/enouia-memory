@@ -27,6 +27,9 @@ pub enum Format {
     /// JSON bucket export; raw YAML can be preserved as Unsupported.
     Buckets,
     Document,
+    /// Explicit native-owner selection, not inferred from JSON consent claims.
+    /// Real intake must authenticate that selection; parsing itself is not auth.
+    OwnerProvided,
     Unsupported,
 }
 
@@ -239,6 +242,7 @@ pub fn prepare(materials: &[Material]) -> Result<Preparation, &'static str> {
             Format::Auto => parse_auto(m, &hash, &mut out),
             Format::Claude => parse_claude(m, &hash, &mut out),
             Format::LegacySnapshot | Format::Buckets => parse_snapshot(m, &hash, &mut out),
+            Format::OwnerProvided => parse_owner_provided(m, &hash, &mut out),
             Format::Document => match String::from_utf8(m.bytes.clone()) {
                 Ok(text) if !text.trim().is_empty() => {
                     let mut msg = message(
@@ -299,6 +303,66 @@ pub fn prepare(materials: &[Material]) -> Result<Preparation, &'static str> {
             (None, None) => std::cmp::Ordering::Equal,
         });
     Ok(out)
+}
+
+fn parse_owner_provided(m: &Material, hash: &Sha256Hex, out: &mut Preparation) {
+    let Ok(value) = serde_json::from_slice::<Value>(&m.bytes) else {
+        out.unparseable += 1;
+        return;
+    };
+    let Some(content) = value
+        .get("content")
+        .and_then(Value::as_str)
+        .filter(|s| !s.trim().is_empty())
+    else {
+        out.unparseable += 1;
+        return;
+    };
+    let mut source = message(
+        hash,
+        m,
+        content.into(),
+        Locator::JsonPointer {
+            pointer: "/content".into(),
+        },
+    );
+    source.role = SpeakerRole::User;
+    source.evidence = EvidenceClass::UserStatement;
+    source.language = string(&value, "content_lang").unwrap_or_else(|| "und".into());
+    source.metadata = value.clone();
+    source.upstream_id = string(&value, "intake_key");
+    // An event described by the owner is not the source's own timestamp.
+    source
+        .warnings
+        .push(warning("owner_selection_requires_native_identity"));
+    out.messages.push(source);
+    if let Some(text) = value
+        .get("original_quote")
+        .and_then(Value::as_str)
+        .filter(|s| !s.trim().is_empty())
+    {
+        let mut quote = message(
+            hash,
+            m,
+            text.into(),
+            Locator::JsonPointer {
+                pointer: "/original_quote".into(),
+            },
+        );
+        let declared = role(value.get("original_quote_speaker").and_then(Value::as_str));
+        quote.role = if declared == SpeakerRole::User {
+            SpeakerRole::Unknown
+        } else {
+            declared
+        };
+        quote.evidence = class(quote.role);
+        quote.language = string(&value, "content_lang").unwrap_or_else(|| "und".into());
+        quote.metadata = value;
+        quote
+            .warnings
+            .push(warning("quoted_speaker_is_not_owner_selection"));
+        out.messages.push(quote);
+    }
 }
 
 fn parse_auto(m: &Material, hash: &Sha256Hex, out: &mut Preparation) {

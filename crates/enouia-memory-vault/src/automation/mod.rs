@@ -1,6 +1,8 @@
 //! Core-3 explicit V2 synthetic authority. No legacy-format adoption or default
 //! writer activation. One Host lease, short Writer transactions, exact witness.
+mod agent_read;
 mod attention;
+pub use agent_read::{AgentReadPermit, AgentReadScope};
 mod read_model;
 pub mod segmented;
 pub use read_model::AuthorizedReadData;
@@ -75,6 +77,7 @@ pub struct AutomationVault {
     clock: Arc<dyn Clock + Send + Sync>,
     ids: Arc<dyn IdSource + Send + Sync>,
     poisoned: AtomicBool,
+    agent_instance: Arc<()>,
 }
 impl AutomationVault {
     fn acquire(
@@ -113,6 +116,7 @@ impl AutomationVault {
             clock,
             ids,
             poisoned: AtomicBool::new(false),
+            agent_instance: Arc::new(()),
         })
     }
     pub fn create(
@@ -186,7 +190,10 @@ impl AutomationVault {
             .read_bounded(&layout::vault_descriptor(), 16 * 1024)?
             .ok_or(AutomationFault::Unavailable)?;
         let descriptor = parse_document::<AutomationDescriptor>(&bytes)?;
-        if descriptor.layout == AutomationLayout::SegmentedV1 {
+        if matches!(
+            descriptor.layout,
+            AutomationLayout::SegmentedV1 | AutomationLayout::SegmentedOwnerV1
+        ) {
             return Err(AutomationFault::Denied);
         }
         let vault = Self::acquire(root, descriptor, host, clock, ids, faults)?;

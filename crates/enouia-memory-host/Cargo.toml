@@ -1,6 +1,7 @@
 [package]
 name = "enouia-memory-host"
 version = "0.1.0"
+default-run = "enouia-memory-host"
 edition.workspace = true
 rust-version.workspace = true
 
@@ -14,6 +15,8 @@ enouia-memory-govern = { path = "../enouia-memory-govern" }
 enouia-memory-import = { path = "../enouia-memory-import" }
 serde_json.workspace = true
 serde.workspace = true
+icu_normalizer = { version = "=2.3.0", default-features = false, features = ["compiled_data"] }
+
 jiff = { version = "=0.2.37", default-features = false, features = ["std"] }
 jiff-tzdb = "=0.1.8"
 

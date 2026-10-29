@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.enouia-memory.invalid/next/runtime-capture-v2.schema.json",
+  "title": "Native Runtime capture request; data grants no authority",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "kind", "capability", "request_id", "conversation_id", "title", "turns"],
+  "properties": {
+    "schema_version": {"const": 2},
+    "kind": {"const": "runtime_capture_request"},
+    "capability": {"const": "memory-runtime-capture-native-1"},
+    "request_id": {"$ref": "../memory/common-v1.schema.json#/$defs/requestId"},
+    "conversation_id": {"$ref": "#/$defs/id"},
+    "title": {"$ref": "#/$defs/nullableId"},
+    "turns": {"type": "array", "minItems": 1, "maxItems": 8, "items": {"$ref": "#/$defs/turn"}}
+  },
+  "$defs": {
+    "id": {"type": "string", "minLength": 1, "maxLength": 256},
+    "nullableId": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/id"}]},
+    "attachment": {
+      "type": "object", "additionalProperties": false,
+      "required": ["original_id", "name", "media_type", "byte_len", "content_hash"],
+      "properties": {
+        "original_id": {"$ref": "#/$defs/id"},
+        "name": {"$ref": "#/$defs/nullableId"},
+        "media_type": {"oneOf": [{"type": "null"}, {"type": "string", "minLength": 1, "maxLength": 128}]},
+        "byte_len": {"oneOf": [{"type": "null"}, {"type": "integer", "minimum": 0, "maximum": 9007199254740991}]},
+        "content_hash": {"oneOf": [{"type": "null"}, {"$ref": "../memory/common-v1.schema.json#/$defs/sha256"}]}
+      }
+    },
+    "turn": {
+      "type": "object", "additionalProperties": false,
+      "required": ["message_id", "parent_message_id", "branch_id", "sequence", "speaker", "text", "original_time", "original_timezone", "occurred_at", "content_lang", "assistant_model", "attachments"],
+      "properties": {
+        "message_id": {"$ref": "#/$defs/id"},
+        "parent_message_id": {"$ref": "#/$defs/nullableId"},
+        "branch_id": {"$ref": "#/$defs/id"},
+        "sequence": {"type": "integer", "minimum": 1, "maximum": 4294967295},
+        "speaker": {"$ref": "../memory/common-v1.schema.json#/$defs/speakerRole"},
+        "text": {"type": "string", "minLength": 1, "maxLength": 16384},
+        "original_time": {"$ref": "#/$defs/nullableId"},
+        "original_timezone": {"oneOf": [{"type": "null"}, {"type": "string", "minLength": 1, "maxLength": 128}]},
+        "occurred_at": {"$ref": "../memory/common-v1.schema.json#/$defs/timestampOrNull"},
+        "content_lang": {"type": "string", "minLength": 1, "maxLength": 63},
+        "assistant_model": {"oneOf": [{"type": "null"}, {"type": "string", "minLength": 1, "maxLength": 128}]},
+        "attachments": {"type": "array", "maxItems": 16, "items": {"$ref": "#/$defs/attachment"}}
+      },
+      "$comment": "Native validation additionally checks UTF-8 bytes, whitespace/control characters, language/timezone syntax, role/model agreement and unique message/branch sequences."
+    }
+  }
+}

@@ -1,6 +1,9 @@
 //! Explicit ADR-MEM-94 synthetic root. No implicit opening, migration or routes.
+mod agent;
 mod catalog;
 mod intake;
+pub use agent::{AuthorizedSegmentedAgentRead, SegmentedAgentPermit, SegmentedAgentScope};
+mod runtime_capture;
 mod state;
 use super::*;
 use enouia_memory_contract::{
@@ -8,15 +11,28 @@ use enouia_memory_contract::{
     hash::sha256,
     host::{AuthorityState, Checkpoint},
 };
+pub use runtime_capture::{NativeRuntimeCapture, RuntimeCapturePermit, RuntimeCaptureScope};
 pub use state::SegmentedMemory;
 use state::State;
-use std::{collections::BTreeMap, sync::Mutex};
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    sync::Mutex,
+};
 
 pub struct AuthorizedConversationTurn {
     pub turn: ConversationTurn,
     pub effective_sensitivity: Sensitivity,
 }
+#[derive(Clone, Copy)]
+pub struct AuthorizedOwnerAction<'a> {
+    pub record: &'a OwnerActionRecord,
+    pub effects: &'a OwnerActionEffects,
+}
 pub struct AuthorizedSegmentedRead<'a> {
+    pub owner_actions: Vec<AuthorizedOwnerAction<'a>>,
+    pub entity_redirects: BTreeMap<(MemoryId, String), String>,
+    pub entity_proofs: BTreeMap<(MemoryId, String), OwnerActionProof>,
+    pub entity_aliases: BTreeMap<(MemoryId, String), BTreeSet<String>>,
     pub withdrawal_watermark: Revision,
     pub snapshot: SnapshotBinding,
     pub now: Timestamp,
@@ -29,6 +45,7 @@ pub struct AuthorizedSegmentedRead<'a> {
 pub struct SegmentedAutomationVault {
     native: AutomationVault,
     state: Mutex<State>,
+    owner_pending: Mutex<owner::PendingOwnerPlans>,
 }
 fn next(v: Revision) -> Result<Revision> {
     Revision::new(v.get() + 1).ok_or(AutomationFault::Capacity)
@@ -87,8 +104,10 @@ impl SegmentedAutomationVault {
         ids: Arc<dyn IdSource + Send + Sync>,
         faults: Faults,
     ) -> Result<Self> {
-        if descriptor.layout != AutomationLayout::SegmentedV1
-            || !descriptor.validate().is_empty()
+        if !matches!(
+            descriptor.layout,
+            AutomationLayout::SegmentedV1 | AutomationLayout::SegmentedOwnerV1
+        ) || !descriptor.validate().is_empty()
             || std::fs::read_dir(root.path())
                 .map_err(|_| AutomationFault::Unavailable)?
                 .next()
@@ -108,6 +127,7 @@ impl SegmentedAutomationVault {
         let vault = Self {
             native,
             state: Mutex::new(State::default()),
+            owner_pending: Mutex::new(owner::PendingOwnerPlans::default()),
         };
         let _writer = lock::acquire(&vault.native.root, Duration::ZERO)?;
         vault
@@ -118,11 +138,14 @@ impl SegmentedAutomationVault {
             .state
             .lock()
             .map_err(|_| AutomationFault::Unavailable)?;
+        let descriptor_hash =
+            (descriptor.layout == AutomationLayout::SegmentedOwnerV1).then(|| digest(&descriptor));
         vault.commit(
             &mut state,
             descriptor.created_by,
             SegmentedDelta::Genesis {
                 owner_actions: OwnerActionLedger::default(),
+                descriptor_hash,
             },
         )?;
         drop(state);
@@ -142,13 +165,17 @@ impl SegmentedAutomationVault {
             .read_bounded(&layout::vault_descriptor(), 16 * 1024)?
             .ok_or(AutomationFault::Unavailable)?;
         let descriptor: AutomationDescriptor = parse_document(&b)?;
-        if descriptor.layout != AutomationLayout::SegmentedV1 {
+        if !matches!(
+            descriptor.layout,
+            AutomationLayout::SegmentedV1 | AutomationLayout::SegmentedOwnerV1
+        ) {
             return Err(AutomationFault::Denied);
         }
         let native = AutomationVault::acquire(root, descriptor, host, clock, ids, faults)?;
         let vault = Self {
             native,
             state: Mutex::new(State::default()),
+            owner_pending: Mutex::new(owner::PendingOwnerPlans::default()),
         };
         let _writer = lock::acquire(&vault.native.root, Duration::ZERO)?;
         let intent = vault.intent()?;
@@ -254,6 +281,16 @@ impl SegmentedAutomationVault {
         actor: ActorRef,
         delta: SegmentedDelta,
     ) -> Result<AutomationCurrent> {
+        self.commit_checked(state, actor, delta, false)
+    }
+    /// Shares all transaction admission/size checks with native no-write preflight.
+    fn commit_checked(
+        &self,
+        state: &mut State,
+        actor: ActorRef,
+        mut delta: SegmentedDelta,
+        preflight: bool,
+    ) -> Result<AutomationCurrent> {
         let before = state.head.as_ref();
         let now = self.native.now()?;
         let sequence = before.map_or(Ok(Revision::new(1).unwrap()), |h| next(h.sequence))?;
@@ -264,12 +301,18 @@ impl SegmentedAutomationVault {
         let id = CommitId::from_random(self.native.ids.random_16());
         let pw = before.map_or(Revision::new(1).unwrap(), |h| h.policy_watermark);
         let dw = before.map_or(Revision::new(1).unwrap(), |h| h.deletion_watermark);
+        if let SegmentedDelta::OwnerAction { record, .. } = &mut delta {
+            record.committed_in = id.clone();
+            record.sequence = sequence;
+        }
         let pw = if matches!(delta, SegmentedDelta::Policy { .. }) {
             next(pw)?
         } else {
             pw
         };
-        let dw = if matches!(delta, SegmentedDelta::Delete { .. }) {
+        let dw = if matches!(delta, SegmentedDelta::Delete { .. })
+            || matches!(&delta, SegmentedDelta::OwnerAction { record, .. } if matches!(record.plan.action, OwnerAction::Withdraw { .. } | OwnerAction::Forget { .. }))
+        {
             next(dw)?
         } else {
             dw
@@ -316,6 +359,9 @@ impl SegmentedAutomationVault {
             return Err(AutomationFault::Capacity);
         }
         let pointer = c.current();
+        if preflight {
+            return Ok(pointer);
+        }
         let intent = AutomationPublication {
             schema_version: NextVersion,
             kind: PublicationKind::AutomationPublication,
@@ -616,3 +662,6 @@ mod process;
 pub use process::{
     AuthorizedCapture, AuthorizedMachineEvent, AuthorizedProcessRead, PublicationStamp,
 };
+
+mod owner;
+pub use owner::{NativeOwnerConsent, NativeOwnerPreview};

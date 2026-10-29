@@ -1,6 +1,10 @@
 //! End-to-end Core-3 with actual V2 files/leases and fake generation. No owner
 //! review, real Provider, private data, Runtime or default Host route.
 #![cfg(windows)]
+#[path = "automatic_loop/agent_mcp_cases.rs"]
+mod agent_mcp_cases;
+#[path = "automatic_loop/agent_read_cases.rs"]
+mod agent_read_cases;
 #[path = "automatic_loop/attention_cases.rs"]
 mod attention_cases;
 #[path = "automatic_loop/continuation_cases.rs"]
@@ -283,6 +287,21 @@ fn wait(jobs: &SyntheticJobs, key: &Sha256Hex, state: JobState) {
         }
         assert!(Instant::now() < until, "{:?}", jobs.status(key));
         std::thread::sleep(Duration::from_millis(5));
+    }
+}
+// Status is deliberately nonblocking. A worker may hold its mutex even after
+// the previous observation, so retry only this content-free Busy observation.
+// Never retry a generation, publication or unknown operation here.
+fn observed_status(jobs: &SyntheticJobs, key: &Sha256Hex) -> Status {
+    let until = Instant::now() + Duration::from_secs(15);
+    loop {
+        match jobs.status(key) {
+            Ok(status) => return status,
+            Err(Fault::Busy) if Instant::now() < until => {
+                std::thread::sleep(Duration::from_millis(5));
+            }
+            other => panic!("job status observation: {other:?}"),
+        }
     }
 }
 fn worker(jobs: &SyntheticJobs, mode: ModelMode) -> std::thread::JoinHandle<()> {
@@ -591,7 +610,7 @@ fn current_deletion_policy_lock_and_native_control_invalidate_old_jobs() {
             }
         }
         assert!(host.apply_job(&key).is_err());
-        assert_ne!(jobs.status(&key).unwrap().state, JobState::Generated);
+        assert_ne!(observed_status(&jobs, &key).state, JobState::Generated);
         if action == "lock" {
             host.unlock(&e.descriptor.system_actor).unwrap();
         }

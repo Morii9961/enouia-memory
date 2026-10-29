@@ -6,6 +6,35 @@ use crate::{
 use serde::{Deserialize, Serialize};
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
+pub struct NativeReadReceipt {
+    pub job_key: Sha256Hex,
+    pub binding_hash: Sha256Hex,
+    pub operation_id: OperationId,
+    pub request_hash: Sha256Hex,
+    pub response_hash: Sha256Hex,
+    pub decision_hash: Sha256Hex,
+    pub committed_in: CommitId,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sequence: Option<Revision>,
+    pub result: MemoryRevisionRef,
+}
+impl From<&MemoryReceipt> for NativeReadReceipt {
+    fn from(r: &MemoryReceipt) -> Self {
+        Self {
+            job_key: r.job_key.clone(),
+            binding_hash: r.binding_hash.clone(),
+            operation_id: r.operation_id.clone(),
+            request_hash: r.request_hash.clone(),
+            response_hash: r.response_hash.clone(),
+            decision_hash: r.decision_hash.clone(),
+            committed_in: r.committed_in.clone(),
+            sequence: None,
+            result: r.result.clone(),
+        }
+    }
+}
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct MemoryFormationReason {
     pub interpretation: Interpretation,
     pub rule_version: RuleVersion,
@@ -44,9 +73,15 @@ pub struct ProcessHeader {
 impl ProcessHeader {
     pub fn valid(&self, algorithm: &str) -> bool {
         self.selection.valid()
-            && self.selection.algorithm == CatalogReadAlgorithm::V3
-            && self.version.get() == 1
-            && self.algorithm == algorithm
+            && match self.selection.algorithm {
+                CatalogReadAlgorithm::V3 => self.version.get() == 1 && self.algorithm == algorithm,
+                CatalogReadAlgorithm::V4 => {
+                    self.version.get() == 2
+                        && self.algorithm
+                            == format!("{}-2", algorithm.strip_suffix("-1").unwrap_or(algorithm))
+                }
+                _ => false,
+            }
             && self.selection.evaluated_at <= self.authorized_at
             && self.scope == "authorized_current_dependencies"
     }
@@ -81,6 +116,8 @@ pub struct NativePublicationProof {
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct MemoryActivityEvent {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub owner_action: Option<OwnerActionProof>,
     pub event_id: Sha256Hex,
     pub event_kind: NativeActivityKind,
     pub memory: Option<MemoryRevisionRef>,
@@ -92,7 +129,7 @@ pub struct MemoryActivityEvent {
     pub effective_sensitivity: Sensitivity,
     pub formation_reason: Option<MemoryFormationReason>,
     pub proof: NativePublicationProof,
-    pub receipt: Option<MemoryReceipt>,
+    pub receipt: Option<NativeReadReceipt>,
 }
 impl MemoryActivityEvent {
     fn valid(&self) -> bool {
@@ -114,7 +151,13 @@ impl MemoryActivityEvent {
                     && self.receipt.is_none()
                     && self.proof.actor.actor_type == ActorType::System
             } else if self.event_kind == NativeActivityKind::OwnerAction {
-                self.proof.actor.actor_type == ActorType::Owner && self.receipt.is_none()
+                self.proof.actor.actor_type == ActorType::Owner
+                    && self.receipt.is_none()
+                    && self.owner_action.as_ref().is_some_and(|p| {
+                        p.valid()
+                            && p.owner == self.proof.actor
+                            && p.committed_in == self.proof.commit_id
+                    })
             } else {
                 self.memory.is_some()
                     && self.source.is_none()
@@ -123,7 +166,20 @@ impl MemoryActivityEvent {
                     && self.knowledge.is_some()
                     && self.adoption.is_some()
                     && self.formation_reason.is_some()
-                    && self.proof.actor.actor_type == ActorType::System
+                    && if self.proof.actor.actor_type == ActorType::System {
+                        self.owner_action.is_none()
+                    } else {
+                        self.owner_action.as_ref().is_some_and(|p| {
+                            p.valid()
+                                && p.action == "correct"
+                                && p.owner == self.proof.actor
+                                && p.committed_in == self.proof.commit_id
+                                && self
+                                    .receipt
+                                    .as_ref()
+                                    .is_some_and(|r| r.operation_id == p.operation_id)
+                        })
+                    }
                     && self.receipt.as_ref().is_some_and(|r| {
                         Some(&r.result) == self.memory.as_ref()
                             && r.committed_in == self.proof.commit_id
@@ -157,10 +213,15 @@ impl NextDocument for MemoryActivityPage {
         let valid = self.kind == "memory_activity_page"
             && self.effect == MemoryReadEffect::NativeRead
             && self.header.valid("witnessed-native-activity-1")
-            && self.matched_in_scope <= 2 * MAX_SEGMENTED_REVISIONS as u64
+            && self.matched_in_scope <= 3 * MAX_SEGMENTED_REVISIONS as u64
             && self.items.len() <= 100
             && self.items.len() as u64 <= self.matched_in_scope
             && self.items.iter().all(MemoryActivityEvent::valid)
+            && (self.header.selection.algorithm != CatalogReadAlgorithm::V4
+                || self
+                    .items
+                    .iter()
+                    .all(|e| e.receipt.as_ref().is_none_or(|r| r.sequence.is_none())))
             && !self.time_derived_events_available
             && self.items.windows(2).all(|w| {
                 (&w[0].proof.written_at, &w[0].event_id) > (&w[1].proof.written_at, &w[1].event_id)
@@ -242,6 +303,8 @@ impl NextDocument for MemoryChanges {
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct NativeRevisionSummary {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub owner_correction: Option<OwnerActionProof>,
     pub memory: TargetRef,
     pub title: String,
     pub knowledge: KnowledgeState,
@@ -250,11 +313,18 @@ pub struct NativeRevisionSummary {
     pub change: FormationChange,
     pub learned_at: Timestamp,
     pub effective_sensitivity: Sensitivity,
-    pub receipt: MemoryReceipt,
+    pub receipt: NativeReadReceipt,
 }
 impl NativeRevisionSummary {
     fn valid(&self) -> bool {
-        record_fields::text(&self.title, 60) && self.receipt.result == self.memory.memory
+        record_fields::text(&self.title, 60)
+            && self.receipt.result == self.memory.memory
+            && self.owner_correction.as_ref().is_none_or(|p| {
+                p.valid()
+                    && p.action == "correct"
+                    && p.committed_in == self.receipt.committed_in
+                    && p.operation_id == self.receipt.operation_id
+            })
     }
 }
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -288,8 +358,16 @@ impl NextDocument for NativeMemoryDetail {
             && self.history.len() as u64 <= self.history_count_in_scope
             && self.history_count_in_scope <= MAX_SEGMENTED_REVISIONS as u64
             && self.history.iter().all(NativeRevisionSummary::valid)
+            && (self.header.selection.algorithm != CatalogReadAlgorithm::V4
+                || self.history.iter().all(|r| r.receipt.sequence.is_none()))
             && self.item.as_ref().is_none_or(|i| {
                 i.valid(&self.header.selection.evaluated_at)
+                    && (self.header.selection.algorithm != CatalogReadAlgorithm::V4
+                        || (i.owner_marks.is_some()
+                            && i.base
+                                .receipt
+                                .as_ref()
+                                .is_some_and(|r| r.sequence.is_none())))
                     && i.effective_sensitivity.is_some()
                     && i.formation_reason.is_some()
             })
@@ -349,6 +427,12 @@ impl NextDocument for MemoryConflictGroup {
             && self.items.len() as u64 <= self.matched_in_scope
             && self.items.iter().all(|i| {
                 i.valid(&self.header.selection.evaluated_at)
+                    && (self.header.selection.algorithm != CatalogReadAlgorithm::V4
+                        || (i.owner_marks.is_some()
+                            && i.base
+                                .receipt
+                                .as_ref()
+                                .is_some_and(|r| r.sequence.is_none())))
                     && i.effective_sensitivity.is_some()
                     && i.formation_reason.is_some()
             })
@@ -426,6 +510,8 @@ impl NextDocument for MemoryRevisionDiff {
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct NativeNeighborRelation {
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub owner_relations: Vec<OwnerActionProof>,
     pub relation: String,
     pub class: GraphEdgeClass,
     pub direction: String,
@@ -468,11 +554,19 @@ impl NextDocument for NativeMemoryNeighbors {
             && self.matched_in_scope <= MAX_SEGMENTED_REVISIONS as u64 + 2
             && self.items.iter().all(|n| {
                 n.other.valid()
+                    && (self.header.selection.algorithm != CatalogReadAlgorithm::V4
+                        || n.other.receipt.sequence.is_none())
                     && self.selected.as_ref().is_none_or(|t| &n.other.memory != t)
                     && !n.relations.is_empty()
                     && n.relations.len() <= 7
                     && n.relations.iter().all(|r| {
-                        !r.witnesses.is_empty()
+                        r.owner_relations.len() <= 64
+                            && r.owner_relations.iter().all(|p| {
+                                p.valid()
+                                    && ["entity_merge", "entity_split"].contains(&p.action.as_str())
+                            })
+                            && (r.owner_relations.is_empty() || r.relation == "same_entity")
+                            && !r.witnesses.is_empty()
                             && r.witnesses.len() <= 128
                             && r.witnesses.len() as u64 <= r.witness_count_in_scope
                             && r.witnesses_complete
@@ -578,8 +672,73 @@ impl NextDocument for NativeSourceExcerpt {
 }
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
+pub struct NativeConversationMetadata {
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub owner_relations: Vec<OwnerActionProof>,
+    pub conversation_id: SessionId,
+    pub revision: Revision,
+    pub platform: String,
+    pub account_scope: String,
+    #[serde(deserialize_with = "crate::json::nullable")]
+    pub original_conversation_id: Option<String>,
+    #[serde(deserialize_with = "crate::json::nullable")]
+    pub title: Option<String>,
+    pub participants: Vec<ConversationParticipant>,
+    pub started_at: RecordTime,
+    pub ended_at: RecordTime,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub turns: Option<Vec<ConversationTurn>>,
+    /// Number of distinct turns in this captured revision, not platform total.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub turn_count: Option<u32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub branches: Option<Vec<BranchId>>,
+    #[serde(deserialize_with = "crate::json::nullable")]
+    pub import_batch_id: Option<ImportId>,
+    pub complete_in_scope: bool,
+    pub sensitivity: Sensitivity,
+    pub access_policy_id: PolicyId,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub turn_sequence_scope: Option<String>,
+}
+impl NativeConversationMetadata {
+    pub fn from_record(r: &ConversationRecord) -> Self {
+        Self {
+            owner_relations: vec![],
+            conversation_id: r.conversation_id.clone(),
+            revision: r.revision,
+            platform: r.platform.clone(),
+            account_scope: r.account_scope.clone(),
+            original_conversation_id: r.original_conversation_id.clone(),
+            title: r.title.clone(),
+            participants: r.participants.clone(),
+            started_at: r.started_at.clone(),
+            ended_at: r.ended_at.clone(),
+            turns: None,
+            turn_count: None,
+            branches: None,
+            import_batch_id: r.import_batch_id.clone(),
+            complete_in_scope: r.complete_in_scope,
+            sensitivity: r.sensitivity,
+            access_policy_id: r.access_policy_id.clone(),
+            turn_sequence_scope: Some("authorized_captured_branch_order".into()),
+        }
+    }
+    fn scoped(&self) -> bool {
+        self.owner_relations
+            .iter()
+            .all(|p| p.valid() && ["entity_merge", "entity_split"].contains(&p.action.as_str()))
+            && self.turns.is_none()
+            && self.turn_count.is_none()
+            && self.branches.is_none()
+            && self.turn_sequence_scope.as_deref() == Some("authorized_captured_branch_order")
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct ConversationSummary {
-    pub conversation: ConversationRecord,
+    pub conversation: NativeConversationMetadata,
     pub visible_captured_turns: u64,
     pub visible_captured_sources: u64,
     pub effective_sensitivity: Sensitivity,
@@ -612,7 +771,9 @@ impl NextDocument for NativeConversationPage {
             && self.items.len() <= 100
             && self.items.len() as u64 <= self.matched_in_scope
             && self.items.iter().all(|c| {
-                c.visible_captured_turns <= c.visible_captured_sources
+                (self.header.selection.algorithm != CatalogReadAlgorithm::V4
+                    || c.conversation.scoped())
+                    && c.visible_captured_turns <= c.visible_captured_sources
                     && c.visible_captured_sources <= MAX_SEGMENTED_REVISIONS as u64
                     && c.platform_complete_not_claimed
             })
@@ -656,7 +817,7 @@ pub struct NativeConversationDetail {
     pub capability: CatalogCapability,
     pub effect: MemoryReadEffect,
     pub header: ProcessHeader,
-    pub conversation: Option<ConversationRecord>,
+    pub conversation: Option<NativeConversationMetadata>,
     pub effective_sensitivity: Option<Sensitivity>,
     pub visible_captured_turns: u64,
     pub visible_captured_sources: u64,
@@ -674,6 +835,11 @@ impl NextDocument for NativeConversationDetail {
             && self.visible_captured_turns <= self.visible_captured_sources
             && self.turns.len() as u64 <= self.visible_captured_sources
             && self.effective_sensitivity.is_some() == self.conversation.is_some()
+            && (self.header.selection.algorithm != CatalogReadAlgorithm::V4
+                || self
+                    .conversation
+                    .as_ref()
+                    .is_none_or(NativeConversationMetadata::scoped))
             && self.turns.len() <= 100
             && self.platform_complete_not_claimed
             && (self.conversation.is_some()

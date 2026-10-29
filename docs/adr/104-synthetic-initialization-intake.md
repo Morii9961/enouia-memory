@@ -6,7 +6,8 @@ the initialization chat, then allowed the minimal shared-source integration.
 
 ## Decision
 
-Use ADR-MEM-93 record fields and ADR-MEM-94's new segmented synthetic root.
+Use ADR-MEM-93 record fields and ADR-MEM-103's new Owner segmented synthetic root
+(updated 2026-10-29 from the original ADR-MEM-94 pilot).
 Reuse native policy, evaluation, revisions, witnessed application, deletion and
 the ADR-MEM-100/101 readers. No existing root is upgraded. The initializer is a
 separate crate with explicit in-memory material selection and a synthetic-only
@@ -51,6 +52,19 @@ advisory. Unsupported titles fall back to a quoted-text prefix. Preflight report
 field coverage and an estimated staging count; native current evaluation decides
 the actual outcome at publication.
 
+Only a new empty `automation-segmented-owner-v1` root with explicit
+`owner_subject_id` is accepted. Native genesis witnesses `digest(descriptor)`;
+the initializer's separate `initialization-owner-1` journal binds that digest
+and refuses a changed attributed owner. There is no old-root header upgrade or
+subject rebinding. Owner catalog selection uses v4 and process headers use v2.
+
+Explicit native-selected `OwnerProvided` input is an ordinary user-statement
+source in normal formation, not a pending-review queue or a G08 correction.
+An optional original quote is preserved separately with its original speaker
+and evidence class. JSON consent claims cannot choose this parser mode or
+create Owner confirmation. The production caller must authenticate source
+selection independently; the synthetic parser supplies no authentication.
+
 The initialization journal is bounded, root-bound and exclusively locked. Save
 exact batch identity/input watermark and analysis hash before capture. Original
 Raw is durable first. Save request/response/binding and application intent before
@@ -78,8 +92,11 @@ binary document extraction/OCR, real legacy snapshot acquisition, semantic
 models and a production scheduler are unavailable. These are reported gaps,
 not silently inferred metadata or permission to process private files.
 
-No G08 owner-action execution is implemented here. Its frozen ledger stays
-unchanged; withdrawal is not simulated as an owner click. Runtime screenshots
+G08 execution is supplied by the Owner dependency. One integration test applies
+an explicitly simulated native Owner protect gesture after initialization;
+ordinary initialization creates no OwnerAction or consent receipt. Already
+captured Runtime source revisions still need a separate queue-only API; they
+must not be recaptured as imports. Runtime screenshots
 and six-view adoption require its separate adopting slice and are unrun.
 See [initialization validation](../validation/Memory-init-pipeline.md) for actual
 measurements, scenario boundaries, checks and remaining differences.

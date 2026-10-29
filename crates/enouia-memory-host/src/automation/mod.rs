@@ -1,12 +1,18 @@
 //! Core-2 opt-in synthetic job coordinator. No default Host wiring, Provider
 //! adapter or default writer. The opt-in `application` module connects Core-3's
 //! separate V2 synthetic transactions; the coordinator alone never applies them.
+pub mod agent_read;
 pub mod application;
 pub mod attention;
 pub mod catalog;
 pub mod continuation;
 mod model;
 pub mod read_model;
+#[cfg(windows)]
+pub mod runtime_capture;
+#[cfg(windows)]
+pub mod runtime_capture_transport;
+pub mod segmented_agent;
 mod worker;
 pub use model::*;
 pub use worker::{Generated, Generation, Generator, PendingGeneration, StopToken};
@@ -501,3 +507,5 @@ impl SyntheticJobs {
             })
     }
 }
+
+pub mod owner;

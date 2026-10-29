@@ -769,6 +769,8 @@ dependencies = [
  "enouia-memory-index",
  "enouia-memory-vault",
  "enouia-memory-workspace",
+ "icu_normalizer",
+
  "jiff",
  "jiff-tzdb",
  "serde",

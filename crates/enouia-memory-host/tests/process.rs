@@ -413,13 +413,20 @@ fn conversation_fragments_and_unicode_quote_jumps_are_bounded_and_keep_hidden_pa
     assert!(list.items[0].platform_complete_not_claimed);
     let mut cursor = None;
     let mut ids = BTreeSet::new();
+    let mut visible_order = BTreeSet::new();
+    let mut visible_parents = BTreeSet::new();
     loop {
         let detail = r
             .memory_conversation_detail_native(&req, &c.conversation_id, cursor.as_ref())
             .unwrap();
         assert_eq!(detail.visible_captured_turns, 86);
         assert_eq!(detail.visible_captured_sources, 86);
+        assert!(detail.conversation.as_ref().unwrap().turns.is_none());
         for turn in detail.turns {
+            visible_order.insert(turn.turn.sequence);
+            if let Some(parent) = &turn.turn.parent_source {
+                visible_parents.insert(parent.source_id.clone());
+            }
             assert!(ids.insert(turn.turn.source.source_id.clone()));
             assert_ne!(turn.turn.source.source_id, sources[69].record.source_id);
             assert!(
@@ -435,6 +442,8 @@ fn conversation_fragments_and_unicode_quote_jumps_are_bounded_and_keep_hidden_pa
         }
     }
     assert_eq!(ids.len(), 86);
+    assert_eq!(visible_order, (1..=86).collect());
+    assert!(visible_parents.is_subset(&ids));
     // All 150 captured turns remain pageable under the actual Private ceiling.
     let mut private = request(&p, &f, Sensitivity::Private);
     private.options.limit = 17;

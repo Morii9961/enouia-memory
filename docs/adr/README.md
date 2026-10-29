@@ -506,6 +506,15 @@ anchors, authorized conflict/diff/history/neighbor/source/session ports and v3
 sensitivity/reason qualifications. No stored record/layout change, owner
 execution, Runtime adoption or MCP activation.
 
+### ADR-MEM-103 — Native Owner actions and subject binding (Accepted A; synthetic implementation)
+
+[Decision](103-owner-correction-subject-binding-proposal.md): explicit Owner-to-Subject
+binding in a new empty `automation-segmented-owner-v1` root, native snapshot-bound
+plan/gesture/one-use commit and witnessed recovery, literal correction admission,
+withdrawal/forget barriers and qualified Owner overlays. Read selection v4 removes
+global receipt/turn ordinal leaks. No Runtime/MCP adoption or private initialization.
+ADR102 remains reserved for the concurrent Runtime capture session.
+
 ### ADR-MEM-104 — Synthetic initialization through shared formation (Implemented, synthetic)
 
 [Decision](104-synthetic-initialization-intake.md): explicit selected originals,
@@ -529,3 +538,35 @@ Runtime [ADR-025](https://github.com/Morii9961/enouia-runtime/blob/main/docs/adr
 ### ADR-MEM-83 — Workspace explicit supersession draft preview (Adopted, local integration)
 
 [Decision](083-workspace-supersession-preview.md): expose the existing read-only helper with explicit candidate/target revisions and business time. Preserve edits and provenance; no publication, plan, approval, Runtime adoption or activation. [Evidence](../validation/Workspace-supersession-preview-v1.md).
+
+### ADR-MEM-92 — Native Agent local transport (Adopted, synthetic)
+
+[Decision](092-native-agent-local-transport.md): explicit native process enrollment, scoped six-tool local pipe and fail-closed version/lifecycle boundaries; automation V2 Agent reads remain separate.
+
+### ADR-MEM-95 — Scoped native Agent automation reads
+
+[Decision](095-native-agent-automation-reads.md): separate native Agent policy/instance/lifecycle gate before V2 page/detail projection and counts; no System forwarding or implicit six-tool upgrade.
+
+### ADR-MEM-96 — Versioned automation-root MCP reads
+
+[Decision](096-versioned-automation-agent-mcp.md): five explicitly versioned read tools, bundled output schemas, scoped recall and the same computed trace for native Context; legacy pipe remains unchanged.
+
+
+### ADR-MEM-97 — Explicit Agent UI-record reads
+
+[Decision](097-agent-ui-record-reads.md): native HostV3 delegation and complete frozen fields over explicitly negotiated MCP, with entity-source closure and byte-accounted shared recall trace. Segmented reads and Runtime capture remain separate.
+
+### ADR-MEM-98 — Separate segmented Agent delegation
+
+[Decision](098-segmented-agent-memory-reads.md): native instance/policy/source-bound delegation before segmented rows, history and counts. The first checkpoint exposes no segmented MCP tools; the existing System read port is not an Agent capability.
+
+### ADR-MEM-102 — Runtime-only native daily capture
+
+[Decision](102-runtime-only-capture-boundary.md): retained Runtime OS peer, sealed current-policy source-pool delegation, exact raw turns and explicit default-timezone provenance. No-write preflight shares real capture admission. This checkpoint schedules no formation and exposes no public capture tool.
+
+### ADR-MEM-105 — Explicit initialized-root Agent adoption
+
+[Decision](105-initialized-agent-reader-boundary.md): integrate published Owner
+dependencies without widening existing Agent/Runtime capture capabilities.
+Descriptor-level refusal precedes current snapshot and transaction work. A
+separate initialized-root reader and shared live binding remain unadvertised.

@@ -1,5 +1,51 @@
 # Runtime integration (ADR-MEM-45)
 
+2026-10-28: MCP adoption checkpoint integrates published Owner dependency
+34709b9d2abcb60188c0e3488b15f40c33d6ee16 and its ADR100/101 prerequisites,
+preserving original author/history and both sides' contract validation.
+Aggregate: `31e2b482d57a4d085d55bc4b226674c7a00bc90a0a57b3c677afa99e61c8392e`.
+Existing Agent catalog factory and Runtime capture delegation explicitly refuse
+automation-segmented-owner-v1 before snapshot or source/policy transaction work.
+No old MCP tool, System reader or native Owner consent entry becomes an Agent
+capability. Native Runtime integration must still adopt the exact pin and
+contracts. Initialized-root Agent reads, shared live intake, Runtime hook/UI,
+private initialization and real Provider remain separate. See
+[boundary contract](../contracts/MCP_INITIALIZED_AGENT_READ_V1.md).
+
+2026-10-28: MCP-3 quote-location helper memory-quote-nfkd-1 uses explicitly
+pinned ICU4X 2.3.0 compiled normalization data and returns exact original scalar
+spans. Aggregate:
+`3a3055e9f59468e108f1107c39ed7166fceff94b1e79e2ae74023644187cbeb9`.
+See [the quote contract](../contracts/MCP_QUOTE_LOCATOR_V1.md). Native callers
+must separately authorize the current source revision and preserve actual
+speaker/evidence class, then apply unchanged strict evidence validation.
+No IPC/MCP tool, root/layout capability, owner authority or formation endpoint
+is added. Runtime hook/pin/UI and shared live-pipeline adoption remain separate.
+
+2026-10-27: Runtime capture checkpoint 2 adds memory-runtime-capture-pipe-1,
+exact schema/layout negotiation, retained kernel peer checks, single-use native
+binding, active revocation and original-call retention after uncertain IO.
+Aggregate: `83ad27888db46956d64acb6a29ceaa783577fb4bfa5b5c94d54ce603b9f3c99d`.
+Adopt [the explicit Runtime pipe contract](../contracts/RUNTIME_CAPTURE_PIPE_V1.md)
+and keep native RuntimeCaptureHost reachable for lock/revoke control. This is a
+source-only Runtime endpoint; no Agent capture permission, Workspace forwarding,
+live formation, newer owner-layout adoption, real hook/pin or private root is
+activated. Existing MCP readers and Workspace IPC58 retain their meanings.
+
+2026-10-27: ADR-MEM-102 adds opt-in native Runtime source capture, capability
+`memory-runtime-capture-native-1`, on an existing leased segmented root only.
+Aggregate: `1c5124c281348297d55dce0458887fce96210bf30e7a2eea2aa0eff813ef553f`.
+Runtime adoption must independently authenticate/enroll its actual process and
+bind exact current policy/source pool, account alias and Asia/Shanghai default
+timezone. Raw source metadata preserves missing original timezone/date and
+records explicit default origin; machine roles never become Owner confirmation.
+Preflight uses the same transaction admission without publication. Capture
+returns actual source witness, not a formed-memory or queued-job receipt.
+Existing System/Agent reads, layouts and Workspace IPC58 remain unchanged.
+No Runtime hook/transport/pin/UI adoption, live formation, private initialization,
+Provider or public MCP capture tool is activated by this native checkpoint.
+See [contract](../contracts/RUNTIME_CAPTURE_NATIVE_V1.md).
+
 2026-10-23 clarification: Runtime already hosts Memory's product UI through its
 pinned embedded Core adapter. `apps/workspace` remains the reference shell only.
 Pending MV-8.1j adoption means adoption of the native Host backend specifically;
@@ -276,6 +322,10 @@ Each row records the surface aggregate printed by `tools/integration/runtime_sur
 
 | 2026-10-25 | `01cfc998a6707897b1956ef31248dbd44102578440ff558095ab5566917f5b82` | Integrate Core-1 through Core-7 with current main, preserving Provider hardening, Host/MCP delivery and saved history comparison/brief/supersession. Workspace remains schema 1 with all 58 current commands; automatic admission and native read capability stay isolated. | Runtime must adopt this integrated exact revision and aggregate, retaining current v1 history consumers plus explicit synthetic Core-8 capability. No old-root initialization, production System capture, actual Provider, migration or activation is implied. |
 
+| 2026-10-26 | `dd9f06881d4d9d42b14612eef42da1665edf49f1b13e064849f569d332171de6` | ADR-MEM-92 adds explicit single-use Windows Agent process enrollment, exact schema-1/capability handshake, a separate protected MCP pipe and the opt-in enouia-memory-mcp stdio launcher over the same sole Host. Five independent scope ceilings and the existing six tools retain current policy/deletion barriers and original-key receipts. No dependency or schema change; Workspace IPC v1 stays at 58 commands. | Additive opt-in backend only; no Runtime pin, shell, adapter or activation change. A future native adopter must register the live process from trusted native configuration, preserve original packets on uncertainty, and re-enroll explicitly after disconnect/lock/revocation/expiry. automation-host-v2 and memory-native-read-1 are refused for Agents; upgrading a source pin does not supply a V2 Agent reader or System authority. See [contract](../contracts/MCP_NATIVE_AGENT_V1.md) and [synthetic evidence](../validation/MCP-native-agent-transport.md). |
+
+
+| 2026-10-26 | `f54a0a612504d9ae8b84fbc164235e1b6f8fad40622697c644541adb85e2c578` | ADR-MEM-95/96 add native scoped Agent reads and an explicitly versioned five-tool MCP endpoint for automation-host-v2: search/read/source/related/recall, bundled input/output schemas, read-only annotations, qualified formation/time/history/receipt views and actual recall trace shared with native Context. Protected pipe enrollment binds the live Agent; optional stdio attach uses the existing Host without opening another writer. All projections/counts honor current policy, scope, source/deletion and lifecycle before output. No dependency or Workspace IPC58 change. | Opt-in backend only; Runtime pin, adapters and UI remain unchanged. Match memory-agent-pipe-2, schema 2, automation-host-v2, memory-agent-read-1 and compatibility hash explicitly; legacy six tools still reject new roots. Adopt the same native reader/context trace, independent source-read and unavailable-field coverage. Title/language/entities/time precision/bound/tz-basis, extended formation/typed edges and capture/correction/session tools are pending their frozen contracts/slices, not empty-success support. See [contract](../contracts/MCP_AGENT_READ_V2.md) and [synthetic evidence](../validation/MCP-2-automation-agent-reads.md). |
 ### 2026-10-26 — UI v2 record layout, first slice (ADR-MEM-93)
 
 Surface aggregate: `8e9fc69d931c86f14bbd7501f7cb806f5146d7e6103c13c26cbc45d7fdbb108d`.
@@ -296,6 +346,13 @@ Runtime must separately adopt the exact pin/manifest, layout/capability gate,
 then new read ports and field meanings. Never point the current pin at a v3 root,
 map machine adoption to owner confirmation, or treat syntax checks as semantic
 quality. No Runtime file, pin, adapter, default Host route or MCP tool changed.
+Morii confirms the field contract before S2 initialization/S3 collection adoption;
+G01 and later slices remain pending. This entry does not activate a real root.
+
+
+| 2026-10-26 | `11575fe13c2694d0a82e2761b73d82da6c4b726ef732189352fab94dd5bde9c4` | ADR-MEM-97 adopts frozen UI fields for an explicitly scoped automation-host-v3 Agent reader and five-tool pipe/stdio endpoint, capability memory-agent-record-read-1. Preserve exact title/language/time/quoted evidence/formation annotations, selected source fields and policy-authorized entity labels; authorization precedes counts and metadata. Full rendered fields count toward recall/output budgets and native Context returns the same actual response. Existing System and HostV2 endpoints retain their gates. Workspace IPC58 and dependencies unchanged. | Opt-in backend only. Match exact layout/capability/schema hash and enroll the actual bridge process; do not point old clients at new roots. The bounded HostV3 layout is not the parallel segmented layout and supplies no large-history claim. Runtime adapters/pin/capture hook, real initialization/provider/client configuration and deployment remain unadopted. Runtime-only collection and Asia/Shanghai default provenance constrain MCP-3. See [contract](../contracts/MCP_AGENT_RECORD_READS_V1.md). |
+
+| 2026-10-26 | `0e07de075054c3ea0398e5b3ae3771381743194c996f8b3c573d2a66764257b8` | ADR-MEM-97 Agent record projections now filter non-authoritative suggested-relation endpoints to current readable revisions before output and context rendering. Always declare annotations_scope=authorized_current_targets without leaking hidden-target counts or changing stored annotations. Readable claims remain available. | Adopt the exact compatibility hash. Claim fields and source gates are unchanged; suggestions remain model hints, not a completed graph or owner actions. Runtime pin/UI/client activation remain separate. |
 Morii confirmed continuation after the field report; S2/S3 must still adopt
 the exact accepted contract. Subsequent read work is recorded below. This entry does not activate a real root.
 
@@ -324,6 +381,9 @@ publication stays disabled until G08. No Runtime pin, checkout, default Host,
 Workspace commands or MCP route changed. No external dependency was added.
 20,000 native synthetic records are an isolated test, not initialization,
 Provider quality, private-data acceptance or production activation.
+
+| 2026-10-26 | `5f5bb358ddf2e01e1aff9daaaa4cdfe3352c3c6fedac22922213fe1183665df8` | MCP-2c checkpoint 1 integrates exact segmented dependency b2c5c1a and adds a separate sealed native Agent gate before segmented rows/history/counts. Share the existing read-only MCP initialization/request-ID/closure state machine, preserving HostV2/3 tool schemas and 256-request limits. | No Runtime pin/UI/adoption or System forwarding. This checkpoint exposes no segmented MCP tools; Host lifecycle, typed tool outputs and scalable trace binding remain next. Native registration must independently authenticate the Owner and process. |
+| 2026-10-26 | `551d4fe38bcb47b032806e27fda2c28e521c3c436800ea68676246154364a71b` | MCP-2c checkpoint 2 adds explicit segmented Agent five-tool reads, bundled output schemas, SourceRead-gated excerpts and complete frozen fields, snapshot/scope/profile-bound cursors and shared actual Context response. Core-6 catalog selection ranks the whole authorized set; exclusion details are bounded with exact reason counts. | Native embedding reuses the existing leased Vault and must route Agent lock/unlock through SegmentedAgentHost. System memory-native-read-2 grants no Agent authority. Old capabilities retain their layouts and 256-request limit; catalog explicitly allows 4096. Runtime pin/UI binding, G03/G05/G04/process projection adoption, daily capture, provider and private initialization remain separate. |
 
 ### 2026-10-26 — Time, family and typed graph reads (ADR-MEM-100)
 
@@ -371,6 +431,47 @@ Stored record fields/layout stay unchanged. G08 owner execution is still pending
 No Runtime file/pin, MCP route, real root/provider or deployment changed. See
 [synthetic validation](../validation/UI-v2-process.md).
 
+
+### 2026-10-27 — Native Owner execution and read qualification (ADR-MEM-103)
+
+Surface aggregate: `862eb802156dfb168e4eeba16979352699094eab8ab3c978a4ac1d5bf862eec4`.
+
+Morii explicitly selected A. Initialization must create a new empty
+`automation-segmented-owner-v1` descriptor with the trusted `owner_subject_id`;
+old roots cannot gain Owner capability by header editing. Keep frozen ADR93 record
+fields and the separate native Owner/System principals. Adopt `NativeMemoryOwner`
+only behind actual native authentication and human gestures: plan / confirm the
+exact native preview / consume a private one-use native token / query the original
+operation after explicit recovery. Never deserialize a token or route this through
+MCP/model/page-provided identity. Lock invalidates all pending plans.
+
+Correct transcribes the confirmed bound-subject assertion into one real manual
+source and a target-bound System admission revision. No model call or independent
+verification; Core-5 Theme correction remains refused. Withdraw/forget are logical
+barriers with retained original sources, not physical purge. Owner attention/tags,
+family rename/pin/dissolve and compatible evidence-scoped entity merge/split drive
+all qualified native views. Do not infer Owner badges from machine annotations.
+
+Restart old cursors: selection is now `owner-qualified-catalog-4`, version 4;
+process headers use each port's `-2` algorithm/version 2. Scoped receipt DTOs omit
+global sequence. Conversation metadata omits raw turns/count/branches; displayed
+authorized captured branch order is dense and never a platform-total claim.
+Owner proofs identify actual witnessed actions without global ordinals. Reserved
+correction policies count toward the 1,024 policy capacity and cannot be reused by
+ordinary System admission. See [contract](../contracts/UI_V2_OWNER_ACTIONS.md) and
+[synthetic evidence](../validation/UI-v2-owner-actions.md).
+
+Runtime factory/gesture wiring, product UI, pin change, MCP support for this new
+layout, real root initialization and deployment remain separate adoption work.
+This commit changes none of those external surfaces. Concurrent MCP/native intake
+modules are not included and require a deliberate semantic merge of shared module
+registration/private commit helpers before adoption.
+
+Owner roots also bind `digest(descriptor)` in their witnessed genesis delta.
+Replay refuses header-only adoption of an old segmented root and rebinding an
+initialized Owner subject. Store/read schemas now include both execution effects
+and actual genesis/action examples; ADR93 business record fields remain intact.
+
 ### 2026-10-28 — Synthetic initialization intake (ADR-MEM-104)
 
 Surface aggregate: `de0a9b5026b10438e311354ee54fb3aa0816613fb73dd80ab70563af5f94d1d0`.
@@ -392,3 +493,29 @@ must still implement its separately authorized six-view adoption and Core-8
 switching. No Runtime checkout, pin, Workspace/IPC/MCP command, Provider, real
 root or deployment changed. See [ADR104](../adr/104-synthetic-initialization-intake.md)
 and [actual coverage and gaps](../validation/Memory-init-pipeline.md).
+
+### 2026-10-29 — Owner-root synthetic initialization compatibility (ADR-MEM-104)
+
+Surface aggregate: `94b039be8c17cfcb50a85853fbd3a72894aa69650d81757aa71515505e357e06`.
+
+Integrates the exact MCP Owner-boundary dependency `14125f5` (including Owner
+`34709b9`) with typed import/attachment carriers. New initializer roots require
+`automation-segmented-owner-v1`, an explicit owner subject, witnessed descriptor
+genesis and a descriptor-bound initializer journal. Unbound/old descriptors and
+foreign attributed subjects refuse before batch publication. Runtime must adopt
+Owner selection v4/process headers v2 together with the exact manifest; older
+Agent/Runtime factories still refuse Owner roots before business use.
+
+Native-selected owner inputs form as normal user-statement sources, without a
+review queue or fabricated OwnerAction. An independent synthetic native gesture
+test exercises G08 after initialization. The parser is not production owner
+authentication. Seven authorized projection groups and deletion recovery run on
+new synthetic Owner roots; saved bundles remain inspection artifacts. See the
+[native example and reader steps](../../crates/enouia-memory-init/README.md).
+
+No production initializer, real source/model/egress, Runtime pin or Core-8 switch
+is delivered. Already captured Runtime sources still need a queue-only entry
+bound to their original SourceRevisionRef and capture key, not import recapture.
+Later MCP native-reader work remains a separately versioned dependency; this
+merge preserves its existing Owner-root rejection gate and exposes no System
+port to an Agent. No other worktree or Runtime checkout is changed.

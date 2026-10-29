@@ -1,6 +1,6 @@
 # Synthetic initialization
 
-Native, opt-in initialization for a **new synthetic segmented root**. There is
+Native, opt-in initialization for a **new synthetic Owner segmented root**. There is
 no directory discovery, real-data CLI, model adapter or Runtime activation.
 The ADR-MEM-93 fields were confirmed by the owner before this implementation.
 See [ADR104](../../docs/adr/104-synthetic-initialization-intake.md) and the
@@ -34,8 +34,12 @@ compare their snapshot, policy, deletion and withdrawal bindings.
    scalar quotes, preserves source clocks/branches/metadata, constructs record
    fields and returns preflight without I/O. Event time never falls back to a
    source timestamp. Unknown language is `und`.
-3. Create a synthetic initializer only on a new root, or reopen its saved
-   journal. `enqueue` archives immutable selected bytes and saves the exact plan,
+3. Create a synthetic initializer only on a new empty
+   `automation-segmented-owner-v1` root with explicit `owner_subject_id`, or
+   reopen its saved journal. Genesis witnesses the descriptor digest; the
+   `sync-state/initialization-owner-1.json` journal binds the same digest.
+   Old/unbound descriptors and a different attributed owner are refused.
+   `enqueue` archives immutable selected bytes and saves the exact plan,
    analysis and IDs. Repeating a watermark/mode with different analysis refuses.
    Different source sets need distinct supplied policy identities; the
    initializer cannot silently change an existing batch's policy.
@@ -57,6 +61,37 @@ Complete legacy v1 RecordSets require exact original Review text witnesses and
 the separate native owner-selected capture boundary. Unreviewed candidates and
 derived buckets remain model/agent claims. Original records are never rewritten.
 
+`Format::OwnerProvided` accepts an explicitly selected JSON packet with `content`
+and optional `content_lang`, `intake_key`, `original_quote` and
+`original_quote_speaker`. The owner's statement is an ordinary user-statement
+source formed in the same batch, without an extra review queue. The quote is a
+separate source retaining its speaker/evidence class; a quoted assistant is not
+the owner. An unbound quoted user identity stays unknown. The parser never
+selects this mode from consent-looking JSON or creates UserConfirmation or an
+OwnerAction. Real intake must authenticate the native owner's selection; this
+pure parser is not that authentication boundary.
+
+## Consuming the synthetic root
+
+The example prints `synthetic_root=<temporary path>`. After the command exits
+and its native writer closes, open that exact root through `verify_data_root` and
+`SegmentedAutomationVault::open` with its descriptor's host ID. In the example,
+the fixture clock is explicitly fixed at `2026-10-24T12:00:00Z`; a test reader
+must use that clock to keep the synthetic policy valid. Use an independently
+authenticated native reader, not `Initializer::open_synthetic` as Agent
+authority. The Owner catalog selection is `owner-qualified-catalog-4`/v4;
+process headers use v2. The final root has 36 visible records after one test
+deletion; its saved before bundle is stale. Keep the root and its Raw objects
+local, and compare current snapshot/barriers through native reads.
+
+Import carriers use `CapturedSource` with typed `attachments`, SourceRecord
+attachment refs, original locators/clocks and revision-bound evidence. Native
+`capture_import` verifies Raw closure and refuses owner confirmation; legacy
+confirmation has a separate native-owner-selected boundary. These are not MCP
+or Runtime capture routes. Already captured Runtime sources must retain their
+original `SourceRevisionRef` and capture key: the initializer does not yet expose
+a queue-only entry for those revisions, so do not repackage them as imports.
+
 ## Explicit limits
 
 At most 64 parsed sources and 128 statements per plan; each material and the
@@ -74,5 +109,6 @@ conversation identity; changed content under the same message identity refuses
 at plan validation rather than silently overwriting history.
 
 The script is **not** a semantic extractor or independent model evaluation.
-Owner-action execution, Runtime six-view previews/screenshots, real data,
+One integration test exercises a separate native Owner gesture after ordinary
+formation; initialization itself generates no Owner action. Runtime six-view previews/screenshots, real data,
 egress/default-timezone authorization and Core-8 switching are separate work.
