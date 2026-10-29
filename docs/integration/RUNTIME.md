@@ -626,3 +626,20 @@ imports/projections do not establish Agent import/attachment metadata support,
 daily live formation, Runtime hook/UI/pin or private data adoption. No shared
 queue implementation is included. See the [matrix](../contracts/MCP_INITIALIZED_AGENT_READ_V1.md)
 and [boundary evidence](../validation/MCP-initializer-carrier-boundary.md).
+### 2026-10-30 — Native initialized Agent carrier (ADR105 checkpoint 6)
+
+Surface aggregate: `3c1e77f467ec74d3476cb9f7e78320b35b1274a304d560e183d1f9efe86033fc`.
+
+The explicit native initialized factory/permit adopts ADR104 sources on the
+already leased Owner Vault. Independent current Agent policy/source/subject/
+project/lifecycle checks remain. Source/Detail project permitted typed attachment
+metadata and refs; arbitrary duplicate extensions are omitted. Sensitivity is
+the actual returned floor. Stored originals are unchanged. Native default-timezone
+origin is projected separately without attachment copies. Original factories keep
+their carrier refusal, and pipe-4 refuses this new native capability.
+
+No new MCP wire/schema advertisement, System forwarding, shared live queue,
+Runtime hook/UI/pin, private initialization or attachment-byte port is added.
+See [native evidence](../validation/MCP-initialized-agent-native.md). A later
+explicit initialized-carrier pipe must adopt its own closed output schema;
+upgrading a source pin or forwarding System/Owner readers is insufficient.

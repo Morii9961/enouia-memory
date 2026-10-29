@@ -127,7 +127,10 @@ impl<'a, 'host> Server<'a, 'host> {
         reader: &'a QualifiedAgentReader<'host>,
         profile: &'a AttentionProfile,
     ) -> Option<Self> {
-        if !profile.validate().is_empty() || reader.check_connection().is_err() {
+        if !profile.validate().is_empty()
+            || reader.capability() != crate::automation::qualified_agent::CAPABILITY
+            || reader.check_connection().is_err()
+        {
             return None;
         }
         Some(Self {

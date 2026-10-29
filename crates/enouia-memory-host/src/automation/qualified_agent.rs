@@ -12,8 +12,9 @@ use enouia_memory_contract::{
 use enouia_memory_vault::automation::{
     AutomationFault,
     segmented::{
-        AuthorizedSegmentedAgentRead, QUALIFIED_AGENT_READ_CAPABILITY, SegmentedAgentPermit,
-        SegmentedAgentScope, SegmentedAutomationVault, SegmentedMemory,
+        AuthorizedSegmentedAgentRead, INITIALIZED_AGENT_READ_CAPABILITY,
+        QUALIFIED_AGENT_READ_CAPABILITY, SegmentedAgentPermit, SegmentedAgentScope,
+        SegmentedAutomationVault, SegmentedMemory,
     },
 };
 use serde::{Deserialize, Serialize};
@@ -25,9 +26,11 @@ use std::sync::{
 };
 
 pub const CAPABILITY: &str = QUALIFIED_AGENT_READ_CAPABILITY;
+pub const INITIALIZED_CAPABILITY: &str = INITIALIZED_AGENT_READ_CAPABILITY;
 pub struct QualifiedAgentHost {
     vault: Arc<SegmentedAutomationVault>,
     owner: ActorRef,
+    capability: &'static str,
     generation: RwLock<Option<Arc<AtomicBool>>>,
 }
 pub struct QualifiedAgentReader<'a> {
@@ -75,16 +78,36 @@ impl QualifiedAgentHost {
         vault: Arc<SegmentedAutomationVault>,
         owner: ActorRef,
     ) -> ApplicationResult<Self> {
+        Self::from_owner_profile(vault, owner, CAPABILITY)
+    }
+    /// Native Owner authentication is required independently. No OS enrollment
+    /// or MCP advertisement is implied by this explicit carrier adoption.
+    pub fn from_authenticated_initialized_owner(
+        vault: Arc<SegmentedAutomationVault>,
+        owner: ActorRef,
+    ) -> ApplicationResult<Self> {
+        Self::from_owner_profile(vault, owner, INITIALIZED_CAPABILITY)
+    }
+    fn from_owner_profile(
+        vault: Arc<SegmentedAutomationVault>,
+        owner: ActorRef,
+        capability: &'static str,
+    ) -> ApplicationResult<Self> {
         if owner.actor_type != ActorType::Owner
             || owner != vault.descriptor().created_by
             || vault.descriptor().layout != AutomationLayout::SegmentedOwnerV1
         {
             return Err(AutomationFault::Denied.into());
         }
-        vault.check_original_agent_carrier()?;
+        if capability == CAPABILITY {
+            vault.check_original_agent_carrier()?;
+        } else {
+            vault.snapshot()?;
+        }
         Ok(Self {
             vault,
             owner,
+            capability,
             generation: RwLock::new(Some(Arc::new(AtomicBool::new(true)))),
         })
     }
@@ -130,9 +153,13 @@ impl QualifiedAgentHost {
             .read()
             .map_err(|_| ApplicationFault::Locked)?;
         let generation = gate.as_ref().ok_or(ApplicationFault::Locked)?.clone();
-        let permit = self
-            .vault
-            .authorize_qualified_agent_read(owner, principal, scope)?;
+        let permit = if self.capability == INITIALIZED_CAPABILITY {
+            self.vault
+                .authorize_initialized_agent_read(owner, principal, scope)?
+        } else {
+            self.vault
+                .authorize_qualified_agent_read(owner, principal, scope)?
+        };
         Ok(QualifiedAgentReader {
             host: self,
             permit,
@@ -142,6 +169,9 @@ impl QualifiedAgentHost {
     }
 }
 impl QualifiedAgentReader<'_> {
+    pub fn capability(&self) -> &'static str {
+        self.permit.capability()
+    }
     pub fn principal(&self) -> &ActorRef {
         self.permit.principal()
     }
@@ -165,7 +195,7 @@ impl QualifiedAgentReader<'_> {
             .map_err(|_| ApplicationFault::Locked)?;
         if gate.is_none()
             || !self.generation.load(Ordering::SeqCst)
-            || self.permit.capability() != CAPABILITY
+            || self.permit.capability() != self.host.capability
         {
             return Err(ApplicationFault::Locked);
         }
@@ -229,7 +259,7 @@ impl QualifiedAgentReader<'_> {
             let mut result = QualifiedAgentPage {
                 schema_version: NextVersion,
                 kind: "qualified_agent_page",
-                capability: CAPABILITY,
+                capability: self.capability(),
                 principal: self.principal().clone(),
                 scope_hash: self.scope_hash().clone(),
                 selection: page.selection,
@@ -276,6 +306,58 @@ impl QualifiedAgentReader<'_> {
         })
     }
 
+    fn source_metadata(&self, source: &CapturedSource, text: bool) -> Value {
+        let mut result = json!({"record":source.record,"record_fields":source.record_fields,
+            "attributed_subject":source.attributed_subject,"text":text.then_some(&source.text)});
+        if self.capability() != INITIALIZED_CAPABILITY {
+            return result;
+        }
+        // This is an authorized projection, not an immutable original record.
+        // Native qualification has already intersected the exact source policy
+        // with the grant ceiling. Unstructured duplicate metadata is omitted.
+        let mut record = source.record.clone();
+        record.extensions.clear();
+        let attachments: Vec<_> = source
+            .attachments
+            .iter()
+            .filter(|a| a.sensitivity <= self.permit.max_sensitivity())
+            .cloned()
+            .map(|mut a| {
+                a.extensions.clear();
+                a
+            })
+            .collect();
+        record.attachment_refs = attachments
+            .iter()
+            .map(|a| a.attachment_id.clone())
+            .collect();
+        let effective = attachments
+            .iter()
+            .fold(record.sensitivity, |s, a| s.max(a.sensitivity));
+        result["record"] = json!(record);
+        result["attachments"] = json!(attachments);
+        result["effective_sensitivity"] = json!(effective);
+        result["projection_scope"] = json!("authorized_source_metadata_v1");
+        result["attachments_complete_in_scope"] = json!(true);
+        // Preserve the native default-timezone origin without copying its
+        // attachment metadata or arbitrary extension fields.
+        let timezone = if source.record.source_kind
+            == enouia_memory_contract::source::SourceKind::RuntimeEvent
+        {
+            source
+                .record
+                .extensions
+                .get("runtime.capture")
+                .and_then(|v| serde_json::from_value::<RuntimeCaptureProvenance>(v.clone()).ok())
+                .filter(|p| valid_timezone(&p.resolved_timezone))
+                .map(|p| json!({"timezone":p.resolved_timezone,"origin":p.timezone_origin}))
+        } else {
+            None
+        };
+        result["capture_timezone"] = json!(timezone);
+        result
+    }
+
     pub fn source(
         &self,
         id: &SourceId,
@@ -319,18 +401,21 @@ impl QualifiedAgentReader<'_> {
                 return Err(ApplicationFault::Invalid);
             }
             let excerpt = &text[from..end];
-            bounded(
-                json!({"capability":CAPABILITY,"scope_hash":self.scope_hash(),
+            let mut result = json!({"capability":self.capability(),"scope_hash":self.scope_hash(),
                 "snapshot":data.current.snapshot,"authorized_at":data.current.now,
                 "record":source.record,"record_fields":source.record_fields,
                 "attributed_subject":source.attributed_subject,"excerpt":excerpt,
                 "excerpt_hash":enouia_memory_contract::hash::sha256(excerpt.as_bytes()),
                 "from_byte":from,"to_byte":end,"full_byte_len":text.len(),
                 "complete":from == 0 && end == text.len(),
-                "next_start":(end < text.len()).then_some(end)}),
-                MAX_DOCUMENT_BYTES,
-            )
-            .map(Some)
+                "next_start":(end < text.len()).then_some(end)});
+            let metadata = self.source_metadata(source, false);
+            for (key, value) in metadata.as_object().ok_or(ApplicationFault::Invalid)? {
+                if key != "text" {
+                    result[key] = value.clone();
+                }
+            }
+            bounded(result, MAX_DOCUMENT_BYTES).map(Some)
         })
     }
 
@@ -388,8 +473,7 @@ impl QualifiedAgentReader<'_> {
                 .filter(|s| self.source_read() && current_sources.contains(&s.reference()))
                 .chain(data.current.sources.values().filter(|s| self.source_read() && refs.contains(&s.reference()) && !current_sources.contains(&s.reference())))
                 .take(32)
-                .map(|s| json!({"record":s.record,"record_fields":s.record_fields,
-                    "attributed_subject":s.attributed_subject,"text":include_source_text.then_some(&s.text)})).collect();
+                .map(|s| self.source_metadata(s, include_source_text)).collect();
             let mut text_complete = true;
             loop {
                 let history_complete = history.len() == remaining_count;
@@ -398,7 +482,7 @@ impl QualifiedAgentReader<'_> {
                         profile_hash:digest(profile), memory_id:id.clone(),
                         before_revision:selected_revisions.first().ok_or(ApplicationFault::Vault(AutomationFault::Capacity))?.memory.memory.revision})
                 };
-                let result = json!({"capability":CAPABILITY,"scope_hash":self.scope_hash(),
+                let result = json!({"capability":self.capability(),"scope_hash":self.scope_hash(),
                     "snapshot":data.current.snapshot,"authorized_at":data.current.now,
                     "profile_hash":digest(profile),"item":selected,"history":history,
                     "history_count_in_scope":history_count,"history_complete":history_complete,"next_history":next_history,
@@ -434,7 +518,7 @@ impl QualifiedAgentReader<'_> {
                 }
                 let recorded: Vec<_> = relations.edges.iter().filter(|e| e.class == GraphEdgeClass::RecordedRelation).collect();
                 let suggested: Vec<_> = relations.edges.iter().filter(|e| e.class == GraphEdgeClass::AlgorithmSuggestion).collect();
-                let result = json!({"capability":CAPABILITY,"scope_hash":self.scope_hash(),
+                let result = json!({"capability":self.capability(),"scope_hash":self.scope_hash(),
                     "snapshot":data.current.snapshot,"authorized_at":data.current.now,
                     "algorithm":"owner-qualified-related-1","memory_id":id,
                     "recorded_edges":recorded,"suggested_edges":suggested,
@@ -498,7 +582,7 @@ impl QualifiedAgentReader<'_> {
             }
             let selected: Vec<_> = trace.selected.iter().map(|s| items.get(&s.memory.memory_id).ok_or(ApplicationFault::Invalid)).collect::<ApplicationResult<_>>()?;
             let texts: Vec<_> = trace.selected.iter().map(|s| renders.get(&s.memory.memory_id).map(String::as_str).ok_or(ApplicationFault::Invalid)).collect::<ApplicationResult<_>>()?;
-            let result = bounded(json!({"capability":CAPABILITY,"scope_hash":self.scope_hash(),
+            let result = bounded(json!({"capability":self.capability(),"scope_hash":self.scope_hash(),
                 "request_id":request_id,"qualification":"owner-qualified-catalog-4",
                 "trace":trace,"trace_coverage":{"excluded_in_scope":excluded,"excluded_returned":excluded.min(128),
                     "complete":excluded<=128,"reason_counts":reasons},

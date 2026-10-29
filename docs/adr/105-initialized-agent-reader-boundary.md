@@ -77,3 +77,10 @@ A later explicit initialized-carrier native/wire profile must authorize typed
 attachment metadata and duplicate refs/extensions before exposing Source/Detail.
 No new Agent capability, initializer reader, live queue or Runtime hook is
 advertised by this integration checkpoint.
+
+Checkpoint 6 adds the explicit memory-agent-initialized-native-read-1 delegation
+adopts ADR104 carriers under the existing independent native Agent gate. The
+original factory/pipe-4 still refuses them. Source/Detail are authorized metadata
+projections; typed attachment floors, duplicate refs/extensions and timezone
+origin must be handled before serialization. No new wire advertisement or System
+forwarding. See the checkpoint 6 contract and actual validation report.

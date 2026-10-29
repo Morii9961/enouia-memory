@@ -569,7 +569,8 @@ Runtime [ADR-025](https://github.com/Morii9961/enouia-runtime/blob/main/docs/adr
 [Decision](105-initialized-agent-reader-boundary.md): integrate published Owner
 and exact initializer dependencies without widening existing Agent/Runtime
 capture capabilities. The explicit qualified native/pipe-4 profile supports the
-original Owner carrier, including witnessed native corrections. Imported/partial/
-typed-attachment carriers refuse before Agent projection/counts and dispatch;
-a later explicit initialized-carrier profile and shared live binding remain
+original Owner carrier, including witnessed native corrections. Original profiles
+refuse imported/partial/typed-attachment carriers before projection/counts and
+dispatch. The separate initialized native capability adopts those sources with
+scoped metadata projections; its new wire profile and shared live binding remain
 unadvertised.
