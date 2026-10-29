@@ -299,6 +299,7 @@ impl SourceContext<'_> {
             attachment_bytes_captured: false,
         };
         CapturedSource {
+            attachments: Vec::new(),
             record: SourceRecord {
                 schema_version: enouia_memory_contract::json::SchemaVersion,
                 source_id: id,

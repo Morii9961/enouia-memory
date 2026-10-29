@@ -428,6 +428,7 @@ impl State {
                 return deny();
             }
             let source = CapturedSource {
+                attachments: Vec::new(),
                 record: SourceRecord {
                     schema_version: SchemaVersion,
                     source_id: source_id.clone(),

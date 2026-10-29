@@ -6,6 +6,25 @@ use std::time::Instant;
 
 pub const QUALIFIED_AGENT_READ_CAPABILITY: &str = "memory-agent-qualified-native-read-1";
 
+// These published profiles predate native imports and typed attachments. Check
+// all retained revisions, including deleted/unselected sources: changing a
+// selection or deletion barrier cannot downgrade a root's carrier format.
+fn original_carrier(state: &State) -> Result<()> {
+    if state.sources.values().flatten().any(|s| {
+        !matches!(
+            s.record.source_kind,
+            enouia_memory_contract::source::SourceKind::RuntimeEvent
+                | enouia_memory_contract::source::SourceKind::ManualAssertion
+        ) || s.record.completeness != enouia_memory_contract::source::Completeness::Complete
+            || s.record.evidence_class
+                == enouia_memory_contract::common::EvidenceClass::UserConfirmation
+            || !s.attachments.is_empty()
+    }) {
+        return Err(AutomationFault::Denied);
+    }
+    Ok(())
+}
+
 #[derive(Clone, serde::Serialize)]
 pub struct SegmentedAgentScope {
     pub subject_id: SubjectId,
@@ -168,6 +187,17 @@ pub struct AuthorizedSegmentedAgentRead<'a> {
     pub history: Vec<&'a SegmentedMemory>,
 }
 impl SegmentedAutomationVault {
+    /// Native format check on the already leased Vault, before any Agent
+    /// projection/count. Does not expose or decode a business request.
+    pub fn check_original_agent_carrier(&self) -> Result<()> {
+        let _writer = lock::acquire(&self.native.root, Duration::ZERO)?;
+        let state = self
+            .state
+            .lock()
+            .map_err(|_| AutomationFault::Unavailable)?;
+        self.current(&state)?;
+        original_carrier(&state)
+    }
     pub fn authorize_agent_read(
         &self,
         owner: &ActorRef,
@@ -215,6 +245,7 @@ impl SegmentedAutomationVault {
             .lock()
             .map_err(|_| AutomationFault::Unavailable)?;
         self.current(&state)?;
+        original_carrier(&state)?;
         let now = self.native.now()?;
         let ttl = scope.valid_until.unix_ms() - now.unix_ms();
         if !(1..=300_000).contains(&ttl)
@@ -284,7 +315,20 @@ impl SegmentedAutomationVault {
         })
     }
     pub fn check_agent_read_live(&self, permit: &SegmentedAgentPermit) -> Result<()> {
-        permit.live(self).map(|_| ())
+        permit.live(self)?;
+        // Connection polling only inspects the already loaded native metadata.
+        // Taking the filesystem writer lock here would race legitimate writes
+        // between calls. read_agent still checks CURRENT under that lock before
+        // projection; this mutex observes native imports atomically.
+        let state = self
+            .state
+            .lock()
+            .map_err(|_| AutomationFault::Unavailable)?;
+        if let Err(e) = original_carrier(&state) {
+            permit.revoke();
+            return Err(e);
+        }
+        Ok(())
     }
     /// Agent authority is checked before returning any rows, counts or labels.
     /// The borrowed native carrier has no Serialize implementation.
@@ -301,6 +345,10 @@ impl SegmentedAutomationVault {
             .lock()
             .map_err(|_| AutomationFault::Unavailable)?;
         self.current(&state)?;
+        if let Err(e) = original_carrier(&state) {
+            permit.revoke();
+            return Err(e);
+        }
         let now = permit.live(self)?;
         if !permit.policies_current(&state) {
             permit.revoke();

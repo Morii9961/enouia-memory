@@ -515,6 +515,13 @@ withdrawal/forget barriers and qualified Owner overlays. Read selection v4 remov
 global receipt/turn ordinal leaks. No Runtime/MCP adoption or private initialization.
 ADR102 remains reserved for the concurrent Runtime capture session.
 
+### ADR-MEM-104 — Synthetic initialization through shared formation (Implemented, synthetic)
+
+[Decision](104-synthetic-initialization-intake.md): explicit selected originals,
+source/attachment preservation, native legacy-review evidence, durable bounded
+backfill/live batches and seven rebuildable projection groups. No real model,
+owner action or Runtime adoption. [Evidence](../validation/Memory-init-pipeline.md).
+
 ## Relation to Enouia Runtime's register
 
 
@@ -560,6 +567,9 @@ Runtime [ADR-025](https://github.com/Morii9961/enouia-runtime/blob/main/docs/adr
 ### ADR-MEM-105 — Explicit initialized-root Agent adoption
 
 [Decision](105-initialized-agent-reader-boundary.md): integrate published Owner
-dependencies without widening existing Agent/Runtime capture capabilities.
-Descriptor-level refusal precedes current snapshot and transaction work. A
-separate initialized-root reader and shared live binding remain unadvertised.
+and exact initializer dependencies without widening existing Agent/Runtime
+capture capabilities. The explicit qualified native/pipe-4 profile supports the
+original Owner carrier, including witnessed native corrections. Imported/partial/
+typed-attachment carriers refuse before Agent projection/counts and dispatch;
+a later explicit initialized-carrier profile and shared live binding remain
+unadvertised.

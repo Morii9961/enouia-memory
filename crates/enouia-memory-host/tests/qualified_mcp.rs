@@ -625,13 +625,18 @@ fn a_different_os_peer_cannot_claim_the_enrolled_qualified_agent() {
 
 #[test]
 fn invalidated_qualified_connections_keep_original_packets_and_never_reconnect() {
-    for action in ["lock", "revoke", "expire"] {
+    for action in ["lock", "revoke", "expire", "import"] {
         let e = env();
         let vault = Arc::new(e.create(Faults::none()));
         e.populate(&vault, 1);
-        let host =
-            QualifiedAgentHost::from_authenticated_owner(vault, e.descriptor.created_by.clone())
-                .unwrap();
+        vault
+            .set_policy(&e.descriptor.created_by, e.policy(2, 200, 1))
+            .unwrap();
+        let host = QualifiedAgentHost::from_authenticated_owner(
+            vault.clone(),
+            e.descriptor.created_by.clone(),
+        )
+        .unwrap();
         let p = profile();
         let reader = host
             .reader(&e.descriptor.created_by, agent(), scope(&e, 1, false))
@@ -655,6 +660,30 @@ fn invalidated_qualified_connections_keep_original_packets_and_never_reconnect()
             match action {
                 "lock" => host.lock().unwrap(),
                 "revoke" => reader.revoke(),
+                "import" => {
+                    let mut source = e.source(200, Sensitivity::Private);
+                    source.record.source_kind =
+                        enouia_memory_contract::source::SourceKind::ImportedDocument;
+                    source.record.import_id =
+                        Some(ImportId::parse(&fixture::id("imp", 200)).unwrap());
+                    source.record.raw_object_hash = Some(sha256(source.text.as_bytes()));
+                    source.record.locator = Locator::ByteRange {
+                        start: 0,
+                        end: source.text.len() as u64,
+                    };
+                    let objects = std::collections::BTreeMap::from([(
+                        sha256(source.text.as_bytes()),
+                        source.text.as_bytes().to_vec(),
+                    )]);
+                    vault
+                        .capture_import(
+                            &e.descriptor.system_actor,
+                            vec![source],
+                            RecordCatalog::default(),
+                            &objects,
+                        )
+                        .unwrap();
+                }
                 _ => e.clock.set(NOW + 120_000),
             };
             let original = packet(2, "memory_search", search_args());

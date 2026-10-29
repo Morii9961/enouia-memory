@@ -37,6 +37,21 @@ pub(super) struct State {
 fn deny() -> AutomationFault {
     AutomationFault::Denied
 }
+fn import_locator_key(source: &CapturedSource) -> Sha256Hex {
+    if source.record.source_kind == enouia_memory_contract::source::SourceKind::RuntimeEvent {
+        digest(&source.record.locator)
+    } else {
+        digest(&(
+            &source.record.provider,
+            &source.record.account_scope,
+            &source.record.original_conversation_id,
+            &source.record.original_message_id,
+            &source.record.raw_object_hash,
+            &source.record.content_hash,
+            &source.record.locator,
+        ))
+    }
+}
 impl State {
     pub fn snapshot(&self) -> Result<SnapshotBinding> {
         self.head
@@ -409,11 +424,15 @@ impl State {
                 let mut locators = BTreeSet::new();
                 for source in sources {
                     let id = &source.record.source_id;
-                    let key = digest(&source.record.locator);
+                    let key = import_locator_key(source);
                     if !seen.insert(id)
                         || !locators.insert(key.clone())
                         || self.deleted_sources.contains(id)
                         || self.locators.get(&key).is_some_and(|old| old != id)
+                        || (source.record.source_kind
+                            == enouia_memory_contract::source::SourceKind::RuntimeEvent
+                            && source.record.evidence_class
+                                == enouia_memory_contract::common::EvidenceClass::UserConfirmation)
                         || self
                             .sources
                             .get(id)
@@ -557,7 +576,7 @@ impl State {
                 self.catalog_revisions += catalog.entities.len() + catalog.conversations.len();
                 for s in sources {
                     self.locators
-                        .insert(digest(&s.record.locator), s.record.source_id.clone());
+                        .insert(import_locator_key(s), s.record.source_id.clone());
                     self.sources
                         .entry(s.record.source_id.clone())
                         .or_default()

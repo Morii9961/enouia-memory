@@ -106,6 +106,10 @@ impl NextDocument for AutomationCurrent {
 pub struct CapturedSource {
     pub record: SourceRecord,
     pub text: String,
+    /// Existing v1 attachment metadata retained in the exact captured revision.
+    /// Absent on older roots; never reconstructed from a filename on read.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub attachments: Vec<crate::source::AttachmentRecord>,
     #[serde(
         default,
         skip_serializing_if = "Option::is_none",
@@ -124,17 +128,51 @@ impl CapturedSource {
     }
     pub fn validate(&self) -> Vec<Violation> {
         let mut errors = self.record.validate();
+        if (!self.attachments.is_empty() || self.record_fields.is_some())
+            && (self.attachments.len() > 128
+                || self.attachments.iter().any(|a| {
+                    !a.validate().is_empty()
+                        || a.source_id != self.record.source_id
+                        || a.sensitivity < self.record.sensitivity
+                })
+                || self
+                    .attachments
+                    .iter()
+                    .map(|a| &a.attachment_id)
+                    .collect::<BTreeSet<_>>()
+                    .len()
+                    != self.attachments.len()
+                || self
+                    .attachments
+                    .iter()
+                    .map(|a| &a.attachment_id)
+                    .collect::<BTreeSet<_>>()
+                    != self.record.attachment_refs.iter().collect::<BTreeSet<_>>())
+        {
+            errors.push(Violation::new("automation.attachments", "/attachments"));
+        }
         if self.record_fields.as_ref().is_some_and(|f| !f.valid(self)) {
             errors.push(Violation::new("ui.source_fields", "/record_fields"));
         }
-        if self.record.source_kind != SourceKind::RuntimeEvent
-            || self.record.completeness != Completeness::Complete
-            || self.text.trim().is_empty()
+        if !matches!(
+            self.record.source_kind,
+            SourceKind::RuntimeEvent
+                | SourceKind::ExportMessage
+                | SourceKind::ImportedDocument
+                | SourceKind::AgentSubmission
+        ) || !matches!(
+            self.record.completeness,
+            Completeness::Complete | Completeness::Partial
+        ) || self.text.trim().is_empty()
             || self.text.len() > 16 * 1024
             || self.record.content_hash != sha256(self.text.as_bytes())
             || (self.record.speaker_role == SpeakerRole::User) != self.attributed_subject.is_some()
             || (self.record.speaker_role == SpeakerRole::User
-                && self.record.evidence_class != crate::common::EvidenceClass::UserStatement)
+                && !matches!(
+                    self.record.evidence_class,
+                    crate::common::EvidenceClass::UserStatement
+                        | crate::common::EvidenceClass::UserConfirmation
+                ))
         {
             errors.push(Violation::new("automation.capture", "/sources"));
         }

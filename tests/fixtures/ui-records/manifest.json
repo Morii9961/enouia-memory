@@ -94,6 +94,11 @@
       "file": "owner-ledger.json",
       "type": "ledger",
       "schema": "next/ui-records-v2.schema.json"
+    },
+    {
+      "file": "source-attachments.json",
+      "type": "source",
+      "schema": "next/ui-records-v2.schema.json"
     }
   ],
   "invalid": [
@@ -477,6 +482,30 @@
           "op": "set",
           "path": "/withdrawal_watermark",
           "value": 2
+        }
+      ]
+    },
+    {
+      "id": "attachment-refs-mismatch",
+      "base": "source-attachments.json",
+      "schema": "accept",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/record/attachment_refs",
+          "value": []
+        }
+      ]
+    },
+    {
+      "id": "attachment-source-mismatch",
+      "base": "source-attachments.json",
+      "schema": "accept",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/attachments/0/source_id",
+          "value": "src_00000002-0000-4000-8000-000000000001"
         }
       ]
     }
