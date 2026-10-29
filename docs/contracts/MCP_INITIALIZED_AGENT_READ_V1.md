@@ -68,3 +68,31 @@ This checkpoint does not yet add a pipe handshake, MCP tools, detail/source/
 related/recall adapters or Context trace for the new root. Existing actual-pipe
 capabilities remain unchanged. Imported/attachment carrier adoption still
 requires the published initialization dependency separately.
+
+## Checkpoint 3 native read methods
+
+The same native profile adds detail, source, related and recall. The independent
+permit and lock generation are checked before qualification and before return.
+All outputs are bounded data; arguments never select a principal or widen scope.
+Detail includes the qualified current item, original full-field history and
+source metadata/text only when source-read permits it. Truncated history/sources
+declare their counts and coverage. Historical records are not current assertions
+and do not acquire current Owner marks. Receipts omit global sequence.
+
+Source byte ranges are UTF-8 bounded; unknown and inaccessible identifiers both
+return absence. Related edges include only permitted current endpoints, with
+recorded lineage/entity relations separate from algorithm theme suggestions.
+Coverage describes those supported relations. Same-conversation relations and
+semantic neighbors remain explicitly unavailable; no broad conversation view is
+borrowed from native System reads.
+
+Recall uses catalog-4's qualified attention states as native selector inputs.
+The existing age-only selectors retain their meaning. Owner protection changes
+selection participation without changing truth/adoption, conditions, deletion or
+source authorization. A complete scoped candidate set is ranked, then rendered
+UTF-8 and item budgets apply; exclusions have exact reason counts and bounded
+examples. Context lookup returns the actual same response/trace only while its
+delegation and snapshot remain current. It never silently recomputes a trace.
+
+These are native methods, not an OS enrollment, new pipe/tool protocol, imported
+carrier adoption, Runtime hook or write capability.

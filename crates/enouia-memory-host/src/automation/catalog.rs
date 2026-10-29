@@ -694,6 +694,128 @@ fn owner_marks(
 }
 
 /// Pure projection; callers must supply an independently authorized view.
+pub(crate) fn qualified_items(
+    data: &AuthorizedSegmentedRead<'_>,
+    profile: &AttentionProfile,
+    at: &Timestamp,
+) -> ApplicationResult<Vec<CatalogReadItem>> {
+    rows(data, profile, at).map(|rows| rows.iter().map(Row::item).collect())
+}
+
+pub(crate) struct QualifiedRelations {
+    pub edges: Vec<MemoryGraphEdge>,
+    pub coverage: Vec<GraphEdgeCoverage>,
+}
+/// Anchored relations over an already qualified view, without a System port.
+/// Conversation edges need a separate Agent conversation qualification.
+pub(crate) fn qualified_relations(
+    data: &AuthorizedSegmentedRead<'_>,
+    profile: &AttentionProfile,
+    memory: &MemoryId,
+    limit: usize,
+) -> ApplicationResult<Option<QualifiedRelations>> {
+    projections::theme_budget(data, data.memories.len())?;
+    let all = rows(data, profile, &data.now)?;
+    let Some(anchor) = all.iter().find(|r| r.id() == memory) else {
+        return Ok(None);
+    };
+    let kinds = [
+        GraphEdgeKind::DerivedFrom,
+        GraphEdgeKind::Reversion,
+        GraphEdgeKind::SameEntity,
+        GraphEdgeKind::ThemeCooccurrence,
+    ];
+    let mut counts: BTreeMap<_, u64> = kinds.into_iter().map(|k| (k, 0)).collect();
+    let mut edges = Vec::new();
+    let mut add = |edge: MemoryGraphEdge| {
+        *counts.get_mut(&edge.relation).unwrap() += 1;
+        if edges.len() < limit {
+            edges.push(edge);
+        }
+    };
+    let themes: BTreeSet<_> = anchor.theme_values().map(|(id, _)| id).collect();
+    for other in all.iter().filter(|r| r.id() != memory) {
+        for (from, to) in [(anchor, other), (other, anchor)] {
+            let d = from
+                .entry
+                .memory
+                .decision
+                .input
+                .dimensions
+                .as_ref()
+                .unwrap();
+            for kind in [GraphEdgeKind::DerivedFrom, GraphEdgeKind::Reversion] {
+                let refs: Vec<_> = if kind == GraphEdgeKind::DerivedFrom {
+                    d.derived_from.iter().collect()
+                } else {
+                    d.reverts_to.iter().collect()
+                };
+                for target in refs.into_iter().filter(|r| &r.memory.memory_id == to.id()) {
+                    add(MemoryGraphEdge {
+                        from: from.id().clone(),
+                        to: to.id().clone(),
+                        relation: kind,
+                        class: GraphEdgeClass::RecordedRelation,
+                        witness: target.memory.memory_id.to_string(),
+                        score_milli: None,
+                        owner_relations: vec![],
+                    });
+                }
+            }
+        }
+        let shared: BTreeSet<_> = anchor
+            .entities
+            .iter()
+            .map(|e| &e.entity_id)
+            .filter(|id| other.entities.iter().any(|e| &e.entity_id == *id))
+            .collect();
+        for entity in shared {
+            let proofs: BTreeMap<_, _> = anchor
+                .entities
+                .iter()
+                .chain(&other.entities)
+                .filter(|e| &e.entity_id == entity)
+                .filter_map(|e| e.owner_relation.clone())
+                .map(|p| (p.operation_id.clone(), p))
+                .collect();
+            add(MemoryGraphEdge {
+                from: memory.clone(),
+                to: other.id().clone(),
+                relation: GraphEdgeKind::SameEntity,
+                class: GraphEdgeClass::RecordedRelation,
+                witness: entity.clone(),
+                score_milli: None,
+                owner_relations: proofs.into_values().collect(),
+            });
+        }
+        for theme in other
+            .theme_values()
+            .map(|(id, _)| id)
+            .filter(|id| themes.contains(id))
+        {
+            add(MemoryGraphEdge {
+                from: memory.clone(),
+                to: other.id().clone(),
+                relation: GraphEdgeKind::ThemeCooccurrence,
+                class: GraphEdgeClass::AlgorithmSuggestion,
+                witness: theme.to_string(),
+                score_milli: Some(750),
+                owner_relations: vec![],
+            });
+        }
+    }
+    let coverage = kinds
+        .into_iter()
+        .map(|relation| GraphEdgeCoverage {
+            relation,
+            candidates: counts[&relation],
+            retained: edges.iter().filter(|e| e.relation == relation).count() as u64,
+        })
+        .collect();
+    Ok(Some(QualifiedRelations { edges, coverage }))
+}
+
+/// Pure projection; callers must supply an independently authorized view.
 pub(crate) fn project_page(
     data: &AuthorizedSegmentedRead<'_>,
     request: &CatalogReadRequest<'_>,

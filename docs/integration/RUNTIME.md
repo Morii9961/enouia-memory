@@ -488,3 +488,27 @@ future explicit transport profile rather than forward its System reader or nativ
 Owner methods. Initializer import/attachment adoption, Runtime hook/UI/pin and
 private initialization remain separate. See the [contract](../contracts/MCP_INITIALIZED_AGENT_READ_V1.md)
 and [synthetic validation](../validation/MCP-owner-native-agent-reads.md).
+
+### 2026-10-29 — Qualified native Agent read methods (ADR-MEM-105 checkpoint 3)
+
+Surface aggregate: `835ab41a912f0685d678725acd936e93396d003fe7eeee10c1047c3ccbb9552c`.
+
+The same sealed Owner-root Agent delegation now exposes native detail, source,
+related and recall methods. Source text needs independent source-read permission.
+History retains original fields and safe scoped receipts; partial history/source
+output states its actual coverage. Recorded relations and algorithm theme
+suggestions have separate arrays and scoped candidate/retained counts.
+Same-conversation relations and semantic neighbors remain explicitly unavailable.
+
+The new pure qualified selector accepts catalog-4 attention states from native
+qualification, including Owner protection. Existing selectors retain their
+age-based behavior. Protection does not change truth/adoption or bypass current
+authorization and budgets. Context lookup returns the actual same Agent response
+and trace only under current delegation/snapshot checks. Reads do not reinforce.
+
+These are native methods, not OS enrollment or an advertised MCP transport.
+Runtime must adopt the later explicit new-root pipe/schema profile. No System
+reader/Owner port forwarding, initializer-carrier adoption, Runtime hook/UI/pin,
+private initialization or write capability is included. See the
+[contract](../contracts/MCP_INITIALIZED_AGENT_READ_V1.md) and
+[synthetic evidence](../validation/MCP-owner-agent-tools-native.md).

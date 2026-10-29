@@ -41,3 +41,13 @@ Bind page selection/cursors to this delegation's scope hash. Lock/unlock cannot
 revive old readers. Root/policy/clock/instance/deletion checks remain current.
 The native factory assumes trusted native Owner authentication; this constructor
 alone is not OS enrollment. Actual MCP process/transport binding follows later.
+
+Checkpoint 3 adds native detail/source/related/recall methods to that same sealed
+delegation. Source text needs the independent source-read bit. History uses its
+original revisions and safe scoped receipts, not current Owner badges pasted
+onto old records. Related results distinguish recorded relations from algorithm
+suggestions; conversation relations remain unavailable until their own Agent
+qualification exists. Recall accepts attention already qualified by catalog-4,
+without changing stored memory or the original selector's behavior. Context
+returns the actual same cached response under current scope/snapshot checks.
+No new MCP advertisement or initializer-carrier adoption is implied.
