@@ -51,3 +51,10 @@ qualification exists. Recall accepts attention already qualified by catalog-4,
 without changing stored memory or the original selector's behavior. Context
 returns the actual same cached response under current scope/snapshot checks.
 No new MCP advertisement or initializer-carrier adoption is implied.
+
+Checkpoint 4 freezes the distinct pipe-4 / memory-agent-qualified-read-1
+five-tool profile in MCP_OWNER_AGENT_PIPE_V1. Native qualification stays separate
+from OS process enrollment and wire input. Bind exact layout/carrier/schema hash
+before dispatch, keep old clients refused, and bound history construction with
+delegation/snapshot/profile/memory cursors. Initializer import/attachments still
+require an exact published dependency and deliberate compatibility update.

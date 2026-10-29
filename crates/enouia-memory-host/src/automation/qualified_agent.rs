@@ -16,7 +16,7 @@ use enouia_memory_vault::automation::{
         SegmentedAgentScope, SegmentedAutomationVault, SegmentedMemory,
     },
 };
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::{
@@ -58,6 +58,16 @@ pub struct QualifiedAgentPage {
 pub struct QualifiedAgentItem {
     pub base: CatalogReadItem,
     pub record: AgentRecordProjection,
+}
+/// Data only; native current qualification is always required again.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct QualifiedHistoryCursor {
+    pub scope_hash: Sha256Hex,
+    pub snapshot: SnapshotBinding,
+    pub profile_hash: Sha256Hex,
+    pub memory_id: MemoryId,
+    pub before_revision: Revision,
 }
 impl QualifiedAgentHost {
     /// Caller has authenticated the native Owner; not an OS enrollment method.
@@ -171,6 +181,10 @@ impl QualifiedAgentReader<'_> {
         let result = self.host.vault.read_agent(&self.permit, selected, f)??;
         self.host.vault.check_agent_read_live(&self.permit)?;
         Ok(result)
+    }
+    pub(crate) fn check_connection(&self) -> ApplicationResult<()> {
+        let _gate = self.gate()?;
+        Ok(())
     }
     pub fn page(
         &self,
@@ -328,19 +342,36 @@ impl QualifiedAgentReader<'_> {
         include_source_text: bool,
         max_bytes: usize,
     ) -> ApplicationResult<Option<Value>> {
+        self.detail_page(profile, id, expected, include_source_text, max_bytes, None)
+    }
+    pub fn detail_page(
+        &self,
+        profile: &AttentionProfile,
+        id: &MemoryId,
+        expected: Option<&SnapshotBinding>,
+        include_source_text: bool,
+        max_bytes: usize,
+        cursor: Option<&QualifiedHistoryCursor>,
+    ) -> ApplicationResult<Option<Value>> {
         validate_read(profile, max_bytes)?;
         self.read(Some(id), |data| {
             if include_source_text && !self.source_read() { return Err(AutomationFault::Denied.into()); }
             check_snapshot(&data, expected)?;
+            if cursor.is_some_and(|c| c.scope_hash != *self.scope_hash() || c.snapshot != data.current.snapshot
+                || c.profile_hash != digest(profile) || &c.memory_id != id) { return Err(AutomationFault::Stale.into()); }
             let Some(entry) = data.current.memories.iter().find(|m| &m.memory.memory.memory_id == id) else { return Ok(None); };
             let current = current_refs(&data);
             let base = qualified_items(&data.current, profile, &data.current.now)?
                 .into_iter().find(|b| &b.base.memory.memory_id == id).ok_or(ApplicationFault::Invalid)?;
             let selected = qualified_item(&data, entry, base, &current)?;
-            let mut history = Vec::new();
-            let mut revisions = data.history.clone();
+            let history_count = data.history.len();
+            let mut revisions: Vec<_> = data.history.iter().copied()
+                .filter(|m| cursor.is_none_or(|c| m.memory.memory.revision < c.before_revision)).collect();
             revisions.sort_by_key(|m| m.memory.memory.revision);
-            for old in revisions {
+            let remaining_count = revisions.len();
+            let mut selected_revisions = revisions.split_off(revisions.len().saturating_sub(32));
+            let mut history = Vec::new();
+            for old in &selected_revisions {
                 let input = &old.memory.decision.input;
                 history.push(json!({"memory":old.target,"content":input.content,
                     "knowledge":old.memory.decision.outcome.knowledge,
@@ -350,29 +381,37 @@ impl QualifiedAgentReader<'_> {
                     "receipt":NativeReadReceipt::from(&old.receipt),
                     "record":record(&data, old, &current, &[])?}));
             }
-            let history_count = history.len();
             let refs: BTreeSet<_> = data.history.iter().flat_map(|m| &m.memory.decision.input.input_refs).collect();
+            let source_count = data.current.sources.values().filter(|s| self.source_read() && refs.contains(&s.reference())).count();
+            let current_sources: BTreeSet<_> = entry.memory.decision.input.input_refs.iter().collect();
             let mut sources: Vec<_> = data.current.sources.values()
-                .filter(|s| self.source_read() && refs.contains(&s.reference()))
+                .filter(|s| self.source_read() && current_sources.contains(&s.reference()))
+                .chain(data.current.sources.values().filter(|s| self.source_read() && refs.contains(&s.reference()) && !current_sources.contains(&s.reference())))
+                .take(32)
                 .map(|s| json!({"record":s.record,"record_fields":s.record_fields,
                     "attributed_subject":s.attributed_subject,"text":include_source_text.then_some(&s.text)})).collect();
-            let source_count = sources.len();
             let mut text_complete = true;
             loop {
+                let history_complete = history.len() == remaining_count;
+                let next_history = if history_complete { None } else {
+                    Some(QualifiedHistoryCursor {scope_hash:self.scope_hash().clone(), snapshot:data.current.snapshot.clone(),
+                        profile_hash:digest(profile), memory_id:id.clone(),
+                        before_revision:selected_revisions.first().ok_or(ApplicationFault::Vault(AutomationFault::Capacity))?.memory.memory.revision})
+                };
                 let result = json!({"capability":CAPABILITY,"scope_hash":self.scope_hash(),
                     "snapshot":data.current.snapshot,"authorized_at":data.current.now,
                     "profile_hash":digest(profile),"item":selected,"history":history,
-                    "history_count_in_scope":history_count,"history_complete":history.len()==history_count,
+                    "history_count_in_scope":history_count,"history_complete":history_complete,"next_history":next_history,
                     "sources":sources,"source_read":self.source_read(),
                     "source_count_in_scope":source_count,"sources_complete":sources.len()==source_count,
                     "source_text_complete":text_complete,
-                    "complete_in_scope":history.len()==history_count && sources.len()==source_count && text_complete});
+                    "complete_in_scope":history_complete && sources.len()==source_count && text_complete});
                 if encoded(&result)? <= max_bytes { return Ok(Some(result)); }
                 if sources.iter().any(|s| !s["text"].is_null()) {
                     for s in &mut sources { s["text"] = Value::Null; }
                     text_complete = false;
-                } else if !history.is_empty() { history.remove(0); }
-                else if !sources.is_empty() { sources.pop(); }
+                } else if !sources.is_empty() { sources.pop(); }
+                else if history.len() > 1 { history.remove(0); selected_revisions.remove(0); }
                 else { return Err(AutomationFault::Capacity.into()); }
             }
         })

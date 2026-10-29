@@ -1,0 +1,2205 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.enouia-memory.invalid/next/agent-qualified-read-v2.schema.json",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/search_request"
+    },
+    {
+      "$ref": "#/$defs/search_response"
+    },
+    {
+      "$ref": "#/$defs/read_request"
+    },
+    {
+      "$ref": "#/$defs/read_response"
+    },
+    {
+      "$ref": "#/$defs/source_request"
+    },
+    {
+      "$ref": "#/$defs/source_response"
+    },
+    {
+      "$ref": "#/$defs/related_request"
+    },
+    {
+      "$ref": "#/$defs/related_response"
+    },
+    {
+      "$ref": "#/$defs/recall_request"
+    },
+    {
+      "$ref": "#/$defs/recall_response"
+    }
+  ],
+  "$defs": {
+    "agent": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "actor_type": {
+          "const": "agent"
+        },
+        "actor_id": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/principalId"
+        }
+      },
+      "required": [
+        "actor_type",
+        "actor_id"
+      ]
+    },
+    "error": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "enum": [
+            "invalid_request",
+            "permission_denied",
+            "stale_scope",
+            "unavailable",
+            "outcome_unknown"
+          ]
+        },
+        "retryable": {
+          "const": false
+        }
+      },
+      "required": [
+        "code",
+        "retryable"
+      ]
+    },
+    "recall_trace": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "algorithm": {
+          "const": "attention-rank-1"
+        },
+        "snapshot": {
+          "$ref": "automation-v2.schema.json#/$defs/snapshot"
+        },
+        "profile_hash": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/sha256"
+        },
+        "at": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/timestamp"
+        },
+        "authorized_at": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/timestamp"
+        },
+        "considered": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 65536
+        },
+        "selected": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "memory": {
+                "$ref": "automation-v2.schema.json#/$defs/memoryRef"
+              },
+              "attention": {
+                "enum": [
+                  "active",
+                  "fading",
+                  "archived",
+                  "protected"
+                ]
+              },
+              "score": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "reasons": {
+                "type": "array",
+                "items": {
+                  "enum": [
+                    "lexical",
+                    "alias",
+                    "conditions",
+                    "time_window",
+                    "protected",
+                    "fresh",
+                    "fading",
+                    "historical_rescue"
+                  ]
+                },
+                "maxItems": 8
+              }
+            },
+            "required": [
+              "memory",
+              "attention",
+              "score",
+              "reasons"
+            ]
+          },
+          "maxItems": 32
+        },
+        "excluded": {
+          "type": "array",
+          "items": {
+            "type": "array",
+            "prefixItems": [
+              {
+                "$ref": "automation-v2.schema.json#/$defs/memoryRef"
+              },
+              {
+                "enum": [
+                  "not_adopted",
+                  "conditions",
+                  "time_window",
+                  "validity",
+                  "archived",
+                  "no_cue",
+                  "budget"
+                ]
+              }
+            ],
+            "minItems": 2,
+            "maxItems": 2
+          },
+          "maxItems": 128
+        },
+        "rendered_bytes": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 65536
+        }
+      },
+      "required": [
+        "algorithm",
+        "snapshot",
+        "profile_hash",
+        "at",
+        "authorized_at",
+        "considered",
+        "selected",
+        "excluded",
+        "rendered_bytes"
+      ]
+    },
+    "trace_coverage": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "excluded_in_scope": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 65536
+        },
+        "excluded_returned": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 128
+        },
+        "complete": {
+          "type": "boolean"
+        },
+        "reason_counts": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "not_adopted": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 65536
+            },
+            "conditions": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 65536
+            },
+            "time_window": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 65536
+            },
+            "validity": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 65536
+            },
+            "archived": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 65536
+            },
+            "no_cue": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 65536
+            },
+            "budget": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 65536
+            }
+          }
+        }
+      },
+      "required": [
+        "excluded_in_scope",
+        "excluded_returned",
+        "complete",
+        "reason_counts"
+      ]
+    },
+    "search_args": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "filter": {
+          "$ref": "catalog-v2.schema.json#/$defs/filter"
+        },
+        "cursor": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/cursor"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
+        },
+        "max_bytes": {
+          "type": "integer",
+          "minimum": 4096,
+          "maximum": 262144
+        },
+        "include_facets": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "filter",
+        "cursor",
+        "limit",
+        "max_bytes",
+        "include_facets"
+      ]
+    },
+    "read_args": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "memory_id": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/memoryId"
+        },
+        "expected": {
+          "oneOf": [
+            {
+              "$ref": "read-model-v2.schema.json#/$defs/page/properties/snapshot"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "include_source_text": {
+          "type": "boolean"
+        },
+        "max_bytes": {
+          "type": "integer",
+          "minimum": 4096,
+          "maximum": 262144
+        },
+        "history_cursor": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/history_cursor"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "memory_id",
+        "expected",
+        "include_source_text",
+        "max_bytes",
+        "history_cursor"
+      ]
+    },
+    "source_args": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "source_id": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/sourceId"
+        },
+        "revision": {
+          "oneOf": [
+            {
+              "$ref": "../memory/common-v1.schema.json#/$defs/revision"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "from_byte": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 16384
+        },
+        "to_byte": {
+          "oneOf": [
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 16384
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "max_bytes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 8192
+        }
+      },
+      "required": [
+        "source_id",
+        "revision",
+        "from_byte",
+        "to_byte",
+        "max_bytes"
+      ]
+    },
+    "related_args": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "memory_id": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/memoryId"
+        },
+        "expected": {
+          "oneOf": [
+            {
+              "$ref": "read-model-v2.schema.json#/$defs/page/properties/snapshot"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "max_bytes": {
+          "type": "integer",
+          "minimum": 4096,
+          "maximum": 262144
+        }
+      },
+      "required": [
+        "memory_id",
+        "expected",
+        "max_bytes"
+      ]
+    },
+    "recall_args": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "text": {
+          "type": "string",
+          "maxLength": 2048
+        },
+        "conditions": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          },
+          "maxItems": 8
+        },
+        "event_window": {
+          "oneOf": [
+            {
+              "$ref": "agent-record-read-v2.schema.json#/$defs/time"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "at": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/timestamp"
+        },
+        "intent": {
+          "enum": [
+            "current",
+            "historical",
+            "browse"
+          ]
+        },
+        "limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 32
+        },
+        "max_bytes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 65536
+        }
+      },
+      "required": [
+        "text",
+        "conditions",
+        "event_window",
+        "at",
+        "intent",
+        "limit",
+        "max_bytes"
+      ]
+    },
+    "coverage": {
+      "const": {
+        "record_fields": "ui-records-v2",
+        "qualification": "owner-qualified-catalog-4",
+        "graph": "recorded_lineage_entity_and_theme_suggestions",
+        "unavailable_relations": [
+          "same_conversation",
+          "semantic_neighbors"
+        ],
+        "trace_exclusions": "bounded_128_with_exact_reason_counts",
+        "owner_actions": "native_proofs_read_only",
+        "capture": "runtime_only_future",
+        "source_carrier": "captured-source-original-1",
+        "import_attachments": "unavailable"
+      }
+    },
+    "safe_receipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "job_key",
+        "binding_hash",
+        "operation_id",
+        "request_hash",
+        "response_hash",
+        "decision_hash",
+        "committed_in",
+        "result"
+      ],
+      "properties": {
+        "job_key": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/sha256"
+        },
+        "binding_hash": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/sha256"
+        },
+        "operation_id": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/operationId"
+        },
+        "request_hash": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/sha256"
+        },
+        "response_hash": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/sha256"
+        },
+        "decision_hash": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/sha256"
+        },
+        "committed_in": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/commitId"
+        },
+        "result": {
+          "$ref": "automation-v2.schema.json#/$defs/memoryRef"
+        }
+      }
+    },
+    "native_base": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "memory": {
+          "$ref": "automation-v2.schema.json#/$defs/memoryRef"
+        },
+        "system_actor": {
+          "$ref": "automation-v2.schema.json#/$defs/systemActor"
+        },
+        "subject_id": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/subjectId"
+        },
+        "project_id": {
+          "oneOf": [
+            {
+              "$ref": "../memory/common-v1.schema.json#/$defs/projectId"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "content": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 16384
+        },
+        "knowledge": {
+          "enum": [
+            "attributed_statement",
+            "hypothesis",
+            "uncertain",
+            "disputed"
+          ]
+        },
+        "adoption": {
+          "enum": [
+            "adopted",
+            "staged"
+          ]
+        },
+        "dimensions": {
+          "$ref": "formation-v2.schema.json"
+        },
+        "policy": {
+          "$ref": "automation-v2.schema.json#/$defs/policyRef"
+        },
+        "rule_version": {
+          "const": "admission-rules-3"
+        },
+        "committed_in": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/commitId"
+        },
+        "learned_at": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/timestamp"
+        },
+        "source_captured_at": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/timestamp"
+        },
+        "attention": {
+          "enum": [
+            "active",
+            "fading",
+            "archived",
+            "protected"
+          ]
+        },
+        "evidence": {
+          "type": "array",
+          "items": {
+            "$ref": "../memory/common-v1.schema.json#/$defs/evidenceRef"
+          },
+          "maxItems": 128
+        },
+        "context_source_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "../memory/common-v1.schema.json#/$defs/sourceRevisionRef"
+          },
+          "maxItems": 128
+        },
+        "receipt": {
+          "$ref": "#/$defs/safe_receipt"
+        },
+        "validity": {
+          "enum": [
+            "unspecified",
+            "in_range",
+            "not_yet_valid",
+            "expired"
+          ]
+        }
+      },
+      "required": [
+        "memory",
+        "system_actor",
+        "subject_id",
+        "project_id",
+        "content",
+        "knowledge",
+        "adoption",
+        "dimensions",
+        "policy",
+        "rule_version",
+        "committed_in",
+        "learned_at",
+        "source_captured_at",
+        "attention",
+        "evidence",
+        "context_source_refs",
+        "receipt",
+        "validity"
+      ]
+    },
+    "base_item": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "base",
+        "title",
+        "content_lang",
+        "event_time",
+        "valid_time",
+        "entities",
+        "owner_marks",
+        "effective_sensitivity",
+        "formation_reason"
+      ],
+      "properties": {
+        "base": {
+          "$ref": "#/$defs/native_base"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 60
+        },
+        "content_lang": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 63
+        },
+        "event_time": {
+          "$ref": "ui-records-v2.schema.json#/$defs/recordTime"
+        },
+        "valid_time": {
+          "$ref": "ui-records-v2.schema.json#/$defs/recordTime"
+        },
+        "entities": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "entity_id",
+              "role"
+            ],
+            "properties": {
+              "entity_id": {
+                "$ref": "ui-records-v2.schema.json#/$defs/entityId"
+              },
+              "role": {
+                "enum": [
+                  "subject",
+                  "participant",
+                  "mentioned",
+                  "place",
+                  "project",
+                  "organization"
+                ]
+              },
+              "recorded_entity_id": {
+                "$ref": "ui-records-v2.schema.json#/$defs/entityId"
+              },
+              "owner_relation": {
+                "$ref": "owner-execution-v2.schema.json#/$defs/OwnerActionProof"
+              }
+            }
+          },
+          "maxItems": 32,
+          "minItems": 0
+        },
+        "effective_sensitivity": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/sensitivity"
+        },
+        "formation_reason": {
+          "$ref": "process-v2.schema.json#/$defs/MemoryFormationReason"
+        },
+        "owner_marks": {
+          "$ref": "owner-execution-v2.schema.json#/$defs/OwnerMemoryMarks"
+        }
+      }
+    },
+    "record_projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "memory": {
+          "$ref": "automation-v2.schema.json#/$defs/memoryRef"
+        },
+        "fields": {
+          "$ref": "ui-records-v2.schema.json#/$defs/memoryFields"
+        },
+        "entities": {
+          "type": "array",
+          "maxItems": 64,
+          "items": {
+            "$ref": "ui-records-v2.schema.json#/$defs/entity"
+          }
+        },
+        "producer_version": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "model_version": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "annotations_scope": {
+          "const": "authorized_current_targets"
+        }
+      },
+      "required": [
+        "memory",
+        "fields",
+        "entities",
+        "producer_version",
+        "model_version",
+        "annotations_scope"
+      ]
+    },
+    "item": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "base": {
+          "$ref": "#/$defs/base_item"
+        },
+        "record": {
+          "$ref": "#/$defs/record_projection"
+        }
+      },
+      "required": [
+        "base",
+        "record"
+      ]
+    },
+    "selection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "snapshot",
+        "scope_hash",
+        "query_hash",
+        "evaluated_at",
+        "algorithm",
+        "version",
+        "profile_hash",
+        "withdrawal_watermark"
+      ],
+      "properties": {
+        "snapshot": {
+          "$ref": "automation-v2.schema.json#/$defs/snapshot"
+        },
+        "scope_hash": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/sha256"
+        },
+        "query_hash": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/sha256"
+        },
+        "evaluated_at": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/timestamp"
+        },
+        "algorithm": {
+          "const": "owner-qualified-catalog-4"
+        },
+        "version": {
+          "const": 4
+        },
+        "profile_hash": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/sha256"
+        },
+        "withdrawal_watermark": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/revision"
+        }
+      }
+    },
+    "cursor": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "selection": {
+          "$ref": "#/$defs/selection"
+        },
+        "after": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/memoryId"
+        }
+      },
+      "required": [
+        "selection",
+        "after"
+      ]
+    },
+    "facet_cursor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "selection",
+        "axis",
+        "count_scope",
+        "after"
+      ],
+      "properties": {
+        "selection": {
+          "$ref": "#/$defs/selection"
+        },
+        "axis": {
+          "$ref": "#/$defs/axis"
+        },
+        "count_scope": {
+          "$ref": "#/$defs/countScope"
+        },
+        "after": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        }
+      }
+    },
+    "facet_group": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "axis",
+        "count_scope",
+        "values",
+        "total_values",
+        "next"
+      ],
+      "properties": {
+        "axis": {
+          "$ref": "#/$defs/axis"
+        },
+        "count_scope": {
+          "$ref": "#/$defs/countScope"
+        },
+        "values": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/facetValue"
+          },
+          "maxItems": 100,
+          "minItems": 0
+        },
+        "total_values": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 65536
+        },
+        "next": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/facet_cursor"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "history_cursor": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "scope_hash": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/sha256"
+        },
+        "snapshot": {
+          "$ref": "automation-v2.schema.json#/$defs/snapshot"
+        },
+        "profile_hash": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/sha256"
+        },
+        "memory_id": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/memoryId"
+        },
+        "before_revision": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/revision"
+        }
+      },
+      "required": [
+        "scope_hash",
+        "snapshot",
+        "profile_hash",
+        "memory_id",
+        "before_revision"
+      ]
+    },
+    "search_data": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "const": 2
+        },
+        "kind": {
+          "const": "qualified_agent_page"
+        },
+        "capability": {
+          "const": "memory-agent-qualified-native-read-1"
+        },
+        "scope_hash": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/sha256"
+        },
+        "principal": {
+          "$ref": "#/$defs/agent"
+        },
+        "selection": {
+          "$ref": "#/$defs/selection"
+        },
+        "authorized_at": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/timestamp"
+        },
+        "matched_in_scope": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 65536
+        },
+        "unknown_time_in_scope": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 65536
+        },
+        "count_exact": {
+          "const": true
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/item"
+          },
+          "maxItems": 100
+        },
+        "complete_in_scope": {
+          "type": "boolean"
+        },
+        "next": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/cursor"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "facets": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/facet_group"
+          },
+          "maxItems": 9
+        }
+      },
+      "required": [
+        "schema_version",
+        "kind",
+        "capability",
+        "scope_hash",
+        "principal",
+        "selection",
+        "authorized_at",
+        "matched_in_scope",
+        "unknown_time_in_scope",
+        "count_exact",
+        "items",
+        "complete_in_scope",
+        "next",
+        "facets"
+      ]
+    },
+    "source_metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "record": {
+          "$ref": "../memory/source-v1.schema.json"
+        },
+        "record_fields": {
+          "oneOf": [
+            {
+              "$ref": "ui-records-v2.schema.json#/$defs/sourceFields"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "attributed_subject": {
+          "oneOf": [
+            {
+              "$ref": "../memory/common-v1.schema.json#/$defs/subjectId"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "text": {
+          "oneOf": [
+            {
+              "type": "string",
+              "maxLength": 16384
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "record",
+        "record_fields",
+        "attributed_subject",
+        "text"
+      ]
+    },
+    "history_item": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "memory": {
+          "$ref": "automation-v2.schema.json#/$defs/targetRef"
+        },
+        "content": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 16384
+        },
+        "knowledge": {
+          "enum": [
+            "attributed_statement",
+            "hypothesis",
+            "uncertain",
+            "disputed"
+          ]
+        },
+        "adoption": {
+          "enum": [
+            "adopted",
+            "staged"
+          ]
+        },
+        "dimensions": {
+          "$ref": "formation-v2.schema.json"
+        },
+        "learned_at": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/timestamp"
+        },
+        "is_current": {
+          "type": "boolean"
+        },
+        "receipt": {
+          "$ref": "#/$defs/safe_receipt"
+        },
+        "record": {
+          "$ref": "#/$defs/record_projection"
+        }
+      },
+      "required": [
+        "memory",
+        "content",
+        "knowledge",
+        "adoption",
+        "dimensions",
+        "learned_at",
+        "is_current",
+        "receipt",
+        "record"
+      ]
+    },
+    "read_data": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "capability": {
+          "const": "memory-agent-qualified-native-read-1"
+        },
+        "scope_hash": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/sha256"
+        },
+        "snapshot": {
+          "$ref": "automation-v2.schema.json#/$defs/snapshot"
+        },
+        "authorized_at": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/timestamp"
+        },
+        "profile_hash": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/sha256"
+        },
+        "item": {
+          "$ref": "#/$defs/item"
+        },
+        "history": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/history_item"
+          },
+          "maxItems": 32
+        },
+        "history_count_in_scope": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 65536
+        },
+        "history_complete": {
+          "type": "boolean"
+        },
+        "next_history": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/history_cursor"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "sources": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/source_metadata"
+          },
+          "maxItems": 32
+        },
+        "source_read": {
+          "type": "boolean"
+        },
+        "source_count_in_scope": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 65536
+        },
+        "sources_complete": {
+          "type": "boolean"
+        },
+        "source_text_complete": {
+          "type": "boolean"
+        },
+        "complete_in_scope": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "capability",
+        "scope_hash",
+        "snapshot",
+        "authorized_at",
+        "profile_hash",
+        "item",
+        "history",
+        "history_count_in_scope",
+        "history_complete",
+        "next_history",
+        "sources",
+        "source_read",
+        "source_count_in_scope",
+        "sources_complete",
+        "source_text_complete",
+        "complete_in_scope"
+      ]
+    },
+    "source_data": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "capability": {
+          "const": "memory-agent-qualified-native-read-1"
+        },
+        "scope_hash": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/sha256"
+        },
+        "snapshot": {
+          "$ref": "read-model-v2.schema.json#/$defs/page/properties/snapshot"
+        },
+        "authorized_at": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/timestamp"
+        },
+        "record": {
+          "$ref": "../memory/source-v1.schema.json"
+        },
+        "attributed_subject": {
+          "oneOf": [
+            {
+              "$ref": "../memory/common-v1.schema.json#/$defs/subjectId"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "excerpt": {
+          "type": "string",
+          "maxLength": 8192
+        },
+        "excerpt_hash": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/sha256"
+        },
+        "from_byte": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 16384
+        },
+        "to_byte": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 16384
+        },
+        "full_byte_len": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 16384
+        },
+        "complete": {
+          "type": "boolean"
+        },
+        "next_start": {
+          "oneOf": [
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 16384
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "record_fields": {
+          "oneOf": [
+            {
+              "$ref": "ui-records-v2.schema.json#/$defs/sourceFields"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "capability",
+        "scope_hash",
+        "snapshot",
+        "authorized_at",
+        "record",
+        "attributed_subject",
+        "excerpt",
+        "excerpt_hash",
+        "from_byte",
+        "to_byte",
+        "full_byte_len",
+        "complete",
+        "next_start",
+        "record_fields"
+      ]
+    },
+    "recorded_edge": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "from",
+        "to",
+        "relation",
+        "class",
+        "witness",
+        "score_milli"
+      ],
+      "properties": {
+        "from": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/memoryId"
+        },
+        "to": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/memoryId"
+        },
+        "relation": {
+          "enum": [
+            "derived_from",
+            "reversion",
+            "same_entity"
+          ]
+        },
+        "class": {
+          "const": "recorded_relation"
+        },
+        "witness": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "score_milli": {
+          "oneOf": [
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 1000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "owner_relations": {
+          "type": "array",
+          "maxItems": 64,
+          "items": {
+            "$ref": "owner-execution-v2.schema.json#/$defs/OwnerActionProof"
+          }
+        }
+      }
+    },
+    "suggested_edge": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "from",
+        "to",
+        "relation",
+        "class",
+        "witness",
+        "score_milli"
+      ],
+      "properties": {
+        "from": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/memoryId"
+        },
+        "to": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/memoryId"
+        },
+        "relation": {
+          "enum": [
+            "theme_cooccurrence"
+          ]
+        },
+        "class": {
+          "const": "algorithm_suggestion"
+        },
+        "witness": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "score_milli": {
+          "oneOf": [
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 1000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "owner_relations": {
+          "type": "array",
+          "maxItems": 64,
+          "items": {
+            "$ref": "owner-execution-v2.schema.json#/$defs/OwnerActionProof"
+          }
+        }
+      }
+    },
+    "edge_coverage": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "relation": {
+          "enum": [
+            "derived_from",
+            "reversion",
+            "same_entity",
+            "theme_cooccurrence"
+          ]
+        },
+        "candidates": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 16777216
+        },
+        "retained": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 128
+        }
+      },
+      "required": [
+        "relation",
+        "candidates",
+        "retained"
+      ]
+    },
+    "related_data": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "capability": {
+          "const": "memory-agent-qualified-native-read-1"
+        },
+        "scope_hash": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/sha256"
+        },
+        "snapshot": {
+          "$ref": "automation-v2.schema.json#/$defs/snapshot"
+        },
+        "authorized_at": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/timestamp"
+        },
+        "algorithm": {
+          "const": "owner-qualified-related-1"
+        },
+        "memory_id": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/memoryId"
+        },
+        "recorded_edges": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/recorded_edge"
+          },
+          "maxItems": 128
+        },
+        "suggested_edges": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/suggested_edge"
+          },
+          "maxItems": 128
+        },
+        "edge_coverage": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/edge_coverage"
+          },
+          "maxItems": 4
+        },
+        "coverage_scope": {
+          "const": "supported_authorized_current_relations"
+        },
+        "unavailable": {
+          "const": [
+            "same_conversation",
+            "semantic_neighbors"
+          ]
+        },
+        "complete_in_scope": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "capability",
+        "scope_hash",
+        "snapshot",
+        "authorized_at",
+        "algorithm",
+        "memory_id",
+        "recorded_edges",
+        "suggested_edges",
+        "edge_coverage",
+        "coverage_scope",
+        "unavailable",
+        "complete_in_scope"
+      ]
+    },
+    "recall_data": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "capability": {
+          "const": "memory-agent-qualified-native-read-1"
+        },
+        "scope_hash": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/sha256"
+        },
+        "request_id": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/requestId"
+        },
+        "qualification": {
+          "const": "owner-qualified-catalog-4"
+        },
+        "trace": {
+          "$ref": "#/$defs/recall_trace"
+        },
+        "trace_coverage": {
+          "$ref": "#/$defs/trace_coverage"
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/item"
+          },
+          "maxItems": 32
+        },
+        "rendered_context": {
+          "type": "string",
+          "maxLength": 65536
+        },
+        "complete_in_scope": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "capability",
+        "scope_hash",
+        "request_id",
+        "qualification",
+        "trace",
+        "trace_coverage",
+        "items",
+        "rendered_context",
+        "complete_in_scope"
+      ]
+    },
+    "search_request": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "const": 2
+        },
+        "kind": {
+          "const": "agent_qualified_read_request"
+        },
+        "capability": {
+          "const": "memory-agent-qualified-read-1"
+        },
+        "request_id": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/requestId"
+        },
+        "operation": {
+          "const": "memory_search"
+        },
+        "arguments": {
+          "$ref": "#/$defs/search_args"
+        }
+      },
+      "required": [
+        "schema_version",
+        "kind",
+        "capability",
+        "request_id",
+        "operation",
+        "arguments"
+      ]
+    },
+    "search_response": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "const": 2
+        },
+        "kind": {
+          "const": "agent_qualified_read_response"
+        },
+        "capability": {
+          "const": "memory-agent-qualified-read-1"
+        },
+        "request_id": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/requestId"
+        },
+        "operation": {
+          "const": "memory_search"
+        },
+        "principal": {
+          "$ref": "#/$defs/agent"
+        },
+        "scope_hash": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/sha256"
+        },
+        "data": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/search_data"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "error": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/error"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "coverage": {
+          "$ref": "#/$defs/coverage"
+        }
+      },
+      "required": [
+        "schema_version",
+        "kind",
+        "capability",
+        "request_id",
+        "operation",
+        "principal",
+        "scope_hash",
+        "data",
+        "error",
+        "coverage"
+      ],
+      "oneOf": [
+        {
+          "properties": {
+            "data": {
+              "$ref": "#/$defs/search_data"
+            },
+            "error": {
+              "type": "null"
+            }
+          }
+        },
+        {
+          "properties": {
+            "data": {
+              "type": "null"
+            },
+            "error": {
+              "$ref": "#/$defs/error"
+            }
+          }
+        }
+      ]
+    },
+    "read_request": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "const": 2
+        },
+        "kind": {
+          "const": "agent_qualified_read_request"
+        },
+        "capability": {
+          "const": "memory-agent-qualified-read-1"
+        },
+        "request_id": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/requestId"
+        },
+        "operation": {
+          "const": "memory_read"
+        },
+        "arguments": {
+          "$ref": "#/$defs/read_args"
+        }
+      },
+      "required": [
+        "schema_version",
+        "kind",
+        "capability",
+        "request_id",
+        "operation",
+        "arguments"
+      ]
+    },
+    "read_response": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "const": 2
+        },
+        "kind": {
+          "const": "agent_qualified_read_response"
+        },
+        "capability": {
+          "const": "memory-agent-qualified-read-1"
+        },
+        "request_id": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/requestId"
+        },
+        "operation": {
+          "const": "memory_read"
+        },
+        "principal": {
+          "$ref": "#/$defs/agent"
+        },
+        "scope_hash": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/sha256"
+        },
+        "data": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/read_data"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "error": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/error"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "coverage": {
+          "$ref": "#/$defs/coverage"
+        }
+      },
+      "required": [
+        "schema_version",
+        "kind",
+        "capability",
+        "request_id",
+        "operation",
+        "principal",
+        "scope_hash",
+        "data",
+        "error",
+        "coverage"
+      ],
+      "oneOf": [
+        {
+          "properties": {
+            "data": {
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/read_data"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "error": {
+              "type": "null"
+            }
+          }
+        },
+        {
+          "properties": {
+            "data": {
+              "type": "null"
+            },
+            "error": {
+              "$ref": "#/$defs/error"
+            }
+          }
+        }
+      ]
+    },
+    "source_request": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "const": 2
+        },
+        "kind": {
+          "const": "agent_qualified_read_request"
+        },
+        "capability": {
+          "const": "memory-agent-qualified-read-1"
+        },
+        "request_id": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/requestId"
+        },
+        "operation": {
+          "const": "memory_source"
+        },
+        "arguments": {
+          "$ref": "#/$defs/source_args"
+        }
+      },
+      "required": [
+        "schema_version",
+        "kind",
+        "capability",
+        "request_id",
+        "operation",
+        "arguments"
+      ]
+    },
+    "source_response": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "const": 2
+        },
+        "kind": {
+          "const": "agent_qualified_read_response"
+        },
+        "capability": {
+          "const": "memory-agent-qualified-read-1"
+        },
+        "request_id": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/requestId"
+        },
+        "operation": {
+          "const": "memory_source"
+        },
+        "principal": {
+          "$ref": "#/$defs/agent"
+        },
+        "scope_hash": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/sha256"
+        },
+        "data": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/source_data"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "error": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/error"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "coverage": {
+          "$ref": "#/$defs/coverage"
+        }
+      },
+      "required": [
+        "schema_version",
+        "kind",
+        "capability",
+        "request_id",
+        "operation",
+        "principal",
+        "scope_hash",
+        "data",
+        "error",
+        "coverage"
+      ],
+      "oneOf": [
+        {
+          "properties": {
+            "data": {
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/source_data"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "error": {
+              "type": "null"
+            }
+          }
+        },
+        {
+          "properties": {
+            "data": {
+              "type": "null"
+            },
+            "error": {
+              "$ref": "#/$defs/error"
+            }
+          }
+        }
+      ]
+    },
+    "related_request": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "const": 2
+        },
+        "kind": {
+          "const": "agent_qualified_read_request"
+        },
+        "capability": {
+          "const": "memory-agent-qualified-read-1"
+        },
+        "request_id": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/requestId"
+        },
+        "operation": {
+          "const": "memory_related"
+        },
+        "arguments": {
+          "$ref": "#/$defs/related_args"
+        }
+      },
+      "required": [
+        "schema_version",
+        "kind",
+        "capability",
+        "request_id",
+        "operation",
+        "arguments"
+      ]
+    },
+    "related_response": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "const": 2
+        },
+        "kind": {
+          "const": "agent_qualified_read_response"
+        },
+        "capability": {
+          "const": "memory-agent-qualified-read-1"
+        },
+        "request_id": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/requestId"
+        },
+        "operation": {
+          "const": "memory_related"
+        },
+        "principal": {
+          "$ref": "#/$defs/agent"
+        },
+        "scope_hash": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/sha256"
+        },
+        "data": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/related_data"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "error": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/error"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "coverage": {
+          "$ref": "#/$defs/coverage"
+        }
+      },
+      "required": [
+        "schema_version",
+        "kind",
+        "capability",
+        "request_id",
+        "operation",
+        "principal",
+        "scope_hash",
+        "data",
+        "error",
+        "coverage"
+      ],
+      "oneOf": [
+        {
+          "properties": {
+            "data": {
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/related_data"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "error": {
+              "type": "null"
+            }
+          }
+        },
+        {
+          "properties": {
+            "data": {
+              "type": "null"
+            },
+            "error": {
+              "$ref": "#/$defs/error"
+            }
+          }
+        }
+      ]
+    },
+    "recall_request": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "const": 2
+        },
+        "kind": {
+          "const": "agent_qualified_read_request"
+        },
+        "capability": {
+          "const": "memory-agent-qualified-read-1"
+        },
+        "request_id": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/requestId"
+        },
+        "operation": {
+          "const": "memory_recall"
+        },
+        "arguments": {
+          "$ref": "#/$defs/recall_args"
+        }
+      },
+      "required": [
+        "schema_version",
+        "kind",
+        "capability",
+        "request_id",
+        "operation",
+        "arguments"
+      ]
+    },
+    "recall_response": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "const": 2
+        },
+        "kind": {
+          "const": "agent_qualified_read_response"
+        },
+        "capability": {
+          "const": "memory-agent-qualified-read-1"
+        },
+        "request_id": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/requestId"
+        },
+        "operation": {
+          "const": "memory_recall"
+        },
+        "principal": {
+          "$ref": "#/$defs/agent"
+        },
+        "scope_hash": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/sha256"
+        },
+        "data": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/recall_data"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "error": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/error"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "coverage": {
+          "$ref": "#/$defs/coverage"
+        }
+      },
+      "required": [
+        "schema_version",
+        "kind",
+        "capability",
+        "request_id",
+        "operation",
+        "principal",
+        "scope_hash",
+        "data",
+        "error",
+        "coverage"
+      ],
+      "oneOf": [
+        {
+          "properties": {
+            "data": {
+              "$ref": "#/$defs/recall_data"
+            },
+            "error": {
+              "type": "null"
+            }
+          }
+        },
+        {
+          "properties": {
+            "data": {
+              "type": "null"
+            },
+            "error": {
+              "$ref": "#/$defs/error"
+            }
+          }
+        }
+      ]
+    },
+    "facetValue": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "value",
+        "label",
+        "count"
+      ],
+      "properties": {
+        "value": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "label": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "count": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 65536
+        }
+      }
+    },
+    "axis": {
+      "enum": [
+        "form",
+        "state",
+        "knowledge",
+        "adoption",
+        "validity",
+        "attention",
+        "entity",
+        "project",
+        "theme"
+      ]
+    },
+    "countScope": {
+      "enum": [
+        "other_filters",
+        "matched"
+      ]
+    }
+  }
+}

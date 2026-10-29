@@ -663,3 +663,124 @@ fn native_detail_retains_original_history_and_declares_actual_byte_truncation() 
             .is_err()
     );
 }
+
+#[test]
+fn long_history_pages_bound_construction_and_bind_scope_profile_memory_and_snapshot() {
+    let e = env();
+    let v = Arc::new(e.create(Faults::none()));
+    let policy = e.policy(1, 1, 38);
+    v.set_policy(&e.descriptor.created_by, policy.clone())
+        .unwrap();
+    let sources: Vec<_> = (1..=38).map(|n| e.source(n, Sensitivity::Public)).collect();
+    v.capture(
+        &e.descriptor.system_actor,
+        sources.clone(),
+        RecordCatalog::default(),
+    )
+    .unwrap();
+    let first_receipt = publish(&v, &e, e.input(&sources[0], &policy, 1));
+    for source in &sources[1..] {
+        let current = v
+            .read(&e.descriptor.system_actor, Sensitivity::Private, |data| {
+                data.memories
+                    .iter()
+                    .find(|m| m.memory.memory.memory_id == first_receipt.result.memory_id)
+                    .unwrap()
+                    .target
+                    .clone()
+            })
+            .unwrap();
+        let mut input = e.input(source, &policy, 1);
+        input.target = Some(current);
+        input.dimensions.as_mut().unwrap().change = FormationChange::Update;
+        publish(&v, &e, input);
+    }
+    let host =
+        QualifiedAgentHost::from_authenticated_owner(v.clone(), e.descriptor.created_by.clone())
+            .unwrap();
+    let reader = host
+        .reader(
+            &e.descriptor.created_by,
+            agent(77),
+            scope(&e, &(1..=38).collect::<Vec<_>>(), false),
+        )
+        .unwrap();
+    let other = host
+        .reader(
+            &e.descriptor.created_by,
+            agent(78),
+            scope(&e, &(1..=38).collect::<Vec<_>>(), false),
+        )
+        .unwrap();
+    let p = profile();
+    let memory = &first_receipt.result.memory_id;
+    let first = reader
+        .detail_page(&p, memory, None, false, 64 * 1024, None)
+        .unwrap()
+        .unwrap();
+    assert_eq!(first["history_count_in_scope"], 38);
+    assert!(first["history"].as_array().unwrap().len() <= 32);
+    let cursor: QualifiedHistoryCursor =
+        serde_json::from_value(first["next_history"].clone()).unwrap();
+    assert!(
+        other
+            .detail_page(&p, memory, None, false, 64 * 1024, Some(&cursor))
+            .is_err()
+    );
+    let mut changed = p.clone();
+    changed.aliases.clear();
+    assert!(
+        reader
+            .detail_page(&changed, memory, None, false, 64 * 1024, Some(&cursor))
+            .is_err()
+    );
+    assert!(
+        reader
+            .detail_page(
+                &p,
+                &MemoryId::parse(&id("mem", 999)).unwrap(),
+                None,
+                false,
+                64 * 1024,
+                Some(&cursor)
+            )
+            .is_err()
+    );
+    let before = bytes(e.root.path());
+    let mut page = first;
+    let mut seen = std::collections::BTreeSet::new();
+    loop {
+        assert!(
+            enouia_memory_contract::json::canonical_bytes(&page)
+                .unwrap()
+                .len()
+                <= 64 * 1024
+        );
+        for row in page["history"].as_array().unwrap() {
+            assert!(seen.insert(row["memory"]["memory"]["revision"].as_u64().unwrap()));
+        }
+        let next: Option<QualifiedHistoryCursor> =
+            serde_json::from_value(page["next_history"].clone()).unwrap();
+        let Some(next) = next else {
+            assert_eq!(page["history_complete"], true);
+            break;
+        };
+        page = reader
+            .detail_page(&p, memory, None, false, 64 * 1024, Some(&next))
+            .unwrap()
+            .unwrap();
+    }
+    assert_eq!(seen.len(), 38);
+    assert_eq!(bytes(e.root.path()), before);
+    v.delete(
+        &e.descriptor.created_by,
+        vec![sources[0].record.source_id.clone()],
+        vec![],
+    )
+    .unwrap();
+    assert!(
+        reader
+            .detail_page(&p, memory, None, false, 64 * 1024, Some(&cursor))
+            .is_err()
+    );
+}

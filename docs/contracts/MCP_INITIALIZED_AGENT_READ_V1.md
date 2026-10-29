@@ -96,3 +96,22 @@ delegation and snapshot remain current. It never silently recomputes a trace.
 
 These are native methods, not an OS enrollment, new pipe/tool protocol, imported
 carrier adoption, Runtime hook or write capability.
+
+## Checkpoint 4 explicit MCP profile
+
+The separate [Owner Agent pipe contract](MCP_OWNER_AGENT_PIPE_V1.md) freezes
+pipe-4 / memory-agent-qualified-read-1 over that native delegation. It advertises
+only the five read tools with closed output schemas and read-only annotations.
+Old pipe profiles refuse this layout/hash before business dispatch. Native data
+uses the native capability; the MCP envelope uses the separate wire capability.
+No input identity/scope/PID grants authority. Context remains the actual same
+native response as the received MCP data, subject to current lifecycle checks.
+
+History now has a closed, scope/profile/snapshot/memory-bound cursor. Each call
+assembles at most the newest 32 eligible remaining revisions and 32 source
+metadata entries, with exact full-history/source counts. It returns a continuation
+before the oldest returned revision; budget trimming cannot skip an omitted
+revision. The original native detail method calls this first page. Source text
+is available separately by exact permitted ID/revision. Old snapshots or other
+delegations cannot reuse the cursor. Import/typed-attachment source adoption is
+still explicitly unavailable in this original-carrier profile.

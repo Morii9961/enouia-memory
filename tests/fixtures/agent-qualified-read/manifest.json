@@ -1,0 +1,372 @@
+{
+  "schema": "next/agent-qualified-read-v2.schema.json",
+  "valid": [
+    {
+      "schema_version": 2,
+      "kind": "agent_qualified_read_request",
+      "capability": "memory-agent-qualified-read-1",
+      "request_id": "req_00000001-0000-4000-8000-000000000001",
+      "operation": "memory_search",
+      "arguments": {
+        "filter": {
+          "text": "",
+          "form": null,
+          "state": null,
+          "knowledge": null,
+          "adoption": null,
+          "validity": null,
+          "attention": null,
+          "entity": null,
+          "project": null,
+          "theme": null,
+          "time_axis": null,
+          "time_window": null,
+          "include_unknown_time": false
+        },
+        "cursor": null,
+        "limit": 100,
+        "max_bytes": 262144,
+        "include_facets": true
+      }
+    },
+    {
+      "schema_version": 2,
+      "kind": "agent_qualified_read_request",
+      "capability": "memory-agent-qualified-read-1",
+      "request_id": "req_00000001-0000-4000-8000-000000000001",
+      "operation": "memory_read",
+      "arguments": {
+        "memory_id": "mem_00000001-0000-4000-8000-000000000001",
+        "expected": null,
+        "include_source_text": false,
+        "max_bytes": 262144,
+        "history_cursor": null
+      }
+    },
+    {
+      "schema_version": 2,
+      "kind": "agent_qualified_read_request",
+      "capability": "memory-agent-qualified-read-1",
+      "request_id": "req_00000001-0000-4000-8000-000000000001",
+      "operation": "memory_source",
+      "arguments": {
+        "source_id": "src_00000001-0000-4000-8000-000000000001",
+        "revision": null,
+        "from_byte": 0,
+        "to_byte": null,
+        "max_bytes": 8192
+      }
+    },
+    {
+      "schema_version": 2,
+      "kind": "agent_qualified_read_request",
+      "capability": "memory-agent-qualified-read-1",
+      "request_id": "req_00000001-0000-4000-8000-000000000001",
+      "operation": "memory_related",
+      "arguments": {
+        "memory_id": "mem_00000001-0000-4000-8000-000000000001",
+        "expected": null,
+        "max_bytes": 262144
+      }
+    },
+    {
+      "schema_version": 2,
+      "kind": "agent_qualified_read_request",
+      "capability": "memory-agent-qualified-read-1",
+      "request_id": "req_00000001-0000-4000-8000-000000000001",
+      "operation": "memory_recall",
+      "arguments": {
+        "text": "synthetic",
+        "conditions": [],
+        "event_window": null,
+        "at": "2026-10-24T00:00:00.000Z",
+        "intent": "current",
+        "limit": 8,
+        "max_bytes": 4096
+      }
+    },
+    {
+      "schema_version": 2,
+      "kind": "agent_qualified_read_request",
+      "capability": "memory-agent-qualified-read-1",
+      "request_id": "req_00000001-0000-4000-8000-000000000001",
+      "operation": "memory_search",
+      "arguments": {
+        "filter": {
+          "text": "",
+          "form": null,
+          "state": null,
+          "knowledge": null,
+          "adoption": null,
+          "validity": null,
+          "attention": null,
+          "entity": null,
+          "project": null,
+          "theme": null,
+          "time_axis": null,
+          "time_window": null,
+          "include_unknown_time": false
+        },
+        "cursor": null,
+        "limit": 100,
+        "max_bytes": 262144,
+        "include_facets": true
+      }
+    }
+  ],
+  "invalid": [
+    {
+      "name": "schema major",
+      "value": {
+        "schema_version": 3,
+        "kind": "agent_qualified_read_request",
+        "capability": "memory-agent-qualified-read-1",
+        "request_id": "req_00000001-0000-4000-8000-000000000001",
+        "operation": "memory_search",
+        "arguments": {
+          "filter": {
+            "text": "",
+            "form": null,
+            "state": null,
+            "knowledge": null,
+            "adoption": null,
+            "validity": null,
+            "attention": null,
+            "entity": null,
+            "project": null,
+            "theme": null,
+            "time_axis": null,
+            "time_window": null,
+            "include_unknown_time": false
+          },
+          "cursor": null,
+          "limit": 100,
+          "max_bytes": 262144,
+          "include_facets": true
+        }
+      }
+    },
+    {
+      "name": "old capability",
+      "value": {
+        "schema_version": 2,
+        "kind": "agent_qualified_read_request",
+        "capability": "memory-agent-catalog-read-1",
+        "request_id": "req_00000001-0000-4000-8000-000000000001",
+        "operation": "memory_search",
+        "arguments": {
+          "filter": {
+            "text": "",
+            "form": null,
+            "state": null,
+            "knowledge": null,
+            "adoption": null,
+            "validity": null,
+            "attention": null,
+            "entity": null,
+            "project": null,
+            "theme": null,
+            "time_axis": null,
+            "time_window": null,
+            "include_unknown_time": false
+          },
+          "cursor": null,
+          "limit": 100,
+          "max_bytes": 262144,
+          "include_facets": true
+        }
+      }
+    },
+    {
+      "name": "old packet kind",
+      "value": {
+        "schema_version": 2,
+        "kind": "agent_catalog_read_request",
+        "capability": "memory-agent-qualified-read-1",
+        "request_id": "req_00000001-0000-4000-8000-000000000001",
+        "operation": "memory_search",
+        "arguments": {
+          "filter": {
+            "text": "",
+            "form": null,
+            "state": null,
+            "knowledge": null,
+            "adoption": null,
+            "validity": null,
+            "attention": null,
+            "entity": null,
+            "project": null,
+            "theme": null,
+            "time_axis": null,
+            "time_window": null,
+            "include_unknown_time": false
+          },
+          "cursor": null,
+          "limit": 100,
+          "max_bytes": 262144,
+          "include_facets": true
+        }
+      }
+    },
+    {
+      "name": "self principal",
+      "value": {
+        "schema_version": 2,
+        "kind": "agent_qualified_read_request",
+        "capability": "memory-agent-qualified-read-1",
+        "request_id": "req_00000001-0000-4000-8000-000000000001",
+        "operation": "memory_search",
+        "arguments": {
+          "filter": {
+            "text": "",
+            "form": null,
+            "state": null,
+            "knowledge": null,
+            "adoption": null,
+            "validity": null,
+            "attention": null,
+            "entity": null,
+            "project": null,
+            "theme": null,
+            "time_axis": null,
+            "time_window": null,
+            "include_unknown_time": false
+          },
+          "cursor": null,
+          "limit": 100,
+          "max_bytes": 262144,
+          "include_facets": true
+        },
+        "principal": {
+          "actor_type": "owner",
+          "actor_id": "prn_00000001-0000-4000-8000-000000000001"
+        }
+      }
+    },
+    {
+      "name": "self scope",
+      "value": {
+        "schema_version": 2,
+        "kind": "agent_qualified_read_request",
+        "capability": "memory-agent-qualified-read-1",
+        "request_id": "req_00000001-0000-4000-8000-000000000001",
+        "operation": "memory_search",
+        "arguments": {
+          "filter": {
+            "text": "",
+            "form": null,
+            "state": null,
+            "knowledge": null,
+            "adoption": null,
+            "validity": null,
+            "attention": null,
+            "entity": null,
+            "project": null,
+            "theme": null,
+            "time_axis": null,
+            "time_window": null,
+            "include_unknown_time": false
+          },
+          "cursor": null,
+          "limit": 100,
+          "max_bytes": 262144,
+          "include_facets": true
+        },
+        "scope_hash": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    },
+    {
+      "name": "self PID",
+      "value": {
+        "schema_version": 2,
+        "kind": "agent_qualified_read_request",
+        "capability": "memory-agent-qualified-read-1",
+        "request_id": "req_00000001-0000-4000-8000-000000000001",
+        "operation": "memory_search",
+        "arguments": {
+          "filter": {
+            "text": "",
+            "form": null,
+            "state": null,
+            "knowledge": null,
+            "adoption": null,
+            "validity": null,
+            "attention": null,
+            "entity": null,
+            "project": null,
+            "theme": null,
+            "time_axis": null,
+            "time_window": null,
+            "include_unknown_time": false
+          },
+          "cursor": null,
+          "limit": 100,
+          "max_bytes": 262144,
+          "include_facets": true
+        },
+        "pid": 1
+      }
+    },
+    {
+      "name": "unbounded page",
+      "value": {
+        "schema_version": 2,
+        "kind": "agent_qualified_read_request",
+        "capability": "memory-agent-qualified-read-1",
+        "request_id": "req_00000001-0000-4000-8000-000000000001",
+        "operation": "memory_search",
+        "arguments": {
+          "filter": {
+            "text": "",
+            "form": null,
+            "state": null,
+            "knowledge": null,
+            "adoption": null,
+            "validity": null,
+            "attention": null,
+            "entity": null,
+            "project": null,
+            "theme": null,
+            "time_axis": null,
+            "time_window": null,
+            "include_unknown_time": false
+          },
+          "cursor": null,
+          "limit": 101,
+          "max_bytes": 262144,
+          "include_facets": true
+        }
+      }
+    },
+    {
+      "name": "missing facet choice",
+      "value": {
+        "schema_version": 2,
+        "kind": "agent_qualified_read_request",
+        "capability": "memory-agent-qualified-read-1",
+        "request_id": "req_00000001-0000-4000-8000-000000000001",
+        "operation": "memory_search",
+        "arguments": {
+          "filter": {
+            "text": "",
+            "form": null,
+            "state": null,
+            "knowledge": null,
+            "adoption": null,
+            "validity": null,
+            "attention": null,
+            "entity": null,
+            "project": null,
+            "theme": null,
+            "time_axis": null,
+            "time_window": null,
+            "include_unknown_time": false
+          },
+          "cursor": null,
+          "limit": 100,
+          "max_bytes": 262144
+        }
+      }
+    }
+  ]
+}
