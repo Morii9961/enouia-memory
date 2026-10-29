@@ -512,3 +512,29 @@ reader/Owner port forwarding, initializer-carrier adoption, Runtime hook/UI/pin,
 private initialization or write capability is included. See the
 [contract](../contracts/MCP_INITIALIZED_AGENT_READ_V1.md) and
 [synthetic evidence](../validation/MCP-owner-agent-tools-native.md).
+
+### 2026-10-29 — Explicit Owner-root Agent MCP pipe (ADR-MEM-105 checkpoint 4)
+
+Surface aggregate: `16b9538df372bde907a011283c753e0364e298b02e4c54c7bfbdf3ff1559e279`.
+
+Adopt pipe-4 / memory-agent-qualified-read-1 only through native OS enrollment
+and the independent qualified Agent reader of the existing leased Owner Vault.
+The exact original source carrier and closed-schema fingerprint bind the
+handshake. Old profile or pin changes do not select this capability. All five
+read tools advertise output schemas/annotations; native data and MCP envelopes
+declare their separate capabilities. Safe receipts exclude global sequence.
+Native Context returns the actual same received recall data/trace.
+
+The stdio edge's explicit protocol is automation-qualified-v1, with only native
+pipe/Host PID/Vault ID metadata. It opens no Vault or client configuration.
+Lock/revoke/expiry/policy change/exit invalidates old access; a lost response
+retains the original packet and never reconnects/resends automatically. Native
+history now has scope/profile/snapshot/memory-bound continuation and at most 32
+assembled history/source entries per page, with exact counts and byte limits.
+
+Initializer import/typed attachments remain unadopted. Do not forward Runtime
+System/Owner ports, recapture existing Runtime sources as import, or interpret
+this as Runtime hook/UI/pin or private initialization. Same-conversation and
+semantic relations remain unavailable; capture/live formation, writes and
+resources are later work. See [pipe contract](../contracts/MCP_OWNER_AGENT_PIPE_V1.md)
+and [actual synthetic evidence](../validation/MCP-owner-agent-pipe.md).

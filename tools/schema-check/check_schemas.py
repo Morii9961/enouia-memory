@@ -318,6 +318,15 @@ def main():
             failures.append(f"invalid segmented Agent request accepted: {case['name']}")
     counts["agent_catalog_documents"] = len(catalog_agent["valid"]) + len(catalog_agent["invalid"])
 
+    qualified = load(ROOT / "tests" / "fixtures" / "agent-qualified-read" / "manifest.json")
+    for value in qualified["valid"]:
+        if not valid(qualified["schema"], value):
+            failures.append("valid qualified Agent request rejected")
+    for case in qualified["invalid"]:
+        if valid(qualified["schema"], case["value"]):
+            failures.append(f"invalid qualified Agent request accepted: {case['name']}")
+    counts["agent_qualified_documents"] = len(qualified["valid"]) + len(qualified["invalid"])
+
     if len(sys.argv) == 3 and sys.argv[1] == "--runtime-capture-transcript":
         transcript = load(pathlib.Path(sys.argv[2]))
         for exchange in transcript["exchanges"]:
@@ -330,8 +339,8 @@ def main():
         counts["runtime_capture_live_exchanges"] = len(transcript["exchanges"])
         counts["runtime_capture_invalid_replies"] = len(transcript.get("negative_replies", []))
     elif len(sys.argv) != 1:
-        if len(sys.argv) != 3 or sys.argv[1] != "--mcp2-transcript":
-            raise SystemExit("usage: check_schemas.py [--mcp2-transcript FILE | --runtime-capture-transcript FILE]")
+        if len(sys.argv) != 3 or sys.argv[1] not in ("--mcp2-transcript", "--qualified-transcript"):
+            raise SystemExit("usage: check_schemas.py [--mcp2-transcript FILE | --qualified-transcript FILE | --runtime-capture-transcript FILE]")
         transcript = load(pathlib.Path(sys.argv[2]))
         tools = {tool["name"]: tool for tool in transcript["catalog"]}
         for tool in tools.values():
@@ -347,7 +356,7 @@ def main():
             tool = tools[case["tool"]]
             if Draft202012Validator(tool["outputSchema"]).is_valid(case["value"]):
                 failures.append(f"MCP live invalid output accepted: {case['tool']}")
-        counts["mcp2_live_exchanges"] = len(transcript["exchanges"])
+        counts["qualified_live_exchanges" if sys.argv[1] == "--qualified-transcript" else "mcp2_live_exchanges"] = len(transcript["exchanges"])
         counts["mcp_live_invalid_outputs"] = len(transcript.get("negative_outputs", []))
     ui_dir = ROOT / "tests" / "fixtures" / "ui-records"
     ui = load(ui_dir / "manifest.json")
