@@ -104,6 +104,38 @@ fn user(process: HANDLE) -> io::Result<User> {
     Ok(User { sid, session })
 }
 
+/// Kernel process/account evidence only. It grants no Owner role; the trusted
+/// local bootstrap command separately registers the authenticated owner-self.
+pub(crate) struct CurrentProcessSession {
+    peer: ProcessPeer,
+    account: Sha256Hex,
+    session: u32,
+}
+impl CurrentProcessSession {
+    pub(crate) fn capture() -> io::Result<Self> {
+        let peer = ProcessPeer::enroll(std::process::id(), HostSurface::Workspace)?;
+        let identity = user(raw(&peer.process))?;
+        Ok(Self {
+            peer,
+            account: enouia_memory_contract::hash::sha256(&identity.sid.0),
+            session: identity.session,
+        })
+    }
+    pub(crate) fn account(&self) -> &Sha256Hex {
+        &self.account
+    }
+    pub(crate) fn verify(&self) -> io::Result<()> {
+        self.peer.live()?;
+        let current = user(raw(&self.peer.process))?;
+        if current.session != self.session
+            || enouia_memory_contract::hash::sha256(&current.sid.0) != self.account
+        {
+            return Err(denied());
+        }
+        Ok(())
+    }
+}
+
 /// Native owner explicitly enrolls this process and its maximum surface.
 /// Holding the process object and checking liveness prevents PID-reuse grants.
 /// This is not enrollment from a page, a claimed PID or an executable name.

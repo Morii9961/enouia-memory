@@ -533,3 +533,22 @@ The regression checks denied capture/legacy/archive/receipt lookup, unchanged
 snapshot and no newly archived objects. Existing Owner imports and attachments
 still pass their initialization tests. No schema, MCP capability, Owner method,
 Runtime pin or real data change; old prototype roots are not migrated or adopted.
+
+### 2026-10-30 — Native empty Owner bootstrap (ADR-MEM-110)
+
+Surface aggregate: `9fc419e8d0a3366b427a516114e8d947bcfaad33c03784cf179ea4b016353cdb`.
+
+The separate native `enouia-memory-owner-bootstrap` command registers the actual
+current OS account as this authorized empty root's Owner/self Subject, issues
+logical IDs, journals the original operation outside the empty Vault directory,
+and reuses witnessed segmented creation. It drops the writer, reopens the same
+binding, verifies an empty Owner genesis, then publishes creation metadata under
+the home lease and original metadata baseline. Recovery never invents new IDs or
+silently recreates a nonempty root; incomplete publication needs explicit native
+forward recovery. Native process evidence and CLI scope are not JSON Owner grants.
+
+The active_vault value is only a verified creation locator; runtime_adopted stays
+false. Runtime must retain explicit native root selection and separately adopt a
+compatible pin; old Workspace factories cannot open this layout. No Runtime,
+Provider, import, formation queue, MCP Owner route or Core-8 switch is added.
+Real bindings and outputs remain private. See [ADR110](../adr/110-native-empty-owner-bootstrap.md).

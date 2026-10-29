@@ -570,3 +570,10 @@ Runtime [ADR-025](https://github.com/Morii9961/enouia-runtime/blob/main/docs/adr
 dependencies without widening existing Agent/Runtime capture capabilities.
 Descriptor-level refusal precedes current snapshot and transaction work. A
 separate initialized-root reader and shared live binding remain unadvertised.
+
+### ADR-MEM-110 — Native empty Owner bootstrap
+
+[Decision](110-native-empty-owner-bootstrap.md): an explicit trusted native local
+creation command, persistent owner-self registration, original-operation recovery
+and empty genesis verification. Creation metadata is not Runtime root selection;
+no import, model, formation queue or MCP Owner route is activated.
