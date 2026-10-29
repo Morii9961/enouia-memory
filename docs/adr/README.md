@@ -515,6 +515,13 @@ withdrawal/forget barriers and qualified Owner overlays. Read selection v4 remov
 global receipt/turn ordinal leaks. No Runtime/MCP adoption or private initialization.
 ADR102 remains reserved for the concurrent Runtime capture session.
 
+### ADR-MEM-104 — Synthetic initialization through shared formation (Implemented, synthetic)
+
+[Decision](104-synthetic-initialization-intake.md): explicit selected originals,
+source/attachment preservation, native legacy-review evidence, durable bounded
+backfill/live batches and seven rebuildable projection groups. No real model,
+owner action or Runtime adoption. [Evidence](../validation/Memory-init-pipeline.md).
+
 ## Relation to Enouia Runtime's register
 
 

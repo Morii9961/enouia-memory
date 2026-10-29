@@ -1,3 +1,12 @@
+> 2026-10-28 初始化合成切片：[ADR104](../adr/104-synthetic-initialization-intake.md)。
+> Morii 已在本会话确认 ADR93，并允许最小共享来源文件交集；仅新建临时合成根。
+> 原件保全、预检、分层账本、可恢复批次、共享形成与投影的实际覆盖见
+> [验证报告](../validation/Memory-init-pipeline.md)。真实数据/模型/外发/默认时区、
+> G08 主人动作、Runtime 采用和 Core-8 切换继续由各自授权与切片负责。
+> 2026-10-29 同片承接 `14125f5` 的 Owner 新根/创世绑定，保留导入和附件载体；
+> 显式主人输入正常形成，无额外待审队列。合成初始化本身不制造主人动作；
+> 已采集来源精确修订的仅入队 API、正式入口及 Runtime 采用仍未交付。
+
 > 2026-10-27 MCP-3 原生前置片：按 [ADR-MEM-102](../adr/102-runtime-only-capture-boundary.md)
 > 接 Runtime-only 原始轮次和无写入预检；[契约](../contracts/RUNTIME_CAPTURE_NATIVE_V1.md)
 > 与[验证报告](../validation/MCP-3-runtime-capture-native.md)区分来源事务和形成作业。

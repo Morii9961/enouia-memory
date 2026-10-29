@@ -162,7 +162,11 @@ pub fn validate_delta(
         (descriptor.layout == AutomationLayout::HostV3
             || (after.data.record_catalog.is_none()
                 && after.data.owner_actions.is_none()
-                && after.data.sources.iter().all(|s| s.record_fields.is_none())
+                && after
+                    .data
+                    .sources
+                    .iter()
+                    .all(|s| s.record_fields.is_none() && s.attachments.is_empty())
                 && after.data.memories.iter().all(|m| {
                     m.request.record_fields.is_none() && m.decision.input.record_fields.is_none()
                 })))

@@ -62,6 +62,10 @@ The Runtime-side counterpart is Runtime [ADR-025](https://github.com/Morii9961/e
 
 ## Ownership
 
+For initialized segmented roots, follow [formal adoption and private data
+ownership](INITIALIZED_VAULT.md). A stable owner data directory is separate from
+the checkout; it does not itself activate a Vault or make an older pin compatible.
+
 | Item | Owner | Notes |
 |---|---|---|
 | Contracts, Vault format, import, review rules, index, Context, Sessions, Mock (`crates/*`, `contracts/*`) | Memory | Runtime never calls these crates directly. |
@@ -467,3 +471,65 @@ Owner roots also bind `digest(descriptor)` in their witnessed genesis delta.
 Replay refuses header-only adoption of an old segmented root and rebinding an
 initialized Owner subject. Store/read schemas now include both execution effects
 and actual genesis/action examples; ADR93 business record fields remain intact.
+
+### 2026-10-28 — Synthetic initialization intake (ADR-MEM-104)
+
+Surface aggregate: `de0a9b5026b10438e311354ee54fb3aa0816613fb73dd80ab70563af5f94d1d0`.
+
+Adopt the exact manifest before consuming initialized synthetic segmented roots.
+CapturedSource can now carry optional typed v1 AttachmentRecords, bound to its
+source/ref/sensitivity and verified original bytes. Empty arrays are omitted;
+existing fixtures retain their hashes. Native import capture accepts selected
+export/document/agent sources; ordinary runtime capture stays runtime-event-only.
+Legacy confirmation additionally requires independent native owner selection and
+an exact validated original Review witness. No new owner action is generated.
+Older strict consumers reject these source payloads; never offer the new roots
+to an older pin. There is no old-root migration or compatibility shim.
+
+The separate initializer crate uses existing native formation and read ports.
+Its saved seven-group bundles are inspection artifacts bound to snapshot,
+scope and deletion/withdrawal barriers, never frontend read authority. Runtime
+must still implement its separately authorized six-view adoption and Core-8
+switching. No Runtime checkout, pin, Workspace/IPC/MCP command, Provider, real
+root or deployment changed. See [ADR104](../adr/104-synthetic-initialization-intake.md)
+and [actual coverage and gaps](../validation/Memory-init-pipeline.md).
+
+### 2026-10-29 — Owner-root synthetic initialization compatibility (ADR-MEM-104)
+
+Surface aggregate: `94b039be8c17cfcb50a85853fbd3a72894aa69650d81757aa71515505e357e06`.
+
+Integrates the exact MCP Owner-boundary dependency `14125f5` (including Owner
+`34709b9`) with typed import/attachment carriers. New initializer roots require
+`automation-segmented-owner-v1`, an explicit owner subject, witnessed descriptor
+genesis and a descriptor-bound initializer journal. Unbound/old descriptors and
+foreign attributed subjects refuse before batch publication. Runtime must adopt
+Owner selection v4/process headers v2 together with the exact manifest; older
+Agent/Runtime factories still refuse Owner roots before business use.
+
+Native-selected owner inputs form as normal user-statement sources, without a
+review queue or fabricated OwnerAction. An independent synthetic native gesture
+test exercises G08 after initialization. The parser is not production owner
+authentication. Seven authorized projection groups and deletion recovery run on
+new synthetic Owner roots; saved bundles remain inspection artifacts. See the
+[native example and reader steps](../../crates/enouia-memory-init/README.md).
+
+No production initializer, real source/model/egress, Runtime pin or Core-8 switch
+is delivered. Already captured Runtime sources still need a queue-only entry
+bound to their original SourceRevisionRef and capture key, not import recapture.
+Later MCP native-reader work remains a separately versioned dependency; this
+merge preserves its existing Owner-root rejection gate and exposes no System
+port to an Agent. No other worktree or Runtime checkout is changed.
+
+### 2026-10-29 — Native import entry layout gate (ADR-MEM-104)
+
+Surface aggregate: `4acd2529dc5be53c4aa70a5f680f4f6522ac4d73f2e2f710bfab7f099184beb7`.
+
+The Owner initializer guard did not protect the separately exported native
+import APIs. A complete synthetic import reproduced publication on an old
+`SegmentedV1` root. All four import-specific entries now require
+`SegmentedOwnerV1` before authentication, Raw work, locking or record access;
+the old runtime-only capture entry also refuses typed attachment carriers.
+The regression checks denied capture/legacy/archive/receipt lookup, unchanged
+snapshot and no newly archived objects. Existing Owner imports and attachments
+still pass their initialization tests. No schema, MCP capability, Owner method,
+Runtime pin or real data change; old prototype roots are not migrated or adopted.
