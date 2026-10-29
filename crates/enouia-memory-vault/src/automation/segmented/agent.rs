@@ -4,6 +4,8 @@ use std::collections::BTreeSet;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Instant;
 
+pub const INITIALIZED_AGENT_READ_CAPABILITY: &str = "memory-agent-initialized-native-read-1";
+
 pub const QUALIFIED_AGENT_READ_CAPABILITY: &str = "memory-agent-qualified-native-read-1";
 
 // These published profiles predate native imports and typed attachments. Check
@@ -227,6 +229,21 @@ impl SegmentedAutomationVault {
             QUALIFIED_AGENT_READ_CAPABILITY,
         )
     }
+    /// Explicit native adoption of ADR104 sources; never selected by a packet.
+    pub fn authorize_initialized_agent_read(
+        &self,
+        owner: &ActorRef,
+        principal: ActorRef,
+        scope: SegmentedAgentScope,
+    ) -> Result<SegmentedAgentPermit> {
+        self.authorize_agent_profile(
+            owner,
+            principal,
+            scope,
+            AutomationLayout::SegmentedOwnerV1,
+            INITIALIZED_AGENT_READ_CAPABILITY,
+        )
+    }
     fn authorize_agent_profile(
         &self,
         owner: &ActorRef,
@@ -245,7 +262,9 @@ impl SegmentedAutomationVault {
             .lock()
             .map_err(|_| AutomationFault::Unavailable)?;
         self.current(&state)?;
-        original_carrier(&state)?;
+        if capability != INITIALIZED_AGENT_READ_CAPABILITY {
+            original_carrier(&state)?;
+        }
         let now = self.native.now()?;
         let ttl = scope.valid_until.unix_ms() - now.unix_ms();
         if !(1..=300_000).contains(&ttl)
@@ -324,7 +343,11 @@ impl SegmentedAutomationVault {
             .state
             .lock()
             .map_err(|_| AutomationFault::Unavailable)?;
-        if let Err(e) = original_carrier(&state) {
+        if let Err(e) = if permit.capability == INITIALIZED_AGENT_READ_CAPABILITY {
+            Ok(())
+        } else {
+            original_carrier(&state)
+        } {
             permit.revoke();
             return Err(e);
         }
@@ -345,7 +368,11 @@ impl SegmentedAutomationVault {
             .lock()
             .map_err(|_| AutomationFault::Unavailable)?;
         self.current(&state)?;
-        if let Err(e) = original_carrier(&state) {
+        if let Err(e) = if permit.capability == INITIALIZED_AGENT_READ_CAPABILITY {
+            Ok(())
+        } else {
+            original_carrier(&state)
+        } {
             permit.revoke();
             return Err(e);
         }

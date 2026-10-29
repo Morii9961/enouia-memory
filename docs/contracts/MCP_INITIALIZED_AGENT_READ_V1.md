@@ -145,3 +145,24 @@ support. The next reader must explicitly project authorized attachment metadata;
 source attachment refs and extensions may contain duplicate metadata and must
 not bypass sensitivity filtering. No binary attachment read is planned here.
 Current policy/source/deletion/lifecycle and exact trace rules remain unchanged.
+
+## Checkpoint 6 native initialized carrier
+
+The opt-in native factory from_authenticated_initialized_owner delegates
+memory-agent-initialized-native-read-1 on Owner roots only. Its sealed permit
+retains exact current policy/subject/project/source/sensitivity/instance/lifetime
+checks. No wire parameter selects it, and pipe-4 refuses this reader type's
+capability. No new MCP advertisement is implied.
+
+Source and Detail emit authorized_source_metadata_v1 projections: source fields
+and typed attachments under independent source-read permission; attachments must
+fit the grant already intersected with current exact source policies. Source
+attachment_refs contain only returned IDs. Arbitrary source/attachment extensions
+are omitted, including duplicated initializer metadata. Original stored records
+are unchanged. effective_sensitivity is the maximum actual returned dependency
+floor, never the caller ceiling or hidden attachment floor. Coverage describes
+the authorized set only; no hidden/platform count or conditional hidden flag.
+Native Runtime timezone/default origin is projected separately without its
+attachment copies. Page/history/related/recall keep existing qualified rules and
+Context is the actual same response. Actual initialized-carrier pipe, closed
+wire schema and Runtime UI adoption remain later work.

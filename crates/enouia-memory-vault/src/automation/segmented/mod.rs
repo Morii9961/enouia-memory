@@ -3,8 +3,8 @@ mod agent;
 mod catalog;
 mod intake;
 pub use agent::{
-    AuthorizedSegmentedAgentRead, QUALIFIED_AGENT_READ_CAPABILITY, SegmentedAgentPermit,
-    SegmentedAgentScope,
+    AuthorizedSegmentedAgentRead, INITIALIZED_AGENT_READ_CAPABILITY,
+    QUALIFIED_AGENT_READ_CAPABILITY, SegmentedAgentPermit, SegmentedAgentScope,
 };
 mod runtime_capture;
 mod state;
