@@ -145,6 +145,11 @@
         },
         "record_fields": {
           "$ref": "ui-records-v2.schema.json#/$defs/sourceFields"
+        },
+        "attachments": {
+          "type": "array",
+          "maxItems": 128,
+          "items": { "$ref": "../memory/attachment-v1.schema.json" }
         }
       }
     },

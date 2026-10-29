@@ -81,7 +81,7 @@ impl QualifiedAgentHost {
         {
             return Err(AutomationFault::Denied.into());
         }
-        vault.snapshot()?;
+        vault.check_original_agent_carrier()?;
         Ok(Self {
             vault,
             owner,

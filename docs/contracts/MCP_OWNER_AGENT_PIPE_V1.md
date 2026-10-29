@@ -48,3 +48,14 @@ This contract does not claim initialization-carrier adoption, daily formation,
 new write tools, Runtime UI/hook/pin, private initialization or real clients.
 Synthetic independent-process acceptance and final evidence are recorded in
 MCP-owner-agent-pipe.md after implementation and checks.
+
+After ADR105 checkpoint 5, exact native carrier checks enforce this profile's
+original-only declaration even when Core adopts ADR104 import parsing. Every
+retained source revision must remain original RuntimeEvent or the already
+supported witnessed native Owner correction (manual_assertion), complete and without
+typed attachments or imported confirmation. The check runs before native Agent
+projection/count and connection dispatch, including after enrollment. Deleting
+or excluding a new carrier does not make the old profile compatible again.
+Internal Core storage is already loaded by the native Host; this is not an
+assertion that the old Agent protocol decodes the new storage. A distinct new
+profile, metadata projection and actual-pipe evidence remain required.

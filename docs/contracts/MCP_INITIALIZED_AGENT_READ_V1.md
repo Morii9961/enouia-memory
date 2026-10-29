@@ -115,3 +115,33 @@ revision. The original native detail method calls this first page. Source text
 is available separately by exact permitted ID/revision. Old snapshots or other
 delegations cannot reuse the cursor. Import/typed-attachment source adoption is
 still explicitly unavailable in this original-carrier profile.
+
+## Checkpoint 5 published initializer dependency
+
+Exact adopted source: 3b6e974cc12182859d3645d64c03e5acc534896f (ADR104).
+The initialized Root layout alone does not distinguish its wider import and
+attachment carrier from original RuntimeEvent-only Owner roots. Existing
+qualified-native-read-1 / pipe-4 therefore requires the original carrier across
+all retained source revisions before native qualification, projection/counts
+and connection dispatch. Unselected/deleted imports still require the later
+explicit profile. Imports arriving after enrollment revoke old access. This is
+a native loaded-Vault format check, not external business decoding or a second
+open/writer. New empty/original-only Owner roots retain their original profile. The existing
+witnessed native Owner correction source (manual_assertion) also remains
+supported; this does not authorize Agent-created Owner assertions.
+
+| Layout / carrier | Native Core writer/reader | Existing Agent profile | Runtime capture |
+| --- | --- | --- | --- |
+| host-current-v2 / schema 1 | Existing old contract | Original six tools only | Refuse |
+| automation-host-v2/v3 / original | Existing Core contract | Existing explicit Agent profiles | Refuse |
+| segmented-host-v1 / original | Original native capture/formation | catalog-read-1 | Runtime capture pipe-1 |
+| automation-segmented-owner-v1 / original | Owner native Core | qualified-native-read-1 / pipe-4 five reads | Old capture refuses |
+| automation-segmented-owner-v1 / imported, partial or typed-attachment source | Exact ADR104 native import/formation/System readers | Refuse original profiles before Agent projection/count; no new profile yet | Old capture refuses |
+| segmented-host-v1 / import or typed attachment | Native import entry refuses before Raw/record work | Unsupported | Original-only |
+| Unknown profile/hash/layout or claimed Owner/System identity | No authority from packet | Refuse | Refuse |
+
+Neither source pin upgrades nor System-read support imply initialized Agent
+support. The next reader must explicitly project authorized attachment metadata;
+source attachment refs and extensions may contain duplicate metadata and must
+not bypass sensitivity filtering. No binary attachment read is planned here.
+Current policy/source/deletion/lifecycle and exact trace rules remain unchanged.

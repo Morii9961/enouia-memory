@@ -1,6 +1,7 @@
 //! Explicit ADR-MEM-94 synthetic root. No implicit opening, migration or routes.
 mod agent;
 mod catalog;
+mod intake;
 pub use agent::{
     AuthorizedSegmentedAgentRead, QUALIFIED_AGENT_READ_CAPABILITY, SegmentedAgentPermit,
     SegmentedAgentScope,
@@ -444,6 +445,23 @@ impl SegmentedAutomationVault {
         )
     }
     pub fn capture(
+        &self,
+        system: &ActorRef,
+        sources: Vec<CapturedSource>,
+        catalog: RecordCatalog,
+    ) -> Result<AutomationCurrent> {
+        if sources.iter().any(|s| {
+            s.record.source_kind != enouia_memory_contract::source::SourceKind::RuntimeEvent
+                || s.record.completeness != enouia_memory_contract::source::Completeness::Complete
+                || !s.attachments.is_empty()
+                || s.record.evidence_class
+                    == enouia_memory_contract::common::EvidenceClass::UserConfirmation
+        }) {
+            return Err(AutomationFault::Denied);
+        }
+        self.capture_selected(system, sources, catalog)
+    }
+    fn capture_selected(
         &self,
         system: &ActorRef,
         sources: Vec<CapturedSource>,

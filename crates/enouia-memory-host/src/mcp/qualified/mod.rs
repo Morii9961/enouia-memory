@@ -127,7 +127,7 @@ impl<'a, 'host> Server<'a, 'host> {
         reader: &'a QualifiedAgentReader<'host>,
         profile: &'a AttentionProfile,
     ) -> Option<Self> {
-        if !profile.validate().is_empty() {
+        if !profile.validate().is_empty() || reader.check_connection().is_err() {
             return None;
         }
         Some(Self {
@@ -145,6 +145,9 @@ impl<'a, 'host> Server<'a, 'host> {
     }
     pub fn handle(&mut self, message: &Value) -> Option<Value> {
         use super::read_session::Route;
+        if self.reader.check_connection().is_err() {
+            self.session.close();
+        }
         let (id, method, params) = match self.session.route(message) {
             Route::Response(response) => return response,
             Route::Ready { id, method, params } => (id, method, params),

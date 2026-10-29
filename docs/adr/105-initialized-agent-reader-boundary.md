@@ -58,3 +58,22 @@ from OS process enrollment and wire input. Bind exact layout/carrier/schema hash
 before dispatch, keep old clients refused, and bound history construction with
 delegation/snapshot/profile/memory cursors. Initializer import/attachments still
 require an exact published dependency and deliberate compatibility update.
+
+Checkpoint 5 adopts the exact published initializer dependency
+3b6e974cc12182859d3645d64c03e5acc534896f, preserving both histories. Its wider
+source carrier is Core support, not permission for an existing Agent profile.
+Original Agent factories/permits check every retained source revision before
+projection and counts, including unselected or deleted sources. Existing
+witnessed native Owner correction/manual-assertion sources remain supported.
+A native import
+after enrollment invalidates the old reader; deletion cannot downgrade carrier
+compatibility. This check uses the already loaded, sole leased native Vault;
+it is not a claim to reject its internal storage decoding before native open.
+Pipe compatibility/liveness still rejects before external business dispatch.
+
+The old nonsegmented capture entry also refuses typed attachments, matching
+the old segmented entry. Initializer import APIs remain Owner-layout-only.
+A later explicit initialized-carrier native/wire profile must authorize typed
+attachment metadata and duplicate refs/extensions before exposing Source/Detail.
+No new Agent capability, initializer reader, live queue or Runtime hook is
+advertised by this integration checkpoint.
