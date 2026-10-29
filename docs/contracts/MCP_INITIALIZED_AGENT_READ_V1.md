@@ -37,3 +37,34 @@ RuntimeEvent roots and capture/preflight semantics remain regression-tested.
 No initializer/live job, new Agent write tool, new reader advertisement, Runtime
 hook/pin/UI, real Provider/embedding, private root, deployment or main merge is
 claimed by this checkpoint.
+
+## Checkpoint 2 native qualified page
+
+memory-agent-qualified-native-read-1 explicitly supports only
+automation-segmented-owner-v1. Old factories still reject this root, and this
+new factory rejects older layouts. Native setup supplies the authenticated
+Owner, Agent principal, exact active policies, subject/project/source ceiling,
+sensitivity, source-read bit and lifetime. The sealed permit binds the instance,
+profile and current exact policy references; no packet supplies identity or
+scope. This native constructor itself does not enroll an OS process.
+
+The native page has the Agent capability/principal/scope, catalog-4 selection,
+exact scoped counts, complete revision fields/Owner marks and bounded paging.
+It emits no System-capability envelope, raw Owner record or global receipt
+sequence. Its data is produced by the same pure page projector used by native
+catalog reads, after independent Agent qualification. Current visible targets
+and this delegation's scope hash bind selection/cursors; passing another
+delegation's cursor refuses even if its current visible rows happen to match.
+
+Owner overlays are recomputed from the currently permitted memory/source/entity
+view. Merge destinations require their own complete delegated evidence and
+each memory's own policy. Unselected names, aliases and action targets must not
+lend labels or counts. Page reads do not update attention, create jobs or write
+authority. Native lock discards the generation; unlock does not revive existing
+delegations. Expiry, rollback, policy replacement/deletion and instance changes
+are checked before projection and before returning its result.
+
+This checkpoint does not yet add a pipe handshake, MCP tools, detail/source/
+related/recall adapters or Context trace for the new root. Existing actual-pipe
+capabilities remain unchanged. Imported/attachment carrier adoption still
+requires the published initialization dependency separately.

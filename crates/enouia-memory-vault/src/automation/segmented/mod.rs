@@ -1,7 +1,10 @@
 //! Explicit ADR-MEM-94 synthetic root. No implicit opening, migration or routes.
 mod agent;
 mod catalog;
-pub use agent::{AuthorizedSegmentedAgentRead, SegmentedAgentPermit, SegmentedAgentScope};
+pub use agent::{
+    AuthorizedSegmentedAgentRead, QUALIFIED_AGENT_READ_CAPABILITY, SegmentedAgentPermit,
+    SegmentedAgentScope,
+};
 mod runtime_capture;
 mod state;
 use super::*;

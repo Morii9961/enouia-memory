@@ -7,6 +7,7 @@ pub mod attention;
 pub mod catalog;
 pub mod continuation;
 mod model;
+pub mod qualified_agent;
 pub mod read_model;
 #[cfg(windows)]
 pub mod runtime_capture;

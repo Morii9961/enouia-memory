@@ -30,3 +30,14 @@ new format. No old root is upgraded, no Owner action is executed by MCP and no
 new writer or broader Context is introduced here.
 
 See [boundary contract](../contracts/MCP_INITIALIZED_AGENT_READ_V1.md).
+
+Checkpoint 2 introduces only memory-agent-qualified-native-read-1 on Owner
+roots. It is a separate native Agent delegation and scoped page, not an MCP
+advertisement. Reuse the pure catalog projector after the Agent gate; never
+construct or forward a System reader. Recompute Owner overlays after filtering
+memories, sources and entity evidence to the delegation. Do not lend a canonical
+entity or alias from an unselected source. Keep raw Owner records off the output.
+Bind page selection/cursors to this delegation's scope hash. Lock/unlock cannot
+revive old readers. Root/policy/clock/instance/deletion checks remain current.
+The native factory assumes trusted native Owner authentication; this constructor
+alone is not OS enrollment. Actual MCP process/transport binding follows later.

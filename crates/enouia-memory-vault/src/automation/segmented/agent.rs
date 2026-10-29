@@ -4,6 +4,8 @@ use std::collections::BTreeSet;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Instant;
 
+pub const QUALIFIED_AGENT_READ_CAPABILITY: &str = "memory-agent-qualified-native-read-1";
+
 #[derive(Clone, serde::Serialize)]
 pub struct SegmentedAgentScope {
     pub subject_id: SubjectId,
@@ -15,6 +17,8 @@ pub struct SegmentedAgentScope {
     pub valid_until: Timestamp,
 }
 pub struct SegmentedAgentPermit {
+    layout: AutomationLayout,
+    capability: &'static str,
     instance: Arc<()>,
     principal: ActorRef,
     scope: SegmentedAgentScope,
@@ -27,6 +31,9 @@ pub struct SegmentedAgentPermit {
     last_seen: Mutex<Timestamp>,
 }
 impl SegmentedAgentPermit {
+    pub fn capability(&self) -> &'static str {
+        self.capability
+    }
     pub fn principal(&self) -> &ActorRef {
         &self.principal
     }
@@ -43,7 +50,9 @@ impl SegmentedAgentPermit {
         self.active.store(false, Ordering::SeqCst);
     }
     fn live(&self, vault: &SegmentedAutomationVault) -> Result<Timestamp> {
-        if !Arc::ptr_eq(&self.instance, &vault.native.agent_instance) {
+        if !Arc::ptr_eq(&self.instance, &vault.native.agent_instance)
+            || self.layout != vault.native.descriptor.layout
+        {
             return Err(AutomationFault::Denied);
         }
         let mut last = self.last_seen.lock().map_err(|_| AutomationFault::Denied)?;
@@ -163,12 +172,41 @@ impl SegmentedAutomationVault {
         &self,
         owner: &ActorRef,
         principal: ActorRef,
+        scope: SegmentedAgentScope,
+    ) -> Result<SegmentedAgentPermit> {
+        self.authorize_agent_profile(
+            owner,
+            principal,
+            scope,
+            AutomationLayout::SegmentedV1,
+            "memory-agent-catalog-read-1",
+        )
+    }
+    /// Trusted native setup only; not an OS authentication/enrollment method.
+    pub fn authorize_qualified_agent_read(
+        &self,
+        owner: &ActorRef,
+        principal: ActorRef,
+        scope: SegmentedAgentScope,
+    ) -> Result<SegmentedAgentPermit> {
+        self.authorize_agent_profile(
+            owner,
+            principal,
+            scope,
+            AutomationLayout::SegmentedOwnerV1,
+            QUALIFIED_AGENT_READ_CAPABILITY,
+        )
+    }
+    fn authorize_agent_profile(
+        &self,
+        owner: &ActorRef,
+        principal: ActorRef,
         mut scope: SegmentedAgentScope,
+        layout: AutomationLayout,
+        capability: &'static str,
     ) -> Result<SegmentedAgentPermit> {
         self.native.owner(owner)?;
-        if principal.actor_type != ActorType::Agent
-            || self.native.descriptor.layout != AutomationLayout::SegmentedV1
-        {
+        if principal.actor_type != ActorType::Agent || self.native.descriptor.layout != layout {
             return Err(AutomationFault::Denied);
         }
         let _writer = lock::acquire(&self.native.root, Duration::ZERO)?;
@@ -228,9 +266,11 @@ impl SegmentedAutomationVault {
             }
         }
         let hash = digest(
-            &serde_json::json!({"capability":"memory-agent-catalog-read-1","vault":self.native.descriptor.vault_id,"principal":principal,"scope":scope,"policies":policies,"nonce":self.native.ids.random_16()}),
+            &serde_json::json!({"capability":capability,"layout":layout,"vault":self.native.descriptor.vault_id,"principal":principal,"scope":scope,"policies":policies,"nonce":self.native.ids.random_16()}),
         );
         Ok(SegmentedAgentPermit {
+            layout,
+            capability,
             instance: self.native.agent_instance.clone(),
             principal,
             sources: scope.source_ids.iter().cloned().collect(),
@@ -284,7 +324,22 @@ impl SegmentedAutomationVault {
                     .collect()
             });
         data.sources.retain(|_, s| permit.source_allowed(&state, s));
-        let entities: BTreeSet<_> = data
+        // Rebuild overlays over the Agent's current view, never filter already
+        // computed System aliases/redirects after they have borrowed names.
+        data.entities.retain(|_, e| {
+            e.evidence
+                .iter()
+                .chain(e.aliases.iter().flat_map(|a| &a.evidence))
+                .all(|q| {
+                    data.sources
+                        .get(&q.reference.source_id)
+                        .is_some_and(|s| s.record.revision == q.reference.source_revision)
+                })
+        });
+        if permit.layout == AutomationLayout::SegmentedOwnerV1 {
+            state.refresh_owner_overlays(&mut data, permit.scope.max_sensitivity)?;
+        }
+        let mut entities: BTreeSet<_> = data
             .memories
             .iter()
             .chain(&history)
@@ -298,7 +353,12 @@ impl SegmentedAutomationVault {
                     .flat_map(|f| f.entities.iter().map(|e| e.entity_id.clone()))
             })
             .collect();
+        entities.extend(data.entity_redirects.values().cloned());
         data.entities.retain(|id, _| entities.contains(id));
+        // Conversation surfaces are not part of this Agent view. Do not carry
+        // unselected native metadata/turn ordinals into a future adapter.
+        data.conversations.clear();
+        data.turns.clear();
         permit.live(self)?;
         Ok(f(AuthorizedSegmentedAgentRead {
             current: data,

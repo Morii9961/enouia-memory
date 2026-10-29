@@ -467,3 +467,24 @@ Owner roots also bind `digest(descriptor)` in their witnessed genesis delta.
 Replay refuses header-only adoption of an old segmented root and rebinding an
 initialized Owner subject. Store/read schemas now include both execution effects
 and actual genesis/action examples; ADR93 business record fields remain intact.
+
+### 2026-10-29 — Native qualified Agent page (ADR-MEM-105 checkpoint 2)
+
+Surface aggregate: `e302b564303120c77370a427e8b00bc5c840e722aff2b6cef9ddea51f8ac9dde`.
+
+The explicit `memory-agent-qualified-native-read-1` profile supports only
+`automation-segmented-owner-v1`. Trusted native setup delegates an Agent's exact
+current policies, subject/project/source/sensitivity ceiling and lifetime; the
+constructor is not OS enrollment. Independent Agent qualification precedes the
+shared pure catalog-4 projector. Full frozen record fields, qualified Owner marks,
+exact scoped counts and actual-byte bounded paging use delegation-bound cursors.
+Owner entity overlays are recomputed over the delegated evidence, so an unselected
+merge destination cannot lend a name or alias. Reads do not reinforce attention.
+
+This checkpoint does not add MCP tools, transport negotiation, detail/source/
+related/recall or a Context trace for the Owner root. Existing MCP and Runtime
+capture capabilities retain their exact layout limits. Runtime must adopt a
+future explicit transport profile rather than forward its System reader or native
+Owner methods. Initializer import/attachment adoption, Runtime hook/UI/pin and
+private initialization remain separate. See the [contract](../contracts/MCP_INITIALIZED_AGENT_READ_V1.md)
+and [synthetic validation](../validation/MCP-owner-native-agent-reads.md).
