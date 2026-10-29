@@ -418,6 +418,34 @@ impl SegmentedAutomationVault {
         self.current(&state)?;
         state.snapshot()
     }
+    /// Native creation verification only. No policy is created to inspect an
+    /// empty root, and no System capability is exposed to a page or Agent.
+    pub fn empty_owner_genesis_snapshot(&self, system: &ActorRef) -> Result<SnapshotBinding> {
+        self.native.system(system)?;
+        if self.native.descriptor.layout != AutomationLayout::SegmentedOwnerV1 {
+            return Err(AutomationFault::Denied);
+        }
+        let _writer = lock::acquire(&self.native.root, Duration::ZERO)?;
+        let state = self
+            .state
+            .lock()
+            .map_err(|_| AutomationFault::Unavailable)?;
+        self.current(&state)?;
+        if state.head.as_ref().is_none_or(|h| h.sequence.get() != 1)
+            || !state.policies.is_empty()
+            || !state.sources.is_empty()
+            || !state.memories.is_empty()
+            || !state.owner_actions.is_empty()
+            || !state.owner_policies.is_empty()
+            || !state.entities.is_empty()
+            || !state.conversations.is_empty()
+            || !state.operations.is_empty()
+            || !state.jobs.is_empty()
+        {
+            return Err(AutomationFault::Denied);
+        }
+        state.snapshot()
+    }
     pub fn set_policy(
         &self,
         owner: &ActorRef,
