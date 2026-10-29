@@ -519,3 +519,17 @@ bound to their original SourceRevisionRef and capture key, not import recapture.
 Later MCP native-reader work remains a separately versioned dependency; this
 merge preserves its existing Owner-root rejection gate and exposes no System
 port to an Agent. No other worktree or Runtime checkout is changed.
+
+### 2026-10-29 — Native import entry layout gate (ADR-MEM-104)
+
+Surface aggregate: `4acd2529dc5be53c4aa70a5f680f4f6522ac4d73f2e2f710bfab7f099184beb7`.
+
+The Owner initializer guard did not protect the separately exported native
+import APIs. A complete synthetic import reproduced publication on an old
+`SegmentedV1` root. All four import-specific entries now require
+`SegmentedOwnerV1` before authentication, Raw work, locking or record access;
+the old runtime-only capture entry also refuses typed attachment carriers.
+The regression checks denied capture/legacy/archive/receipt lookup, unchanged
+snapshot and no newly archived objects. Existing Owner imports and attachments
+still pass their initialization tests. No schema, MCP capability, Owner method,
+Runtime pin or real data change; old prototype roots are not migrated or adopted.

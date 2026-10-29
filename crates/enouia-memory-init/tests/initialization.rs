@@ -739,6 +739,92 @@ fn old_or_unbound_root_descriptors_are_refused_before_creation() {
 }
 
 #[test]
+fn native_import_entries_refuse_old_segmented_roots_without_side_effects() {
+    let e = Env::new();
+    let prep = prepare(&[Material {
+        alias: "synthetic-attachment-boundary".into(),
+        format: Format::Auto,
+        account_alias: "synthetic".into(),
+        bytes: include_bytes!("../../../tests/fixtures/initialization/attachments.zip").to_vec(),
+    }])
+    .unwrap();
+    let p = plan(&e, &prep, &[], FormationMode::Backfill);
+    assert!(!p.sources[0].attachments.is_empty());
+    assert!(p.sources.iter().all(|s| s.validate().is_empty()));
+    let mut objects = prep.objects.clone();
+    for attachment in prep.messages.iter().flat_map(|m| &m.attachments) {
+        if let Some(bytes) = &attachment.bytes {
+            objects.insert(sha256(bytes), bytes.clone());
+        }
+    }
+    let vault = e.create(Faults::none());
+    vault
+        .set_policy(&e.descriptor.created_by, p.policy.clone())
+        .unwrap();
+    let before = vault.snapshot().unwrap();
+    let system = &e.descriptor.system_actor;
+    assert!(matches!(
+        vault.capture_import(system, p.sources.clone(), p.catalog.clone(), &objects),
+        Err(enouia_memory_vault::automation::AutomationFault::Denied)
+    ));
+    assert!(matches!(
+        vault.capture_legacy_import(
+            &e.descriptor.created_by,
+            system,
+            p.sources.clone(),
+            p.catalog.clone(),
+            &objects,
+        ),
+        Err(enouia_memory_vault::automation::AutomationFault::Denied)
+    ));
+    assert!(matches!(
+        vault.archive_import_objects(system, &objects),
+        Err(enouia_memory_vault::automation::AutomationFault::Denied)
+    ));
+    let input: AdmissionInput = serde_json::from_value(value("ui-records/input.json")).unwrap();
+    assert!(matches!(
+        vault.lookup_import_receipt(
+            system,
+            &GenerationBinding {
+                operation_id: input.operation_id,
+                input_hash: sha256(b"synthetic-input"),
+                response_hash: sha256(b"synthetic-response"),
+            },
+        ),
+        Err(enouia_memory_vault::automation::AutomationFault::Denied)
+    ));
+    // The old runtime-only entry must not accept the new typed carrier either.
+    let mut runtime = e.source(200, Sensitivity::Private);
+    runtime.attachments = p.sources[0].attachments.clone();
+    for attachment in &mut runtime.attachments {
+        attachment.source_id = runtime.record.source_id.clone();
+    }
+    runtime.record.attachment_refs = runtime
+        .attachments
+        .iter()
+        .map(|a| a.attachment_id.clone())
+        .collect();
+    assert!(runtime.validate().is_empty());
+    assert!(matches!(
+        vault.capture(system, vec![runtime], RecordCatalog::default()),
+        Err(enouia_memory_vault::automation::AutomationFault::Denied)
+    ));
+    assert_eq!(vault.snapshot().unwrap(), before);
+    let managed = ManagedRoot::new(e.root.path(), Faults::none());
+    for hash in objects.keys() {
+        assert!(
+            managed
+                .read_bounded(
+                    &enouia_memory_contract::layout::raw_object(hash),
+                    16 * 1024 * 1024
+                )
+                .unwrap()
+                .is_none()
+        );
+    }
+}
+
+#[test]
 fn owner_subject_and_journal_descriptor_binding_refuse_changed_identity() {
     let e = owner_env();
     let prep = prepare(&materials()).unwrap();

@@ -450,6 +450,7 @@ impl SegmentedAutomationVault {
         if sources.iter().any(|s| {
             s.record.source_kind != enouia_memory_contract::source::SourceKind::RuntimeEvent
                 || s.record.completeness != enouia_memory_contract::source::Completeness::Complete
+                || !s.attachments.is_empty()
                 || s.record.evidence_class
                     == enouia_memory_contract::common::EvidenceClass::UserConfirmation
         }) {

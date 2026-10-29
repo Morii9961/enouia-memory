@@ -236,3 +236,21 @@ Rust 1.98.1 / Windows GNU；Cargo 离线且 locked；TEMP/TMP 沿用原生环境
 
 当前全量通过证据限于上述受控任务并行条件，不宣称默认高并行的不稳定性已修复。
 检查和输出仅使用合成资料；没有真实 Provider、私人初始化、Runtime GUI 或切换验收。
+
+### 2026-10-29 原生导入入口布局门槛
+
+MCP 接口复核指出：仅限制 initializer 创建 Owner 根，没有限制分别导出的
+native import API。用原件和附件均完整闭合的有效合成输入，在修复前复现了
+旧 `SegmentedV1` 上的导入成功和直接 Raw 归档；缺少附件对象造成的拒绝不算版本证明。
+现在4个导入专用入口在身份检查、归档、锁和记录读取之前要求 Owner 布局，
+旧 runtime-only capture 也拒绝 typed 附件载体。新增回归同时验证5条拒绝路径、
+快照不变且未产生任何输入/附件 Raw 对象；不迁移旧原型根，不修改 Agent/Owner 方法。
+专项17项通过，原有 Owner 正向初始化、附件与恢复均保留；主示例的 §9 数字不变。
+
+修复后独立重跑主示例：37条形成（29采用、8暂存），36来源；删除后36条可见，
+七组全部重建，事件时间仍为35 unknown / 2 month。没有真实模型或真实来源。
+最终全量792 passed、0 failed、4 ignored（`RUST_TEST_THREADS=4`，95组）；
+fmt、严格全目标 clippy、独立60 schemas及surface检查均通过。
+日志为 `import-layout-workspace-tests-final.log`、`import-layout-clippy-final.log`、
+`import-layout-synthetic-final.txt`；原有默认高并行限制继续保留，不宣称已修复。
+最新surface aggregate为 `4acd2529dc5be53c4aa70a5f680f4f6522ac4d73f2e2f710bfab7f099184beb7`。

@@ -4,6 +4,12 @@ use super::*;
 use enouia_memory_contract::{common::EvidenceClass, source::SourceKind};
 
 impl SegmentedAutomationVault {
+    fn require_import_layout(&self) -> Result<()> {
+        if self.native.descriptor.layout != AutomationLayout::SegmentedOwnerV1 {
+            return Err(AutomationFault::Denied);
+        }
+        Ok(())
+    }
     /// Original-operation lookup only. This cannot create a receipt, resend
     /// generation or authorize application after a changed deletion barrier.
     pub fn lookup_import_receipt(
@@ -11,6 +17,7 @@ impl SegmentedAutomationVault {
         system: &ActorRef,
         binding: &GenerationBinding,
     ) -> Result<Option<MemoryReceipt>> {
+        self.require_import_layout()?;
         self.native.system(system)?;
         let _writer = lock::acquire(&self.native.root, Duration::ZERO)?;
         let state = self
@@ -55,6 +62,7 @@ impl SegmentedAutomationVault {
         catalog: RecordCatalog,
         objects: &BTreeMap<Sha256Hex, Vec<u8>>,
     ) -> Result<AutomationCurrent> {
+        self.require_import_layout()?;
         if sources
             .iter()
             .any(|s| s.record.evidence_class == EvidenceClass::UserConfirmation)
@@ -74,6 +82,7 @@ impl SegmentedAutomationVault {
         catalog: RecordCatalog,
         objects: &BTreeMap<Sha256Hex, Vec<u8>>,
     ) -> Result<AutomationCurrent> {
+        self.require_import_layout()?;
         self.native.owner(owner)?;
         self.capture_import_selected(system, sources, catalog, objects)
     }
@@ -119,6 +128,7 @@ impl SegmentedAutomationVault {
         system: &ActorRef,
         objects: &BTreeMap<Sha256Hex, Vec<u8>>,
     ) -> Result<()> {
+        self.require_import_layout()?;
         self.native.system(system)?;
         let _writer = lock::acquire(&self.native.root, Duration::ZERO)?;
         let state = self

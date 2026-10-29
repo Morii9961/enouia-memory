@@ -88,7 +88,13 @@ Import carriers use `CapturedSource` with typed `attachments`, SourceRecord
 attachment refs, original locators/clocks and revision-bound evidence. Native
 `capture_import` verifies Raw closure and refuses owner confirmation; legacy
 confirmation has a separate native-owner-selected boundary. These are not MCP
-or Runtime capture routes. Already captured Runtime sources must retain their
+or Runtime capture routes. All four import-specific native entries (capture,
+legacy capture, Raw archive and receipt lookup) require an Owner descriptor
+before authentication, object work, locking or record access; the old
+`SegmentedV1` layout cannot opt in through parser/model parameters. The ordinary
+runtime-only capture entry refuses typed attachment carriers. Old prototype
+roots are not migrated or offered for formal adoption.
+Already captured Runtime sources must retain their
 original `SourceRevisionRef` and capture key: the initializer does not yet expose
 a queue-only entry for those revisions, so do not repackage them as imports.
 

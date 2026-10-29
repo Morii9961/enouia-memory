@@ -58,6 +58,13 @@ the initializer's separate `initialization-owner-1` journal binds that digest
 and refuses a changed attributed owner. There is no old-root header upgrade or
 subject rebinding. Owner catalog selection uses v4 and process headers use v2.
 
+All import-specific native entries independently require the Owner layout:
+`capture_import`, `capture_legacy_import`, `archive_import_objects` and
+`lookup_import_receipt`. They refuse old descriptors before authentication,
+object archiving, locking or record access; the initializer guard alone is not
+the version boundary. Ordinary runtime-only `capture` refuses typed attachment
+carriers. Old prototype roots receive no migration or implicit adoption.
+
 Explicit native-selected `OwnerProvided` input is an ordinary user-statement
 source in normal formation, not a pending-review queue or a G08 correction.
 An optional original quote is preserved separately with its original speaker
