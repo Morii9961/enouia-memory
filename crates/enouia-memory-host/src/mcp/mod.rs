@@ -1,6 +1,7 @@
 //! Restricted MCP 2025-11-25 boundary (ADR-MEM-80).
 //! Opt-in native enrollment lives in `native`; no owner bridge or automatic retry.
 pub mod catalog;
+pub mod initialized;
 pub(crate) mod json;
 #[cfg(windows)]
 pub mod native;

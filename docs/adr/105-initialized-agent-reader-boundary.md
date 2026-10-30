@@ -84,3 +84,8 @@ original factory/pipe-4 still refuses them. Source/Detail are authorized metadat
 projections; typed attachment floors, duplicate refs/extensions and timezone
 origin must be handled before serialization. No new wire advertisement or System
 forwarding. See the checkpoint 6 contract and actual validation report.
+
+Checkpoint 7 binds the initialized native reader to a separate pipe-5 capability.
+See [MCP_INITIALIZED_AGENT_PIPE_V1](../contracts/MCP_INITIALIZED_AGENT_PIPE_V1.md)
+for exact negotiation and actual synthetic-process evidence.
+Old protocols remain unchanged.

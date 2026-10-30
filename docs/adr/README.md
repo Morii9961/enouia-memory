@@ -572,5 +572,5 @@ capture capabilities. The explicit qualified native/pipe-4 profile supports the
 original Owner carrier, including witnessed native corrections. Original profiles
 refuse imported/partial/typed-attachment carriers before projection/counts and
 dispatch. The separate initialized native capability adopts those sources with
-scoped metadata projections; its new wire profile and shared live binding remain
-unadvertised.
+scoped metadata projections; pipe-5 explicitly binds it to OS enrollment and
+closed MCP outputs. Shared live formation remains unadvertised.
