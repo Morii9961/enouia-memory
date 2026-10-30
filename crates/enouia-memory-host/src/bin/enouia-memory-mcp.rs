@@ -86,6 +86,18 @@ fn run() -> Result<(), ()> {
         let peer = ProcessPeer::enroll(pid, HostSurface::QuickSearch).map_err(|_| ())?;
         let pipe = Pipe::connect(&pipe).map_err(|_| ())?;
         return match options["--protocol"].to_str().ok_or(())? {
+            "automation-initialized-v1" => {
+                let mut client = enouia_memory_host::mcp::initialized::native::Client::connect(
+                    pipe,
+                    peer,
+                    &vault,
+                    Duration::from_secs(10),
+                )
+                .map_err(|_| ())?;
+                client
+                    .serve_stdio(&mut std::io::stdin().lock(), &mut std::io::stdout().lock())
+                    .map_err(|_| ())
+            }
             "automation-qualified-v1" => {
                 let mut client = enouia_memory_host::mcp::qualified::native::Client::connect(
                     pipe,

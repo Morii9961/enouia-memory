@@ -166,3 +166,12 @@ Native Runtime timezone/default origin is projected separately without its
 attachment copies. Page/history/related/recall keep existing qualified rules and
 Context is the actual same response. Actual initialized-carrier pipe, closed
 wire schema and Runtime UI adoption remain later work.
+
+## Checkpoint 7 explicit initialized MCP pipe
+
+[Pipe-5](MCP_INITIALIZED_AGENT_PIPE_V1.md) separately adopts this native reader
+through actual OS enrollment and a closed imported-carrier schema. Native and
+wire capabilities remain distinct. Original protocols still refuse new carriers
+or profiles before business calls; their pin upgrades do not opt in. All five
+read tools preserve scoped fields/counts and actual Context trace. Native System
+formation, Runtime capture/live queue, writes and product adoption stay separate.

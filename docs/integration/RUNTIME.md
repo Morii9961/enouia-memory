@@ -643,3 +643,26 @@ Runtime hook/UI/pin, private initialization or attachment-byte port is added.
 See [native evidence](../validation/MCP-initialized-agent-native.md). A later
 explicit initialized-carrier pipe must adopt its own closed output schema;
 upgrading a source pin or forwarding System/Owner readers is insufficient.
+### 2026-10-30 — Explicit initialized-carrier MCP pipe (ADR105 checkpoint 7)
+
+Surface aggregate: `d592f6a1100b911c77c32d73c1722f5f454f4dcfa847acd8e7e869c7c84726f5`.
+
+Adopt pipe-5 / memory-agent-initialized-read-1 explicitly with the existing native
+OS enrollment and memory-agent-initialized-native-read-1 reader of the single
+leased Owner Vault. The captured-source-import-1 carrier, exact layout, Vault ID
+and normalized closed schema fingerprint bind the connection before business
+calls. Old profiles and forged packet identity/scope cannot select this profile.
+The CLI protocol automation-initialized-v1 uses existing pipe/Host PID/Vault ID
+metadata only and opens no Vault or client configuration.
+
+All five read tools advertise output schemas and annotations. Source/Detail use
+authorized metadata projections, filtered attachment refs, empty arbitrary
+extensions and actual returned floors. Typed attachment bytes are not exposed.
+Context is the actual same recall data/trace. Lock/revoke/expiry/policy/exit retain
+original unknown packets and never reconnect or resend automatically. Existing
+pipe-4 stays original-only; no old capability or meaning is widened by a pin.
+
+No Runtime hook/UI/pin, real source/provider/embedding, live queue, new write tool,
+resource/session-start surface, private initialization or deployment is included.
+See [contract](../contracts/MCP_INITIALIZED_AGENT_PIPE_V1.md) and
+[actual evidence](../validation/MCP-initialized-agent-pipe.md).
