@@ -29,6 +29,8 @@ pub(super) struct State {
     pub operations: BTreeMap<OperationId, (Sha256Hex, Sha256Hex)>,
     pub jobs: BTreeMap<Sha256Hex, (Sha256Hex, Vec<MemoryReceipt>)>,
     pub locators: BTreeMap<Sha256Hex, SourceId>,
+    pub capture_queue: Vec<CapturedQueueEntry>,
+    pub capture_queue_keys: BTreeMap<Sha256Hex, usize>,
     pub source_revisions: usize,
     pub memory_revisions: usize,
     pub catalog_revisions: usize,
@@ -558,6 +560,16 @@ impl State {
             SegmentedDelta::OwnerAction { record, effects } => {
                 admitted = self.check_owner(descriptor, c, record, effects)?;
             }
+            SegmentedDelta::Enqueue { entry } => {
+                if descriptor.layout != AutomationLayout::SegmentedOwnerV1
+                    || c.actor != descriptor.system_actor
+                    || self.capture_queue_keys.contains_key(&entry.queue_key)
+                    || self.capture_queue.len() >= MAX_SEGMENTED_REVISIONS
+                    || !self.queue_admissible(entry, &c.created_at)
+                {
+                    return Err(deny());
+                }
+            }
         }
         Ok(admitted)
     }
@@ -620,6 +632,11 @@ impl State {
             SegmentedDelta::Delete { sources, memories } => {
                 self.deleted_sources.extend(sources.iter().cloned());
                 self.deleted_memories.extend(memories.iter().cloned());
+            }
+            SegmentedDelta::Enqueue { entry } => {
+                self.capture_queue_keys
+                    .insert(entry.queue_key.clone(), self.capture_queue.len());
+                self.capture_queue.push(entry.as_ref().clone());
             }
             SegmentedDelta::OwnerAction { record, effects } => {
                 if let Some(correction) = &effects.correction {

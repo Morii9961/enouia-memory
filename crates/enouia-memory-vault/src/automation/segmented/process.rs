@@ -42,6 +42,8 @@ impl PublishedChange {
                     .collect();
                 true
             }
+            // Queue state is not a record change; authorized views stay valid.
+            SegmentedDelta::Enqueue { .. } => false,
             _ => true,
         };
         Self {

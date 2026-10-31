@@ -1,13 +1,14 @@
 #![cfg(windows)]
 #[path = "../../enouia-memory-vault/tests/support/segmented_fixture.rs"]
 mod fixture;
-use enouia_memory_contract::{common::*, ids::*, next::*, time::Timestamp};
+use enouia_memory_contract::{common::*, ids::*, json::Revision, next::*, time::Timestamp};
 use enouia_memory_host::automation::{
     application::ApplicationFault, runtime_capture::RuntimeCaptureHost,
 };
 use enouia_memory_vault::{
+    OsIdSource,
     automation::{AutomationFault, segmented::*},
-    fault::Faults,
+    fault::{FaultAction, FaultPoint, Faults},
 };
 use fixture::*;
 use std::{
@@ -93,6 +94,55 @@ fn request() -> RuntimeCaptureRequest {
     )
     .unwrap();
     serde_json::from_value(v["base"].clone()).unwrap()
+}
+fn client() -> ActorRef {
+    ActorRef {
+        actor_type: ActorType::Client,
+        actor_id: PrincipalId::parse(&id("prn", 77)).unwrap(),
+    }
+}
+fn scope(p: &AutomationPolicy) -> RuntimeCaptureScope {
+    RuntimeCaptureScope {
+        policy_id: p.policy_id.clone(),
+        source_ids: p.source_ids.clone(),
+        max_sensitivity: Sensitivity::Private,
+        platform: "enouia-runtime".into(),
+        account_scope: "account-synthetic".into(),
+        default_timezone: "Asia/Shanghai".into(),
+        valid_until: Timestamp::from_unix_ms(NOW + 120_000).unwrap(),
+    }
+}
+fn turn_request(
+    n: u32,
+    conversation: &str,
+    message: &str,
+    parent: Option<&str>,
+) -> RuntimeCaptureRequest {
+    let mut r = request();
+    r.request_id = RequestId::parse(&id("req", n)).unwrap();
+    r.conversation_id = conversation.into();
+    r.turns[0].message_id = message.into();
+    r.turns[0].parent_message_id = parent.map(Into::into);
+    r.turns[0].sequence = n;
+    r.turns[0].attachments.clear();
+    r
+}
+fn native_capture(
+    v: &SegmentedAutomationVault,
+    e: &Env,
+    p: &AutomationPolicy,
+    r: &RuntimeCaptureRequest,
+) -> NativeRuntimeCapture {
+    let permit = v
+        .authorize_owner_runtime_capture(&e.descriptor.created_by, client(), scope(p))
+        .unwrap();
+    v.capture_runtime(&permit, r, false).unwrap()
+}
+fn revoked(p: &AutomationPolicy) -> AutomationPolicy {
+    let mut p = p.clone();
+    p.revision = Revision::new(p.revision.get() + 1).unwrap();
+    p.active = false;
+    p
 }
 fn host(
     e: &Env,
@@ -237,6 +287,245 @@ fn owner_capture_preflight_replay_and_typed_metadata_match_initialized_reader_wi
     );
     assert_eq!(after, v.snapshot().unwrap());
     assert!(enouia_memory_host::automation::qualified_agent::QualifiedAgentHost::from_authenticated_owner(v.clone(),e.descriptor.created_by.clone()).is_err());
+}
+#[test]
+fn captured_queue_admits_exact_revisions_once_and_survives_reopen_without_forming() {
+    let e = owner_env();
+    let v = Arc::new(e.create(Faults::none()));
+    let p = e.policy(1, 1, 8);
+    v.set_policy(&e.descriptor.created_by, p.clone()).unwrap();
+    let system = e.descriptor.system_actor.clone();
+    let peer = OwnedPeer::spawn();
+    let h = host(&e, v.clone(), &peer, &p);
+    let r = request();
+    let captured = h.capture(&r).unwrap();
+    assert!(v.queued_captures(&system).unwrap().is_empty());
+    let receipt = h.enqueue(&captured).unwrap();
+    assert_eq!(receipt.state, "queued");
+    let schemas = schema_support::schema::SchemaStore::load();
+    assert!(
+        schemas
+            .validate(
+                "next/runtime-owner-capture-v2.schema.json",
+                &serde_json::to_value(&receipt).unwrap()
+            )
+            .is_empty()
+    );
+    let pointer: AutomationCurrent =
+        serde_json::from_slice(&std::fs::read(e.path.join("vault/CURRENT")).unwrap()).unwrap();
+    let segment: serde_json::Value = serde_json::from_slice(
+        &std::fs::read(e.path.join(format!(
+            "vault/automation-segments/{}.json",
+            pointer.manifest_sha256
+        )))
+        .unwrap(),
+    )
+    .unwrap();
+    assert_eq!(segment["delta"]["change"], "enqueue");
+    assert!(
+        schemas
+            .validate("next/catalog-v2.schema.json", &segment)
+            .is_empty()
+    );
+    let after = v.snapshot().unwrap();
+    assert_eq!(h.enqueue(&captured).unwrap(), receipt);
+    let replay = h.capture(&r).unwrap();
+    assert!(replay.replayed);
+    assert_eq!(h.enqueue(&replay).unwrap(), receipt);
+    assert_eq!(v.snapshot().unwrap(), after);
+    let jobs = v.queued_captures(&system).unwrap();
+    assert_eq!(
+        jobs.iter().map(|j| j.source.clone()).collect::<Vec<_>>(),
+        captured.sources
+    );
+    assert_eq!(
+        jobs.iter().map(|j| j.job_key.clone()).collect::<Vec<_>>(),
+        receipt.job_keys
+    );
+    assert!(!captured.formation_scheduled);
+    assert_eq!(
+        v.read(&system, Sensitivity::HighlySensitive, |read| read
+            .memories
+            .len())
+            .unwrap(),
+        0
+    );
+    drop(h);
+    drop(v);
+    let reopened = e.open();
+    assert_eq!(reopened.queued_captures(&system).unwrap(), jobs);
+    assert_eq!(
+        reopened
+            .enqueue_captured(&system, &captured, &p.reference())
+            .unwrap(),
+        receipt
+    );
+    assert_eq!(reopened.snapshot().unwrap(), after);
+}
+#[test]
+fn captured_queue_treats_capture_as_data_and_never_rebinds_the_original_key() {
+    let e = owner_env();
+    let v = e.create(Faults::none());
+    let (owner, system) = (&e.descriptor.created_by, &e.descriptor.system_actor);
+    let (p, other) = (e.policy(1, 1, 8), e.policy(2, 9, 8));
+    v.set_policy(owner, p.clone()).unwrap();
+    v.set_policy(owner, other.clone()).unwrap();
+    let pool = p.reference();
+    let first = native_capture(&v, &e, &p, &turn_request(1, "synthetic", "m1", None));
+    let second = native_capture(&v, &e, &p, &turn_request(2, "synthetic", "m2", Some("m1")));
+    let permit = v
+        .authorize_owner_runtime_capture(owner, client(), scope(&p))
+        .unwrap();
+    let preview = v
+        .capture_runtime(
+            &permit,
+            &turn_request(3, "synthetic", "m3", Some("m2")),
+            true,
+        )
+        .unwrap();
+    let before = v.snapshot().unwrap();
+    let refused = |capture: &NativeRuntimeCapture, policy: &PolicyRef| {
+        assert!(matches!(
+            v.enqueue_captured(system, capture, policy),
+            Err(AutomationFault::Denied)
+        ));
+    };
+    assert!(v.enqueue_captured(owner, &first, &pool).is_err());
+    refused(&preview, &pool);
+    refused(&first, &other.reference());
+    let mut forged = first.clone();
+    forged.captured = false;
+    refused(&forged, &pool);
+    forged = first.clone();
+    forged.capability = RUNTIME_CAPTURE_CAPABILITY;
+    refused(&forged, &pool);
+    forged = first.clone();
+    forged.observed_in.vault_id = VaultId::parse(&id("vlt", 9)).unwrap();
+    refused(&forged, &pool);
+    forged = first.clone();
+    forged.sources[0].source_revision = Revision::new(2).unwrap();
+    refused(&forged, &pool);
+    forged = first.clone();
+    forged.sources = second.sources.clone();
+    refused(&forged, &pool);
+    forged = first.clone();
+    forged.request_hash = second.request_hash.clone();
+    refused(&forged, &pool);
+    forged = first.clone();
+    forged.producer.actor_id = PrincipalId::parse(&id("prn", 78)).unwrap();
+    refused(&forged, &pool);
+    assert_eq!(v.snapshot().unwrap(), before);
+    assert!(v.queued_captures(system).unwrap().is_empty());
+    v.enqueue_captured(system, &first, &pool).unwrap();
+    let after = v.snapshot().unwrap();
+    let changed_policy = revoked(&p).reference();
+    forged = first.clone();
+    forged.sources = second.sources.clone();
+    assert!(matches!(
+        v.enqueue_captured(system, &forged, &pool),
+        Err(AutomationFault::Conflict)
+    ));
+    assert!(matches!(
+        v.enqueue_captured(system, &first, &changed_policy),
+        Err(AutomationFault::Conflict)
+    ));
+    assert_eq!(v.snapshot().unwrap(), after);
+    let old = Env::new();
+    assert!(matches!(
+        old.create(Faults::none())
+            .enqueue_captured(&old.descriptor.system_actor, &first, &pool),
+        Err(AutomationFault::Denied)
+    ));
+}
+#[test]
+fn captured_queue_keeps_native_turn_order_drops_deleted_and_holds_policy_gaps() {
+    let e = owner_env();
+    let v = e.create(Faults::none());
+    let (owner, system) = (&e.descriptor.created_by, &e.descriptor.system_actor);
+    let (p, q) = (e.policy(1, 1, 8), e.policy(2, 1, 8));
+    v.set_policy(owner, p.clone()).unwrap();
+    v.set_policy(owner, q.clone()).unwrap();
+    let first = native_capture(&v, &e, &p, &turn_request(1, "synthetic", "m1", None));
+    let second = native_capture(&v, &e, &q, &turn_request(2, "synthetic", "m2", Some("m1")));
+    let third = native_capture(&v, &e, &q, &turn_request(3, "synthetic", "m3", Some("m2")));
+    let other = native_capture(&v, &e, &q, &turn_request(4, "synthetic-b", "o1", None));
+    v.enqueue_captured(system, &second, &q.reference()).unwrap();
+    v.enqueue_captured(system, &first, &p.reference()).unwrap();
+    v.enqueue_captured(system, &third, &q.reference()).unwrap();
+    v.enqueue_captured(system, &other, &q.reference()).unwrap();
+    let order = |v: &SegmentedAutomationVault| {
+        v.queued_captures(system)
+            .unwrap()
+            .into_iter()
+            .map(|j| j.source)
+            .collect::<Vec<_>>()
+    };
+    let refs =
+        |c: &[&NativeRuntimeCapture]| c.iter().flat_map(|c| c.sources.clone()).collect::<Vec<_>>();
+    assert_eq!(order(&v), refs(&[&first, &second, &third, &other]));
+    v.set_policy(owner, revoked(&p)).unwrap();
+    assert_eq!(order(&v), refs(&[&other]));
+    v.delete(
+        owner,
+        first.sources.iter().map(|s| s.source_id.clone()).collect(),
+        vec![],
+    )
+    .unwrap();
+    assert_eq!(order(&v), refs(&[&second, &third, &other]));
+    v.delete(
+        owner,
+        second.sources.iter().map(|s| s.source_id.clone()).collect(),
+        vec![],
+    )
+    .unwrap();
+    assert_eq!(order(&v), refs(&[&third, &other]));
+}
+#[test]
+fn captured_queue_unknown_publication_recovers_through_the_original_key_only() {
+    for (point, persisted) in [
+        (FaultPoint::StagingWritten, false),
+        (FaultPoint::AfterCurrent, true),
+    ] {
+        let e = owner_env();
+        let faults = Faults::armed();
+        let v = e.create(faults.clone());
+        let system = &e.descriptor.system_actor;
+        let p = e.policy(1, 1, 8);
+        v.set_policy(&e.descriptor.created_by, p.clone()).unwrap();
+        let r = turn_request(1, "synthetic", "m1", None);
+        let captured = native_capture(&v, &e, &p, &r);
+        faults.arm(point, 1, FaultAction::Fail(112));
+        assert!(matches!(
+            v.enqueue_captured(system, &captured, &p.reference()),
+            Err(AutomationFault::OutcomeUnknown)
+        ));
+        drop(v);
+        let recovered = SegmentedAutomationVault::recover(
+            &e.root,
+            e.descriptor.host_id.clone(),
+            system,
+            e.clock.clone(),
+            Arc::new(OsIdSource),
+            Faults::none(),
+        )
+        .unwrap();
+        assert_eq!(
+            recovered.queued_captures(system).unwrap().len(),
+            usize::from(persisted)
+        );
+        let receipt = recovered
+            .enqueue_captured(system, &captured, &p.reference())
+            .unwrap();
+        let after = recovered.snapshot().unwrap();
+        assert_eq!(
+            recovered
+                .enqueue_captured(system, &captured, &p.reference())
+                .unwrap(),
+            receipt
+        );
+        assert_eq!(recovered.snapshot().unwrap(), after);
+        assert_eq!(recovered.queued_captures(system).unwrap().len(), 1);
+    }
 }
 #[test]
 fn owner_capture_exact_profile_subject_role_and_old_pipe_are_required() {

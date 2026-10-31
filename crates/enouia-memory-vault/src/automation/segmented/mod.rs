@@ -1,6 +1,7 @@
 //! Explicit ADR-MEM-94 synthetic root. No implicit opening, migration or routes.
 mod agent;
 mod catalog;
+mod formation_queue;
 mod intake;
 pub use agent::{
     AuthorizedSegmentedAgentRead, INITIALIZED_AGENT_READ_CAPABILITY,
@@ -14,6 +15,7 @@ use enouia_memory_contract::{
     hash::sha256,
     host::{AuthorityState, Checkpoint},
 };
+pub use formation_queue::{CapturedQueueReceipt, QueuedCapture};
 pub use runtime_capture::{NativeRuntimeCapture, RuntimeCapturePermit, RuntimeCaptureScope};
 pub use state::SegmentedMemory;
 use state::State;

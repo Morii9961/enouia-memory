@@ -406,6 +406,24 @@ def main():
         if valid("next/runtime-owner-capture-v2.schema.json", value) != case["schema"]:
             failures.append(f"Owner Runtime capture case {case['name']}: disagreement")
     counts["owner_runtime_capture_cases"] = len(owner_capture_cases["cases"])
+    queue_cases = load(ROOT / "tests/fixtures/runtime-owner-capture/queue-cases.json")
+    queue_segment = load(catalog_dir / "capture.json")
+    queue_segment["delta"] = queue_cases["delta"]
+    if not valid("next/runtime-owner-capture-v2.schema.json", queue_cases["receipt"]):
+        failures.append("valid captured queue receipt rejected")
+    if not valid("next/catalog-v2.schema.json", queue_segment):
+        failures.append("valid enqueue segment rejected")
+    for case in queue_cases["receipt_rejects"]:
+        value = copy.deepcopy(queue_cases["receipt"])
+        apply_ops(value, case["ops"])
+        if valid("next/runtime-owner-capture-v2.schema.json", value):
+            failures.append(f"invalid captured queue receipt accepted: {case['name']}")
+    for case in queue_cases["delta_rejects"]:
+        value = copy.deepcopy(queue_segment)
+        apply_ops(value["delta"], case["ops"])
+        if valid("next/catalog-v2.schema.json", value):
+            failures.append(f"invalid enqueue segment accepted: {case['name']}")
+    counts["captured_queue_cases"] = 2 + len(queue_cases["receipt_rejects"]) + len(queue_cases["delta_rejects"])
 
     wire_cases = load(ROOT / "tests/fixtures/runtime-capture/wire-cases.json")
     for case in wire_cases["cases"]:

@@ -574,3 +574,10 @@ refuse imported/partial/typed-attachment carriers before projection/counts and
 dispatch. The separate initialized native capability adopts those sources with
 scoped metadata projections; pipe-5 explicitly binds it to OS enrollment and
 closed MCP outputs. Shared live formation remains unadvertised.
+
+### ADR-MEM-111 — Queue-only admission of captured Runtime sources
+
+[Decision](111-captured-source-formation-queue.md): Owner-root Vault queue for
+exact captured revisions. The capture value is data; every binding is re-read
+from state, identity is the original capture key alone, and sessions follow
+native turn order. No worker, generation, wire or formation result.

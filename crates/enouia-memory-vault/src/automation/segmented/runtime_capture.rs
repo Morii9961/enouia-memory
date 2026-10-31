@@ -47,6 +47,9 @@ impl RuntimeCapturePermit {
     pub fn scope_hash(&self) -> &Sha256Hex {
         &self.hash
     }
+    pub fn policy(&self) -> &PolicyRef {
+        &self.policy
+    }
     pub fn revoke(&self) {
         self.active.store(false, Ordering::SeqCst);
     }
@@ -103,7 +106,7 @@ fn deny() -> AutomationFault {
 fn invalid() -> AutomationFault {
     AutomationFault::Conflict
 }
-fn provenance(s: &CapturedSource) -> Option<RuntimeCaptureProvenance> {
+pub(super) fn provenance(s: &CapturedSource) -> Option<RuntimeCaptureProvenance> {
     serde_json::from_value(s.record.extensions.get(PROVENANCE_KEY)?.clone()).ok()
 }
 fn uuid(prefix: &str, value: &impl Serialize) -> String {

@@ -5,7 +5,8 @@ use enouia_memory_contract::{common::*, next::*};
 use enouia_memory_vault::automation::{
     AutomationFault,
     segmented::{
-        NativeRuntimeCapture, RuntimeCapturePermit, RuntimeCaptureScope, SegmentedAutomationVault,
+        CapturedQueueReceipt, NativeRuntimeCapture, RuntimeCapturePermit, RuntimeCaptureScope,
+        SegmentedAutomationVault,
     },
 };
 use std::sync::{
@@ -154,6 +155,24 @@ impl RuntimeCaptureHost {
             }
             Err(error) => Err(error.into()),
         }
+    }
+    /// Queue-only: durable waiting jobs for this producer's own captured
+    /// revisions. Repeats return the original receipt and send nothing.
+    pub fn enqueue(
+        &self,
+        capture: &NativeRuntimeCapture,
+    ) -> ApplicationResult<CapturedQueueReceipt> {
+        self.live()?;
+        if capture.producer != *self.permit.principal()
+            || capture.scope_hash != *self.permit.scope_hash()
+        {
+            return Err(AutomationFault::Denied.into());
+        }
+        Ok(self.vault.enqueue_captured(
+            &self.vault.descriptor().system_actor,
+            capture,
+            self.permit.policy(),
+        )?)
     }
     /// Called when a submitted packet has no trustworthy response. Keep the
     /// exact original and close admission; this is never a resend operation.

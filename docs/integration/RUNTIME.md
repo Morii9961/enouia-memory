@@ -688,3 +688,17 @@ adoption. formation_scheduled remains false. No MCP Agent write tool, second
 writer, System/Owner forwarding, Runtime checkout/config/pin or private root use.
 See [contract](../contracts/OWNER_RUNTIME_CAPTURE_NATIVE_V1.md) and
 [synthetic evidence](../validation/MCP-3-owner-runtime-native.md).
+
+### 2026-10-31 — Queue-only admission of captured sources (ADR-MEM-111)
+
+Surface aggregate: `f5579421af161b1d4fc4b1c060534871707fe8c8f039c9af2d3b1136ea5e2661`.
+
+The Owner root gains a stored `enqueue` delta and the native Vault API
+enqueue_captured/queued_captures, plus RuntimeCaptureHost::enqueue. Runtime has
+nothing to adopt yet: no IPC command, MCP tool, pipe or wire changes, and
+Workspace IPC stays at 58 commands. When Runtime later pins this revision, an
+Owner root that holds an enqueue commit cannot be opened by an older pin, so
+rollback stays on versions with this ADR. Queued is not formed: the existing
+capture receipt keeps formation_scheduled=false, and no worker, generation or
+job result exists. See [contract](../contracts/CAPTURED_FORMATION_QUEUE_V1.md)
+and [synthetic evidence](../validation/MCP-3-captured-formation-queue.md).

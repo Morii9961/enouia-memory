@@ -50,4 +50,5 @@ Owner-root native checkpoint: explicit memory-runtime-owner-capture-native-1,
 bound Owner subject and Client peer. Original native/pipe-1 remain limited.
 Typed missing attachment metadata preserves shape without claiming bytes; capture
 is not queued/formed yet. See OWNER_RUNTIME_CAPTURE_NATIVE_V1. Native synthetic
-acceptance is complete; the Owner Runtime wire and queue admission remain open.
+acceptance is complete; the Owner Runtime wire remains open. Queue-only admission
+of captured revisions is [ADR-MEM-111](111-captured-source-formation-queue.md).

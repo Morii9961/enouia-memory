@@ -1,7 +1,7 @@
 //! ADR-MEM-94: immutable bounded deltas, preserving ADR-MEM-93 record fields.
 use super::*;
 use crate::{
-    common::ActorRef,
+    common::{ActorRef, SourceRevisionRef},
     error::Violation,
     hash::Sha256Hex,
     host::{AuthorityState, Checkpoint},
@@ -17,6 +17,53 @@ pub const MAX_SEGMENTED_REVISIONS: usize = 65_536;
 pub const MAX_SEGMENTED_COMMITS: usize = 65_536;
 pub const MAX_SEGMENTED_CHAIN_BYTES: usize = 1024 * 1024 * 1024;
 pub const MAX_SEGMENTED_POLICIES: usize = 1024;
+const MAX_QUEUED_CAPTURE_SOURCES: usize = 64;
+
+/// ADR-MEM-111: exact captured revisions durably waiting for System formation.
+/// Queued is not formed; no request, response, Provider or memory state is held.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct CapturedQueueEntry {
+    pub queue_key: Sha256Hex,
+    pub session_id: SessionId,
+    pub request_id: RequestId,
+    pub request_hash: Sha256Hex,
+    pub producer: ActorRef,
+    pub policy: PolicyRef,
+    pub sources: Vec<SourceRevisionRef>,
+    pub job_keys: Vec<Sha256Hex>,
+}
+/// The original capture key alone: a changed policy cannot mint a new identity.
+pub fn captured_queue_key(
+    vault_id: &VaultId,
+    producer: &ActorRef,
+    request_id: &RequestId,
+) -> Sha256Hex {
+    digest(&("captured-queue-1", vault_id, producer, request_id))
+}
+pub fn captured_job_key(queue_key: &Sha256Hex, source: &SourceRevisionRef) -> Sha256Hex {
+    digest(&("captured-job-1", queue_key, source))
+}
+impl CapturedQueueEntry {
+    fn valid(&self, vault_id: &VaultId) -> bool {
+        !self.sources.is_empty()
+            && self.sources.len() <= MAX_QUEUED_CAPTURE_SOURCES
+            && self.queue_key == captured_queue_key(vault_id, &self.producer, &self.request_id)
+            && self.job_keys
+                == self
+                    .sources
+                    .iter()
+                    .map(|s| captured_job_key(&self.queue_key, s))
+                    .collect::<Vec<_>>()
+            && self
+                .sources
+                .iter()
+                .map(|s| &s.source_id)
+                .collect::<std::collections::BTreeSet<_>>()
+                .len()
+                == self.sources.len()
+    }
+}
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "change", rename_all = "snake_case", deny_unknown_fields)]
@@ -51,6 +98,9 @@ pub enum SegmentedDelta {
     OwnerAction {
         record: Box<OwnerActionRecord>,
         effects: Box<OwnerActionEffects>,
+    },
+    Enqueue {
+        entry: Box<CapturedQueueEntry>,
     },
 }
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -172,6 +222,7 @@ impl NextDocument for SegmentedCommit {
                     && record.sequence == self.sequence
                     && record.plan.owner == self.actor
             }
+            SegmentedDelta::Enqueue { entry } => entry.valid(&self.vault_id),
         };
         if !valid {
             out.push(Violation::new("segmented.delta", "/delta"));
