@@ -55,7 +55,8 @@ impl Receipt {
             &self.capability,
             &self.scope_hash,
         );
-        self.request_id == call.request.request_id
+        self.capability == RuntimeCaptureCapability::V1
+            && self.request_id == call.request.request_id
             && self.request_hash == digest(&call.request)
             && self.producer.actor_type == ActorType::Client
             && self.observed_in.vault_id == *vault
@@ -157,6 +158,9 @@ pub fn serve_connection(
     pipe: &mut Pipe,
     timeout: Duration,
 ) -> Result<()> {
+    if host.capability() != RUNTIME_CAPTURE_CAPABILITY {
+        return Err(TransportFault::Incompatible);
+    }
     serve_with_reply(host, pipe, timeout, || Ok(()))
 }
 pub(crate) fn serve_with_reply(
@@ -165,6 +169,9 @@ pub(crate) fn serve_with_reply(
     timeout: Duration,
     mut before_reply: impl FnMut() -> Result<()>,
 ) -> Result<()> {
+    if host.capability() != RUNTIME_CAPTURE_CAPABILITY {
+        return Err(TransportFault::Incompatible);
+    }
     host.bind_connection()
         .map_err(|_| TransportFault::Incompatible)?;
     struct Revoke<'a>(&'a RuntimeCaptureHost);

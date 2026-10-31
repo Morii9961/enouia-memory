@@ -25,6 +25,8 @@ pub struct RuntimeCaptureScope {
 /// Native data delegation, not OS authentication. The Host must separately bind
 /// its retained Runtime peer. No Deserialize/Clone/Serialize permit exists.
 pub struct RuntimeCapturePermit {
+    layout: AutomationLayout,
+    capability: &'static str,
     instance: Arc<()>,
     principal: ActorRef,
     scope: RuntimeCaptureScope,
@@ -36,6 +38,9 @@ pub struct RuntimeCapturePermit {
     last_seen: Mutex<Timestamp>,
 }
 impl RuntimeCapturePermit {
+    pub fn capability(&self) -> &'static str {
+        self.capability
+    }
     pub fn principal(&self) -> &ActorRef {
         &self.principal
     }
@@ -46,7 +51,9 @@ impl RuntimeCapturePermit {
         self.active.store(false, Ordering::SeqCst);
     }
     fn live(&self, v: &SegmentedAutomationVault) -> Result<Timestamp> {
-        if !Arc::ptr_eq(&self.instance, &v.native.agent_instance) {
+        if !Arc::ptr_eq(&self.instance, &v.native.agent_instance)
+            || self.layout != v.native.descriptor.layout
+        {
             return Err(AutomationFault::Denied);
         }
         let mut last = self.last_seen.lock().map_err(|_| AutomationFault::Denied)?;
@@ -133,11 +140,41 @@ impl SegmentedAutomationVault {
         &self,
         owner: &ActorRef,
         principal: ActorRef,
+        scope: RuntimeCaptureScope,
+    ) -> Result<RuntimeCapturePermit> {
+        self.authorize_runtime_profile(
+            owner,
+            principal,
+            scope,
+            AutomationLayout::SegmentedV1,
+            RUNTIME_CAPTURE_CAPABILITY,
+        )
+    }
+    pub fn authorize_owner_runtime_capture(
+        &self,
+        owner: &ActorRef,
+        principal: ActorRef,
+        scope: RuntimeCaptureScope,
+    ) -> Result<RuntimeCapturePermit> {
+        self.authorize_runtime_profile(
+            owner,
+            principal,
+            scope,
+            AutomationLayout::SegmentedOwnerV1,
+            OWNER_RUNTIME_CAPTURE_CAPABILITY,
+        )
+    }
+    fn authorize_runtime_profile(
+        &self,
+        owner: &ActorRef,
+        principal: ActorRef,
         mut scope: RuntimeCaptureScope,
+        layout: AutomationLayout,
+        capability: &'static str,
     ) -> Result<RuntimeCapturePermit> {
         self.native.owner(owner)?;
         if principal.actor_type != ActorType::Client
-            || self.native.descriptor.layout != AutomationLayout::SegmentedV1
+            || self.native.descriptor.layout != layout
             || scope.platform != "enouia-runtime"
             || !enouia_memory_contract::source::is_account_alias(&scope.account_scope)
             || !valid_timezone(&scope.default_timezone)
@@ -153,7 +190,9 @@ impl SegmentedAutomationVault {
         let now = self.native.now()?;
         let ttl = scope.valid_until.unix_ms() - now.unix_ms();
         let p = state.policies.get(&scope.policy_id).ok_or_else(deny)?;
-        if !(1..=300_000).contains(&ttl)
+        if (layout == AutomationLayout::SegmentedOwnerV1
+            && self.native.descriptor.owner_subject_id.as_ref() != Some(&p.subject_id))
+            || !(1..=300_000).contains(&ttl)
             || !p.active
             || now < p.valid_from
             || now >= p.valid_until
@@ -171,11 +210,16 @@ impl SegmentedAutomationVault {
         }
         scope.source_ids.sort();
         let policy = p.reference();
-        let config = digest(
-            &serde_json::json!({"producer":principal,"policy":policy,"sources":scope.source_ids,"sensitivity":scope.max_sensitivity,"platform":scope.platform,"account":scope.account_scope,"timezone":scope.default_timezone}),
-        );
+        let original_config = serde_json::json!({"producer":principal,"policy":policy,"sources":scope.source_ids,"sensitivity":scope.max_sensitivity,"platform":scope.platform,"account":scope.account_scope,"timezone":scope.default_timezone});
+        let config = if capability == RUNTIME_CAPTURE_CAPABILITY {
+            digest(&original_config)
+        } else {
+            digest(
+                &serde_json::json!({"capability":capability,"layout":layout,"original":original_config}),
+            )
+        };
         let hash = digest(&(
-            RUNTIME_CAPTURE_CAPABILITY,
+            capability,
             &self.native.descriptor.vault_id,
             &principal,
             &scope,
@@ -183,6 +227,8 @@ impl SegmentedAutomationVault {
             self.native.ids.random_16(),
         ));
         Ok(RuntimeCapturePermit {
+            layout,
+            capability,
             instance: self.native.agent_instance.clone(),
             principal,
             scope,
@@ -203,6 +249,9 @@ impl SegmentedAutomationVault {
         request: &RuntimeCaptureRequest,
         preflight: bool,
     ) -> Result<NativeRuntimeCapture> {
+        if request.capability.as_str() != permit.capability {
+            return Err(deny());
+        }
         permit.live(self)?;
         let _writer = lock::acquire(&self.native.root, Duration::ZERO)?;
         let mut state = self
@@ -243,7 +292,7 @@ impl SegmentedAutomationVault {
         Ok(NativeRuntimeCapture {
             schema_version: NextVersion,
             kind: "native_runtime_capture",
-            capability: RUNTIME_CAPTURE_CAPABILITY,
+            capability: permit.capability,
             request_id: request.request_id.clone(),
             request_hash: digest(request),
             producer: permit.principal.clone(),
@@ -298,8 +347,45 @@ impl SourceContext<'_> {
             attachments: t.attachments.clone(),
             attachment_bytes_captured: false,
         };
+        let attachments: Vec<_> = if permit.capability == OWNER_RUNTIME_CAPTURE_CAPABILITY {
+            t.attachments
+                .iter()
+                .map(|a| enouia_memory_contract::source::AttachmentRecord {
+                    schema_version: enouia_memory_contract::json::SchemaVersion,
+                    attachment_id: AttachmentId::parse(&uuid(
+                        "att",
+                        &(
+                            &permit.principal,
+                            &r.conversation_id,
+                            &t.branch_id,
+                            &t.message_id,
+                            &a.original_id,
+                        ),
+                    ))
+                    .unwrap(),
+                    revision: Revision::new(1).unwrap(),
+                    source_id: id.clone(),
+                    original_name: a.name.clone(),
+                    claimed_media_type: a.media_type.clone(),
+                    detected_media_type: None,
+                    size_bytes: None,
+                    object_hash: None,
+                    availability: enouia_memory_contract::source::Availability::Missing,
+                    external_reference: None,
+                    sensitivity: permit.scope.max_sensitivity,
+                    created_at: now.clone(),
+                    extensions: BTreeMap::new(),
+                })
+                .collect()
+        } else {
+            Vec::new()
+        };
+        let attachment_refs = attachments
+            .iter()
+            .map(|a| a.attachment_id.clone())
+            .collect();
         CapturedSource {
-            attachments: Vec::new(),
+            attachments,
             record: SourceRecord {
                 schema_version: enouia_memory_contract::json::SchemaVersion,
                 source_id: id,
@@ -342,12 +428,12 @@ impl SourceContext<'_> {
                 } else {
                     EvidenceClass::ModelClaim
                 },
-                // The selected runtime-event object is complete raw text/metadata;
-                // no attachment object or captured bytes are claimed.
+                // The runtime event is complete raw text/metadata. Typed missing
+                // attachments are metadata only; no captured bytes are claimed.
                 completeness: Completeness::Complete,
                 sensitivity: permit.scope.max_sensitivity,
                 access_policy_id: p.access_policy_id.clone(),
-                attachment_refs: vec![],
+                attachment_refs,
                 parser_version: Some("runtime-capture-1".into()),
                 parse_warnings: vec![],
                 manual_assertion: None,

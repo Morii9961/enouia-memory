@@ -666,3 +666,25 @@ No Runtime hook/UI/pin, real source/provider/embedding, live queue, new write to
 resource/session-start surface, private initialization or deployment is included.
 See [contract](../contracts/MCP_INITIALIZED_AGENT_PIPE_V1.md) and
 [actual evidence](../validation/MCP-initialized-agent-pipe.md).
+### 2026-10-30 — Owner-root native Runtime capture (ADR102 continuation)
+
+Surface aggregate: `b2e97f6cb5a6d13f98d0bbff95b66e2593e860290ef5c82a8bb6ca70654ca9b0`.
+
+The separate memory-runtime-owner-capture-native-1 factory binds the existing
+leased Owner Vault, native Owner setup, retained OS Runtime Client peer and an
+exact active policy/source pool. Its policy subject must match descriptor Owner
+subject. Agent/System producers and mismatched request/permit profiles refuse.
+Original native capture remains old-layout-only; old pipe-1 refuses this new
+native capability before binding/decoding. Old config hashes and replay stay intact.
+
+Owner capture preserves raw turns and native default-timezone origin. Typed
+attachment metadata uses missing availability with no bytes/hash/detected media
+or verified size; upstream size/hash claims remain source audit data. New MCP
+pipe-5 reads the same typed shape and timezone origin. Preflight is no-write,
+original key conflicts do not publish, and unknown closes without resend.
+
+This is native capture only, not the Owner Runtime wire/queue or formation
+adoption. formation_scheduled remains false. No MCP Agent write tool, second
+writer, System/Owner forwarding, Runtime checkout/config/pin or private root use.
+See [contract](../contracts/OWNER_RUNTIME_CAPTURE_NATIVE_V1.md) and
+[synthetic evidence](../validation/MCP-3-owner-runtime-native.md).

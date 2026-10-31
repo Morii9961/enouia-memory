@@ -45,3 +45,9 @@ spans and independently recheck the complete candidate. The existing strict
 evidence validator and native authorization/provenance gates remain mandatory.
 See [MCP_QUOTE_LOCATOR_V1](../contracts/MCP_QUOTE_LOCATOR_V1.md). No new MCP tool
 or formation/publication capability is granted by this helper.
+
+Owner-root native checkpoint: explicit memory-runtime-owner-capture-native-1,
+bound Owner subject and Client peer. Original native/pipe-1 remain limited.
+Typed missing attachment metadata preserves shape without claiming bytes; capture
+is not queued/formed yet. See OWNER_RUNTIME_CAPTURE_NATIVE_V1. Native synthetic
+acceptance is complete; the Owner Runtime wire and queue admission remain open.

@@ -328,6 +328,11 @@
       "sha256": "da347cb5f96884f2f925be6db76ffa2bb504a8aaf8f0b7ba6e7d109f3c6ab712"
     },
     {
+      "path": "contracts/next/runtime-owner-capture-v2.schema.json",
+      "role": "automation-contract",
+      "sha256": "4f4182b286d9ff17af37f068f01d7a49fc32726cc46b76e7abd406e0ac9837c0"
+    },
+    {
       "path": "contracts/next/storage-v2.schema.json",
       "role": "automation-contract",
       "sha256": "36869db1376ff4149320c3890263784eedd6a4233d0ed1500bfa934a1caf82ee"
@@ -470,7 +475,7 @@
     {
       "path": "crates/enouia-memory-contract/src/next/runtime_capture.rs",
       "role": "automation-contract",
-      "sha256": "ba368b42e74c7aaecb5c5af5398196ad50395cf3cbc49e693e1e9c370a1831c0"
+      "sha256": "5ab6c02cb2f10b7286dbbc516b6d7922ad6b20554a2d383246441be729008c68"
     },
     {
       "path": "crates/enouia-memory-contract/src/next/segmented.rs",
@@ -605,12 +610,12 @@
     {
       "path": "crates/enouia-memory-host/src/automation/runtime_capture.rs",
       "role": "host-session",
-      "sha256": "8fdc63ef822809c1c9df5e6a2f24df15a88979fcdf0c6a475285ad0813d29b81"
+      "sha256": "2270210c08a1a8866f5d5f0544a69abfdf031bbc9df537b220f013f2326898d6"
     },
     {
       "path": "crates/enouia-memory-host/src/automation/runtime_capture_transport.rs",
       "role": "host-session",
-      "sha256": "736eb9c44e189cac5e43f5bbc0dddabdd4861b562c5aa63b63c0f66db7fea3ca"
+      "sha256": "f4168427046c8809f30dc72bb40339dd1113ddd00a1e8510147c9941b1fba146"
     },
     {
       "path": "crates/enouia-memory-host/src/automation/runtime_capture_transport_tests.rs",
@@ -940,7 +945,7 @@
     {
       "path": "crates/enouia-memory-vault/src/automation/segmented/runtime_capture.rs",
       "role": "automatic-memory-storage",
-      "sha256": "9ffeadaad9f8a8eaa72a9b95243837f364b65640e37b85dd8f979bc8bb05ee3f"
+      "sha256": "32f07174c687d12dc93a562284470cfd60d65299c7d96eb3464e9c1d280c554d"
     },
     {
       "path": "crates/enouia-memory-vault/src/automation/segmented/state.rs",
@@ -1093,5 +1098,5 @@
       "sha256": "3603c1855d9f9ec9b3585143a0191508980b260b1ffd26c82b3e6f9b7223a75d"
     }
   ],
-  "aggregate": "d592f6a1100b911c77c32d73c1722f5f454f4dcfa847acd8e7e869c7c84726f5"
+  "aggregate": "b2e97f6cb5a6d13f98d0bbff95b66e2593e860290ef5c82a8bb6ca70654ca9b0"
 }

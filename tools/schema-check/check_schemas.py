@@ -399,6 +399,14 @@ def main():
         if valid("next/runtime-capture-v2.schema.json", value) != case["schema"]:
             failures.append(f"Runtime capture case {case['name']}: disagreement")
     counts["runtime_capture_cases"] = len(capture_cases["cases"])
+    owner_capture_cases = load(ROOT / "tests/fixtures/runtime-owner-capture/cases.json")
+    for case in owner_capture_cases["cases"]:
+        value = copy.deepcopy(owner_capture_cases["base"])
+        apply_ops(value, case["ops"])
+        if valid("next/runtime-owner-capture-v2.schema.json", value) != case["schema"]:
+            failures.append(f"Owner Runtime capture case {case['name']}: disagreement")
+    counts["owner_runtime_capture_cases"] = len(owner_capture_cases["cases"])
+
     wire_cases = load(ROOT / "tests/fixtures/runtime-capture/wire-cases.json")
     for case in wire_cases["cases"]:
         value = {"mode": "write", "request": copy.deepcopy(capture_cases["base"])}

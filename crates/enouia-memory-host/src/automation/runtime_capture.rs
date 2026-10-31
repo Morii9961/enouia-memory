@@ -30,6 +30,40 @@ impl RuntimeCaptureHost {
         principal: ActorRef,
         scope: RuntimeCaptureScope,
     ) -> ApplicationResult<Self> {
+        Self::enroll_profile(
+            vault,
+            native_owner,
+            native_runtime_pid,
+            principal,
+            scope,
+            false,
+        )
+    }
+    /// Explicit Owner-root Runtime producer. Not an Agent or System reader.
+    pub fn enroll_owner(
+        vault: Arc<SegmentedAutomationVault>,
+        native_owner: &ActorRef,
+        native_runtime_pid: u32,
+        principal: ActorRef,
+        scope: RuntimeCaptureScope,
+    ) -> ApplicationResult<Self> {
+        Self::enroll_profile(
+            vault,
+            native_owner,
+            native_runtime_pid,
+            principal,
+            scope,
+            true,
+        )
+    }
+    fn enroll_profile(
+        vault: Arc<SegmentedAutomationVault>,
+        native_owner: &ActorRef,
+        native_runtime_pid: u32,
+        principal: ActorRef,
+        scope: RuntimeCaptureScope,
+        owner_root: bool,
+    ) -> ApplicationResult<Self> {
         if principal.actor_type != ActorType::Client {
             return Err(ApplicationFault::Invalid);
         }
@@ -40,7 +74,11 @@ impl RuntimeCaptureHost {
             enouia_memory_contract::workspace::HostSurface::QuickSearch,
         )
         .map_err(|_| ApplicationFault::Locked)?;
-        let permit = vault.authorize_runtime_capture(native_owner, principal, scope)?;
+        let permit = if owner_root {
+            vault.authorize_owner_runtime_capture(native_owner, principal, scope)?
+        } else {
+            vault.authorize_runtime_capture(native_owner, principal, scope)?
+        };
         Ok(Self {
             vault,
             peer,
@@ -53,6 +91,9 @@ impl RuntimeCaptureHost {
     /// required; it never reconnects or replays retained work automatically.
     pub fn revoke(&self) {
         self.permit.revoke();
+    }
+    pub fn capability(&self) -> &'static str {
+        self.permit.capability()
     }
     pub fn principal(&self) -> &ActorRef {
         self.permit.principal()

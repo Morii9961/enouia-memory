@@ -10,6 +10,8 @@ use crate::{
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
 
+pub const OWNER_RUNTIME_CAPTURE_CAPABILITY: &str = "memory-runtime-owner-capture-native-1";
+
 pub const RUNTIME_CAPTURE_CAPABILITY: &str = "memory-runtime-capture-native-1";
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -41,6 +43,16 @@ pub enum RuntimeCaptureKind {
 pub enum RuntimeCaptureCapability {
     #[serde(rename = "memory-runtime-capture-native-1")]
     V1,
+    #[serde(rename = "memory-runtime-owner-capture-native-1")]
+    OwnerV1,
+}
+impl RuntimeCaptureCapability {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::V1 => RUNTIME_CAPTURE_CAPABILITY,
+            Self::OwnerV1 => OWNER_RUNTIME_CAPTURE_CAPABILITY,
+        }
+    }
 }
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
