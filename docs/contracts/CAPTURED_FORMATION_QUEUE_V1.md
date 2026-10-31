@@ -36,4 +36,30 @@ RuntimeCaptureHost::enqueue also requires a live retained peer, the enrolled
 producer and this enrollment's scope hash, and uses the enrolled policy.
 
 queued_captures returns refs only. Order, deletion and policy-hold rules are in
-the ADR. It has no dequeue, lease or completion state yet.
+the ADR. A job follows its policy's current revision, so a routine policy update
+does not strand it.
+
+## Worker
+
+[ADR-MEM-112](../adr/112-captured-formation-worker.md). Native Rust only.
+
+```text
+CapturedFormation::open(vault, system) -> CapturedFormation
+CapturedFormation::step(analyzer) -> bool
+CapturedFormation::status() -> [FormationJobStatus]
+CaptureAnalyzer::analyze(job, source) -> CaptureAnalysis
+Initializer::step_with_captures(captures, analyzer) -> bool
+```
+
+`step` returns false when nothing is dispatchable. CaptureAnalysis is
+Statements, NoMemory, Paused or Unknown. One step performs one action: dispatch,
+prepare one statement, apply it, or settle the job.
+
+FormationJobStatus carries job_key, state, receipts and refused count. State is
+`forming`, `formed`, `no_memory`, `rejected` or `analysis_unknown`. Only `formed`
+with a receipt means a memory was written, and adoption still comes from the
+evaluator. `dispatched` exists only while a call is in flight.
+
+The journal `sync-state/captured-formation-1.json` is private, version 1, bound to
+the vault id and descriptor hash, and refused if either differs. The lease is
+`sync-state/captured-formation-1.lock`; a second worker on one root gets Busy.

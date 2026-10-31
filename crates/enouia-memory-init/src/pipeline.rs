@@ -14,7 +14,13 @@ use enouia_memory_contract::{
 };
 use enouia_memory_vault::{
     VerifiedRoot,
-    automation::{AutomationFault, segmented::SegmentedAutomationVault},
+    automation::{
+        AutomationFault,
+        segmented::{
+            CaptureAnalyzer, CapturedFormation, FormationSeed, SegmentedAutomationVault,
+            formation_seed, quoted_evidence,
+        },
+    },
     fault::Faults,
     fs::ManagedRoot,
 };
@@ -498,28 +504,7 @@ impl Plan {
             let source = sources
                 .get(statement.source_index)
                 .ok_or(AutomationFault::Denied)?;
-            let byte_start = source
-                .text
-                .find(&statement.quote)
-                .ok_or(AutomationFault::Denied)?;
-            let start = source.text[..byte_start].chars().count() as u32;
-            let q = QuotedEvidence {
-                reference: EvidenceRef {
-                    source_id: source.record.source_id.clone(),
-                    source_revision: source.record.revision,
-                    locator: source.record.locator.clone(),
-                    object_hash: source.record.anchor_hash().clone(),
-                    evidence_class: source.record.evidence_class,
-                    supports: "content".into(),
-                },
-                quote: statement.quote.clone(),
-                speaker: source.record.speaker_role,
-                start,
-                end: start + statement.quote.chars().count() as u32,
-            };
-            if !q.resolves(&sources) {
-                return Err(AutomationFault::Denied);
-            }
+            let q = quoted_evidence(source, &statement.quote).ok_or(AutomationFault::Denied)?;
             let result = MemoryRevisionRef {
                 memory_id: MemoryId::from_random(ids.random_16()),
                 revision: revision(),
@@ -555,70 +540,36 @@ impl Plan {
                     evidence: vec![q.clone()],
                 });
             }
-            let seed = AdmissionInput {
-                schema_version: NextVersion,
-                kind: InputKind::AdmissionInput,
-                snapshot: SnapshotBinding {
-                    vault_id: policy.vault_id.clone(),
-                    base_commit_id: CommitId::from_random(ids.random_16()),
-                    primary_epoch: revision(),
-                    policy_watermark: revision(),
-                    deletion_watermark: revision(),
-                },
+            let seed = formation_seed(FormationSeed {
+                policy: &policy,
+                source,
+                evidence: q,
+                snapshot_commit: CommitId::from_random(ids.random_16()),
                 operation_id: OperationId::from_random(ids.random_16()),
-                actor: policy.system_actor.clone(),
-                policy: policy.reference(),
-                producer_version: "scripted-init-1".into(),
-                model_version: None,
-                subject_id: policy.subject_id.clone(),
-                project_id: policy.project_id.clone(),
-                content: statement.quote.clone(),
-                interpretation: statement.interpretation,
-                input_refs: vec![source.reference()],
-                evidence: vec![q.reference.clone()],
-                context_source_refs: vec![],
-                target: None,
                 result: result.clone(),
-                sensitivity: source.record.sensitivity,
-                access_policy_id: policy.access_policy_id.clone(),
-                egress_policy_id: policy.egress_policy_id.clone(),
-                dimensions: Some(statement.dimensions.clone()),
-                record_fields: Some(MemoryRecordFields {
-                    title: if statement
-                        .quote
-                        .to_lowercase()
-                        .contains(&statement.title.to_lowercase())
-                    {
-                        statement.title.clone()
-                    } else {
-                        statement.quote.trim().chars().take(60).collect()
-                    },
-                    content_lang: source.record_fields.as_ref().unwrap().content_lang.clone(),
-                    event_time: statement.event_time.clone(),
-                    valid_time: statement.valid_time.clone(),
-                    entities,
-                    evidence: vec![q],
-                    formation: FormationOrigin {
-                        prompt_version: "scripted-init-1".into(),
-                        import_batch_id: Some(batch_id.clone()),
-                        mode,
-                    },
-                    annotations: Some(FormationAnnotations {
-                        memory: result,
-                        model_version: None,
-                        prompt_version: "scripted-init-1".into(),
-                        formation_note: statement.note.clone(),
-                        suggested_tags: statement.annotations.suggested_tags.clone(),
-                        tone: statement.annotations.tone.clone(),
-                        importance_guess_milli: statement.annotations.importance_guess_milli,
-                        current_state_note: statement.annotations.current_state_note.clone(),
-                        suggested_relations: statement.annotations.suggested_relations.clone(),
-                    }),
+                title: &statement.title,
+                interpretation: statement.interpretation,
+                dimensions: statement.dimensions.clone(),
+                event_time: statement.event_time.clone(),
+                valid_time: statement.valid_time.clone(),
+                entities,
+                prompt_version: "scripted-init-1",
+                model_version: None,
+                import_batch_id: Some(batch_id.clone()),
+                mode,
+                annotations: Some(FormationAnnotations {
+                    memory: result,
+                    model_version: None,
+                    prompt_version: "scripted-init-1".into(),
+                    formation_note: statement.note.clone(),
+                    suggested_tags: statement.annotations.suggested_tags.clone(),
+                    tone: statement.annotations.tone.clone(),
+                    importance_guess_milli: statement.annotations.importance_guess_milli,
+                    current_state_note: statement.annotations.current_state_note.clone(),
+                    suggested_relations: statement.annotations.suggested_relations.clone(),
                 }),
-            };
-            if !seed.validate().is_empty() {
-                return Err(AutomationFault::Denied);
-            }
+            })
+            .ok_or(AutomationFault::Denied)?;
             work.push(Work {
                 analysis_index,
                 target_analysis: statement.revises_statement,
@@ -957,6 +908,18 @@ impl Initializer {
                 "new_owner_actions":0,"unchecked_is_correct":false},"usage":{"recall_quality":null,"runtime_acceptance":"not_run"}}),
         )
     }
+    /// One scheduler for both queues: captured live work runs before any plan,
+    /// so a backfill never delays a dispatchable daily job.
+    pub fn step_with_captures(
+        &mut self,
+        captures: &mut CapturedFormation,
+        analyzer: &mut impl CaptureAnalyzer,
+    ) -> Result<bool> {
+        if captures.step(analyzer)? {
+            return Ok(true);
+        }
+        self.step()
+    }
     /// One bounded dispatch at a time. Live always wins over backfill. No model
     /// call occurs; scripted response, input and original identity are durable
     /// before application. A journal failure poisons this instance.
@@ -1121,16 +1084,12 @@ impl Initializer {
                     }
                 }
             }
-            let request = self.vault.prepare(&self.system, work.seed.clone())?;
-            let response = serde_json::to_string(&self.vault.evaluate(&self.system, &request)?)
-                .map_err(|_| AutomationFault::Unavailable)?;
-            work.binding = Some(GenerationBinding {
-                operation_id: request.operation_id.clone(),
-                input_hash: digest(&request),
-                response_hash: sha256(response.as_bytes()),
-            });
-            work.request = Some(request);
-            work.response = Some(response);
+            let prepared = self
+                .vault
+                .prepare_formation(&self.system, work.seed.clone())?;
+            work.binding = Some(prepared.binding);
+            work.request = Some(prepared.request);
+            work.response = Some(prepared.response);
             work.state = "prepared".into();
             if self.save().is_err() {
                 self.poisoned = true;

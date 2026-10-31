@@ -43,15 +43,17 @@ impl State {
             .iter()
             .position(|t| t.source == *source)
     }
-    fn policy_current(&self, policy: &PolicyRef, at: &Timestamp) -> Option<&AutomationPolicy> {
+    fn policy_live(&self, id: &PolicyId, at: &Timestamp) -> Option<&AutomationPolicy> {
         self.policies
-            .get(&policy.policy_id)
-            .filter(|p| p.reference() == *policy && p.active)
-            .filter(|p| *at >= p.valid_from && *at < p.valid_until)
+            .get(id)
+            .filter(|p| p.active && *at >= p.valid_from && *at < p.valid_until)
     }
     /// Shared by admission and chain replay, so a forged commit cannot skip it.
     pub(super) fn queue_admissible(&self, entry: &CapturedQueueEntry, at: &Timestamp) -> bool {
-        let Some(p) = self.policy_current(&entry.policy, at) else {
+        let Some(p) = self
+            .policy_live(&entry.policy.policy_id, at)
+            .filter(|p| p.reference() == entry.policy)
+        else {
             return false;
         };
         let mut last = None;
@@ -152,7 +154,8 @@ impl SegmentedAutomationVault {
     }
     /// Sessions keep first-enqueue order; each follows native turn order, so a
     /// late enqueue after a crash still precedes later turns. Deleted sources
-    /// drop out. A job outside current policy holds its session, never skipped.
+    /// drop out. A job outside the policy's current revision holds its session;
+    /// it is never skipped, and resumes if that policy covers it again.
     pub fn queued_captures(&self, system: &ActorRef) -> Result<Vec<QueuedCapture>> {
         self.native.system(system)?;
         let _writer = lock::acquire(&self.native.root, Duration::ZERO)?;
@@ -172,7 +175,7 @@ impl SegmentedAutomationVault {
                     sessions.len() - 1
                 }
             };
-            let policy = state.policy_current(&entry.policy, &now);
+            let policy = state.policy_live(&entry.policy.policy_id, &now);
             for (source, job_key) in entry.sources.iter().zip(&entry.job_keys) {
                 if state.deleted_sources.contains(&source.source_id) {
                     continue;

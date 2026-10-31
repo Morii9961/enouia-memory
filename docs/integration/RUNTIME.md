@@ -702,3 +702,20 @@ rollback stays on versions with this ADR. Queued is not formed: the existing
 capture receipt keeps formation_scheduled=false, and no worker, generation or
 job result exists. See [contract](../contracts/CAPTURED_FORMATION_QUEUE_V1.md)
 and [synthetic evidence](../validation/MCP-3-captured-formation-queue.md).
+
+### 2026-10-31 — Shared captured formation worker (ADR-MEM-112)
+
+Surface aggregate: `c3b9a6d1745cf7a733bc2dc28d4294249728918e984dea32271c66a1064f24e7`.
+
+Native Vault API CapturedFormation and the CaptureAnalyzer port turn queued
+captures into memories through the ordinary System route, and the initializer
+shares its seeds and prepare step. Runtime has nothing to adopt yet: no IPC
+command, MCP tool, pipe or wire changes, and Workspace IPC stays at 58 commands.
+No stored record format changes. Owner roots may gain the private files
+`sync-state/captured-formation-1.json` and `.lock`, which must travel with the
+root in any backup. When a later adoption starts the worker, it must supply a
+real analyzer with bounded polling and cancellation, and run it off the Runtime
+main thread. Analysis here is scripted. No model, Provider, background thread or
+Host wiring exists, so nothing forms in Runtime today. See
+[contract](../contracts/CAPTURED_FORMATION_QUEUE_V1.md) and
+[synthetic evidence](../validation/MCP-3-captured-formation-worker.md).

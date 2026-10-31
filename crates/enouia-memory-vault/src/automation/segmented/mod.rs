@@ -2,6 +2,7 @@
 mod agent;
 mod catalog;
 mod formation_queue;
+mod formation_worker;
 mod intake;
 pub use agent::{
     AuthorizedSegmentedAgentRead, INITIALIZED_AGENT_READ_CAPABILITY,
@@ -16,6 +17,10 @@ use enouia_memory_contract::{
     host::{AuthorityState, Checkpoint},
 };
 pub use formation_queue::{CapturedQueueReceipt, QueuedCapture};
+pub use formation_worker::{
+    CaptureAnalysis, CaptureAnalyzer, CaptureStatement, CapturedFormation, FormationJobState,
+    FormationJobStatus, FormationSeed, PreparedFormation, formation_seed, quoted_evidence,
+};
 pub use runtime_capture::{NativeRuntimeCapture, RuntimeCapturePermit, RuntimeCaptureScope};
 pub use state::SegmentedMemory;
 use state::State;

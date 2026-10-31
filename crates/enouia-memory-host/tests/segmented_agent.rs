@@ -164,7 +164,8 @@ fn scope(e: &Env, count: u32, source_read: bool) -> SegmentedAgentScope {
             .collect(),
         max_sensitivity: Sensitivity::Private,
         source_read,
-        valid_until: Timestamp::from_unix_ms(e.clock.now_unix_ms() + 120_000).unwrap(),
+        // The permit also bounds real time; a slow machine must not expire it.
+        valid_until: Timestamp::from_unix_ms(e.clock.now_unix_ms() + 300_000).unwrap(),
     }
 }
 fn packet(n: usize, op: &str, args: Value) -> Value {
@@ -742,7 +743,7 @@ fn invalidated_catalog_connections_keep_the_original_packet_and_never_reconnect(
             match action {
                 "lock" => host.lock().unwrap(),
                 "revoke" => reader.revoke(),
-                _ => e.clock.set(NOW + 120_000),
+                _ => e.clock.set(NOW + 300_000),
             }
             let original = packet(
                 2,

@@ -52,10 +52,9 @@ authorized process views do not reset.
 
 ## Not delivered
 
-No formation worker, dequeue or completion state, generation, Provider call or
-job result. A queued entry is never reported as formed. Live priority over
-backfill awaits the worker, because backfill work is still in the initializer's
-journal. The Owner Runtime wire, Agent hosts, `conversation_capture`,
+No formation worker or job result in this slice; [ADR-MEM-112](112-captured-formation-worker.md)
+adds them. A queued entry is never reported as formed, and no Provider is called.
+The Owner Runtime wire, Agent hosts, `conversation_capture`,
 `memory_note`, Runtime hook/config/pin/UI, private roots and real models remain
 separate. See [contract](../contracts/CAPTURED_FORMATION_QUEUE_V1.md) and
 [validation](../validation/MCP-3-captured-formation-queue.md).

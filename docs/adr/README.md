@@ -581,3 +581,11 @@ closed MCP outputs. Shared live formation remains unadvertised.
 exact captured revisions. The capture value is data; every binding is re-read
 from state, identity is the original capture key alone, and sessions follow
 native turn order. No worker, generation, wire or formation result.
+
+### ADR-MEM-112 — Shared captured formation worker
+
+[Decision](112-captured-formation-worker.md): bounded System steps over the
+captured queue, with analysis outside Vault locks and dispatch intent durable
+first. Lost analysis is recorded and never resent. Seeds and prepare are shared
+with the initializer, and captured work runs before backfill. Scripted analyzer
+only: no model, background thread or Host wiring.
