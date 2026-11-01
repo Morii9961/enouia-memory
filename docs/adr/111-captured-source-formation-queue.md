@@ -54,7 +54,7 @@ authorized process views do not reset.
 
 No formation worker or job result in this slice; [ADR-MEM-112](112-captured-formation-worker.md)
 adds them. A queued entry is never reported as formed, and no Provider is called.
-The Owner Runtime wire, Agent hosts, `conversation_capture`,
-`memory_note`, Runtime hook/config/pin/UI, private roots and real models remain
-separate. See [contract](../contracts/CAPTURED_FORMATION_QUEUE_V1.md) and
+The Owner Runtime wire, the optional Agent `memory_note` hint, Runtime
+hook/config/pin/UI, private roots and real models remain separate. Morii selected
+Runtime hooks only (ADR-MEM-102), so no Agent host capture is planned. See [contract](../contracts/CAPTURED_FORMATION_QUEUE_V1.md) and
 [validation](../validation/MCP-3-captured-formation-queue.md).

@@ -84,5 +84,6 @@ thread, foreground yield, cancellation, or Host wiring. Analysis sees one source
 at a time, and statements cannot revise memories or link entities. A job whose
 source is deleted after analysis stays `forming` with no effect. A lost analysis
 leaves its source unformed until a later explicit re-analysis design. The Owner
-Runtime wire, `conversation_capture`, `memory_note`, Core-4 continuous model
-policy, Runtime adoption, private data and daily acceptance remain undelivered.
+Runtime wire, the optional Agent `memory_note` hint, a Core-4 continuous model
+policy for Owner roots, Runtime adoption, private data and daily acceptance remain
+undelivered. Capture stays Runtime-only under ADR-MEM-102.

@@ -61,6 +61,7 @@ because no worker exists. Nothing here measures formation quality.
 
 Next work is the shared formation worker: dequeue, completion state, generation
 and live priority over backfill, reusing this queue from the initializer. The
-Owner Runtime wire, Agent hosts, `conversation_capture` and `memory_note` follow.
+Owner Runtime wire and the optional Agent `memory_note` hint follow. Capture stays
+Runtime-only under ADR-MEM-102.
 Runtime hook/config/pin/UI, real Provider/embedding, private data and daily
 formation acceptance remain undelivered.
