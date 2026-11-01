@@ -7,6 +7,8 @@ pub mod attention;
 pub mod catalog;
 pub mod continuation;
 mod model;
+#[cfg(windows)]
+pub mod owner_runtime_capture_transport;
 pub mod qualified_agent;
 pub mod read_model;
 #[cfg(windows)]
@@ -510,3 +512,7 @@ impl SyntheticJobs {
 }
 
 pub mod owner;
+
+#[cfg(all(test, windows))]
+#[path = "../../../enouia-memory-vault/tests/support/segmented_fixture.rs"]
+mod capture_fixture;

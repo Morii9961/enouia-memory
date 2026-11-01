@@ -11,6 +11,7 @@ Usage (from the repository root, with the pinned requirements installed):
 """
 import copy
 import importlib.metadata
+import os
 import json
 import pathlib
 import sys
@@ -432,6 +433,25 @@ def main():
         if valid("next/runtime-capture-pipe-v2.schema.json", value) != case["accept"]:
             failures.append(f"Runtime capture wire case {case['name']}: disagreement")
     counts["runtime_capture_wire_cases"] = len(wire_cases["cases"])
+
+    owner_wire = load(ROOT / "tests/fixtures/runtime-owner-capture/wire-cases.json")
+    for case in owner_wire["cases"]:
+        value = copy.deepcopy(owner_wire["base"])
+        apply_ops(value, case["ops"])
+        if valid("next/runtime-owner-capture-pipe-v2.schema.json", value) != case["accept"]:
+            failures.append(f"Owner wire case {case['name']}: disagreement")
+    counts["owner_runtime_wire_cases"] = len(owner_wire["cases"])
+    owner_transcript = os.environ.get("ENOUIA_OWNER_RUNTIME_CAPTURE_TRANSCRIPT")
+    if owner_transcript:
+        transcript = load(pathlib.Path(owner_transcript))
+        for exchange in transcript["exchanges"]:
+            for value in exchange.values():
+                if not valid("next/runtime-owner-capture-pipe-v2.schema.json", value):
+                    failures.append("Owner wire actual exchange rejected")
+        for value in transcript["negative_replies"]:
+            if valid("next/runtime-owner-capture-pipe-v2.schema.json", value):
+                failures.append("Owner wire forged reply accepted")
+        counts["owner_wire_exchanges"] = len(transcript["exchanges"])
 
     projection_dir = ROOT / "tests" / "fixtures" / "projections"
     projection = load(projection_dir / "manifest.json")

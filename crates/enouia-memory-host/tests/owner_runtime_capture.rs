@@ -638,3 +638,52 @@ fn owner_runtime_capture_packets_have_independent_closed_schema_and_native_valid
         );
     }
 }
+
+#[test]
+fn producer_status_is_scoped_current_content_free_and_observes_worker_without_lease() {
+    let e = owner_env();
+    let v = Arc::new(e.create(Faults::none()));
+    let p = e.policy(1, 1, 8);
+    v.set_policy(&e.descriptor.created_by, p.clone()).unwrap();
+    let peer = OwnedPeer::spawn();
+    let h = host(&e, v.clone(), &peer, &p);
+    let r = request();
+    assert!(h.status(&r).is_err());
+    let capture = h.capture(&r).unwrap();
+    assert!(h.status(&r).is_err()); // capture/enqueue crash gap
+    let queue = h.enqueue(&capture).unwrap();
+    let before = v.snapshot().unwrap();
+    let jobs = h.status(&r).unwrap();
+    assert_eq!(jobs.len(), queue.job_keys.len());
+    assert!(
+        jobs.iter()
+            .all(|j| j.state == FormationJobState::Queued && j.receipts == 0)
+    );
+    let mut changed = r.clone();
+    changed.turns[0].text.push('!');
+    assert!(h.status(&changed).is_err());
+    let foreign = RuntimeCaptureHost::enroll_owner(
+        v.clone(),
+        &e.descriptor.created_by,
+        peer.0.id(),
+        ActorRef {
+            actor_type: ActorType::Client,
+            actor_id: PrincipalId::parse(&id("prn", 78)).unwrap(),
+        },
+        scope(&p),
+    )
+    .unwrap();
+    assert!(foreign.status(&r).is_err());
+    struct Empty;
+    impl CaptureAnalyzer for Empty {
+        fn analyze(&mut self, _: &QueuedCapture, _: &CapturedSource) -> CaptureAnalysis {
+            CaptureAnalysis::NoMemory
+        }
+    }
+    let mut worker = CapturedFormation::open(v.clone(), &e.descriptor.system_actor).unwrap();
+    assert!(worker.step(&mut Empty).unwrap());
+    assert_eq!(h.status(&r).unwrap()[0].state, FormationJobState::NoMemory);
+    assert_eq!(before, v.snapshot().unwrap());
+    v.set_policy(&e.descriptor.created_by, revoked(&p)).unwrap();
+    assert!(h.status(&r).is_err());
+}

@@ -719,3 +719,20 @@ main thread. Analysis here is scripted. No model, Provider, background thread or
 Host wiring exists, so nothing forms in Runtime today. See
 [contract](../contracts/CAPTURED_FORMATION_QUEUE_V1.md) and
 [synthetic evidence](../validation/MCP-3-captured-formation-worker.md).
+
+## MCP-3 Owner Runtime pipe-2 (ADR-MEM-113)
+
+Surface `301adcb5968ac2bbfca70d3e6952b1b921a1dd10ce194416c938eda27b0d5e0a`. Runtime must explicitly adopt
+`automation::owner_runtime_capture_transport` / memory-runtime-capture-pipe-2
+with automation-segmented-owner-v1 and memory-runtime-owner-capture-native-1.
+Native setup retains the same leased Vault and actual Runtime Client peer;
+pipe-1 and Agent profiles remain unchanged. Preserve the complete original call
+on uncertainty, stop, recover and explicitly enroll again; never auto reconnect,
+resend or replace keys. Write returns separate genuine capture and queue receipts;
+preflight queues nothing. Status accepts the original request and returns only
+this producer's job keys, states and receipt/refusal counts after current scope
+checks. Queued is not formed; only genuine memory receipt counts show commits.
+No mandatory review queue. Background hosting is the next authorized slice.
+This records adoption work only: no Runtime repository/config/pin changed.
+Workspace IPC remains 58 commands. See OWNER_RUNTIME_CAPTURE_PIPE_V2 and the
+slice validation report.

@@ -246,6 +246,57 @@ impl SegmentedAutomationVault {
     pub fn runtime_capture_live(&self, permit: &RuntimeCapturePermit) -> Result<()> {
         permit.live(self).map(|_| ())
     }
+    /// Own jobs only, authorized before the journal is read. Never returns text.
+    pub fn runtime_capture_status(
+        &self,
+        permit: &RuntimeCapturePermit,
+        request: &RuntimeCaptureRequest,
+    ) -> Result<Vec<ProducerJobStatus>> {
+        if permit.capability != OWNER_RUNTIME_CAPTURE_CAPABILITY
+            || request.capability.as_str() != permit.capability
+            || !request.valid()
+        {
+            return Err(deny());
+        }
+        let _writer = lock::acquire(&self.native.root, Duration::ZERO)?;
+        let state = self
+            .state
+            .lock()
+            .map_err(|_| AutomationFault::Unavailable)?;
+        self.current(&state)?;
+        let now = permit.live(self)?;
+        let p = state
+            .policies
+            .get(&permit.scope.policy_id)
+            .ok_or_else(deny)?;
+        if p.reference() != permit.policy || !p.active || now < p.valid_from || now >= p.valid_until
+        {
+            return Err(deny());
+        }
+        let key = captured_queue_key(
+            &self.descriptor().vault_id,
+            &permit.principal,
+            &request.request_id,
+        );
+        let entry = state
+            .capture_queue_keys
+            .get(&key)
+            .map(|i| &state.capture_queue[*i])
+            .ok_or_else(deny)?;
+        if entry.producer != permit.principal
+            || entry.request_hash != digest(request)
+            || entry.policy != permit.policy
+            || !entry.sources.iter().all(|r| {
+                permit.scope.source_ids.contains(&r.source_id)
+                    && state.source_in_policy(r, p, permit.scope.max_sensitivity)
+            })
+        {
+            return Err(deny());
+        }
+        let result = self.captured_job_status(&entry.job_keys)?;
+        permit.live(self)?;
+        Ok(result)
+    }
     pub fn capture_runtime(
         &self,
         permit: &RuntimeCapturePermit,

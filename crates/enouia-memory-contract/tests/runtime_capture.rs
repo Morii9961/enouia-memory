@@ -41,3 +41,21 @@ fn runtime_wire_modes_and_enrollment_fields_are_closed() {
         );
     }
 }
+
+#[test]
+fn owner_runtime_wire_has_closed_separate_profile() {
+    let corpus = support::fixture("../runtime-owner-capture/wire-cases.json");
+    let schemas = support::schema::SchemaStore::load();
+    for case in corpus["cases"].as_array().unwrap() {
+        let mut value = corpus["base"].clone();
+        support::apply_ops(&mut value, &case["ops"]);
+        assert_eq!(
+            schemas
+                .validate("next/runtime-owner-capture-pipe-v2.schema.json", &value)
+                .is_empty(),
+            case["accept"].as_bool().unwrap(),
+            "{}",
+            case["name"]
+        );
+    }
+}

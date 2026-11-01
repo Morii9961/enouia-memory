@@ -589,3 +589,9 @@ captured queue, with analysis outside Vault locks and dispatch intent durable
 first. Lost analysis is recorded and never resent. Seeds and prepare are shared
 with the initializer, and captured work runs before backfill. Scripted analyzer
 only: no model, background thread or Host wiring.
+
+### ADR-MEM-113 — Owner Runtime capture pipe
+
+[Decision](113-owner-runtime-capture-pipe.md): explicit Owner-only pipe-2 with
+separate capture and queue receipts, original-key recovery and content-free
+producer job status. Existing pipe-1 and Agent profiles remain unchanged.

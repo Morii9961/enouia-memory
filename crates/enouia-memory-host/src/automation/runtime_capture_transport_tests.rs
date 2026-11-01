@@ -1,6 +1,5 @@
+use super::super::capture_fixture as fixture;
 use super::*;
-#[path = "../../../enouia-memory-vault/tests/support/segmented_fixture.rs"]
-mod fixture;
 use enouia_memory_vault::{automation::segmented::*, fault::Faults};
 use fixture::*;
 use std::{

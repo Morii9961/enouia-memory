@@ -50,6 +50,7 @@ pub trait CaptureAnalyzer {
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum FormationJobState {
+    Queued,
     Dispatched,
     Forming,
     Formed,
@@ -59,7 +60,7 @@ pub enum FormationJobState {
 }
 impl FormationJobState {
     fn terminal(self) -> bool {
-        !matches!(self, Self::Dispatched | Self::Forming)
+        !matches!(self, Self::Queued | Self::Dispatched | Self::Forming)
     }
 }
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -101,6 +102,51 @@ pub struct FormationJobStatus {
     pub state: FormationJobState,
     pub receipts: Vec<MemoryReceipt>,
     pub refused: usize,
+}
+/// Content-free projection for an authorized Runtime producer.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ProducerJobStatus {
+    pub job_key: Sha256Hex,
+    pub state: FormationJobState,
+    pub receipts: usize,
+    pub refused: usize,
+}
+impl SegmentedAutomationVault {
+    pub(super) fn captured_job_status(&self, keys: &[Sha256Hex]) -> Result<Vec<ProducerJobStatus>> {
+        let journal = self.read_captured_journal()?;
+        Ok(keys
+            .iter()
+            .map(|key| {
+                let job = journal
+                    .as_ref()
+                    .and_then(|j| j.jobs.iter().find(|j| j.job_key == *key));
+                ProducerJobStatus {
+                    job_key: key.clone(),
+                    state: job.map_or(FormationJobState::Queued, |j| j.state),
+                    receipts: job.map_or(0, |j| j.receipts.len()),
+                    refused: job.map_or(0, |j| j.refused),
+                }
+            })
+            .collect())
+    }
+    fn read_captured_journal(&self) -> Result<Option<Journal>> {
+        self.native
+            .root
+            .read_bounded(JOURNAL, MAX_JOURNAL_BYTES)?
+            .map(|raw| {
+                let journal: Journal =
+                    serde_json::from_slice(&raw).map_err(|_| AutomationFault::Unavailable)?;
+                if journal.version != 1
+                    || journal.vault_id != self.descriptor().vault_id
+                    || journal.descriptor_hash != digest(self.descriptor())
+                {
+                    return Err(AutomationFault::Denied);
+                }
+                Ok(journal)
+            })
+            .transpose()
+    }
 }
 pub struct PreparedFormation {
     pub request: AdmissionInput,
@@ -312,25 +358,12 @@ impl CapturedFormation {
         let lease = vault.native.root.open_lock_file(LEASE)?;
         lease.try_lock().map_err(|_| AutomationFault::Busy)?;
         let descriptor_hash = digest(vault.descriptor());
-        let mut journal = match vault.native.root.read_bounded(JOURNAL, MAX_JOURNAL_BYTES)? {
-            Some(raw) => {
-                let journal: Journal =
-                    serde_json::from_slice(&raw).map_err(|_| AutomationFault::Unavailable)?;
-                if journal.version != 1
-                    || journal.vault_id != vault.descriptor().vault_id
-                    || journal.descriptor_hash != descriptor_hash
-                {
-                    return Err(AutomationFault::Denied);
-                }
-                journal
-            }
-            None => Journal {
-                version: 1,
-                vault_id: vault.descriptor().vault_id.clone(),
-                descriptor_hash,
-                jobs: vec![],
-            },
-        };
+        let mut journal = vault.read_captured_journal()?.unwrap_or(Journal {
+            version: 1,
+            vault_id: vault.descriptor().vault_id.clone(),
+            descriptor_hash,
+            jobs: vec![],
+        });
         // A dispatch with no durable result may have reached a model.
         for job in &mut journal.jobs {
             if job.state == FormationJobState::Dispatched {
