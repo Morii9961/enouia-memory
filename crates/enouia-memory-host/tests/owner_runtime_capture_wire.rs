@@ -399,3 +399,114 @@ fn a_different_kernel_peer_cannot_use_the_enrolled_runtime_process() {
     peer.stop();
     assert_eq!(v.snapshot().unwrap(), before);
 }
+
+#[test]
+fn owner_wire_background_forms_and_status_reports_only_genuine_commits() {
+    let mut e = Env::new();
+    e.descriptor.layout = AutomationLayout::SegmentedOwnerV1;
+    e.descriptor.owner_subject_id = Some(e.policy(1, 1, 8).subject_id);
+    let v = Arc::new(e.create(Faults::none()));
+    let p = e.policy(1, 1, 8);
+    v.set_policy(&e.descriptor.created_by, p.clone()).unwrap();
+    let id = pipe_id();
+    let mut pipe = Pipe::listen(&id).unwrap();
+    let mut peer = Peer::spawn();
+    let host = Arc::new(enroll(&e, v.clone(), &peer, &p));
+    struct Fake;
+    impl CaptureAnalyzer for Fake {
+        fn start(
+            &mut self,
+            _: &QueuedCapture,
+            source: &CapturedSource,
+            _: &CaptureStopToken,
+        ) -> std::result::Result<Box<dyn PendingCaptureAnalysis>, CaptureAnalysis> {
+            let unknown = RecordTime {
+                from: None,
+                until: None,
+                precision: RecordPrecision::Unknown,
+                bound: TimeBound::Within,
+                tz: None,
+                basis: TimeBasis::Unknown,
+            };
+            Err(CaptureAnalysis::Statements(vec![CaptureStatement {
+                quote: source.text.clone(),
+                title: source.text.clone(),
+                interpretation: Interpretation::ClearSelfReport,
+                dimensions: FormationDimensions {
+                    kind: FormationKind::Preference,
+                    occurrence: OccurrenceAssertion::Unknown,
+                    state: None,
+                    change: FormationChange::Initial,
+                    conditions: vec![],
+                    event_time: None,
+                    valid_time: None,
+                    counter_sources: vec![],
+                    derived_from: vec![],
+                    reverts_to: None,
+                },
+                event_time: unknown.clone(),
+                valid_time: unknown,
+                note: None,
+                prompt_version: "wire-fake-2".into(),
+                model_version: None,
+            }]))
+        }
+    }
+    let worker = host.start_worker(Fake, Duration::from_secs(2)).unwrap();
+    std::thread::scope(|scope| {
+        let serving = host.clone();
+        let server = scope.spawn(move || {
+            pipe.accept(TIMEOUT).unwrap();
+            wire::serve_connection(&serving, &mut pipe, TIMEOUT)
+        });
+        peer.send(json!({"pipe":id,"vault":e.descriptor.vault_id,"host_pid":std::process::id()}));
+        assert_eq!(peer.event()["connected"], true);
+        let mut r = request();
+        r.turns[0].text = "I prefer quiet rooms.".into();
+        peer.send(json!(Call {
+            mode: Mode::Write,
+            request: r.clone()
+        }));
+        let written = peer.event();
+        assert_eq!(written["reply"]["queue"]["state"], "queued");
+        assert_eq!(written["reply"]["capture"]["formation_scheduled"], false);
+        let deadline = std::time::Instant::now() + TIMEOUT;
+        loop {
+            peer.send(json!(Call {
+                mode: Mode::Status,
+                request: r.clone()
+            }));
+            let state = peer.event();
+            assert!(state["reply"]["error"].is_null(), "{state}");
+            assert!(!state.to_string().contains(&r.turns[0].text));
+            if state["reply"]["jobs"][0]["state"] == "formed" {
+                assert_eq!(state["reply"]["jobs"][0]["receipts"], 1);
+                let schemas = schema_support::schema::SchemaStore::load();
+                assert!(
+                    schemas
+                        .validate(
+                            "next/runtime-owner-capture-pipe-v2.schema.json",
+                            &state["reply"]
+                        )
+                        .is_empty()
+                );
+                break;
+            }
+            assert!(
+                std::time::Instant::now() < deadline,
+                "background formation deadline"
+            );
+            std::thread::sleep(Duration::from_millis(10));
+        }
+        assert_eq!(
+            worker.shutdown(),
+            enouia_memory_host::automation::captured_worker::WorkerExit::Stopped
+        );
+        peer.stop();
+        assert!(server.join().unwrap().is_err());
+    });
+    v.read(&e.descriptor.system_actor, Sensitivity::Private, |d| {
+        assert_eq!(d.memories.len(), 1)
+    })
+    .unwrap();
+}

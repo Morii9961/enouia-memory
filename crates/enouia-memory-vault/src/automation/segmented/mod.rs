@@ -18,9 +18,9 @@ use enouia_memory_contract::{
 };
 pub use formation_queue::{CapturedQueueReceipt, QueuedCapture};
 pub use formation_worker::{
-    CaptureAnalysis, CaptureAnalyzer, CaptureStatement, CapturedFormation, FormationJobState,
-    FormationJobStatus, FormationSeed, PreparedFormation, ProducerJobStatus, formation_seed,
-    quoted_evidence,
+    CaptureAnalysis, CaptureAnalyzer, CaptureStatement, CaptureStopToken, CapturedFormation,
+    FormationJobState, FormationJobStatus, FormationSeed, PendingCaptureAnalysis,
+    PreparedFormation, ProducerJobStatus, formation_seed, quoted_evidence,
 };
 pub use runtime_capture::{NativeRuntimeCapture, RuntimeCapturePermit, RuntimeCaptureScope};
 pub use state::SegmentedMemory;

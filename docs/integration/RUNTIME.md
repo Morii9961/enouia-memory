@@ -736,3 +736,29 @@ No mandatory review queue. Background hosting is the next authorized slice.
 This records adoption work only: no Runtime repository/config/pin changed.
 Workspace IPC remains 58 commands. See OWNER_RUNTIME_CAPTURE_PIPE_V2 and the
 slice validation report.
+
+## MCP-3 hosted captured worker (ADR-MEM-114)
+
+Surface `883371a8e735a6e561042e47d82fa9d61d7eaa8d96b51235cf117295a3d6a60f`. Runtime must explicitly adopt
+`RuntimeCaptureHost::start_worker` and hold its native CapturedWorker handle for
+the unlocked session. The dedicated Memory thread drives the existing leased
+Owner Vault, yields to foreground work and backs off when idle/Busy/pending.
+Native capture/preflight/enqueue/status announce foreground priority; other
+native foreground operations use set_foreground. Lock/withdrawal/exit must revoke
+this enrollment; dropping the worker handle cancels and joins. Peer death/expiry
+and current policy changes stop it too. Publication OutcomeUnknown closes the
+worker and enrollment until recovery and fresh native setup; no automatic replay
+or reconnect. Keep the exact original capture packet and key.
+
+Implement captured-analysis-native-2 with bounded nonblocking start/poll and the
+stop token, never a synchronous model wait. Default deadline 30 seconds, upper
+bound 300 seconds, at most 32 statements / 256 KiB. Synchronous analysis adapters
+must update; no compatibility bridge. No real analyzer/Provider/embedding or
+Owner continuous-model policy is supplied. Model, budget and egress still need
+Morii's decision. Pending live analysis holds backfill. Unknown analysis is
+terminal and releases later turns without a mandatory human queue.
+
+Pipe-2's explicit Owner capability, wire schemas and journal v1 remain unchanged;
+only genuine commits contribute receipt counts. Workspace IPC remains 58 commands.
+No Runtime repository/configuration/pin changed. See CAPTURED_WORKER_HOST_V2 and
+the slice validation report for adoption, compatibility and unproven behavior.

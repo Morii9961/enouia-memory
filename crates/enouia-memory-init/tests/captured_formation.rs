@@ -89,19 +89,29 @@ struct Scripted {
     next: Option<CaptureAnalysis>,
 }
 impl CaptureAnalyzer for Scripted {
-    fn analyze(&mut self, _job: &QueuedCapture, source: &CapturedSource) -> CaptureAnalysis {
+    fn start(
+        &mut self,
+        _job: &QueuedCapture,
+        source: &CapturedSource,
+        _: &CaptureStopToken,
+    ) -> std::result::Result<Box<dyn PendingCaptureAnalysis>, CaptureAnalysis> {
         self.calls += 1;
-        self.next.take().unwrap_or_else(|| {
+        Err(self.next.take().unwrap_or_else(|| {
             CaptureAnalysis::Statements(vec![statement(
                 &source.text,
                 Interpretation::ClearSelfReport,
             )])
-        })
+        }))
     }
 }
 struct Panics;
 impl CaptureAnalyzer for Panics {
-    fn analyze(&mut self, _: &QueuedCapture, _: &CapturedSource) -> CaptureAnalysis {
+    fn start(
+        &mut self,
+        _: &QueuedCapture,
+        _: &CapturedSource,
+        _: &CaptureStopToken,
+    ) -> std::result::Result<Box<dyn PendingCaptureAnalysis>, CaptureAnalysis> {
         panic!("synthetic analyzer failure");
     }
 }
@@ -501,7 +511,116 @@ fn live_captures_run_before_backfill_on_one_scheduler() {
     }
     assert_eq!(init.plans()[0].completed(), 0);
     assert_eq!(worker.status()[0].state, FormationJobState::Formed);
+    // A pending poll returning false must not let backfill overtake live work.
+    capture_and_enqueue(
+        &v,
+        &e,
+        &p,
+        &turn(2, "c", Some("m1"), "I prefer warm light."),
+    );
+    struct Deferred(std::sync::Arc<std::sync::atomic::AtomicBool>);
+    impl PendingCaptureAnalysis for Deferred {
+        fn poll(&mut self, _: &CaptureStopToken) -> Option<CaptureAnalysis> {
+            self.0
+                .load(std::sync::atomic::Ordering::SeqCst)
+                .then_some(CaptureAnalysis::NoMemory)
+        }
+    }
+    impl CaptureAnalyzer for Deferred {
+        fn start(
+            &mut self,
+            _: &QueuedCapture,
+            _: &CapturedSource,
+            _: &CaptureStopToken,
+        ) -> std::result::Result<Box<dyn PendingCaptureAnalysis>, CaptureAnalysis> {
+            Ok(Box::new(Deferred(self.0.clone())))
+        }
+    }
+    let ready = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+    let mut deferred = Deferred(ready.clone());
+    assert!(init.step_with_captures(&mut worker, &mut deferred).unwrap());
+    assert!(!init.step_with_captures(&mut worker, &mut deferred).unwrap());
+    assert_eq!(init.plans()[0].completed(), 0);
+    ready.store(true, std::sync::atomic::Ordering::SeqCst);
+    assert!(init.step_with_captures(&mut worker, &mut deferred).unwrap());
     assert!(init.step_with_captures(&mut worker, &mut analyzer).unwrap());
     assert_eq!(init.plans()[0].completed(), 1);
     assert!(!init.step_with_captures(&mut worker, &mut analyzer).unwrap());
+}
+
+#[test]
+fn oversized_analysis_is_refused_without_writing_or_repeating_analysis() {
+    for many in [false, true] {
+        let e = owner_env();
+        let (v, p) = rig(&e);
+        capture_and_enqueue(
+            &v,
+            &e,
+            &p,
+            &turn(1, "bounded", None, "I prefer quiet rooms."),
+        );
+        let mut oversized = statement("I prefer quiet rooms.", Interpretation::ClearSelfReport);
+        if !many {
+            oversized.note = Some("x".repeat(256 * 1024));
+        }
+        let mut analyzer = Scripted {
+            calls: 0,
+            next: Some(CaptureAnalysis::Statements(if many {
+                vec![oversized; 33]
+            } else {
+                vec![oversized]
+            })),
+        };
+        let mut worker = CapturedFormation::open(v.clone(), &e.descriptor.system_actor).unwrap();
+        assert!(worker.step(&mut analyzer).unwrap());
+        assert!(!worker.step(&mut analyzer).unwrap());
+        assert_eq!(worker.status()[0].state, FormationJobState::Rejected);
+        assert!(memories(&v, &e).is_empty());
+        assert_eq!(analyzer.calls, 1);
+    }
+}
+#[test]
+fn concurrent_policy_update_and_apply_use_chain_truth_without_reanalysis_or_duplicates() {
+    use std::sync::Barrier;
+    for _ in 0..3 {
+        let e = owner_env();
+        let (v, p) = rig(&e);
+        capture_and_enqueue(&v, &e, &p, &turn(1, "race", None, "I prefer quiet rooms."));
+        let mut worker = CapturedFormation::open(v.clone(), &e.descriptor.system_actor).unwrap();
+        let mut analyzer = Scripted::default();
+        worker.step(&mut analyzer).unwrap();
+        worker.step(&mut analyzer).unwrap();
+        let barrier = Arc::new(Barrier::new(2));
+        std::thread::scope(|scope| {
+            let gate = barrier.clone();
+            let worker_ref = &mut worker;
+            let analyzer_ref = &mut analyzer;
+            let worker_thread = scope.spawn(move || {
+                gate.wait();
+                for _ in 0..100 {
+                    match worker_ref.step(analyzer_ref) {
+                        Ok(true) => {}
+                        Ok(false) => break,
+                        Err(AutomationFault::Busy) => std::thread::yield_now(),
+                        Err(error) => panic!("unexpected concurrent worker error: {error:?}"),
+                    }
+                }
+            });
+            barrier.wait();
+            let mut updated = p.clone();
+            updated.revision = enouia_memory_contract::json::Revision::new(2).unwrap();
+            loop {
+                match v.set_policy(&e.descriptor.created_by, updated.clone()) {
+                    Ok(_) => break,
+                    Err(AutomationFault::Busy) => std::thread::yield_now(),
+                    Err(error) => panic!("unexpected concurrent policy error: {error:?}"),
+                }
+            }
+            worker_thread.join().unwrap();
+        });
+        drain(&mut worker, &mut analyzer);
+        assert_eq!(analyzer.calls, 1);
+        assert_eq!(memories(&v, &e).len(), 1);
+        assert_eq!(worker.status()[0].receipts.len(), 1);
+    }
 }

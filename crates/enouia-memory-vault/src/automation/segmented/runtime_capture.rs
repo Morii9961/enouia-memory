@@ -246,6 +246,28 @@ impl SegmentedAutomationVault {
     pub fn runtime_capture_live(&self, permit: &RuntimeCapturePermit) -> Result<()> {
         permit.live(self).map(|_| ())
     }
+    pub fn runtime_formation_live(&self, permit: &RuntimeCapturePermit) -> Result<()> {
+        let now = permit.live(self)?;
+        if permit.capability != OWNER_RUNTIME_CAPTURE_CAPABILITY {
+            return Err(deny());
+        }
+        let state = self
+            .state
+            .lock()
+            .map_err(|_| AutomationFault::Unavailable)?;
+        let policy = state
+            .policies
+            .get(&permit.scope.policy_id)
+            .ok_or_else(deny)?;
+        if policy.reference() != permit.policy
+            || !policy.active
+            || now < policy.valid_from
+            || now >= policy.valid_until
+        {
+            return Err(deny());
+        }
+        Ok(())
+    }
     /// Own jobs only, authorized before the journal is read. Never returns text.
     pub fn runtime_capture_status(
         &self,

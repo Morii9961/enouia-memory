@@ -918,6 +918,9 @@ impl Initializer {
         if captures.step(analyzer)? {
             return Ok(true);
         }
+        if captures.has_pending() {
+            return Ok(false);
+        }
         self.step()
     }
     /// One bounded dispatch at a time. Live always wins over backfill. No model

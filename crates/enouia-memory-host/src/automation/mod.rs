@@ -4,6 +4,8 @@
 pub mod agent_read;
 pub mod application;
 pub mod attention;
+#[cfg(windows)]
+pub mod captured_worker;
 pub mod catalog;
 pub mod continuation;
 mod model;

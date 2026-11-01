@@ -595,3 +595,9 @@ only: no model, background thread or Host wiring.
 [Decision](113-owner-runtime-capture-pipe.md): explicit Owner-only pipe-2 with
 separate capture and queue receipts, original-key recovery and content-free
 producer job status. Existing pipe-1 and Agent profiles remain unchanged.
+
+### ADR-MEM-114 — Hosted captured formation worker
+
+[Decision](114-captured-worker-host.md): bounded cancelable native analysis and
+a dedicated foreground-aware thread on the existing lease. Lifecycle revocation
+and storage uncertainty stop execution; no real analyzer or Runtime adoption.

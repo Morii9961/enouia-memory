@@ -676,8 +676,13 @@ fn producer_status_is_scoped_current_content_free_and_observes_worker_without_le
     assert!(foreign.status(&r).is_err());
     struct Empty;
     impl CaptureAnalyzer for Empty {
-        fn analyze(&mut self, _: &QueuedCapture, _: &CapturedSource) -> CaptureAnalysis {
-            CaptureAnalysis::NoMemory
+        fn start(
+            &mut self,
+            _: &QueuedCapture,
+            _: &CapturedSource,
+            _: &CaptureStopToken,
+        ) -> std::result::Result<Box<dyn PendingCaptureAnalysis>, CaptureAnalysis> {
+            Err(CaptureAnalysis::NoMemory)
         }
     }
     let mut worker = CapturedFormation::open(v.clone(), &e.descriptor.system_actor).unwrap();
@@ -686,4 +691,362 @@ fn producer_status_is_scoped_current_content_free_and_observes_worker_without_le
     assert_eq!(before, v.snapshot().unwrap());
     v.set_policy(&e.descriptor.created_by, revoked(&p)).unwrap();
     assert!(h.status(&r).is_err());
+}
+
+use enouia_memory_host::automation::captured_worker::WorkerExit;
+use std::{
+    collections::VecDeque,
+    sync::{
+        atomic::{AtomicUsize, Ordering},
+        mpsc,
+    },
+    time::{Duration, Instant},
+};
+#[derive(Clone, Copy)]
+enum FakeAction {
+    Statement,
+    Delayed,
+    PollPanic,
+    Wait,
+    Panic,
+    Unknown,
+}
+struct HostedAnalyzer {
+    calls: Arc<AtomicUsize>,
+    polls: Arc<AtomicUsize>,
+    actions: VecDeque<FakeAction>,
+    started: Option<mpsc::Sender<CaptureStopToken>>,
+}
+struct PendingFake(Arc<AtomicUsize>, Option<CaptureAnalysis>);
+impl PendingCaptureAnalysis for PendingFake {
+    fn poll(&mut self, _: &CaptureStopToken) -> Option<CaptureAnalysis> {
+        let count = self.0.fetch_add(1, Ordering::SeqCst);
+        if count >= 2 { self.1.take() } else { None }
+    }
+}
+struct PollPanic;
+impl PendingCaptureAnalysis for PollPanic {
+    fn poll(&mut self, _: &CaptureStopToken) -> Option<CaptureAnalysis> {
+        panic!("owned fake poll panic");
+    }
+}
+impl CaptureAnalyzer for HostedAnalyzer {
+    fn start(
+        &mut self,
+        _: &QueuedCapture,
+        source: &CapturedSource,
+        stop: &CaptureStopToken,
+    ) -> std::result::Result<Box<dyn PendingCaptureAnalysis>, CaptureAnalysis> {
+        self.calls.fetch_add(1, Ordering::SeqCst);
+        if let Some(tx) = &self.started {
+            tx.send(stop.clone()).unwrap();
+        }
+        let action = self.actions.pop_front().unwrap_or(FakeAction::Statement);
+        match action {
+            FakeAction::Wait => Ok(Box::new(PendingFake(self.polls.clone(), None))),
+            FakeAction::PollPanic => Ok(Box::new(PollPanic)),
+            FakeAction::Unknown => Err(CaptureAnalysis::Unknown),
+            FakeAction::Panic => panic!("owned fake analyzer panic"),
+            FakeAction::Statement | FakeAction::Delayed => {
+                let analysis = CaptureAnalysis::Statements(vec![CaptureStatement {
+                    quote: source.text.clone(),
+                    title: source.text.clone(),
+                    interpretation: Interpretation::ClearSelfReport,
+                    dimensions: FormationDimensions {
+                        kind: FormationKind::Preference,
+                        occurrence: OccurrenceAssertion::Unknown,
+                        state: None,
+                        change: FormationChange::Initial,
+                        conditions: vec![],
+                        event_time: None,
+                        valid_time: None,
+                        counter_sources: vec![],
+                        derived_from: vec![],
+                        reverts_to: None,
+                    },
+                    event_time: unknown_time(),
+                    valid_time: unknown_time(),
+                    note: None,
+                    prompt_version: "hosted-fake-2".into(),
+                    model_version: None,
+                }]);
+                if matches!(action, FakeAction::Delayed) {
+                    Ok(Box::new(PendingFake(self.polls.clone(), Some(analysis))))
+                } else {
+                    Err(analysis)
+                }
+            }
+        }
+    }
+}
+fn fake(actions: &[FakeAction]) -> HostedAnalyzer {
+    HostedAnalyzer {
+        calls: Arc::new(AtomicUsize::new(0)),
+        polls: Arc::new(AtomicUsize::new(0)),
+        actions: actions.iter().copied().collect(),
+        started: None,
+    }
+}
+fn wait_until(mut ready: impl FnMut() -> bool) {
+    let deadline = Instant::now() + Duration::from_secs(15);
+    while !ready() {
+        assert!(
+            Instant::now() < deadline,
+            "bounded synthetic worker deadline"
+        );
+        std::thread::sleep(Duration::from_millis(5));
+    }
+}
+fn hosted_request(n: u32) -> RuntimeCaptureRequest {
+    let message = format!("m{n}");
+    let mut request = turn_request(
+        n,
+        "hosted-synthetic",
+        &message,
+        if n == 1 { None } else { Some("m1") },
+    );
+    request.turns[0].text = if n == 1 {
+        "I prefer quiet rooms."
+    } else {
+        "I prefer warm light."
+    }
+    .into();
+    request
+}
+#[test]
+fn hosted_worker_forms_automatically_yields_to_foreground_and_releases_its_lease() {
+    let e = owner_env();
+    let v = Arc::new(e.create(Faults::none()));
+    let p = e.policy(1, 1, 8);
+    v.set_policy(&e.descriptor.created_by, p.clone()).unwrap();
+    let peer = OwnedPeer::spawn();
+    let h = Arc::new(host(&e, v.clone(), &peer, &p));
+    for n in 1..=2 {
+        let c = h.capture(&hosted_request(n)).unwrap();
+        h.enqueue(&c).unwrap();
+    }
+    h.set_foreground(true).unwrap();
+    let analyzer = fake(&[FakeAction::Delayed]);
+    let calls = analyzer.calls.clone();
+    let worker = h.start_worker(analyzer, Duration::from_secs(2)).unwrap();
+    assert!(h.start_worker(fake(&[]), Duration::from_secs(2)).is_err());
+    std::thread::sleep(Duration::from_millis(60));
+    assert_eq!(calls.load(Ordering::SeqCst), 0);
+    h.set_foreground(false).unwrap();
+    wait_until(|| {
+        h.status(&hosted_request(2))
+            .is_ok_and(|s| s[0].state == FormationJobState::Formed)
+    });
+    assert_eq!(h.status(&hosted_request(1)).unwrap()[0].receipts, 1);
+    assert_eq!(h.status(&hosted_request(2)).unwrap()[0].receipts, 1);
+    assert_eq!(calls.load(Ordering::SeqCst), 2);
+    assert_eq!(worker.shutdown(), WorkerExit::Stopped);
+    let reopened = CapturedFormation::open(v.clone(), &e.descriptor.system_actor).unwrap();
+    assert_eq!(reopened.status().len(), 2);
+}
+#[test]
+fn hosted_pending_analysis_backs_off_and_all_native_lifecycle_exits_cancel_without_resend() {
+    for mode in 0..5 {
+        let e = owner_env();
+        let v = Arc::new(e.create(Faults::none()));
+        let p = e.policy(1, 1, 8);
+        v.set_policy(&e.descriptor.created_by, p.clone()).unwrap();
+        let mut peer = OwnedPeer::spawn();
+        let h = Arc::new(host(&e, v.clone(), &peer, &p));
+        let r = hosted_request(1);
+        let c = h.capture(&r).unwrap();
+        h.enqueue(&c).unwrap();
+        let (tx, rx) = mpsc::channel();
+        let mut analyzer = fake(&[FakeAction::Wait]);
+        let calls = analyzer.calls.clone();
+        let polls = analyzer.polls.clone();
+        analyzer.started = Some(tx);
+        let worker = h.start_worker(analyzer, Duration::from_secs(5)).unwrap();
+        let token = rx.recv_timeout(Duration::from_secs(15)).unwrap();
+        std::thread::sleep(Duration::from_millis(100));
+        assert!(
+            polls.load(Ordering::SeqCst) < 10,
+            "pending analysis must not spin"
+        );
+        match mode {
+            0 => h.revoke(),
+            1 => e.clock.set(NOW + 120_000),
+            2 => {
+                v.set_policy(&e.descriptor.created_by, revoked(&p)).unwrap();
+            }
+            3 => peer.exit(),
+            _ => {}
+        }
+        let retained = if mode == 4 {
+            drop(h);
+            None
+        } else {
+            Some(h)
+        };
+        wait_until(|| worker.exit().is_some());
+        assert!(token.is_cancelled());
+        assert_eq!(worker.shutdown(), WorkerExit::Stopped);
+        drop(retained);
+        let mut recovered = CapturedFormation::open(v.clone(), &e.descriptor.system_actor).unwrap();
+        assert_eq!(
+            recovered.status()[0].state,
+            FormationJobState::AnalysisUnknown
+        );
+        assert!(!recovered.step(&mut fake(&[])).unwrap());
+        assert_eq!(calls.load(Ordering::SeqCst), 1);
+        v.read(&e.descriptor.system_actor, Sensitivity::Private, |d| {
+            assert!(d.memories.is_empty())
+        })
+        .unwrap();
+    }
+}
+#[test]
+fn hosted_analysis_panic_and_unknown_are_terminal_without_stopping_the_host_or_later_turns() {
+    for action in [
+        FakeAction::Panic,
+        FakeAction::PollPanic,
+        FakeAction::Unknown,
+    ] {
+        let e = owner_env();
+        let v = Arc::new(e.create(Faults::none()));
+        let p = e.policy(1, 1, 8);
+        v.set_policy(&e.descriptor.created_by, p.clone()).unwrap();
+        let peer = OwnedPeer::spawn();
+        let h = Arc::new(host(&e, v.clone(), &peer, &p));
+        for n in 1..=2 {
+            let c = h.capture(&hosted_request(n)).unwrap();
+            h.enqueue(&c).unwrap();
+        }
+        let analyzer = fake(&[action]);
+        let calls = analyzer.calls.clone();
+        let worker = h.start_worker(analyzer, Duration::from_secs(2)).unwrap();
+        wait_until(|| {
+            h.status(&hosted_request(2))
+                .is_ok_and(|s| s[0].state == FormationJobState::Formed)
+        });
+        assert_eq!(
+            h.status(&hosted_request(1)).unwrap()[0].state,
+            FormationJobState::AnalysisUnknown
+        );
+        assert_eq!(calls.load(Ordering::SeqCst), 2);
+        assert_eq!(worker.exit(), None);
+        assert_eq!(worker.shutdown(), WorkerExit::Stopped);
+    }
+}
+#[test]
+fn hosted_analysis_deadline_cancels_and_never_dispatches_that_job_again() {
+    let e = owner_env();
+    let v = Arc::new(e.create(Faults::none()));
+    let p = e.policy(1, 1, 8);
+    v.set_policy(&e.descriptor.created_by, p.clone()).unwrap();
+    let peer = OwnedPeer::spawn();
+    let h = Arc::new(host(&e, v.clone(), &peer, &p));
+    let r = hosted_request(1);
+    let c = h.capture(&r).unwrap();
+    h.enqueue(&c).unwrap();
+    let (tx, rx) = mpsc::channel();
+    let mut analyzer = fake(&[FakeAction::Wait]);
+    let calls = analyzer.calls.clone();
+    analyzer.started = Some(tx);
+    let worker = h.start_worker(analyzer, Duration::from_millis(60)).unwrap();
+    let token = rx.recv_timeout(Duration::from_secs(15)).unwrap();
+    wait_until(|| {
+        h.status(&r)
+            .is_ok_and(|s| s[0].state == FormationJobState::AnalysisUnknown)
+    });
+    assert!(token.is_cancelled());
+    assert_eq!(calls.load(Ordering::SeqCst), 1);
+    assert_eq!(worker.shutdown(), WorkerExit::Stopped);
+}
+
+fn unknown_time() -> RecordTime {
+    RecordTime {
+        from: None,
+        until: None,
+        precision: RecordPrecision::Unknown,
+        bound: TimeBound::Within,
+        tz: None,
+        basis: TimeBasis::Unknown,
+    }
+}
+#[test]
+fn hosted_storage_unknown_stops_enrollment_and_recovery_never_reanalyzes() {
+    for point in [FaultPoint::StagingWritten, FaultPoint::AfterCurrent] {
+        let e = owner_env();
+        let faults = Faults::armed();
+        let v = Arc::new(e.create(faults.clone()));
+        let p = e.policy(1, 1, 8);
+        v.set_policy(&e.descriptor.created_by, p.clone()).unwrap();
+        let peer = OwnedPeer::spawn();
+        let h = Arc::new(host(&e, v.clone(), &peer, &p));
+        let r = hosted_request(1);
+        let c = h.capture(&r).unwrap();
+        h.enqueue(&c).unwrap();
+        faults.arm(point, 1, FaultAction::Fail(112));
+        let analyzer = fake(&[]);
+        let calls = analyzer.calls.clone();
+        let worker = h.start_worker(analyzer, Duration::from_secs(2)).unwrap();
+        wait_until(|| worker.exit().is_some());
+        assert_eq!(worker.shutdown(), WorkerExit::OutcomeUnknown);
+        assert!(matches!(
+            h.capture(&r),
+            Err(ApplicationFault::Vault(AutomationFault::OutcomeUnknown))
+        ));
+        assert!(h.start_worker(fake(&[]), Duration::from_secs(2)).is_err());
+        assert_eq!(calls.load(Ordering::SeqCst), 1);
+        drop(h);
+        drop(v);
+        let v = Arc::new(
+            SegmentedAutomationVault::recover(
+                &e.root,
+                e.descriptor.host_id.clone(),
+                &e.descriptor.system_actor,
+                e.clock.clone(),
+                Arc::new(OsIdSource),
+                Faults::none(),
+            )
+            .unwrap(),
+        );
+        let mut recovered = CapturedFormation::open(v.clone(), &e.descriptor.system_actor).unwrap();
+        let mut analyzer = fake(&[]);
+        let new_calls = analyzer.calls.clone();
+        while recovered.step(&mut analyzer).unwrap() {}
+        assert_eq!(new_calls.load(Ordering::SeqCst), 0);
+        assert_eq!(recovered.status()[0].receipts.len(), 1);
+    }
+}
+
+#[test]
+fn hosted_lost_capture_response_revokes_concurrently_and_retains_the_exact_original() {
+    let e = owner_env();
+    let v = Arc::new(e.create(Faults::none()));
+    let p = e.policy(1, 1, 8);
+    v.set_policy(&e.descriptor.created_by, p.clone()).unwrap();
+    let peer = OwnedPeer::spawn();
+    let h = Arc::new(host(&e, v.clone(), &peer, &p));
+    let r = hosted_request(1);
+    let c = h.capture(&r).unwrap();
+    h.enqueue(&c).unwrap();
+    let (tx, rx) = mpsc::channel();
+    let mut analyzer = fake(&[FakeAction::Wait]);
+    analyzer.started = Some(tx);
+    let calls = analyzer.calls.clone();
+    let worker = h.start_worker(analyzer, Duration::from_secs(5)).unwrap();
+    let token = rx.recv_timeout(Duration::from_secs(15)).unwrap();
+    std::thread::scope(|scope| {
+        let revoking = h.clone();
+        let request = r.clone();
+        let stop = scope.spawn(move || revoking.response_lost(&request).unwrap());
+        wait_until(|| worker.exit().is_some());
+        stop.join().unwrap();
+    });
+    assert_eq!(h.original_unknown().unwrap(), Some(r.clone()));
+    assert!(token.is_cancelled());
+    assert_eq!(worker.shutdown(), WorkerExit::Stopped);
+    assert_eq!(calls.load(Ordering::SeqCst), 1);
+    assert!(matches!(
+        h.capture(&r),
+        Err(ApplicationFault::Vault(AutomationFault::OutcomeUnknown))
+    ));
+    assert_eq!(h.original_unknown().unwrap(), Some(r));
 }

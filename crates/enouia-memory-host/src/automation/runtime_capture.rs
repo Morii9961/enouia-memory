@@ -15,11 +15,18 @@ use std::sync::{
 };
 
 pub struct RuntimeCaptureHost {
-    vault: Arc<SegmentedAutomationVault>,
+    pub(super) vault: Arc<SegmentedAutomationVault>,
     peer: ProcessPeer,
     permit: RuntimeCapturePermit,
     unknown: Mutex<Option<RuntimeCaptureRequest>>,
     connection_bound: AtomicBool,
+    pub(super) worker: Arc<super::captured_worker::Control>,
+    formation_unknown: AtomicBool,
+}
+impl Drop for RuntimeCaptureHost {
+    fn drop(&mut self) {
+        self.revoke();
+    }
 }
 impl RuntimeCaptureHost {
     /// Native Owner setup supplies the actual Runtime process and selected
@@ -86,12 +93,24 @@ impl RuntimeCaptureHost {
             permit,
             unknown: Mutex::new(None),
             connection_bound: AtomicBool::new(false),
+            worker: Arc::new(super::captured_worker::Control::default()),
+            formation_unknown: AtomicBool::new(false),
         })
     }
     /// Lock/withdrawal is permanent for this enrollment. Fresh native setup is
     /// required; it never reconnects or replays retained work automatically.
     pub fn revoke(&self) {
+        self.worker.stop();
         self.permit.revoke();
+    }
+    pub(super) fn poison_formation(&self) {
+        self.formation_unknown.store(true, Ordering::SeqCst);
+        self.permit.revoke();
+    }
+    pub(super) fn formation_live(&self) -> ApplicationResult<()> {
+        self.live()?;
+        self.vault.runtime_formation_live(&self.permit)?;
+        Ok(())
     }
     pub fn capability(&self) -> &'static str {
         self.permit.capability()
@@ -110,16 +129,18 @@ impl RuntimeCaptureHost {
         Ok(())
     }
     fn live(&self) -> ApplicationResult<()> {
-        if self
-            .unknown
-            .lock()
-            .map_err(|_| ApplicationFault::Locked)?
-            .is_some()
+        if self.formation_unknown.load(Ordering::SeqCst)
+            || self
+                .unknown
+                .lock()
+                .map_err(|_| ApplicationFault::Locked)?
+                .is_some()
         {
             return Err(AutomationFault::OutcomeUnknown.into());
         }
         if self.peer.live().is_err() {
-            self.revoke();
+            self.worker.cancel();
+            self.permit.revoke();
             return Err(ApplicationFault::Locked);
         }
         self.vault.runtime_capture_live(&self.permit)?;
@@ -138,6 +159,7 @@ impl RuntimeCaptureHost {
         request: &RuntimeCaptureRequest,
     ) -> ApplicationResult<NativeRuntimeCapture> {
         self.live()?;
+        let _foreground = self.worker.foreground()?;
         let result = self.vault.capture_runtime(&self.permit, request, true)?;
         self.live()?;
         Ok(result)
@@ -147,6 +169,7 @@ impl RuntimeCaptureHost {
         request: &RuntimeCaptureRequest,
     ) -> ApplicationResult<NativeRuntimeCapture> {
         self.live()?;
+        let _foreground = self.worker.foreground()?;
         match self.vault.capture_runtime(&self.permit, request, false) {
             Ok(result) if self.live().is_ok() => Ok(result),
             Ok(_) | Err(AutomationFault::OutcomeUnknown) => {
@@ -163,6 +186,7 @@ impl RuntimeCaptureHost {
         capture: &NativeRuntimeCapture,
     ) -> ApplicationResult<CapturedQueueReceipt> {
         self.live()?;
+        let _foreground = self.worker.foreground()?;
         if capture.producer != *self.permit.principal()
             || capture.scope_hash != *self.permit.scope_hash()
         {
@@ -179,6 +203,7 @@ impl RuntimeCaptureHost {
         request: &RuntimeCaptureRequest,
     ) -> ApplicationResult<Vec<ProducerJobStatus>> {
         self.live()?;
+        let _foreground = self.worker.foreground()?;
         let result = self.vault.runtime_capture_status(&self.permit, request)?;
         self.live()?;
         Ok(result)
@@ -190,6 +215,9 @@ impl RuntimeCaptureHost {
         if unknown.is_none() {
             *unknown = Some(request.clone());
         }
+        // Worker lifecycle checks take the control gate before this mutex.
+        // Release the packet before waiting for that gate during revocation.
+        drop(unknown);
         self.revoke();
         Ok(())
     }

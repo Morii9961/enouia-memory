@@ -13,7 +13,11 @@ use serde::{Deserialize, Serialize};
 use std::{
     fs::File,
     panic::{AssertUnwindSafe, catch_unwind},
-    sync::Arc,
+    sync::{
+        Arc,
+        atomic::{AtomicBool, Ordering},
+    },
+    time::Instant,
 };
 
 const JOURNAL: &str = "sync-state/captured-formation-1.json";
@@ -22,7 +26,7 @@ const MAX_JOURNAL_BYTES: usize = 16 * 1024 * 1024;
 const MAX_STATEMENTS: usize = 32;
 
 /// Untrusted analysis output. The evaluator decides; this approves nothing.
-#[derive(Clone)]
+#[derive(Clone, Serialize)]
 pub struct CaptureStatement {
     pub quote: String,
     pub title: String,
@@ -44,7 +48,47 @@ pub enum CaptureAnalysis {
 }
 /// Native analysis port. Called outside Vault locks; no Agent or wire reaches it.
 pub trait CaptureAnalyzer {
-    fn analyze(&mut self, job: &QueuedCapture, source: &CapturedSource) -> CaptureAnalysis;
+    /// Bounded nonblocking handoff only. Never wait for a model or network here.
+    fn start(
+        &mut self,
+        job: &QueuedCapture,
+        source: &CapturedSource,
+        stop: &CaptureStopToken,
+    ) -> std::result::Result<Box<dyn PendingCaptureAnalysis>, CaptureAnalysis>;
+}
+/// One bounded nonblocking poll; no Vault locks are held by this interface.
+pub trait PendingCaptureAnalysis: Send {
+    fn poll(&mut self, stop: &CaptureStopToken) -> Option<CaptureAnalysis>;
+}
+#[derive(Default)]
+struct StopState {
+    cancelled: AtomicBool,
+    parent: Option<CaptureStopToken>,
+}
+#[derive(Clone, Default)]
+pub struct CaptureStopToken(Arc<StopState>);
+impl CaptureStopToken {
+    pub fn cancel(&self) {
+        self.0.cancelled.store(true, Ordering::SeqCst);
+    }
+    pub fn is_cancelled(&self) -> bool {
+        self.0.cancelled.load(Ordering::SeqCst)
+            || self.0.parent.as_ref().is_some_and(Self::is_cancelled)
+    }
+    fn child(&self) -> Self {
+        Self(Arc::new(StopState {
+            cancelled: AtomicBool::new(false),
+            parent: Some(self.clone()),
+        }))
+    }
+}
+struct PendingAnalysis {
+    job: QueuedCapture,
+    source: CapturedSource,
+    policy: AutomationPolicy,
+    pending: Box<dyn PendingCaptureAnalysis>,
+    stop: CaptureStopToken,
+    started: Instant,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -316,6 +360,15 @@ impl SegmentedAutomationVault {
             .policies
             .get(&job.policy.policy_id)
             .ok_or(AutomationFault::Denied)?;
+        let now = self.native.now()?;
+        if state.deleted_sources.contains(&job.source.source_id)
+            || !policy.active
+            || now < policy.valid_from
+            || now >= policy.valid_until
+            || !state.source_in_policy(&job.source, policy, policy.max_sensitivity)
+        {
+            return Err(AutomationFault::Denied);
+        }
         Ok((source.clone(), policy.clone()))
     }
 }
@@ -347,10 +400,31 @@ pub struct CapturedFormation {
     journal: Journal,
     _lease: File,
     poisoned: bool,
+    pending: Option<PendingAnalysis>,
+    analysis_timeout: Duration,
+    stop: CaptureStopToken,
+}
+impl Drop for CapturedFormation {
+    fn drop(&mut self) {
+        self.stop.cancel();
+        if let Some(pending) = &self.pending {
+            pending.stop.cancel();
+        }
+    }
 }
 impl CapturedFormation {
     /// Uses the caller's leased Vault instance; never opens a second writer.
     pub fn open(vault: Arc<SegmentedAutomationVault>, system: &ActorRef) -> Result<Self> {
+        Self::open_with_timeout(vault, system, Duration::from_secs(30))
+    }
+    pub fn open_with_timeout(
+        vault: Arc<SegmentedAutomationVault>,
+        system: &ActorRef,
+        timeout: Duration,
+    ) -> Result<Self> {
+        if timeout.is_zero() || timeout > Duration::from_secs(300) {
+            return Err(AutomationFault::Denied);
+        }
         if vault.descriptor().layout != AutomationLayout::SegmentedOwnerV1 {
             return Err(AutomationFault::Denied);
         }
@@ -376,6 +450,9 @@ impl CapturedFormation {
             journal,
             _lease: lease,
             poisoned: false,
+            pending: None,
+            analysis_timeout: timeout,
+            stop: CaptureStopToken::default(),
         };
         this.save()?;
         Ok(this)
@@ -413,8 +490,53 @@ impl CapturedFormation {
     }
     /// One bounded action; false means nothing is dispatchable now.
     pub fn step(&mut self, analyzer: &mut impl CaptureAnalyzer) -> Result<bool> {
+        self.step_with_stop(analyzer, &self.stop.clone())
+    }
+    pub fn has_pending(&self) -> bool {
+        self.pending.is_some()
+    }
+    pub fn step_with_stop(
+        &mut self,
+        analyzer: &mut impl CaptureAnalyzer,
+        stop: &CaptureStopToken,
+    ) -> Result<bool> {
         if self.poisoned {
             return Err(AutomationFault::OutcomeUnknown);
+        }
+        if let Some(mut pending) = self.pending.take() {
+            let expired = pending.started.elapsed() >= self.analysis_timeout;
+            let result = if stop.is_cancelled() || pending.stop.is_cancelled() || expired {
+                Some(CaptureAnalysis::Unknown)
+            } else {
+                catch_unwind(AssertUnwindSafe(|| pending.pending.poll(&pending.stop)))
+                    .unwrap_or(Some(CaptureAnalysis::Unknown))
+            };
+            if stop.is_cancelled()
+                || pending.stop.is_cancelled()
+                || pending.started.elapsed() >= self.analysis_timeout
+            {
+                pending.stop.cancel();
+                return self.finish_analysis(
+                    &pending.job,
+                    &pending.source,
+                    &pending.policy,
+                    CaptureAnalysis::Unknown,
+                );
+            }
+            if let Some(result) = result {
+                pending.stop.cancel();
+                return self.finish_analysis(
+                    &pending.job,
+                    &pending.source,
+                    &pending.policy,
+                    result,
+                );
+            }
+            self.pending = Some(pending);
+            return Ok(false);
+        }
+        if stop.is_cancelled() {
+            return Ok(false);
         }
         let jobs = self.vault.queued_captures(&self.system)?;
         let next = jobs.into_iter().find_map(|job| {
@@ -430,7 +552,7 @@ impl CapturedFormation {
         });
         match next {
             None => Ok(false),
-            Some((job, None)) => self.dispatch(&job, analyzer),
+            Some((job, None)) => self.dispatch(&job, analyzer, stop),
             Some((_, Some(index))) => self.form(index),
         }
     }
@@ -438,8 +560,13 @@ impl CapturedFormation {
         &mut self,
         job: &QueuedCapture,
         analyzer: &mut impl CaptureAnalyzer,
+        stop: &CaptureStopToken,
     ) -> Result<bool> {
-        let (source, policy) = self.vault.queued_input(&self.system, job)?;
+        let (source, policy) = match self.vault.queued_input(&self.system, job) {
+            Ok(value) => value,
+            Err(AutomationFault::Denied) => return Ok(false),
+            Err(error) => return Err(error),
+        };
         self.journal.jobs.push(Job {
             job_key: job.job_key.clone(),
             state: FormationJobState::Dispatched,
@@ -448,8 +575,41 @@ impl CapturedFormation {
             refused: 0,
         });
         self.save()?;
-        let analysis = catch_unwind(AssertUnwindSafe(|| analyzer.analyze(job, &source)))
-            .unwrap_or(CaptureAnalysis::Unknown);
+        if stop.is_cancelled() {
+            return self.finish_analysis(job, &source, &policy, CaptureAnalysis::Paused);
+        }
+        let started = Instant::now();
+        let pending_stop = stop.child();
+        let analysis = catch_unwind(AssertUnwindSafe(|| {
+            analyzer.start(job, &source, &pending_stop)
+        }))
+        .unwrap_or(Err(CaptureAnalysis::Unknown));
+        if stop.is_cancelled() || started.elapsed() >= self.analysis_timeout {
+            pending_stop.cancel();
+            return self.finish_analysis(job, &source, &policy, CaptureAnalysis::Unknown);
+        }
+        match analysis {
+            Ok(pending) => {
+                self.pending = Some(PendingAnalysis {
+                    job: job.clone(),
+                    source,
+                    policy,
+                    pending,
+                    stop: pending_stop,
+                    started,
+                });
+                Ok(true)
+            }
+            Err(analysis) => self.finish_analysis(job, &source, &policy, analysis),
+        }
+    }
+    fn finish_analysis(
+        &mut self,
+        _job: &QueuedCapture,
+        source: &CapturedSource,
+        policy: &AutomationPolicy,
+        analysis: CaptureAnalysis,
+    ) -> Result<bool> {
         let index = self.journal.jobs.len() - 1;
         match analysis {
             CaptureAnalysis::Paused => {
@@ -466,14 +626,17 @@ impl CapturedFormation {
             CaptureAnalysis::Statements(statements) if statements.is_empty() => {
                 self.journal.jobs[index].state = FormationJobState::NoMemory;
             }
-            CaptureAnalysis::Statements(statements) if statements.len() > MAX_STATEMENTS => {
+            CaptureAnalysis::Statements(statements)
+                if statements.len() > MAX_STATEMENTS
+                    || serde_json::to_vec(&statements).map_or(true, |b| b.len() > 256 * 1024) =>
+            {
                 self.journal.jobs[index].refused = statements.len();
                 self.journal.jobs[index].state = FormationJobState::Rejected;
             }
             CaptureAnalysis::Statements(statements) => {
                 let seeds: Vec<_> = statements
                     .iter()
-                    .map(|s| self.seed(s, &source, &policy))
+                    .map(|s| self.seed(s, source, policy))
                     .collect();
                 let job = &mut self.journal.jobs[index];
                 job.state = FormationJobState::Forming;

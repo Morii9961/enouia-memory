@@ -47,7 +47,8 @@ does not strand it.
 CapturedFormation::open(vault, system) -> CapturedFormation
 CapturedFormation::step(analyzer) -> bool
 CapturedFormation::status() -> [FormationJobStatus]
-CaptureAnalyzer::analyze(job, source) -> CaptureAnalysis
+CaptureAnalyzer::start(job, source, stop) -> Result<PendingCaptureAnalysis, CaptureAnalysis>
+PendingCaptureAnalysis::poll(stop) -> Option<CaptureAnalysis>
 Initializer::step_with_captures(captures, analyzer) -> bool
 ```
 
@@ -63,3 +64,9 @@ evaluator. `dispatched` exists only while a call is in flight.
 The journal `sync-state/captured-formation-1.json` is private, version 1, bound to
 the vault id and descriptor hash, and refused if either differs. The lease is
 `sync-state/captured-formation-1.lock`; a second worker on one root gets Busy.
+
+Native analysis v2 and background hosting: [ADR-MEM-114](../adr/114-captured-worker-host.md)
+and [CAPTURED_WORKER_HOST_V2](CAPTURED_WORKER_HOST_V2.md). Synchronous analyzers
+must update explicitly; no blocking compatibility adapter exists. step can return
+false for pending work, so schedulers use has_pending before starting backfill.
+Journal v1 and the Runtime pipe contracts remain unchanged.
