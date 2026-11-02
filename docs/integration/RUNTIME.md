@@ -762,3 +762,33 @@ Pipe-2's explicit Owner capability, wire schemas and journal v1 remain unchanged
 only genuine commits contribute receipt counts. Workspace IPC remains 58 commands.
 No Runtime repository/configuration/pin changed. See CAPTURED_WORKER_HOST_V2 and
 the slice validation report for adoption, compatibility and unproven behavior.
+
+### 2026-10-30 — Native empty Owner bootstrap (ADR-MEM-110)
+
+Surface aggregate: `9fc419e8d0a3366b427a516114e8d947bcfaad33c03784cf179ea4b016353cdb`.
+
+The separate native `enouia-memory-owner-bootstrap` command registers the actual
+current OS account as this authorized empty root's Owner/self Subject, issues
+logical IDs, journals the original operation outside the empty Vault directory,
+and reuses witnessed segmented creation. It drops the writer, reopens the same
+binding, verifies an empty Owner genesis, then publishes creation metadata under
+the home lease and original metadata baseline. Recovery never invents new IDs or
+silently recreates a nonempty root; incomplete publication needs explicit native
+forward recovery. Native process evidence and CLI scope are not JSON Owner grants.
+
+The active_vault value is only a verified creation locator; runtime_adopted stays
+false. Runtime must retain explicit native root selection and separately adopt a
+compatible pin; old Workspace factories cannot open this layout. No Runtime,
+Provider, import, formation queue, MCP Owner route or Core-8 switch is added.
+Real bindings and outputs remain private. See [ADR110](../adr/110-native-empty-owner-bootstrap.md).
+
+### 2026-11-02 — PR #56–#81 consolidation
+
+Surface aggregate: `61e8712d37e456de326725caf589a74950a10992437632b59bbaaa2b3635b4ef`.
+
+Combines the published Owner bootstrap with the initialized Agent reader, Owner
+Runtime pipe-2 and cancelable captured worker. Both published histories are
+retained; only the combined integration manifest changes. Workspace IPC remains
+58 commands. Runtime must separately adopt a compatible exact pin, explicit
+Owner root enrollment, native start/poll analyzer and lifecycle cancellation.
+No Runtime pin, private root, real analyzer or client configuration is activated.

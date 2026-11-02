@@ -6,6 +6,8 @@ pub mod automation;
 pub mod broker;
 mod compatibility;
 mod framing;
+#[cfg(windows)]
+pub mod owner_bootstrap;
 pub use compatibility::compatibility_hash;
 pub mod mcp;
 pub mod service;

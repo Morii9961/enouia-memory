@@ -1,3 +1,5 @@
+> 2026-11-02：Morii 授权收束、验证和合并现有 PR #56～#81，完成后清理已合并分支和可确认无用的开发产物。本轮不开始 #81 之外的新阶段；真实分析器、Runtime 采用及私人数据/部署仍是独立门槛。此前未提交的 [Core 路线](memory-evolution-2026-10-24/07-core-refactor-and-runtime-route.md) 与 UI 交接按历史文档保留，不将旧“暂停 MCP”覆盖后来的授权。
+
 > 2026-10-28 初始化合成切片：[ADR104](../adr/104-synthetic-initialization-intake.md)。
 > Morii 已在本会话确认 ADR93，并允许最小共享来源文件交集；仅新建临时合成根。
 > 原件保全、预检、分层账本、可恢复批次、共享形成与投影的实际覆盖见
@@ -46,7 +48,9 @@
 > [记录契约](../contracts/UI_V2_RECORDS.md)及[验证报告](../validation/UI-v2-record-contract.md)。
 > 本片提交推送后停在 Morii 字段确认点；不启动真实初始化、MCP 采集、Runtime 采用或 G01。
 
-> 2026-10-24 整合说明：Morii 已授权合并既有工作；下文各片原先“禁止合并”属于历史交付边界。本次只合入既有 MCP/Host 实现，不启动真实客户端、不激活 Host/MCP、不采用 Runtime 新 pin；ADR 重号按 [映射](../handoff/MCP_MAINLINE_ADR_MAP_2026-10-24.md) 处理，并行 Core 85/86 保留。\n\n# Enouia Memory · 分阶段实施计划
+> 2026-10-24 整合说明：Morii 已授权合并既有工作；下文各片原先“禁止合并”属于历史交付边界。本次只合入既有 MCP/Host 实现，不启动真实客户端、不激活 Host/MCP、不采用 Runtime 新 pin；ADR 重号按 [映射](../handoff/MCP_MAINLINE_ADR_MAP_2026-10-24.md) 处理，并行 Core 85/86 保留。
+
+# Enouia Memory · 分阶段实施计划
 
 原始计划：设计包 v1.0 / 2026-09-28；v1.3 路线修订：2026-10-11。本文定义阶段与出口；实际进度以对应 validation 报告为准。
 

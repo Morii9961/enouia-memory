@@ -601,3 +601,10 @@ producer job status. Existing pipe-1 and Agent profiles remain unchanged.
 [Decision](114-captured-worker-host.md): bounded cancelable native analysis and
 a dedicated foreground-aware thread on the existing lease. Lifecycle revocation
 and storage uncertainty stop execution; no real analyzer or Runtime adoption.
+
+### ADR-MEM-110 — Native empty Owner bootstrap
+
+[Decision](110-native-empty-owner-bootstrap.md): an explicit trusted native local
+creation command, persistent owner-self registration, original-operation recovery
+and empty genesis verification. Creation metadata is not Runtime root selection;
+no import, model, formation queue or MCP Owner route is activated.
