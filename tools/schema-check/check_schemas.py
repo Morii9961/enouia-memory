@@ -11,6 +11,7 @@ Usage (from the repository root, with the pinned requirements installed):
 """
 import copy
 import importlib.metadata
+import os
 import json
 import pathlib
 import sys
@@ -290,6 +291,206 @@ def main():
         if valid(read_model["schema"], value) != (case["schema"] == "accept"):
             failures.append(f"read-model case {case['id']}: disagreement")
     counts["read_model_documents"] = len(read_model["valid"]) + len(read_model["invalid"])
+
+    agent = load(ROOT / "tests" / "fixtures" / "agent-read" / "manifest.json")
+    for value in agent["valid"]:
+        if not valid(agent["schema"], value):
+            failures.append("valid Agent read request rejected")
+    for case in agent["invalid"]:
+        if valid(agent["schema"], case["value"]):
+            failures.append(f"invalid Agent read request accepted: {case['name']}")
+    counts["agent_read_documents"] = len(agent["valid"]) + len(agent["invalid"])
+
+    records = load(ROOT / "tests" / "fixtures" / "agent-record-read" / "manifest.json")
+    for value in records["valid"]:
+        if not valid(records["schema"], value):
+            failures.append("valid Agent record request rejected")
+    for case in records["invalid"]:
+        if valid(records["schema"], case["value"]):
+            failures.append(f"invalid Agent record request accepted: {case['name']}")
+    counts["agent_record_documents"] = len(records["valid"]) + len(records["invalid"])
+
+    catalog_agent = load(ROOT / "tests" / "fixtures" / "agent-catalog-read" / "manifest.json")
+    for value in catalog_agent["valid"]:
+        if not valid(catalog_agent["schema"], value):
+            failures.append("valid segmented Agent request rejected")
+    for case in catalog_agent["invalid"]:
+        if valid(catalog_agent["schema"], case["value"]):
+            failures.append(f"invalid segmented Agent request accepted: {case['name']}")
+    counts["agent_catalog_documents"] = len(catalog_agent["valid"]) + len(catalog_agent["invalid"])
+
+    qualified = load(ROOT / "tests" / "fixtures" / "agent-qualified-read" / "manifest.json")
+    for value in qualified["valid"]:
+        if not valid(qualified["schema"], value):
+            failures.append("valid qualified Agent request rejected")
+    for case in qualified["invalid"]:
+        if valid(qualified["schema"], case["value"]):
+            failures.append(f"invalid qualified Agent request accepted: {case['name']}")
+    counts["agent_qualified_documents"] = len(qualified["valid"]) + len(qualified["invalid"])
+    initialized = load(ROOT / "tests" / "fixtures" / "agent-initialized-read" / "manifest.json")
+    for value in initialized["valid"]:
+        if not valid(initialized["schema"], value):
+            failures.append("valid initialized Agent request rejected")
+    for case in initialized["invalid"]:
+        if valid(initialized["schema"], case["value"]):
+            failures.append(f"invalid initialized Agent request accepted: {case['name']}")
+    counts["agent_initialized_documents"] = len(initialized["valid"]) + len(initialized["invalid"])
+
+    if len(sys.argv) == 3 and sys.argv[1] == "--runtime-capture-transcript":
+        transcript = load(pathlib.Path(sys.argv[2]))
+        for exchange in transcript["exchanges"]:
+            for key in ("call", "reply"):
+                if not valid("next/runtime-capture-pipe-v2.schema.json", exchange[key]):
+                    failures.append(f"Runtime capture live {key}: rejected")
+        for value in transcript.get("negative_replies", []):
+            if valid("next/runtime-capture-pipe-v2.schema.json", value):
+                failures.append("Runtime capture live invalid reply accepted")
+        counts["runtime_capture_live_exchanges"] = len(transcript["exchanges"])
+        counts["runtime_capture_invalid_replies"] = len(transcript.get("negative_replies", []))
+    elif len(sys.argv) != 1:
+        if len(sys.argv) != 3 or sys.argv[1] not in ("--mcp2-transcript", "--qualified-transcript", "--initialized-transcript"):
+            raise SystemExit("usage: check_schemas.py [--mcp2-transcript FILE | --qualified-transcript FILE | --initialized-transcript FILE | --runtime-capture-transcript FILE]")
+        transcript = load(pathlib.Path(sys.argv[2]))
+        tools = {tool["name"]: tool for tool in transcript["catalog"]}
+        for tool in tools.values():
+            for key in ("inputSchema", "outputSchema"):
+                Draft202012Validator.check_schema(tool[key])
+        for exchange in transcript["exchanges"]:
+            tool = tools[exchange["tool"]]
+            for key, value in (("inputSchema", exchange["arguments"]),
+                               ("outputSchema", exchange["response"]["result"]["structuredContent"])):
+                if not Draft202012Validator(tool[key]).is_valid(value):
+                    failures.append(f"MCP-2 live {exchange['tool']} {key}: rejected")
+        for case in transcript.get("negative_outputs", []):
+            tool = tools[case["tool"]]
+            if Draft202012Validator(tool["outputSchema"]).is_valid(case["value"]):
+                failures.append(f"MCP live invalid output accepted: {case['tool']}")
+        counts["initialized_live_exchanges" if sys.argv[1] == "--initialized-transcript" else "qualified_live_exchanges" if sys.argv[1] == "--qualified-transcript" else "mcp2_live_exchanges"] = len(transcript["exchanges"])
+        counts["mcp_live_invalid_outputs"] = len(transcript.get("negative_outputs", []))
+    ui_dir = ROOT / "tests" / "fixtures" / "ui-records"
+    ui = load(ui_dir / "manifest.json")
+    ui_schemas = {e["file"]: e["schema"] for e in ui["valid"]}
+    for entry in ui["valid"]:
+        if not valid(entry["schema"], load(ui_dir / entry["file"])):
+            failures.append(f"valid UI record rejected: {entry['file']}")
+    for case in ui["invalid"]:
+        value = load(ui_dir / case["base"])
+        apply_ops(value, case["ops"])
+        if valid(ui_schemas[case["base"]], value) != (case["schema"] == "accept"):
+            failures.append(f"UI record case {case['id']}: disagreement")
+    counts["ui_record_documents"] = len(ui["valid"]) + len(ui["invalid"])
+
+    catalog_dir = ROOT / "tests" / "fixtures" / "catalog"
+    catalog = load(catalog_dir / "manifest.json")
+    catalog_schemas = {e["file"]: e["schema"] for e in catalog["valid"]}
+    for entry in catalog["valid"]:
+        if not valid(entry["schema"], load(catalog_dir / entry["file"])):
+            failures.append(f"valid catalog document rejected: {entry['file']}")
+    for case in catalog["invalid"]:
+        value = load(catalog_dir / case["base"])
+        apply_ops(value, case["ops"])
+        if valid(catalog_schemas[case["base"]], value) != (case["schema"] == "accept"):
+            failures.append(f"catalog case {case['id']}: disagreement")
+    counts["catalog_documents"] = len(catalog["valid"]) + len(catalog["invalid"])
+
+    capture_cases = load(ROOT / "tests/fixtures/runtime-capture/cases.json")
+    for case in capture_cases["cases"]:
+        value = copy.deepcopy(capture_cases["base"])
+        apply_ops(value, case["ops"])
+        if valid("next/runtime-capture-v2.schema.json", value) != case["schema"]:
+            failures.append(f"Runtime capture case {case['name']}: disagreement")
+    counts["runtime_capture_cases"] = len(capture_cases["cases"])
+    owner_capture_cases = load(ROOT / "tests/fixtures/runtime-owner-capture/cases.json")
+    for case in owner_capture_cases["cases"]:
+        value = copy.deepcopy(owner_capture_cases["base"])
+        apply_ops(value, case["ops"])
+        if valid("next/runtime-owner-capture-v2.schema.json", value) != case["schema"]:
+            failures.append(f"Owner Runtime capture case {case['name']}: disagreement")
+    counts["owner_runtime_capture_cases"] = len(owner_capture_cases["cases"])
+    queue_cases = load(ROOT / "tests/fixtures/runtime-owner-capture/queue-cases.json")
+    queue_segment = load(catalog_dir / "capture.json")
+    queue_segment["delta"] = queue_cases["delta"]
+    if not valid("next/runtime-owner-capture-v2.schema.json", queue_cases["receipt"]):
+        failures.append("valid captured queue receipt rejected")
+    if not valid("next/catalog-v2.schema.json", queue_segment):
+        failures.append("valid enqueue segment rejected")
+    for case in queue_cases["receipt_rejects"]:
+        value = copy.deepcopy(queue_cases["receipt"])
+        apply_ops(value, case["ops"])
+        if valid("next/runtime-owner-capture-v2.schema.json", value):
+            failures.append(f"invalid captured queue receipt accepted: {case['name']}")
+    for case in queue_cases["delta_rejects"]:
+        value = copy.deepcopy(queue_segment)
+        apply_ops(value["delta"], case["ops"])
+        if valid("next/catalog-v2.schema.json", value):
+            failures.append(f"invalid enqueue segment accepted: {case['name']}")
+    counts["captured_queue_cases"] = 2 + len(queue_cases["receipt_rejects"]) + len(queue_cases["delta_rejects"])
+
+    wire_cases = load(ROOT / "tests/fixtures/runtime-capture/wire-cases.json")
+    for case in wire_cases["cases"]:
+        value = {"mode": "write", "request": copy.deepcopy(capture_cases["base"])}
+        apply_ops(value, case["ops"])
+        if valid("next/runtime-capture-pipe-v2.schema.json", value) != case["accept"]:
+            failures.append(f"Runtime capture wire case {case['name']}: disagreement")
+    counts["runtime_capture_wire_cases"] = len(wire_cases["cases"])
+
+    owner_wire = load(ROOT / "tests/fixtures/runtime-owner-capture/wire-cases.json")
+    for case in owner_wire["cases"]:
+        value = copy.deepcopy(owner_wire["base"])
+        apply_ops(value, case["ops"])
+        if valid("next/runtime-owner-capture-pipe-v2.schema.json", value) != case["accept"]:
+            failures.append(f"Owner wire case {case['name']}: disagreement")
+    counts["owner_runtime_wire_cases"] = len(owner_wire["cases"])
+    owner_transcript = os.environ.get("ENOUIA_OWNER_RUNTIME_CAPTURE_TRANSCRIPT")
+    if owner_transcript:
+        transcript = load(pathlib.Path(owner_transcript))
+        for exchange in transcript["exchanges"]:
+            for value in exchange.values():
+                if not valid("next/runtime-owner-capture-pipe-v2.schema.json", value):
+                    failures.append("Owner wire actual exchange rejected")
+        for value in transcript["negative_replies"]:
+            if valid("next/runtime-owner-capture-pipe-v2.schema.json", value):
+                failures.append("Owner wire forged reply accepted")
+        counts["owner_wire_exchanges"] = len(transcript["exchanges"])
+
+    projection_dir = ROOT / "tests" / "fixtures" / "projections"
+    projection = load(projection_dir / "manifest.json")
+    projection_schemas = {e["file"]: e["schema"] for e in projection["valid"]}
+    for entry in projection["valid"]:
+        if not valid(entry["schema"], load(projection_dir / entry["file"])):
+            failures.append(f"valid projection document rejected: {entry['file']}")
+    for case in projection["invalid"]:
+        value = load(projection_dir / case["base"])
+        apply_ops(value, case["ops"])
+        if valid(projection_schemas[case["base"]], value) != (case["schema"] == "accept"):
+            failures.append(f"projection case {case['id']}: disagreement")
+    counts["projection_documents"] = len(projection["valid"]) + len(projection["invalid"])
+
+    process_dir = ROOT / "tests" / "fixtures" / "process"
+    process = load(process_dir / "manifest.json")
+    process_schemas = {e["file"]: e["schema"] for e in process["valid"]}
+    for entry in process["valid"]:
+        if not valid(entry["schema"], load(process_dir / entry["file"])):
+            failures.append(f"valid process document rejected: {entry['file']}")
+    for case in process["invalid"]:
+        value = load(process_dir / case["base"])
+        apply_ops(value, case["ops"])
+        if valid(process_schemas[case["base"]], value) != (case["schema"] == "accept"):
+            failures.append(f"process case {case['id']}: disagreement")
+    counts["process_documents"] = len(process["valid"]) + len(process["invalid"])
+
+    owner_dir = ROOT / "tests" / "fixtures" / "owner"
+    owner = load(owner_dir / "manifest.json")
+    owner_schemas = {e["file"]: e["schema"] for e in owner["valid"]}
+    for entry in owner["valid"]:
+        if not valid(entry["schema"], load(owner_dir / entry["file"])):
+            failures.append(f"valid owner document rejected: {entry['file']}")
+    for case in owner["invalid"]:
+        value = load(owner_dir / case["base"])
+        apply_ops(value, case["ops"])
+        if valid(owner_schemas[case["base"]], value) != (case["schema"] == "accept"):
+            failures.append(f"owner case {case['id']}: disagreement")
+    counts["owner_documents"] = len(owner["valid"]) + len(owner["invalid"])
 
     invocation_cases = load(FIXTURES / "provider-invocation-cases.json")
     for case in invocation_cases["cases"]:

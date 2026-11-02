@@ -1,4 +1,56 @@
-> 2026-10-24 整合说明：Morii 已授权合并既有工作；下文各片原先“禁止合并”属于历史交付边界。本次只合入既有 MCP/Host 实现，不启动真实客户端、不激活 Host/MCP、不采用 Runtime 新 pin；ADR 重号按 [映射](../handoff/MCP_MAINLINE_ADR_MAP_2026-10-24.md) 处理，并行 Core 85/86 保留。\n\n# Enouia Memory · 分阶段实施计划
+> 2026-11-02：Morii 授权收束、验证和合并现有 PR #56～#81，完成后清理已合并分支和可确认无用的开发产物。本轮不开始 #81 之外的新阶段；真实分析器、Runtime 采用及私人数据/部署仍是独立门槛。此前未提交的 [Core 路线](memory-evolution-2026-10-24/07-core-refactor-and-runtime-route.md) 与 UI 交接按历史文档保留，不将旧“暂停 MCP”覆盖后来的授权。
+
+> 2026-10-28 初始化合成切片：[ADR104](../adr/104-synthetic-initialization-intake.md)。
+> Morii 已在本会话确认 ADR93，并允许最小共享来源文件交集；仅新建临时合成根。
+> 原件保全、预检、分层账本、可恢复批次、共享形成与投影的实际覆盖见
+> [验证报告](../validation/Memory-init-pipeline.md)。真实数据/模型/外发/默认时区、
+> G08 主人动作、Runtime 采用和 Core-8 切换继续由各自授权与切片负责。
+> 2026-10-29 同片承接 `14125f5` 的 Owner 新根/创世绑定，保留导入和附件载体；
+> 显式主人输入正常形成，无额外待审队列。合成初始化本身不制造主人动作；
+> 已采集来源精确修订的仅入队 API、正式入口及 Runtime 采用仍未交付。
+
+> 2026-10-27 MCP-3 原生前置片：按 [ADR-MEM-102](../adr/102-runtime-only-capture-boundary.md)
+> 接 Runtime-only 原始轮次和无写入预检；[契约](../contracts/RUNTIME_CAPTURE_NATIVE_V1.md)
+> 与[验证报告](../validation/MCP-3-runtime-capture-native.md)区分来源事务和形成作业。
+> 未接 durable live 管线前不广告 conversation_capture，不伪造作业回执。
+> 后续继续 Runtime 本地传输、同对话异步形成和 Agent 提示，不启动私人初始化。
+
+> 2026-10-26 MCP 接续：按 [ADR-MEM-98](../adr/098-segmented-agent-memory-reads.md)
+> 先交付独立分段 Agent gate，再接五工具与显式大集合 trace 覆盖。
+> 各检查点以 [MCP-2c 报告](../validation/MCP-2c-segmented-agent-reads.md)记录实际检查；
+> 后续采集只接 Runtime 宿主，缺时区使用 Asia/Shanghai 并记录默认来源。
+> 无私人初始化也继续使用临时合成根开发；不隐式激活 Runtime 或真实客户端。
+
+> 2026-10-27 UI v2 第五片：Morii 已明确选择 A；[ADR103](../adr/103-owner-correction-subject-binding-proposal.md)
+> 采用新建空根 `automation-segmented-owner-v1` 与显式 `owner_subject_id`，实现 G08 原生
+> 主人计划 → 手势确认 → 单次提交及恢复查询。记录字段继续沿用 ADR93；读取投影采用 v4，
+> 旧游标需重启。见[主人契约](../contracts/UI_V2_OWNER_ACTIONS.md)与[合成验证](../validation/UI-v2-owner-actions.md)。
+> Runtime 原生手势接线、Memory pin、MCP 采用及私人初始化均另行进行；本会话到 G08 停止。
+
+> 2026-10-27 UI v2 第四片：[ADR101](../adr/101-native-process-detail-reads.md)
+> 实现 G07 → G13 → G15 → G16 → G19，并补齐 G14 原生会话/来源读取。
+> 记录字段与 segmented-v1 布局不变；采用前需重启旧游标。见
+> [过程契约](../contracts/UI_V2_PROCESS.md)与[验证](../validation/UI-v2-process.md)。
+> G08 主人动作仍需真实原生计划/确认/提交；本片不产生主人记录。
+
+> UI v2 third slice: [ADR100](../adr/100-native-time-theme-graph.md) adds
+> G03/G05/G04 native projections; see [contract](../contracts/UI_V2_PROJECTIONS.md)
+> and [synthetic validation](../validation/UI-v2-projections.md). Owner overlay
+> execution/name inheritance waits for the already authorized G08 slice.
+
+> 2026-10-26 接续：Morii 在第一片字段报告后确认继续。第二片按
+> [ADR-MEM-94](../adr/094-segmented-native-memory-reads.md)实现 G01 → G06 → G23；
+> 新物理布局保留已冻结的记录字段，不原地升级旧根。见
+> [读取契约](../contracts/UI_V2_CATALOG.md)和[验证](../validation/UI-v2-catalog.md)。
+
+> 2026-10-26 UI v2 第一片：[ADR-MEM-93](../adr/093-ui-v2-record-layout.md)
+> 冻结 `automation-host-v3` 记录字段与投影规则；合成根类型、校验、发布和重开验证见
+> [记录契约](../contracts/UI_V2_RECORDS.md)及[验证报告](../validation/UI-v2-record-contract.md)。
+> 本片提交推送后停在 Morii 字段确认点；不启动真实初始化、MCP 采集、Runtime 采用或 G01。
+
+> 2026-10-24 整合说明：Morii 已授权合并既有工作；下文各片原先“禁止合并”属于历史交付边界。本次只合入既有 MCP/Host 实现，不启动真实客户端、不激活 Host/MCP、不采用 Runtime 新 pin；ADR 重号按 [映射](../handoff/MCP_MAINLINE_ADR_MAP_2026-10-24.md) 处理，并行 Core 85/86 保留。
+
+# Enouia Memory · 分阶段实施计划
 
 原始计划：设计包 v1.0 / 2026-09-28；v1.3 路线修订：2026-10-11。本文定义阶段与出口；实际进度以对应 validation 报告为准。
 

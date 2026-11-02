@@ -1,6 +1,10 @@
 //! End-to-end Core-3 with actual V2 files/leases and fake generation. No owner
 //! review, real Provider, private data, Runtime or default Host route.
 #![cfg(windows)]
+#[path = "automatic_loop/agent_mcp_cases.rs"]
+mod agent_mcp_cases;
+#[path = "automatic_loop/agent_read_cases.rs"]
+mod agent_read_cases;
 #[path = "automatic_loop/attention_cases.rs"]
 mod attention_cases;
 #[path = "automatic_loop/continuation_cases.rs"]
@@ -11,6 +15,8 @@ mod formation_cases;
 mod read_model_cases;
 #[path = "../../enouia-memory-contract/tests/support/mod.rs"]
 mod support;
+#[path = "automatic_loop/ui_record_cases.rs"]
+mod ui_record_cases;
 use enouia_memory_contract::{
     common::*,
     foundation::FakeClock,
@@ -18,6 +24,7 @@ use enouia_memory_contract::{
     ids::*,
     json::{Revision, canonical_bytes},
     next::*,
+    ports::IdSource,
     source::{SourceKind, SourceRecord},
     time::Timestamp,
 };
@@ -41,7 +48,6 @@ use std::{
     },
     time::{Duration, Instant},
 };
-static ROOTS: AtomicU64 = AtomicU64::new(0);
 const NOW: i64 = 1_792_843_200_000;
 fn id(pre: &str, n: u8) -> String {
     format!("{pre}_{n:08x}-0000-4000-8000-000000000001")
@@ -51,10 +57,11 @@ fn root(label: &str) -> VerifiedRoot {
     std::fs::create_dir_all(&base).unwrap();
     let base = std::fs::canonicalize(base).unwrap();
     let base = PathBuf::from(base.to_string_lossy().trim_start_matches(r"\\?\"));
+    // Aborted child processes intentionally leave files behind. PID reuse must
+    // not collide with those roots on a later test run.
     let path = base.join(format!(
-        "{label}-{}-{}",
-        std::process::id(),
-        ROOTS.fetch_add(1, Ordering::SeqCst)
+        "{label}-{}",
+        format_uuid_v4(OsIdSource.random_16())
     ));
     std::fs::create_dir(&path).unwrap();
     verify_data_root(&path, &RootPolicy::default()).unwrap()
@@ -158,8 +165,10 @@ impl Env {
         record.captured_at = Timestamp::from_unix_ms(NOW).unwrap();
         record.created_at = record.captured_at.clone();
         CapturedSource {
+            attachments: Vec::new(),
             record,
             text: text.into(),
+            record_fields: None,
             attributed_subject: (role == SpeakerRole::User).then(|| self.policy.subject_id.clone()),
         }
     }
@@ -278,6 +287,21 @@ fn wait(jobs: &SyntheticJobs, key: &Sha256Hex, state: JobState) {
         }
         assert!(Instant::now() < until, "{:?}", jobs.status(key));
         std::thread::sleep(Duration::from_millis(5));
+    }
+}
+// Status is deliberately nonblocking. A worker may hold its mutex even after
+// the previous observation, so retry only this content-free Busy observation.
+// Never retry a generation, publication or unknown operation here.
+fn observed_status(jobs: &SyntheticJobs, key: &Sha256Hex) -> Status {
+    let until = Instant::now() + Duration::from_secs(15);
+    loop {
+        match jobs.status(key) {
+            Ok(status) => return status,
+            Err(Fault::Busy) if Instant::now() < until => {
+                std::thread::sleep(Duration::from_millis(5));
+            }
+            other => panic!("job status observation: {other:?}"),
+        }
     }
 }
 fn worker(jobs: &SyntheticJobs, mode: ModelMode) -> std::thread::JoinHandle<()> {
@@ -586,7 +610,7 @@ fn current_deletion_policy_lock_and_native_control_invalidate_old_jobs() {
             }
         }
         assert!(host.apply_job(&key).is_err());
-        assert_ne!(jobs.status(&key).unwrap().state, JobState::Generated);
+        assert_ne!(observed_status(&jobs, &key).state, JobState::Generated);
         if action == "lock" {
             host.unlock(&e.descriptor.system_actor).unwrap();
         }
@@ -937,16 +961,20 @@ fn core3_publication_child() {
 fn actual_process_crash_preserves_one_result_and_the_same_receipt() {
     for point in ["intent", "current", "witness"] {
         let e = Env::new();
-        let status = Command::new(std::env::current_exe().unwrap())
+        let child = Command::new(std::env::current_exe().unwrap())
             .args(["--exact", "core3_publication_child", "--nocapture"])
             .env("ENOU_CORE3_DATA_ROOT", e.root.path())
             .env("ENOU_CORE3_JOB_ROOT", e.jobs_root.path())
             .env("ENOU_CORE3_POINT", point)
-            .stdout(Stdio::null())
-            .stderr(Stdio::null())
-            .status()
+            .output()
             .unwrap();
-        assert_eq!(status.code(), Some(3));
+        assert_eq!(
+            child.status.code(),
+            Some(3),
+            "point={point}; stdout={}; stderr={}",
+            String::from_utf8_lossy(&child.stdout),
+            String::from_utf8_lossy(&child.stderr)
+        );
         let vault = AutomationVault::recover(
             &e.root,
             e.descriptor.host_id.clone(),

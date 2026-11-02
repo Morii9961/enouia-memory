@@ -18,6 +18,41 @@ fn duplicate_native_current_observations_are_refused_instead_of_counted_twice() 
     ];
     assert!(select_recall(&p, &q, &m.request.snapshot, &q.at, &candidates).is_err());
 }
+#[test]
+fn scalable_recall_ranks_the_whole_authorized_catalog_and_keeps_legacy_limit() {
+    let p = profile();
+    let mut memories = Vec::new();
+    for n in 0..180 {
+        let mut m = memory();
+        m.memory.memory_id =
+            MemoryId::parse(&format!("mem_{n:08x}-0000-4000-8000-000000000001")).unwrap();
+        m.decision.input.content = if n == 179 {
+            "moonlight pottery"
+        } else {
+            "moonlight"
+        }
+        .into();
+        memories.push(m);
+    }
+    let q = query("moonlight pottery");
+    let snapshot = memories[0].request.snapshot.clone();
+    let candidates: Vec<_> = memories
+        .iter()
+        .map(|m| RecallCandidate {
+            memory: m,
+            source_time: q.at.clone(),
+            rendered_bytes: 100,
+        })
+        .collect();
+    assert!(select_recall(&p, &q, &snapshot, &q.at, &candidates).is_err());
+    let large = select_catalog_recall(&p, &q, &snapshot, &q.at, &candidates).unwrap();
+    assert_eq!(large.considered, 180);
+    assert_eq!(large.selected[0].memory, memories[179].memory);
+    assert_eq!(large.selected.len() + large.excluded.len(), 180);
+    let old = select_recall(&p, &q, &snapshot, &q.at, &candidates[..128]).unwrap();
+    let compatible = select_catalog_recall(&p, &q, &snapshot, &q.at, &candidates[..128]).unwrap();
+    assert_eq!(old, compatible);
+}
 use enouia_memory_contract::{ids::MemoryId, json::canonical_bytes, next::*, time::Timestamp};
 use serde_json::Value;
 use support::schema::SchemaStore;

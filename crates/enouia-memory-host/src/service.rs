@@ -106,6 +106,11 @@ impl HostService {
         })?
     }
 
+    #[cfg(windows)]
+    pub(crate) fn agent_vault_id(&self) -> &enouia_memory_contract::ids::VaultId {
+        self.vault.vault_id()
+    }
+
     pub(crate) fn admit_agent(&self) -> Result<Connection> {
         self.vault.host_writer_state()?;
         Ok(self.gate.connect_agent()?)

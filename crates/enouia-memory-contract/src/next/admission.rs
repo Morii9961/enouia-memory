@@ -136,6 +136,12 @@ pub struct AdmissionInput {
     #[serde(deserialize_with = "crate::json::nullable")]
     pub project_id: Option<ProjectId>,
     pub content: String,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "super::record_fields::present"
+    )]
+    pub record_fields: Option<super::MemoryRecordFields>,
     pub interpretation: Interpretation,
     #[serde(
         default,
@@ -259,6 +265,9 @@ impl NextDocument for AdmissionInput {
     fn validate(&self) -> Vec<Violation> {
         let mut out = Vec::new();
         document_budget(self, &mut out);
+        if let Some(fields) = &self.record_fields {
+            out.extend(fields.validate_input(self));
+        }
         if let Some(dimensions) = &self.dimensions {
             out.extend(dimensions.validate());
         }

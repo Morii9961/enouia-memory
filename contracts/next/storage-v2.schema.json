@@ -38,7 +38,10 @@
         "layout": {
           "enum": [
             "automation-host-v1",
-            "automation-host-v2"
+            "automation-host-v2",
+            "automation-host-v3",
+            "automation-segmented-host-v1",
+            "automation-segmented-owner-v1"
           ]
         },
         "vault_id": {
@@ -52,8 +55,34 @@
         },
         "system_actor": {
           "$ref": "automation-v2.schema.json#/$defs/systemActor"
+        },
+        "owner_subject_id": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/subjectId"
         }
-      }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "layout": {
+                "const": "automation-segmented-owner-v1"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "owner_subject_id"
+            ]
+          },
+          "else": {
+            "not": {
+              "required": [
+                "owner_subject_id"
+              ]
+            }
+          }
+        }
+      ]
     },
     "current": {
       "type": "object",
@@ -113,6 +142,14 @@
               "type": "null"
             }
           ]
+        },
+        "record_fields": {
+          "$ref": "ui-records-v2.schema.json#/$defs/sourceFields"
+        },
+        "attachments": {
+          "type": "array",
+          "maxItems": 128,
+          "items": { "$ref": "../memory/attachment-v1.schema.json" }
         }
       }
     },
@@ -259,6 +296,12 @@
             "$ref": "../memory/common-v1.schema.json#/$defs/memoryId"
           },
           "maxItems": 128
+        },
+        "record_catalog": {
+          "$ref": "ui-records-v2.schema.json#/$defs/catalog"
+        },
+        "owner_actions": {
+          "$ref": "ui-records-v2.schema.json#/$defs/ownerLedger"
         }
       }
     },
@@ -313,7 +356,8 @@
             "admit_batch",
             "policy",
             "delete_source",
-            "delete_memory"
+            "delete_memory",
+            "owner_action"
           ]
         },
         "data": {

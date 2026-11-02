@@ -110,7 +110,7 @@ pub struct MemoryReadItem {
     pub receipt: Option<MemoryReceipt>,
 }
 impl MemoryReadItem {
-    fn valid(&self) -> bool {
+    pub(super) fn valid(&self) -> bool {
         self.system_actor.actor_type == ActorType::System
             && ((self.knowledge == KnowledgeState::AttributedStatement)
                 == (self.adoption == AdoptionState::Adopted))

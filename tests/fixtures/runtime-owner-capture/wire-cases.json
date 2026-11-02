@@ -1,0 +1,77 @@
+{
+  "base": {
+    "mode": "write",
+    "request": {
+      "schema_version": 2,
+      "kind": "runtime_capture_request",
+      "capability": "memory-runtime-owner-capture-native-1",
+      "request_id": "req_00000001-0000-4000-8000-000000000001",
+      "conversation_id": "synthetic-only",
+      "title": null,
+      "turns": [
+        {
+          "message_id": "m1",
+          "parent_message_id": null,
+          "branch_id": "main",
+          "sequence": 1,
+          "speaker": "user",
+          "text": "Synthetic exact raw turn.\n\uff21 B",
+          "original_time": null,
+          "original_timezone": null,
+          "occurred_at": null,
+          "content_lang": "en",
+          "assistant_model": null,
+          "attachments": [
+            {
+              "original_id": "synthetic-attachment",
+              "name": "synthetic.txt",
+              "media_type": "text/plain",
+              "byte_len": 12,
+              "content_hash": null
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "cases": [
+    {
+      "name": "write",
+      "ops": [],
+      "accept": true
+    },
+    {
+      "name": "status",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/mode",
+          "value": "status"
+        }
+      ],
+      "accept": true
+    },
+    {
+      "name": "old-profile",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/request/capability",
+          "value": "memory-runtime-capture-native-1"
+        }
+      ],
+      "accept": false
+    },
+    {
+      "name": "foreign-authority",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/principal",
+          "value": "owner"
+        }
+      ],
+      "accept": false
+    }
+  ]
+}

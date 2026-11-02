@@ -1,0 +1,164 @@
+{
+  "capability": "memory-native-read-2",
+  "complete_in_scope": true,
+  "effect": "native_read",
+  "header": {
+    "algorithm": "witnessed-native-activity-2",
+    "authorized_at": "2026-10-24T12:00:00.000Z",
+    "parameters_hash": "702ac853ac88feda6d08cdfee43b5147667e899c3017772511937f2355be280b",
+    "permission_hash": "5bb51933b2a0e5bde2f0ac9d542742c8dd032a923b1aa0d26a0ec984c47d1224",
+    "scope": "authorized_current_dependencies",
+    "selection": {
+      "algorithm": "owner-qualified-catalog-4",
+      "evaluated_at": "2026-10-24T12:00:00.000Z",
+      "profile_hash": "e23dce3de472f5e99f52511a55d98426dcb5624957b2def3325645a065426642",
+      "query_hash": "0b4b2e01266a9b23ef15e0fe443756138831012a17d0ce689ca17a9f386ec39a",
+      "scope_hash": "43ea559439dd9206307f8abc1e7fae53a860227892ba6a4c3eae9338dd5be828",
+      "snapshot": {
+        "base_commit_id": "cmt_ae7ec51b-e8b2-4fa8-8742-7ac5596fba55",
+        "deletion_watermark": 1,
+        "policy_watermark": 2,
+        "primary_epoch": 1,
+        "vault_id": "vlt_00000001-0000-4000-8000-000000000001"
+      },
+      "version": 4,
+      "withdrawal_watermark": 1
+    },
+    "version": 2
+  },
+  "items": [
+    {
+      "adoption": "adopted",
+      "change": "correction",
+      "effective_sensitivity": "public",
+      "event_id": "f52ac7bc4bef4fb5839651cdcca6d02514371ef99ecc4cbec5edd493a89cd6a5",
+      "event_kind": "correction",
+      "formation_reason": {
+        "import_batch_id": null,
+        "interpretation": "clear_self_report",
+        "mode": "live",
+        "model_version": null,
+        "note": null,
+        "note_is_machine_annotation": true,
+        "prompt_version": "owner-native-literal-1",
+        "rule_version": "admission-rules-3"
+      },
+      "knowledge": "attributed_statement",
+      "memory": {
+        "memory_id": "mem_8283a87e-6ac9-448e-9ba8-f69e09cae675",
+        "revision": 2
+      },
+      "owner_action": {
+        "action": "correct",
+        "committed_in": "cmt_ae7ec51b-e8b2-4fa8-8742-7ac5596fba55",
+        "confirmed_at": "2026-10-24T12:00:00.000Z",
+        "entities": [],
+        "operation_id": "op_914c8d5c-627e-4bfc-a44b-40782c55edce",
+        "owner": {
+          "actor_id": "prn_00000001-0000-4000-8000-000000000001",
+          "actor_type": "owner"
+        }
+      },
+      "proof": {
+        "actor": {
+          "actor_id": "prn_00000001-0000-4000-8000-000000000001",
+          "actor_type": "owner"
+        },
+        "commit_hash": "c17fb570052ae1edfbf335e195a0c9e979c0764e76c7601a82192460d5d286ae",
+        "commit_id": "cmt_ae7ec51b-e8b2-4fa8-8742-7ac5596fba55",
+        "written_at": "2026-10-24T12:00:00.000Z"
+      },
+      "receipt": {
+        "binding_hash": "f21a55ada19f73c11e871bff3df9e75cb469640f0406dae270bad9b8f3f506ff",
+        "committed_in": "cmt_ae7ec51b-e8b2-4fa8-8742-7ac5596fba55",
+        "decision_hash": "0a52fde2ccbecd2015546cc2a334172d921da31f63096dbfd650f6a8bbce8fd1",
+        "job_key": "cdb96dc8c86f7adfc68a7aac7c9d3f25c673be537de4db39b3216daf755f0150",
+        "operation_id": "op_914c8d5c-627e-4bfc-a44b-40782c55edce",
+        "request_hash": "80e5407120410c8cea6f2189aa9b472c8511ff17805afb84ddd4b0fe7c3af3e0",
+        "response_hash": "0a52fde2ccbecd2015546cc2a334172d921da31f63096dbfd650f6a8bbce8fd1",
+        "result": {
+          "memory_id": "mem_8283a87e-6ac9-448e-9ba8-f69e09cae675",
+          "revision": 2
+        }
+      },
+      "source": null,
+      "title": "Synthetic owner correction"
+    },
+    {
+      "adoption": null,
+      "change": null,
+      "effective_sensitivity": "public",
+      "event_id": "781e09a75bd7f0b3994372d6dd6453f4b5ba9fa5b5268f6b5820c90416299f89",
+      "event_kind": "material_captured",
+      "formation_reason": null,
+      "knowledge": null,
+      "memory": null,
+      "proof": {
+        "actor": {
+          "actor_id": "prn_00000002-0000-4000-8000-000000000001",
+          "actor_type": "system"
+        },
+        "commit_hash": "24663c324d8376e319ce47b7c418bd13edbed6a1a2a5b09a5a867cef2ad125b0",
+        "commit_id": "cmt_7d529292-0ce2-4335-bfae-1659956565d4",
+        "written_at": "2026-10-24T12:00:00.000Z"
+      },
+      "receipt": null,
+      "source": {
+        "source_id": "src_00000001-0000-4000-8000-000000000001",
+        "source_revision": 1
+      },
+      "title": null
+    },
+    {
+      "adoption": "adopted",
+      "change": "initial",
+      "effective_sensitivity": "public",
+      "event_id": "75f55c1ee7166a989f77534c7cb670af1ab88176214f7d623ad188c99ae9eb56",
+      "event_kind": "formation",
+      "formation_reason": {
+        "import_batch_id": null,
+        "interpretation": "clear_self_report",
+        "mode": "live",
+        "model_version": null,
+        "note": null,
+        "note_is_machine_annotation": true,
+        "prompt_version": "synthetic-ui-1",
+        "rule_version": "admission-rules-3"
+      },
+      "knowledge": "attributed_statement",
+      "memory": {
+        "memory_id": "mem_8283a87e-6ac9-448e-9ba8-f69e09cae675",
+        "revision": 1
+      },
+      "proof": {
+        "actor": {
+          "actor_id": "prn_00000002-0000-4000-8000-000000000001",
+          "actor_type": "system"
+        },
+        "commit_hash": "ef6ddc77dcaa32e5b3a0ecb7494dbddd1da434db0cd51eacddb05c5fd4dcb434",
+        "commit_id": "cmt_b2228236-b786-4cec-865a-52f2289ba05f",
+        "written_at": "2026-10-24T12:00:00.000Z"
+      },
+      "receipt": {
+        "binding_hash": "1e80e44fa20a10dad2be1e41ee6c8e006ca03307c86e7fbfc296657390406362",
+        "committed_in": "cmt_b2228236-b786-4cec-865a-52f2289ba05f",
+        "decision_hash": "91e51db1a1819b23f47d22537af3f0ed07d38ef754a9f23a0487480d7236e8fb",
+        "job_key": "4cd5b23a714cb65a2f42811d00bae0da74dce9aedc6c02f2a0d25188f5aad7b2",
+        "operation_id": "op_47814cf0-e736-44d2-a5d6-a3b0722ccb16",
+        "request_hash": "5dce57fdd94f2024e3149f155e75c918d9343bacc0773f76b3359a60081f18f0",
+        "response_hash": "b735db956fe49f8eab968892fe89e5c7f3d2bd74b01f04047e3cd92b5c0f4634",
+        "result": {
+          "memory_id": "mem_8283a87e-6ac9-448e-9ba8-f69e09cae675",
+          "revision": 1
+        }
+      },
+      "source": null,
+      "title": "Synthetic item 1"
+    }
+  ],
+  "kind": "memory_activity_page",
+  "matched_in_scope": 3,
+  "next": null,
+  "schema_version": 2,
+  "time_derived_events_available": false
+}

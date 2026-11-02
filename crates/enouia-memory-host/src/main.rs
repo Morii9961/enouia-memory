@@ -46,6 +46,8 @@ fn run() -> Result<(), ()> {
             "--pipe",
             "--client-pid",
             "--surface",
+            "--agent-id",
+            "--agent-scopes",
         ]
         .contains(&key.as_str())
         {
@@ -68,6 +70,49 @@ fn run() -> Result<(), ()> {
     let identity = DeviceId::parse(&text("--host-id")?).map_err(|_| ())?;
     let pipe_id = Sha256Hex::parse(&text("--pipe")?).ok_or(())?;
     let client_pid: u32 = text("--client-pid")?.parse().map_err(|_| ())?;
+    if options.contains_key("--agent-id") || options.contains_key("--agent-scopes") {
+        use enouia_memory_contract::common::{ActorRef, ActorType};
+        use enouia_memory_contract::ids::PrincipalId;
+        use enouia_memory_contract::policy::Scope;
+        use enouia_memory_host::mcp::native::{Enrollment, serve_connection};
+        if options.contains_key("--surface") {
+            return Err(());
+        }
+        let principal = ActorRef {
+            actor_type: ActorType::Agent,
+            actor_id: PrincipalId::parse(&text("--agent-id")?).map_err(|_| ())?,
+        };
+        let scopes = text("--agent-scopes")?
+            .split(',')
+            .map(|s| match s {
+                "memory:read" => Ok(Scope::MemoryRead),
+                "source:read" => Ok(Scope::SourceRead),
+                "memory:propose" => Ok(Scope::MemoryPropose),
+                "context:read" => Ok(Scope::ContextRead),
+                "session:propose" => Ok(Scope::SessionPropose),
+                _ => Err(()),
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+        let enrollment = Enrollment::enroll(client_pid, principal, scopes).map_err(|_| ())?;
+        let root = verify_data_root(std::path::Path::new(&root), &RootPolicy::default())
+            .map_err(|_| ())?;
+        let host = HostService::open(&root, identity, Config::default()).map_err(|_| ())?;
+        let mut pipe = Pipe::listen(&pipe_id).map_err(|_| ())?;
+        println!("{{\"ready\":true,\"pid\":{}}}", std::process::id());
+        std::io::stdout().flush().map_err(|_| ())?;
+        loop {
+            enrollment.live().map_err(|_| ())?;
+            match pipe.accept(Duration::from_millis(500)) {
+                Ok(()) => break,
+                Err(e) if e.kind() == std::io::ErrorKind::TimedOut => continue,
+                Err(_) => return Err(()),
+            }
+        }
+        // Agent admission is single-use, independently of --once.
+        let _ = serve_connection(&host, &mut pipe, enrollment, Duration::from_secs(10));
+        let _ = pipe.disconnect();
+        return Ok(());
+    }
     let surface = match text("--surface")?.as_str() {
         "workspace" => HostSurface::Workspace,
         "quick_search" => HostSurface::QuickSearch,

@@ -5,7 +5,7 @@ use enouia_memory_contract::{common::Sensitivity, ids::MemoryId};
 use enouia_memory_vault::automation::AuthorizedReadData;
 use std::collections::BTreeSet;
 
-fn item(
+pub(super) fn item(
     data: &AuthorizedReadData,
     m: &MachineMemory,
     profile: &AttentionProfile,
@@ -87,87 +87,19 @@ impl AutomationHost {
         max: Sensitivity,
     ) -> ApplicationResult<MemoryReadPage> {
         let _gate = self.gate()?;
-        if !profile.validate().is_empty()
-            || !(1..=32).contains(&limit)
-            || !(1024..=MAX_DOCUMENT_BYTES).contains(&max_bytes)
-            || filter
-                .event_window
-                .as_ref()
-                .is_some_and(|t| t.until.as_ref().is_some_and(|end| end <= &t.from))
-        {
-            return Err(ApplicationFault::Invalid);
-        }
         let data = self.vault.authorized_read_data(&self.system, max, None)?;
-        let filter_hash = digest(&(filter, profile, max));
-        if cursor.is_some_and(|c| c.snapshot != data.snapshot || c.filter_hash != filter_hash) {
-            return Err(enouia_memory_vault::automation::AutomationFault::Stale.into());
-        }
-        let matches: Vec<_> = data
-            .current
-            .iter()
-            .filter(|m| matches_filter(m, filter))
-            .collect();
-        let unknown = data
-            .current
-            .iter()
-            .filter(|m| {
-                filter
-                    .form
-                    .is_none_or(|f| m.decision.input.dimensions.as_ref().unwrap().kind == f)
-                    && filter
-                        .adoption
-                        .is_none_or(|a| m.decision.outcome.adoption == a)
-                    && m.decision
-                        .input
-                        .dimensions
-                        .as_ref()
-                        .unwrap()
-                        .event_time
-                        .is_none()
-            })
-            .count();
-        let remaining: Vec<_> = matches
-            .iter()
-            .filter(|m| cursor.is_none_or(|c| m.memory.memory_id > c.after))
-            .collect();
-        let mut page = MemoryReadPage {
-            schema_version: NextVersion,
-            kind: MemoryPageKind::Page,
-            capability: MemoryReadCapability::V1,
-            effect: MemoryReadEffect::NativeRead,
-            capabilities: MemoryReadCapabilities::native(),
-            snapshot: data.snapshot.clone(),
-            authorized_at: data.now.clone(),
-            profile_hash: digest(profile),
-            items: vec![],
-            matched_in_scope: matches.len() as u64,
-            unknown_event_time_in_scope: unknown as u64,
-            complete_in_scope: true,
-            next: None,
-            maintenance_worker_alive: self.maintenance_running.load(Ordering::SeqCst),
-        };
-        for m in remaining.iter().take(limit) {
-            page.items.push(item(&data, m, profile)?);
-            if size(&page)? > max_bytes.saturating_sub(1024) {
-                page.items.pop();
-                break;
-            }
-        }
-        page.complete_in_scope = page.items.len() == remaining.len();
-        if !page.complete_in_scope {
-            page.next = page.items.last().map(|i| MemoryReadCursor {
-                snapshot: data.snapshot,
-                filter_hash,
-                after: i.memory.memory_id.clone(),
-            });
-            if page.items.is_empty() {
-                return Err(ApplicationFault::Invalid);
-            }
-        }
-        if size(&page)? > max_bytes || !page.validate().is_empty() {
-            return Err(ApplicationFault::Invalid);
-        }
-        Ok(page)
+        project_page(
+            data,
+            profile,
+            filter,
+            cursor,
+            limit,
+            max_bytes,
+            PageScope {
+                filter_hash: digest(&(filter, profile, max)),
+                maintenance_worker_alive: self.maintenance_running.load(Ordering::SeqCst),
+            },
+        )
     }
     pub fn memory_detail_native(
         &self,
@@ -179,90 +111,18 @@ impl AutomationHost {
         max: Sensitivity,
     ) -> ApplicationResult<Option<MemoryReadDetail>> {
         let _gate = self.gate()?;
-        if !profile.validate().is_empty() || !(1024..=MAX_DOCUMENT_BYTES).contains(&max_bytes) {
-            return Err(ApplicationFault::Invalid);
-        }
         let data = self
             .vault
             .authorized_read_data(&self.system, max, Some(id))?;
-        if expected.is_some_and(|s| s != &data.snapshot) {
-            return Err(enouia_memory_vault::automation::AutomationFault::Stale.into());
-        }
-        let Some(current) = data.current.iter().find(|m| &m.memory.memory_id == id) else {
-            return Ok(None);
-        };
-        let refs: BTreeSet<_> = data
-            .history
-            .iter()
-            .flat_map(|m| m.decision.input.input_refs.iter().cloned())
-            .collect();
-        let peers: Vec<_> = data
-            .current
-            .iter()
-            .chain(&data.history)
-            .map(|m| m.target())
-            .collect();
-        let mut neighbors = Vec::new();
-        for m in &data.current {
-            let d = m.decision.input.dimensions.as_ref().unwrap();
-            for (target, kind) in d
-                .derived_from
-                .iter()
-                .map(|p| (p, MemoryLinkKind::DerivedFrom))
-                .chain(d.reverts_to.iter().map(|p| (p, MemoryLinkKind::Reversion)))
-            {
-                if (&m.memory.memory_id == id || &target.memory.memory_id == id)
-                    && peers.contains(target)
-                {
-                    neighbors.push(MemoryReadLink {
-                        from: m.memory.clone(),
-                        to: target.clone(),
-                        kind,
-                    });
-                }
-            }
-        }
-        let mut detail = MemoryReadDetail {
-            schema_version: NextVersion,
-            kind: MemoryDetailKind::Detail,
-            capability: MemoryReadCapability::V1,
-            effect: MemoryReadEffect::NativeRead,
-            snapshot: data.snapshot.clone(),
-            authorized_at: data.now.clone(),
-            profile_hash: digest(profile),
-            item: item(&data, current, profile)?,
-            history: data
-                .history
-                .iter()
-                .map(|m| item(&data, m, profile))
-                .collect::<ApplicationResult<_>>()?,
-            sources: data
-                .sources
-                .iter()
-                .filter(|s| refs.contains(&s.reference()))
-                .map(|s| MemorySourceView {
-                    record: s.record.clone(),
-                    attributed_subject: s.attributed_subject.clone(),
-                    text: include_source_text.then(|| s.text.clone()),
-                })
-                .collect(),
-            complete_in_scope: neighbors.len() <= 32,
-            neighbors: neighbors.into_iter().take(32).collect(),
-        };
-        if size(&detail)? > max_bytes {
-            for source in &mut detail.sources {
-                source.text = None;
-            }
-            detail.complete_in_scope = false;
-        }
-        while size(&detail)? > max_bytes && !detail.history.is_empty() {
-            detail.history.remove(0);
-            detail.complete_in_scope = false;
-        }
-        if size(&detail)? > max_bytes || !detail.validate().is_empty() {
-            return Err(ApplicationFault::Invalid);
-        }
-        Ok(Some(detail))
+        project_detail(
+            data,
+            profile,
+            id,
+            expected,
+            include_source_text,
+            true,
+            max_bytes,
+        )
     }
     pub fn simulate_native_recall(
         &self,
@@ -321,4 +181,193 @@ pub fn simulate_synthetic_recall(
         trace,
         rendered_context,
     })
+}
+
+// Projection receives already-authorized data. It performs no identity grant,
+// Vault IO or System forwarding; Agent callers filter at the Vault gate first.
+pub(super) struct PageScope {
+    pub filter_hash: Sha256Hex,
+    pub maintenance_worker_alive: bool,
+}
+pub(super) fn project_page(
+    data: AuthorizedReadData,
+    profile: &AttentionProfile,
+    filter: &MemoryReadFilter,
+    cursor: Option<&MemoryReadCursor>,
+    limit: usize,
+    max_bytes: usize,
+    scope: PageScope,
+) -> ApplicationResult<MemoryReadPage> {
+    if !profile.validate().is_empty()
+        || !(1..=32).contains(&limit)
+        || !(1024..=MAX_DOCUMENT_BYTES).contains(&max_bytes)
+        || filter
+            .event_window
+            .as_ref()
+            .is_some_and(|t| t.until.as_ref().is_some_and(|end| end <= &t.from))
+    {
+        return Err(ApplicationFault::Invalid);
+    }
+    let filter_hash = scope.filter_hash;
+    if cursor.is_some_and(|c| c.snapshot != data.snapshot || c.filter_hash != filter_hash) {
+        return Err(enouia_memory_vault::automation::AutomationFault::Stale.into());
+    }
+    let matches: Vec<_> = data
+        .current
+        .iter()
+        .filter(|m| matches_filter(m, filter))
+        .collect();
+    let unknown = data
+        .current
+        .iter()
+        .filter(|m| {
+            filter
+                .form
+                .is_none_or(|f| m.decision.input.dimensions.as_ref().unwrap().kind == f)
+                && filter
+                    .adoption
+                    .is_none_or(|a| m.decision.outcome.adoption == a)
+                && m.decision
+                    .input
+                    .dimensions
+                    .as_ref()
+                    .unwrap()
+                    .event_time
+                    .is_none()
+        })
+        .count();
+    let remaining: Vec<_> = matches
+        .iter()
+        .filter(|m| cursor.is_none_or(|c| m.memory.memory_id > c.after))
+        .collect();
+    let mut page = MemoryReadPage {
+        schema_version: NextVersion,
+        kind: MemoryPageKind::Page,
+        capability: MemoryReadCapability::V1,
+        effect: MemoryReadEffect::NativeRead,
+        capabilities: MemoryReadCapabilities::native(),
+        snapshot: data.snapshot.clone(),
+        authorized_at: data.now.clone(),
+        profile_hash: digest(profile),
+        items: vec![],
+        matched_in_scope: matches.len() as u64,
+        unknown_event_time_in_scope: unknown as u64,
+        complete_in_scope: true,
+        next: None,
+        maintenance_worker_alive: scope.maintenance_worker_alive,
+    };
+    for m in remaining.iter().take(limit) {
+        page.items.push(item(&data, m, profile)?);
+        if size(&page)? > max_bytes.saturating_sub(1024) {
+            page.items.pop();
+            break;
+        }
+    }
+    page.complete_in_scope = page.items.len() == remaining.len();
+    if !page.complete_in_scope {
+        page.next = page.items.last().map(|i| MemoryReadCursor {
+            snapshot: data.snapshot,
+            filter_hash,
+            after: i.memory.memory_id.clone(),
+        });
+        if page.items.is_empty() {
+            return Err(ApplicationFault::Invalid);
+        }
+    }
+    if size(&page)? > max_bytes || !page.validate().is_empty() {
+        return Err(ApplicationFault::Invalid);
+    }
+    Ok(page)
+}
+
+pub(super) fn project_detail(
+    data: AuthorizedReadData,
+    profile: &AttentionProfile,
+    id: &MemoryId,
+    expected: Option<&SnapshotBinding>,
+    include_source_text: bool,
+    include_sources: bool,
+    max_bytes: usize,
+) -> ApplicationResult<Option<MemoryReadDetail>> {
+    if !profile.validate().is_empty() || !(1024..=MAX_DOCUMENT_BYTES).contains(&max_bytes) {
+        return Err(ApplicationFault::Invalid);
+    }
+    if expected.is_some_and(|s| s != &data.snapshot) {
+        return Err(enouia_memory_vault::automation::AutomationFault::Stale.into());
+    }
+    let Some(current) = data.current.iter().find(|m| &m.memory.memory_id == id) else {
+        return Ok(None);
+    };
+    let refs: BTreeSet<_> = data
+        .history
+        .iter()
+        .flat_map(|m| m.decision.input.input_refs.iter().cloned())
+        .collect();
+    let peers: Vec<_> = data
+        .current
+        .iter()
+        .chain(&data.history)
+        .map(|m| m.target())
+        .collect();
+    let mut neighbors = Vec::new();
+    for m in &data.current {
+        let d = m.decision.input.dimensions.as_ref().unwrap();
+        for (target, kind) in d
+            .derived_from
+            .iter()
+            .map(|p| (p, MemoryLinkKind::DerivedFrom))
+            .chain(d.reverts_to.iter().map(|p| (p, MemoryLinkKind::Reversion)))
+        {
+            if (&m.memory.memory_id == id || &target.memory.memory_id == id)
+                && peers.contains(target)
+            {
+                neighbors.push(MemoryReadLink {
+                    from: m.memory.clone(),
+                    to: target.clone(),
+                    kind,
+                });
+            }
+        }
+    }
+    let mut detail = MemoryReadDetail {
+        schema_version: NextVersion,
+        kind: MemoryDetailKind::Detail,
+        capability: MemoryReadCapability::V1,
+        effect: MemoryReadEffect::NativeRead,
+        snapshot: data.snapshot.clone(),
+        authorized_at: data.now.clone(),
+        profile_hash: digest(profile),
+        item: item(&data, current, profile)?,
+        history: data
+            .history
+            .iter()
+            .map(|m| item(&data, m, profile))
+            .collect::<ApplicationResult<_>>()?,
+        sources: data
+            .sources
+            .iter()
+            .filter(|s| include_sources && refs.contains(&s.reference()))
+            .map(|s| MemorySourceView {
+                record: s.record.clone(),
+                attributed_subject: s.attributed_subject.clone(),
+                text: include_source_text.then(|| s.text.clone()),
+            })
+            .collect(),
+        complete_in_scope: neighbors.len() <= 32,
+        neighbors: neighbors.into_iter().take(32).collect(),
+    };
+    if size(&detail)? > max_bytes {
+        for source in &mut detail.sources {
+            source.text = None;
+        }
+        detail.complete_in_scope = false;
+    }
+    while size(&detail)? > max_bytes && !detail.history.is_empty() {
+        detail.history.remove(0);
+        detail.complete_in_scope = false;
+    }
+    if size(&detail)? > max_bytes || !detail.validate().is_empty() {
+        return Err(ApplicationFault::Invalid);
+    }
+    Ok(Some(detail))
 }

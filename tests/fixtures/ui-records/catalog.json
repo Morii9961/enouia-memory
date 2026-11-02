@@ -1,0 +1,112 @@
+{
+  "entities": [
+    {
+      "entity_id": "ent_00000001-0000-4000-8000-000000000001",
+      "revision": 1,
+      "entity_type": "thing",
+      "reality": "real",
+      "display_name": "Workspaces",
+      "aliases": [
+        {
+          "name": "Quiet spaces",
+          "evidence": [
+            {
+              "reference": {
+                "source_id": "src_00000001-0000-4000-8000-000000000001",
+                "locator": {
+                  "event_id": "evt_00000015-0000-4000-8000-000000000015",
+                  "kind": "runtime_event"
+                },
+                "evidence_class": "user_statement",
+                "source_revision": 1,
+                "object_hash": "452c51c0e5d693cc71a4434687ce9f7984b288c9b5f70cfa79440ae0fbd98f4f",
+                "supports": "content"
+              },
+              "quote": "Synthetic subject says: I prefer quiet workspaces.",
+              "speaker": "user",
+              "start": 0,
+              "end": 50
+            }
+          ]
+        }
+      ],
+      "evidence": [
+        {
+          "reference": {
+            "source_id": "src_00000001-0000-4000-8000-000000000001",
+            "locator": {
+              "event_id": "evt_00000015-0000-4000-8000-000000000015",
+              "kind": "runtime_event"
+            },
+            "evidence_class": "user_statement",
+            "source_revision": 1,
+            "object_hash": "452c51c0e5d693cc71a4434687ce9f7984b288c9b5f70cfa79440ae0fbd98f4f",
+            "supports": "content"
+          },
+          "quote": "Synthetic subject says: I prefer quiet workspaces.",
+          "speaker": "user",
+          "start": 0,
+          "end": 50
+        }
+      ],
+      "project_id": null,
+      "first_seen": null,
+      "last_seen": null,
+      "sensitivity": "private",
+      "access_policy_id": "pol_00000002-0000-4000-8000-000000000001"
+    }
+  ],
+  "conversations": [
+    {
+      "conversation_id": "ses_00000001-0000-4000-8000-000000000001",
+      "revision": 1,
+      "platform": "synthetic",
+      "account_scope": "synthetic-owner",
+      "original_conversation_id": "synthetic-conversation",
+      "title": "Workspace discussion",
+      "participants": [
+        {
+          "label": "Synthetic subject",
+          "speaker": "user",
+          "entity_id": null
+        }
+      ],
+      "started_at": {
+        "from": null,
+        "until": null,
+        "precision": "unknown",
+        "bound": "within",
+        "tz": null,
+        "basis": "unknown"
+      },
+      "ended_at": {
+        "from": null,
+        "until": null,
+        "precision": "unknown",
+        "bound": "within",
+        "tz": null,
+        "basis": "unknown"
+      },
+      "turns": [
+        {
+          "source": {
+            "source_id": "src_00000001-0000-4000-8000-000000000001",
+            "source_revision": 1
+          },
+          "branch_id": "br_00000001-0000-4000-8000-000000000001",
+          "turn_id": "turn_00000001-0000-4000-8000-000000000001",
+          "sequence": 1,
+          "parent_source": null
+        }
+      ],
+      "turn_count": 1,
+      "branches": [
+        "br_00000001-0000-4000-8000-000000000001"
+      ],
+      "import_batch_id": null,
+      "complete_in_scope": true,
+      "sensitivity": "private",
+      "access_policy_id": "pol_00000002-0000-4000-8000-000000000001"
+    }
+  ]
+}

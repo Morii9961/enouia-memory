@@ -2,6 +2,8 @@
 
 All project documentation lives under `docs/`.
 
+Historical 2026-10-24 research and execution handoff: [lifecycle package](design/memory-evolution-2026-10-24/README.md), [Core route](design/memory-evolution-2026-10-24/07-core-refactor-and-runtime-route.md), and [Runtime UI handoff](handoff/memory-ui-2026-10-24/README.md). Their original pause/stop instructions describe that date; later authorized implementation and integration are recorded in the current plan and validation reports.
+
 2026-10-22: [Opt-in reference shell native Host](validation/MV-8-reference-shell-host.md) adds explicit child launch and native tray reconnect/unlock to the Tauri reference backend, with per-window queue tickets and original-request retention after uncertain replies. Synthetic backend/process evidence is separate from rendered/native-window acceptance and Runtime adoption.
 
 2026-10-22: [Native client reconnect boundary](validation/MV-8-native-client-reconnect.md) adds an opt-in native broker with connection-bound queue tickets, per-window scope checks and explicit uncertain outcomes. Synthetic durable-commit/reply-loss recovery is verified; Tauri/Runtime adoption remains separate.

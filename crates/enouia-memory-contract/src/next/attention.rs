@@ -194,11 +194,72 @@ pub fn select_recall(
     current_time: &Timestamp,
     candidates: &[RecallCandidate<'_>],
 ) -> Result<RecallTrace, crate::ContractError> {
+    select_with_limit(
+        profile,
+        query,
+        snapshot,
+        current_time,
+        candidates,
+        128,
+        None,
+    )
+}
+/// Explicit scalable native selection. Its potentially large exclusion vector
+/// is not a legacy wire trace; transports must declare bounded trace coverage.
+/// Callers supply only independently authorized current candidates.
+pub fn select_catalog_recall(
+    profile: &AttentionProfile,
+    query: &RecallQuery,
+    snapshot: &SnapshotBinding,
+    current_time: &Timestamp,
+    candidates: &[RecallCandidate<'_>],
+) -> Result<RecallTrace, crate::ContractError> {
+    select_with_limit(
+        profile,
+        query,
+        snapshot,
+        current_time,
+        candidates,
+        MAX_SEGMENTED_REVISIONS,
+        None,
+    )
+}
+/// Native qualification supplies one attention state per already authorized
+/// candidate (for example catalog-4 Owner protection). These values are tuning
+/// inputs, never grants. All adoption/condition/time/budget rules still apply.
+pub fn select_qualified_catalog_recall(
+    profile: &AttentionProfile,
+    query: &RecallQuery,
+    snapshot: &SnapshotBinding,
+    current_time: &Timestamp,
+    candidates: &[RecallCandidate<'_>],
+    attention: &[AttentionState],
+) -> Result<RecallTrace, crate::ContractError> {
+    select_with_limit(
+        profile,
+        query,
+        snapshot,
+        current_time,
+        candidates,
+        MAX_SEGMENTED_REVISIONS,
+        Some(attention),
+    )
+}
+fn select_with_limit(
+    profile: &AttentionProfile,
+    query: &RecallQuery,
+    snapshot: &SnapshotBinding,
+    current_time: &Timestamp,
+    candidates: &[RecallCandidate<'_>],
+    max_candidates: usize,
+    qualified_attention: Option<&[AttentionState]>,
+) -> Result<RecallTrace, crate::ContractError> {
     super::checked(profile.validate())?;
     if !query.valid(profile) {
         return Err(super::invalid("attention.query", ""));
     }
-    if candidates.len() > 128
+    if qualified_attention.is_some_and(|states| states.len() != candidates.len())
+        || candidates.len() > max_candidates
         || candidates
             .iter()
             .map(|c| &c.memory.memory.memory_id)
@@ -225,11 +286,14 @@ pub fn select_recall(
         .map(str::to_lowercase)
         .collect();
     let mut ranked = Vec::new();
-    for candidate in candidates {
+    for (index, candidate) in candidates.iter().enumerate() {
         let memory = candidate.memory;
         let input = &memory.decision.input;
         let dimensions = input.dimensions.as_ref();
-        let state = attention_state(profile, memory, &candidate.source_time, &query.at);
+        let state = qualified_attention.map_or_else(
+            || attention_state(profile, memory, &candidate.source_time, &query.at),
+            |states| states[index],
+        );
         let body = input.content.to_lowercase();
         let mut reasons = Vec::new();
         let lexical = words.iter().filter(|w| body.contains(w.as_str())).count() as u64;

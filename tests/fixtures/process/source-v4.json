@@ -1,0 +1,70 @@
+{
+  "capability": "memory-native-read-2",
+  "complete_in_scope": false,
+  "effect": "native_read",
+  "end": 7,
+  "excerpt": "合成条目 2：",
+  "fields": {
+    "assistant_model": null,
+    "content_lang": "zh-Hans",
+    "conversation_id": "ses_00000001-0000-4000-8000-000000000001"
+  },
+  "header": {
+    "algorithm": "selected-source-excerpt-2",
+    "authorized_at": "2026-10-24T12:00:00.000Z",
+    "parameters_hash": "f72dbbf127041e2596158678728f61f647b44c90ef158be7b1dca075cbb8b9c7",
+    "permission_hash": "428971d83ae8185c85ad98d54274984d4245b646cfb7d4ec490bca8f04012810",
+    "scope": "authorized_current_dependencies",
+    "selection": {
+      "algorithm": "owner-qualified-catalog-4",
+      "evaluated_at": "2026-10-24T12:00:00.000Z",
+      "profile_hash": "e23dce3de472f5e99f52511a55d98426dcb5624957b2def3325645a065426642",
+      "query_hash": "c1e961382352fda8b5d2a6263aa2a710910940d091df4cdd6dd73a5fbbddf645",
+      "scope_hash": "3ad2402bc9905eba65449cc045240d1ce7618ff412485310708628b4ae34f0cb",
+      "snapshot": {
+        "base_commit_id": "cmt_2e483baa-db55-43f6-8f08-e39cba7678bb",
+        "deletion_watermark": 1,
+        "policy_watermark": 2,
+        "primary_epoch": 1,
+        "vault_id": "vlt_00000001-0000-4000-8000-000000000001"
+      },
+      "version": 4,
+      "withdrawal_watermark": 1
+    },
+    "version": 2
+  },
+  "kind": "native_source_excerpt",
+  "schema_version": 2,
+  "source": {
+    "source_id": "src_00000002-0000-4000-8000-000000000001",
+    "source_revision": 1
+  },
+  "source_record": {
+    "anchor_hash": "3e4e30862bb791195b35a50400c6abc97044e74b14a7a435476ef850d90e0e91",
+    "author_label": null,
+    "captured_at": "2026-10-24T12:00:00.000Z",
+    "content_hash": "3e4e30862bb791195b35a50400c6abc97044e74b14a7a435476ef850d90e0e91",
+    "effective_sensitivity": "public",
+    "evidence_class": "user_statement",
+    "extensions": {},
+    "extensions_are_untrusted_data": true,
+    "locator": {
+      "event_id": "evt_00000002-0000-4000-8000-000000000001",
+      "kind": "runtime_event"
+    },
+    "occurred_at": "2026-06-10T10:00:00.000Z",
+    "original_conversation_id": null,
+    "original_message_id": null,
+    "original_time": null,
+    "original_timezone": null,
+    "reference": {
+      "source_id": "src_00000002-0000-4000-8000-000000000001",
+      "source_revision": 1
+    },
+    "source_kind": "runtime_event",
+    "speaker": "user",
+    "time_precision": "minute"
+  },
+  "start": 0,
+  "total_characters": 15
+}

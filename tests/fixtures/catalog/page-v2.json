@@ -1,0 +1,119 @@
+{
+  "schema_version": 2,
+  "kind": "catalog_memory_page",
+  "capability": "memory-native-read-2",
+  "effect": "native_read",
+  "selection": {
+    "snapshot": {
+      "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+      "base_commit_id": "cmt_00000004-0000-4000-8000-000000000001",
+      "primary_epoch": 1,
+      "policy_watermark": 2,
+      "deletion_watermark": 1
+    },
+    "scope_hash": "a0a1c9e7908d23c948cfd1030a801fbec05955c27665298506e9f1ba3f866b27",
+    "query_hash": "ae230739a240a963c7a8226ca19215e759dce070001d23e092ad6ddc41f42db6",
+    "evaluated_at": "2026-10-24T12:00:00.000Z",
+    "algorithm": "literal-family-catalog-2",
+    "version": 2,
+    "profile_hash": "e23dce3de472f5e99f52511a55d98426dcb5624957b2def3325645a065426642",
+    "withdrawal_watermark": 1
+  },
+  "authorized_at": "2026-10-24T12:00:00.000Z",
+  "matched_in_scope": 1,
+  "unknown_time_in_scope": 1,
+  "count_exact": true,
+  "scope": "authorized_current_machine_revisions",
+  "items": [
+    {
+      "base": {
+        "memory": {
+          "memory_id": "mem_00000001-0000-4000-8000-000000000001",
+          "revision": 1
+        },
+        "system_actor": {
+          "actor_id": "prn_00000002-0000-4000-8000-000000000001",
+          "actor_type": "system"
+        },
+        "subject_id": "sub_00000001-0000-4000-8000-000000000001",
+        "project_id": null,
+        "content": "Synthetic subject says: I prefer quiet workspaces.",
+        "knowledge": "attributed_statement",
+        "adoption": "adopted",
+        "dimensions": {
+          "kind": "preference",
+          "occurrence": "unknown",
+          "state": null,
+          "change": "initial",
+          "conditions": [],
+          "event_time": null,
+          "valid_time": null,
+          "counter_sources": [],
+          "derived_from": [],
+          "reverts_to": null
+        },
+        "policy": {
+          "policy_id": "pol_00000001-0000-4000-8000-000000000001",
+          "revision": 1,
+          "hash": "4806d596418345a9401fc4022417b5ca416a1b9b6dae09d924609d16317ea6d4"
+        },
+        "rule_version": "admission-rules-3",
+        "committed_in": "cmt_00000004-0000-4000-8000-000000000001",
+        "learned_at": "2026-10-24T12:00:00.000Z",
+        "source_captured_at": "2026-10-24T12:00:00.000Z",
+        "attention": "active",
+        "validity": "unspecified",
+        "evidence": [
+          {
+            "source_id": "src_00000001-0000-4000-8000-000000000001",
+            "locator": {
+              "event_id": "evt_00000015-0000-4000-8000-000000000015",
+              "kind": "runtime_event"
+            },
+            "evidence_class": "user_statement",
+            "source_revision": 1,
+            "object_hash": "452c51c0e5d693cc71a4434687ce9f7984b288c9b5f70cfa79440ae0fbd98f4f",
+            "supports": "content"
+          }
+        ],
+        "context_source_refs": [],
+        "receipt": {
+          "job_key": "00e41868772769149840ca05aecf1edeee57e1151299c5115ee8811c0813b9e8",
+          "binding_hash": "0ef10a031eee7ed2508f425ddc393d90efc4ad897572195961844766c9061273",
+          "operation_id": "op_00000001-0000-4000-8000-000000000001",
+          "request_hash": "54ac46d45be4c51f97159d69dbe21a4c26601d547246c5cc280cd6355dd9659a",
+          "response_hash": "4e3d34062e49dc3c78b84be27898ce836140f356f3b31a7cea57056d1d360b2b",
+          "decision_hash": "56fcfca1681c2653e8323342d6159acbc4973d88597a2d07d253bed2030985d4",
+          "committed_in": "cmt_00000004-0000-4000-8000-000000000001",
+          "sequence": 4,
+          "result": {
+            "memory_id": "mem_00000001-0000-4000-8000-000000000001",
+            "revision": 1
+          }
+        }
+      },
+      "title": "Quiet workspaces",
+      "content_lang": "en",
+      "event_time": {
+        "from": null,
+        "until": null,
+        "precision": "unknown",
+        "bound": "within",
+        "tz": null,
+        "basis": "unknown"
+      },
+      "valid_time": {
+        "from": null,
+        "until": null,
+        "precision": "unknown",
+        "bound": "within",
+        "tz": null,
+        "basis": "unknown"
+      },
+      "entities": []
+    }
+  ],
+  "complete_in_scope": true,
+  "next": null,
+  "facets": []
+}

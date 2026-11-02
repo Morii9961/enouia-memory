@@ -1,0 +1,170 @@
+{
+  "capability": "memory-native-read-2",
+  "effect": "native_read",
+  "header": {
+    "algorithm": "typed-selected-neighbors-2",
+    "authorized_at": "2026-10-24T12:00:00.000Z",
+    "parameters_hash": "97767076c01246865500761d91b8f6eae1f3704435e1d7d74d8d722e66215ea2",
+    "permission_hash": "428971d83ae8185c85ad98d54274984d4245b646cfb7d4ec490bca8f04012810",
+    "scope": "authorized_current_dependencies",
+    "selection": {
+      "algorithm": "owner-qualified-catalog-4",
+      "evaluated_at": "2026-10-24T12:00:00.000Z",
+      "profile_hash": "e23dce3de472f5e99f52511a55d98426dcb5624957b2def3325645a065426642",
+      "query_hash": "c1e961382352fda8b5d2a6263aa2a710910940d091df4cdd6dd73a5fbbddf645",
+      "scope_hash": "3ad2402bc9905eba65449cc045240d1ce7618ff412485310708628b4ae34f0cb",
+      "snapshot": {
+        "base_commit_id": "cmt_2e483baa-db55-43f6-8f08-e39cba7678bb",
+        "deletion_watermark": 1,
+        "policy_watermark": 2,
+        "primary_epoch": 1,
+        "vault_id": "vlt_00000001-0000-4000-8000-000000000001"
+      },
+      "version": 4,
+      "withdrawal_watermark": 1
+    },
+    "version": 2
+  },
+  "items": [
+    {
+      "other": {
+        "adoption": "adopted",
+        "change": "initial",
+        "effective_sensitivity": "public",
+        "interpretation": "clear_self_report",
+        "knowledge": "attributed_statement",
+        "learned_at": "2026-10-24T12:00:00.000Z",
+        "memory": {
+          "hash": "da79e2a386b5fc8c89e9e3b072234cc2dd9fd9b2ae362e13aeff7a4cef6076e8",
+          "memory": {
+            "memory_id": "mem_0889958b-fc75-461d-82b5-d2a9abaefe3f",
+            "revision": 1
+          }
+        },
+        "receipt": {
+          "binding_hash": "9ee0d0af2f04b4e352d25500eca8fa6a0109c5802adbce56a0cc9b763e8038ad",
+          "committed_in": "cmt_dfd2048a-9504-4fd8-8c50-13beac41d3e4",
+          "decision_hash": "c35bdfa2870c30438c6eddddafef08f847d439b57c3ef32452a6b23324e91fb1",
+          "job_key": "306fe548360cab091deb482ab478f127287f72946b59b7338547b080a14960bb",
+          "operation_id": "op_880a14f7-4f81-4924-a4ee-0868a7c317ff",
+          "request_hash": "d2c966a2fa0e3c71887ff2617ad3fbd73c7d6421b5b70d18b3bedfd97d08ad00",
+          "response_hash": "5a11089a6e646a68300060cef82d00f33bf5d76c44c51ffaaca4afe3897b03ee",
+          "result": {
+            "memory_id": "mem_0889958b-fc75-461d-82b5-d2a9abaefe3f",
+            "revision": 1
+          }
+        },
+        "title": "Synthetic item 1"
+      },
+      "relations": [
+        {
+          "class": "recorded_relation",
+          "direction": "outgoing",
+          "relation": "corrects",
+          "witness_count_in_scope": 1,
+          "witnesses": [
+            "51bd9267603717a37968885884beb6c50ba6e112e8ef76fd1716de1da131c325"
+          ],
+          "witnesses_complete": true
+        }
+      ]
+    },
+    {
+      "other": {
+        "adoption": "staged",
+        "change": "initial",
+        "effective_sensitivity": "public",
+        "interpretation": "conflicting",
+        "knowledge": "disputed",
+        "learned_at": "2026-10-24T12:00:00.000Z",
+        "memory": {
+          "hash": "0e13842169e1107a47ee737d3db7240f92d4bfc4a72a559d32474ebc25306133",
+          "memory": {
+            "memory_id": "mem_2e4ec585-c87a-4acd-9fe0-5f12dc3f0589",
+            "revision": 1
+          }
+        },
+        "receipt": {
+          "binding_hash": "dc625f6e0e724b8509140f61b79376b6948aaff84a9d1528b5abef856decf0da",
+          "committed_in": "cmt_2e483baa-db55-43f6-8f08-e39cba7678bb",
+          "decision_hash": "ee33b8a50bfb41253e24b327e4a004ca9c0446261e186d9829d4e89114841000",
+          "job_key": "39db2ffe5e4495969f6336d557b16254d6af419761646815346aedfa655ad0ca",
+          "operation_id": "op_0b11c141-3bb8-4739-bcc4-b4489e939691",
+          "request_hash": "04acd95d470c63c1e518f9c8a393493b96210c76e128d5693cfdd7c72d0c7b8c",
+          "response_hash": "dcf45c586bb2b36e809d8cf3af0084f299cb3796e5b31381630500a5b49fbb62",
+          "result": {
+            "memory_id": "mem_2e4ec585-c87a-4acd-9fe0-5f12dc3f0589",
+            "revision": 1
+          }
+        },
+        "title": "Synthetic item 1"
+      },
+      "relations": [
+        {
+          "class": "recorded_relation",
+          "direction": "undirected",
+          "relation": "same_conversation",
+          "witness_count_in_scope": 1,
+          "witnesses": [
+            "ses_00000001-0000-4000-8000-000000000001"
+          ],
+          "witnesses_complete": true
+        }
+      ]
+    },
+    {
+      "other": {
+        "adoption": "staged",
+        "change": "initial",
+        "effective_sensitivity": "public",
+        "interpretation": "inference",
+        "knowledge": "hypothesis",
+        "learned_at": "2026-10-24T12:00:00.000Z",
+        "memory": {
+          "hash": "e04d0b71012c742a7f8fcb221dc7b506a88bfd3e2a83477d0d697f2e230baff3",
+          "memory": {
+            "memory_id": "mem_90ec9064-1a42-4e10-8ce9-77b46e843af6",
+            "revision": 1
+          }
+        },
+        "receipt": {
+          "binding_hash": "2accebde1c5c7e526958b919a35444c935d0be296c06c3fdda8d87128ce26369",
+          "committed_in": "cmt_8e607c34-f7ec-4f57-8719-03d2426439ea",
+          "decision_hash": "384dc3749cbd4a249c75cc144cd3475814ee38bbe19af23ad652fe8f9e7bf6cf",
+          "job_key": "2679b34ebd796bb27ed93c265362802d0692376752cb8d211f10d6c77bd056ff",
+          "operation_id": "op_a914f648-d61f-4f83-851d-32431fce2c90",
+          "request_hash": "d306f2afccc8edde83758972860e36ebf054a3f3547379078927f31e4cf079c4",
+          "response_hash": "7fe3ced6fb1de8f75603ce92f218802e74b662c121217d4f408e3e3dd39227ad",
+          "result": {
+            "memory_id": "mem_90ec9064-1a42-4e10-8ce9-77b46e843af6",
+            "revision": 1
+          }
+        },
+        "title": "Synthetic item 3"
+      },
+      "relations": [
+        {
+          "class": "recorded_relation",
+          "direction": "undirected",
+          "relation": "same_conversation",
+          "witness_count_in_scope": 1,
+          "witnesses": [
+            "ses_00000001-0000-4000-8000-000000000001"
+          ],
+          "witnesses_complete": true
+        }
+      ]
+    }
+  ],
+  "kind": "native_memory_neighbors",
+  "matched_in_scope": 3,
+  "next": null,
+  "schema_version": 2,
+  "selected": {
+    "hash": "6978a5fcd88aca0dfb9b9209fc96139a6680a577d94228312cbb04eccb8766bb",
+    "memory": {
+      "memory_id": "mem_0889958b-fc75-461d-82b5-d2a9abaefe3f",
+      "revision": 2
+    }
+  }
+}

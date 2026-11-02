@@ -126,7 +126,7 @@ fn no_policy_pauses_without_spending_then_a_native_grant_enables_automatic_forma
     let key = host.prepare_submit(vec![input(&e, 1)]).unwrap();
     std::thread::sleep(Duration::from_millis(50));
     assert_eq!(calls.load(Ordering::SeqCst), 0);
-    assert_eq!(jobs.status(&key).unwrap().reserved_tokens, 0);
+    assert_eq!(observed_status(&jobs, &key).reserved_tokens, 0);
     assert!(c.inspect_native().unwrap().attempts.is_empty());
     c.set_policy(&e.descriptor.created_by, p.clone()).unwrap();
     activate(&e, &host, &c);
@@ -308,7 +308,7 @@ fn destination_scope_and_budget_gate_retains_queued_inputs_without_calling_trans
     let key = host.prepare_submit(vec![input(&e, 1)]).unwrap();
     std::thread::sleep(Duration::from_millis(50));
     assert_eq!(calls.load(Ordering::SeqCst), 0);
-    assert_eq!(jobs.status(&key).unwrap().cursor, 0);
+    assert_eq!(observed_status(&jobs, &key).cursor, 0);
     assert!(c.inspect_native().unwrap().attempts.is_empty());
     let mut live = p.destination.clone();
     live.api = GenerationApi::OpenaiResponses;
@@ -644,13 +644,13 @@ fn proven_pre_handoff_pause_keeps_work_and_undoes_only_the_unsent_local_reservat
         std::thread::yield_now();
     }
     wait(&jobs, &key, JobState::Queued);
-    assert_eq!(jobs.status(&key).unwrap().reserved_tokens, 0);
+    assert_eq!(observed_status(&jobs, &key).reserved_tokens, 0);
     assert_eq!(calls.load(Ordering::SeqCst), 0);
     resume.store(true, Ordering::SeqCst);
     wait(&jobs, &key, JobState::Generated);
     host.apply_job(&key).unwrap();
     assert_eq!(calls.load(Ordering::SeqCst), 1);
-    assert_eq!(jobs.status(&key).unwrap().reserved_tokens, 100);
+    assert_eq!(observed_status(&jobs, &key).reserved_tokens, 100);
     drop(host);
     thread.join().unwrap();
 }

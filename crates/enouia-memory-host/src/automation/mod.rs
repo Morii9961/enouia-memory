@@ -1,11 +1,23 @@
 //! Core-2 opt-in synthetic job coordinator. No default Host wiring, Provider
 //! adapter or default writer. The opt-in `application` module connects Core-3's
 //! separate V2 synthetic transactions; the coordinator alone never applies them.
+pub mod agent_read;
 pub mod application;
 pub mod attention;
+#[cfg(windows)]
+pub mod captured_worker;
+pub mod catalog;
 pub mod continuation;
 mod model;
+#[cfg(windows)]
+pub mod owner_runtime_capture_transport;
+pub mod qualified_agent;
 pub mod read_model;
+#[cfg(windows)]
+pub mod runtime_capture;
+#[cfg(windows)]
+pub mod runtime_capture_transport;
+pub mod segmented_agent;
 mod worker;
 pub use model::*;
 pub use worker::{Generated, Generation, Generator, PendingGeneration, StopToken};
@@ -500,3 +512,9 @@ impl SyntheticJobs {
             })
     }
 }
+
+pub mod owner;
+
+#[cfg(all(test, windows))]
+#[path = "../../../enouia-memory-vault/tests/support/segmented_fixture.rs"]
+mod capture_fixture;

@@ -1,0 +1,76 @@
+{
+  "capability": "memory-native-read-2",
+  "effect": "native_read",
+  "header": {
+    "algorithm": "authorized-conversation-list-2",
+    "authorized_at": "2026-10-24T12:00:00.000Z",
+    "parameters_hash": "38e0b9de817f645c4bec37c0d4a3e58baecccb040f5718dc069a72c7385a0bed",
+    "permission_hash": "428971d83ae8185c85ad98d54274984d4245b646cfb7d4ec490bca8f04012810",
+    "scope": "authorized_current_dependencies",
+    "selection": {
+      "algorithm": "owner-qualified-catalog-4",
+      "evaluated_at": "2026-10-24T12:00:00.000Z",
+      "profile_hash": "e23dce3de472f5e99f52511a55d98426dcb5624957b2def3325645a065426642",
+      "query_hash": "c1e961382352fda8b5d2a6263aa2a710910940d091df4cdd6dd73a5fbbddf645",
+      "scope_hash": "3ad2402bc9905eba65449cc045240d1ce7618ff412485310708628b4ae34f0cb",
+      "snapshot": {
+        "base_commit_id": "cmt_2e483baa-db55-43f6-8f08-e39cba7678bb",
+        "deletion_watermark": 1,
+        "policy_watermark": 2,
+        "primary_epoch": 1,
+        "vault_id": "vlt_00000001-0000-4000-8000-000000000001"
+      },
+      "version": 4,
+      "withdrawal_watermark": 1
+    },
+    "version": 2
+  },
+  "items": [
+    {
+      "conversation": {
+        "access_policy_id": "pol_00000002-0000-4000-8000-000000000001",
+        "account_scope": "synthetic-owner",
+        "complete_in_scope": true,
+        "conversation_id": "ses_00000001-0000-4000-8000-000000000001",
+        "ended_at": {
+          "basis": "unknown",
+          "bound": "within",
+          "from": null,
+          "precision": "unknown",
+          "tz": null,
+          "until": null
+        },
+        "import_batch_id": null,
+        "original_conversation_id": "synthetic-conversation",
+        "participants": [
+          {
+            "entity_id": null,
+            "label": "Synthetic subject",
+            "speaker": "user"
+          }
+        ],
+        "platform": "synthetic",
+        "revision": 1,
+        "sensitivity": "public",
+        "started_at": {
+          "basis": "unknown",
+          "bound": "within",
+          "from": null,
+          "precision": "unknown",
+          "tz": null,
+          "until": null
+        },
+        "title": "Synthetic example conversation",
+        "turn_sequence_scope": "authorized_captured_branch_order"
+      },
+      "effective_sensitivity": "public",
+      "platform_complete_not_claimed": true,
+      "visible_captured_sources": 3,
+      "visible_captured_turns": 3
+    }
+  ],
+  "kind": "native_conversation_page",
+  "matched_in_scope": 1,
+  "next": null,
+  "schema_version": 2
+}

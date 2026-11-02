@@ -1,0 +1,11 @@
+{
+  "action": "correct",
+  "committed_in": "cmt_ae7ec51b-e8b2-4fa8-8742-7ac5596fba55",
+  "confirmed_at": "2026-10-24T12:00:00.000Z",
+  "entities": [],
+  "operation_id": "op_914c8d5c-627e-4bfc-a44b-40782c55edce",
+  "owner": {
+    "actor_id": "prn_00000001-0000-4000-8000-000000000001",
+    "actor_type": "owner"
+  }
+}

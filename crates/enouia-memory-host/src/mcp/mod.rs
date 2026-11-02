@@ -1,7 +1,15 @@
 //! Restricted MCP 2025-11-25 boundary (ADR-MEM-80).
-//! No native enrollment, Vault access, owner Workspace bridge or automatic retry.
-mod json;
+//! Opt-in native enrollment lives in `native`; no owner bridge or automatic retry.
+pub mod catalog;
+pub mod initialized;
+pub(crate) mod json;
+#[cfg(windows)]
+pub mod native;
+pub mod qualified;
+pub mod quote_locator;
 mod read;
+mod read_session;
+pub mod v2;
 pub use read::{HostPort, ReadPort};
 
 use enouia_memory_contract::common::{ActorRef, ActorType};

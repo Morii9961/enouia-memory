@@ -1,0 +1,101 @@
+{
+  "receipt": {
+    "schema_version": 2,
+    "kind": "captured_queue_receipt",
+    "queue_key": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "job_keys": [
+      "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    ],
+    "state": "queued"
+  },
+  "delta": {
+    "change": "enqueue",
+    "entry": {
+      "queue_key": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "session_id": "ses_00000001-0000-4000-8000-000000000001",
+      "request_id": "req_00000001-0000-4000-8000-000000000001",
+      "request_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "producer": {
+        "actor_type": "client",
+        "actor_id": "prn_00000001-0000-4000-8000-000000000001"
+      },
+      "policy": {
+        "policy_id": "pol_00000001-0000-4000-8000-000000000001",
+        "revision": 1,
+        "hash": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+      },
+      "sources": [
+        {
+          "source_id": "src_00000001-0000-4000-8000-000000000001",
+          "source_revision": 1
+        }
+      ],
+      "job_keys": [
+        "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+      ]
+    }
+  },
+  "receipt_rejects": [
+    {
+      "name": "formation claimed",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/state",
+          "value": "formed"
+        }
+      ]
+    },
+    {
+      "name": "no jobs",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/job_keys",
+          "value": []
+        }
+      ]
+    },
+    {
+      "name": "memory result smuggled",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/memory_id",
+          "value": "mem_00000001-0000-4000-8000-000000000001"
+        }
+      ]
+    }
+  ],
+  "delta_rejects": [
+    {
+      "name": "no sources",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/entry/sources",
+          "value": []
+        }
+      ]
+    },
+    {
+      "name": "unbound policy",
+      "ops": [
+        {
+          "op": "remove",
+          "path": "/entry/policy"
+        }
+      ]
+    },
+    {
+      "name": "generated response smuggled",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/entry/response",
+          "value": "{}"
+        }
+      ]
+    }
+  ]
+}

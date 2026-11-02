@@ -1,0 +1,10 @@
+{
+  "operation_id": "op_00000001-0000-4000-8000-000000000001",
+  "plan_hash": "0f6eef244c819ba6375fa62e2c16c2fb4557f6eb30bcd993c47bdf1aa0a0d808",
+  "owner": {
+    "actor_id": "prn_00000001-0000-4000-8000-000000000001",
+    "actor_type": "owner"
+  },
+  "surface": "trusted_local_cli",
+  "confirmed_at": "2026-10-24T12:00:00.000Z"
+}

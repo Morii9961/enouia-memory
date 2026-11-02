@@ -6,6 +6,7 @@ members = [
     "crates/enouia-memory-govern",
     "crates/enouia-memory-host",
     "crates/enouia-memory-import",
+    "crates/enouia-memory-init",
     "crates/enouia-memory-index",
     "crates/enouia-memory-provider",
     "crates/enouia-memory-vault",

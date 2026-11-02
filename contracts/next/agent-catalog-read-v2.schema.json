@@ -1,0 +1,1262 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.enouia-memory.invalid/next/agent-catalog-read-v2.schema.json",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/search_request"
+    },
+    {
+      "$ref": "#/$defs/search_response"
+    },
+    {
+      "$ref": "#/$defs/read_request"
+    },
+    {
+      "$ref": "#/$defs/read_response"
+    },
+    {
+      "$ref": "#/$defs/source_request"
+    },
+    {
+      "$ref": "#/$defs/source_response"
+    },
+    {
+      "$ref": "#/$defs/related_request"
+    },
+    {
+      "$ref": "#/$defs/related_response"
+    },
+    {
+      "$ref": "#/$defs/recall_request"
+    },
+    {
+      "$ref": "#/$defs/recall_response"
+    }
+  ],
+  "$defs": {
+    "agent": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "actor_type": {
+          "const": "agent"
+        },
+        "actor_id": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/principalId"
+        }
+      },
+      "required": [
+        "actor_type",
+        "actor_id"
+      ]
+    },
+    "error": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "enum": [
+            "invalid_request",
+            "permission_denied",
+            "stale_scope",
+            "unavailable",
+            "outcome_unknown"
+          ]
+        },
+        "retryable": {
+          "const": false
+        }
+      },
+      "required": [
+        "code",
+        "retryable"
+      ]
+    },
+    "coverage": {
+      "const": {
+        "record_fields": "ui-records-v2",
+        "graph": "recorded_provenance_only",
+        "trace_exclusions": "bounded_128_with_exact_reason_counts",
+        "owner_actions": "unavailable",
+        "capture": "runtime_only_future"
+      }
+    },
+    "item": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "base": {
+          "$ref": "read-model-v2.schema.json#/$defs/item"
+        },
+        "record": {
+          "$ref": "agent-record-read-v2.schema.json#/$defs/record_projection"
+        }
+      },
+      "required": [
+        "base",
+        "record"
+      ]
+    },
+    "search_data": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "selection": {
+          "$ref": "catalog-v2.schema.json#/$defs/selection"
+        },
+        "authorized_at": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/timestamp"
+        },
+        "matched_in_scope": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 65536
+        },
+        "unknown_time_in_scope": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 65536
+        },
+        "count_exact": {
+          "const": true
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/item"
+          },
+          "maxItems": 100
+        },
+        "complete_in_scope": {
+          "type": "boolean"
+        },
+        "next": {
+          "oneOf": [
+            {
+              "$ref": "catalog-v2.schema.json#/$defs/cursor"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "selection",
+        "authorized_at",
+        "matched_in_scope",
+        "unknown_time_in_scope",
+        "count_exact",
+        "items",
+        "complete_in_scope",
+        "next"
+      ]
+    },
+    "source_data": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "snapshot": {
+          "$ref": "read-model-v2.schema.json#/$defs/page/properties/snapshot"
+        },
+        "authorized_at": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/timestamp"
+        },
+        "record": {
+          "$ref": "../memory/source-v1.schema.json"
+        },
+        "attributed_subject": {
+          "oneOf": [
+            {
+              "$ref": "../memory/common-v1.schema.json#/$defs/subjectId"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "excerpt": {
+          "type": "string",
+          "maxLength": 8192
+        },
+        "excerpt_hash": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/sha256"
+        },
+        "from_byte": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 16384
+        },
+        "to_byte": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 16384
+        },
+        "full_byte_len": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 16384
+        },
+        "complete": {
+          "type": "boolean"
+        },
+        "next_start": {
+          "oneOf": [
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 16384
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "record_fields": {
+          "$ref": "ui-records-v2.schema.json#/$defs/sourceFields"
+        }
+      },
+      "required": [
+        "snapshot",
+        "authorized_at",
+        "record",
+        "attributed_subject",
+        "excerpt",
+        "excerpt_hash",
+        "from_byte",
+        "to_byte",
+        "full_byte_len",
+        "complete",
+        "next_start",
+        "record_fields"
+      ]
+    },
+    "related_data": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "snapshot": {
+          "$ref": "read-model-v2.schema.json#/$defs/page/properties/snapshot"
+        },
+        "memory": {
+          "$ref": "automation-v2.schema.json#/$defs/memoryRef"
+        },
+        "provenance_edges": {
+          "$ref": "read-model-v2.schema.json#/$defs/detail/properties/neighbors"
+        },
+        "fact_edges": {
+          "type": "array",
+          "maxItems": 0
+        },
+        "suggested_edges": {
+          "type": "array",
+          "maxItems": 0
+        },
+        "unavailable": {
+          "const": [
+            "fact_edges",
+            "suggested_edges"
+          ]
+        },
+        "complete_in_scope": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "snapshot",
+        "memory",
+        "provenance_edges",
+        "fact_edges",
+        "suggested_edges",
+        "unavailable",
+        "complete_in_scope"
+      ]
+    },
+    "detail_source": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "record": {
+          "$ref": "../memory/source-v1.schema.json"
+        },
+        "record_fields": {
+          "$ref": "ui-records-v2.schema.json#/$defs/sourceFields"
+        },
+        "attributed_subject": {
+          "oneOf": [
+            {
+              "$ref": "../memory/common-v1.schema.json#/$defs/subjectId"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "text": {
+          "oneOf": [
+            {
+              "type": "string",
+              "maxLength": 65536
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "record",
+        "record_fields",
+        "attributed_subject",
+        "text"
+      ]
+    },
+    "read_data": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "snapshot": {
+          "$ref": "automation-v2.schema.json#/$defs/snapshot"
+        },
+        "authorized_at": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/timestamp"
+        },
+        "profile_hash": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/sha256"
+        },
+        "item": {
+          "$ref": "#/$defs/item"
+        },
+        "history": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/item"
+          },
+          "maxItems": 65536
+        },
+        "sources": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/detail_source"
+          },
+          "maxItems": 65536
+        },
+        "source_read": {
+          "type": "boolean"
+        },
+        "neighbors": {
+          "$ref": "read-model-v2.schema.json#/$defs/detail/properties/neighbors"
+        },
+        "complete_in_scope": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "snapshot",
+        "authorized_at",
+        "profile_hash",
+        "item",
+        "history",
+        "sources",
+        "source_read",
+        "neighbors",
+        "complete_in_scope"
+      ]
+    },
+    "recall_trace": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "algorithm": {
+          "const": "attention-rank-1"
+        },
+        "snapshot": {
+          "$ref": "automation-v2.schema.json#/$defs/snapshot"
+        },
+        "profile_hash": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/sha256"
+        },
+        "at": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/timestamp"
+        },
+        "authorized_at": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/timestamp"
+        },
+        "considered": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 65536
+        },
+        "selected": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "memory": {
+                "$ref": "automation-v2.schema.json#/$defs/memoryRef"
+              },
+              "attention": {
+                "enum": [
+                  "active",
+                  "fading",
+                  "archived",
+                  "protected"
+                ]
+              },
+              "score": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "reasons": {
+                "type": "array",
+                "items": {
+                  "enum": [
+                    "lexical",
+                    "alias",
+                    "conditions",
+                    "time_window",
+                    "protected",
+                    "fresh",
+                    "fading",
+                    "historical_rescue"
+                  ]
+                },
+                "maxItems": 8
+              }
+            },
+            "required": [
+              "memory",
+              "attention",
+              "score",
+              "reasons"
+            ]
+          },
+          "maxItems": 32
+        },
+        "excluded": {
+          "type": "array",
+          "items": {
+            "type": "array",
+            "prefixItems": [
+              {
+                "$ref": "automation-v2.schema.json#/$defs/memoryRef"
+              },
+              {
+                "enum": [
+                  "not_adopted",
+                  "conditions",
+                  "time_window",
+                  "validity",
+                  "archived",
+                  "no_cue",
+                  "budget"
+                ]
+              }
+            ],
+            "minItems": 2,
+            "maxItems": 2
+          },
+          "maxItems": 128
+        },
+        "rendered_bytes": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 65536
+        }
+      },
+      "required": [
+        "algorithm",
+        "snapshot",
+        "profile_hash",
+        "at",
+        "authorized_at",
+        "considered",
+        "selected",
+        "excluded",
+        "rendered_bytes"
+      ]
+    },
+    "trace_coverage": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "excluded_in_scope": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 65536
+        },
+        "excluded_returned": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 128
+        },
+        "complete": {
+          "type": "boolean"
+        },
+        "reason_counts": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "not_adopted": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 65536
+            },
+            "conditions": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 65536
+            },
+            "time_window": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 65536
+            },
+            "validity": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 65536
+            },
+            "archived": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 65536
+            },
+            "no_cue": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 65536
+            },
+            "budget": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 65536
+            }
+          }
+        }
+      },
+      "required": [
+        "excluded_in_scope",
+        "excluded_returned",
+        "complete",
+        "reason_counts"
+      ]
+    },
+    "recall_data": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "request_id": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/requestId"
+        },
+        "scope_hash": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/sha256"
+        },
+        "trace": {
+          "$ref": "#/$defs/recall_trace"
+        },
+        "trace_coverage": {
+          "$ref": "#/$defs/trace_coverage"
+        },
+        "rendered_context": {
+          "type": "string",
+          "maxLength": 65536
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/item"
+          },
+          "maxItems": 32
+        },
+        "complete_in_scope": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "request_id",
+        "scope_hash",
+        "trace",
+        "trace_coverage",
+        "rendered_context",
+        "items",
+        "complete_in_scope"
+      ]
+    },
+    "search_args": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "filter": {
+          "$ref": "catalog-v2.schema.json#/$defs/filter"
+        },
+        "cursor": {
+          "oneOf": [
+            {
+              "$ref": "catalog-v2.schema.json#/$defs/cursor"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
+        },
+        "max_bytes": {
+          "type": "integer",
+          "minimum": 4096,
+          "maximum": 262144
+        }
+      },
+      "required": [
+        "filter",
+        "cursor",
+        "limit",
+        "max_bytes"
+      ]
+    },
+    "read_args": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "memory_id": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/memoryId"
+        },
+        "expected": {
+          "oneOf": [
+            {
+              "$ref": "read-model-v2.schema.json#/$defs/page/properties/snapshot"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "include_source_text": {
+          "type": "boolean"
+        },
+        "max_bytes": {
+          "type": "integer",
+          "minimum": 4096,
+          "maximum": 262144
+        }
+      },
+      "required": [
+        "memory_id",
+        "expected",
+        "include_source_text",
+        "max_bytes"
+      ]
+    },
+    "source_args": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "source_id": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/sourceId"
+        },
+        "revision": {
+          "oneOf": [
+            {
+              "$ref": "../memory/common-v1.schema.json#/$defs/revision"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "from_byte": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 16384
+        },
+        "to_byte": {
+          "oneOf": [
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 16384
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "max_bytes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 8192
+        }
+      },
+      "required": [
+        "source_id",
+        "revision",
+        "from_byte",
+        "to_byte",
+        "max_bytes"
+      ]
+    },
+    "related_args": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "memory_id": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/memoryId"
+        },
+        "expected": {
+          "oneOf": [
+            {
+              "$ref": "read-model-v2.schema.json#/$defs/page/properties/snapshot"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "max_bytes": {
+          "type": "integer",
+          "minimum": 4096,
+          "maximum": 262144
+        }
+      },
+      "required": [
+        "memory_id",
+        "expected",
+        "max_bytes"
+      ]
+    },
+    "recall_args": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "text": {
+          "type": "string",
+          "maxLength": 2048
+        },
+        "conditions": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          },
+          "maxItems": 8
+        },
+        "event_window": {
+          "oneOf": [
+            {
+              "$ref": "agent-record-read-v2.schema.json#/$defs/time"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "at": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/timestamp"
+        },
+        "intent": {
+          "enum": [
+            "current",
+            "historical",
+            "browse"
+          ]
+        },
+        "limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 32
+        },
+        "max_bytes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 65536
+        }
+      },
+      "required": [
+        "text",
+        "conditions",
+        "event_window",
+        "at",
+        "intent",
+        "limit",
+        "max_bytes"
+      ]
+    },
+    "search_request": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "const": 2
+        },
+        "kind": {
+          "const": "agent_catalog_read_request"
+        },
+        "capability": {
+          "const": "memory-agent-catalog-read-1"
+        },
+        "request_id": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/requestId"
+        },
+        "operation": {
+          "const": "memory_search"
+        },
+        "arguments": {
+          "$ref": "#/$defs/search_args"
+        }
+      },
+      "required": [
+        "schema_version",
+        "kind",
+        "capability",
+        "request_id",
+        "operation",
+        "arguments"
+      ]
+    },
+    "search_response": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "const": 2
+        },
+        "kind": {
+          "const": "agent_catalog_read_response"
+        },
+        "capability": {
+          "const": "memory-agent-catalog-read-1"
+        },
+        "request_id": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/requestId"
+        },
+        "operation": {
+          "const": "memory_search"
+        },
+        "principal": {
+          "$ref": "#/$defs/agent"
+        },
+        "scope_hash": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/sha256"
+        },
+        "data": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/search_data"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "error": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/error"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "coverage": {
+          "$ref": "#/$defs/coverage"
+        }
+      },
+      "required": [
+        "schema_version",
+        "kind",
+        "capability",
+        "request_id",
+        "operation",
+        "principal",
+        "scope_hash",
+        "data",
+        "error",
+        "coverage"
+      ]
+    },
+    "read_request": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "const": 2
+        },
+        "kind": {
+          "const": "agent_catalog_read_request"
+        },
+        "capability": {
+          "const": "memory-agent-catalog-read-1"
+        },
+        "request_id": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/requestId"
+        },
+        "operation": {
+          "const": "memory_read"
+        },
+        "arguments": {
+          "$ref": "#/$defs/read_args"
+        }
+      },
+      "required": [
+        "schema_version",
+        "kind",
+        "capability",
+        "request_id",
+        "operation",
+        "arguments"
+      ]
+    },
+    "read_response": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "const": 2
+        },
+        "kind": {
+          "const": "agent_catalog_read_response"
+        },
+        "capability": {
+          "const": "memory-agent-catalog-read-1"
+        },
+        "request_id": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/requestId"
+        },
+        "operation": {
+          "const": "memory_read"
+        },
+        "principal": {
+          "$ref": "#/$defs/agent"
+        },
+        "scope_hash": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/sha256"
+        },
+        "data": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/read_data"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "error": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/error"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "coverage": {
+          "$ref": "#/$defs/coverage"
+        }
+      },
+      "required": [
+        "schema_version",
+        "kind",
+        "capability",
+        "request_id",
+        "operation",
+        "principal",
+        "scope_hash",
+        "data",
+        "error",
+        "coverage"
+      ]
+    },
+    "source_request": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "const": 2
+        },
+        "kind": {
+          "const": "agent_catalog_read_request"
+        },
+        "capability": {
+          "const": "memory-agent-catalog-read-1"
+        },
+        "request_id": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/requestId"
+        },
+        "operation": {
+          "const": "memory_source"
+        },
+        "arguments": {
+          "$ref": "#/$defs/source_args"
+        }
+      },
+      "required": [
+        "schema_version",
+        "kind",
+        "capability",
+        "request_id",
+        "operation",
+        "arguments"
+      ]
+    },
+    "source_response": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "const": 2
+        },
+        "kind": {
+          "const": "agent_catalog_read_response"
+        },
+        "capability": {
+          "const": "memory-agent-catalog-read-1"
+        },
+        "request_id": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/requestId"
+        },
+        "operation": {
+          "const": "memory_source"
+        },
+        "principal": {
+          "$ref": "#/$defs/agent"
+        },
+        "scope_hash": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/sha256"
+        },
+        "data": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/source_data"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "error": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/error"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "coverage": {
+          "$ref": "#/$defs/coverage"
+        }
+      },
+      "required": [
+        "schema_version",
+        "kind",
+        "capability",
+        "request_id",
+        "operation",
+        "principal",
+        "scope_hash",
+        "data",
+        "error",
+        "coverage"
+      ]
+    },
+    "related_request": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "const": 2
+        },
+        "kind": {
+          "const": "agent_catalog_read_request"
+        },
+        "capability": {
+          "const": "memory-agent-catalog-read-1"
+        },
+        "request_id": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/requestId"
+        },
+        "operation": {
+          "const": "memory_related"
+        },
+        "arguments": {
+          "$ref": "#/$defs/related_args"
+        }
+      },
+      "required": [
+        "schema_version",
+        "kind",
+        "capability",
+        "request_id",
+        "operation",
+        "arguments"
+      ]
+    },
+    "related_response": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "const": 2
+        },
+        "kind": {
+          "const": "agent_catalog_read_response"
+        },
+        "capability": {
+          "const": "memory-agent-catalog-read-1"
+        },
+        "request_id": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/requestId"
+        },
+        "operation": {
+          "const": "memory_related"
+        },
+        "principal": {
+          "$ref": "#/$defs/agent"
+        },
+        "scope_hash": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/sha256"
+        },
+        "data": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/related_data"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "error": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/error"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "coverage": {
+          "$ref": "#/$defs/coverage"
+        }
+      },
+      "required": [
+        "schema_version",
+        "kind",
+        "capability",
+        "request_id",
+        "operation",
+        "principal",
+        "scope_hash",
+        "data",
+        "error",
+        "coverage"
+      ]
+    },
+    "recall_request": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "const": 2
+        },
+        "kind": {
+          "const": "agent_catalog_read_request"
+        },
+        "capability": {
+          "const": "memory-agent-catalog-read-1"
+        },
+        "request_id": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/requestId"
+        },
+        "operation": {
+          "const": "memory_recall"
+        },
+        "arguments": {
+          "$ref": "#/$defs/recall_args"
+        }
+      },
+      "required": [
+        "schema_version",
+        "kind",
+        "capability",
+        "request_id",
+        "operation",
+        "arguments"
+      ]
+    },
+    "recall_response": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "const": 2
+        },
+        "kind": {
+          "const": "agent_catalog_read_response"
+        },
+        "capability": {
+          "const": "memory-agent-catalog-read-1"
+        },
+        "request_id": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/requestId"
+        },
+        "operation": {
+          "const": "memory_recall"
+        },
+        "principal": {
+          "$ref": "#/$defs/agent"
+        },
+        "scope_hash": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/sha256"
+        },
+        "data": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/recall_data"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "error": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/error"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "coverage": {
+          "$ref": "#/$defs/coverage"
+        }
+      },
+      "required": [
+        "schema_version",
+        "kind",
+        "capability",
+        "request_id",
+        "operation",
+        "principal",
+        "scope_hash",
+        "data",
+        "error",
+        "coverage"
+      ]
+    }
+  }
+}

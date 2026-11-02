@@ -1,0 +1,445 @@
+{
+  "valid": [
+    {
+      "file": "descriptor.json",
+      "type": "descriptor",
+      "schema": "next/storage-v2.schema.json"
+    },
+    {
+      "file": "plan.json",
+      "type": "plan",
+      "schema": "next/ui-records-v2.schema.json"
+    },
+    {
+      "file": "record.json",
+      "type": "record",
+      "schema": "next/ui-records-v2.schema.json"
+    },
+    {
+      "file": "metadata.json",
+      "type": "metadata",
+      "schema": "next/owner-execution-v2.schema.json"
+    },
+    {
+      "file": "effects.json",
+      "type": "effects",
+      "schema": "next/owner-execution-v2.schema.json"
+    },
+    {
+      "file": "outcome.json",
+      "type": "outcome",
+      "schema": "next/owner-execution-v2.schema.json"
+    },
+    {
+      "file": "proof.json",
+      "type": "proof",
+      "schema": "next/owner-execution-v2.schema.json"
+    },
+    {
+      "file": "page.json",
+      "type": "page",
+      "schema": "next/catalog-v2.schema.json"
+    },
+    {
+      "file": "graph.json",
+      "type": "graph",
+      "schema": "next/projections-v2.schema.json"
+    },
+    {
+      "file": "activity.json",
+      "type": "activity",
+      "schema": "next/process-v2.schema.json"
+    },
+    {
+      "file": "genesis.json",
+      "type": "segment",
+      "schema": "next/catalog-v2.schema.json"
+    },
+    {
+      "file": "owner-segment.json",
+      "type": "segment",
+      "schema": "next/catalog-v2.schema.json"
+    }
+  ],
+  "invalid": [
+    {
+      "id": "descriptor-forged-owner-flag",
+      "base": "descriptor.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/owner_confirmed",
+          "value": true
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "plan-forged-owner-flag",
+      "base": "plan.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/owner_confirmed",
+          "value": true
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "record-forged-owner-flag",
+      "base": "record.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/owner_confirmed",
+          "value": true
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "metadata-forged-owner-flag",
+      "base": "metadata.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/owner_confirmed",
+          "value": true
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "effects-forged-owner-flag",
+      "base": "effects.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/owner_confirmed",
+          "value": true
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "outcome-forged-owner-flag",
+      "base": "outcome.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/owner_confirmed",
+          "value": true
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "proof-forged-owner-flag",
+      "base": "proof.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/owner_confirmed",
+          "value": true
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "page-forged-owner-flag",
+      "base": "page.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/owner_confirmed",
+          "value": true
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "graph-forged-owner-flag",
+      "base": "graph.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/owner_confirmed",
+          "value": true
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "activity-forged-owner-flag",
+      "base": "activity.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/owner_confirmed",
+          "value": true
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "binding-required",
+      "base": "descriptor.json",
+      "ops": [
+        {
+          "op": "remove",
+          "path": "/owner_subject_id"
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "binding-null",
+      "base": "descriptor.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/owner_subject_id",
+          "value": null
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "old-root-binding-forbidden",
+      "base": "descriptor.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/layout",
+          "value": "automation-segmented-host-v1"
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "plan-machine-owner",
+      "base": "plan.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/owner/actor_type",
+          "value": "system"
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "record-wrong-plan-hash",
+      "base": "record.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/confirmation/plan_hash",
+          "value": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        }
+      ],
+      "schema": "accept"
+    },
+    {
+      "id": "metadata-title-overflow",
+      "base": "metadata.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/title",
+          "value": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "effects-wrong-floor",
+      "base": "effects.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/sensitivity",
+          "value": "highly_sensitive"
+        }
+      ],
+      "schema": "accept"
+    },
+    {
+      "id": "outcome-physical-purge",
+      "base": "outcome.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/physical_purge",
+          "value": true
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "proof-machine-owner",
+      "base": "proof.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/owner/actor_type",
+          "value": "system"
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "v4-catalog-global-sequence",
+      "base": "page.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/items/0/base/receipt/sequence",
+          "value": 1
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "v4-catalog-missing-owner-marks",
+      "base": "page.json",
+      "ops": [
+        {
+          "op": "remove",
+          "path": "/items/0/owner_marks"
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "v4-graph-missing-owner-marks",
+      "base": "graph.json",
+      "ops": [
+        {
+          "op": "remove",
+          "path": "/nodes/0/owner_marks"
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "graph-forged-correction-mark",
+      "base": "graph.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/nodes/0/owner_marks/corrected/owner/actor_type",
+          "value": "system"
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "v4-activity-global-sequence",
+      "base": "activity.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/items/0/receipt/sequence",
+          "value": 1
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "activity-fake-owner-correction",
+      "base": "activity.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/items/0/owner_action",
+          "value": null
+        }
+      ],
+      "schema": "accept"
+    },
+    {
+      "id": "genesis-binding-null",
+      "base": "genesis.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/delta/descriptor_hash",
+          "value": null
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "genesis-binding-bad-hash",
+      "base": "genesis.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/delta/descriptor_hash",
+          "value": "bad"
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "genesis-binding-rebound",
+      "base": "genesis.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/delta/descriptor_hash",
+          "value": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        }
+      ],
+      "schema": "accept"
+    },
+    {
+      "id": "owner-segment-without-effects",
+      "base": "owner-segment.json",
+      "ops": [
+        {
+          "op": "remove",
+          "path": "/delta/effects"
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "owner-segment-machine-actor",
+      "base": "owner-segment.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/actor/actor_type",
+          "value": "system"
+        }
+      ],
+      "schema": "accept"
+    },
+    {
+      "id": "owner-segment-bad-scope-hash",
+      "base": "owner-segment.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/delta/effects/scope_hash",
+          "value": "bad"
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "genesis-binding-removal",
+      "base": "genesis.json",
+      "ops": [
+        {
+          "op": "remove",
+          "path": "/delta/descriptor_hash"
+        }
+      ],
+      "schema": "accept"
+    }
+  ]
+}

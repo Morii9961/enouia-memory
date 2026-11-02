@@ -1,0 +1,131 @@
+{
+  "after": {
+    "hash": "e2897e3ece48eb482f6132565f433cb5e1d5b28dab009c1718ad6c307c401027",
+    "memory": {
+      "memory_id": "mem_21732658-0741-4598-914d-b156de3e1ff5",
+      "revision": 2
+    }
+  },
+  "before": {
+    "hash": "8e24934fdb7083acffcfc2e056fa190913de4ff8c2d8923c8e17f47e4b39c0d4",
+    "memory": {
+      "memory_id": "mem_21732658-0741-4598-914d-b156de3e1ff5",
+      "revision": 1
+    }
+  },
+  "capability": "memory-native-read-2",
+  "effect": "native_read",
+  "fields": [
+    {
+      "after": {
+        "current_state_note": null,
+        "formation_note": "A recorded synthetic reason from the same formation.",
+        "importance_guess_milli": null,
+        "memory": {
+          "memory_id": "mem_21732658-0741-4598-914d-b156de3e1ff5",
+          "revision": 2
+        },
+        "model_version": null,
+        "prompt_version": "synthetic-ui-1",
+        "suggested_relations": [],
+        "suggested_tags": [],
+        "tone": null
+      },
+      "before": null,
+      "field": "annotations"
+    },
+    {
+      "after": "合成条目 2：我喜欢夜间散步。",
+      "before": "Synthetic item 1: I prefer moonlight walks.",
+      "field": "content"
+    },
+    {
+      "after": {
+        "change": "correction",
+        "conditions": [],
+        "counter_sources": [],
+        "derived_from": [],
+        "event_time": null,
+        "kind": "preference",
+        "occurrence": "unknown",
+        "reverts_to": null,
+        "state": null,
+        "valid_time": null
+      },
+      "before": {
+        "change": "initial",
+        "conditions": [],
+        "counter_sources": [],
+        "derived_from": [],
+        "event_time": null,
+        "kind": "preference",
+        "occurrence": "unknown",
+        "reverts_to": null,
+        "state": null,
+        "valid_time": null
+      },
+      "field": "dimensions"
+    },
+    {
+      "after": [
+        {
+          "evidence_class": "user_statement",
+          "locator": {
+            "event_id": "evt_00000002-0000-4000-8000-000000000001",
+            "kind": "runtime_event"
+          },
+          "object_hash": "3e4e30862bb791195b35a50400c6abc97044e74b14a7a435476ef850d90e0e91",
+          "source_id": "src_00000002-0000-4000-8000-000000000001",
+          "source_revision": 1,
+          "supports": "content"
+        }
+      ],
+      "before": [
+        {
+          "evidence_class": "user_statement",
+          "locator": {
+            "event_id": "evt_00000001-0000-4000-8000-000000000001",
+            "kind": "runtime_event"
+          },
+          "object_hash": "ce99ab13eb301afeaf1efecb3de7437699e76d49406d98b5f236c847d98ed51b",
+          "source_id": "src_00000001-0000-4000-8000-000000000001",
+          "source_revision": 1,
+          "supports": "content"
+        }
+      ],
+      "field": "evidence"
+    },
+    {
+      "after": "合成条目 2",
+      "before": "Synthetic item 1",
+      "field": "title"
+    }
+  ],
+  "header": {
+    "algorithm": "structural-revision-diff-1",
+    "authorized_at": "2026-10-24T12:00:00.000Z",
+    "parameters_hash": "c1d1db85cabaebdccd33d4d2645944dfeb138ed8cdf47e51ada139469aa80ba4",
+    "permission_hash": "428971d83ae8185c85ad98d54274984d4245b646cfb7d4ec490bca8f04012810",
+    "scope": "authorized_current_dependencies",
+    "selection": {
+      "algorithm": "qualified-family-catalog-3",
+      "evaluated_at": "2026-10-24T12:00:00.000Z",
+      "profile_hash": "e23dce3de472f5e99f52511a55d98426dcb5624957b2def3325645a065426642",
+      "query_hash": "2290b08f18a2502127ebb5c5adb3aa2945841af4ca300e82cbece1dc08405e69",
+      "scope_hash": "a929f2bc6e049d9aaf9b99577c12171547f7d37c82f8517069aef68cff01b47d",
+      "snapshot": {
+        "base_commit_id": "cmt_bc83a327-286a-48d9-8abf-c1df7b2d5e9b",
+        "deletion_watermark": 1,
+        "policy_watermark": 2,
+        "primary_epoch": 1,
+        "vault_id": "vlt_00000001-0000-4000-8000-000000000001"
+      },
+      "version": 3,
+      "withdrawal_watermark": 1
+    },
+    "version": 1
+  },
+  "kind": "memory_revision_diff",
+  "schema_version": 2,
+  "structural_only": true
+}

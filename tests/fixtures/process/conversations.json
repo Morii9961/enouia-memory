@@ -1,0 +1,117 @@
+{
+  "capability": "memory-native-read-2",
+  "effect": "native_read",
+  "header": {
+    "algorithm": "authorized-conversation-list-1",
+    "authorized_at": "2026-10-24T12:00:00.000Z",
+    "parameters_hash": "38e0b9de817f645c4bec37c0d4a3e58baecccb040f5718dc069a72c7385a0bed",
+    "permission_hash": "428971d83ae8185c85ad98d54274984d4245b646cfb7d4ec490bca8f04012810",
+    "scope": "authorized_current_dependencies",
+    "selection": {
+      "algorithm": "qualified-family-catalog-3",
+      "evaluated_at": "2026-10-24T12:00:00.000Z",
+      "profile_hash": "e23dce3de472f5e99f52511a55d98426dcb5624957b2def3325645a065426642",
+      "query_hash": "2290b08f18a2502127ebb5c5adb3aa2945841af4ca300e82cbece1dc08405e69",
+      "scope_hash": "a929f2bc6e049d9aaf9b99577c12171547f7d37c82f8517069aef68cff01b47d",
+      "snapshot": {
+        "base_commit_id": "cmt_bc83a327-286a-48d9-8abf-c1df7b2d5e9b",
+        "deletion_watermark": 1,
+        "policy_watermark": 2,
+        "primary_epoch": 1,
+        "vault_id": "vlt_00000001-0000-4000-8000-000000000001"
+      },
+      "version": 3,
+      "withdrawal_watermark": 1
+    },
+    "version": 1
+  },
+  "items": [
+    {
+      "conversation": {
+        "access_policy_id": "pol_00000002-0000-4000-8000-000000000001",
+        "account_scope": "synthetic-owner",
+        "branches": [
+          "br_00000001-0000-4000-8000-000000000001"
+        ],
+        "complete_in_scope": true,
+        "conversation_id": "ses_00000001-0000-4000-8000-000000000001",
+        "ended_at": {
+          "basis": "unknown",
+          "bound": "within",
+          "from": null,
+          "precision": "unknown",
+          "tz": null,
+          "until": null
+        },
+        "import_batch_id": null,
+        "original_conversation_id": "synthetic-conversation",
+        "participants": [
+          {
+            "entity_id": null,
+            "label": "Synthetic subject",
+            "speaker": "user"
+          }
+        ],
+        "platform": "synthetic",
+        "revision": 1,
+        "sensitivity": "public",
+        "started_at": {
+          "basis": "unknown",
+          "bound": "within",
+          "from": null,
+          "precision": "unknown",
+          "tz": null,
+          "until": null
+        },
+        "title": "Synthetic example conversation",
+        "turn_count": 3,
+        "turns": [
+          {
+            "branch_id": "br_00000001-0000-4000-8000-000000000001",
+            "parent_source": null,
+            "sequence": 1,
+            "source": {
+              "source_id": "src_00000001-0000-4000-8000-000000000001",
+              "source_revision": 1
+            },
+            "turn_id": "turn_00000001-0000-4000-8000-000000000001"
+          },
+          {
+            "branch_id": "br_00000001-0000-4000-8000-000000000001",
+            "parent_source": {
+              "source_id": "src_00000001-0000-4000-8000-000000000001",
+              "source_revision": 1
+            },
+            "sequence": 2,
+            "source": {
+              "source_id": "src_00000002-0000-4000-8000-000000000001",
+              "source_revision": 1
+            },
+            "turn_id": "turn_00000002-0000-4000-8000-000000000001"
+          },
+          {
+            "branch_id": "br_00000001-0000-4000-8000-000000000001",
+            "parent_source": {
+              "source_id": "src_00000002-0000-4000-8000-000000000001",
+              "source_revision": 1
+            },
+            "sequence": 3,
+            "source": {
+              "source_id": "src_00000003-0000-4000-8000-000000000001",
+              "source_revision": 1
+            },
+            "turn_id": "turn_00000003-0000-4000-8000-000000000001"
+          }
+        ]
+      },
+      "effective_sensitivity": "public",
+      "platform_complete_not_claimed": true,
+      "visible_captured_sources": 3,
+      "visible_captured_turns": 3
+    }
+  ],
+  "kind": "native_conversation_page",
+  "matched_in_scope": 1,
+  "next": null,
+  "schema_version": 2
+}

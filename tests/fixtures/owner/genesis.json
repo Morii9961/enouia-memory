@@ -1,0 +1,43 @@
+{
+  "schema_version": 2,
+  "kind": "segmented_automation_commit",
+  "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+  "commit_id": "cmt_7ccc3e61-f520-4225-a5b1-9678f6494830",
+  "sequence": 1,
+  "parent": null,
+  "actor": {
+    "actor_id": "prn_00000001-0000-4000-8000-000000000001",
+    "actor_type": "owner"
+  },
+  "created_at": "2026-10-24T12:00:00.000Z",
+  "policy_watermark": 1,
+  "deletion_watermark": 1,
+  "delta": {
+    "change": "genesis",
+    "owner_actions": {
+      "withdrawal_watermark": 1,
+      "records": []
+    },
+    "descriptor_hash": "ecb1e068449a112f0bd57d82ff4d50a957861c916a60633df9a83cd7c34dbbf8"
+  },
+  "authority": {
+    "schema_version": 1,
+    "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+    "revision": 1,
+    "primary": {
+      "host_id": "dev_00000001-0000-4000-8000-000000000001",
+      "primary_epoch": 1
+    },
+    "checkpoint": {
+      "commit_id": "cmt_7ccc3e61-f520-4225-a5b1-9678f6494830",
+      "commit_sequence": 1,
+      "snapshot_hash": "1b0ffb9d57b0fedc43389fb963aecd502ddcc799d017124828f9923b235ecac2",
+      "policy_epoch": 1,
+      "deletion_epoch": 1
+    },
+    "phase": {
+      "state": "active"
+    },
+    "promotions": []
+  }
+}

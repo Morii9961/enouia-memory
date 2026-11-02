@@ -1,0 +1,295 @@
+{
+  "capability": "memory-native-read-2",
+  "complete_in_scope": true,
+  "effect": "native_read",
+  "header": {
+    "algorithm": "witnessed-native-activity-2",
+    "authorized_at": "2026-10-24T12:00:00.000Z",
+    "parameters_hash": "702ac853ac88feda6d08cdfee43b5147667e899c3017772511937f2355be280b",
+    "permission_hash": "428971d83ae8185c85ad98d54274984d4245b646cfb7d4ec490bca8f04012810",
+    "scope": "authorized_current_dependencies",
+    "selection": {
+      "algorithm": "owner-qualified-catalog-4",
+      "evaluated_at": "2026-10-24T12:00:00.000Z",
+      "profile_hash": "e23dce3de472f5e99f52511a55d98426dcb5624957b2def3325645a065426642",
+      "query_hash": "c1e961382352fda8b5d2a6263aa2a710910940d091df4cdd6dd73a5fbbddf645",
+      "scope_hash": "3ad2402bc9905eba65449cc045240d1ce7618ff412485310708628b4ae34f0cb",
+      "snapshot": {
+        "base_commit_id": "cmt_2e483baa-db55-43f6-8f08-e39cba7678bb",
+        "deletion_watermark": 1,
+        "policy_watermark": 2,
+        "primary_epoch": 1,
+        "vault_id": "vlt_00000001-0000-4000-8000-000000000001"
+      },
+      "version": 4,
+      "withdrawal_watermark": 1
+    },
+    "version": 2
+  },
+  "items": [
+    {
+      "adoption": null,
+      "change": null,
+      "effective_sensitivity": "public",
+      "event_id": "f8d11c8e58336a52d49b98fa662e3cce0482b2bcd309b33f18252f91437b361b",
+      "event_kind": "material_captured",
+      "formation_reason": null,
+      "knowledge": null,
+      "memory": null,
+      "proof": {
+        "actor": {
+          "actor_id": "prn_00000002-0000-4000-8000-000000000001",
+          "actor_type": "system"
+        },
+        "commit_hash": "a14d3856c8900358cb7cabae33a3cd1e0f2d7ca4f41799ce41e880d660e84f10",
+        "commit_id": "cmt_e309e7ae-7df3-435e-8b92-eff399cd141d",
+        "written_at": "2026-10-24T12:00:00.000Z"
+      },
+      "receipt": null,
+      "source": {
+        "source_id": "src_00000002-0000-4000-8000-000000000001",
+        "source_revision": 1
+      },
+      "title": null
+    },
+    {
+      "adoption": null,
+      "change": null,
+      "effective_sensitivity": "public",
+      "event_id": "c752336ce3c9ec00b874f11695f62dc2fee105dfda2c15838aac534f31c2e784",
+      "event_kind": "material_captured",
+      "formation_reason": null,
+      "knowledge": null,
+      "memory": null,
+      "proof": {
+        "actor": {
+          "actor_id": "prn_00000002-0000-4000-8000-000000000001",
+          "actor_type": "system"
+        },
+        "commit_hash": "a14d3856c8900358cb7cabae33a3cd1e0f2d7ca4f41799ce41e880d660e84f10",
+        "commit_id": "cmt_e309e7ae-7df3-435e-8b92-eff399cd141d",
+        "written_at": "2026-10-24T12:00:00.000Z"
+      },
+      "receipt": null,
+      "source": {
+        "source_id": "src_00000001-0000-4000-8000-000000000001",
+        "source_revision": 1
+      },
+      "title": null
+    },
+    {
+      "adoption": "staged",
+      "change": "initial",
+      "effective_sensitivity": "public",
+      "event_id": "c0731c5c6daa717e11e86ab8b401657dc95cd84a0fd98e4f8fa92403396863a5",
+      "event_kind": "formation",
+      "formation_reason": {
+        "import_batch_id": null,
+        "interpretation": "inference",
+        "mode": "live",
+        "model_version": null,
+        "note": null,
+        "note_is_machine_annotation": true,
+        "prompt_version": "synthetic-ui-1",
+        "rule_version": "admission-rules-3"
+      },
+      "knowledge": "hypothesis",
+      "memory": {
+        "memory_id": "mem_90ec9064-1a42-4e10-8ce9-77b46e843af6",
+        "revision": 1
+      },
+      "proof": {
+        "actor": {
+          "actor_id": "prn_00000002-0000-4000-8000-000000000001",
+          "actor_type": "system"
+        },
+        "commit_hash": "0c0d308064e52cb4e2509376f87e46a9b841c27727b39da9231b084e924e0d73",
+        "commit_id": "cmt_8e607c34-f7ec-4f57-8719-03d2426439ea",
+        "written_at": "2026-10-24T12:00:00.000Z"
+      },
+      "receipt": {
+        "binding_hash": "2accebde1c5c7e526958b919a35444c935d0be296c06c3fdda8d87128ce26369",
+        "committed_in": "cmt_8e607c34-f7ec-4f57-8719-03d2426439ea",
+        "decision_hash": "384dc3749cbd4a249c75cc144cd3475814ee38bbe19af23ad652fe8f9e7bf6cf",
+        "job_key": "2679b34ebd796bb27ed93c265362802d0692376752cb8d211f10d6c77bd056ff",
+        "operation_id": "op_a914f648-d61f-4f83-851d-32431fce2c90",
+        "request_hash": "d306f2afccc8edde83758972860e36ebf054a3f3547379078927f31e4cf079c4",
+        "response_hash": "7fe3ced6fb1de8f75603ce92f218802e74b662c121217d4f408e3e3dd39227ad",
+        "result": {
+          "memory_id": "mem_90ec9064-1a42-4e10-8ce9-77b46e843af6",
+          "revision": 1
+        }
+      },
+      "source": null,
+      "title": "Synthetic item 3"
+    },
+    {
+      "adoption": "staged",
+      "change": "initial",
+      "effective_sensitivity": "public",
+      "event_id": "66219bef7591c80643bd7b73c3e952d87cf00c2375534c27b1ae9d33e211f5a9",
+      "event_kind": "formation",
+      "formation_reason": {
+        "import_batch_id": null,
+        "interpretation": "conflicting",
+        "mode": "live",
+        "model_version": null,
+        "note": null,
+        "note_is_machine_annotation": true,
+        "prompt_version": "synthetic-ui-1",
+        "rule_version": "admission-rules-3"
+      },
+      "knowledge": "disputed",
+      "memory": {
+        "memory_id": "mem_2e4ec585-c87a-4acd-9fe0-5f12dc3f0589",
+        "revision": 1
+      },
+      "proof": {
+        "actor": {
+          "actor_id": "prn_00000002-0000-4000-8000-000000000001",
+          "actor_type": "system"
+        },
+        "commit_hash": "717069f751c622b66ebf2909d40073596526fbd4b038245b94e1c879d7bc3b4f",
+        "commit_id": "cmt_2e483baa-db55-43f6-8f08-e39cba7678bb",
+        "written_at": "2026-10-24T12:00:00.000Z"
+      },
+      "receipt": {
+        "binding_hash": "dc625f6e0e724b8509140f61b79376b6948aaff84a9d1528b5abef856decf0da",
+        "committed_in": "cmt_2e483baa-db55-43f6-8f08-e39cba7678bb",
+        "decision_hash": "ee33b8a50bfb41253e24b327e4a004ca9c0446261e186d9829d4e89114841000",
+        "job_key": "39db2ffe5e4495969f6336d557b16254d6af419761646815346aedfa655ad0ca",
+        "operation_id": "op_0b11c141-3bb8-4739-bcc4-b4489e939691",
+        "request_hash": "04acd95d470c63c1e518f9c8a393493b96210c76e128d5693cfdd7c72d0c7b8c",
+        "response_hash": "dcf45c586bb2b36e809d8cf3af0084f299cb3796e5b31381630500a5b49fbb62",
+        "result": {
+          "memory_id": "mem_2e4ec585-c87a-4acd-9fe0-5f12dc3f0589",
+          "revision": 1
+        }
+      },
+      "source": null,
+      "title": "Synthetic item 1"
+    },
+    {
+      "adoption": null,
+      "change": null,
+      "effective_sensitivity": "public",
+      "event_id": "56cd33f1dc9c012c1b425ffb591a2cfaba36b9516d1a8aaedbf532896b291446",
+      "event_kind": "material_captured",
+      "formation_reason": null,
+      "knowledge": null,
+      "memory": null,
+      "proof": {
+        "actor": {
+          "actor_id": "prn_00000002-0000-4000-8000-000000000001",
+          "actor_type": "system"
+        },
+        "commit_hash": "a14d3856c8900358cb7cabae33a3cd1e0f2d7ca4f41799ce41e880d660e84f10",
+        "commit_id": "cmt_e309e7ae-7df3-435e-8b92-eff399cd141d",
+        "written_at": "2026-10-24T12:00:00.000Z"
+      },
+      "receipt": null,
+      "source": {
+        "source_id": "src_00000003-0000-4000-8000-000000000001",
+        "source_revision": 1
+      },
+      "title": null
+    },
+    {
+      "adoption": "adopted",
+      "change": "initial",
+      "effective_sensitivity": "public",
+      "event_id": "3db32d92ab3c7094ec7e0c1c0a027b5f1954629112e95049a60b49388163e9d6",
+      "event_kind": "formation",
+      "formation_reason": {
+        "import_batch_id": null,
+        "interpretation": "clear_self_report",
+        "mode": "live",
+        "model_version": null,
+        "note": null,
+        "note_is_machine_annotation": true,
+        "prompt_version": "synthetic-ui-1",
+        "rule_version": "admission-rules-3"
+      },
+      "knowledge": "attributed_statement",
+      "memory": {
+        "memory_id": "mem_0889958b-fc75-461d-82b5-d2a9abaefe3f",
+        "revision": 1
+      },
+      "proof": {
+        "actor": {
+          "actor_id": "prn_00000002-0000-4000-8000-000000000001",
+          "actor_type": "system"
+        },
+        "commit_hash": "0fef719fd469dab2e842a407746bdbc7271adb470d754021b570ef113096e34c",
+        "commit_id": "cmt_dfd2048a-9504-4fd8-8c50-13beac41d3e4",
+        "written_at": "2026-10-24T12:00:00.000Z"
+      },
+      "receipt": {
+        "binding_hash": "9ee0d0af2f04b4e352d25500eca8fa6a0109c5802adbce56a0cc9b763e8038ad",
+        "committed_in": "cmt_dfd2048a-9504-4fd8-8c50-13beac41d3e4",
+        "decision_hash": "c35bdfa2870c30438c6eddddafef08f847d439b57c3ef32452a6b23324e91fb1",
+        "job_key": "306fe548360cab091deb482ab478f127287f72946b59b7338547b080a14960bb",
+        "operation_id": "op_880a14f7-4f81-4924-a4ee-0868a7c317ff",
+        "request_hash": "d2c966a2fa0e3c71887ff2617ad3fbd73c7d6421b5b70d18b3bedfd97d08ad00",
+        "response_hash": "5a11089a6e646a68300060cef82d00f33bf5d76c44c51ffaaca4afe3897b03ee",
+        "result": {
+          "memory_id": "mem_0889958b-fc75-461d-82b5-d2a9abaefe3f",
+          "revision": 1
+        }
+      },
+      "source": null,
+      "title": "Synthetic item 1"
+    },
+    {
+      "adoption": "adopted",
+      "change": "correction",
+      "effective_sensitivity": "public",
+      "event_id": "1751ba900f74e5948a7041348b34dfc136517804166c049f4c6ee1f4d0b14434",
+      "event_kind": "correction",
+      "formation_reason": {
+        "import_batch_id": null,
+        "interpretation": "clear_self_report",
+        "mode": "live",
+        "model_version": null,
+        "note": "A recorded synthetic reason from the same formation.",
+        "note_is_machine_annotation": true,
+        "prompt_version": "synthetic-ui-1",
+        "rule_version": "admission-rules-3"
+      },
+      "knowledge": "attributed_statement",
+      "memory": {
+        "memory_id": "mem_0889958b-fc75-461d-82b5-d2a9abaefe3f",
+        "revision": 2
+      },
+      "proof": {
+        "actor": {
+          "actor_id": "prn_00000002-0000-4000-8000-000000000001",
+          "actor_type": "system"
+        },
+        "commit_hash": "f04b6e76fdd280b855890a8713ee3e6da0c9fbe6575c652abecd2c43d0d084d5",
+        "commit_id": "cmt_adf6e1ca-d144-49ae-8c13-a5c060123e79",
+        "written_at": "2026-10-24T12:00:00.000Z"
+      },
+      "receipt": {
+        "binding_hash": "6f906b3482bbf3cff3f859d2c310e758341c33b2885d9a73f8d7dfdbb5cb33fc",
+        "committed_in": "cmt_adf6e1ca-d144-49ae-8c13-a5c060123e79",
+        "decision_hash": "d602aa98c76fa917608384ca6083891a7da76de99180757dad9e48d63389e7ac",
+        "job_key": "1709f56e0091cdf1be9137def6b946a82ae16372f8695cf9686ee0de62b6b418",
+        "operation_id": "op_7428189b-65b2-44ec-9ff1-98843be7e52f",
+        "request_hash": "f27c81cf8b43b743b31d4868184e22e40640fdfa6bdccdb863ea8fc64471cbe9",
+        "response_hash": "5ec4da011ac5fd8e599ecf3d974ad0653757bd21b0da88733a3ff81639d04d04",
+        "result": {
+          "memory_id": "mem_0889958b-fc75-461d-82b5-d2a9abaefe3f",
+          "revision": 2
+        }
+      },
+      "source": null,
+      "title": "合成条目 2"
+    }
+  ],
+  "kind": "memory_activity_page",
+  "matched_in_scope": 7,
+  "next": null,
+  "schema_version": 2,
+  "time_derived_events_available": false
+}
