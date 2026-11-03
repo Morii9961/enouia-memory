@@ -1,5 +1,15 @@
 # Runtime integration (ADR-MEM-45)
 
+2026-11-03: ADR-MEM-115 adds an opt-in native Agent note draft gate on initialized
+Owner roots. The native Owner must explicitly create a separate note delegation;
+existing read permits and pipe-5 stay read-only. Exact currently authorized
+Runtime source revisions, bounded normalized quotes, actual role/class and Agent
+provenance bind the draft. Preparation publishes nothing and returns no durable
+receipt. No Runtime change is required until a later explicit storage/write
+profile is adopted; do not expose drafts as saved or formed. Aggregate:
+`59128df59ed3151e75af017e156871daeb583d8b768a15c9b92ab666ba21c1c4`.
+See [native note contract](../contracts/AGENT_NOTE_NATIVE_V1.md).
+
 2026-11-03 follow-up: source deletion now cancels pending captured analysis
 before its next poll, rejects that job without a fabricated result and releases
 later turns. This supplements durable-work settlement below. Adopt the pin for

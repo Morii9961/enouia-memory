@@ -602,6 +602,13 @@ producer job status. Existing pipe-1 and Agent profiles remain unchanged.
 a dedicated foreground-aware thread on the existing lease. Lifecycle revocation
 and storage uncertainty stop execution; no real analyzer or Runtime adoption.
 
+### ADR-MEM-115 — Native Agent note draft gate
+
+[Decision](115-native-agent-note-drafts.md): separately delegated, bounded hints
+on exact authorized Runtime sources, normalized location followed by strict
+evidence checks. Preparation publishes nothing and old read profiles stay
+read-only; storage and explicit MCP write negotiation follow separately.
+
 ### ADR-MEM-110 — Native empty Owner bootstrap
 
 [Decision](110-native-empty-owner-bootstrap.md): an explicit trusted native local

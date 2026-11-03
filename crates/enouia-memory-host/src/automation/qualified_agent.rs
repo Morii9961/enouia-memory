@@ -12,9 +12,9 @@ use enouia_memory_contract::{
 use enouia_memory_vault::automation::{
     AutomationFault,
     segmented::{
-        AuthorizedSegmentedAgentRead, INITIALIZED_AGENT_READ_CAPABILITY,
-        QUALIFIED_AGENT_READ_CAPABILITY, SegmentedAgentPermit, SegmentedAgentScope,
-        SegmentedAutomationVault, SegmentedMemory,
+        AgentNoteDraft, AgentNotePermit, AgentNoteRequest, AuthorizedSegmentedAgentRead,
+        INITIALIZED_AGENT_READ_CAPABILITY, QUALIFIED_AGENT_READ_CAPABILITY, SegmentedAgentPermit,
+        SegmentedAgentScope, SegmentedAutomationVault, SegmentedMemory,
     },
 };
 use serde::{Deserialize, Serialize};
@@ -38,6 +38,47 @@ pub struct QualifiedAgentReader<'a> {
     permit: SegmentedAgentPermit,
     generation: Arc<AtomicBool>,
     context: Mutex<Option<Value>>,
+}
+/// Explicit native note delegation; no storage, MCP tool or read-permit upgrade.
+pub struct AgentNoteWriter<'a> {
+    host: &'a QualifiedAgentHost,
+    permit: AgentNotePermit,
+    generation: Arc<AtomicBool>,
+}
+impl AgentNoteWriter<'_> {
+    pub fn revoke(&self) {
+        self.permit.revoke();
+    }
+    pub fn prepare(&self, request: &AgentNoteRequest) -> ApplicationResult<AgentNoteDraft> {
+        let gate = self
+            .host
+            .generation
+            .read()
+            .map_err(|_| ApplicationFault::Locked)?;
+        if gate.is_none() || !self.generation.load(Ordering::SeqCst) {
+            return Err(ApplicationFault::Locked);
+        }
+        Ok(self
+            .host
+            .vault
+            .prepare_agent_note(&self.permit, request, |source, hint| {
+                let quote = crate::mcp::quote_locator::locate(&source.text, hint).ok()?;
+                Some(QuotedEvidence {
+                    reference: EvidenceRef {
+                        source_id: source.record.source_id.clone(),
+                        source_revision: source.record.revision,
+                        locator: source.record.locator.clone(),
+                        object_hash: source.record.anchor_hash().clone(),
+                        evidence_class: source.record.evidence_class,
+                        supports: "content".into(),
+                    },
+                    quote: quote.quote,
+                    speaker: source.record.speaker_role,
+                    start: quote.start,
+                    end: quote.end,
+                })
+            })?)
+    }
 }
 /// Data only. Neither parsing nor copying a page grants native authority.
 #[derive(Serialize)]
@@ -73,6 +114,27 @@ pub struct QualifiedHistoryCursor {
     pub before_revision: Revision,
 }
 impl QualifiedAgentHost {
+    pub fn note_writer(
+        &self,
+        owner: &ActorRef,
+        principal: ActorRef,
+        scope: SegmentedAgentScope,
+    ) -> ApplicationResult<AgentNoteWriter<'_>> {
+        if owner != &self.owner || self.capability != INITIALIZED_CAPABILITY {
+            return Err(AutomationFault::Denied.into());
+        }
+        let gate = self
+            .generation
+            .read()
+            .map_err(|_| ApplicationFault::Locked)?;
+        let generation = gate.as_ref().ok_or(ApplicationFault::Locked)?.clone();
+        let permit = self.vault.authorize_agent_note(owner, principal, scope)?;
+        Ok(AgentNoteWriter {
+            host: self,
+            permit,
+            generation,
+        })
+    }
     /// Caller has authenticated the native Owner; not an OS enrollment method.
     pub fn from_authenticated_owner(
         vault: Arc<SegmentedAutomationVault>,
