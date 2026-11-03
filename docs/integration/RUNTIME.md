@@ -1,5 +1,15 @@
 # Runtime integration (ADR-MEM-45)
 
+2026-11-03: ADR-MEM-117 adopts captured analysis native v3. CaptureAnalyzer::start
+now explicitly receives notes: &[AgentNoteRecord] before its stop token; native
+adapters must update at compile time. First dispatch selects at most eight exact
+source/current-policy hints and trims canonical input to 64 KiB, persisting the
+selected keys before handoff. Late hints never restart terminal or pending work.
+Journal v1 keeps old empty-field encoding and original recovery identities.
+No MCP/pipe/Workspace DTO changes, real analyzer or Runtime activation. Aggregate:
+`3857a33e4d15293c334b529208f9e04c87048181bad5e5ad827566045a07d46f`.
+See [analysis v3](../contracts/CAPTURE_ANALYSIS_V3.md).
+
 2026-11-03: ADR-MEM-116 adds opt-in native durable Agent hints through the existing
 Owner commit chain (`agent_note` delta), with original-key `hint_saved` receipts,
 bounded capacity and normal CURRENT/witness recovery. Submission takes the

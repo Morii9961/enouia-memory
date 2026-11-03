@@ -680,6 +680,7 @@ fn producer_status_is_scoped_current_content_free_and_observes_worker_without_le
             &mut self,
             _: &QueuedCapture,
             _: &CapturedSource,
+            _: &[AgentNoteRecord],
             _: &CaptureStopToken,
         ) -> std::result::Result<Box<dyn PendingCaptureAnalysis>, CaptureAnalysis> {
             Err(CaptureAnalysis::NoMemory)
@@ -735,6 +736,7 @@ impl CaptureAnalyzer for HostedAnalyzer {
         &mut self,
         _: &QueuedCapture,
         source: &CapturedSource,
+        _: &[AgentNoteRecord],
         stop: &CaptureStopToken,
     ) -> std::result::Result<Box<dyn PendingCaptureAnalysis>, CaptureAnalysis> {
         self.calls.fetch_add(1, Ordering::SeqCst);

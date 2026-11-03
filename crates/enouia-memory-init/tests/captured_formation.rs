@@ -93,6 +93,7 @@ impl CaptureAnalyzer for Scripted {
         &mut self,
         _job: &QueuedCapture,
         source: &CapturedSource,
+        _: &[AgentNoteRecord],
         _: &CaptureStopToken,
     ) -> std::result::Result<Box<dyn PendingCaptureAnalysis>, CaptureAnalysis> {
         self.calls += 1;
@@ -110,6 +111,7 @@ impl CaptureAnalyzer for Panics {
         &mut self,
         _: &QueuedCapture,
         _: &CapturedSource,
+        _: &[AgentNoteRecord],
         _: &CaptureStopToken,
     ) -> std::result::Result<Box<dyn PendingCaptureAnalysis>, CaptureAnalysis> {
         panic!("synthetic analyzer failure");
@@ -120,6 +122,89 @@ fn rig(e: &Env) -> (Arc<SegmentedAutomationVault>, AutomationPolicy) {
     let p = e.policy(1, 1, 8);
     v.set_policy(&e.descriptor.created_by, p.clone()).unwrap();
     (v, p)
+}
+fn save_hint(
+    v: &SegmentedAutomationVault,
+    e: &Env,
+    p: &AutomationPolicy,
+    source: &SourceRevisionRef,
+    n: u32,
+    quote: &str,
+    note: &str,
+) -> AgentNoteReceipt {
+    let permit = v
+        .authorize_agent_note(
+            &e.descriptor.created_by,
+            ActorRef {
+                actor_type: ActorType::Agent,
+                actor_id: PrincipalId::parse(&id("prn", 88)).unwrap(),
+            },
+            SegmentedAgentScope {
+                subject_id: p.subject_id.clone(),
+                project_id: p.project_id.clone(),
+                policy_ids: vec![p.policy_id.clone()],
+                source_ids: vec![source.source_id.clone()],
+                max_sensitivity: Sensitivity::Private,
+                source_read: true,
+                valid_until: Timestamp::from_unix_ms(NOW + 120_000).unwrap(),
+            },
+        )
+        .unwrap();
+    v.submit_agent_note(
+        &permit,
+        &AgentNoteRequest {
+            request_id: RequestId::parse(&id("req", 100 + n)).unwrap(),
+            source: source.clone(),
+            quote_hint: quote.into(),
+            note: note.into(),
+        },
+        quoted_evidence,
+    )
+    .unwrap()
+}
+#[derive(Default)]
+struct Observing {
+    seen: Vec<Vec<AgentNoteRecord>>,
+    next: Option<CaptureAnalysis>,
+    pending: bool,
+    audit: Option<std::path::PathBuf>,
+}
+impl CaptureAnalyzer for Observing {
+    fn start(
+        &mut self,
+        _: &QueuedCapture,
+        _: &CapturedSource,
+        notes: &[AgentNoteRecord],
+        _: &CaptureStopToken,
+    ) -> std::result::Result<Box<dyn PendingCaptureAnalysis>, CaptureAnalysis> {
+        if let Some(root) = &self.audit {
+            let journal: Value = serde_json::from_slice(
+                &ManagedRoot::new(root, Faults::none())
+                    .read_bounded(JOURNAL, 1 << 20)
+                    .unwrap()
+                    .unwrap(),
+            )
+            .unwrap();
+            let expected: Vec<_> = notes.iter().map(|note| note.note_key.clone()).collect();
+            assert_eq!(
+                journal["jobs"].as_array().unwrap().last().unwrap()["note_keys"],
+                json!(expected)
+            );
+        }
+        self.seen.push(notes.to_vec());
+        let result = self.next.take().unwrap_or(CaptureAnalysis::NoMemory);
+        if self.pending {
+            struct Complete(Option<CaptureAnalysis>);
+            impl PendingCaptureAnalysis for Complete {
+                fn poll(&mut self, _: &CaptureStopToken) -> Option<CaptureAnalysis> {
+                    self.0.take()
+                }
+            }
+            Ok(Box::new(Complete(Some(result))))
+        } else {
+            Err(result)
+        }
+    }
 }
 fn drain(worker: &mut CapturedFormation, analyzer: &mut Scripted) {
     while worker.step(analyzer).unwrap() {}
@@ -524,6 +609,7 @@ fn deletion_cancels_pending_analysis_before_another_poll_and_releases_later_turn
             &mut self,
             _: &QueuedCapture,
             _: &CapturedSource,
+            _: &[AgentNoteRecord],
             stop: &CaptureStopToken,
         ) -> std::result::Result<Box<dyn PendingCaptureAnalysis>, CaptureAnalysis> {
             self.calls += 1;
@@ -742,6 +828,7 @@ fn live_captures_run_before_backfill_on_one_scheduler() {
             &mut self,
             _: &QueuedCapture,
             _: &CapturedSource,
+            _: &[AgentNoteRecord],
             _: &CaptureStopToken,
         ) -> std::result::Result<Box<dyn PendingCaptureAnalysis>, CaptureAnalysis> {
             Ok(Box::new(Deferred(self.0.clone())))
@@ -901,5 +988,184 @@ fn concurrent_deletion_and_apply_settle_without_losing_receipts_or_reanalysis() 
         assert!(!worker.step(&mut analyzer).unwrap());
         assert_eq!(worker.status(), status);
         assert_eq!(analyzer.calls, 1);
+    }
+}
+
+#[test]
+fn captured_analysis_uses_its_saved_hints_once_and_persists_selected_keys() {
+    for pending in [false, true] {
+        let e = owner_env();
+        let (v, p) = rig(&e);
+        let system = &e.descriptor.system_actor;
+        capture_and_enqueue(&v, &e, &p, &turn(1, "c", None, "First turn."));
+        capture_and_enqueue(&v, &e, &p, &turn(2, "c", Some("m1"), "Second turn."));
+        let jobs = v.queued_captures(system).unwrap();
+        let first = save_hint(
+            &v,
+            &e,
+            &p,
+            &jobs[0].source,
+            1,
+            "First turn.",
+            "Optional first cue.",
+        );
+        let second = save_hint(
+            &v,
+            &e,
+            &p,
+            &jobs[1].source,
+            2,
+            "Second turn.",
+            "Optional second cue.",
+        );
+        let mut worker = CapturedFormation::open(v.clone(), system).unwrap();
+        let mut analyzer = Observing {
+            pending,
+            audit: Some(e.path.clone()),
+            next: Some(CaptureAnalysis::Statements(vec![statement(
+                "First turn.",
+                Interpretation::ClearSelfReport,
+            )])),
+            ..Default::default()
+        };
+        assert!(worker.step(&mut analyzer).unwrap());
+        assert_eq!(analyzer.seen[0].len(), 1);
+        assert_eq!(analyzer.seen[0][0].note_key, first.note_key);
+        assert_eq!(analyzer.seen[0][0].principal.actor_type, ActorType::Agent);
+        assert_eq!(analyzer.seen[0][0].evidence.speaker, SpeakerRole::User);
+        assert_eq!(
+            analyzer.seen[0][0].evidence.reference.evidence_class,
+            EvidenceClass::UserStatement
+        );
+        let late = save_hint(
+            &v,
+            &e,
+            &p,
+            &jobs[0].source,
+            3,
+            "First turn.",
+            "A later cue.",
+        );
+        for _ in 0..16 {
+            if !worker.step(&mut analyzer).unwrap() {
+                break;
+            }
+        }
+        assert_eq!(analyzer.seen.len(), 2);
+        assert_eq!(analyzer.seen[1].len(), 1);
+        assert_eq!(analyzer.seen[1][0].note_key, second.note_key);
+        assert_eq!(memories(&v, &e), vec!["First turn."]);
+        let journal: Value = serde_json::from_slice(
+            &ManagedRoot::new(e.root.path(), Faults::none())
+                .read_bounded(JOURNAL, 1 << 20)
+                .unwrap()
+                .unwrap(),
+        )
+        .unwrap();
+        assert_eq!(journal["jobs"][0]["note_keys"], json!([first.note_key]));
+        assert_ne!(journal["jobs"][0]["note_keys"], json!([late.note_key]));
+        let status = worker.status();
+        drop(worker);
+        drop(v);
+        let v = Arc::new(e.open());
+        let mut worker = CapturedFormation::open(v, system).unwrap();
+        assert!(!worker.step(&mut analyzer).unwrap());
+        assert_eq!(worker.status(), status);
+        assert_eq!(analyzer.seen.len(), 2);
+    }
+}
+
+#[test]
+fn changed_policy_and_deleted_or_other_sources_cannot_lend_analysis_hints() {
+    let e = owner_env();
+    let (v, p) = rig(&e);
+    let system = &e.descriptor.system_actor;
+    capture_and_enqueue(&v, &e, &p, &turn(1, "c", None, "First turn."));
+    capture_and_enqueue(&v, &e, &p, &turn(2, "c", Some("m1"), "Second turn."));
+    let jobs = v.queued_captures(system).unwrap();
+    save_hint(
+        &v,
+        &e,
+        &p,
+        &jobs[0].source,
+        1,
+        "First turn.",
+        "Old policy cue.",
+    );
+    save_hint(
+        &v,
+        &e,
+        &p,
+        &jobs[1].source,
+        2,
+        "Second turn.",
+        "Other source cue.",
+    );
+    let mut current = p;
+    current.revision = enouia_memory_contract::json::Revision::new(2).unwrap();
+    v.set_policy(&e.descriptor.created_by, current.clone())
+        .unwrap();
+    let allowed = save_hint(
+        &v,
+        &e,
+        &current,
+        &jobs[0].source,
+        3,
+        "First turn.",
+        "Current policy cue.",
+    );
+    v.delete(
+        &e.descriptor.created_by,
+        vec![jobs[1].source.source_id.clone()],
+        vec![],
+    )
+    .unwrap();
+    let mut worker = CapturedFormation::open(v, system).unwrap();
+    let mut analyzer = Observing::default();
+    assert!(worker.step(&mut analyzer).unwrap());
+    assert!(!worker.step(&mut analyzer).unwrap());
+    assert_eq!(analyzer.seen.len(), 1);
+    assert_eq!(analyzer.seen[0].len(), 1);
+    assert_eq!(analyzer.seen[0][0].note_key, allowed.note_key);
+    assert_eq!(analyzer.seen[0][0].policy, current.reference());
+}
+
+#[test]
+fn captured_analysis_bounds_hint_count_and_serialized_input_bytes() {
+    for large in [false, true] {
+        let e = owner_env();
+        let (v, p) = rig(&e);
+        let system = &e.descriptor.system_actor;
+        capture_and_enqueue(&v, &e, &p, &turn(1, "c", None, "First turn."));
+        let source = v.queued_captures(system).unwrap()[0].source.clone();
+        for n in 0..12 {
+            save_hint(
+                &v,
+                &e,
+                &p,
+                &source,
+                n,
+                "First turn.",
+                &if large {
+                    "\0".repeat(2000)
+                } else {
+                    format!("Cue {n}")
+                },
+            );
+        }
+        let mut worker = CapturedFormation::open(v, system).unwrap();
+        let mut analyzer = Observing::default();
+        assert!(worker.step(&mut analyzer).unwrap());
+        let notes = &analyzer.seen[0];
+        assert!(!notes.is_empty());
+        assert_eq!(notes.len() == 8, !large);
+        assert!(notes.len() <= 8);
+        assert!(
+            enouia_memory_contract::json::canonical_bytes(notes)
+                .unwrap()
+                .len()
+                <= 65536
+        );
+        assert!(notes.windows(2).all(|w| w[0].note_key < w[1].note_key));
     }
 }

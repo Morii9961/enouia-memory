@@ -53,6 +53,7 @@ pub trait CaptureAnalyzer {
         &mut self,
         job: &QueuedCapture,
         source: &CapturedSource,
+        notes: &[AgentNoteRecord],
         stop: &CaptureStopToken,
     ) -> std::result::Result<Box<dyn PendingCaptureAnalysis>, CaptureAnalysis>;
 }
@@ -127,6 +128,8 @@ struct Work {
 #[serde(deny_unknown_fields)]
 struct Job {
     job_key: Sha256Hex,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    note_keys: Vec<Sha256Hex>,
     state: FormationJobState,
     work: Vec<Work>,
     receipts: Vec<MemoryReceipt>,
@@ -347,7 +350,7 @@ impl SegmentedAutomationVault {
         &self,
         system: &ActorRef,
         job: &QueuedCapture,
-    ) -> Result<(CapturedSource, AutomationPolicy)> {
+    ) -> Result<(CapturedSource, AutomationPolicy, Vec<AgentNoteRecord>)> {
         self.native.system(system)?;
         let _writer = lock::acquire(&self.native.root, Duration::ZERO)?;
         let state = self
@@ -369,7 +372,21 @@ impl SegmentedAutomationVault {
         {
             return Err(AutomationFault::Denied);
         }
-        Ok((source.clone(), policy.clone()))
+        let mut notes: Vec<_> = state
+            .agent_notes
+            .values()
+            .filter(|(note, _)| {
+                note.policy == policy.reference()
+                    && note.evidence.reference.source_id == job.source.source_id
+                    && note.evidence.reference.source_revision == job.source.source_revision
+            })
+            .take(8)
+            .map(|(note, _)| note.clone())
+            .collect();
+        while canonical_bytes(&notes)?.len() > 65536 {
+            notes.pop();
+        }
+        Ok((source.clone(), policy.clone(), notes))
     }
 }
 
@@ -602,13 +619,14 @@ impl CapturedFormation {
         analyzer: &mut impl CaptureAnalyzer,
         stop: &CaptureStopToken,
     ) -> Result<bool> {
-        let (source, policy) = match self.vault.queued_input(&self.system, job) {
+        let (source, policy, notes) = match self.vault.queued_input(&self.system, job) {
             Ok(value) => value,
             Err(AutomationFault::Denied) => return Ok(false),
             Err(error) => return Err(error),
         };
         self.journal.jobs.push(Job {
             job_key: job.job_key.clone(),
+            note_keys: notes.iter().map(|note| note.note_key.clone()).collect(),
             state: FormationJobState::Dispatched,
             work: vec![],
             receipts: vec![],
@@ -621,7 +639,7 @@ impl CapturedFormation {
         let started = Instant::now();
         let pending_stop = stop.child();
         let analysis = catch_unwind(AssertUnwindSafe(|| {
-            analyzer.start(job, &source, &pending_stop)
+            analyzer.start(job, &source, &notes, &pending_stop)
         }))
         .unwrap_or(Err(CaptureAnalysis::Unknown));
         if stop.is_cancelled() || started.elapsed() >= self.analysis_timeout {

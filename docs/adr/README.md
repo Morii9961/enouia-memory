@@ -615,6 +615,13 @@ read-only; storage and explicit MCP write negotiation follow separately.
 through the existing witnessed Owner commit chain with independent original-key
 receipts. No source, job or memory is created and no MCP write is advertised.
 
+### ADR-MEM-117 — Optional Agent hints in captured analysis
+
+[Decision](117-captured-analysis-agent-hints.md): native analysis v3 receives
+bounded exact-source/current-policy hints on first dispatch, with selected keys
+durable before handoff. Late hints do not re-dispatch or alter pending analysis;
+source evidence and all existing cancellation/unknown rules remain authoritative.
+
 ### ADR-MEM-110 — Native empty Owner bootstrap
 
 [Decision](110-native-empty-owner-bootstrap.md): an explicit trusted native local

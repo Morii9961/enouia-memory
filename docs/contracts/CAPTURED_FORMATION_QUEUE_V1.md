@@ -84,3 +84,9 @@ and drops that analysis without another poll, and rejects the job without a
 receipt. No analysis result or statement count is invented; the source has
 become unusable. Later turns remain dispatchable. This never authorizes a
 replacement request, and a late external result is not used.
+
+Native analysis v3 adds optional bounded saved Agent hints at the first dispatch;
+see [the explicit interface](CAPTURE_ANALYSIS_V3.md). The journal records selected
+note_keys before start, defaulting to an omitted empty list for older jobs. A
+later hint never restarts terminal or pending analysis. Producer wire states and
+receipt semantics remain unchanged.
