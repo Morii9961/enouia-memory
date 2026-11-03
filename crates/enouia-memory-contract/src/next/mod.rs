@@ -3,6 +3,8 @@
 //! Version 2 here is independent of schema-1 records and Host CURRENT format.
 
 mod admission;
+mod agent_note;
+pub use agent_note::*;
 mod attention;
 mod continuation;
 mod formation;

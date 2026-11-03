@@ -5,7 +5,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Instant;
 
 pub const INITIALIZED_AGENT_READ_CAPABILITY: &str = "memory-agent-initialized-native-read-1";
-pub const AGENT_NOTE_CAPABILITY: &str = "memory-agent-note-native-1";
+pub use enouia_memory_contract::next::AGENT_NOTE_CAPABILITY;
 
 /// Separate native delegation, deliberately not accepted by Agent read APIs.
 pub struct AgentNotePermit {
@@ -15,6 +15,9 @@ pub struct AgentNotePermit {
 impl AgentNotePermit {
     pub fn revoke(&self) {
         self.read.revoke();
+    }
+    pub(super) fn live(&self, vault: &SegmentedAutomationVault) -> Result<Timestamp> {
+        self.read.live(vault)
     }
 }
 #[derive(Clone, serde::Serialize, serde::Deserialize)]
@@ -35,6 +38,7 @@ pub struct AgentNoteDraft {
     pub note_key: Sha256Hex,
     pub principal: ActorRef,
     pub scope_hash: Sha256Hex,
+    pub policy: PolicyRef,
     pub snapshot: SnapshotBinding,
     pub authorized_at: Timestamp,
     pub evidence: QuotedEvidence,
@@ -257,7 +261,7 @@ impl SegmentedAutomationVault {
             return Err(AutomationFault::Denied);
         }
         let read = &permit.read;
-        read.live(self)?;
+        permit.live(self)?;
         let _writer = lock::acquire(&self.native.root, Duration::ZERO)?;
         let state = self
             .state
@@ -287,20 +291,26 @@ impl SegmentedAutomationVault {
         if !evidence.resolves(std::slice::from_ref(source)) {
             return Err(AutomationFault::Denied);
         }
-        let authorized_at = read.live(self)?;
+        let policy = read.source_policies[&request.source.source_id]
+            .iter()
+            .map(|id| &state.policies[id])
+            .find(|p| state.source_in_policy(&request.source, p, read.scope.max_sensitivity))
+            .unwrap()
+            .reference();
+        let authorized_at = permit.live(self)?;
         Ok(AgentNoteDraft {
             schema_version: NextVersion,
             capability: AGENT_NOTE_CAPABILITY,
             request_id: request.request_id.clone(),
             request_hash: digest(request),
-            note_key: digest(&(
-                AGENT_NOTE_CAPABILITY,
+            note_key: agent_note_key(
                 &self.descriptor().vault_id,
                 read.principal(),
                 &request.request_id,
-            )),
+            ),
             principal: read.principal().clone(),
             scope_hash: permit.hash.clone(),
+            policy,
             snapshot: state.snapshot()?,
             authorized_at,
             evidence,

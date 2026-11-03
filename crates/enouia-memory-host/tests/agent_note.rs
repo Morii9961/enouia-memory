@@ -3,7 +3,11 @@
 mod fixture;
 use enouia_memory_contract::{common::*, ids::*, json::Revision, next::*, time::Timestamp};
 use enouia_memory_host::automation::qualified_agent::QualifiedAgentHost;
-use enouia_memory_vault::{automation::segmented::*, fault::Faults};
+use enouia_memory_vault::{
+    OsIdSource,
+    automation::segmented::*,
+    fault::{FaultAction, FaultPoint, Faults},
+};
 use fixture::*;
 use std::sync::Arc;
 
@@ -27,6 +31,7 @@ fn scope(p: &AutomationPolicy) -> SegmentedAgentScope {
 fn rig(
     text: &str,
     speaker: SpeakerRole,
+    faults: Faults,
 ) -> (
     Env,
     Arc<SegmentedAutomationVault>,
@@ -36,7 +41,7 @@ fn rig(
     let mut e = Env::new();
     e.descriptor.layout = AutomationLayout::SegmentedOwnerV1;
     e.descriptor.owner_subject_id = Some(e.policy(1, 1, 1).subject_id);
-    let v = Arc::new(e.create(Faults::none()));
+    let v = Arc::new(e.create(faults));
     let p = e.policy(1, 1, 8);
     v.set_policy(&e.descriptor.created_by, p.clone()).unwrap();
     let permit = v
@@ -74,7 +79,7 @@ fn rig(
 #[test]
 fn native_drafts_bind_exact_original_quote_actual_speaker_and_agent_provenance() {
     for speaker in [SpeakerRole::User, SpeakerRole::Assistant] {
-        let (e, v, p, mut request) = rig("前缀「ＡＢＣ　喜欢安静」后缀", speaker);
+        let (e, v, p, mut request) = rig("前缀「ＡＢＣ　喜欢安静」后缀", speaker, Faults::none());
         request.quote_hint = "\"ABC 喜欢安静\"".into();
         let host = QualifiedAgentHost::from_authenticated_initialized_owner(
             v.clone(),
@@ -134,7 +139,7 @@ fn native_drafts_bind_exact_original_quote_actual_speaker_and_agent_provenance()
 #[test]
 fn note_delegation_is_explicit_and_lock_revoke_policy_expiry_and_instance_bound() {
     for invalidation in 0..6 {
-        let (e, v, p, request) = rig("A synthetic preference.", SpeakerRole::User);
+        let (e, v, p, request) = rig("A synthetic preference.", SpeakerRole::User, Faults::none());
         let owner = &e.descriptor.created_by;
         let host =
             QualifiedAgentHost::from_authenticated_initialized_owner(v.clone(), owner.clone())
@@ -180,7 +185,7 @@ fn note_delegation_is_explicit_and_lock_revoke_policy_expiry_and_instance_bound(
             }
             _ => {
                 let permit = v.authorize_agent_note(owner, principal, scope(&p)).unwrap();
-                let (_, other, _, _) = rig("Other source.", SpeakerRole::User);
+                let (_, other, _, _) = rig("Other source.", SpeakerRole::User, Faults::none());
                 assert!(
                     other
                         .prepare_agent_note(&permit, &request, |_, _| panic!(
@@ -197,7 +202,7 @@ fn note_delegation_is_explicit_and_lock_revoke_policy_expiry_and_instance_bound(
 
 #[test]
 fn note_bounds_ambiguity_and_exact_revision_refuse_before_publication() {
-    let (e, v, p, request) = rig("alpha alpha", SpeakerRole::User);
+    let (e, v, p, request) = rig("alpha alpha", SpeakerRole::User, Faults::none());
     let host = QualifiedAgentHost::from_authenticated_initialized_owner(
         v.clone(),
         e.descriptor.created_by.clone(),
@@ -253,4 +258,211 @@ fn note_bounds_ambiguity_and_exact_revision_refuse_before_publication() {
         .is_err()
     );
     assert_eq!(v.snapshot().unwrap(), before);
+}
+
+#[test]
+fn saved_hints_replay_original_receipts_without_creating_sources_jobs_or_memories() {
+    let (e, v, p, request) = rig("A synthetic preference.", SpeakerRole::User, Faults::none());
+    let principal = actor(ActorType::Agent, 88);
+    let host = QualifiedAgentHost::from_authenticated_initialized_owner(
+        v.clone(),
+        e.descriptor.created_by.clone(),
+    )
+    .unwrap();
+    let writer = host
+        .note_writer(&e.descriptor.created_by, principal.clone(), scope(&p))
+        .unwrap();
+    let draft = writer.prepare(&request).unwrap();
+    let before = v.snapshot().unwrap();
+    let receipt = writer.submit(&request).unwrap();
+    assert_eq!(receipt.note_key, draft.note_key);
+    assert_eq!(receipt.request_hash, draft.request_hash);
+    assert_eq!(receipt.state, AgentNoteState::HintSaved);
+    let after = v.snapshot().unwrap();
+    assert_ne!(after, before);
+    assert_eq!(writer.submit(&request).unwrap(), receipt);
+    assert_eq!(v.snapshot().unwrap(), after);
+    let mut changed = request.clone();
+    changed.note.push('!');
+    assert!(matches!(
+        writer.submit(&changed),
+        Err(
+            enouia_memory_host::automation::application::ApplicationFault::Vault(
+                enouia_memory_vault::automation::AutomationFault::Conflict
+            )
+        )
+    ));
+    assert_eq!(v.snapshot().unwrap(), after);
+    assert!(
+        v.queued_captures(&e.descriptor.system_actor)
+            .unwrap()
+            .is_empty()
+    );
+    v.read(&e.descriptor.system_actor, Sensitivity::Private, |d| {
+        assert_eq!(d.sources.len(), 1);
+        assert!(d.memories.is_empty());
+    })
+    .unwrap();
+    drop(writer);
+    drop(host);
+    drop(v);
+    let v = Arc::new(e.open());
+    let host = QualifiedAgentHost::from_authenticated_initialized_owner(
+        v.clone(),
+        e.descriptor.created_by.clone(),
+    )
+    .unwrap();
+    let writer = host
+        .note_writer(&e.descriptor.created_by, principal, scope(&p))
+        .unwrap();
+    assert_eq!(writer.submit(&request).unwrap(), receipt);
+    assert_eq!(v.snapshot().unwrap(), after);
+    v.delete(
+        &e.descriptor.created_by,
+        vec![request.source.source_id.clone()],
+        vec![],
+    )
+    .unwrap();
+    let deleted = v.snapshot().unwrap();
+    assert!(writer.submit(&request).is_err());
+    assert_eq!(v.snapshot().unwrap(), deleted);
+}
+
+#[test]
+fn saved_hint_capacity_is_bounded_but_original_receipts_still_replay() {
+    let (e, v, p, mut request) = rig("A synthetic preference.", SpeakerRole::User, Faults::none());
+    let host = QualifiedAgentHost::from_authenticated_initialized_owner(
+        v.clone(),
+        e.descriptor.created_by.clone(),
+    )
+    .unwrap();
+    let writer = host
+        .note_writer(
+            &e.descriptor.created_by,
+            actor(ActorType::Agent, 88),
+            scope(&p),
+        )
+        .unwrap();
+    let original = request.clone();
+    let first = writer.submit(&original).unwrap();
+    for n in 1..MAX_AGENT_NOTES_PER_SOURCE {
+        request.request_id = RequestId::parse(&id("req", 100 + n as u32)).unwrap();
+        writer.submit(&request).unwrap();
+    }
+    let full = v.snapshot().unwrap();
+    request.request_id = RequestId::parse(&id("req", 999)).unwrap();
+    assert!(matches!(
+        writer.submit(&request),
+        Err(
+            enouia_memory_host::automation::application::ApplicationFault::Vault(
+                enouia_memory_vault::automation::AutomationFault::Capacity
+            )
+        )
+    ));
+    assert_eq!(writer.submit(&original).unwrap(), first);
+    assert_eq!(v.snapshot().unwrap(), full);
+}
+
+#[test]
+fn uncertain_hint_publication_retains_the_original_packet_and_recovers_one_receipt() {
+    use enouia_memory_host::automation::application::ApplicationFault;
+    use enouia_memory_vault::automation::AutomationFault;
+    for (point, persisted) in [
+        (FaultPoint::StagingWritten, false),
+        (FaultPoint::AfterCurrent, true),
+    ] {
+        let faults = Faults::armed();
+        let (e, v, p, request) = rig("A synthetic preference.", SpeakerRole::User, faults.clone());
+        let principal = actor(ActorType::Agent, 88);
+        let host = QualifiedAgentHost::from_authenticated_initialized_owner(
+            v.clone(),
+            e.descriptor.created_by.clone(),
+        )
+        .unwrap();
+        let writer = host
+            .note_writer(&e.descriptor.created_by, principal.clone(), scope(&p))
+            .unwrap();
+        faults.arm(point, 1, FaultAction::Fail(116));
+        assert!(matches!(
+            writer.submit(&request),
+            Err(ApplicationFault::Vault(AutomationFault::OutcomeUnknown))
+        ));
+        assert_eq!(
+            digest(writer.original_unknown().unwrap().as_ref().unwrap()),
+            digest(&request)
+        );
+        let mut changed = request.clone();
+        changed.note.push('!');
+        assert!(matches!(
+            writer.submit(&changed),
+            Err(ApplicationFault::Vault(AutomationFault::OutcomeUnknown))
+        ));
+        assert_eq!(
+            digest(writer.original_unknown().unwrap().as_ref().unwrap()),
+            digest(&request)
+        );
+        drop(writer);
+        drop(host);
+        drop(v);
+        let v = Arc::new(
+            SegmentedAutomationVault::recover(
+                &e.root,
+                e.descriptor.host_id.clone(),
+                &e.descriptor.system_actor,
+                e.clock.clone(),
+                Arc::new(OsIdSource),
+                Faults::none(),
+            )
+            .unwrap(),
+        );
+        let recovered = v.snapshot().unwrap();
+        let host = QualifiedAgentHost::from_authenticated_initialized_owner(
+            v.clone(),
+            e.descriptor.created_by.clone(),
+        )
+        .unwrap();
+        let writer = host
+            .note_writer(&e.descriptor.created_by, principal, scope(&p))
+            .unwrap();
+        let receipt = writer.submit(&request).unwrap();
+        let after = v.snapshot().unwrap();
+        assert_eq!(after == recovered, persisted);
+        assert_eq!(writer.submit(&request).unwrap(), receipt);
+        assert_eq!(v.snapshot().unwrap(), after);
+        assert_eq!(receipt.state, AgentNoteState::HintSaved);
+        assert!(writer.original_unknown().unwrap().is_none());
+    }
+}
+
+#[test]
+fn concurrent_native_hint_replay_returns_one_receipt_and_one_commit() {
+    let (e, v, p, request) = rig("A synthetic preference.", SpeakerRole::User, Faults::none());
+    let host = QualifiedAgentHost::from_authenticated_initialized_owner(
+        v.clone(),
+        e.descriptor.created_by.clone(),
+    )
+    .unwrap();
+    let writer = host
+        .note_writer(
+            &e.descriptor.created_by,
+            actor(ActorType::Agent, 88),
+            scope(&p),
+        )
+        .unwrap();
+    let before = v.snapshot().unwrap();
+    let barrier = std::sync::Barrier::new(2);
+    let (a, b) = std::thread::scope(|scope| {
+        let thread = scope.spawn(|| {
+            barrier.wait();
+            writer.submit(&request).unwrap()
+        });
+        barrier.wait();
+        let b = writer.submit(&request).unwrap();
+        (thread.join().unwrap(), b)
+    });
+    assert_eq!(a, b);
+    let after = v.snapshot().unwrap();
+    assert_ne!(after, before);
+    assert_eq!(writer.submit(&request).unwrap(), a);
+    assert_eq!(v.snapshot().unwrap(), after);
 }

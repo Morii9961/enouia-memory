@@ -609,6 +609,12 @@ on exact authorized Runtime sources, normalized location followed by strict
 evidence checks. Preparation publishes nothing and old read profiles stay
 read-only; storage and explicit MCP write negotiation follow separately.
 
+### ADR-MEM-116 — Durable Agent hint intake
+
+[Decision](116-durable-agent-note-intake.md): save optional scoped Agent hints
+through the existing witnessed Owner commit chain with independent original-key
+receipts. No source, job or memory is created and no MCP write is advertised.
+
 ### ADR-MEM-110 — Native empty Owner bootstrap
 
 [Decision](110-native-empty-owner-bootstrap.md): an explicit trusted native local

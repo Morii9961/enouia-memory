@@ -1,5 +1,18 @@
 # Runtime integration (ADR-MEM-45)
 
+2026-11-03: ADR-MEM-116 adds opt-in native durable Agent hints through the existing
+Owner commit chain (`agent_note` delta), with original-key `hint_saved` receipts,
+bounded capacity and normal CURRENT/witness recovery. Submission takes the
+original request under the separate note delegation; drafts remain data. No
+source, job, memory or model request is created. Older binaries refuse roots
+containing the new closed delta; do not downgrade them. Agent read handshakes
+that hash the catalog schema have a new fingerprint and require matching
+client/server revisions; reachable read-tool payloads and permissions stay
+unchanged. No MCP write is advertised and Runtime need not adopt note intake
+for its separate catalog UI work. Aggregate:
+`de93018f21667885f38b69319c692ecbabe4df4d476f8f7f7d3838ac7b8c6ae0`.
+See [native hint intake](../contracts/AGENT_NOTE_INTAKE_V1.md).
+
 2026-11-03: ADR-MEM-115 adds an opt-in native Agent note draft gate on initialized
 Owner roots. The native Owner must explicitly create a separate note delegation;
 existing read permits and pipe-5 stay read-only. Exact currently authorized

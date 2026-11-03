@@ -39,11 +39,12 @@ pub struct QualifiedAgentReader<'a> {
     generation: Arc<AtomicBool>,
     context: Mutex<Option<Value>>,
 }
-/// Explicit native note delegation; no storage, MCP tool or read-permit upgrade.
+/// Explicit native note delegation; no MCP tool or read-permit upgrade.
 pub struct AgentNoteWriter<'a> {
     host: &'a QualifiedAgentHost,
     permit: AgentNotePermit,
     generation: Arc<AtomicBool>,
+    unknown: Mutex<Option<AgentNoteRequest>>,
 }
 impl AgentNoteWriter<'_> {
     pub fn revoke(&self) {
@@ -61,24 +62,56 @@ impl AgentNoteWriter<'_> {
         Ok(self
             .host
             .vault
-            .prepare_agent_note(&self.permit, request, |source, hint| {
-                let quote = crate::mcp::quote_locator::locate(&source.text, hint).ok()?;
-                Some(QuotedEvidence {
-                    reference: EvidenceRef {
-                        source_id: source.record.source_id.clone(),
-                        source_revision: source.record.revision,
-                        locator: source.record.locator.clone(),
-                        object_hash: source.record.anchor_hash().clone(),
-                        evidence_class: source.record.evidence_class,
-                        supports: "content".into(),
-                    },
-                    quote: quote.quote,
-                    speaker: source.record.speaker_role,
-                    start: quote.start,
-                    end: quote.end,
-                })
-            })?)
+            .prepare_agent_note(&self.permit, request, locate_note_quote)?)
     }
+    pub fn submit(&self, request: &AgentNoteRequest) -> ApplicationResult<AgentNoteReceipt> {
+        // Hold packet/lifecycle locks in the same order for every submission.
+        let mut unknown = self.unknown.lock().map_err(|_| ApplicationFault::Locked)?;
+        if unknown.is_some() {
+            return Err(AutomationFault::OutcomeUnknown.into());
+        }
+        let gate = self
+            .host
+            .generation
+            .read()
+            .map_err(|_| ApplicationFault::Locked)?;
+        if gate.is_none() || !self.generation.load(Ordering::SeqCst) {
+            return Err(ApplicationFault::Locked);
+        }
+        let result = self
+            .host
+            .vault
+            .submit_agent_note(&self.permit, request, locate_note_quote);
+        if matches!(result, Err(AutomationFault::OutcomeUnknown)) {
+            *unknown = Some(request.clone());
+            self.permit.revoke();
+        }
+        result.map_err(Into::into)
+    }
+    pub fn original_unknown(&self) -> ApplicationResult<Option<AgentNoteRequest>> {
+        Ok(self
+            .unknown
+            .lock()
+            .map_err(|_| ApplicationFault::Locked)?
+            .clone())
+    }
+}
+fn locate_note_quote(source: &CapturedSource, hint: &str) -> Option<QuotedEvidence> {
+    let quote = crate::mcp::quote_locator::locate(&source.text, hint).ok()?;
+    Some(QuotedEvidence {
+        reference: EvidenceRef {
+            source_id: source.record.source_id.clone(),
+            source_revision: source.record.revision,
+            locator: source.record.locator.clone(),
+            object_hash: source.record.anchor_hash().clone(),
+            evidence_class: source.record.evidence_class,
+            supports: "content".into(),
+        },
+        quote: quote.quote,
+        speaker: source.record.speaker_role,
+        start: quote.start,
+        end: quote.end,
+    })
 }
 /// Data only. Neither parsing nor copying a page grants native authority.
 #[derive(Serialize)]
@@ -133,6 +166,7 @@ impl QualifiedAgentHost {
             host: self,
             permit,
             generation,
+            unknown: Mutex::new(None),
         })
     }
     /// Caller has authenticated the native Owner; not an OS enrollment method.

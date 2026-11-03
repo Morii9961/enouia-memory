@@ -34,3 +34,6 @@ This is a read-only preparation API, without a saved-hint receipt, durable
 idempotency, formation effect, new MCP tool or transport. Captured formation runs
 independently of whether any Agent supplies a hint. Later submission must repeat
 the owning boundary checks and preserve original packet/key uncertainty rules.
+
+Native durable submission is specified separately in [intake v1](AGENT_NOTE_INTAKE_V1.md).
+It accepts the original request and current delegation rather than a draft.

@@ -313,6 +313,22 @@
                   }
                 }
               }
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "change",
+                "note"
+              ],
+              "properties": {
+                "change": {
+                  "const": "agent_note"
+                },
+                "note": {
+                  "$ref": "agent-note-v1.schema.json#/$defs/record"
+                }
+              }
             }
           ]
         },

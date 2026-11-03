@@ -4,6 +4,7 @@ mod catalog;
 mod formation_queue;
 mod formation_worker;
 mod intake;
+mod note_intake;
 pub use agent::{
     AGENT_NOTE_CAPABILITY, AgentNoteDraft, AgentNotePermit, AgentNoteRequest,
     AuthorizedSegmentedAgentRead, INITIALIZED_AGENT_READ_CAPABILITY,
