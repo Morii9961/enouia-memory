@@ -4,6 +4,8 @@
 through existing `rejected`/`formed` states, retaining chain-proven receipts and
 refusing unpublished statements. It no longer remains `forming`. Journal v1 and
 wire enums are unchanged; see the [current contract](../contracts/CAPTURED_FORMATION_QUEUE_V1.md).
+Pending analysis is also cancelled and dropped when deletion is observed,
+without another poll, and settles as `rejected` with no invented result.
 
 2026-10-31. MCP-3 continuation of [ADR-MEM-111](111-captured-source-formation-queue.md).
 

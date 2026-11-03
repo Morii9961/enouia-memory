@@ -1,5 +1,12 @@
 # Runtime integration (ADR-MEM-45)
 
+2026-11-03 follow-up: source deletion now cancels pending captured analysis
+before its next poll, rejects that job without a fabricated result and releases
+later turns. This supplements durable-work settlement below. Adopt the pin for
+prompt cancellation; the bounded analyzer cancellation/drop contract remains
+required. No wire/API/schema/version change. Aggregate:
+`2dbe5f885aba4c7411cfb12e31c9d067c2e30799fc0093e8f8f4aa3c699baa7e`.
+
 2026-11-03: captured formation now settles durable work after its source is
 deleted, instead of leaving it permanently `forming`. Unpublished statements
 are refused; an interrupted apply retains only chain-proven receipts. Adopt

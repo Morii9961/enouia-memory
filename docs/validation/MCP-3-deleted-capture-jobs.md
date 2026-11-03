@@ -39,3 +39,25 @@ No workspace suite, Clippy or schema cross-check was run for this localized fix.
 Pending analysis still follows its existing completion/deadline behavior; prompt
 cancellation after source deletion is a separate follow-up. Terminal journal
 capacity, broader context, real model quality and Runtime adoption remain open.
+
+## Follow-up: cancel pending analysis on deletion
+
+Base `310c206`. The worker now checks deletion before polling a pending analysis,
+cancels its token, drops its pending handle and records `rejected` with no invented
+receipt or refused-statement count. It does not wait for the analysis deadline.
+The same deletion snapshot serves settlement of already analyzed work. Existing
+stop/timeout/unknown behavior otherwise retains its meaning.
+
+Final focused run: **16 passed, 0 failed** in the captured_formation target under
+the same offline/locked serial environment and ordinary Windows permissions.
+The three added regressions verify cancellation before another poll, release of
+the later turn and reopen stability; retention of one real receipt with refusal
+of a second unpublished statement; and a real two-thread deletion/apply race on
+three fresh roots. The race permits either legal publication ordering, produces
+no duplicate or re-analysis, removes readable dependent memory, and reaches a
+stable terminal state. No chain commit occurs during settlement after deletion.
+
+Fmt, diff whitespace and regenerated Runtime surface checks passed. Aggregate:
+`2dbe5f885aba4c7411cfb12e31c9d067c2e30799fc0093e8f8f4aa3c699baa7e`.
+No schema, dependency, public API, journal version or wire enum changed. No full
+workspace suite, Clippy or schema cross-check was run for this follow-up.

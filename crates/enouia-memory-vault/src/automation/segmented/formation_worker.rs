@@ -503,7 +503,31 @@ impl CapturedFormation {
         if self.poisoned {
             return Err(AutomationFault::OutcomeUnknown);
         }
+        let deleted = if stop.is_cancelled() {
+            BTreeSet::new()
+        } else {
+            let _writer = lock::acquire(&self.vault.native.root, Duration::ZERO)?;
+            let state = self
+                .vault
+                .state
+                .lock()
+                .map_err(|_| AutomationFault::Unavailable)?;
+            self.vault.current(&state)?;
+            state
+                .capture_queue
+                .iter()
+                .flat_map(|entry| entry.sources.iter().zip(&entry.job_keys))
+                .filter(|(source, _)| state.deleted_sources.contains(&source.source_id))
+                .map(|(_, key)| key.clone())
+                .collect::<BTreeSet<_>>()
+        };
         if let Some(mut pending) = self.pending.take() {
+            if deleted.contains(&pending.job.job_key) {
+                pending.stop.cancel();
+                self.journal.jobs.last_mut().unwrap().state = FormationJobState::Rejected;
+                self.save()?;
+                return Ok(true);
+            }
             let expired = pending.started.elapsed() >= self.analysis_timeout;
             let result = if stop.is_cancelled() || pending.stop.is_cancelled() || expired {
                 Some(CaptureAnalysis::Unknown)
@@ -541,26 +565,9 @@ impl CapturedFormation {
         // Deleted sources no longer appear in queued_captures. Finish their
         // durable work without analysis or publication; an interrupted apply
         // still resolves against chain truth so genuine receipts are retained.
-        let deleted = {
-            let _writer = lock::acquire(&self.vault.native.root, Duration::ZERO)?;
-            let state = self
-                .vault
-                .state
-                .lock()
-                .map_err(|_| AutomationFault::Unavailable)?;
-            self.vault.current(&state)?;
-            let keys: BTreeSet<_> = state
-                .capture_queue
-                .iter()
-                .flat_map(|entry| entry.sources.iter().zip(&entry.job_keys))
-                .filter(|(source, _)| state.deleted_sources.contains(&source.source_id))
-                .map(|(_, key)| key)
-                .collect();
-            self.journal.jobs.iter().position(|job| {
-                job.state == FormationJobState::Forming && keys.contains(&job.job_key)
-            })
-        };
-        if let Some(index) = deleted {
+        if let Some(index) = self.journal.jobs.iter().position(|job| {
+            job.state == FormationJobState::Forming && deleted.contains(&job.job_key)
+        }) {
             return match self.journal.jobs[index].work.first() {
                 Some(work) if work.state == WorkState::Applying => {
                     let binding = work.binding.clone().ok_or(AutomationFault::Unavailable)?;

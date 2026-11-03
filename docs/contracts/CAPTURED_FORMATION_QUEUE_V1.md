@@ -78,3 +78,9 @@ applies resolve against the recovered chain first, retaining any actual receipt.
 This also settles older journals left `forming` by source deletion; policy gaps
 without deletion still hold their jobs. No new wire state or journal version is
 introduced. See [deletion validation](../validation/MCP-3-deleted-capture-jobs.md).
+
+If deletion is observed while analysis is pending, the next worker step cancels
+and drops that analysis without another poll, and rejects the job without a
+receipt. No analysis result or statement count is invented; the source has
+become unusable. Later turns remain dispatchable. This never authorizes a
+replacement request, and a late external result is not used.
