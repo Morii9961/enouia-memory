@@ -1,5 +1,15 @@
 # Runtime integration (ADR-MEM-45)
 
+2026-11-03: ADR-MEM-120 adds opt-in native correction-report preparation on the
+initialized Owner carrier. A separate native grant binds a fully Agent-qualified
+current target to independently authorized Runtime user evidence. The Host
+reuses the pinned quote locator and generation gate; the Vault verifies original
+evidence under the current read lock. Drafts publish nothing and give no receipt
+or Owner action. No Runtime change is required for this native-only addition;
+durable intake and a new tool/profile need separate implementation. Aggregate:
+`d74ae1000024e580d04bbacd4824cd996984d9856f4d3770fb1b46c7e6e498a7`.
+See [correction contract](../contracts/AGENT_CORRECTION_NATIVE_V1.md).
+
 2026-11-03: ADR-MEM-119 adds explicit memory-agent-pipe-6 and launcher attach mode
 automation-notes-v1. It pairs existing read identity enrollment with a separate
 note permit on the same leased Vault/Agent, rejects old profiles/claims/peers,

@@ -636,6 +636,13 @@ actual OS peer checks, real disconnect on unknown publication, full MCP Value
 retention in the new stdio path and explicit launcher attach. Old pipe-5 and
 older arguments-only stdio behavior remain unchanged; no real setup is activated.
 
+### ADR-MEM-120 — Native correction-report draft gate
+
+[Decision](120-native-agent-correction-drafts.md): separate native correction
+delegation binds a fully Agent-qualified current target and independently
+authorized captured user quote. Draft preparation publishes nothing and cannot
+perform an Owner edit; durable reports and System revision evaluation follow.
+
 ### ADR-MEM-110 — Native empty Owner bootstrap
 
 [Decision](110-native-empty-owner-bootstrap.md): an explicit trusted native local

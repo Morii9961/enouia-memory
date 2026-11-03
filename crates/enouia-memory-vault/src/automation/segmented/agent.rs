@@ -6,6 +6,43 @@ use std::time::Instant;
 
 pub const INITIALIZED_AGENT_READ_CAPABILITY: &str = "memory-agent-initialized-native-read-1";
 pub use enouia_memory_contract::next::AGENT_NOTE_CAPABILITY;
+pub const AGENT_CORRECTION_CAPABILITY: &str = "memory-agent-correction-native-1";
+
+/// Independent native delegation for reporting a correction, never Owner action.
+pub struct AgentCorrectionPermit {
+    read: SegmentedAgentPermit,
+    hash: Sha256Hex,
+}
+impl AgentCorrectionPermit {
+    pub fn revoke(&self) {
+        self.read.revoke();
+    }
+}
+#[derive(Clone, serde::Serialize, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct AgentCorrectionRequest {
+    pub request_id: RequestId,
+    pub target: TargetRef,
+    pub source: enouia_memory_contract::common::SourceRevisionRef,
+    pub quote_hint: String,
+    pub correction: String,
+}
+/// Untrusted report data, not a saved receipt or permission to revise a memory.
+#[derive(serde::Serialize)]
+pub struct AgentCorrectionDraft {
+    pub schema_version: NextVersion,
+    pub capability: &'static str,
+    pub request_id: RequestId,
+    pub request_hash: Sha256Hex,
+    pub report_key: Sha256Hex,
+    pub principal: ActorRef,
+    pub scope_hash: Sha256Hex,
+    pub snapshot: SnapshotBinding,
+    pub authorized_at: Timestamp,
+    pub target: TargetRef,
+    pub evidence: QuotedEvidence,
+    pub correction: String,
+}
 
 /// Separate native delegation, deliberately not accepted by Agent read APIs.
 pub struct AgentNotePermit {
@@ -231,6 +268,95 @@ pub struct AuthorizedSegmentedAgentRead<'a> {
     pub history: Vec<&'a SegmentedMemory>,
 }
 impl SegmentedAutomationVault {
+    pub fn authorize_agent_correction(
+        &self,
+        owner: &ActorRef,
+        principal: ActorRef,
+        scope: SegmentedAgentScope,
+    ) -> Result<AgentCorrectionPermit> {
+        if !scope.source_read {
+            return Err(AutomationFault::Denied);
+        }
+        let read = self.authorize_initialized_agent_read(owner, principal, scope)?;
+        let hash = digest(&(AGENT_CORRECTION_CAPABILITY, read.scope_hash()));
+        Ok(AgentCorrectionPermit { read, hash })
+    }
+    /// Both target closure and correction source must be currently authorized.
+    /// A quoted user statement remains evidence; the Agent interpretation does
+    /// not inherit its authority. No state is published by this preparation.
+    pub fn prepare_agent_correction(
+        &self,
+        permit: &AgentCorrectionPermit,
+        request: &AgentCorrectionRequest,
+        locate: impl FnOnce(&CapturedSource, &str) -> Option<QuotedEvidence>,
+    ) -> Result<AgentCorrectionDraft> {
+        if request.quote_hint.trim().is_empty()
+            || request.quote_hint.len() > 2000
+            || request.quote_hint.chars().count() > 500
+            || request.correction.trim().is_empty()
+            || request.correction.len() > 8192
+            || request.correction.chars().count() > 2000
+        {
+            return Err(AutomationFault::Denied);
+        }
+        self.read_agent(
+            &permit.read,
+            Some(&request.target.memory.memory_id),
+            |data| {
+                let target = data
+                    .current
+                    .memories
+                    .iter()
+                    .find(|m| m.target.memory.memory_id == request.target.memory.memory_id)
+                    .ok_or(AutomationFault::Denied)?;
+                if target.target != request.target {
+                    return Err(AutomationFault::Stale);
+                }
+                let source = data
+                    .current
+                    .sources
+                    .get(&request.source.source_id)
+                    .ok_or(AutomationFault::Denied)?;
+                if source.reference() != request.source
+                    || source.record.source_kind
+                        != enouia_memory_contract::source::SourceKind::RuntimeEvent
+                    || super::runtime_capture::provenance(source).is_none()
+                    || source.record.speaker_role
+                        != enouia_memory_contract::common::SpeakerRole::User
+                    || source.record.evidence_class
+                        != enouia_memory_contract::common::EvidenceClass::UserStatement
+                    || source.text.len() > 16384
+                {
+                    return Err(AutomationFault::Denied);
+                }
+                let evidence =
+                    locate(source, &request.quote_hint).ok_or(AutomationFault::Denied)?;
+                if !evidence.resolves(std::slice::from_ref(*source)) {
+                    return Err(AutomationFault::Denied);
+                }
+                let authorized_at = permit.read.live(self)?;
+                Ok(AgentCorrectionDraft {
+                    schema_version: NextVersion,
+                    capability: AGENT_CORRECTION_CAPABILITY,
+                    request_id: request.request_id.clone(),
+                    request_hash: digest(request),
+                    report_key: digest(&(
+                        AGENT_CORRECTION_CAPABILITY,
+                        &self.descriptor().vault_id,
+                        permit.read.principal(),
+                        &request.request_id,
+                    )),
+                    principal: permit.read.principal().clone(),
+                    scope_hash: permit.hash.clone(),
+                    snapshot: data.current.snapshot,
+                    authorized_at,
+                    target: request.target.clone(),
+                    evidence,
+                    correction: request.correction.clone(),
+                })
+            },
+        )?
+    }
     /// Metadata-only connection poll; submission owns CURRENT/source checks.
     pub fn check_agent_note_live(&self, permit: &AgentNotePermit) -> Result<()> {
         self.native.available()?;

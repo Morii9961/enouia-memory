@@ -6,8 +6,9 @@ mod formation_worker;
 mod intake;
 mod note_intake;
 pub use agent::{
-    AGENT_NOTE_CAPABILITY, AgentNoteDraft, AgentNotePermit, AgentNoteRequest,
-    AuthorizedSegmentedAgentRead, INITIALIZED_AGENT_READ_CAPABILITY,
+    AGENT_CORRECTION_CAPABILITY, AGENT_NOTE_CAPABILITY, AgentCorrectionDraft,
+    AgentCorrectionPermit, AgentCorrectionRequest, AgentNoteDraft, AgentNotePermit,
+    AgentNoteRequest, AuthorizedSegmentedAgentRead, INITIALIZED_AGENT_READ_CAPABILITY,
     QUALIFIED_AGENT_READ_CAPABILITY, SegmentedAgentPermit, SegmentedAgentScope,
 };
 mod runtime_capture;

@@ -12,7 +12,8 @@ use enouia_memory_contract::{
 use enouia_memory_vault::automation::{
     AutomationFault,
     segmented::{
-        AgentNoteDraft, AgentNotePermit, AgentNoteRequest, AuthorizedSegmentedAgentRead,
+        AgentCorrectionDraft, AgentCorrectionPermit, AgentCorrectionRequest, AgentNoteDraft,
+        AgentNotePermit, AgentNoteRequest, AuthorizedSegmentedAgentRead,
         INITIALIZED_AGENT_READ_CAPABILITY, QUALIFIED_AGENT_READ_CAPABILITY, SegmentedAgentPermit,
         SegmentedAgentScope, SegmentedAutomationVault, SegmentedMemory,
     },
@@ -45,6 +46,34 @@ pub struct AgentNoteWriter<'a> {
     permit: AgentNotePermit,
     generation: Arc<AtomicBool>,
     unknown: Mutex<Option<AgentNoteRequest>>,
+}
+/// Separate correction-report preparation grant. It cannot perform Owner edits.
+pub struct AgentCorrectionReporter<'a> {
+    host: &'a QualifiedAgentHost,
+    permit: AgentCorrectionPermit,
+    generation: Arc<AtomicBool>,
+}
+impl AgentCorrectionReporter<'_> {
+    pub fn revoke(&self) {
+        self.permit.revoke();
+    }
+    pub fn prepare(
+        &self,
+        request: &AgentCorrectionRequest,
+    ) -> ApplicationResult<AgentCorrectionDraft> {
+        let gate = self
+            .host
+            .generation
+            .read()
+            .map_err(|_| ApplicationFault::Locked)?;
+        if gate.is_none() || !self.generation.load(Ordering::SeqCst) {
+            return Err(ApplicationFault::Locked);
+        }
+        Ok(self
+            .host
+            .vault
+            .prepare_agent_correction(&self.permit, request, locate_agent_quote)?)
+    }
 }
 impl AgentNoteWriter<'_> {
     pub(crate) fn shares_vault(&self, reader: &QualifiedAgentReader<'_>) -> bool {
@@ -93,7 +122,7 @@ impl AgentNoteWriter<'_> {
         Ok(self
             .host
             .vault
-            .prepare_agent_note(&self.permit, request, locate_note_quote)?)
+            .prepare_agent_note(&self.permit, request, locate_agent_quote)?)
     }
     pub fn submit(&self, request: &AgentNoteRequest) -> ApplicationResult<AgentNoteReceipt> {
         // Hold packet/lifecycle locks in the same order for every submission.
@@ -112,7 +141,7 @@ impl AgentNoteWriter<'_> {
         let result = self
             .host
             .vault
-            .submit_agent_note(&self.permit, request, locate_note_quote);
+            .submit_agent_note(&self.permit, request, locate_agent_quote);
         if matches!(result, Err(AutomationFault::OutcomeUnknown)) {
             *unknown = Some(request.clone());
             self.permit.revoke();
@@ -127,7 +156,7 @@ impl AgentNoteWriter<'_> {
             .clone())
     }
 }
-fn locate_note_quote(source: &CapturedSource, hint: &str) -> Option<QuotedEvidence> {
+fn locate_agent_quote(source: &CapturedSource, hint: &str) -> Option<QuotedEvidence> {
     let quote = crate::mcp::quote_locator::locate(&source.text, hint).ok()?;
     Some(QuotedEvidence {
         reference: EvidenceRef {
@@ -178,6 +207,29 @@ pub struct QualifiedHistoryCursor {
     pub before_revision: Revision,
 }
 impl QualifiedAgentHost {
+    pub fn correction_reporter(
+        &self,
+        owner: &ActorRef,
+        principal: ActorRef,
+        scope: SegmentedAgentScope,
+    ) -> ApplicationResult<AgentCorrectionReporter<'_>> {
+        if owner != &self.owner || self.capability != INITIALIZED_CAPABILITY {
+            return Err(AutomationFault::Denied.into());
+        }
+        let gate = self
+            .generation
+            .read()
+            .map_err(|_| ApplicationFault::Locked)?;
+        let generation = gate.as_ref().ok_or(ApplicationFault::Locked)?.clone();
+        let permit = self
+            .vault
+            .authorize_agent_correction(owner, principal, scope)?;
+        Ok(AgentCorrectionReporter {
+            host: self,
+            permit,
+            generation,
+        })
+    }
     pub fn note_writer(
         &self,
         owner: &ActorRef,
