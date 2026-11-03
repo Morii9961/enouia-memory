@@ -358,28 +358,114 @@ fn a_moved_head_or_policy_gap_before_apply_reevaluates_without_new_analysis() {
     assert_eq!(worker.status()[0].refused, 0);
 }
 #[test]
-fn deletion_after_analysis_forms_nothing_for_that_source() {
-    let e = owner_env();
-    let (v, p) = rig(&e);
-    let system = &e.descriptor.system_actor;
-    capture_and_enqueue(&v, &e, &p, &turn(1, "c", None, "First turn."));
-    capture_and_enqueue(&v, &e, &p, &turn(2, "c", Some("m1"), "Second turn."));
-    let mut worker = CapturedFormation::open(v.clone(), system).unwrap();
-    let mut analyzer = Scripted::default();
-    assert!(worker.step(&mut analyzer).unwrap());
-    let deleted = v.queued_captures(system).unwrap()[0]
-        .source
-        .source_id
-        .clone();
-    v.delete(&e.descriptor.created_by, vec![deleted], vec![])
-        .unwrap();
-    drain(&mut worker, &mut analyzer);
-    assert_eq!(analyzer.calls, 2);
-    assert_eq!(memories(&v, &e), vec!["Second turn."]);
-    let status = worker.status();
-    assert_eq!(status[0].state, FormationJobState::Forming);
-    assert!(status[0].receipts.is_empty());
-    assert_eq!(status[1].state, FormationJobState::Formed);
+fn deletion_after_analysis_settles_each_work_phase_without_reanalysis() {
+    for steps in 1..=3 {
+        let e = owner_env();
+        let (v, p) = rig(&e);
+        let system = &e.descriptor.system_actor;
+        capture_and_enqueue(&v, &e, &p, &turn(1, "c", None, "First turn."));
+        capture_and_enqueue(&v, &e, &p, &turn(2, "c", Some("m1"), "Second turn."));
+        let mut worker = CapturedFormation::open(v.clone(), system).unwrap();
+        let mut analyzer = Scripted::default();
+        for _ in 0..steps {
+            assert!(worker.step(&mut analyzer).unwrap());
+        }
+        let deleted = v.queued_captures(system).unwrap()[0]
+            .source
+            .source_id
+            .clone();
+        v.delete(&e.descriptor.created_by, vec![deleted], vec![])
+            .unwrap();
+        drain(&mut worker, &mut analyzer);
+        assert_eq!(analyzer.calls, 2);
+        assert_eq!(memories(&v, &e), vec!["Second turn."]);
+        let status = worker.status();
+        assert_eq!(
+            status[0].state,
+            if steps == 3 {
+                FormationJobState::Formed
+            } else {
+                FormationJobState::Rejected
+            }
+        );
+        assert_eq!(status[0].receipts.len(), usize::from(steps == 3));
+        assert_eq!(status[0].refused, usize::from(steps != 3));
+        assert_eq!(status[1].state, FormationJobState::Formed);
+        drop(worker);
+        drop(v);
+        let v = Arc::new(e.open());
+        let mut worker = CapturedFormation::open(v.clone(), system).unwrap();
+        assert!(!worker.step(&mut analyzer).unwrap());
+        assert_eq!(worker.status(), status);
+        assert_eq!(analyzer.calls, 2);
+    }
+}
+#[test]
+fn deletion_after_unknown_apply_preserves_only_chain_proven_receipts() {
+    for (point, persisted) in [
+        (FaultPoint::StagingWritten, false),
+        (FaultPoint::AfterCurrent, true),
+    ] {
+        let e = owner_env();
+        let faults = Faults::armed();
+        let v = Arc::new(e.create(faults.clone()));
+        let system = &e.descriptor.system_actor;
+        let p = e.policy(1, 1, 8);
+        v.set_policy(&e.descriptor.created_by, p.clone()).unwrap();
+        capture_and_enqueue(&v, &e, &p, &turn(1, "c", None, "First turn."));
+        let deleted = v.queued_captures(system).unwrap()[0]
+            .source
+            .source_id
+            .clone();
+        let mut worker = CapturedFormation::open(v.clone(), system).unwrap();
+        let mut analyzer = Scripted::default();
+        assert!(worker.step(&mut analyzer).unwrap());
+        assert!(worker.step(&mut analyzer).unwrap());
+        faults.arm(point, 1, FaultAction::Fail(112));
+        assert!(matches!(
+            worker.step(&mut analyzer),
+            Err(AutomationFault::OutcomeUnknown)
+        ));
+        drop(worker);
+        drop(v);
+        let v = Arc::new(
+            SegmentedAutomationVault::recover(
+                &e.root,
+                e.descriptor.host_id.clone(),
+                system,
+                e.clock.clone(),
+                Arc::new(OsIdSource),
+                Faults::none(),
+            )
+            .unwrap(),
+        );
+        v.delete(&e.descriptor.created_by, vec![deleted], vec![])
+            .unwrap();
+        let after_delete = v.snapshot().unwrap();
+        let mut worker = CapturedFormation::open(v.clone(), system).unwrap();
+        drain(&mut worker, &mut analyzer);
+        assert_eq!(analyzer.calls, 1);
+        assert!(memories(&v, &e).is_empty());
+        assert_eq!(v.snapshot().unwrap(), after_delete);
+        let status = worker.status();
+        assert_eq!(
+            status[0].state,
+            if persisted {
+                FormationJobState::Formed
+            } else {
+                FormationJobState::Rejected
+            }
+        );
+        assert_eq!(status[0].receipts.len(), usize::from(persisted));
+        assert_eq!(status[0].refused, usize::from(!persisted));
+        drop(worker);
+        drop(v);
+        let v = Arc::new(e.open());
+        let mut worker = CapturedFormation::open(v, system).unwrap();
+        assert!(!worker.step(&mut analyzer).unwrap());
+        assert_eq!(worker.status(), status);
+        assert_eq!(analyzer.calls, 1);
+    }
 }
 #[test]
 fn revoked_work_waits_without_analysis_and_resumes_when_the_policy_returns() {

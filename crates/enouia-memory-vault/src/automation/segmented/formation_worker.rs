@@ -538,6 +538,39 @@ impl CapturedFormation {
         if stop.is_cancelled() {
             return Ok(false);
         }
+        // Deleted sources no longer appear in queued_captures. Finish their
+        // durable work without analysis or publication; an interrupted apply
+        // still resolves against chain truth so genuine receipts are retained.
+        let deleted = {
+            let _writer = lock::acquire(&self.vault.native.root, Duration::ZERO)?;
+            let state = self
+                .vault
+                .state
+                .lock()
+                .map_err(|_| AutomationFault::Unavailable)?;
+            self.vault.current(&state)?;
+            let keys: BTreeSet<_> = state
+                .capture_queue
+                .iter()
+                .flat_map(|entry| entry.sources.iter().zip(&entry.job_keys))
+                .filter(|(source, _)| state.deleted_sources.contains(&source.source_id))
+                .map(|(_, key)| key)
+                .collect();
+            self.journal.jobs.iter().position(|job| {
+                job.state == FormationJobState::Forming && keys.contains(&job.job_key)
+            })
+        };
+        if let Some(index) = deleted {
+            return match self.journal.jobs[index].work.first() {
+                Some(work) if work.state == WorkState::Applying => {
+                    let binding = work.binding.clone().ok_or(AutomationFault::Unavailable)?;
+                    let receipt = self.vault.admitted_receipt(&self.system, &binding)?;
+                    self.settle_work(index, receipt)
+                }
+                Some(_) => self.settle_work(index, None),
+                None => self.form(index),
+            };
+        }
         let jobs = self.vault.queued_captures(&self.system)?;
         let next = jobs.into_iter().find_map(|job| {
             let known = self

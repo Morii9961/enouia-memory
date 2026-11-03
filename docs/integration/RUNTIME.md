@@ -1,5 +1,14 @@
 # Runtime integration (ADR-MEM-45)
 
+2026-11-03: captured formation now settles durable work after its source is
+deleted, instead of leaving it permanently `forming`. Unpublished statements
+are refused; an interrupted apply retains only chain-proven receipts. Adopt
+the new pin for this worker correction. Journal v1, pipe-2 states and Workspace
+IPC58 are unchanged. Policy gaps still pause work, and genuine past receipts do
+not imply that deleted content remains readable. Aggregate:
+`825d6854edbdc0bb567364ba55d263291683185acd1c76b8ebdd527534938c05`.
+See [deletion validation](../validation/MCP-3-deleted-capture-jobs.md).
+
 2026-10-28: MCP adoption checkpoint integrates published Owner dependency
 34709b9d2abcb60188c0e3488b15f40c33d6ee16 and its ADR100/101 prerequisites,
 preserving original author/history and both sides' contract validation.

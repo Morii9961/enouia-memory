@@ -70,3 +70,11 @@ and [CAPTURED_WORKER_HOST_V2](CAPTURED_WORKER_HOST_V2.md). Synchronous analyzers
 must update explicitly; no blocking compatibility adapter exists. step can return
 false for pending work, so schedulers use has_pending before starting backfill.
 Journal v1 and the Runtime pipe contracts remain unchanged.
+
+Deleted sources are never dispatched again. If analysis already produced durable
+work, each step refuses one remaining unpublished statement and eventually settles
+the job as `rejected`, or `formed` if a genuine receipt already exists. Interrupted
+applies resolve against the recovered chain first, retaining any actual receipt.
+This also settles older journals left `forming` by source deletion; policy gaps
+without deletion still hold their jobs. No new wire state or journal version is
+introduced. See [deletion validation](../validation/MCP-3-deleted-capture-jobs.md).
