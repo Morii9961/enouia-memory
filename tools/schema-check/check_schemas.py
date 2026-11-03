@@ -438,6 +438,21 @@ def main():
     if not valid("next/catalog-v2.schema.json", note_segment):
         failures.append("valid Agent note segment rejected")
     counts["agent_note_cases"] = 1 + len(note_cases["record_cases"]) + len(note_cases["receipt_cases"])
+
+    correction_cases = load(ROOT / "tests/fixtures/agent-correction/cases.json")
+    for field, group in (("record", "record_cases"), ("receipt", "receipt_cases")):
+        for case in correction_cases[group]:
+            value = copy.deepcopy(correction_cases[field])
+            apply_ops(value, case["ops"])
+            if valid("next/agent-correction-v1.schema.json", value) != case["schema"]:
+                failures.append(f"Agent correction {case['name']}: disagreement")
+    correction_segment = load(catalog_dir / "capture.json")
+    correction_segment["delta"] = {"change": "agent_correction", "report": correction_cases["record"]}
+    if not valid("next/catalog-v2.schema.json", correction_segment):
+        failures.append("valid Agent correction segment rejected")
+    counts["agent_correction_cases"] = (
+        1 + len(correction_cases["record_cases"]) + len(correction_cases["receipt_cases"])
+    )
     note_wire = load(ROOT / "tests/fixtures/agent-note/mcp-cases.json")
     for field, group in (("request", "request_cases"), ("response", "response_cases")):
         for case in note_wire[group]:

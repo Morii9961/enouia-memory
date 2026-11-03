@@ -1,6 +1,7 @@
 //! Explicit ADR-MEM-94 synthetic root. No implicit opening, migration or routes.
 mod agent;
 mod catalog;
+mod correction_intake;
 mod formation_queue;
 mod formation_worker;
 mod intake;

@@ -2,30 +2,19 @@
 #[path = "support/agent_note_fixture.rs"]
 mod fixture;
 use enouia_memory_contract::{common::*, hash::sha256, ids::*, json::Revision, next::*};
-use enouia_memory_host::automation::qualified_agent::QualifiedAgentHost;
-use enouia_memory_vault::{automation::segmented::*, fault::Faults};
+use enouia_memory_host::automation::{
+    application::ApplicationFault, qualified_agent::QualifiedAgentHost,
+};
+use enouia_memory_vault::{
+    OsIdSource,
+    automation::{AutomationFault, segmented::*},
+    fault::{FaultAction, FaultPoint, Faults},
+};
 use fixture::*;
 use std::sync::Arc;
 
-fn correction_rig(
-    speaker: SpeakerRole,
-) -> (
-    Env,
-    Arc<SegmentedAutomationVault>,
-    AutomationPolicy,
-    AgentCorrectionRequest,
-) {
-    let (e, v, p, note) = rig("前缀「ＡＢＣ　纠正原话」后缀", speaker, Faults::none());
-    let source = e.source(8, Sensitivity::Public);
-    v.capture(
-        &e.descriptor.system_actor,
-        vec![source.clone()],
-        RecordCatalog::default(),
-    )
-    .unwrap();
-    let input = v
-        .prepare(&e.descriptor.system_actor, e.input(&source, &p, 8))
-        .unwrap();
+fn publish(e: &Env, v: &SegmentedAutomationVault, input: AdmissionInput) {
+    let input = v.prepare(&e.descriptor.system_actor, input).unwrap();
     let response =
         serde_json::to_string(&v.evaluate(&e.descriptor.system_actor, &input).unwrap()).unwrap();
     let binding = GenerationBinding {
@@ -40,6 +29,79 @@ fn correction_rig(
         vec![binding],
     )
     .unwrap();
+}
+
+/// A lawful System update of the target from another policy source, standing
+/// in for a later consumer. Returns the new current target.
+fn revise(
+    e: &Env,
+    v: &SegmentedAutomationVault,
+    p: &AutomationPolicy,
+    request: &AgentCorrectionRequest,
+) -> TargetRef {
+    let n = (1..8)
+        .find(|n| SourceId::parse(&id("src", *n)).unwrap() != request.source.source_id)
+        .unwrap();
+    let source = e.source(n, Sensitivity::Public);
+    v.capture(
+        &e.descriptor.system_actor,
+        vec![source.clone()],
+        RecordCatalog::default(),
+    )
+    .unwrap();
+    let mut input = e.input(&source, p, n);
+    input.target = Some(request.target.clone());
+    input.dimensions.as_mut().unwrap().change = FormationChange::Update;
+    publish(e, v, input);
+    let current = v
+        .read(&e.descriptor.system_actor, Sensitivity::Private, |d| {
+            d.memories
+                .iter()
+                .find(|m| m.target.memory.memory_id == request.target.memory.memory_id)
+                .unwrap()
+                .target
+                .clone()
+        })
+        .unwrap();
+    assert_ne!(current, request.target);
+    current
+}
+
+fn fault(result: Result<AgentCorrectionReceipt, ApplicationFault>) -> AutomationFault {
+    match result {
+        Err(ApplicationFault::Vault(f)) => f,
+        other => panic!("unexpected {:?}", other.map(|r| r.state)),
+    }
+}
+
+fn correction_rig(
+    speaker: SpeakerRole,
+) -> (
+    Env,
+    Arc<SegmentedAutomationVault>,
+    AutomationPolicy,
+    AgentCorrectionRequest,
+) {
+    correction_rig_with(speaker, Faults::none())
+}
+fn correction_rig_with(
+    speaker: SpeakerRole,
+    faults: Faults,
+) -> (
+    Env,
+    Arc<SegmentedAutomationVault>,
+    AutomationPolicy,
+    AgentCorrectionRequest,
+) {
+    let (e, v, p, note) = rig("前缀「ＡＢＣ　纠正原话」后缀", speaker, faults);
+    let source = e.source(8, Sensitivity::Public);
+    v.capture(
+        &e.descriptor.system_actor,
+        vec![source.clone()],
+        RecordCatalog::default(),
+    )
+    .unwrap();
+    publish(&e, &v, e.input(&source, &p, 8));
     let target = v
         .read(&e.descriptor.system_actor, Sensitivity::Private, |d| {
             d.memories[0].target.clone()
@@ -260,4 +322,275 @@ fn correction_delegation_requires_owner_setup_and_live_generation_policy_source_
             "invalidation {invalidation}"
         );
     }
+}
+
+#[test]
+fn saved_report_replays_its_original_receipt_after_a_system_revision_without_correcting() {
+    let (e, v, p, request) = correction_rig(SpeakerRole::User);
+    let owner = &e.descriptor.created_by;
+    let principal = actor(ActorType::Agent, 88);
+    let host =
+        QualifiedAgentHost::from_authenticated_initialized_owner(v.clone(), owner.clone()).unwrap();
+    let reporter = host
+        .correction_reporter(owner, principal.clone(), scope(&p))
+        .unwrap();
+    let draft = reporter.prepare(&request).unwrap();
+    let before = v.snapshot().unwrap();
+    let receipt = reporter.submit(&request).unwrap();
+    assert_eq!(receipt.state, AgentCorrectionState::ReportSaved);
+    assert_eq!(receipt.report_key, draft.report_key);
+    assert_eq!(receipt.request_hash, draft.request_hash);
+    assert_eq!(receipt.target, request.target);
+    let saved = v.snapshot().unwrap();
+    assert_ne!(saved, before);
+    assert_eq!(reporter.submit(&request).unwrap(), receipt);
+    assert_eq!(v.snapshot().unwrap(), saved);
+    // Saving is not correcting: no memory revision, Owner action or queue entry.
+    v.read(&e.descriptor.system_actor, Sensitivity::Private, |d| {
+        assert_eq!(d.memories.len(), 1);
+        assert_eq!(d.memories[0].target, request.target);
+        assert!(d.owner_actions.is_empty());
+    })
+    .unwrap();
+    assert!(
+        v.queued_captures(&e.descriptor.system_actor)
+            .unwrap()
+            .is_empty()
+    );
+    let mut changed = request.clone();
+    changed.correction.push('!');
+    assert!(matches!(
+        fault(reporter.submit(&changed)),
+        AutomationFault::Conflict
+    ));
+    assert_eq!(v.snapshot().unwrap(), saved);
+
+    let current = revise(&e, &v, &p, &request);
+    let revised = v.snapshot().unwrap();
+    // New work needs the current target; the saved key still finds its receipt.
+    assert!(matches!(
+        reporter.prepare(&request),
+        Err(ApplicationFault::Vault(AutomationFault::Stale))
+    ));
+    assert_eq!(reporter.submit(&request).unwrap(), receipt);
+    assert!(matches!(
+        fault(reporter.submit(&changed)),
+        AutomationFault::Conflict
+    ));
+    let mut fresh = request.clone();
+    fresh.request_id = RequestId::parse(&id("req", 300)).unwrap();
+    assert!(matches!(
+        fault(reporter.submit(&fresh)),
+        AutomationFault::Stale
+    ));
+    let mut unknown = request.clone();
+    unknown.target.memory.revision = Revision::new(9).unwrap();
+    assert!(matches!(
+        fault(reporter.submit(&unknown)),
+        AutomationFault::Stale
+    ));
+    assert_eq!(v.snapshot().unwrap(), revised);
+    fresh.target = current.clone();
+    let second = reporter.submit(&fresh).unwrap();
+    assert_eq!(second.target, current);
+    assert_ne!(second.report_key, receipt.report_key);
+    let after = v.snapshot().unwrap();
+
+    // Chain replay restores both receipts on a fresh instance and delegation.
+    drop(reporter);
+    drop(host);
+    drop(v);
+    let v = Arc::new(e.open());
+    let host =
+        QualifiedAgentHost::from_authenticated_initialized_owner(v.clone(), owner.clone()).unwrap();
+    let reporter = host
+        .correction_reporter(owner, principal, scope(&p))
+        .unwrap();
+    assert_eq!(reporter.submit(&request).unwrap(), receipt);
+    assert_eq!(reporter.submit(&fresh).unwrap(), second);
+    assert_eq!(v.snapshot().unwrap(), after);
+    // A different Agent sending the identical packet has a different key.
+    let other = host
+        .correction_reporter(owner, actor(ActorType::Agent, 89), scope(&p))
+        .unwrap();
+    assert!(matches!(
+        fault(other.submit(&request)),
+        AutomationFault::Stale
+    ));
+}
+
+#[test]
+fn deletion_revocation_and_scope_precede_original_receipt_replay() {
+    for invalidation in 0..7 {
+        let (e, v, p, request) = correction_rig(SpeakerRole::User);
+        let owner = &e.descriptor.created_by;
+        let host =
+            QualifiedAgentHost::from_authenticated_initialized_owner(v.clone(), owner.clone())
+                .unwrap();
+        let agent = actor(ActorType::Agent, 88);
+        let reporter = host
+            .correction_reporter(owner, agent.clone(), scope(&p))
+            .unwrap();
+        reporter.submit(&request).unwrap();
+        revise(&e, &v, &p, &request);
+        assert!(reporter.submit(&request).is_ok());
+        let mut narrow = scope(&p);
+        narrow
+            .source_ids
+            .retain(|id| id != &request.source.source_id);
+        let narrowed = host.correction_reporter(owner, agent, narrow).unwrap();
+        let mut caller = &reporter;
+        match invalidation {
+            0 => reporter.revoke(),
+            1 => {
+                host.lock().unwrap();
+                host.unlock(owner).unwrap();
+            }
+            2 => e.clock.set(NOW + 120_001),
+            3 => {
+                v.delete(owner, vec![request.source.source_id.clone()], vec![])
+                    .unwrap();
+            }
+            4 => {
+                v.delete(owner, vec![], vec![request.target.memory.memory_id.clone()])
+                    .unwrap();
+            }
+            // A fresh grant that excludes the evidence source cannot replay.
+            5 => caller = &narrowed,
+            _ => {
+                let mut replacement = p.clone();
+                replacement.revision = Revision::new(2).unwrap();
+                v.set_policy(owner, replacement).unwrap();
+            }
+        }
+        let after = v.snapshot().unwrap();
+        assert!(
+            caller.submit(&request).is_err(),
+            "invalidation {invalidation}"
+        );
+        assert_eq!(v.snapshot().unwrap(), after);
+    }
+}
+
+#[test]
+fn report_capacity_is_per_target_and_saved_receipts_still_replay() {
+    let (e, v, p, mut request) = correction_rig(SpeakerRole::User);
+    let owner = &e.descriptor.created_by;
+    let host =
+        QualifiedAgentHost::from_authenticated_initialized_owner(v.clone(), owner.clone()).unwrap();
+    let reporter = host
+        .correction_reporter(owner, actor(ActorType::Agent, 88), scope(&p))
+        .unwrap();
+    let original = request.clone();
+    let first = reporter.submit(&original).unwrap();
+    for n in 1..MAX_AGENT_CORRECTIONS_PER_TARGET {
+        request.request_id = RequestId::parse(&id("req", 100 + n as u32)).unwrap();
+        reporter.submit(&request).unwrap();
+    }
+    let full = v.snapshot().unwrap();
+    request.request_id = RequestId::parse(&id("req", 999)).unwrap();
+    assert!(matches!(
+        fault(reporter.submit(&request)),
+        AutomationFault::Capacity
+    ));
+    assert_eq!(reporter.submit(&original).unwrap(), first);
+    assert_eq!(v.snapshot().unwrap(), full);
+}
+
+#[test]
+fn uncertain_report_publication_latches_the_original_request_and_recovers_one_receipt() {
+    for (point, persisted) in [
+        (FaultPoint::StagingWritten, false),
+        (FaultPoint::AfterCurrent, true),
+    ] {
+        let faults = Faults::armed();
+        let (e, v, p, request) = correction_rig_with(SpeakerRole::User, faults.clone());
+        let owner = &e.descriptor.created_by;
+        let principal = actor(ActorType::Agent, 88);
+        let host =
+            QualifiedAgentHost::from_authenticated_initialized_owner(v.clone(), owner.clone())
+                .unwrap();
+        let reporter = host
+            .correction_reporter(owner, principal.clone(), scope(&p))
+            .unwrap();
+        faults.arm(point, 1, FaultAction::Fail(121));
+        assert!(matches!(
+            fault(reporter.submit(&request)),
+            AutomationFault::OutcomeUnknown
+        ));
+        assert_eq!(
+            digest(reporter.original_unknown().unwrap().as_ref().unwrap()),
+            digest(&request)
+        );
+        let mut changed = request.clone();
+        changed.correction.push('!');
+        assert!(matches!(
+            fault(reporter.submit(&changed)),
+            AutomationFault::OutcomeUnknown
+        ));
+        assert_eq!(
+            digest(reporter.original_unknown().unwrap().as_ref().unwrap()),
+            digest(&request)
+        );
+        drop(reporter);
+        drop(host);
+        drop(v);
+        let v = Arc::new(
+            SegmentedAutomationVault::recover(
+                &e.root,
+                e.descriptor.host_id.clone(),
+                &e.descriptor.system_actor,
+                e.clock.clone(),
+                Arc::new(OsIdSource),
+                Faults::none(),
+            )
+            .unwrap(),
+        );
+        if persisted {
+            // A System revision between recovery and explicit replay must not
+            // hide the report that was published before the uncertainty.
+            revise(&e, &v, &p, &request);
+        }
+        let recovered = v.snapshot().unwrap();
+        let host =
+            QualifiedAgentHost::from_authenticated_initialized_owner(v.clone(), owner.clone())
+                .unwrap();
+        let reporter = host
+            .correction_reporter(owner, principal, scope(&p))
+            .unwrap();
+        let receipt = reporter.submit(&request).unwrap();
+        let after = v.snapshot().unwrap();
+        assert_eq!(after == recovered, persisted);
+        assert_eq!(receipt.target, request.target);
+        assert_eq!(reporter.submit(&request).unwrap(), receipt);
+        assert_eq!(v.snapshot().unwrap(), after);
+        assert!(reporter.original_unknown().unwrap().is_none());
+    }
+}
+
+#[test]
+fn concurrent_report_replay_returns_one_receipt_and_one_commit() {
+    let (e, v, p, request) = correction_rig(SpeakerRole::User);
+    let owner = &e.descriptor.created_by;
+    let host =
+        QualifiedAgentHost::from_authenticated_initialized_owner(v.clone(), owner.clone()).unwrap();
+    let reporter = host
+        .correction_reporter(owner, actor(ActorType::Agent, 88), scope(&p))
+        .unwrap();
+    let before = v.snapshot().unwrap();
+    let barrier = std::sync::Barrier::new(2);
+    let (a, b) = std::thread::scope(|scope| {
+        let thread = scope.spawn(|| {
+            barrier.wait();
+            reporter.submit(&request).unwrap()
+        });
+        barrier.wait();
+        let b = reporter.submit(&request).unwrap();
+        (thread.join().unwrap(), b)
+    });
+    assert_eq!(a, b);
+    let after = v.snapshot().unwrap();
+    assert_ne!(after, before);
+    assert_eq!(reporter.submit(&request).unwrap(), a);
+    assert_eq!(v.snapshot().unwrap(), after);
 }

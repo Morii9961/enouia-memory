@@ -643,6 +643,13 @@ delegation binds a fully Agent-qualified current target and independently
 authorized captured user quote. Draft preparation publishes nothing and cannot
 perform an Owner edit; durable reports and System revision evaluation follow.
 
+### ADR-MEM-121 — Durable Agent correction reports
+
+[Decision](121-durable-agent-correction-reports.md): save correction reports
+through the existing witnessed Owner chain with `report_saved` original-key
+receipts. Authorization precedes replay; a saved key replays from the target's
+currently authorized history after a System revision. Nothing is corrected yet.
+
 ### ADR-MEM-110 — Native empty Owner bootstrap
 
 [Decision](110-native-empty-owner-bootstrap.md): an explicit trusted native local

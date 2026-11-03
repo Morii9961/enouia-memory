@@ -105,6 +105,9 @@ pub enum SegmentedDelta {
     AgentNote {
         note: Box<AgentNoteRecord>,
     },
+    AgentCorrection {
+        report: Box<AgentCorrectionRecord>,
+    },
 }
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub enum SegmentedKind {
@@ -227,6 +230,7 @@ impl NextDocument for SegmentedCommit {
             }
             SegmentedDelta::Enqueue { entry } => entry.valid(&self.vault_id),
             SegmentedDelta::AgentNote { note } => note.valid(&self.vault_id),
+            SegmentedDelta::AgentCorrection { report } => report.valid(&self.vault_id),
         };
         if !valid {
             out.push(Violation::new("segmented.delta", "/delta"));

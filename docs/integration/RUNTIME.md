@@ -1,5 +1,16 @@
 # Runtime integration (ADR-MEM-45)
 
+2026-11-03: ADR-MEM-121 adds the closed `agent_correction` delta and native
+AgentCorrectionReporter::submit on initialized Owner roots. Success is only
+`report_saved`; nothing is corrected, queued or shown to the Owner. A saved
+key replays its original receipt from the target's authorized history after a
+System revision; deletion, revocation and policy change refuse first. Unknown
+publication latches the original request. Older binaries cannot open roots that
+contain the delta; read handshakes hashing catalog-v2 get a new fingerprint.
+No Runtime change is required now; no MCP tool/profile is added. Aggregate:
+`773d2c95415bb7dfbcb8977d8df442c1c25ffc649c195055df7a118f2c6d96a4`.
+See [correction intake](../contracts/AGENT_CORRECTION_INTAKE_V1.md).
+
 2026-11-03: ADR-MEM-120 adds opt-in native correction-report preparation on the
 initialized Owner carrier. A separate native grant binds a fully Agent-qualified
 current target to independently authorized Runtime user evidence. The Host

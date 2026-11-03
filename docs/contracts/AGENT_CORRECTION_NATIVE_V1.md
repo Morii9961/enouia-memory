@@ -40,7 +40,7 @@ sources/targets refuse. Existing note/read permits cannot satisfy this API.
 Drafts contain untrusted Agent interpretation alongside actual user evidence;
 they are not Owner confirmation, saved-report receipts or corrected memories.
 This API writes no state, schedules no work and advertises no MCP tool. Durable
-intake must take the original request, reauthorize at publication and preserve
-original packet/key uncertainty. It must also define receipt replay after a
-System revision changes the current target. Forget-hide remains a separate
+intake, including receipt replay after a System revision changes the current
+target, is [intake v1](AGENT_CORRECTION_INTAKE_V1.md); preparation still maps
+a non-current target to Stale. Forget-hide remains a separate
 owner decision under MCP_AGENT_READ_V2, with no hide effect in this slice.

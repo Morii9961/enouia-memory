@@ -329,6 +329,22 @@
                   "$ref": "agent-note-v1.schema.json#/$defs/record"
                 }
               }
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "change",
+                "report"
+              ],
+              "properties": {
+                "change": {
+                  "const": "agent_correction"
+                },
+                "report": {
+                  "$ref": "agent-correction-v1.schema.json#/$defs/record"
+                }
+              }
             }
           ]
         },

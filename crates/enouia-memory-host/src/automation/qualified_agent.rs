@@ -47,11 +47,12 @@ pub struct AgentNoteWriter<'a> {
     generation: Arc<AtomicBool>,
     unknown: Mutex<Option<AgentNoteRequest>>,
 }
-/// Separate correction-report preparation grant. It cannot perform Owner edits.
+/// Separate correction-report grant. It saves reports; it cannot perform Owner edits.
 pub struct AgentCorrectionReporter<'a> {
     host: &'a QualifiedAgentHost,
     permit: AgentCorrectionPermit,
     generation: Arc<AtomicBool>,
+    unknown: Mutex<Option<AgentCorrectionRequest>>,
 }
 impl AgentCorrectionReporter<'_> {
     pub fn revoke(&self) {
@@ -73,6 +74,41 @@ impl AgentCorrectionReporter<'_> {
             .host
             .vault
             .prepare_agent_correction(&self.permit, request, locate_agent_quote)?)
+    }
+    /// `report_saved` only; never a corrected memory or Owner confirmation.
+    pub fn submit(
+        &self,
+        request: &AgentCorrectionRequest,
+    ) -> ApplicationResult<AgentCorrectionReceipt> {
+        // Same packet/lifecycle lock order as note submission.
+        let mut unknown = self.unknown.lock().map_err(|_| ApplicationFault::Locked)?;
+        if unknown.is_some() {
+            return Err(AutomationFault::OutcomeUnknown.into());
+        }
+        let gate = self
+            .host
+            .generation
+            .read()
+            .map_err(|_| ApplicationFault::Locked)?;
+        if gate.is_none() || !self.generation.load(Ordering::SeqCst) {
+            return Err(ApplicationFault::Locked);
+        }
+        let result =
+            self.host
+                .vault
+                .submit_agent_correction(&self.permit, request, locate_agent_quote);
+        if matches!(result, Err(AutomationFault::OutcomeUnknown)) {
+            *unknown = Some(request.clone());
+            self.permit.revoke();
+        }
+        result.map_err(Into::into)
+    }
+    pub fn original_unknown(&self) -> ApplicationResult<Option<AgentCorrectionRequest>> {
+        Ok(self
+            .unknown
+            .lock()
+            .map_err(|_| ApplicationFault::Locked)?
+            .clone())
     }
 }
 impl AgentNoteWriter<'_> {
@@ -228,6 +264,7 @@ impl QualifiedAgentHost {
             host: self,
             permit,
             generation,
+            unknown: Mutex::new(None),
         })
     }
     pub fn note_writer(
