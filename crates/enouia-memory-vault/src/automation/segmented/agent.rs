@@ -13,6 +13,9 @@ pub struct AgentNotePermit {
     hash: Sha256Hex,
 }
 impl AgentNotePermit {
+    pub fn principal(&self) -> &ActorRef {
+        self.read.principal()
+    }
     pub fn revoke(&self) {
         self.read.revoke();
     }
@@ -228,6 +231,20 @@ pub struct AuthorizedSegmentedAgentRead<'a> {
     pub history: Vec<&'a SegmentedMemory>,
 }
 impl SegmentedAutomationVault {
+    /// Metadata-only connection poll; submission owns CURRENT/source checks.
+    pub fn check_agent_note_live(&self, permit: &AgentNotePermit) -> Result<()> {
+        self.native.available()?;
+        permit.live(self)?;
+        let state = self
+            .state
+            .lock()
+            .map_err(|_| AutomationFault::Unavailable)?;
+        if !permit.read.policies_current(&state) {
+            permit.revoke();
+            return Err(AutomationFault::Denied);
+        }
+        Ok(())
+    }
     /// Explicit trusted native Owner delegation; existing read permits do not
     /// authorize note submission, and this preparation route writes nothing.
     pub fn authorize_agent_note(

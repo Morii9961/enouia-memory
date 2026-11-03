@@ -622,6 +622,13 @@ bounded exact-source/current-policy hints on first dispatch, with selected keys
 durable before handoff. Late hints do not re-dispatch or alter pending analysis;
 source evidence and all existing cancellation/unknown rules remain authoritative.
 
+### ADR-MEM-118 — Explicit MCP Agent-note server
+
+[Decision](118-agent-note-mcp-server.md): a new six-tool server pairs live read
+and independent note grants on the same native Vault instance. Note success
+means hint_saved; unknown publication closes without a tool result and retains
+the full MCP Value. Old pipe-5 stays read-only; pipe-6 transport follows separately.
+
 ### ADR-MEM-110 — Native empty Owner bootstrap
 
 [Decision](110-native-empty-owner-bootstrap.md): an explicit trusted native local

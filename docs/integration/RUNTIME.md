@@ -1,5 +1,17 @@
 # Runtime integration (ADR-MEM-45)
 
+2026-11-03: ADR-MEM-118 adds an opt-in protocol server combining five initialized
+reads and memory_note. Native construction requires an independent note permit,
+matching Agent and the same leased Vault instance; old pipe-5 remains five reads.
+Known note success returns only hint_saved. Unknown publication closes without
+a tool result and retains the complete MCP Value for a transport to disconnect.
+New note connection polling checks native generation, unknown latch and current
+note-policy references without the filesystem writer lock. Pipe-6/stdio are a
+later transport slice; Runtime has no adoption requirement for this server-only
+addition. Aggregate:
+`aa0c2a128dcef56fbbe3ac9c4ddc224a38233cfd5f021eee5610b36013434818`.
+See [note MCP contract](../contracts/AGENT_NOTE_MCP_V1.md).
+
 2026-11-03: ADR-MEM-117 adopts captured analysis native v3. CaptureAnalyzer::start
 now explicitly receives notes: &[AgentNoteRecord] before its stop token; native
 adapters must update at compile time. First dispatch selects at most eight exact

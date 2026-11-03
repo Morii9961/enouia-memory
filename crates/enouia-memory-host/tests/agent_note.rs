@@ -1,6 +1,8 @@
 #![cfg(windows)]
 #[path = "../../enouia-memory-vault/tests/support/segmented_fixture.rs"]
 mod fixture;
+#[path = "../../enouia-memory-contract/tests/support/mod.rs"]
+mod schema_support;
 use enouia_memory_contract::{common::*, ids::*, json::Revision, next::*, time::Timestamp};
 use enouia_memory_host::automation::qualified_agent::QualifiedAgentHost;
 use enouia_memory_vault::{
@@ -9,7 +11,17 @@ use enouia_memory_vault::{
     fault::{FaultAction, FaultPoint, Faults},
 };
 use fixture::*;
+use serde_json::json;
 use std::sync::Arc;
+
+fn initialize_notes(server: &mut enouia_memory_host::mcp::notes::Server<'_, '_>) {
+    assert!(server.handle(&json!({"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"synthetic-client","version":"1"}}})).unwrap().get("result").is_some());
+    assert!(
+        server
+            .handle(&json!({"jsonrpc":"2.0","method":"notifications/initialized"}))
+            .is_none()
+    );
+}
 
 fn actor(role: ActorType, n: u32) -> ActorRef {
     ActorRef {
@@ -167,6 +179,7 @@ fn note_delegation_is_explicit_and_lock_revoke_policy_expiry_and_instance_bound(
             .note_writer(owner, principal.clone(), scope(&p))
             .unwrap();
         assert!(writer.prepare(&request).is_ok());
+        assert!(writer.check_connection().is_ok());
         match invalidation {
             0 => writer.revoke(),
             1 => {
@@ -197,6 +210,8 @@ fn note_delegation_is_explicit_and_lock_revoke_policy_expiry_and_instance_bound(
             }
         }
         assert!(writer.prepare(&request).is_err());
+        // A deleted source refuses per call; other delegated sources stay live.
+        assert_eq!(writer.check_connection().is_err(), invalidation != 4);
     }
 }
 
@@ -465,4 +480,170 @@ fn concurrent_native_hint_replay_returns_one_receipt_and_one_commit() {
     assert_ne!(after, before);
     assert_eq!(writer.submit(&request).unwrap(), a);
     assert_eq!(v.snapshot().unwrap(), after);
+}
+
+#[test]
+fn explicit_note_server_advertises_six_tools_and_returns_only_saved_hint_receipts() {
+    use enouia_memory_host::mcp::{initialized, notes};
+    let (e, v, p, request) = rig("A synthetic preference.", SpeakerRole::User, Faults::none());
+    let host = QualifiedAgentHost::from_authenticated_initialized_owner(
+        v.clone(),
+        e.descriptor.created_by.clone(),
+    )
+    .unwrap();
+    let principal = actor(ActorType::Agent, 88);
+    let reader = host
+        .reader(&e.descriptor.created_by, principal.clone(), scope(&p))
+        .unwrap();
+    let writer = host
+        .note_writer(&e.descriptor.created_by, principal.clone(), scope(&p))
+        .unwrap();
+    let other = host
+        .note_writer(
+            &e.descriptor.created_by,
+            actor(ActorType::Agent, 89),
+            scope(&p),
+        )
+        .unwrap();
+    let profile: AttentionProfile =
+        serde_json::from_value(value("attention/profile.json")).unwrap();
+    assert!(notes::Server::new(&reader, &other, &profile).is_none());
+    let (foreign_e, foreign_v, foreign_p, _) =
+        rig("A foreign source.", SpeakerRole::User, Faults::none());
+    let foreign_host = QualifiedAgentHost::from_authenticated_initialized_owner(
+        foreign_v,
+        foreign_e.descriptor.created_by.clone(),
+    )
+    .unwrap();
+    let foreign = foreign_host
+        .note_writer(
+            &foreign_e.descriptor.created_by,
+            principal,
+            scope(&foreign_p),
+        )
+        .unwrap();
+    assert_eq!(foreign.vault_id(), reader.vault_id()); // Same synthetic logical ID, different lease.
+    assert!(notes::Server::new(&reader, &foreign, &profile).is_none());
+    let mut server = notes::Server::new(&reader, &writer, &profile).unwrap();
+    initialize_notes(&mut server);
+    let listed = server
+        .handle(&json!({"jsonrpc":"2.0","id":2,"method":"tools/list"}))
+        .unwrap();
+    let tools = listed["result"]["tools"].as_array().unwrap();
+    assert_eq!(tools.len(), 6);
+    assert_eq!(tools[5]["name"], "memory_note");
+    assert_eq!(tools[5]["annotations"]["readOnlyHint"], false);
+    assert!(!tools[5]["inputSchema"].to_string().contains("../"));
+    assert!(!tools[5]["outputSchema"].to_string().contains("../"));
+    let read_packet =
+        schema_support::fixture("../agent-initialized-read/manifest.json")["valid"][0].clone();
+    let read = server.handle(&json!({"jsonrpc":"2.0","id":"read-before-note","method":"tools/call","params":{"name":"memory_search","arguments":read_packet}})).unwrap();
+    assert_eq!(
+        read["result"]["structuredContent"]["capability"],
+        "memory-agent-initialized-read-1"
+    );
+    assert!(read["result"]["structuredContent"]["error"].is_null());
+    let mut call = json!({"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"memory_note","arguments":{"schema_version":2,"kind":"agent_note_request","capability":notes::CAPABILITY,"request":request}}});
+    let before = v.snapshot().unwrap();
+    for n in 0..5 {
+        let mut bad = call.clone();
+        bad["id"] = json!(20 + n);
+        match n {
+            0 => bad["params"]["arguments"]["owner"] = json!(true),
+            1 => bad["params"]["arguments"]["schema_version"] = json!(1),
+            2 => {
+                bad["params"]["arguments"]["capability"] = json!("memory-agent-initialized-read-1")
+            }
+            3 => {
+                bad["params"]["arguments"]["request"]["principal"] = json!(e.descriptor.created_by)
+            }
+            _ => bad["params"]["arguments"]["request"]["source"]["source_revision"] = json!(0),
+        }
+        assert!(server.handle(&bad).unwrap().get("error").is_some());
+    }
+    assert_eq!(v.snapshot().unwrap(), before);
+    let mut refused = call.clone();
+    refused["id"] = json!("known-refusal");
+    refused["params"]["arguments"]["request"]["quote_hint"] = json!("No such quote.");
+    let refusal = server.handle(&refused).unwrap();
+    let refusal_data = &refusal["result"]["structuredContent"];
+    assert_eq!(refusal_data["error"]["code"], "permission_denied");
+    assert!(refusal_data["receipt"].is_null());
+    assert!(!server.closed());
+    assert!(
+        schema_support::schema::SchemaStore::load()
+            .validate("next/agent-note-mcp-v1.schema.json", refusal_data)
+            .is_empty()
+    );
+    let response = server.handle(&call).unwrap();
+    let data = &response["result"]["structuredContent"];
+    assert_eq!(data["receipt"]["state"], "hint_saved");
+    assert!(data["error"].is_null());
+    assert!(
+        schema_support::schema::SchemaStore::load()
+            .validate("next/agent-note-mcp-v1.schema.json", data)
+            .is_empty()
+    );
+    assert!(data.get("scope_hash").is_none() && data.get("principal").is_none());
+    assert!(data.get("source").is_none() && data.get("memory_id").is_none());
+    let saved = v.snapshot().unwrap();
+    assert_ne!(saved, before);
+    call["id"] = json!(4);
+    assert_eq!(
+        server.handle(&call).unwrap()["result"]["structuredContent"],
+        *data
+    );
+    assert_eq!(v.snapshot().unwrap(), saved);
+    assert!(server.handle(&call).unwrap().get("error").is_some()); // Duplicate MCP ID never writes.
+    let mut old = initialized::Server::new(&reader, &profile).unwrap();
+    old.handle(&json!({"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"old-client","version":"1"}}}));
+    old.handle(&json!({"jsonrpc":"2.0","method":"notifications/initialized"}));
+    assert_eq!(
+        old.handle(&json!({"jsonrpc":"2.0","id":2,"method":"tools/list"}))
+            .unwrap()["result"]["tools"]
+            .as_array()
+            .unwrap()
+            .len(),
+        5
+    );
+    assert!(old.handle(&call).unwrap().get("error").is_some());
+    assert_eq!(v.snapshot().unwrap(), saved);
+}
+
+#[test]
+fn note_server_unknown_returns_no_tool_result_and_keeps_the_entire_original_mcp_value() {
+    use enouia_memory_host::mcp::notes;
+    for point in [FaultPoint::StagingWritten, FaultPoint::AfterCurrent] {
+        let faults = Faults::armed();
+        let (e, v, p, request) = rig("A synthetic preference.", SpeakerRole::User, faults.clone());
+        let host = QualifiedAgentHost::from_authenticated_initialized_owner(
+            v,
+            e.descriptor.created_by.clone(),
+        )
+        .unwrap();
+        let principal = actor(ActorType::Agent, 88);
+        let reader = host
+            .reader(&e.descriptor.created_by, principal.clone(), scope(&p))
+            .unwrap();
+        let writer = host
+            .note_writer(&e.descriptor.created_by, principal, scope(&p))
+            .unwrap();
+        let profile: AttentionProfile =
+            serde_json::from_value(value("attention/profile.json")).unwrap();
+        let mut server = notes::Server::new(&reader, &writer, &profile).unwrap();
+        initialize_notes(&mut server);
+        let message = json!({"jsonrpc":"2.0","id":"original-note","method":"tools/call","params":{"name":"memory_note","arguments":{"schema_version":2,"kind":"agent_note_request","capability":notes::CAPABILITY,"request":request}}});
+        faults.arm(point, 1, FaultAction::Fail(118));
+        assert!(server.handle(&message).is_none());
+        assert!(server.outcome_unknown() && server.closed());
+        assert_eq!(server.original_unknown(), Some(&message));
+        let mut changed = message.clone();
+        changed["id"] = json!("replacement");
+        assert!(server.handle(&changed).is_none());
+        assert_eq!(server.original_unknown(), Some(&message));
+        assert_eq!(
+            digest(writer.original_unknown().unwrap().as_ref().unwrap()),
+            digest(&request)
+        );
+    }
 }

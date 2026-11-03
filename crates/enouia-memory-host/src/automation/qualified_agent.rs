@@ -47,6 +47,37 @@ pub struct AgentNoteWriter<'a> {
     unknown: Mutex<Option<AgentNoteRequest>>,
 }
 impl AgentNoteWriter<'_> {
+    pub(crate) fn shares_vault(&self, reader: &QualifiedAgentReader<'_>) -> bool {
+        Arc::ptr_eq(&self.host.vault, &reader.host.vault)
+    }
+    pub fn principal(&self) -> &ActorRef {
+        self.permit.principal()
+    }
+    pub fn vault_id(&self) -> &VaultId {
+        &self.host.vault.descriptor().vault_id
+    }
+    pub fn check_connection(&self) -> ApplicationResult<()> {
+        if self
+            .unknown
+            .lock()
+            .map_err(|_| ApplicationFault::Locked)?
+            .is_some()
+        {
+            return Err(AutomationFault::OutcomeUnknown.into());
+        }
+        let gate = self
+            .host
+            .generation
+            .read()
+            .map_err(|_| ApplicationFault::Locked)?;
+        if gate.is_none() || !self.generation.load(Ordering::SeqCst) {
+            return Err(ApplicationFault::Locked);
+        }
+        self.host
+            .vault
+            .check_agent_note_live(&self.permit)
+            .map_err(Into::into)
+    }
     pub fn revoke(&self) {
         self.permit.revoke();
     }

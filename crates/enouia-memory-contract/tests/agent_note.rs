@@ -32,3 +32,23 @@ fn agent_hint_records_and_receipts_are_closed_and_keep_native_key_constraints() 
         }
     }
 }
+
+#[test]
+fn explicit_note_mcp_packets_cannot_grant_identity_or_claim_formation_or_unknown_success() {
+    let corpus = support::fixture("../agent-note/mcp-cases.json");
+    let schemas = support::schema::SchemaStore::load();
+    for (field, group) in [("request", "request_cases"), ("response", "response_cases")] {
+        for case in corpus[group].as_array().unwrap() {
+            let mut value = corpus[field].clone();
+            support::apply_ops(&mut value, &case["ops"]);
+            assert_eq!(
+                schemas
+                    .validate("next/agent-note-mcp-v1.schema.json", &value)
+                    .is_empty(),
+                case["accept"].as_bool().unwrap(),
+                "{}",
+                case["name"]
+            );
+        }
+    }
+}
