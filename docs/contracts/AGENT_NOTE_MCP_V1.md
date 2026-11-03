@@ -27,3 +27,6 @@ original_unknown() retains the complete original MCP Value. The transport must
 actually disconnect before writing any Reply, preserving client uncertainty and
 the original packet. No automatic resend/reconnect, replacement key or mandatory
 human review queue is permitted. This slice does not yet supply pipe-6 or stdio.
+
+The explicit [pipe-6 transport](AGENT_NOTE_PIPE_V1.md) supplies that next slice;
+it disconnects on unknown before Reply and preserves the full Value in stdio.

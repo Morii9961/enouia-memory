@@ -1,5 +1,16 @@
 # Runtime integration (ADR-MEM-45)
 
+2026-11-03: ADR-MEM-119 adds explicit memory-agent-pipe-6 and launcher attach mode
+automation-notes-v1. It pairs existing read identity enrollment with a separate
+note permit on the same leased Vault/Agent, rejects old profiles/claims/peers,
+and disconnects before Reply on unknown publication. The new stdio path exposes
+the complete original MCP Value; older bridges retain their output format.
+Actual synthetic Agent process, launcher, recovery and note-to-System-formation
+checks exercise this route. No Runtime/client configuration or private root is
+adopted. Aggregate:
+`1ad8b056b153d4ca6960a65f0108bae7190423621317ec6d82b1091dae6af37c`.
+See [note pipe contract](../contracts/AGENT_NOTE_PIPE_V1.md).
+
 2026-11-03: ADR-MEM-118 adds an opt-in protocol server combining five initialized
 reads and memory_note. Native construction requires an independent note permit,
 matching Agent and the same leased Vault instance; old pipe-5 remains five reads.

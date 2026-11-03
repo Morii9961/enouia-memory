@@ -629,6 +629,13 @@ and independent note grants on the same native Vault instance. Note success
 means hint_saved; unknown publication closes without a tool result and retains
 the full MCP Value. Old pipe-5 stays read-only; pipe-6 transport follows separately.
 
+### ADR-MEM-119 — Agent note local transport
+
+[Decision](119-agent-note-local-transport.md): explicit paired-grant pipe-6,
+actual OS peer checks, real disconnect on unknown publication, full MCP Value
+retention in the new stdio path and explicit launcher attach. Old pipe-5 and
+older arguments-only stdio behavior remain unchanged; no real setup is activated.
+
 ### ADR-MEM-110 — Native empty Owner bootstrap
 
 [Decision](110-native-empty-owner-bootstrap.md): an explicit trusted native local

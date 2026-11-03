@@ -13,6 +13,8 @@ use enouia_memory_vault::automation::{AutomationFault, segmented::AgentNoteReque
 use serde::Deserialize;
 use serde_json::{Value, json};
 use std::collections::BTreeMap;
+#[cfg(windows)]
+pub mod native;
 
 pub const CAPABILITY: &str = "memory-agent-note-1";
 const DOCUMENT: &str = include_str!("../../../../../contracts/next/agent-note-mcp-v1.schema.json");
