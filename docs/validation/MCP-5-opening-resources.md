@@ -68,3 +68,22 @@ repository/pin/Activity, real client configuration or Owner acceptance was used.
 No forget-hide, manual status snapshot, deployment, migration or main merge.
 No promise of automatic Agent prompt use, real recall quality or product adoption.
 The draft depends on unmerged MCP-4 PR #84; merge requires Morii's separate order.
+
+## Follow-up: connection isolation, source authority and budget acceptance
+
+Implementation c34a428 is pushed as draft
+[PR #85](https://github.com/Morii9961/enouia-memory/pull/85), based on PR #84's
+branch. This follow-up changes tests/documentation only. It adds same-Agent
+different-reader cache isolation, empty source metadata without SourceRead,
+successful real MemoryRead-only pipe, and rejection of ContextRead as an alias
+for this profile's native enrollment. A seven-memory synthetic set proves the
+four-item bound, a one-item attention ceiling, and an empty/incomplete result
+when the rendered budget is one byte. All leave snapshot, capture jobs and
+Owner actions unchanged; budget exclusion creates no mandatory work queue.
+
+opening_mcp **7 passed**, opening_pipe **6 passed**, **13 total / 0 failed**;
+target/mcp5-opening-acceptance-tests.log. The two added tests and strengthened
+existing cases are additional scoped evidence, not a repeated full baseline.
+No production source/schema/validator changes: earlier schema, integration and
+regression evidence remains applicable. Scoped Clippy and fmt/whitespace checks
+passed. The follow-up public-content scan is checked before push.

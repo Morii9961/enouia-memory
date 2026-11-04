@@ -159,6 +159,13 @@ fn opening_returns_actual_bounded_native_recall_and_only_that_reader_current_tra
             scope(&p),
         )
         .unwrap();
+    let same_agent_other_connection = host
+        .reader(
+            &e.descriptor.created_by,
+            actor(ActorType::Agent, 88),
+            scope(&p),
+        )
+        .unwrap();
     let profile = profile();
     let mut server = opening::Server::new(&reader, &profile).unwrap();
     initialize(&mut server);
@@ -186,6 +193,12 @@ fn opening_returns_actual_bounded_native_recall_and_only_that_reader_current_tra
     assert!(data["data"]["rendered_context"].as_str().unwrap().len() <= 16384);
     assert_eq!(reader.context_trace(&req).unwrap().unwrap(), data["data"]);
     assert!(other.context_trace(&req).unwrap().is_none());
+    assert!(
+        same_agent_other_connection
+            .context_trace(&req)
+            .unwrap()
+            .is_none()
+    );
     let actual = content(&call(
         &mut server,
         3,
@@ -206,6 +219,7 @@ fn opening_returns_actual_bounded_native_recall_and_only_that_reader_current_tra
         "resource_not_found"
     );
     let next_uri = format!("enouia-memory://recall/{}", next.as_str());
+    assert_eq!(v.snapshot().unwrap(), before);
     revise(&e, &v, &p, &request);
     assert_eq!(
         call(&mut server, 6, "resources/read", json!({"uri":next_uri}))["error"]["message"],
@@ -255,6 +269,8 @@ fn memory_resources_use_current_native_detail_and_never_resolve_external_paths()
     let errors = schemas.validate("next/mcp-opening-v1.schema.json", &resource);
     assert!(errors.is_empty(), "{errors:?}");
     assert!(!resource.to_string().contains("前缀"));
+    assert_eq!(resource["data"]["source_read"], false);
+    assert_eq!(resource["data"]["sources"], json!([]));
     for (n, uri) in [
         "file:///synthetic/secret",
         "https://example.invalid/",
@@ -430,4 +446,72 @@ fn opening_static_and_scoped_reads_stop_after_policy_expiry_lock_or_deletion() {
             assert_eq!(response["error"]["message"], "resource_not_found");
         }
     }
+}
+
+#[test]
+fn opening_narrows_item_and_rendered_byte_budgets_without_jobs_or_owner_queue() {
+    let (e, v, p, _) = correction_rig(SpeakerRole::User);
+    for n in 2..8 {
+        let source = e.source(n, Sensitivity::Public);
+        v.capture(
+            &e.descriptor.system_actor,
+            vec![source.clone()],
+            RecordCatalog::default(),
+        )
+        .unwrap();
+        publish(&e, &v, e.input(&source, &p, n));
+    }
+    let host = QualifiedAgentHost::from_authenticated_initialized_owner(
+        v.clone(),
+        e.descriptor.created_by.clone(),
+    )
+    .unwrap();
+    let before = v.snapshot().unwrap();
+    for (n, max_items, max_bytes, expected) in [(0, 32, 65536, 4), (1, 1, 65536, 1), (2, 32, 1, 0)]
+    {
+        let reader = host
+            .reader(
+                &e.descriptor.created_by,
+                actor(ActorType::Agent, 88),
+                scope(&p),
+            )
+            .unwrap();
+        let mut profile = profile();
+        profile.max_items = max_items;
+        profile.max_bytes = max_bytes;
+        let mut server = opening::Server::new(&reader, &profile).unwrap();
+        initialize(&mut server);
+        let response = call(
+            &mut server,
+            2,
+            "prompts/get",
+            json!({"name":"memory_start","arguments":{"request_id":id("req",100+n),"at":Timestamp::from_unix_ms(NOW).unwrap()}}),
+        );
+        let text = response["result"]["messages"][0]["content"]["text"]
+            .as_str()
+            .unwrap();
+        let data: Value = serde_json::from_str(text.split_once('\n').unwrap().1).unwrap();
+        assert_eq!(
+            data["data"]["items"].as_array().unwrap().len(),
+            expected,
+            "{response}"
+        );
+        assert!(
+            data["data"]["rendered_context"].as_str().unwrap().len()
+                <= max_bytes.min(16384) as usize
+        );
+        if max_bytes == 1 {
+            assert_eq!(data["data"]["complete_in_scope"], false);
+        }
+        assert_eq!(v.snapshot().unwrap(), before);
+    }
+    assert!(
+        v.queued_captures(&e.descriptor.system_actor)
+            .unwrap()
+            .is_empty()
+    );
+    v.read(&e.descriptor.system_actor, Sensitivity::Private, |data| {
+        assert!(data.owner_actions.is_empty())
+    })
+    .unwrap();
 }

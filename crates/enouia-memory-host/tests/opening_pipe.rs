@@ -361,6 +361,11 @@ fn real_opening_pipe_refuses_other_profiles_claims_write_scopes_and_wrong_proces
             vec![Scope::MemoryRead, Scope::SourceRead, Scope::MemoryPropose],
             false,
         ),
+        (
+            "opening",
+            vec![Scope::MemoryRead, Scope::SourceRead, Scope::ContextRead],
+            false,
+        ),
         ("opening", vec![Scope::MemoryRead, Scope::SourceRead], true),
     ] {
         let (e, v, p, _) = correction_rig(SpeakerRole::User);
@@ -520,6 +525,56 @@ fn explicit_context_launcher_attaches_without_root_or_client_configuration() {
             replies[1]["result"]["contents"][0]["uri"],
             opening::GUIDE_URI
         );
+        let _ = server.join().unwrap();
+    });
+    assert_eq!(v.snapshot().unwrap(), before);
+}
+
+#[test]
+fn real_opening_memory_read_does_not_require_or_infer_source_read() {
+    let (e, v, p, request) = correction_rig(SpeakerRole::User);
+    let host = QualifiedAgentHost::from_authenticated_initialized_owner(
+        v.clone(),
+        e.descriptor.created_by.clone(),
+    )
+    .unwrap();
+    let principal = actor(ActorType::Agent, 88);
+    let mut grant = scope(&p);
+    grant.source_read = false;
+    let reader = host
+        .reader(&e.descriptor.created_by, principal.clone(), grant)
+        .unwrap();
+    let profile: AttentionProfile =
+        serde_json::from_value(value("attention/profile.json")).unwrap();
+    let before = v.snapshot().unwrap();
+    let token = sha256(&OsIdSource.random_16());
+    let mut pipe = Pipe::listen(&token).unwrap();
+    let mut agent = Agent::spawn();
+    let enrollment =
+        Enrollment::enroll(agent.child.id(), principal, vec![Scope::MemoryRead]).unwrap();
+    std::thread::scope(|scope| {
+        let server = scope.spawn(|| {
+            pipe.accept(TIMEOUT).unwrap();
+            opening::native::serve_connection(&reader, &profile, &mut pipe, enrollment, TIMEOUT)
+        });
+        agent.connect(&token, &e.descriptor.vault_id, "opening");
+        assert_eq!(agent.event()["connected"], true);
+        agent.initialize();
+        let uri = format!(
+            "enouia-memory://memory/{}",
+            request.target.memory.memory_id.as_str()
+        );
+        let response = agent
+            .rpc(json!({"jsonrpc":"2.0","id":2,"method":"resources/read","params":{"uri":uri}}));
+        let data: Value = serde_json::from_str(
+            response["response"]["result"]["contents"][0]["text"]
+                .as_str()
+                .unwrap(),
+        )
+        .unwrap();
+        assert_eq!(data["data"]["source_read"], false);
+        assert_eq!(data["data"]["sources"], json!([]));
+        agent.finish();
         let _ = server.join().unwrap();
     });
     assert_eq!(v.snapshot().unwrap(), before);

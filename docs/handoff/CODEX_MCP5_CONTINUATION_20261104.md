@@ -5,6 +5,13 @@ codex/mcp5-opening-resources 从已推送 MCP-4 收束提交 4aa1605 新建；�
 [PR #84](https://github.com/Morii9961/enouia-memory/pull/84)，未合并 main。
 原 main 仍为 PR #83 的 2a6310e（包含 f42f3b1）；旧 worktree 和 AGENTS 保留。
 
+实现 c34a428 已提交推送，草稿
+[PR #85](https://github.com/Morii9961/enouia-memory/pull/85) 以 PR #84 分支为 base，
+没有合并。61 个 Host 定向/回归、最终 11 个本片测试、1 个合同测试、73 schemas、
+scoped Clippy/fmt/surface/公开内容检查通过。后续纯验收加强：13 个本片测试通过，
+证明同一 Agent 不同 reader 的缓存隔离、MemoryRead-only 管道、SourceRead 不推导、
+ContextRead 不充当授权别名，以及四项上限/更窄 profile/一字节预算不产生主人队列。
+
 本片 ADR126 / MCP_OPENING_RESOURCES_V1 先冻结，再实现只读开场提示与资源。
 新 pipe-10/profile 使用同一个 initialized QualifiedAgentReader，沿用五个读取工具，
 新增 memory_start prompt、静态指南、当前 memory detail 和同连接实际 recall 资源。
