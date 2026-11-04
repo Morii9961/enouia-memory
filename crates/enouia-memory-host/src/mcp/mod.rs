@@ -2,6 +2,7 @@
 //! Opt-in native enrollment lives in `native`; no owner bridge or automatic retry.
 pub mod catalog;
 pub mod corrections;
+pub mod forget_requests;
 pub mod initialized;
 pub(crate) mod json;
 #[cfg(windows)]

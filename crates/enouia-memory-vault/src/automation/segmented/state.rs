@@ -34,6 +34,7 @@ pub(super) struct State {
     pub agent_notes: BTreeMap<Sha256Hex, (AgentNoteRecord, AgentNoteReceipt)>,
     pub agent_corrections: BTreeMap<Sha256Hex, (AgentCorrectionRecord, AgentCorrectionReceipt)>,
     pub agent_supersedes: BTreeMap<Sha256Hex, (AgentSupersedeRecord, AgentSupersedeReceipt)>,
+    pub agent_forget_requests: BTreeMap<Sha256Hex, (AgentForgetRecord, AgentForgetReceipt)>,
     pub source_revisions: usize,
     pub memory_revisions: usize,
     pub catalog_revisions: usize,
@@ -597,6 +598,14 @@ impl State {
                     return Err(deny());
                 }
             }
+            SegmentedDelta::AgentForgetRequest { request: report } => {
+                if descriptor.layout != AutomationLayout::SegmentedOwnerV1
+                    || c.actor != descriptor.system_actor
+                    || !self.forget_admissible(report, &c.created_at)
+                {
+                    return Err(deny());
+                }
+            }
         }
         Ok(admitted)
     }
@@ -649,6 +658,22 @@ impl State {
                             target: report.target.clone(),
                             committed_in: c.commit_id.clone(),
                             state: AgentSupersedeState::SupersedeReportSaved,
+                        },
+                    ),
+                );
+            }
+            SegmentedDelta::AgentForgetRequest { request: report } => {
+                self.agent_forget_requests.insert(
+                    report.request_key.clone(),
+                    (
+                        report.as_ref().clone(),
+                        AgentForgetReceipt {
+                            request_key: report.request_key.clone(),
+                            request_id: report.request_id.clone(),
+                            request_hash: report.request_hash.clone(),
+                            target: report.target.clone(),
+                            committed_in: c.commit_id.clone(),
+                            state: AgentForgetState::ForgetRequestSaved,
                         },
                     ),
                 );

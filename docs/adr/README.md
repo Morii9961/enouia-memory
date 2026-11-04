@@ -670,6 +670,12 @@ retaining the complete original MCP Value. Pipe-5/6 are unchanged.
 System update analyzer and pipe-8 for previously true facts that changed.
 Original user quotes remain the only evidence; no correction alias or Owner queue.
 
+### ADR-MEM-125 — Record Agent forget requests without forgetting
+
+[Decision](125-agent-forget-request-recording.md): independently authorized
+request-only storage and pipe-9 return forget_request_saved, with no hiding,
+deletion, Owner action, model dispatch or mandatory review queue.
+
 ### ADR-MEM-110 — Native empty Owner bootstrap
 
 [Decision](110-native-empty-owner-bootstrap.md): an explicit trusted native local

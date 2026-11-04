@@ -1,0 +1,171 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.enouia-memory.invalid/next/agent-forget-mcp-v1.schema.json",
+  "title": "Explicit Agent forget-report MCP packet and forget_request_saved response",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/forget_request"
+    },
+    {
+      "$ref": "#/$defs/forget_response"
+    }
+  ],
+  "$defs": {
+    "forget_request": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "kind",
+        "capability",
+        "request"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": 2
+        },
+        "kind": {
+          "const": "agent_forget_request"
+        },
+        "capability": {
+          "const": "memory-agent-forget-1"
+        },
+        "request": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "request_id",
+            "target",
+            "source",
+            "quote_hint",
+            "forget"
+          ],
+          "properties": {
+            "request_id": {
+              "$ref": "../memory/common-v1.schema.json#/$defs/requestId"
+            },
+            "source": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "source_id",
+                "source_revision"
+              ],
+              "properties": {
+                "source_id": {
+                  "$ref": "../memory/common-v1.schema.json#/$defs/sourceId"
+                },
+                "source_revision": {
+                  "$ref": "../memory/common-v1.schema.json#/$defs/revision"
+                }
+              }
+            },
+            "quote_hint": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 500
+            },
+            "target": {
+              "$ref": "automation-v2.schema.json#/$defs/targetRef"
+            },
+            "forget": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2000
+            }
+          }
+        }
+      }
+    },
+    "forget_response": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "schema_version",
+            "kind",
+            "capability",
+            "request_id",
+            "receipt",
+            "error"
+          ],
+          "properties": {
+            "schema_version": {
+              "const": 2
+            },
+            "kind": {
+              "const": "agent_forget_response"
+            },
+            "capability": {
+              "const": "memory-agent-forget-1"
+            },
+            "request_id": {
+              "$ref": "../memory/common-v1.schema.json#/$defs/requestId"
+            },
+            "receipt": {
+              "$ref": "agent-forget-v1.schema.json#/$defs/receipt"
+            },
+            "error": {
+              "type": "null"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "schema_version",
+            "kind",
+            "capability",
+            "request_id",
+            "receipt",
+            "error"
+          ],
+          "properties": {
+            "schema_version": {
+              "const": 2
+            },
+            "kind": {
+              "const": "agent_forget_response"
+            },
+            "capability": {
+              "const": "memory-agent-forget-1"
+            },
+            "request_id": {
+              "$ref": "../memory/common-v1.schema.json#/$defs/requestId"
+            },
+            "receipt": {
+              "type": "null"
+            },
+            "error": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "code",
+                "retryable"
+              ],
+              "properties": {
+                "code": {
+                  "enum": [
+                    "invalid_request",
+                    "permission_denied",
+                    "conflict",
+                    "stale_scope",
+                    "capacity",
+                    "busy",
+                    "recovery_required",
+                    "unavailable"
+                  ]
+                },
+                "retryable": {
+                  "const": false
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

@@ -2,16 +2,18 @@
 mod agent;
 mod catalog;
 mod correction_intake;
+mod forget_intake;
 mod formation_queue;
 mod formation_worker;
 mod intake;
 mod note_intake;
 mod supersede_intake;
 pub use agent::{
-    AGENT_CORRECTION_CAPABILITY, AGENT_NOTE_CAPABILITY, AGENT_SUPERSEDE_CAPABILITY,
-    AgentCorrectionDraft, AgentCorrectionPermit, AgentCorrectionRequest, AgentNoteDraft,
-    AgentNotePermit, AgentNoteRequest, AgentSupersedeDraft, AgentSupersedePermit,
-    AgentSupersedeRequest, AuthorizedSegmentedAgentRead, INITIALIZED_AGENT_READ_CAPABILITY,
+    AGENT_CORRECTION_CAPABILITY, AGENT_FORGET_CAPABILITY, AGENT_NOTE_CAPABILITY,
+    AGENT_SUPERSEDE_CAPABILITY, AgentCorrectionDraft, AgentCorrectionPermit,
+    AgentCorrectionRequest, AgentForgetPermit, AgentForgetRequest, AgentNoteDraft, AgentNotePermit,
+    AgentNoteRequest, AgentSupersedeDraft, AgentSupersedePermit, AgentSupersedeRequest,
+    AuthorizedSegmentedAgentRead, INITIALIZED_AGENT_READ_CAPABILITY,
     QUALIFIED_AGENT_READ_CAPABILITY, SegmentedAgentPermit, SegmentedAgentScope,
 };
 mod runtime_capture;

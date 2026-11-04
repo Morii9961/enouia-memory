@@ -5,6 +5,8 @@
 mod admission;
 mod agent_correction;
 pub use agent_correction::*;
+mod agent_forget;
+pub use agent_forget::*;
 mod agent_supersede;
 pub use agent_supersede::*;
 mod agent_note;

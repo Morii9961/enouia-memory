@@ -111,6 +111,9 @@ pub enum SegmentedDelta {
     AgentSupersede {
         report: Box<AgentSupersedeRecord>,
     },
+    AgentForgetRequest {
+        request: Box<AgentForgetRecord>,
+    },
 }
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub enum SegmentedKind {
@@ -235,6 +238,7 @@ impl NextDocument for SegmentedCommit {
             SegmentedDelta::AgentNote { note } => note.valid(&self.vault_id),
             SegmentedDelta::AgentCorrection { report } => report.valid(&self.vault_id),
             SegmentedDelta::AgentSupersede { report } => report.valid(&self.vault_id),
+            SegmentedDelta::AgentForgetRequest { request } => request.valid(&self.vault_id),
         };
         if !valid {
             out.push(Violation::new("segmented.delta", "/delta"));

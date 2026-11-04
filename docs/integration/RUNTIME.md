@@ -1,5 +1,20 @@
 # Runtime integration (ADR-MEM-45)
 
+2026-11-04: ADR-MEM-125 adds independent AgentForgetPermit/Requester, the closed
+agent_forget_request delta and explicit MCP pipe-9/automation-forget-requests-v1.
+It records a request against the exact authorized target and Runtime user quote;
+success means forget_request_saved only. No hide/delete/Owner action, recall
+suppression, model dispatch or worker change is supplied. Forget-hide rules still
+need Morii's decision. Pair a reader with the independent requester on the same
+Agent/exact leased Vault. Unknown publication disconnects without Reply, revokes
+both grants and retains the full original MCP Value; explicit original-key
+recovery only. Older binaries must not open roots with the new delta; read
+fingerprints binding catalog-v2 change and require matching revisions. Existing
+pipe-5/6/7/8 meanings remain unchanged. Runtime/client adoption is separate;
+no actual pin, model, private root or MCP configuration is activated.
+Aggregate: `222a23794af63f4a1abd84abcb1ca8038ef47dd746b48220427a3e58028237d1`.
+See [forget-request contract](../contracts/AGENT_FORGET_REQUEST_V1.md).
+
 2026-11-04: ADR-MEM-124 adds independent AgentSupersedeReporter/Permit,
 agent_supersede chain delta, SupersedeAnalyzer, step_supersedes and opt-in
 start_worker_with_reports. Only a user-quote-backed update may reach the existing

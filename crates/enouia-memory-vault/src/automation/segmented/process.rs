@@ -46,7 +46,8 @@ impl PublishedChange {
             SegmentedDelta::Enqueue { .. }
             | SegmentedDelta::AgentNote { .. }
             | SegmentedDelta::AgentCorrection { .. }
-            | SegmentedDelta::AgentSupersede { .. } => false,
+            | SegmentedDelta::AgentSupersede { .. }
+            | SegmentedDelta::AgentForgetRequest { .. } => false,
             _ => true,
         };
         Self {
