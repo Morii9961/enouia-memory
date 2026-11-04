@@ -1,7 +1,7 @@
 //! Closed local schemas; only reachable definitions enter each tool bundle.
 use serde_json::Value;
 use std::collections::BTreeMap;
-pub(super) fn documents() -> BTreeMap<&'static str, &'static str> {
+pub(in crate::mcp) fn documents() -> BTreeMap<&'static str, &'static str> {
     BTreeMap::from([
         (
             "authority-v1.schema.json",

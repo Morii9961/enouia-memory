@@ -1,5 +1,24 @@
 # Runtime integration (ADR-MEM-45)
 
+2026-11-04 MCP-5 synthetic / ADR-MEM-126: opt-in pipe-10 and explicit
+automation-context-v1 attach add memory_start and standard resources/prompts to
+the same initialized QualifiedAgentReader. Existing five tools keep their
+input/output envelopes; no new write or capture authority exists. Static catalogs
+list no memory identities/counts. Memory resources use native current detail
+without source text; recall resources return only that reader's actual last
+current trace, never a recomputation. MCP prompt role=user supplies attributed
+data, never captured UserStatement or Owner consent. Native policy/expiry/lock
+checks apply to every context call. A dedicated context poll keeps pipe-5's
+existing policy-refusal behavior; all read polls now stop when this native Vault
+requires recovery after unknown publication. The new profile retains the first
+full MCP Value for OutcomeUnknown/RecoveryRequired and disconnects without Reply;
+no automatic reconnect or retry. Every exit revokes the reader. Runtime/client
+adoption, real models/egress and root/config selection remain separate decisions.
+No Runtime edit/pin, real data/model or automatic client configuration is supplied.
+Aggregate: `345d086989f4d5326fb40c4ea88a4490365eb5fc278d9ab99f3e4894cf900a28`.
+See [context contract](../contracts/MCP_OPENING_RESOURCES_V1.md) and
+[synthetic validation](../validation/MCP-5-opening-resources.md).
+
 2026-11-04 MCP-4 follow-up: correction/supersede/forget MCP servers now also
 retain the first complete incoming MCP Value when their native writer's live
 gate already reports OutcomeUnknown. They still return no tool result and keep

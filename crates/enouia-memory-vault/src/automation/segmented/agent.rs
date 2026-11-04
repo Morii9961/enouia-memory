@@ -786,6 +786,18 @@ impl SegmentedAutomationVault {
         })
     }
     pub fn check_agent_read_live(&self, permit: &SegmentedAgentPermit) -> Result<()> {
+        self.check_agent_connection(permit, false)
+    }
+    /// Opening catalogs also require the delegated policy revision to be current.
+    pub fn check_agent_context_live(&self, permit: &SegmentedAgentPermit) -> Result<()> {
+        self.check_agent_connection(permit, true)
+    }
+    fn check_agent_connection(
+        &self,
+        permit: &SegmentedAgentPermit,
+        current_policies: bool,
+    ) -> Result<()> {
+        self.native.available()?;
         permit.live(self)?;
         // Connection polling only inspects the already loaded native metadata.
         // Taking the filesystem writer lock here would race legitimate writes
@@ -795,6 +807,10 @@ impl SegmentedAutomationVault {
             .state
             .lock()
             .map_err(|_| AutomationFault::Unavailable)?;
+        if current_policies && !permit.policies_current(&state) {
+            permit.revoke();
+            return Err(AutomationFault::Denied);
+        }
         if let Err(e) = if permit.capability == INITIALIZED_AGENT_READ_CAPABILITY {
             Ok(())
         } else {

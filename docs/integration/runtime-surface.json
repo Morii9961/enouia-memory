@@ -338,6 +338,11 @@
       "sha256": "8eae5c36d9943f183d7256b7646b88d022ac7b0feb097e24ff06cd70909ed24f"
     },
     {
+      "path": "contracts/next/mcp-opening-v1.schema.json",
+      "role": "automation-contract",
+      "sha256": "d9ab0c965f1cd4c86a5ca3c89cf05bcb16655bffe4e099d46757dcabea834039"
+    },
+    {
       "path": "contracts/next/owner-execution-v2.schema.json",
       "role": "automation-contract",
       "sha256": "7ed2a153d7289878d8c2e0fe42d6269df637835c6e5cf1c2f7ffe263be25bbb2"
@@ -680,7 +685,7 @@
     {
       "path": "crates/enouia-memory-host/src/automation/qualified_agent.rs",
       "role": "host-session",
-      "sha256": "825747c46f88306f8eba579878a826fbd6e38b4486ccf099a97469c4db76ad2b"
+      "sha256": "b2c15aee66e34d2cd793ed2d3548fdb047ebacf8efec1063d1194d6a72e079c3"
     },
     {
       "path": "crates/enouia-memory-host/src/automation/read_model.rs",
@@ -715,7 +720,7 @@
     {
       "path": "crates/enouia-memory-host/src/bin/enouia-memory-mcp.rs",
       "role": "host-session",
-      "sha256": "810393a10c40805f0a9c1eece9cb52df548475fac3c7eea73f0f19abd9598d79"
+      "sha256": "449fd776c75396c6e0be02c622dc9fcb019d9c590961d778fe10ad40f1631d32"
     },
     {
       "path": "crates/enouia-memory-host/src/bin/enouia-memory-owner-bootstrap.rs",
@@ -795,7 +800,7 @@
     {
       "path": "crates/enouia-memory-host/src/mcp/initialized/mod.rs",
       "role": "host-session",
-      "sha256": "9030e08c6bf1094e63b2cf9af44ba3937966b150ae80be8dd853b6c0b16ae972"
+      "sha256": "0ad79b4693fa4ce44c6dfea4f701cad250c926290fc4310d957560ae4fc7402f"
     },
     {
       "path": "crates/enouia-memory-host/src/mcp/initialized/native.rs",
@@ -805,7 +810,7 @@
     {
       "path": "crates/enouia-memory-host/src/mcp/initialized/schemas.rs",
       "role": "host-session",
-      "sha256": "215b5021dac790e6ac61806e60518304a3df905273b1ca61ddcec6aa2f33b370"
+      "sha256": "3908d72ddde2294b924b1719fba753847720ec478b3f21589b3689677d04df32"
     },
     {
       "path": "crates/enouia-memory-host/src/mcp/json.rs",
@@ -815,7 +820,7 @@
     {
       "path": "crates/enouia-memory-host/src/mcp/mod.rs",
       "role": "host-session",
-      "sha256": "b27a9c97c2fb2eae926953bcf2bd9b2db81179c887c5b1965088b0e852242128"
+      "sha256": "2b86347e9abf488428bf249c1cce179be0779a97a7e7669d3103a215c20520cd"
     },
     {
       "path": "crates/enouia-memory-host/src/mcp/native.rs",
@@ -831,6 +836,16 @@
       "path": "crates/enouia-memory-host/src/mcp/notes/native.rs",
       "role": "host-session",
       "sha256": "0d8250a7b3cc8c34959e549bdfc549c9a99de1fbfb639e9865e7966f651ac399"
+    },
+    {
+      "path": "crates/enouia-memory-host/src/mcp/opening/mod.rs",
+      "role": "host-session",
+      "sha256": "f12c20c8e520b0a645eff4688321ad0d429eaf80b292aa420f9ce669fdd63b75"
+    },
+    {
+      "path": "crates/enouia-memory-host/src/mcp/opening/native.rs",
+      "role": "host-session",
+      "sha256": "881070acc3548487db07b954c4661cb6f98c4237bd1da7219bf5b0b1dae8d200"
     },
     {
       "path": "crates/enouia-memory-host/src/mcp/propose.rs",
@@ -870,7 +885,7 @@
     {
       "path": "crates/enouia-memory-host/src/mcp/read_session.rs",
       "role": "host-session",
-      "sha256": "cfc5f786b7534b59625b5ad1b989dbcdb046e50d54b60d1441e17f9fe3fcbcf4"
+      "sha256": "282d08a78883aa00d74dcade95148945117fbf24363ef11eacde00e70af6d4d8"
     },
     {
       "path": "crates/enouia-memory-host/src/mcp/supersedes/mod.rs",
@@ -1055,7 +1070,7 @@
     {
       "path": "crates/enouia-memory-vault/src/automation/segmented/agent.rs",
       "role": "automatic-memory-storage",
-      "sha256": "9804d34cb61836c64d6c2c928c748e8564f7abd7401379dcd958346481f9c9ce"
+      "sha256": "92abc58b276b45bd731c3144bc749c301097dda515b84ee49c7b86e0786f8f65"
     },
     {
       "path": "crates/enouia-memory-vault/src/automation/segmented/catalog.rs",
@@ -1268,5 +1283,5 @@
       "sha256": "3603c1855d9f9ec9b3585143a0191508980b260b1ffd26c82b3e6f9b7223a75d"
     }
   ],
-  "aggregate": "f7ea9ce2b4351deb743e4772474590fc1d736e768b62494b6ba25cb5385a94fb"
+  "aggregate": "345d086989f4d5326fb40c4ea88a4490365eb5fc278d9ab99f3e4894cf900a28"
 }

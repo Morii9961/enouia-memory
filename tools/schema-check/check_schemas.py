@@ -517,6 +517,12 @@ def main():
                 failures.append(f"Agent forget MCP {case['name']}: disagreement")
     counts["agent_forget_mcp_cases"] = len(forget_wire["request_cases"]) + len(forget_wire["response_cases"])
 
+    opening_cases = load(ROOT / "tests/fixtures/mcp-opening/cases.json")
+    for case in opening_cases["cases"]:
+        if valid("next/mcp-opening-v1.schema.json", case["value"]) != case["accept"]:
+            failures.append(f"MCP opening {case['name']}: disagreement")
+    counts["mcp_opening_cases"] = len(opening_cases["cases"])
+
     wire_cases = load(ROOT / "tests/fixtures/runtime-capture/wire-cases.json")
     for case in wire_cases["cases"]:
         value = {"mode": "write", "request": copy.deepcopy(capture_cases["base"])}

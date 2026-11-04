@@ -1,5 +1,5 @@
 //! Explicit initialized-carrier MCP reads; no System forwarding or writer.
-mod schemas;
+pub(in crate::mcp) mod schemas;
 pub use schemas::schema;
 #[cfg(windows)]
 pub mod native;

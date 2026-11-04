@@ -640,7 +640,10 @@ impl QualifiedAgentReader<'_> {
     pub fn source_read(&self) -> bool {
         self.permit.source_read()
     }
-    fn gate(&self) -> ApplicationResult<RwLockReadGuard<'_, Option<Arc<AtomicBool>>>> {
+    fn gate(
+        &self,
+        current_policies: bool,
+    ) -> ApplicationResult<RwLockReadGuard<'_, Option<Arc<AtomicBool>>>> {
         let gate = self
             .host
             .generation
@@ -652,7 +655,11 @@ impl QualifiedAgentReader<'_> {
         {
             return Err(ApplicationFault::Locked);
         }
-        self.host.vault.check_agent_read_live(&self.permit)?;
+        if current_policies {
+            self.host.vault.check_agent_context_live(&self.permit)?;
+        } else {
+            self.host.vault.check_agent_read_live(&self.permit)?;
+        }
         Ok(gate)
     }
     fn read<T>(
@@ -660,13 +667,17 @@ impl QualifiedAgentReader<'_> {
         selected: Option<&MemoryId>,
         f: impl FnOnce(AuthorizedSegmentedAgentRead<'_>) -> ApplicationResult<T>,
     ) -> ApplicationResult<T> {
-        let _gate = self.gate()?;
+        let _gate = self.gate(false)?;
         let result = self.host.vault.read_agent(&self.permit, selected, f)??;
         self.host.vault.check_agent_read_live(&self.permit)?;
         Ok(result)
     }
     pub(crate) fn check_connection(&self) -> ApplicationResult<()> {
-        let _gate = self.gate()?;
+        let _gate = self.gate(false)?;
+        Ok(())
+    }
+    pub(crate) fn check_context_connection(&self) -> ApplicationResult<()> {
+        let _gate = self.gate(true)?;
         Ok(())
     }
     pub fn page(
