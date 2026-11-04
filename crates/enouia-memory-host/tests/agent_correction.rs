@@ -1,7 +1,13 @@
 #![cfg(windows)]
 #[path = "support/agent_note_fixture.rs"]
 mod fixture;
-use enouia_memory_contract::{common::*, hash::sha256, ids::*, json::Revision, next::*};
+use enouia_memory_contract::{
+    common::*,
+    hash::{Sha256Hex, sha256},
+    ids::*,
+    json::Revision,
+    next::*,
+};
 use enouia_memory_host::automation::{
     application::ApplicationFault, qualified_agent::QualifiedAgentHost,
 };
@@ -593,4 +599,289 @@ fn concurrent_report_replay_returns_one_receipt_and_one_commit() {
     assert_ne!(after, before);
     assert_eq!(reporter.submit(&request).unwrap(), a);
     assert_eq!(v.snapshot().unwrap(), after);
+}
+
+/// Scripted System correction analysis. No model, network or embedding.
+#[derive(Default)]
+struct Corrections {
+    calls: usize,
+    seen: Vec<(Sha256Hex, TargetRef, String)>,
+    next: Vec<Result<Option<CaptureAnalysis>, CaptureAnalysis>>,
+}
+struct Later(Option<CaptureAnalysis>);
+impl PendingCaptureAnalysis for Later {
+    fn poll(&mut self, _: &CaptureStopToken) -> Option<CaptureAnalysis> {
+        self.0.take()
+    }
+}
+fn correcting(target: &CorrectionTarget, quote: &str) -> CaptureStatement {
+    let mut dimensions = target.dimensions.clone();
+    dimensions.change = FormationChange::Correction;
+    CaptureStatement {
+        quote: quote.into(),
+        title: "ＡＢＣ".into(),
+        interpretation: Interpretation::ClearSelfReport,
+        dimensions,
+        event_time: target_time(),
+        valid_time: target_time(),
+        note: Some("Scripted synthetic correction analysis.".into()),
+        prompt_version: "scripted-correction-1".into(),
+        model_version: None,
+    }
+}
+fn target_time() -> RecordTime {
+    RecordTime {
+        from: None,
+        until: None,
+        precision: RecordPrecision::Unknown,
+        bound: TimeBound::Within,
+        tz: None,
+        basis: TimeBasis::Unknown,
+    }
+}
+const QUOTE: &str = "「ＡＢＣ　纠正原话」";
+impl CorrectionAnalyzer for Corrections {
+    fn start(
+        &mut self,
+        report: &AgentCorrectionRecord,
+        target: &CorrectionTarget,
+        _: &CapturedSource,
+        _: &CaptureStopToken,
+    ) -> Result<Box<dyn PendingCaptureAnalysis>, CaptureAnalysis> {
+        self.calls += 1;
+        self.seen.push((
+            report.report_key.clone(),
+            target.target.clone(),
+            report.correction.clone(),
+        ));
+        match self.next.pop() {
+            Some(Ok(later)) => Ok(Box::new(Later(later))),
+            Some(Err(analysis)) => Err(analysis),
+            None => Err(CaptureAnalysis::Statements(vec![correcting(target, QUOTE)])),
+        }
+    }
+}
+fn drain(f: &mut CapturedFormation, analyzer: &mut Corrections) {
+    for _ in 0..16 {
+        if !f
+            .step_corrections(analyzer, &CaptureStopToken::default())
+            .unwrap()
+        {
+            return;
+        }
+    }
+    panic!("bounded synthetic correction steps");
+}
+fn revisions(e: &Env, v: &SegmentedAutomationVault, memory: &MemoryId) -> Vec<(TargetRef, String)> {
+    v.read(&e.descriptor.system_actor, Sensitivity::Private, |d| {
+        d.memories
+            .iter()
+            .filter(|m| &m.target.memory.memory_id == memory)
+            .map(|m| (m.target.clone(), m.memory.decision.input.content.clone()))
+            .collect()
+    })
+    .unwrap()
+}
+fn saved(
+    e: &Env,
+    v: &Arc<SegmentedAutomationVault>,
+    p: &AutomationPolicy,
+    request: &AgentCorrectionRequest,
+) -> AgentCorrectionReceipt {
+    let owner = &e.descriptor.created_by;
+    let host =
+        QualifiedAgentHost::from_authenticated_initialized_owner(v.clone(), owner.clone()).unwrap();
+    host.correction_reporter(owner, actor(ActorType::Agent, 88), scope(p))
+        .unwrap()
+        .submit(request)
+        .unwrap()
+}
+
+#[test]
+fn saved_report_is_consumed_once_into_a_target_bound_system_revision() {
+    let (e, v, p, request) = correction_rig(SpeakerRole::User);
+    let receipt = saved(&e, &v, &p, &request);
+    let system = &e.descriptor.system_actor;
+    let mut f = CapturedFormation::open(v.clone(), system).unwrap();
+    let mut analyzer = Corrections::default();
+    drain(&mut f, &mut analyzer);
+    assert_eq!(analyzer.calls, 1);
+    assert_eq!(analyzer.seen[0].0, receipt.report_key);
+    assert_eq!(analyzer.seen[0].1, request.target);
+    assert_eq!(analyzer.seen[0].2, request.correction);
+    let status = f.status();
+    assert_eq!(status.len(), 1);
+    assert_eq!(status[0].state, FormationJobState::Formed);
+    assert_eq!(status[0].receipts.len(), 1);
+    let result = &status[0].receipts[0].result;
+    assert_eq!(result.memory_id, request.target.memory.memory_id);
+    assert_eq!(
+        result.revision.get(),
+        request.target.memory.revision.get() + 1
+    );
+    // The user's words become content; the Agent interpretation does not.
+    v.read(system, Sensitivity::Private, |d| {
+        let m = d
+            .memories
+            .iter()
+            .find(|m| m.target.memory.memory_id == request.target.memory.memory_id)
+            .unwrap();
+        let input = &m.memory.decision.input;
+        assert_eq!(input.content, QUOTE);
+        assert_eq!(input.target.as_ref(), Some(&request.target));
+        assert_eq!(
+            input.dimensions.as_ref().unwrap().change,
+            FormationChange::Correction
+        );
+        assert_eq!(
+            input.evidence[0].evidence_class,
+            EvidenceClass::UserStatement
+        );
+        assert_eq!(input.evidence[0].source_id, request.source.source_id);
+        assert!(!input.content.contains(&request.correction));
+        assert!(d.owner_actions.is_empty());
+    })
+    .unwrap();
+    // Further steps and a reopened worker never analyze the report again.
+    drain(&mut f, &mut analyzer);
+    drop(f);
+    let mut f = CapturedFormation::open(v.clone(), system).unwrap();
+    drain(&mut f, &mut analyzer);
+    assert_eq!(analyzer.calls, 1);
+    // The saved report still replays its original receipt after consumption.
+    assert_eq!(saved(&e, &v, &p, &request), receipt);
+}
+
+#[test]
+fn correction_analysis_outcomes_never_resend_and_refusals_never_revise() {
+    for variant in 0..7 {
+        let (e, v, p, request) = correction_rig(SpeakerRole::User);
+        saved(&e, &v, &p, &request);
+        let system = &e.descriptor.system_actor;
+        let mut f = CapturedFormation::open(v.clone(), system).unwrap();
+        let mut analyzer = Corrections::default();
+        let expected = match variant {
+            0 => {
+                analyzer.next = vec![Err(CaptureAnalysis::NoMemory)];
+                FormationJobState::NoMemory
+            }
+            1 => {
+                analyzer.next = vec![Err(CaptureAnalysis::Unknown)];
+                FormationJobState::AnalysisUnknown
+            }
+            2 => {
+                // Paused proves no handoff; the next step dispatches again.
+                analyzer.next = vec![Err(CaptureAnalysis::NoMemory), Err(CaptureAnalysis::Paused)];
+                FormationJobState::NoMemory
+            }
+            3 => {
+                // An update is not a correction report's change.
+                let mut s = correcting(&placeholder(&e, &v, &request), QUOTE);
+                s.dimensions.change = FormationChange::Update;
+                analyzer.next = vec![Err(CaptureAnalysis::Statements(vec![s]))];
+                FormationJobState::Rejected
+            }
+            4 => {
+                let s = correcting(&placeholder(&e, &v, &request), QUOTE);
+                analyzer.next = vec![Err(CaptureAnalysis::Statements(vec![s.clone(), s]))];
+                FormationJobState::Rejected
+            }
+            5 => {
+                let s = correcting(&placeholder(&e, &v, &request), "not in the source");
+                analyzer.next = vec![Err(CaptureAnalysis::Statements(vec![s]))];
+                FormationJobState::Rejected
+            }
+            _ => {
+                // Restart with analysis in flight: terminal unknown, no resend.
+                analyzer.next = vec![Ok(None)];
+                assert!(
+                    f.step_corrections(&mut analyzer, &CaptureStopToken::default())
+                        .unwrap()
+                );
+                assert!(f.has_pending());
+                drop(f);
+                f = CapturedFormation::open(v.clone(), system).unwrap();
+                FormationJobState::AnalysisUnknown
+            }
+        };
+        drain(&mut f, &mut analyzer);
+        drain(&mut f, &mut analyzer);
+        let status = f.status();
+        assert_eq!(status.len(), 1, "variant {variant}");
+        assert_eq!(status[0].state, expected, "variant {variant}");
+        assert!(status[0].receipts.is_empty());
+        assert_eq!(
+            analyzer.calls,
+            if variant == 2 { 2 } else { 1 },
+            "variant {variant}"
+        );
+        let memory = &request.target.memory.memory_id;
+        let current = revisions(&e, &v, memory);
+        assert_eq!(current.len(), 1);
+        assert_eq!(current[0].0, request.target, "variant {variant}");
+    }
+}
+fn placeholder(
+    e: &Env,
+    v: &SegmentedAutomationVault,
+    request: &AgentCorrectionRequest,
+) -> CorrectionTarget {
+    v.read(&e.descriptor.system_actor, Sensitivity::Private, |d| {
+        let m = d
+            .memories
+            .iter()
+            .find(|m| m.target == request.target)
+            .unwrap();
+        let input = &m.memory.decision.input;
+        CorrectionTarget {
+            target: m.target.clone(),
+            content: input.content.clone(),
+            title: String::new(),
+            interpretation: input.interpretation,
+            dimensions: input.dimensions.clone().unwrap(),
+            sensitivity: input.sensitivity,
+        }
+    })
+    .unwrap()
+}
+
+#[test]
+fn deleted_inputs_close_without_analysis_and_a_moved_target_is_refused_not_retargeted() {
+    for case in 0..3 {
+        let (e, v, p, request) = correction_rig(SpeakerRole::User);
+        saved(&e, &v, &p, &request);
+        let owner = &e.descriptor.created_by;
+        let system = &e.descriptor.system_actor;
+        let mut f = CapturedFormation::open(v.clone(), system).unwrap();
+        let mut analyzer = Corrections::default();
+        match case {
+            0 => {
+                v.delete(owner, vec![], vec![request.target.memory.memory_id.clone()])
+                    .unwrap();
+            }
+            1 => {
+                v.delete(owner, vec![request.source.source_id.clone()], vec![])
+                    .unwrap();
+            }
+            _ => {
+                // Analysis in flight while another System revision lands.
+                let target = placeholder(&e, &v, &request);
+                analyzer.next = vec![Ok(Some(CaptureAnalysis::Statements(vec![correcting(
+                    &target, QUOTE,
+                )])))];
+                assert!(
+                    f.step_corrections(&mut analyzer, &CaptureStopToken::default())
+                        .unwrap()
+                );
+                revise(&e, &v, &p, &request);
+            }
+        }
+        let before = v.snapshot().unwrap();
+        drain(&mut f, &mut analyzer);
+        let status = f.status();
+        assert_eq!(status[0].state, FormationJobState::Rejected, "case {case}");
+        assert!(status[0].receipts.is_empty());
+        assert_eq!(analyzer.calls, usize::from(case == 2), "case {case}");
+        assert_eq!(v.snapshot().unwrap(), before, "case {case}");
+    }
 }

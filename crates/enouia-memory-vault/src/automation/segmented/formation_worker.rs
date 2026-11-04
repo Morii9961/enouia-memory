@@ -61,6 +61,28 @@ pub trait CaptureAnalyzer {
 pub trait PendingCaptureAnalysis: Send {
     fn poll(&mut self, stop: &CaptureStopToken) -> Option<CaptureAnalysis>;
 }
+/// The target's current revision as a correction analyzer sees it.
+#[derive(Clone, Serialize)]
+pub struct CorrectionTarget {
+    pub target: TargetRef,
+    pub content: String,
+    pub title: String,
+    pub interpretation: Interpretation,
+    pub dimensions: FormationDimensions,
+    pub sensitivity: Sensitivity,
+}
+/// ADR-MEM-122 native port for saved Agent correction reports. Separate from
+/// CaptureAnalyzer so v3 adapters are unchanged. The report text is untrusted.
+pub trait CorrectionAnalyzer {
+    /// Bounded nonblocking handoff only, as for captured analysis.
+    fn start(
+        &mut self,
+        report: &AgentCorrectionRecord,
+        target: &CorrectionTarget,
+        source: &CapturedSource,
+        stop: &CaptureStopToken,
+    ) -> std::result::Result<Box<dyn PendingCaptureAnalysis>, CaptureAnalysis>;
+}
 #[derive(Default)]
 struct StopState {
     cancelled: AtomicBool,
@@ -90,6 +112,27 @@ struct PendingAnalysis {
     pending: Box<dyn PendingCaptureAnalysis>,
     stop: CaptureStopToken,
     started: Instant,
+}
+struct PendingCorrection {
+    job_key: Sha256Hex,
+    source: CapturedSource,
+    policy: AutomationPolicy,
+    target: CorrectionTarget,
+    pending: Box<dyn PendingCaptureAnalysis>,
+    stop: CaptureStopToken,
+    started: Instant,
+}
+enum CorrectionInput {
+    Ready(
+        Box<(
+            AgentCorrectionRecord,
+            CapturedSource,
+            AutomationPolicy,
+            CorrectionTarget,
+        )>,
+    ),
+    /// Deleted target/source or an inactive/non-covering policy: no analysis.
+    Closed,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -130,6 +173,8 @@ struct Job {
     job_key: Sha256Hex,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     note_keys: Vec<Sha256Hex>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    report_key: Option<Sha256Hex>,
     state: FormationJobState,
     work: Vec<Work>,
     receipts: Vec<MemoryReceipt>,
@@ -388,6 +433,81 @@ impl SegmentedAutomationVault {
         }
         Ok((source.clone(), policy.clone(), notes))
     }
+    /// The first saved report, in key order, without a journal entry.
+    fn next_correction(
+        &self,
+        system: &ActorRef,
+        known: impl Fn(&Sha256Hex) -> bool,
+    ) -> Result<Option<(Sha256Hex, Sha256Hex, CorrectionInput)>> {
+        self.native.system(system)?;
+        let _writer = lock::acquire(&self.native.root, Duration::ZERO)?;
+        let state = self
+            .state
+            .lock()
+            .map_err(|_| AutomationFault::Unavailable)?;
+        self.current(&state)?;
+        let now = self.native.now()?;
+        let Some((job_key, report)) = state
+            .agent_corrections
+            .iter()
+            .map(|(key, (report, _))| (digest(&("agent-correction-job-1", key)), report))
+            .find(|(job_key, _)| !known(job_key))
+        else {
+            return Ok(None);
+        };
+        let reference = enouia_memory_contract::common::SourceRevisionRef {
+            source_id: report.evidence.reference.source_id.clone(),
+            source_revision: report.evidence.reference.source_revision,
+        };
+        let memory = &report.target.memory.memory_id;
+        let current = state
+            .memories
+            .get(memory)
+            .and_then(|v| v.last())
+            .filter(|_| !state.deleted_memories.contains(memory));
+        let source = state
+            .source(&reference)
+            .filter(|_| !state.deleted_sources.contains(&reference.source_id));
+        let policy = state.policies.get(&report.policy.policy_id).filter(|p| {
+            p.active
+                && now >= p.valid_from
+                && now < p.valid_until
+                && state.source_in_policy(&reference, p, p.max_sensitivity)
+        });
+        let input = current.map(|m| &m.memory.decision.input);
+        let (Some(current), Some(source), Some(policy), Some(fields), Some(dimensions)) = (
+            current,
+            source,
+            policy,
+            input.and_then(|i| i.record_fields.as_ref()),
+            input.and_then(|i| i.dimensions.as_ref()),
+        ) else {
+            return Ok(Some((
+                job_key,
+                report.report_key.clone(),
+                CorrectionInput::Closed,
+            )));
+        };
+        let input = &current.memory.decision.input;
+        let target = CorrectionTarget {
+            target: current.target.clone(),
+            content: input.content.clone(),
+            title: fields.title.clone(),
+            interpretation: input.interpretation,
+            dimensions: dimensions.clone(),
+            sensitivity: input.sensitivity,
+        };
+        Ok(Some((
+            job_key,
+            report.report_key.clone(),
+            CorrectionInput::Ready(Box::new((
+                report.clone(),
+                source.clone(),
+                policy.clone(),
+                target,
+            ))),
+        )))
+    }
 }
 
 /// A moved head or a policy gap says nothing about the analysis: re-evaluate.
@@ -418,6 +538,7 @@ pub struct CapturedFormation {
     _lease: File,
     poisoned: bool,
     pending: Option<PendingAnalysis>,
+    pending_correction: Option<PendingCorrection>,
     analysis_timeout: Duration,
     stop: CaptureStopToken,
 }
@@ -425,6 +546,9 @@ impl Drop for CapturedFormation {
     fn drop(&mut self) {
         self.stop.cancel();
         if let Some(pending) = &self.pending {
+            pending.stop.cancel();
+        }
+        if let Some(pending) = &self.pending_correction {
             pending.stop.cancel();
         }
     }
@@ -468,6 +592,7 @@ impl CapturedFormation {
             _lease: lease,
             poisoned: false,
             pending: None,
+            pending_correction: None,
             analysis_timeout: timeout,
             stop: CaptureStopToken::default(),
         };
@@ -510,7 +635,7 @@ impl CapturedFormation {
         self.step_with_stop(analyzer, &self.stop.clone())
     }
     pub fn has_pending(&self) -> bool {
-        self.pending.is_some()
+        self.pending.is_some() || self.pending_correction.is_some()
     }
     pub fn step_with_stop(
         &mut self,
@@ -609,6 +734,8 @@ impl CapturedFormation {
         });
         match next {
             None => Ok(false),
+            // Dispatches never overlap; finish_analysis owns the last entry.
+            Some((_, None)) if self.pending_correction.is_some() => Ok(false),
             Some((job, None)) => self.dispatch(&job, analyzer, stop),
             Some((_, Some(index))) => self.form(index),
         }
@@ -627,6 +754,7 @@ impl CapturedFormation {
         self.journal.jobs.push(Job {
             job_key: job.job_key.clone(),
             note_keys: notes.iter().map(|note| note.note_key.clone()).collect(),
+            report_key: None,
             state: FormationJobState::Dispatched,
             work: vec![],
             receipts: vec![],
@@ -692,9 +820,16 @@ impl CapturedFormation {
                 self.journal.jobs[index].state = FormationJobState::Rejected;
             }
             CaptureAnalysis::Statements(statements) => {
+                let ids = &self.vault.native.ids;
                 let seeds: Vec<_> = statements
                     .iter()
-                    .map(|s| self.seed(s, source, policy))
+                    .map(|s| {
+                        let result = MemoryRevisionRef {
+                            memory_id: MemoryId::from_random(ids.random_16()),
+                            revision: Revision::new(1)?,
+                        };
+                        self.seed(s, source, policy, result)
+                    })
                     .collect();
                 let job = &mut self.journal.jobs[index];
                 job.state = FormationJobState::Forming;
@@ -720,12 +855,9 @@ impl CapturedFormation {
         statement: &CaptureStatement,
         source: &CapturedSource,
         policy: &AutomationPolicy,
+        result: MemoryRevisionRef,
     ) -> Option<AdmissionInput> {
         let ids = &self.vault.native.ids;
-        let result = MemoryRevisionRef {
-            memory_id: MemoryId::from_random(ids.random_16()),
-            revision: Revision::new(1)?,
-        };
         formation_seed(FormationSeed {
             policy,
             source,
@@ -791,6 +923,7 @@ impl CapturedFormation {
     }
     fn prepare(&mut self, index: usize) -> Result<bool> {
         let seed = self.journal.jobs[index].work[0].seed.clone();
+        let bound = seed.target.is_some();
         match self.vault.prepare_formation(&self.system, seed) {
             Ok(prepared) => {
                 let work = &mut self.journal.jobs[index].work[0];
@@ -801,6 +934,9 @@ impl CapturedFormation {
                 self.save()?;
                 Ok(true)
             }
+            // prepare rebinds the head itself; Stale there means the bound
+            // target moved or vanished, which re-preparing cannot change.
+            Err(AutomationFault::Stale) if bound => self.settle_work(index, None),
             Err(error) if retryable(&error) => Ok(true),
             Err(error) if refused(&error) => self.settle_work(index, None),
             Err(error) => Err(error),
@@ -836,6 +972,199 @@ impl CapturedFormation {
                 Err(error)
             }
         }
+    }
+    /// One bounded action over saved correction reports (ADR-MEM-122). The
+    /// same journal, lease, timeout and unknown rules as captured analysis;
+    /// the ordinary evaluator decides any target-bound revision.
+    pub fn step_corrections(
+        &mut self,
+        analyzer: &mut impl CorrectionAnalyzer,
+        stop: &CaptureStopToken,
+    ) -> Result<bool> {
+        if self.poisoned {
+            return Err(AutomationFault::OutcomeUnknown);
+        }
+        if let Some(mut pending) = self.pending_correction.take() {
+            let result = if stop.is_cancelled() || pending.stop.is_cancelled() {
+                Some(CaptureAnalysis::Unknown)
+            } else {
+                catch_unwind(AssertUnwindSafe(|| pending.pending.poll(&pending.stop)))
+                    .unwrap_or(Some(CaptureAnalysis::Unknown))
+            };
+            let result = if stop.is_cancelled()
+                || pending.stop.is_cancelled()
+                || pending.started.elapsed() >= self.analysis_timeout
+            {
+                Some(CaptureAnalysis::Unknown)
+            } else {
+                result
+            };
+            let Some(result) = result else {
+                self.pending_correction = Some(pending);
+                return Ok(false);
+            };
+            pending.stop.cancel();
+            return self.finish_correction(
+                &pending.job_key,
+                &pending.source,
+                &pending.policy,
+                &pending.target,
+                result,
+            );
+        }
+        if stop.is_cancelled() || self.pending.is_some() {
+            return Ok(false);
+        }
+        if let Some(index) = self
+            .journal
+            .jobs
+            .iter()
+            .position(|job| job.report_key.is_some() && job.state == FormationJobState::Forming)
+        {
+            return self.form(index);
+        }
+        let journal = &self.journal;
+        let Some((job_key, report_key, input)) =
+            self.vault.next_correction(&self.system, |key| {
+                journal.jobs.iter().any(|job| &job.job_key == key)
+            })?
+        else {
+            return Ok(false);
+        };
+        let ready = match input {
+            CorrectionInput::Ready(ready) => Some(ready),
+            CorrectionInput::Closed => None,
+        };
+        self.journal.jobs.push(Job {
+            job_key: job_key.clone(),
+            note_keys: vec![],
+            report_key: Some(report_key),
+            state: if ready.is_some() {
+                FormationJobState::Dispatched
+            } else {
+                FormationJobState::Rejected
+            },
+            work: vec![],
+            receipts: vec![],
+            refused: 0,
+        });
+        self.save()?;
+        let Some(ready) = ready else {
+            return Ok(true);
+        };
+        let (report, source, policy, target) = *ready;
+        if stop.is_cancelled() {
+            return self.finish_correction(
+                &job_key,
+                &source,
+                &policy,
+                &target,
+                CaptureAnalysis::Paused,
+            );
+        }
+        let started = Instant::now();
+        let pending_stop = stop.child();
+        let analysis = catch_unwind(AssertUnwindSafe(|| {
+            analyzer.start(&report, &target, &source, &pending_stop)
+        }))
+        .unwrap_or(Err(CaptureAnalysis::Unknown));
+        if stop.is_cancelled() || started.elapsed() >= self.analysis_timeout {
+            pending_stop.cancel();
+            return self.finish_correction(
+                &job_key,
+                &source,
+                &policy,
+                &target,
+                CaptureAnalysis::Unknown,
+            );
+        }
+        match analysis {
+            Ok(pending) => {
+                self.pending_correction = Some(PendingCorrection {
+                    job_key,
+                    source,
+                    policy,
+                    target,
+                    pending,
+                    stop: pending_stop,
+                    started,
+                });
+                Ok(true)
+            }
+            Err(analysis) => self.finish_correction(&job_key, &source, &policy, &target, analysis),
+        }
+    }
+    fn finish_correction(
+        &mut self,
+        job_key: &Sha256Hex,
+        source: &CapturedSource,
+        policy: &AutomationPolicy,
+        target: &CorrectionTarget,
+        analysis: CaptureAnalysis,
+    ) -> Result<bool> {
+        let index = self
+            .journal
+            .jobs
+            .iter()
+            .position(|job| &job.job_key == job_key)
+            .ok_or(AutomationFault::Unavailable)?;
+        match analysis {
+            CaptureAnalysis::Paused => {
+                self.journal.jobs.remove(index);
+                self.save()?;
+                return Ok(false);
+            }
+            CaptureAnalysis::Unknown => {
+                self.journal.jobs[index].state = FormationJobState::AnalysisUnknown;
+            }
+            CaptureAnalysis::NoMemory => {
+                self.journal.jobs[index].state = FormationJobState::NoMemory;
+            }
+            CaptureAnalysis::Statements(statements) if statements.is_empty() => {
+                self.journal.jobs[index].state = FormationJobState::NoMemory;
+            }
+            CaptureAnalysis::Statements(statements)
+                if statements.len() > 1
+                    || serde_json::to_vec(&statements).map_or(true, |b| b.len() > 256 * 1024) =>
+            {
+                self.journal.jobs[index].refused = statements.len();
+                self.journal.jobs[index].state = FormationJobState::Rejected;
+            }
+            CaptureAnalysis::Statements(statements) => {
+                // Bound to the dispatched current revision; never retargeted.
+                let seed = (statements[0].dimensions.change == FormationChange::Correction)
+                    .then(|| {
+                        let result = MemoryRevisionRef {
+                            memory_id: target.target.memory.memory_id.clone(),
+                            revision: Revision::new(target.target.memory.revision.get() + 1)?,
+                        };
+                        let mut input = self.seed(&statements[0], source, policy, result)?;
+                        input.target = Some(target.target.clone());
+                        input.sensitivity = input.sensitivity.max(target.sensitivity);
+                        input.validate().is_empty().then_some(input)
+                    })
+                    .flatten();
+                let job = &mut self.journal.jobs[index];
+                match seed {
+                    None => {
+                        job.refused = 1;
+                        job.state = FormationJobState::Rejected;
+                    }
+                    Some(seed) => {
+                        job.state = FormationJobState::Forming;
+                        job.work = vec![Work {
+                            seed,
+                            request: None,
+                            response: None,
+                            binding: None,
+                            state: WorkState::Queued,
+                        }];
+                    }
+                }
+            }
+        }
+        self.save()?;
+        Ok(true)
     }
     /// Only for proven non-admission: re-evaluates the durable analysis against
     /// the current head with no new model call.

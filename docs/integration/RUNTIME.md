@@ -1,5 +1,18 @@
 # Runtime integration (ADR-MEM-45)
 
+2026-11-03: ADR-MEM-122 adds native CorrectionAnalyzer, CorrectionTarget,
+CapturedFormation::step_corrections and opt-in
+RuntimeCaptureHost::start_worker_with_corrections. start_worker and
+CaptureAnalyzer v3 are unchanged. Each saved correction report is analyzed at
+most once; an accepted user quote becomes an ordinary target-bound System
+revision through the existing evaluator. The private journal (v1, same path)
+gains optional report_key. Worker change for all adopters: a target-bound seed
+whose target moved is now refused instead of retried (captured seeds have no
+target, so their behavior is unchanged). Runtime needs no change unless it opts
+in with a real correction adapter; model/egress remain separate decisions.
+Aggregate: `f866137f3eb3150aec183d4bf2a976f2bc7383acec27bad70dafc1c35be2cbd2`.
+See [consumption contract](../contracts/AGENT_CORRECTION_CONSUMPTION_V1.md).
+
 2026-11-03: ADR-MEM-121 adds the closed `agent_correction` delta and native
 AgentCorrectionReporter::submit on initialized Owner roots. Success is only
 `report_saved`; nothing is corrected, queued or shown to the Owner. A saved

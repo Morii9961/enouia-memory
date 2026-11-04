@@ -3,10 +3,15 @@ use super::{
     application::{ApplicationFault, ApplicationResult},
     runtime_capture::RuntimeCaptureHost,
 };
-use enouia_memory_contract::next::OWNER_RUNTIME_CAPTURE_CAPABILITY;
+use enouia_memory_contract::next::{
+    AgentCorrectionRecord, CapturedSource, OWNER_RUNTIME_CAPTURE_CAPABILITY,
+};
 use enouia_memory_vault::automation::{
     AutomationFault,
-    segmented::{CaptureAnalyzer, CaptureStopToken, CapturedFormation},
+    segmented::{
+        CaptureAnalysis, CaptureAnalyzer, CaptureStopToken, CapturedFormation, CorrectionAnalyzer,
+        CorrectionTarget, PendingCaptureAnalysis,
+    },
 };
 use std::{
     panic::{AssertUnwindSafe, catch_unwind},
@@ -130,6 +135,24 @@ impl RuntimeCaptureHost {
         analyzer: impl CaptureAnalyzer + Send + 'static,
         timeout: Duration,
     ) -> ApplicationResult<CapturedWorker> {
+        self.start(analyzer, None::<NoCorrections>, timeout)
+    }
+    /// Also consumes saved Agent correction reports (ADR-MEM-122) whenever no
+    /// captured step is ready. Captured behavior is otherwise unchanged.
+    pub fn start_worker_with_corrections(
+        self: &Arc<Self>,
+        analyzer: impl CaptureAnalyzer + Send + 'static,
+        corrections: impl CorrectionAnalyzer + Send + 'static,
+        timeout: Duration,
+    ) -> ApplicationResult<CapturedWorker> {
+        self.start(analyzer, Some(corrections), timeout)
+    }
+    fn start(
+        self: &Arc<Self>,
+        analyzer: impl CaptureAnalyzer + Send + 'static,
+        corrections: Option<impl CorrectionAnalyzer + Send + 'static>,
+        timeout: Duration,
+    ) -> ApplicationResult<CapturedWorker> {
         if self.capability() != OWNER_RUNTIME_CAPTURE_CAPABILITY {
             return Err(ApplicationFault::Invalid);
         }
@@ -163,7 +186,7 @@ impl RuntimeCaptureHost {
             .name("memory-captured-formation".into())
             .spawn(move || {
                 let outcome = catch_unwind(AssertUnwindSafe(|| {
-                    run(weak, &control, formation, analyzer)
+                    run(weak, &control, formation, analyzer, corrections)
                 }));
                 let exit = outcome.unwrap_or(WorkerExit::Panicked);
                 control.cancel();
@@ -183,11 +206,25 @@ impl RuntimeCaptureHost {
         })
     }
 }
+/// Uninhabited: the plain worker never consumes correction reports.
+enum NoCorrections {}
+impl CorrectionAnalyzer for NoCorrections {
+    fn start(
+        &mut self,
+        _: &AgentCorrectionRecord,
+        _: &CorrectionTarget,
+        _: &CapturedSource,
+        _: &CaptureStopToken,
+    ) -> Result<Box<dyn PendingCaptureAnalysis>, CaptureAnalysis> {
+        match *self {}
+    }
+}
 fn run(
     host: Weak<RuntimeCaptureHost>,
     control: &Control,
     mut formation: CapturedFormation,
     mut analyzer: impl CaptureAnalyzer,
+    mut corrections: Option<impl CorrectionAnalyzer>,
 ) -> WorkerExit {
     let mut backoff = Duration::from_millis(10);
     loop {
@@ -211,7 +248,15 @@ fn run(
             // The native lifecycle gate covers only one bounded local action.
             // Neither analyzer start nor poll may wait on external work.
             match catch_unwind(AssertUnwindSafe(|| {
-                formation.step_with_stop(&mut analyzer, &control.stop)
+                match (
+                    formation.step_with_stop(&mut analyzer, &control.stop),
+                    corrections.as_mut(),
+                ) {
+                    (Ok(false), Some(corrections)) => {
+                        formation.step_corrections(corrections, &control.stop)
+                    }
+                    (result, _) => result,
+                }
             })) {
                 Ok(result) => result,
                 Err(_) => {

@@ -650,6 +650,13 @@ through the existing witnessed Owner chain with `report_saved` original-key
 receipts. Authorization precedes replay; a saved key replays from the target's
 currently authorized history after a System revision. Nothing is corrected yet.
 
+### ADR-MEM-122 — System consumption of saved correction reports
+
+[Decision](122-system-correction-consumption.md): the captured worker analyzes
+each saved report once through a separate CorrectionAnalyzer port and turns an
+accepted user quote into an ordinary target-bound `correction` revision decided
+by the existing evaluator. No Owner queue; a moved target is refused.
+
 ### ADR-MEM-110 — Native empty Owner bootstrap
 
 [Decision](110-native-empty-owner-bootstrap.md): an explicit trusted native local
