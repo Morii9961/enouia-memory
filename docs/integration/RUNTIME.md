@@ -1,5 +1,111 @@
 # Runtime integration (ADR-MEM-45)
 
+2026-11-03: ADR-MEM-122 adds native CorrectionAnalyzer, CorrectionTarget,
+CapturedFormation::step_corrections and opt-in
+RuntimeCaptureHost::start_worker_with_corrections. start_worker and
+CaptureAnalyzer v3 are unchanged. Each saved correction report is analyzed at
+most once; an accepted user quote becomes an ordinary target-bound System
+revision through the existing evaluator. The private journal (v1, same path)
+gains optional report_key. Worker change for all adopters: a target-bound seed
+whose target moved is now refused instead of retried (captured seeds have no
+target, so their behavior is unchanged). Runtime needs no change unless it opts
+in with a real correction adapter; model/egress remain separate decisions.
+Aggregate: `f866137f3eb3150aec183d4bf2a976f2bc7383acec27bad70dafc1c35be2cbd2`.
+See [consumption contract](../contracts/AGENT_CORRECTION_CONSUMPTION_V1.md).
+
+2026-11-03: ADR-MEM-121 adds the closed `agent_correction` delta and native
+AgentCorrectionReporter::submit on initialized Owner roots. Success is only
+`report_saved`; nothing is corrected, queued or shown to the Owner. A saved
+key replays its original receipt from the target's authorized history after a
+System revision; deletion, revocation and policy change refuse first. Unknown
+publication latches the original request. Older binaries cannot open roots that
+contain the delta; read handshakes hashing catalog-v2 get a new fingerprint.
+No Runtime change is required now; no MCP tool/profile is added. Aggregate:
+`773d2c95415bb7dfbcb8977d8df442c1c25ffc649c195055df7a118f2c6d96a4`.
+See [correction intake](../contracts/AGENT_CORRECTION_INTAKE_V1.md).
+
+2026-11-03: ADR-MEM-120 adds opt-in native correction-report preparation on the
+initialized Owner carrier. A separate native grant binds a fully Agent-qualified
+current target to independently authorized Runtime user evidence. The Host
+reuses the pinned quote locator and generation gate; the Vault verifies original
+evidence under the current read lock. Drafts publish nothing and give no receipt
+or Owner action. No Runtime change is required for this native-only addition;
+durable intake and a new tool/profile need separate implementation. Aggregate:
+`d74ae1000024e580d04bbacd4824cd996984d9856f4d3770fb1b46c7e6e498a7`.
+See [correction contract](../contracts/AGENT_CORRECTION_NATIVE_V1.md).
+
+2026-11-03: ADR-MEM-119 adds explicit memory-agent-pipe-6 and launcher attach mode
+automation-notes-v1. It pairs existing read identity enrollment with a separate
+note permit on the same leased Vault/Agent, rejects old profiles/claims/peers,
+and disconnects before Reply on unknown publication. The new stdio path exposes
+the complete original MCP Value; older bridges retain their output format.
+Actual synthetic Agent process, launcher, recovery and note-to-System-formation
+checks exercise this route. No Runtime/client configuration or private root is
+adopted. Aggregate:
+`1ad8b056b153d4ca6960a65f0108bae7190423621317ec6d82b1091dae6af37c`.
+See [note pipe contract](../contracts/AGENT_NOTE_PIPE_V1.md).
+
+2026-11-03: ADR-MEM-118 adds an opt-in protocol server combining five initialized
+reads and memory_note. Native construction requires an independent note permit,
+matching Agent and the same leased Vault instance; old pipe-5 remains five reads.
+Known note success returns only hint_saved. Unknown publication closes without
+a tool result and retains the complete MCP Value for a transport to disconnect.
+New note connection polling checks native generation, unknown latch and current
+note-policy references without the filesystem writer lock. Pipe-6/stdio are a
+later transport slice; Runtime has no adoption requirement for this server-only
+addition. Aggregate:
+`aa0c2a128dcef56fbbe3ac9c4ddc224a38233cfd5f021eee5610b36013434818`.
+See [note MCP contract](../contracts/AGENT_NOTE_MCP_V1.md).
+
+2026-11-03: ADR-MEM-117 adopts captured analysis native v3. CaptureAnalyzer::start
+now explicitly receives notes: &[AgentNoteRecord] before its stop token; native
+adapters must update at compile time. First dispatch selects at most eight exact
+source/current-policy hints and trims canonical input to 64 KiB, persisting the
+selected keys before handoff. Late hints never restart terminal or pending work.
+Journal v1 keeps old empty-field encoding and original recovery identities.
+No MCP/pipe/Workspace DTO changes, real analyzer or Runtime activation. Aggregate:
+`3857a33e4d15293c334b529208f9e04c87048181bad5e5ad827566045a07d46f`.
+See [analysis v3](../contracts/CAPTURE_ANALYSIS_V3.md).
+
+2026-11-03: ADR-MEM-116 adds opt-in native durable Agent hints through the existing
+Owner commit chain (`agent_note` delta), with original-key `hint_saved` receipts,
+bounded capacity and normal CURRENT/witness recovery. Submission takes the
+original request under the separate note delegation; drafts remain data. No
+source, job, memory or model request is created. Older binaries refuse roots
+containing the new closed delta; do not downgrade them. Agent read handshakes
+that hash the catalog schema have a new fingerprint and require matching
+client/server revisions; reachable read-tool payloads and permissions stay
+unchanged. No MCP write is advertised and Runtime need not adopt note intake
+for its separate catalog UI work. Aggregate:
+`de93018f21667885f38b69319c692ecbabe4df4d476f8f7f7d3838ac7b8c6ae0`.
+See [native hint intake](../contracts/AGENT_NOTE_INTAKE_V1.md).
+
+2026-11-03: ADR-MEM-115 adds an opt-in native Agent note draft gate on initialized
+Owner roots. The native Owner must explicitly create a separate note delegation;
+existing read permits and pipe-5 stay read-only. Exact currently authorized
+Runtime source revisions, bounded normalized quotes, actual role/class and Agent
+provenance bind the draft. Preparation publishes nothing and returns no durable
+receipt. No Runtime change is required until a later explicit storage/write
+profile is adopted; do not expose drafts as saved or formed. Aggregate:
+`59128df59ed3151e75af017e156871daeb583d8b768a15c9b92ab666ba21c1c4`.
+See [native note contract](../contracts/AGENT_NOTE_NATIVE_V1.md).
+
+2026-11-03 follow-up: source deletion now cancels pending captured analysis
+before its next poll, rejects that job without a fabricated result and releases
+later turns. This supplements durable-work settlement below. Adopt the pin for
+prompt cancellation; the bounded analyzer cancellation/drop contract remains
+required. No wire/API/schema/version change. Aggregate:
+`2dbe5f885aba4c7411cfb12e31c9d067c2e30799fc0093e8f8f4aa3c699baa7e`.
+
+2026-11-03: captured formation now settles durable work after its source is
+deleted, instead of leaving it permanently `forming`. Unpublished statements
+are refused; an interrupted apply retains only chain-proven receipts. Adopt
+the new pin for this worker correction. Journal v1, pipe-2 states and Workspace
+IPC58 are unchanged. Policy gaps still pause work, and genuine past receipts do
+not imply that deleted content remains readable. Aggregate:
+`825d6854edbdc0bb567364ba55d263291683185acd1c76b8ebdd527534938c05`.
+See [deletion validation](../validation/MCP-3-deleted-capture-jobs.md).
+
 2026-10-28: MCP adoption checkpoint integrates published Owner dependency
 34709b9d2abcb60188c0e3488b15f40c33d6ee16 and its ADR100/101 prerequisites,
 preserving original author/history and both sides' contract validation.

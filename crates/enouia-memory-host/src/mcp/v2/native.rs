@@ -147,7 +147,17 @@ impl Client {
         input: &mut impl std::io::BufRead,
         output: &mut impl std::io::Write,
     ) -> std::io::Result<()> {
-        let result = self.stdio_inner(input, output);
+        let result = self.stdio_inner(input, output, false);
+        self.inner.close();
+        result
+    }
+    /// Explicit note-profile bridge; preserve the entire MCP packet externally.
+    pub(in crate::mcp) fn serve_stdio_full(
+        &mut self,
+        input: &mut impl std::io::BufRead,
+        output: &mut impl std::io::Write,
+    ) -> std::io::Result<()> {
+        let result = self.stdio_inner(input, output, true);
         self.inner.close();
         result
     }
@@ -155,6 +165,7 @@ impl Client {
         &mut self,
         input: &mut impl std::io::BufRead,
         output: &mut impl std::io::Write,
+        full_original: bool,
     ) -> std::io::Result<()> {
         use std::io::{self, BufRead, Read};
         loop {
@@ -174,11 +185,14 @@ impl Client {
             let (response, close) = match self.exchange(&message) {
                 Ok(v) => (v, false),
                 Err(e) => {
-                    let original = e
-                        .original_message
-                        .get("params")
-                        .and_then(|p| p.get("arguments"))
-                        .unwrap_or(&e.original_message);
+                    let original = if full_original {
+                        &e.original_message
+                    } else {
+                        e.original_message
+                            .get("params")
+                            .and_then(|p| p.get("arguments"))
+                            .unwrap_or(&e.original_message)
+                    };
                     (message.get("id").map(|id|json!({"jsonrpc":"2.0","id":id,"error":{"code":-32000,
                     "message":if e.fault==crate::mcp::native::ExchangeFault::OutcomeUnknown{"outcome_unknown"}else{"connection_closed"},
                     "data":{"retryable":false,"originalRequest":original}}})),true)

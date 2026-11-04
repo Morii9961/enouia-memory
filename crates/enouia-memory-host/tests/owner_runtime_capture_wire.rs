@@ -418,6 +418,7 @@ fn owner_wire_background_forms_and_status_reports_only_genuine_commits() {
             &mut self,
             _: &QueuedCapture,
             source: &CapturedSource,
+            _: &[AgentNoteRecord],
             _: &CaptureStopToken,
         ) -> std::result::Result<Box<dyn PendingCaptureAnalysis>, CaptureAnalysis> {
             let unknown = RecordTime {

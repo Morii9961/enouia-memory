@@ -39,3 +39,7 @@ Only synthetic roots, owned processes and fake analyzers are exercised. No real
 Provider/model/embedding, Runtime pin/config/hook, Agent hook, memory_note or
 mandatory human review workflow. Native callers must adopt the new analyzer API
 and lifecycle controls; no Runtime repository is changed here.
+
+2026-11-03: [analysis native v3](CAPTURE_ANALYSIS_V3.md) extends start with an
+explicit bounded saved-hint slice. Adapters must update that signature; the
+worker hosting/lifecycle contract here otherwise retains its meaning.

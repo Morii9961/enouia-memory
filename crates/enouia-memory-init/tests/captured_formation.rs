@@ -93,6 +93,7 @@ impl CaptureAnalyzer for Scripted {
         &mut self,
         _job: &QueuedCapture,
         source: &CapturedSource,
+        _: &[AgentNoteRecord],
         _: &CaptureStopToken,
     ) -> std::result::Result<Box<dyn PendingCaptureAnalysis>, CaptureAnalysis> {
         self.calls += 1;
@@ -110,6 +111,7 @@ impl CaptureAnalyzer for Panics {
         &mut self,
         _: &QueuedCapture,
         _: &CapturedSource,
+        _: &[AgentNoteRecord],
         _: &CaptureStopToken,
     ) -> std::result::Result<Box<dyn PendingCaptureAnalysis>, CaptureAnalysis> {
         panic!("synthetic analyzer failure");
@@ -120,6 +122,89 @@ fn rig(e: &Env) -> (Arc<SegmentedAutomationVault>, AutomationPolicy) {
     let p = e.policy(1, 1, 8);
     v.set_policy(&e.descriptor.created_by, p.clone()).unwrap();
     (v, p)
+}
+fn save_hint(
+    v: &SegmentedAutomationVault,
+    e: &Env,
+    p: &AutomationPolicy,
+    source: &SourceRevisionRef,
+    n: u32,
+    quote: &str,
+    note: &str,
+) -> AgentNoteReceipt {
+    let permit = v
+        .authorize_agent_note(
+            &e.descriptor.created_by,
+            ActorRef {
+                actor_type: ActorType::Agent,
+                actor_id: PrincipalId::parse(&id("prn", 88)).unwrap(),
+            },
+            SegmentedAgentScope {
+                subject_id: p.subject_id.clone(),
+                project_id: p.project_id.clone(),
+                policy_ids: vec![p.policy_id.clone()],
+                source_ids: vec![source.source_id.clone()],
+                max_sensitivity: Sensitivity::Private,
+                source_read: true,
+                valid_until: Timestamp::from_unix_ms(NOW + 120_000).unwrap(),
+            },
+        )
+        .unwrap();
+    v.submit_agent_note(
+        &permit,
+        &AgentNoteRequest {
+            request_id: RequestId::parse(&id("req", 100 + n)).unwrap(),
+            source: source.clone(),
+            quote_hint: quote.into(),
+            note: note.into(),
+        },
+        quoted_evidence,
+    )
+    .unwrap()
+}
+#[derive(Default)]
+struct Observing {
+    seen: Vec<Vec<AgentNoteRecord>>,
+    next: Option<CaptureAnalysis>,
+    pending: bool,
+    audit: Option<std::path::PathBuf>,
+}
+impl CaptureAnalyzer for Observing {
+    fn start(
+        &mut self,
+        _: &QueuedCapture,
+        _: &CapturedSource,
+        notes: &[AgentNoteRecord],
+        _: &CaptureStopToken,
+    ) -> std::result::Result<Box<dyn PendingCaptureAnalysis>, CaptureAnalysis> {
+        if let Some(root) = &self.audit {
+            let journal: Value = serde_json::from_slice(
+                &ManagedRoot::new(root, Faults::none())
+                    .read_bounded(JOURNAL, 1 << 20)
+                    .unwrap()
+                    .unwrap(),
+            )
+            .unwrap();
+            let expected: Vec<_> = notes.iter().map(|note| note.note_key.clone()).collect();
+            assert_eq!(
+                journal["jobs"].as_array().unwrap().last().unwrap()["note_keys"],
+                json!(expected)
+            );
+        }
+        self.seen.push(notes.to_vec());
+        let result = self.next.take().unwrap_or(CaptureAnalysis::NoMemory);
+        if self.pending {
+            struct Complete(Option<CaptureAnalysis>);
+            impl PendingCaptureAnalysis for Complete {
+                fn poll(&mut self, _: &CaptureStopToken) -> Option<CaptureAnalysis> {
+                    self.0.take()
+                }
+            }
+            Ok(Box::new(Complete(Some(result))))
+        } else {
+            Err(result)
+        }
+    }
 }
 fn drain(worker: &mut CapturedFormation, analyzer: &mut Scripted) {
     while worker.step(analyzer).unwrap() {}
@@ -358,28 +443,114 @@ fn a_moved_head_or_policy_gap_before_apply_reevaluates_without_new_analysis() {
     assert_eq!(worker.status()[0].refused, 0);
 }
 #[test]
-fn deletion_after_analysis_forms_nothing_for_that_source() {
-    let e = owner_env();
-    let (v, p) = rig(&e);
-    let system = &e.descriptor.system_actor;
-    capture_and_enqueue(&v, &e, &p, &turn(1, "c", None, "First turn."));
-    capture_and_enqueue(&v, &e, &p, &turn(2, "c", Some("m1"), "Second turn."));
-    let mut worker = CapturedFormation::open(v.clone(), system).unwrap();
-    let mut analyzer = Scripted::default();
-    assert!(worker.step(&mut analyzer).unwrap());
-    let deleted = v.queued_captures(system).unwrap()[0]
-        .source
-        .source_id
-        .clone();
-    v.delete(&e.descriptor.created_by, vec![deleted], vec![])
-        .unwrap();
-    drain(&mut worker, &mut analyzer);
-    assert_eq!(analyzer.calls, 2);
-    assert_eq!(memories(&v, &e), vec!["Second turn."]);
-    let status = worker.status();
-    assert_eq!(status[0].state, FormationJobState::Forming);
-    assert!(status[0].receipts.is_empty());
-    assert_eq!(status[1].state, FormationJobState::Formed);
+fn deletion_after_analysis_settles_each_work_phase_without_reanalysis() {
+    for steps in 1..=3 {
+        let e = owner_env();
+        let (v, p) = rig(&e);
+        let system = &e.descriptor.system_actor;
+        capture_and_enqueue(&v, &e, &p, &turn(1, "c", None, "First turn."));
+        capture_and_enqueue(&v, &e, &p, &turn(2, "c", Some("m1"), "Second turn."));
+        let mut worker = CapturedFormation::open(v.clone(), system).unwrap();
+        let mut analyzer = Scripted::default();
+        for _ in 0..steps {
+            assert!(worker.step(&mut analyzer).unwrap());
+        }
+        let deleted = v.queued_captures(system).unwrap()[0]
+            .source
+            .source_id
+            .clone();
+        v.delete(&e.descriptor.created_by, vec![deleted], vec![])
+            .unwrap();
+        drain(&mut worker, &mut analyzer);
+        assert_eq!(analyzer.calls, 2);
+        assert_eq!(memories(&v, &e), vec!["Second turn."]);
+        let status = worker.status();
+        assert_eq!(
+            status[0].state,
+            if steps == 3 {
+                FormationJobState::Formed
+            } else {
+                FormationJobState::Rejected
+            }
+        );
+        assert_eq!(status[0].receipts.len(), usize::from(steps == 3));
+        assert_eq!(status[0].refused, usize::from(steps != 3));
+        assert_eq!(status[1].state, FormationJobState::Formed);
+        drop(worker);
+        drop(v);
+        let v = Arc::new(e.open());
+        let mut worker = CapturedFormation::open(v.clone(), system).unwrap();
+        assert!(!worker.step(&mut analyzer).unwrap());
+        assert_eq!(worker.status(), status);
+        assert_eq!(analyzer.calls, 2);
+    }
+}
+#[test]
+fn deletion_after_unknown_apply_preserves_only_chain_proven_receipts() {
+    for (point, persisted) in [
+        (FaultPoint::StagingWritten, false),
+        (FaultPoint::AfterCurrent, true),
+    ] {
+        let e = owner_env();
+        let faults = Faults::armed();
+        let v = Arc::new(e.create(faults.clone()));
+        let system = &e.descriptor.system_actor;
+        let p = e.policy(1, 1, 8);
+        v.set_policy(&e.descriptor.created_by, p.clone()).unwrap();
+        capture_and_enqueue(&v, &e, &p, &turn(1, "c", None, "First turn."));
+        let deleted = v.queued_captures(system).unwrap()[0]
+            .source
+            .source_id
+            .clone();
+        let mut worker = CapturedFormation::open(v.clone(), system).unwrap();
+        let mut analyzer = Scripted::default();
+        assert!(worker.step(&mut analyzer).unwrap());
+        assert!(worker.step(&mut analyzer).unwrap());
+        faults.arm(point, 1, FaultAction::Fail(112));
+        assert!(matches!(
+            worker.step(&mut analyzer),
+            Err(AutomationFault::OutcomeUnknown)
+        ));
+        drop(worker);
+        drop(v);
+        let v = Arc::new(
+            SegmentedAutomationVault::recover(
+                &e.root,
+                e.descriptor.host_id.clone(),
+                system,
+                e.clock.clone(),
+                Arc::new(OsIdSource),
+                Faults::none(),
+            )
+            .unwrap(),
+        );
+        v.delete(&e.descriptor.created_by, vec![deleted], vec![])
+            .unwrap();
+        let after_delete = v.snapshot().unwrap();
+        let mut worker = CapturedFormation::open(v.clone(), system).unwrap();
+        drain(&mut worker, &mut analyzer);
+        assert_eq!(analyzer.calls, 1);
+        assert!(memories(&v, &e).is_empty());
+        assert_eq!(v.snapshot().unwrap(), after_delete);
+        let status = worker.status();
+        assert_eq!(
+            status[0].state,
+            if persisted {
+                FormationJobState::Formed
+            } else {
+                FormationJobState::Rejected
+            }
+        );
+        assert_eq!(status[0].receipts.len(), usize::from(persisted));
+        assert_eq!(status[0].refused, usize::from(!persisted));
+        drop(worker);
+        drop(v);
+        let v = Arc::new(e.open());
+        let mut worker = CapturedFormation::open(v, system).unwrap();
+        assert!(!worker.step(&mut analyzer).unwrap());
+        assert_eq!(worker.status(), status);
+        assert_eq!(analyzer.calls, 1);
+    }
 }
 #[test]
 fn revoked_work_waits_without_analysis_and_resumes_when_the_policy_returns() {
@@ -408,6 +579,132 @@ fn revoked_work_waits_without_analysis_and_resumes_when_the_policy_returns() {
     assert_eq!(analyzer.calls, 2);
     assert_eq!(memories(&v, &e).len(), 2);
     assert_eq!(worker.status()[0].state, FormationJobState::Formed);
+}
+#[test]
+fn deletion_cancels_pending_analysis_before_another_poll_and_releases_later_turns() {
+    use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+    struct Pending {
+        polls: Arc<AtomicUsize>,
+        dropped: Arc<AtomicBool>,
+    }
+    impl PendingCaptureAnalysis for Pending {
+        fn poll(&mut self, _: &CaptureStopToken) -> Option<CaptureAnalysis> {
+            self.polls.fetch_add(1, Ordering::SeqCst);
+            None
+        }
+    }
+    impl Drop for Pending {
+        fn drop(&mut self) {
+            self.dropped.store(true, Ordering::SeqCst);
+        }
+    }
+    struct Deferred {
+        polls: Arc<AtomicUsize>,
+        dropped: Arc<AtomicBool>,
+        stop: Option<CaptureStopToken>,
+        calls: usize,
+    }
+    impl CaptureAnalyzer for Deferred {
+        fn start(
+            &mut self,
+            _: &QueuedCapture,
+            _: &CapturedSource,
+            _: &[AgentNoteRecord],
+            stop: &CaptureStopToken,
+        ) -> std::result::Result<Box<dyn PendingCaptureAnalysis>, CaptureAnalysis> {
+            self.calls += 1;
+            self.stop = Some(stop.clone());
+            Ok(Box::new(Pending {
+                polls: self.polls.clone(),
+                dropped: self.dropped.clone(),
+            }))
+        }
+    }
+    let e = owner_env();
+    let (v, p) = rig(&e);
+    let system = &e.descriptor.system_actor;
+    capture_and_enqueue(&v, &e, &p, &turn(1, "c", None, "First turn."));
+    capture_and_enqueue(&v, &e, &p, &turn(2, "c", Some("m1"), "Second turn."));
+    let deleted = v.queued_captures(system).unwrap()[0]
+        .source
+        .source_id
+        .clone();
+    let mut worker = CapturedFormation::open(v.clone(), system).unwrap();
+    let mut deferred = Deferred {
+        polls: Arc::new(AtomicUsize::new(0)),
+        dropped: Arc::new(AtomicBool::new(false)),
+        stop: None,
+        calls: 0,
+    };
+    assert!(worker.step(&mut deferred).unwrap());
+    assert!(worker.has_pending());
+    assert!(!worker.step(&mut deferred).unwrap());
+    v.delete(&e.descriptor.created_by, vec![deleted], vec![])
+        .unwrap();
+    let after_delete = v.snapshot().unwrap();
+    assert!(worker.step(&mut deferred).unwrap());
+    assert!(!worker.has_pending());
+    assert!(deferred.stop.as_ref().unwrap().is_cancelled());
+    assert!(deferred.dropped.load(Ordering::SeqCst));
+    assert_eq!(deferred.polls.load(Ordering::SeqCst), 1);
+    assert_eq!(deferred.calls, 1);
+    assert_eq!(v.snapshot().unwrap(), after_delete);
+    let first = &worker.status()[0];
+    assert_eq!(first.state, FormationJobState::Rejected);
+    assert!(first.receipts.is_empty());
+    assert_eq!(first.refused, 0);
+    let mut analyzer = Scripted::default();
+    drain(&mut worker, &mut analyzer);
+    assert_eq!(analyzer.calls, 1);
+    assert_eq!(memories(&v, &e), vec!["Second turn."]);
+    let status = worker.status();
+    drop(worker);
+    drop(v);
+    let v = Arc::new(e.open());
+    let mut worker = CapturedFormation::open(v, system).unwrap();
+    assert!(!worker.step(&mut analyzer).unwrap());
+    assert_eq!(worker.status(), status);
+    assert_eq!(analyzer.calls, 1);
+}
+#[test]
+fn deletion_after_partial_formation_keeps_receipts_and_refuses_remaining_statements() {
+    let e = owner_env();
+    let (v, p) = rig(&e);
+    let system = &e.descriptor.system_actor;
+    capture_and_enqueue(
+        &v,
+        &e,
+        &p,
+        &turn(1, "c", None, "I prefer quiet rooms. I enjoy pottery."),
+    );
+    let deleted = v.queued_captures(system).unwrap()[0]
+        .source
+        .source_id
+        .clone();
+    let mut worker = CapturedFormation::open(v.clone(), system).unwrap();
+    let mut analyzer = Scripted {
+        calls: 0,
+        next: Some(CaptureAnalysis::Statements(vec![
+            statement("I prefer quiet rooms.", Interpretation::ClearSelfReport),
+            statement("I enjoy pottery.", Interpretation::ClearSelfReport),
+        ])),
+    };
+    for _ in 0..3 {
+        assert!(worker.step(&mut analyzer).unwrap());
+    }
+    let receipts = worker.status()[0].receipts.clone();
+    assert_eq!(receipts.len(), 1);
+    v.delete(&e.descriptor.created_by, vec![deleted], vec![])
+        .unwrap();
+    let after_delete = v.snapshot().unwrap();
+    drain(&mut worker, &mut analyzer);
+    let status = &worker.status()[0];
+    assert_eq!(status.state, FormationJobState::Formed);
+    assert_eq!(status.receipts, receipts);
+    assert_eq!(status.refused, 1);
+    assert_eq!(analyzer.calls, 1);
+    assert!(memories(&v, &e).is_empty());
+    assert_eq!(v.snapshot().unwrap(), after_delete);
 }
 #[test]
 fn publication_faults_resolve_from_the_chain_without_a_second_analysis() {
@@ -531,6 +828,7 @@ fn live_captures_run_before_backfill_on_one_scheduler() {
             &mut self,
             _: &QueuedCapture,
             _: &CapturedSource,
+            _: &[AgentNoteRecord],
             _: &CaptureStopToken,
         ) -> std::result::Result<Box<dyn PendingCaptureAnalysis>, CaptureAnalysis> {
             Ok(Box::new(Deferred(self.0.clone())))
@@ -622,5 +920,252 @@ fn concurrent_policy_update_and_apply_use_chain_truth_without_reanalysis_or_dupl
         assert_eq!(analyzer.calls, 1);
         assert_eq!(memories(&v, &e).len(), 1);
         assert_eq!(worker.status()[0].receipts.len(), 1);
+    }
+}
+
+#[test]
+fn concurrent_deletion_and_apply_settle_without_losing_receipts_or_reanalysis() {
+    use std::sync::Barrier;
+    for _ in 0..3 {
+        let e = owner_env();
+        let (v, p) = rig(&e);
+        let system = &e.descriptor.system_actor;
+        capture_and_enqueue(&v, &e, &p, &turn(1, "race", None, "I prefer quiet rooms."));
+        let deleted = v.queued_captures(system).unwrap()[0]
+            .source
+            .source_id
+            .clone();
+        let mut worker = CapturedFormation::open(v.clone(), system).unwrap();
+        let mut analyzer = Scripted::default();
+        worker.step(&mut analyzer).unwrap();
+        worker.step(&mut analyzer).unwrap();
+        let barrier = Barrier::new(2);
+        std::thread::scope(|scope| {
+            let worker_ref = &mut worker;
+            let analyzer_ref = &mut analyzer;
+            let barrier_ref = &barrier;
+            let thread = scope.spawn(move || {
+                barrier_ref.wait();
+                for _ in 0..100 {
+                    match worker_ref.step(analyzer_ref) {
+                        Ok(true) => {}
+                        Ok(false) => break,
+                        Err(AutomationFault::Busy) => std::thread::yield_now(),
+                        Err(error) => panic!("unexpected concurrent worker error: {error:?}"),
+                    }
+                }
+            });
+            barrier.wait();
+            for attempt in 0..1000 {
+                match v.delete(&e.descriptor.created_by, vec![deleted.clone()], vec![]) {
+                    Ok(_) => break,
+                    Err(AutomationFault::Busy) if attempt < 999 => std::thread::yield_now(),
+                    Err(error) => panic!("unexpected concurrent deletion error: {error:?}"),
+                }
+            }
+            thread.join().unwrap();
+        });
+        let after_delete = v.snapshot().unwrap();
+        drain(&mut worker, &mut analyzer);
+        assert_eq!(v.snapshot().unwrap(), after_delete);
+        assert!(memories(&v, &e).is_empty());
+        assert_eq!(analyzer.calls, 1);
+        let status = worker.status();
+        assert!(status[0].receipts.len() <= 1);
+        assert_eq!(status[0].refused + status[0].receipts.len(), 1);
+        assert_eq!(
+            status[0].state,
+            if status[0].receipts.is_empty() {
+                FormationJobState::Rejected
+            } else {
+                FormationJobState::Formed
+            }
+        );
+        drop(worker);
+        drop(v);
+        let v = Arc::new(e.open());
+        let mut worker = CapturedFormation::open(v, system).unwrap();
+        assert!(!worker.step(&mut analyzer).unwrap());
+        assert_eq!(worker.status(), status);
+        assert_eq!(analyzer.calls, 1);
+    }
+}
+
+#[test]
+fn captured_analysis_uses_its_saved_hints_once_and_persists_selected_keys() {
+    for pending in [false, true] {
+        let e = owner_env();
+        let (v, p) = rig(&e);
+        let system = &e.descriptor.system_actor;
+        capture_and_enqueue(&v, &e, &p, &turn(1, "c", None, "First turn."));
+        capture_and_enqueue(&v, &e, &p, &turn(2, "c", Some("m1"), "Second turn."));
+        let jobs = v.queued_captures(system).unwrap();
+        let first = save_hint(
+            &v,
+            &e,
+            &p,
+            &jobs[0].source,
+            1,
+            "First turn.",
+            "Optional first cue.",
+        );
+        let second = save_hint(
+            &v,
+            &e,
+            &p,
+            &jobs[1].source,
+            2,
+            "Second turn.",
+            "Optional second cue.",
+        );
+        let mut worker = CapturedFormation::open(v.clone(), system).unwrap();
+        let mut analyzer = Observing {
+            pending,
+            audit: Some(e.path.clone()),
+            next: Some(CaptureAnalysis::Statements(vec![statement(
+                "First turn.",
+                Interpretation::ClearSelfReport,
+            )])),
+            ..Default::default()
+        };
+        assert!(worker.step(&mut analyzer).unwrap());
+        assert_eq!(analyzer.seen[0].len(), 1);
+        assert_eq!(analyzer.seen[0][0].note_key, first.note_key);
+        assert_eq!(analyzer.seen[0][0].principal.actor_type, ActorType::Agent);
+        assert_eq!(analyzer.seen[0][0].evidence.speaker, SpeakerRole::User);
+        assert_eq!(
+            analyzer.seen[0][0].evidence.reference.evidence_class,
+            EvidenceClass::UserStatement
+        );
+        let late = save_hint(
+            &v,
+            &e,
+            &p,
+            &jobs[0].source,
+            3,
+            "First turn.",
+            "A later cue.",
+        );
+        for _ in 0..16 {
+            if !worker.step(&mut analyzer).unwrap() {
+                break;
+            }
+        }
+        assert_eq!(analyzer.seen.len(), 2);
+        assert_eq!(analyzer.seen[1].len(), 1);
+        assert_eq!(analyzer.seen[1][0].note_key, second.note_key);
+        assert_eq!(memories(&v, &e), vec!["First turn."]);
+        let journal: Value = serde_json::from_slice(
+            &ManagedRoot::new(e.root.path(), Faults::none())
+                .read_bounded(JOURNAL, 1 << 20)
+                .unwrap()
+                .unwrap(),
+        )
+        .unwrap();
+        assert_eq!(journal["jobs"][0]["note_keys"], json!([first.note_key]));
+        assert_ne!(journal["jobs"][0]["note_keys"], json!([late.note_key]));
+        let status = worker.status();
+        drop(worker);
+        drop(v);
+        let v = Arc::new(e.open());
+        let mut worker = CapturedFormation::open(v, system).unwrap();
+        assert!(!worker.step(&mut analyzer).unwrap());
+        assert_eq!(worker.status(), status);
+        assert_eq!(analyzer.seen.len(), 2);
+    }
+}
+
+#[test]
+fn changed_policy_and_deleted_or_other_sources_cannot_lend_analysis_hints() {
+    let e = owner_env();
+    let (v, p) = rig(&e);
+    let system = &e.descriptor.system_actor;
+    capture_and_enqueue(&v, &e, &p, &turn(1, "c", None, "First turn."));
+    capture_and_enqueue(&v, &e, &p, &turn(2, "c", Some("m1"), "Second turn."));
+    let jobs = v.queued_captures(system).unwrap();
+    save_hint(
+        &v,
+        &e,
+        &p,
+        &jobs[0].source,
+        1,
+        "First turn.",
+        "Old policy cue.",
+    );
+    save_hint(
+        &v,
+        &e,
+        &p,
+        &jobs[1].source,
+        2,
+        "Second turn.",
+        "Other source cue.",
+    );
+    let mut current = p;
+    current.revision = enouia_memory_contract::json::Revision::new(2).unwrap();
+    v.set_policy(&e.descriptor.created_by, current.clone())
+        .unwrap();
+    let allowed = save_hint(
+        &v,
+        &e,
+        &current,
+        &jobs[0].source,
+        3,
+        "First turn.",
+        "Current policy cue.",
+    );
+    v.delete(
+        &e.descriptor.created_by,
+        vec![jobs[1].source.source_id.clone()],
+        vec![],
+    )
+    .unwrap();
+    let mut worker = CapturedFormation::open(v, system).unwrap();
+    let mut analyzer = Observing::default();
+    assert!(worker.step(&mut analyzer).unwrap());
+    assert!(!worker.step(&mut analyzer).unwrap());
+    assert_eq!(analyzer.seen.len(), 1);
+    assert_eq!(analyzer.seen[0].len(), 1);
+    assert_eq!(analyzer.seen[0][0].note_key, allowed.note_key);
+    assert_eq!(analyzer.seen[0][0].policy, current.reference());
+}
+
+#[test]
+fn captured_analysis_bounds_hint_count_and_serialized_input_bytes() {
+    for large in [false, true] {
+        let e = owner_env();
+        let (v, p) = rig(&e);
+        let system = &e.descriptor.system_actor;
+        capture_and_enqueue(&v, &e, &p, &turn(1, "c", None, "First turn."));
+        let source = v.queued_captures(system).unwrap()[0].source.clone();
+        for n in 0..12 {
+            save_hint(
+                &v,
+                &e,
+                &p,
+                &source,
+                n,
+                "First turn.",
+                &if large {
+                    "\0".repeat(2000)
+                } else {
+                    format!("Cue {n}")
+                },
+            );
+        }
+        let mut worker = CapturedFormation::open(v, system).unwrap();
+        let mut analyzer = Observing::default();
+        assert!(worker.step(&mut analyzer).unwrap());
+        let notes = &analyzer.seen[0];
+        assert!(!notes.is_empty());
+        assert_eq!(notes.len() == 8, !large);
+        assert!(notes.len() <= 8);
+        assert!(
+            enouia_memory_contract::json::canonical_bytes(notes)
+                .unwrap()
+                .len()
+                <= 65536
+        );
+        assert!(notes.windows(2).all(|w| w[0].note_key < w[1].note_key));
     }
 }

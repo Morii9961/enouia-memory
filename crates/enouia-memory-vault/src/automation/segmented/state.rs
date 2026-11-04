@@ -31,6 +31,8 @@ pub(super) struct State {
     pub locators: BTreeMap<Sha256Hex, SourceId>,
     pub capture_queue: Vec<CapturedQueueEntry>,
     pub capture_queue_keys: BTreeMap<Sha256Hex, usize>,
+    pub agent_notes: BTreeMap<Sha256Hex, (AgentNoteRecord, AgentNoteReceipt)>,
+    pub agent_corrections: BTreeMap<Sha256Hex, (AgentCorrectionRecord, AgentCorrectionReceipt)>,
     pub source_revisions: usize,
     pub memory_revisions: usize,
     pub catalog_revisions: usize,
@@ -570,6 +572,22 @@ impl State {
                     return Err(deny());
                 }
             }
+            SegmentedDelta::AgentNote { note } => {
+                if descriptor.layout != AutomationLayout::SegmentedOwnerV1
+                    || c.actor != descriptor.system_actor
+                    || !self.note_admissible(note, &c.created_at)
+                {
+                    return Err(deny());
+                }
+            }
+            SegmentedDelta::AgentCorrection { report } => {
+                if descriptor.layout != AutomationLayout::SegmentedOwnerV1
+                    || c.actor != descriptor.system_actor
+                    || !self.correction_admissible(report, &c.created_at)
+                {
+                    return Err(deny());
+                }
+            }
         }
         Ok(admitted)
     }
@@ -579,6 +597,37 @@ impl State {
         self.published
             .push(super::process::PublishedChange::from_commit(&c));
         match &c.delta {
+            SegmentedDelta::AgentNote { note } => {
+                self.agent_notes.insert(
+                    note.note_key.clone(),
+                    (
+                        note.as_ref().clone(),
+                        AgentNoteReceipt {
+                            note_key: note.note_key.clone(),
+                            request_id: note.request_id.clone(),
+                            request_hash: note.request_hash.clone(),
+                            committed_in: c.commit_id.clone(),
+                            state: AgentNoteState::HintSaved,
+                        },
+                    ),
+                );
+            }
+            SegmentedDelta::AgentCorrection { report } => {
+                self.agent_corrections.insert(
+                    report.report_key.clone(),
+                    (
+                        report.as_ref().clone(),
+                        AgentCorrectionReceipt {
+                            report_key: report.report_key.clone(),
+                            request_id: report.request_id.clone(),
+                            request_hash: report.request_hash.clone(),
+                            target: report.target.clone(),
+                            committed_in: c.commit_id.clone(),
+                            state: AgentCorrectionState::ReportSaved,
+                        },
+                    ),
+                );
+            }
             SegmentedDelta::Policy { policy } => {
                 self.policies
                     .insert(policy.policy_id.clone(), policy.as_ref().clone());

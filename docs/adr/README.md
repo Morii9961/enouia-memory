@@ -602,6 +602,61 @@ producer job status. Existing pipe-1 and Agent profiles remain unchanged.
 a dedicated foreground-aware thread on the existing lease. Lifecycle revocation
 and storage uncertainty stop execution; no real analyzer or Runtime adoption.
 
+### ADR-MEM-115 — Native Agent note draft gate
+
+[Decision](115-native-agent-note-drafts.md): separately delegated, bounded hints
+on exact authorized Runtime sources, normalized location followed by strict
+evidence checks. Preparation publishes nothing and old read profiles stay
+read-only; storage and explicit MCP write negotiation follow separately.
+
+### ADR-MEM-116 — Durable Agent hint intake
+
+[Decision](116-durable-agent-note-intake.md): save optional scoped Agent hints
+through the existing witnessed Owner commit chain with independent original-key
+receipts. No source, job or memory is created and no MCP write is advertised.
+
+### ADR-MEM-117 — Optional Agent hints in captured analysis
+
+[Decision](117-captured-analysis-agent-hints.md): native analysis v3 receives
+bounded exact-source/current-policy hints on first dispatch, with selected keys
+durable before handoff. Late hints do not re-dispatch or alter pending analysis;
+source evidence and all existing cancellation/unknown rules remain authoritative.
+
+### ADR-MEM-118 — Explicit MCP Agent-note server
+
+[Decision](118-agent-note-mcp-server.md): a new six-tool server pairs live read
+and independent note grants on the same native Vault instance. Note success
+means hint_saved; unknown publication closes without a tool result and retains
+the full MCP Value. Old pipe-5 stays read-only; pipe-6 transport follows separately.
+
+### ADR-MEM-119 — Agent note local transport
+
+[Decision](119-agent-note-local-transport.md): explicit paired-grant pipe-6,
+actual OS peer checks, real disconnect on unknown publication, full MCP Value
+retention in the new stdio path and explicit launcher attach. Old pipe-5 and
+older arguments-only stdio behavior remain unchanged; no real setup is activated.
+
+### ADR-MEM-120 — Native correction-report draft gate
+
+[Decision](120-native-agent-correction-drafts.md): separate native correction
+delegation binds a fully Agent-qualified current target and independently
+authorized captured user quote. Draft preparation publishes nothing and cannot
+perform an Owner edit; durable reports and System revision evaluation follow.
+
+### ADR-MEM-121 — Durable Agent correction reports
+
+[Decision](121-durable-agent-correction-reports.md): save correction reports
+through the existing witnessed Owner chain with `report_saved` original-key
+receipts. Authorization precedes replay; a saved key replays from the target's
+currently authorized history after a System revision. Nothing is corrected yet.
+
+### ADR-MEM-122 — System consumption of saved correction reports
+
+[Decision](122-system-correction-consumption.md): the captured worker analyzes
+each saved report once through a separate CorrectionAnalyzer port and turns an
+accepted user quote into an ordinary target-bound `correction` revision decided
+by the existing evaluator. No Owner queue; a moved target is refused.
+
 ### ADR-MEM-110 — Native empty Owner bootstrap
 
 [Decision](110-native-empty-owner-bootstrap.md): an explicit trusted native local

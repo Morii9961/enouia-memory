@@ -1,11 +1,15 @@
 //! Explicit ADR-MEM-94 synthetic root. No implicit opening, migration or routes.
 mod agent;
 mod catalog;
+mod correction_intake;
 mod formation_queue;
 mod formation_worker;
 mod intake;
+mod note_intake;
 pub use agent::{
-    AuthorizedSegmentedAgentRead, INITIALIZED_AGENT_READ_CAPABILITY,
+    AGENT_CORRECTION_CAPABILITY, AGENT_NOTE_CAPABILITY, AgentCorrectionDraft,
+    AgentCorrectionPermit, AgentCorrectionRequest, AgentNoteDraft, AgentNotePermit,
+    AgentNoteRequest, AuthorizedSegmentedAgentRead, INITIALIZED_AGENT_READ_CAPABILITY,
     QUALIFIED_AGENT_READ_CAPABILITY, SegmentedAgentPermit, SegmentedAgentScope,
 };
 mod runtime_capture;
@@ -19,8 +23,8 @@ use enouia_memory_contract::{
 pub use formation_queue::{CapturedQueueReceipt, QueuedCapture};
 pub use formation_worker::{
     CaptureAnalysis, CaptureAnalyzer, CaptureStatement, CaptureStopToken, CapturedFormation,
-    FormationJobState, FormationJobStatus, FormationSeed, PendingCaptureAnalysis,
-    PreparedFormation, ProducerJobStatus, formation_seed, quoted_evidence,
+    CorrectionAnalyzer, CorrectionTarget, FormationJobState, FormationJobStatus, FormationSeed,
+    PendingCaptureAnalysis, PreparedFormation, ProducerJobStatus, formation_seed, quoted_evidence,
 };
 pub use runtime_capture::{NativeRuntimeCapture, RuntimeCapturePermit, RuntimeCaptureScope};
 pub use state::SegmentedMemory;

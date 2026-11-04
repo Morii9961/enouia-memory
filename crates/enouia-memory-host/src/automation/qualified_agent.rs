@@ -12,9 +12,10 @@ use enouia_memory_contract::{
 use enouia_memory_vault::automation::{
     AutomationFault,
     segmented::{
-        AuthorizedSegmentedAgentRead, INITIALIZED_AGENT_READ_CAPABILITY,
-        QUALIFIED_AGENT_READ_CAPABILITY, SegmentedAgentPermit, SegmentedAgentScope,
-        SegmentedAutomationVault, SegmentedMemory,
+        AgentCorrectionDraft, AgentCorrectionPermit, AgentCorrectionRequest, AgentNoteDraft,
+        AgentNotePermit, AgentNoteRequest, AuthorizedSegmentedAgentRead,
+        INITIALIZED_AGENT_READ_CAPABILITY, QUALIFIED_AGENT_READ_CAPABILITY, SegmentedAgentPermit,
+        SegmentedAgentScope, SegmentedAutomationVault, SegmentedMemory,
     },
 };
 use serde::{Deserialize, Serialize};
@@ -38,6 +39,175 @@ pub struct QualifiedAgentReader<'a> {
     permit: SegmentedAgentPermit,
     generation: Arc<AtomicBool>,
     context: Mutex<Option<Value>>,
+}
+/// Explicit native note delegation; no MCP tool or read-permit upgrade.
+pub struct AgentNoteWriter<'a> {
+    host: &'a QualifiedAgentHost,
+    permit: AgentNotePermit,
+    generation: Arc<AtomicBool>,
+    unknown: Mutex<Option<AgentNoteRequest>>,
+}
+/// Separate correction-report grant. It saves reports; it cannot perform Owner edits.
+pub struct AgentCorrectionReporter<'a> {
+    host: &'a QualifiedAgentHost,
+    permit: AgentCorrectionPermit,
+    generation: Arc<AtomicBool>,
+    unknown: Mutex<Option<AgentCorrectionRequest>>,
+}
+impl AgentCorrectionReporter<'_> {
+    pub fn revoke(&self) {
+        self.permit.revoke();
+    }
+    pub fn prepare(
+        &self,
+        request: &AgentCorrectionRequest,
+    ) -> ApplicationResult<AgentCorrectionDraft> {
+        let gate = self
+            .host
+            .generation
+            .read()
+            .map_err(|_| ApplicationFault::Locked)?;
+        if gate.is_none() || !self.generation.load(Ordering::SeqCst) {
+            return Err(ApplicationFault::Locked);
+        }
+        Ok(self
+            .host
+            .vault
+            .prepare_agent_correction(&self.permit, request, locate_agent_quote)?)
+    }
+    /// `report_saved` only; never a corrected memory or Owner confirmation.
+    pub fn submit(
+        &self,
+        request: &AgentCorrectionRequest,
+    ) -> ApplicationResult<AgentCorrectionReceipt> {
+        // Same packet/lifecycle lock order as note submission.
+        let mut unknown = self.unknown.lock().map_err(|_| ApplicationFault::Locked)?;
+        if unknown.is_some() {
+            return Err(AutomationFault::OutcomeUnknown.into());
+        }
+        let gate = self
+            .host
+            .generation
+            .read()
+            .map_err(|_| ApplicationFault::Locked)?;
+        if gate.is_none() || !self.generation.load(Ordering::SeqCst) {
+            return Err(ApplicationFault::Locked);
+        }
+        let result =
+            self.host
+                .vault
+                .submit_agent_correction(&self.permit, request, locate_agent_quote);
+        if matches!(result, Err(AutomationFault::OutcomeUnknown)) {
+            *unknown = Some(request.clone());
+            self.permit.revoke();
+        }
+        result.map_err(Into::into)
+    }
+    pub fn original_unknown(&self) -> ApplicationResult<Option<AgentCorrectionRequest>> {
+        Ok(self
+            .unknown
+            .lock()
+            .map_err(|_| ApplicationFault::Locked)?
+            .clone())
+    }
+}
+impl AgentNoteWriter<'_> {
+    pub(crate) fn shares_vault(&self, reader: &QualifiedAgentReader<'_>) -> bool {
+        Arc::ptr_eq(&self.host.vault, &reader.host.vault)
+    }
+    pub fn principal(&self) -> &ActorRef {
+        self.permit.principal()
+    }
+    pub fn vault_id(&self) -> &VaultId {
+        &self.host.vault.descriptor().vault_id
+    }
+    pub fn check_connection(&self) -> ApplicationResult<()> {
+        if self
+            .unknown
+            .lock()
+            .map_err(|_| ApplicationFault::Locked)?
+            .is_some()
+        {
+            return Err(AutomationFault::OutcomeUnknown.into());
+        }
+        let gate = self
+            .host
+            .generation
+            .read()
+            .map_err(|_| ApplicationFault::Locked)?;
+        if gate.is_none() || !self.generation.load(Ordering::SeqCst) {
+            return Err(ApplicationFault::Locked);
+        }
+        self.host
+            .vault
+            .check_agent_note_live(&self.permit)
+            .map_err(Into::into)
+    }
+    pub fn revoke(&self) {
+        self.permit.revoke();
+    }
+    pub fn prepare(&self, request: &AgentNoteRequest) -> ApplicationResult<AgentNoteDraft> {
+        let gate = self
+            .host
+            .generation
+            .read()
+            .map_err(|_| ApplicationFault::Locked)?;
+        if gate.is_none() || !self.generation.load(Ordering::SeqCst) {
+            return Err(ApplicationFault::Locked);
+        }
+        Ok(self
+            .host
+            .vault
+            .prepare_agent_note(&self.permit, request, locate_agent_quote)?)
+    }
+    pub fn submit(&self, request: &AgentNoteRequest) -> ApplicationResult<AgentNoteReceipt> {
+        // Hold packet/lifecycle locks in the same order for every submission.
+        let mut unknown = self.unknown.lock().map_err(|_| ApplicationFault::Locked)?;
+        if unknown.is_some() {
+            return Err(AutomationFault::OutcomeUnknown.into());
+        }
+        let gate = self
+            .host
+            .generation
+            .read()
+            .map_err(|_| ApplicationFault::Locked)?;
+        if gate.is_none() || !self.generation.load(Ordering::SeqCst) {
+            return Err(ApplicationFault::Locked);
+        }
+        let result = self
+            .host
+            .vault
+            .submit_agent_note(&self.permit, request, locate_agent_quote);
+        if matches!(result, Err(AutomationFault::OutcomeUnknown)) {
+            *unknown = Some(request.clone());
+            self.permit.revoke();
+        }
+        result.map_err(Into::into)
+    }
+    pub fn original_unknown(&self) -> ApplicationResult<Option<AgentNoteRequest>> {
+        Ok(self
+            .unknown
+            .lock()
+            .map_err(|_| ApplicationFault::Locked)?
+            .clone())
+    }
+}
+fn locate_agent_quote(source: &CapturedSource, hint: &str) -> Option<QuotedEvidence> {
+    let quote = crate::mcp::quote_locator::locate(&source.text, hint).ok()?;
+    Some(QuotedEvidence {
+        reference: EvidenceRef {
+            source_id: source.record.source_id.clone(),
+            source_revision: source.record.revision,
+            locator: source.record.locator.clone(),
+            object_hash: source.record.anchor_hash().clone(),
+            evidence_class: source.record.evidence_class,
+            supports: "content".into(),
+        },
+        quote: quote.quote,
+        speaker: source.record.speaker_role,
+        start: quote.start,
+        end: quote.end,
+    })
 }
 /// Data only. Neither parsing nor copying a page grants native authority.
 #[derive(Serialize)]
@@ -73,6 +243,52 @@ pub struct QualifiedHistoryCursor {
     pub before_revision: Revision,
 }
 impl QualifiedAgentHost {
+    pub fn correction_reporter(
+        &self,
+        owner: &ActorRef,
+        principal: ActorRef,
+        scope: SegmentedAgentScope,
+    ) -> ApplicationResult<AgentCorrectionReporter<'_>> {
+        if owner != &self.owner || self.capability != INITIALIZED_CAPABILITY {
+            return Err(AutomationFault::Denied.into());
+        }
+        let gate = self
+            .generation
+            .read()
+            .map_err(|_| ApplicationFault::Locked)?;
+        let generation = gate.as_ref().ok_or(ApplicationFault::Locked)?.clone();
+        let permit = self
+            .vault
+            .authorize_agent_correction(owner, principal, scope)?;
+        Ok(AgentCorrectionReporter {
+            host: self,
+            permit,
+            generation,
+            unknown: Mutex::new(None),
+        })
+    }
+    pub fn note_writer(
+        &self,
+        owner: &ActorRef,
+        principal: ActorRef,
+        scope: SegmentedAgentScope,
+    ) -> ApplicationResult<AgentNoteWriter<'_>> {
+        if owner != &self.owner || self.capability != INITIALIZED_CAPABILITY {
+            return Err(AutomationFault::Denied.into());
+        }
+        let gate = self
+            .generation
+            .read()
+            .map_err(|_| ApplicationFault::Locked)?;
+        let generation = gate.as_ref().ok_or(ApplicationFault::Locked)?.clone();
+        let permit = self.vault.authorize_agent_note(owner, principal, scope)?;
+        Ok(AgentNoteWriter {
+            host: self,
+            permit,
+            generation,
+            unknown: Mutex::new(None),
+        })
+    }
     /// Caller has authenticated the native Owner; not an OS enrollment method.
     pub fn from_authenticated_owner(
         vault: Arc<SegmentedAutomationVault>,

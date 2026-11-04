@@ -23,6 +23,9 @@ const TOOLS: [&str; 5] = [
     "memory_related",
     "memory_recall",
 ];
+pub(super) fn tools() -> Vec<Value> {
+    TOOLS.iter().map(|name|json!({"name":name,"description":"Scoped automation-root read. Attributed statements are subject statements, not verified facts; staged remains automatic reassessment. Coverage is explicit. Recorded relations are not independent verification. Theme suggestions are not facts. Same-conversation and semantic neighbors are unavailable. Native Owner proofs do not permit Owner actions. Reads do not reinforce attention.","inputSchema":schemas::schema(name,false).expect("tool"),"outputSchema":schemas::schema(name,true).expect("tool"),"annotations":{"readOnlyHint":true,"destructiveHint":false,"idempotentHint":true,"openWorldHint":false}})).collect()
+}
 #[derive(Clone, Copy, Deserialize, Serialize)]
 enum Operation {
     #[serde(rename = "memory_search")]
@@ -160,14 +163,13 @@ impl<'a, 'host> Server<'a, 'host> {
                 if !closed(&params, &["_meta"]) {
                     return Some(error(id, -32602, "invalid_tool_cursor"));
                 }
-                let tools:Vec<_>=TOOLS.iter().map(|name|json!({"name":name,"description":"Scoped automation-root read. Attributed statements are subject statements, not verified facts; staged remains automatic reassessment. Coverage is explicit. Recorded relations are not independent verification. Theme suggestions are not facts. Same-conversation and semantic neighbors are unavailable. Native Owner proofs do not permit Owner actions. Reads do not reinforce attention.","inputSchema":schemas::schema(name,false).expect("tool"),"outputSchema":schemas::schema(name,true).expect("tool"),"annotations":{"readOnlyHint":true,"destructiveHint":false,"idempotentHint":true,"openWorldHint":false}})).collect();
-                Some(reply(id, json!({"tools":tools})))
+                Some(reply(id, json!({"tools":tools()})))
             }
             "tools/call" => Some(self.call(id, &params)),
             _ => Some(error(id, -32601, "method_not_found")),
         }
     }
-    fn call(&mut self, id: Value, params: &Value) -> Value {
+    pub(super) fn call(&mut self, id: Value, params: &Value) -> Value {
         if !closed(params, &["name", "arguments", "_meta"])
             || !TOOLS.contains(&params["name"].as_str().unwrap_or(""))
         {
