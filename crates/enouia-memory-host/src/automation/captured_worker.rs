@@ -4,13 +4,13 @@ use super::{
     runtime_capture::RuntimeCaptureHost,
 };
 use enouia_memory_contract::next::{
-    AgentCorrectionRecord, CapturedSource, OWNER_RUNTIME_CAPTURE_CAPABILITY,
+    AgentCorrectionRecord, AgentSupersedeRecord, CapturedSource, OWNER_RUNTIME_CAPTURE_CAPABILITY,
 };
 use enouia_memory_vault::automation::{
     AutomationFault,
     segmented::{
         CaptureAnalysis, CaptureAnalyzer, CaptureStopToken, CapturedFormation, CorrectionAnalyzer,
-        CorrectionTarget, PendingCaptureAnalysis,
+        CorrectionTarget, PendingCaptureAnalysis, SupersedeAnalyzer,
     },
 };
 use std::{
@@ -135,7 +135,12 @@ impl RuntimeCaptureHost {
         analyzer: impl CaptureAnalyzer + Send + 'static,
         timeout: Duration,
     ) -> ApplicationResult<CapturedWorker> {
-        self.start(analyzer, None::<NoCorrections>, timeout)
+        self.start(
+            analyzer,
+            None::<NoCorrections>,
+            None::<NoSupersedes>,
+            timeout,
+        )
     }
     /// Also consumes saved Agent correction reports (ADR-MEM-122) whenever no
     /// captured step is ready. Captured behavior is otherwise unchanged.
@@ -145,12 +150,23 @@ impl RuntimeCaptureHost {
         corrections: impl CorrectionAnalyzer + Send + 'static,
         timeout: Duration,
     ) -> ApplicationResult<CapturedWorker> {
-        self.start(analyzer, Some(corrections), timeout)
+        self.start(analyzer, Some(corrections), None::<NoSupersedes>, timeout)
+    }
+    /// Also consumes independently saved supersede reports through System updates.
+    pub fn start_worker_with_reports(
+        self: &Arc<Self>,
+        analyzer: impl CaptureAnalyzer + Send + 'static,
+        corrections: impl CorrectionAnalyzer + Send + 'static,
+        supersedes: impl SupersedeAnalyzer + Send + 'static,
+        timeout: Duration,
+    ) -> ApplicationResult<CapturedWorker> {
+        self.start(analyzer, Some(corrections), Some(supersedes), timeout)
     }
     fn start(
         self: &Arc<Self>,
         analyzer: impl CaptureAnalyzer + Send + 'static,
         corrections: Option<impl CorrectionAnalyzer + Send + 'static>,
+        supersedes: Option<impl SupersedeAnalyzer + Send + 'static>,
         timeout: Duration,
     ) -> ApplicationResult<CapturedWorker> {
         if self.capability() != OWNER_RUNTIME_CAPTURE_CAPABILITY {
@@ -186,7 +202,7 @@ impl RuntimeCaptureHost {
             .name("memory-captured-formation".into())
             .spawn(move || {
                 let outcome = catch_unwind(AssertUnwindSafe(|| {
-                    run(weak, &control, formation, analyzer, corrections)
+                    run(weak, &control, formation, analyzer, corrections, supersedes)
                 }));
                 let exit = outcome.unwrap_or(WorkerExit::Panicked);
                 control.cancel();
@@ -219,12 +235,25 @@ impl CorrectionAnalyzer for NoCorrections {
         match *self {}
     }
 }
+enum NoSupersedes {}
+impl SupersedeAnalyzer for NoSupersedes {
+    fn start(
+        &mut self,
+        _: &AgentSupersedeRecord,
+        _: &CorrectionTarget,
+        _: &CapturedSource,
+        _: &CaptureStopToken,
+    ) -> Result<Box<dyn PendingCaptureAnalysis>, CaptureAnalysis> {
+        match *self {}
+    }
+}
 fn run(
     host: Weak<RuntimeCaptureHost>,
     control: &Control,
     mut formation: CapturedFormation,
     mut analyzer: impl CaptureAnalyzer,
     mut corrections: Option<impl CorrectionAnalyzer>,
+    mut supersedes: Option<impl SupersedeAnalyzer>,
 ) -> WorkerExit {
     let mut backoff = Duration::from_millis(10);
     loop {
@@ -248,12 +277,18 @@ fn run(
             // The native lifecycle gate covers only one bounded local action.
             // Neither analyzer start nor poll may wait on external work.
             match catch_unwind(AssertUnwindSafe(|| {
-                match (
+                let result = match (
                     formation.step_with_stop(&mut analyzer, &control.stop),
                     corrections.as_mut(),
                 ) {
                     (Ok(false), Some(corrections)) => {
                         formation.step_corrections(corrections, &control.stop)
+                    }
+                    (result, _) => result,
+                };
+                match (result, supersedes.as_mut()) {
+                    (Ok(false), Some(supersedes)) => {
+                        formation.step_supersedes(supersedes, &control.stop)
                     }
                     (result, _) => result,
                 }

@@ -11,6 +11,7 @@ pub mod qualified;
 pub mod quote_locator;
 mod read;
 mod read_session;
+pub mod supersedes;
 pub mod v2;
 pub use read::{HostPort, ReadPort};
 

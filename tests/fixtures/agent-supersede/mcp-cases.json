@@ -1,0 +1,262 @@
+{
+  "request": {
+    "schema_version": 2,
+    "kind": "agent_supersede_request",
+    "capability": "memory-agent-supersede-1",
+    "request": {
+      "request_id": "req_0000000c-0000-4000-8000-000000000001",
+      "source": {
+        "source_id": "src_00000001-0000-4000-8000-000000000001",
+        "source_revision": 1
+      },
+      "quote_hint": "Synthetic subject says: I prefer quiet workspaces.",
+      "supersede": "The user says this was true before and has now changed; untrusted Agent interpretation.",
+      "target": {
+        "memory": {
+          "memory_id": "mem_00000001-0000-4000-8000-000000000001",
+          "revision": 2
+        },
+        "hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+      }
+    }
+  },
+  "response": {
+    "schema_version": 2,
+    "kind": "agent_supersede_response",
+    "capability": "memory-agent-supersede-1",
+    "request_id": "req_0000000c-0000-4000-8000-000000000001",
+    "receipt": {
+      "report_key": "096b7e78ab13731aabb1eccd5caef0799a0d11d8a8f85bd2cd6b71d9f63654b2",
+      "request_id": "req_0000000c-0000-4000-8000-000000000001",
+      "request_hash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "target": {
+        "memory": {
+          "memory_id": "mem_00000001-0000-4000-8000-000000000001",
+          "revision": 2
+        },
+        "hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+      },
+      "committed_in": "cmt_00000004-0000-4000-8000-000000000001",
+      "state": "supersede_report_saved"
+    },
+    "error": null
+  },
+  "request_cases": [
+    {
+      "name": "valid",
+      "ops": [],
+      "accept": true
+    },
+    {
+      "name": "schema1",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/schema_version",
+          "value": 1
+        }
+      ],
+      "accept": false
+    },
+    {
+      "name": "old read capability",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/capability",
+          "value": "memory-agent-initialized-read-1"
+        }
+      ],
+      "accept": false
+    },
+    {
+      "name": "forged owner",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/owner",
+          "value": true
+        }
+      ],
+      "accept": false
+    },
+    {
+      "name": "forged request scope",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/request/scope",
+          "value": {
+            "all": true
+          }
+        }
+      ],
+      "accept": false
+    },
+    {
+      "name": "empty quote",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/request/quote_hint",
+          "value": ""
+        }
+      ],
+      "accept": false
+    },
+    {
+      "name": "oversized quote",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/request/quote_hint",
+          "value": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+        }
+      ],
+      "accept": false
+    },
+    {
+      "name": "oversized note",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/request/supersede",
+          "value": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+        }
+      ],
+      "accept": false
+    },
+    {
+      "name": "zero revision",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/request/source/source_revision",
+          "value": 0
+        }
+      ],
+      "accept": false
+    },
+    {
+      "name": "note capability refused",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/capability",
+          "value": "memory-agent-note-1"
+        }
+      ],
+      "accept": false
+    },
+    {
+      "name": "missing exact target",
+      "ops": [
+        {
+          "op": "remove",
+          "path": "/request/target"
+        }
+      ],
+      "accept": false
+    },
+    {
+      "name": "unknown target authority",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/request/target/owner",
+          "value": true
+        }
+      ],
+      "accept": false
+    },
+    {
+      "name": "correction capability refused",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/capability",
+          "value": "memory-agent-correction-1"
+        }
+      ],
+      "accept": false
+    }
+  ],
+  "response_cases": [
+    {
+      "name": "valid saved receipt",
+      "ops": [],
+      "accept": true
+    },
+    {
+      "name": "must not claim formation",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/receipt/state",
+          "value": "formed"
+        }
+      ],
+      "accept": false
+    },
+    {
+      "name": "must not echo body",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/note",
+          "value": "private-body"
+        }
+      ],
+      "accept": false
+    },
+    {
+      "name": "must not emit scope",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/scope_hash",
+          "value": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        }
+      ],
+      "accept": false
+    },
+    {
+      "name": "known refusal",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/receipt",
+          "value": null
+        },
+        {
+          "op": "set",
+          "path": "/error",
+          "value": {
+            "code": "permission_denied",
+            "retryable": false
+          }
+        }
+      ],
+      "accept": true
+    },
+    {
+      "name": "unknown is not a tool result",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/receipt",
+          "value": null
+        },
+        {
+          "op": "set",
+          "path": "/error",
+          "value": {
+            "code": "outcome_unknown",
+            "retryable": false
+          }
+        }
+      ],
+      "accept": false
+    }
+  ]
+}

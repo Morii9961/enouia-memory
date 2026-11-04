@@ -664,6 +664,12 @@ and correction delegations on one leased Vault/Agent, expose only report_saved
 through a distinct pipe-7 profile, and disconnect on unknown publication while
 retaining the complete original MCP Value. Pipe-5/6 are unchanged.
 
+### ADR-MEM-124 — Independent Agent supersede reports
+
+[Decision](124-agent-supersede-reports.md): independent permit, saved report,
+System update analyzer and pipe-8 for previously true facts that changed.
+Original user quotes remain the only evidence; no correction alias or Owner queue.
+
 ### ADR-MEM-110 — Native empty Owner bootstrap
 
 [Decision](110-native-empty-owner-bootstrap.md): an explicit trusted native local

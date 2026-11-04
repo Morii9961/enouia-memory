@@ -1186,3 +1186,138 @@ fn hosted_worker_consumes_a_saved_correction_report_into_a_revision_automaticall
             .all(|s| s.state == FormationJobState::Formed && s.receipts.len() == 1)
     );
 }
+
+/// Scripted System supersede port: quotes the whole user turn as a supersede.
+struct HostedSupersedes(Arc<AtomicUsize>);
+impl SupersedeAnalyzer for HostedSupersedes {
+    fn start(
+        &mut self,
+        _: &AgentSupersedeRecord,
+        target: &CorrectionTarget,
+        source: &CapturedSource,
+        _: &CaptureStopToken,
+    ) -> std::result::Result<Box<dyn PendingCaptureAnalysis>, CaptureAnalysis> {
+        self.0.fetch_add(1, Ordering::SeqCst);
+        let mut dimensions = target.dimensions.clone();
+        dimensions.change = FormationChange::Update;
+        Err(CaptureAnalysis::Statements(vec![CaptureStatement {
+            quote: source.text.clone(),
+            title: source.text.clone(),
+            interpretation: Interpretation::ClearSelfReport,
+            dimensions,
+            event_time: unknown_time(),
+            valid_time: unknown_time(),
+            note: None,
+            prompt_version: "hosted-supersede-1".into(),
+            model_version: None,
+        }]))
+    }
+}
+#[test]
+fn hosted_worker_consumes_a_saved_supersede_report_into_a_revision_automatically() {
+    use enouia_memory_host::automation::qualified_agent::QualifiedAgentHost;
+    let e = owner_env();
+    let v = Arc::new(e.create(Faults::none()));
+    let p = e.policy(1, 1, 8);
+    v.set_policy(&e.descriptor.created_by, p.clone()).unwrap();
+    let peer = OwnedPeer::spawn();
+    let h = Arc::new(host(&e, v.clone(), &peer, &p));
+    let first = h.capture(&hosted_request(1)).unwrap();
+    h.enqueue(&first).unwrap();
+    // The later user turn is captured but not queued: it reaches memory only
+    // through the Agent's saved report and the System's own analysis.
+    let supersede = h.capture(&hosted_request(2)).unwrap();
+    let supersedes = Arc::new(AtomicUsize::new(0));
+    let worker = h
+        .start_worker_with_reports(
+            fake(&[FakeAction::Statement]),
+            HostedCorrections(Arc::new(AtomicUsize::new(0))),
+            HostedSupersedes(supersedes.clone()),
+            Duration::from_secs(2),
+        )
+        .unwrap();
+    wait_until(|| {
+        h.status(&hosted_request(1))
+            .is_ok_and(|s| s[0].state == FormationJobState::Formed)
+    });
+    let system = &e.descriptor.system_actor;
+    let target = v
+        .read(system, Sensitivity::Private, |d| {
+            d.memories[0].target.clone()
+        })
+        .unwrap();
+    let owner = &e.descriptor.created_by;
+    let agents =
+        QualifiedAgentHost::from_authenticated_initialized_owner(v.clone(), owner.clone()).unwrap();
+    let reporter = agents
+        .supersede_reporter(
+            owner,
+            ActorRef {
+                actor_type: ActorType::Agent,
+                actor_id: PrincipalId::parse(&id("prn", 88)).unwrap(),
+            },
+            SegmentedAgentScope {
+                subject_id: p.subject_id.clone(),
+                project_id: p.project_id.clone(),
+                policy_ids: vec![p.policy_id.clone()],
+                source_ids: p.source_ids.clone(),
+                max_sensitivity: Sensitivity::Private,
+                source_read: true,
+                valid_until: Timestamp::from_unix_ms(NOW + 120_000).unwrap(),
+            },
+        )
+        .unwrap();
+    let request = AgentSupersedeRequest {
+        request_id: RequestId::parse(&id("req", 41)).unwrap(),
+        target: target.clone(),
+        source: supersede.sources[0].clone(),
+        quote_hint: "I prefer warm light.".into(),
+        supersede: "Untrusted: the user corrected the earlier preference.".into(),
+    };
+    // The worker shares the writer lock; Busy is not acceptance, so repeat
+    // the unchanged original request.
+    let receipt = loop {
+        match reporter.submit(&request) {
+            Err(ApplicationFault::Vault(AutomationFault::Busy | AutomationFault::Stale)) => {
+                std::thread::sleep(Duration::from_millis(5))
+            }
+            other => break other.unwrap(),
+        }
+    };
+    assert_eq!(receipt.state, AgentSupersedeState::SupersedeReportSaved);
+    wait_until(|| {
+        v.read(system, Sensitivity::Private, |d| {
+            d.memories
+                .iter()
+                .any(|m| m.target.memory.memory_id == target.memory.memory_id && m.target != target)
+        })
+        .unwrap_or(false)
+    });
+    assert_eq!(worker.shutdown(), WorkerExit::Stopped);
+    assert_eq!(supersedes.load(Ordering::SeqCst), 1);
+    v.read(system, Sensitivity::Private, |d| {
+        assert_eq!(d.memories.len(), 1);
+        let input = &d.memories[0].memory.decision.input;
+        assert_eq!(input.content, "I prefer warm light.");
+        assert_eq!(input.target.as_ref(), Some(&target));
+        assert_eq!(input.evidence[0].source_id, request.source.source_id);
+        assert!(d.owner_actions.is_empty());
+    })
+    .unwrap();
+    // Stopping may precede the final bookkeeping step; a reopened worker
+    // finishes it from the journal without analyzing the report again.
+    let mut reopened = CapturedFormation::open(v.clone(), system).unwrap();
+    let mut analyzer = HostedSupersedes(supersedes.clone());
+    while reopened
+        .step_supersedes(&mut analyzer, &CaptureStopToken::default())
+        .unwrap()
+    {}
+    assert_eq!(supersedes.load(Ordering::SeqCst), 1);
+    assert_eq!(reopened.status().len(), 2);
+    assert!(
+        reopened
+            .status()
+            .iter()
+            .all(|s| s.state == FormationJobState::Formed && s.receipts.len() == 1)
+    );
+}

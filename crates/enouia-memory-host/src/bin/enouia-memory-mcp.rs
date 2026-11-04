@@ -98,6 +98,18 @@ fn run() -> Result<(), ()> {
                     .serve_stdio(&mut std::io::stdin().lock(), &mut std::io::stdout().lock())
                     .map_err(|_| ())
             }
+            "automation-supersedes-v1" => {
+                let mut client = enouia_memory_host::mcp::supersedes::native::Client::connect(
+                    pipe,
+                    peer,
+                    &vault,
+                    Duration::from_secs(10),
+                )
+                .map_err(|_| ())?;
+                client
+                    .serve_stdio(&mut std::io::stdin().lock(), &mut std::io::stdout().lock())
+                    .map_err(|_| ())
+            }
             "automation-notes-v1" => {
                 let mut client = enouia_memory_host::mcp::notes::native::Client::connect(
                     pipe,

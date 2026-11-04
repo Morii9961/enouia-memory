@@ -1,0 +1,302 @@
+{
+  "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+  "record": {
+    "report_key": "096b7e78ab13731aabb1eccd5caef0799a0d11d8a8f85bd2cd6b71d9f63654b2",
+    "request_id": "req_0000000c-0000-4000-8000-000000000001",
+    "request_hash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "principal": {
+      "actor_type": "agent",
+      "actor_id": "prn_00000058-0000-4000-8000-000000000001"
+    },
+    "scope_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "target": {
+      "memory": {
+        "memory_id": "mem_00000001-0000-4000-8000-000000000001",
+        "revision": 2
+      },
+      "hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+    },
+    "policy": {
+      "policy_id": "pol_00000001-0000-4000-8000-000000000001",
+      "revision": 1,
+      "hash": "4806d596418345a9401fc4022417b5ca416a1b9b6dae09d924609d16317ea6d4"
+    },
+    "evidence": {
+      "reference": {
+        "source_id": "src_00000001-0000-4000-8000-000000000001",
+        "locator": {
+          "event_id": "evt_00000015-0000-4000-8000-000000000015",
+          "kind": "runtime_event"
+        },
+        "evidence_class": "user_statement",
+        "source_revision": 1,
+        "object_hash": "452c51c0e5d693cc71a4434687ce9f7984b288c9b5f70cfa79440ae0fbd98f4f",
+        "supports": "content"
+      },
+      "quote": "Synthetic subject says: I prefer quiet workspaces.",
+      "speaker": "user",
+      "start": 0,
+      "end": 50
+    },
+    "supersede": "The user says this was true before and has now changed; untrusted Agent interpretation."
+  },
+  "receipt": {
+    "report_key": "096b7e78ab13731aabb1eccd5caef0799a0d11d8a8f85bd2cd6b71d9f63654b2",
+    "request_id": "req_0000000c-0000-4000-8000-000000000001",
+    "request_hash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "target": {
+      "memory": {
+        "memory_id": "mem_00000001-0000-4000-8000-000000000001",
+        "revision": 2
+      },
+      "hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+    },
+    "committed_in": "cmt_00000004-0000-4000-8000-000000000001",
+    "state": "supersede_report_saved"
+  },
+  "record_cases": [
+    {
+      "name": "valid",
+      "ops": [],
+      "schema": true,
+      "native": true
+    },
+    {
+      "name": "Owner principal",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/principal/actor_type",
+          "value": "owner"
+        }
+      ],
+      "schema": false,
+      "native": false
+    },
+    {
+      "name": "unknown field",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/corrected",
+          "value": true
+        }
+      ],
+      "schema": false,
+      "native": false
+    },
+    {
+      "name": "empty supersede",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/supersede",
+          "value": ""
+        }
+      ],
+      "schema": false,
+      "native": false
+    },
+    {
+      "name": "oversized supersede",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/supersede",
+          "value": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+        }
+      ],
+      "schema": false,
+      "native": false
+    },
+    {
+      "name": "whitespace supersede",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/supersede",
+          "value": " "
+        }
+      ],
+      "schema": true,
+      "native": false
+    },
+    {
+      "name": "wrong deterministic key",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/report_key",
+          "value": "0000000000000000000000000000000000000000000000000000000000000000"
+        }
+      ],
+      "schema": true,
+      "native": false
+    },
+    {
+      "name": "note key is not a report key",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/report_key",
+          "value": "9f247fee6b447520a7e845ce4ed69874153e7313e272254396f896f670ecb308"
+        }
+      ],
+      "schema": true,
+      "native": false
+    },
+    {
+      "name": "wrong source support",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/evidence/reference/supports",
+          "value": "other"
+        }
+      ],
+      "schema": false,
+      "native": false
+    },
+    {
+      "name": "invalid scalar span",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/evidence/start",
+          "value": 50
+        }
+      ],
+      "schema": true,
+      "native": false
+    },
+    {
+      "name": "assistant speaker",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/evidence/speaker",
+          "value": "assistant"
+        }
+      ],
+      "schema": false,
+      "native": false
+    },
+    {
+      "name": "fabricated confirmation",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/evidence/reference/evidence_class",
+          "value": "user_confirmation"
+        }
+      ],
+      "schema": false,
+      "native": false
+    },
+    {
+      "name": "missing target",
+      "ops": [
+        {
+          "op": "remove",
+          "path": "/target"
+        }
+      ],
+      "schema": false,
+      "native": false
+    },
+    {
+      "name": "target revision zero",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/target/memory/revision",
+          "value": 0
+        }
+      ],
+      "schema": false,
+      "native": false
+    }
+  ],
+  "receipt_cases": [
+    {
+      "name": "valid",
+      "ops": [],
+      "schema": true,
+      "native": true
+    },
+    {
+      "name": "must not claim supersede",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/state",
+          "value": "corrected"
+        }
+      ],
+      "schema": false,
+      "native": false
+    },
+    {
+      "name": "must not claim queued",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/state",
+          "value": "queued"
+        }
+      ],
+      "schema": false,
+      "native": false
+    },
+    {
+      "name": "must not expose memory result",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/result",
+          "value": {
+            "memory_id": "mem_00000001-0000-4000-8000-000000000001",
+            "revision": 3
+          }
+        }
+      ],
+      "schema": false,
+      "native": false
+    },
+    {
+      "name": "must not expose sequence",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/sequence",
+          "value": 1
+        }
+      ],
+      "schema": false,
+      "native": false
+    },
+    {
+      "name": "invalid commit",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/committed_in",
+          "value": "unknown"
+        }
+      ],
+      "schema": false,
+      "native": false
+    },
+    {
+      "name": "missing target",
+      "ops": [
+        {
+          "op": "remove",
+          "path": "/target"
+        }
+      ],
+      "schema": false,
+      "native": false
+    }
+  ]
+}

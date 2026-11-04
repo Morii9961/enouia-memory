@@ -33,6 +33,7 @@ pub(super) struct State {
     pub capture_queue_keys: BTreeMap<Sha256Hex, usize>,
     pub agent_notes: BTreeMap<Sha256Hex, (AgentNoteRecord, AgentNoteReceipt)>,
     pub agent_corrections: BTreeMap<Sha256Hex, (AgentCorrectionRecord, AgentCorrectionReceipt)>,
+    pub agent_supersedes: BTreeMap<Sha256Hex, (AgentSupersedeRecord, AgentSupersedeReceipt)>,
     pub source_revisions: usize,
     pub memory_revisions: usize,
     pub catalog_revisions: usize,
@@ -588,6 +589,14 @@ impl State {
                     return Err(deny());
                 }
             }
+            SegmentedDelta::AgentSupersede { report } => {
+                if descriptor.layout != AutomationLayout::SegmentedOwnerV1
+                    || c.actor != descriptor.system_actor
+                    || !self.supersede_admissible(report, &c.created_at)
+                {
+                    return Err(deny());
+                }
+            }
         }
         Ok(admitted)
     }
@@ -624,6 +633,22 @@ impl State {
                             target: report.target.clone(),
                             committed_in: c.commit_id.clone(),
                             state: AgentCorrectionState::ReportSaved,
+                        },
+                    ),
+                );
+            }
+            SegmentedDelta::AgentSupersede { report } => {
+                self.agent_supersedes.insert(
+                    report.report_key.clone(),
+                    (
+                        report.as_ref().clone(),
+                        AgentSupersedeReceipt {
+                            report_key: report.report_key.clone(),
+                            request_id: report.request_id.clone(),
+                            request_hash: report.request_hash.clone(),
+                            target: report.target.clone(),
+                            committed_in: c.commit_id.clone(),
+                            state: AgentSupersedeState::SupersedeReportSaved,
                         },
                     ),
                 );

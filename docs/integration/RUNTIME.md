@@ -1,5 +1,20 @@
 # Runtime integration (ADR-MEM-45)
 
+2026-11-04: ADR-MEM-124 adds independent AgentSupersedeReporter/Permit,
+agent_supersede chain delta, SupersedeAnalyzer, step_supersedes and opt-in
+start_worker_with_reports. Only a user-quote-backed update may reach the existing
+evaluator; corrections are a separate port. The same journal v1 gains optional
+supersede_key, preserving old identities. Capture/correction/supersede dispatch
+never overlaps. Existing worker entry points retain their consumers.
+Explicit MCP pipe-8/automation-supersedes-v1 pairs a reader and independent
+supersede reporter; success is supersede_report_saved only. Pipe-5/6/7 meanings
+remain unchanged. New closed deltas exclude older binaries; catalog fingerprint
+changes require matching read/client revisions. Runtime must separately adopt
+the new report profile/worker port and select a real adapter/egress policy.
+No Runtime edit/pin, real client/model or private root is activated.
+Aggregate: `ec66818e22d355d386976534d0a1d3286a251bf8f5cc8340da1617deb16728db`.
+See [supersede contract](../contracts/AGENT_SUPERSEDE_V1.md).
+
 2026-11-04: ADR-MEM-123 adds opt-in correction MCP/pipe-7 and explicit launcher
 attach mode automation-corrections-v1. Pair an initialized reader with a separate
 AgentCorrectionReporter for the same authenticated Agent and exact leased Vault.

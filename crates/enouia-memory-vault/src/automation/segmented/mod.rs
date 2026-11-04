@@ -6,10 +6,12 @@ mod formation_queue;
 mod formation_worker;
 mod intake;
 mod note_intake;
+mod supersede_intake;
 pub use agent::{
-    AGENT_CORRECTION_CAPABILITY, AGENT_NOTE_CAPABILITY, AgentCorrectionDraft,
-    AgentCorrectionPermit, AgentCorrectionRequest, AgentNoteDraft, AgentNotePermit,
-    AgentNoteRequest, AuthorizedSegmentedAgentRead, INITIALIZED_AGENT_READ_CAPABILITY,
+    AGENT_CORRECTION_CAPABILITY, AGENT_NOTE_CAPABILITY, AGENT_SUPERSEDE_CAPABILITY,
+    AgentCorrectionDraft, AgentCorrectionPermit, AgentCorrectionRequest, AgentNoteDraft,
+    AgentNotePermit, AgentNoteRequest, AgentSupersedeDraft, AgentSupersedePermit,
+    AgentSupersedeRequest, AuthorizedSegmentedAgentRead, INITIALIZED_AGENT_READ_CAPABILITY,
     QUALIFIED_AGENT_READ_CAPABILITY, SegmentedAgentPermit, SegmentedAgentScope,
 };
 mod runtime_capture;
@@ -24,7 +26,8 @@ pub use formation_queue::{CapturedQueueReceipt, QueuedCapture};
 pub use formation_worker::{
     CaptureAnalysis, CaptureAnalyzer, CaptureStatement, CaptureStopToken, CapturedFormation,
     CorrectionAnalyzer, CorrectionTarget, FormationJobState, FormationJobStatus, FormationSeed,
-    PendingCaptureAnalysis, PreparedFormation, ProducerJobStatus, formation_seed, quoted_evidence,
+    PendingCaptureAnalysis, PreparedFormation, ProducerJobStatus, SupersedeAnalyzer,
+    formation_seed, quoted_evidence,
 };
 pub use runtime_capture::{NativeRuntimeCapture, RuntimeCapturePermit, RuntimeCaptureScope};
 pub use state::SegmentedMemory;
