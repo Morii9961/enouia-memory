@@ -12,6 +12,14 @@ scoped Clippy/fmt/surface/公开内容检查通过。后续纯验收加强：13 
 证明同一 Agent 不同 reader 的缓存隔离、MemoryRead-only 管道、SourceRead 不推导、
 ContextRead 不充当授权别名，以及四项上限/更窄 profile/一字节预算不产生主人队列。
 
+109b15b 已推送连接/来源/预算验收。后续单项跨 profile 测试通过：真实合成 Runtime
+UserStatement 经普通 System evaluator 形成记忆；同时保存带恶意主人授权声明的
+AgentNote/Correction/Supersede/Forget 解释。开场和 memory 资源只读出原记忆与
+真实捕获原话，Agent 文字不进入内容/证据，不阻塞读取、不隐藏目标、不产生主人操作
+或采集队列。没有启动消费者分析器、模型或新的宿主 hook。详见同一验证报告。
+同项验收还将四种已被原生端保存的合法写包（原工具名/伪装 memory_read）提交给
+开场连接，八次全部拒绝且快照不变；同 Agent 持有的独立写 permit 不升级 reader。
+
 本片 ADR126 / MCP_OPENING_RESOURCES_V1 先冻结，再实现只读开场提示与资源。
 新 pipe-10/profile 使用同一个 initialized QualifiedAgentReader，沿用五个读取工具，
 新增 memory_start prompt、静态指南、当前 memory detail 和同连接实际 recall 资源。

@@ -87,3 +87,26 @@ existing cases are additional scoped evidence, not a repeated full baseline.
 No production source/schema/validator changes: earlier schema, integration and
 regression evidence remains applicable. Scoped Clippy and fmt/whitespace checks
 passed. The follow-up public-content scan is checked before push.
+
+## Follow-up: Agent interpretation is not opening evidence
+
+On a new synthetic root, use the actual Runtime-captured UserStatement to form
+an ordinary System memory with the existing evaluator. Separately save an
+optional AgentNote, correction report, supersede report and request-only forget,
+all carrying an explicit untrusted Agent marker claiming Owner consent/hiding.
+No worker/analyzer/Provider is started. The opening still returns exactly the
+two canonical memories including the actual captured user words, with no Agent
+marker in prompt content/evidence or memory resource. The requested target is
+still present and unchanged. Reading publishes nothing, queues no capture job
+and creates no Owner action. This proves optional reports do not block opening
+or get promoted to evidence; it does not test model interpretation quality.
+The same Agent/Host's four independently authorized valid write packets, both
+under their real tool names and disguised as memory_read, all refuse on the
+opening connection with no result. Separate native write grants never upgrade
+the reader; the snapshot remains unchanged after all eight attempts.
+
+New scoped test: **1 passed / 0 failed**, 7 existing tests filtered;
+target/mcp5-agent-interpretation-tests.log. Production source/schema/validator
+unchanged. The preceding 13-test acceptance remains applicable; do not sum the
+overlapping runs into a new full-suite result. Scoped Clippy and fmt/whitespace
+passed; this test-only follow-up's public-content scan is checked before push.
