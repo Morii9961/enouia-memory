@@ -61,3 +61,16 @@ OutcomeUnknown 必须保留完整原始 MCP Value 和原生原包原键，停止
 显式恢复和新原生 setup 后才可原键恢复回执；绝不自动重发、重连或换键。
 所有新集成面均同片更新 runtime-surface.json 和 RUNTIME.md；采用需匹配兼容指纹。
 完整日志见各片报告，未完成日志不能当作通过。
+
+## 新接续授权与收束修复
+
+Morii 在三项 MCP-4 完成后再次要求接续，并明确选择启动 **MCP-5 合成开发**。
+这更新前文关于 MCP-5 尚未授权的历史边界；其他硬边界继续保留。合并、真实
+模型/预算/外发、私人数据、Runtime 采用、forget-hide 和新 MV 均未获追加授权。
+
+先收束 ADR123–125 的 live-gate 原包锁存缺口：原生 writer 先进入 OutcomeUnknown
+时，三个 MCP 服务现在同样保留首次完整 Value，不回工具结果，后续包不能覆盖。
+三项定向复现修改前均失败，修改后 61 个相关 native/server/pipe 测试通过，scoped
+strict Clippy 通过；无 schema/validator 改动，不重跑 Python 或全量。
+见 [验证](../validation/MCP-4-live-gate-retention.md)。下一片读取 MCP-5 的开场与
+资源边界，先冻结最小 ADR/合同，再实现和定向验证、提交推送。不会因此改真实配置。

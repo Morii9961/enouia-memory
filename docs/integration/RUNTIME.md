@@ -1,5 +1,14 @@
 # Runtime integration (ADR-MEM-45)
 
+2026-11-04 MCP-4 follow-up: correction/supersede/forget MCP servers now also
+retain the first complete incoming MCP Value when their native writer's live
+gate already reports OutcomeUnknown. They still return no tool result and keep
+the session closed; subsequent calls cannot replace the original. No capability,
+schema, transport or grant meaning changes. Actual pipes retain their existing
+disconnect/revocation behavior. Aggregate:
+`f7ea9ce2b4351deb743e4772474590fc1d736e768b62494b6ba25cb5385a94fb`.
+See [retention regression](../validation/MCP-4-live-gate-retention.md).
+
 2026-11-04: ADR-MEM-125 adds independent AgentForgetPermit/Requester, the closed
 agent_forget_request delta and explicit MCP pipe-9/automation-forget-requests-v1.
 It records a request against the exact authorized target and Runtime user quote;

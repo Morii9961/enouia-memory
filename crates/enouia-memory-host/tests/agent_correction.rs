@@ -968,3 +968,46 @@ fn correction_server_unknown_returns_no_tool_result_and_keeps_the_entire_origina
         );
     }
 }
+
+#[test]
+fn correction_server_live_gate_keeps_full_call_when_native_publication_is_already_unknown() {
+    use enouia_memory_host::mcp::corrections;
+    for point in [FaultPoint::StagingWritten, FaultPoint::AfterCurrent] {
+        let faults = Faults::armed();
+        let (e, v, p, request) = correction_rig_with(SpeakerRole::User, faults.clone());
+        let host = QualifiedAgentHost::from_authenticated_initialized_owner(
+            v,
+            e.descriptor.created_by.clone(),
+        )
+        .unwrap();
+        let principal = actor(ActorType::Agent, 88);
+        let reader = host
+            .reader(&e.descriptor.created_by, principal.clone(), scope(&p))
+            .unwrap();
+        let writer = host
+            .correction_reporter(&e.descriptor.created_by, principal, scope(&p))
+            .unwrap();
+        let profile: AttentionProfile =
+            serde_json::from_value(value("attention/profile.json")).unwrap();
+        let mut server = corrections::Server::new(&reader, &writer, &profile).unwrap();
+        initialize_corrections(&mut server);
+        let mut message = json!({"jsonrpc":"2.0","id":"original-note","method":"tools/call","params":{"name":"memory_correction_report","arguments":{"schema_version":2,"kind":"agent_correction_request","capability":corrections::CAPABILITY,"request":request}}});
+        message["params"]["_meta"] = json!({"syntheticTrace":"retain every MCP field"});
+        faults.arm(point, 1, FaultAction::Fail(118));
+        assert!(matches!(
+            writer.submit(&request),
+            Err(ApplicationFault::Vault(AutomationFault::OutcomeUnknown))
+        ));
+        assert!(server.handle(&message).is_none());
+        assert!(server.outcome_unknown() && server.closed());
+        assert_eq!(server.original_unknown(), Some(&message));
+        let mut changed = message.clone();
+        changed["id"] = json!("replacement");
+        assert!(server.handle(&changed).is_none());
+        assert_eq!(server.original_unknown(), Some(&message));
+        assert_eq!(
+            digest(writer.original_unknown().unwrap().as_ref().unwrap()),
+            digest(&request)
+        );
+    }
+}

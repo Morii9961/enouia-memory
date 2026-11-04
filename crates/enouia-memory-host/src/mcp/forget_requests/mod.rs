@@ -88,6 +88,7 @@ impl<'a, 'host> Server<'a, 'host> {
                 ApplicationFault::Vault(AutomationFault::OutcomeUnknown)
             ) {
                 self.uncertain = true;
+                self.original.get_or_insert_with(|| message.clone());
                 return None;
             }
         }
