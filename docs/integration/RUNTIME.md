@@ -1,5 +1,17 @@
 # Runtime integration (ADR-MEM-45)
 
+2026-11-04: ADR-MEM-123 adds opt-in correction MCP/pipe-7 and explicit launcher
+attach mode automation-corrections-v1. Pair an initialized reader with a separate
+AgentCorrectionReporter for the same authenticated Agent and exact leased Vault.
+The new reporter live check and Vault poll cover native lifecycle and policy;
+submission retains target/source authority and original-key receipt semantics.
+Success is only report_saved. On unknown publication disconnect before Reply,
+revoke both delegations and retain the full parsed MCP Value, including in stdio.
+Pipe-5/6 and captured worker interfaces are unchanged. Runtime may separately
+adopt this explicit profile; no pin, real MCP configuration or model is activated.
+Aggregate: `1f3c9f79adbf180b494e0f5fa4a4c7af13cb86ad422b79706f26a21d741336c8`.
+See [correction pipe contract](../contracts/AGENT_CORRECTION_PIPE_V1.md).
+
 2026-11-03: ADR-MEM-122 adds native CorrectionAnalyzer, CorrectionTarget,
 CapturedFormation::step_corrections and opt-in
 RuntimeCaptureHost::start_worker_with_corrections. start_worker and

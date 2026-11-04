@@ -19,7 +19,7 @@ impl AgentCorrectionPermit {
     pub(super) fn live(&self, vault: &SegmentedAutomationVault) -> Result<Timestamp> {
         self.read.live(vault)
     }
-    pub(super) fn principal(&self) -> &ActorRef {
+    pub fn principal(&self) -> &ActorRef {
         self.read.principal()
     }
     /// A delegated policy that currently covers the exact evidence revision.
@@ -399,6 +399,20 @@ impl SegmentedAutomationVault {
                 )))
             },
         )?
+    }
+    /// Metadata-only correction connection poll; submission owns target/source checks.
+    pub fn check_agent_correction_live(&self, permit: &AgentCorrectionPermit) -> Result<()> {
+        self.native.available()?;
+        permit.live(self)?;
+        let state = self
+            .state
+            .lock()
+            .map_err(|_| AutomationFault::Unavailable)?;
+        if !permit.read.policies_current(&state) {
+            permit.revoke();
+            return Err(AutomationFault::Denied);
+        }
+        Ok(())
     }
     /// Metadata-only connection poll; submission owns CURRENT/source checks.
     pub fn check_agent_note_live(&self, permit: &AgentNotePermit) -> Result<()> {

@@ -33,3 +33,23 @@ fn agent_correction_records_and_receipts_are_closed_and_keep_native_key_constrai
         }
     }
 }
+
+#[test]
+fn explicit_correction_mcp_packets_cannot_grant_identity_or_claim_correction_or_unknown_success() {
+    let corpus = support::fixture("../agent-correction/mcp-cases.json");
+    let schemas = support::schema::SchemaStore::load();
+    for (field, group) in [("request", "request_cases"), ("response", "response_cases")] {
+        for case in corpus[group].as_array().unwrap() {
+            let mut value = corpus[field].clone();
+            support::apply_ops(&mut value, &case["ops"]);
+            assert_eq!(
+                schemas
+                    .validate("next/agent-correction-mcp-v1.schema.json", &value)
+                    .is_empty(),
+                case["accept"].as_bool().unwrap(),
+                "{}",
+                case["name"]
+            );
+        }
+    }
+}

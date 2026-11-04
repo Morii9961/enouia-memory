@@ -1,6 +1,8 @@
 #![cfg(windows)]
-#[path = "support/agent_note_fixture.rs"]
+#[path = "support/agent_correction_fixture.rs"]
 mod fixture;
+#[path = "../../enouia-memory-contract/tests/support/mod.rs"]
+mod schema_support;
 use enouia_memory_contract::{
     common::*,
     hash::{Sha256Hex, sha256},
@@ -17,110 +19,14 @@ use enouia_memory_vault::{
     fault::{FaultAction, FaultPoint, Faults},
 };
 use fixture::*;
+use serde_json::json;
 use std::sync::Arc;
-
-fn publish(e: &Env, v: &SegmentedAutomationVault, input: AdmissionInput) {
-    let input = v.prepare(&e.descriptor.system_actor, input).unwrap();
-    let response =
-        serde_json::to_string(&v.evaluate(&e.descriptor.system_actor, &input).unwrap()).unwrap();
-    let binding = GenerationBinding {
-        operation_id: input.operation_id.clone(),
-        input_hash: digest(&input),
-        response_hash: sha256(response.as_bytes()),
-    };
-    v.apply_batch(
-        &e.descriptor.system_actor,
-        vec![input],
-        vec![response],
-        vec![binding],
-    )
-    .unwrap();
-}
-
-/// A lawful System update of the target from another policy source, standing
-/// in for a later consumer. Returns the new current target.
-fn revise(
-    e: &Env,
-    v: &SegmentedAutomationVault,
-    p: &AutomationPolicy,
-    request: &AgentCorrectionRequest,
-) -> TargetRef {
-    let n = (1..8)
-        .find(|n| SourceId::parse(&id("src", *n)).unwrap() != request.source.source_id)
-        .unwrap();
-    let source = e.source(n, Sensitivity::Public);
-    v.capture(
-        &e.descriptor.system_actor,
-        vec![source.clone()],
-        RecordCatalog::default(),
-    )
-    .unwrap();
-    let mut input = e.input(&source, p, n);
-    input.target = Some(request.target.clone());
-    input.dimensions.as_mut().unwrap().change = FormationChange::Update;
-    publish(e, v, input);
-    let current = v
-        .read(&e.descriptor.system_actor, Sensitivity::Private, |d| {
-            d.memories
-                .iter()
-                .find(|m| m.target.memory.memory_id == request.target.memory.memory_id)
-                .unwrap()
-                .target
-                .clone()
-        })
-        .unwrap();
-    assert_ne!(current, request.target);
-    current
-}
 
 fn fault(result: Result<AgentCorrectionReceipt, ApplicationFault>) -> AutomationFault {
     match result {
         Err(ApplicationFault::Vault(f)) => f,
         other => panic!("unexpected {:?}", other.map(|r| r.state)),
     }
-}
-
-fn correction_rig(
-    speaker: SpeakerRole,
-) -> (
-    Env,
-    Arc<SegmentedAutomationVault>,
-    AutomationPolicy,
-    AgentCorrectionRequest,
-) {
-    correction_rig_with(speaker, Faults::none())
-}
-fn correction_rig_with(
-    speaker: SpeakerRole,
-    faults: Faults,
-) -> (
-    Env,
-    Arc<SegmentedAutomationVault>,
-    AutomationPolicy,
-    AgentCorrectionRequest,
-) {
-    let (e, v, p, note) = rig("前缀「ＡＢＣ　纠正原话」后缀", speaker, faults);
-    let source = e.source(8, Sensitivity::Public);
-    v.capture(
-        &e.descriptor.system_actor,
-        vec![source.clone()],
-        RecordCatalog::default(),
-    )
-    .unwrap();
-    publish(&e, &v, e.input(&source, &p, 8));
-    let target = v
-        .read(&e.descriptor.system_actor, Sensitivity::Private, |d| {
-            d.memories[0].target.clone()
-        })
-        .unwrap();
-    let request = AgentCorrectionRequest {
-        request_id: note.request_id,
-        target,
-        source: note.source,
-        quote_hint: "\"ABC 纠正原话\"".into(),
-        correction: "Untrusted synthetic correction interpretation.".into(),
-    };
-    (e, v, p, request)
 }
 
 #[test]
@@ -883,5 +789,182 @@ fn deleted_inputs_close_without_analysis_and_a_moved_target_is_refused_not_retar
         assert!(status[0].receipts.is_empty());
         assert_eq!(analyzer.calls, usize::from(case == 2), "case {case}");
         assert_eq!(v.snapshot().unwrap(), before, "case {case}");
+    }
+}
+
+fn initialize_corrections(server: &mut enouia_memory_host::mcp::corrections::Server<'_, '_>) {
+    assert!(server.handle(&json!({"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"synthetic-client","version":"1"}}})).unwrap().get("result").is_some());
+    assert!(
+        server
+            .handle(&json!({"jsonrpc":"2.0","method":"notifications/initialized"}))
+            .is_none()
+    );
+}
+
+#[test]
+fn explicit_correction_server_pairs_authority_and_returns_only_report_saved_receipts() {
+    use enouia_memory_host::mcp::{corrections, initialized};
+    let (e, v, p, request) = correction_rig_with(SpeakerRole::User, Faults::none());
+    let host = QualifiedAgentHost::from_authenticated_initialized_owner(
+        v.clone(),
+        e.descriptor.created_by.clone(),
+    )
+    .unwrap();
+    let principal = actor(ActorType::Agent, 88);
+    let reader = host
+        .reader(&e.descriptor.created_by, principal.clone(), scope(&p))
+        .unwrap();
+    let writer = host
+        .correction_reporter(&e.descriptor.created_by, principal.clone(), scope(&p))
+        .unwrap();
+    let other = host
+        .correction_reporter(
+            &e.descriptor.created_by,
+            actor(ActorType::Agent, 89),
+            scope(&p),
+        )
+        .unwrap();
+    let profile: AttentionProfile =
+        serde_json::from_value(value("attention/profile.json")).unwrap();
+    assert!(corrections::Server::new(&reader, &other, &profile).is_none());
+    let (foreign_e, foreign_v, foreign_p, _) =
+        correction_rig_with(SpeakerRole::User, Faults::none());
+    let foreign_host = QualifiedAgentHost::from_authenticated_initialized_owner(
+        foreign_v,
+        foreign_e.descriptor.created_by.clone(),
+    )
+    .unwrap();
+    let foreign = foreign_host
+        .correction_reporter(
+            &foreign_e.descriptor.created_by,
+            principal,
+            scope(&foreign_p),
+        )
+        .unwrap();
+    assert_eq!(&foreign_e.descriptor.vault_id, reader.vault_id()); // Same synthetic logical ID, different lease.
+    assert!(corrections::Server::new(&reader, &foreign, &profile).is_none());
+    let mut server = corrections::Server::new(&reader, &writer, &profile).unwrap();
+    initialize_corrections(&mut server);
+    let listed = server
+        .handle(&json!({"jsonrpc":"2.0","id":2,"method":"tools/list"}))
+        .unwrap();
+    let tools = listed["result"]["tools"].as_array().unwrap();
+    assert_eq!(tools.len(), 6);
+    assert_eq!(tools[5]["name"], "memory_correction_report");
+    assert_eq!(tools[5]["annotations"]["readOnlyHint"], false);
+    assert!(!tools[5]["inputSchema"].to_string().contains("../"));
+    assert!(!tools[5]["outputSchema"].to_string().contains("../"));
+    let read_packet =
+        schema_support::fixture("../agent-initialized-read/manifest.json")["valid"][0].clone();
+    let read = server.handle(&json!({"jsonrpc":"2.0","id":"read-before-note","method":"tools/call","params":{"name":"memory_search","arguments":read_packet}})).unwrap();
+    assert_eq!(
+        read["result"]["structuredContent"]["capability"],
+        "memory-agent-initialized-read-1"
+    );
+    assert!(read["result"]["structuredContent"]["error"].is_null());
+    let mut call = json!({"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"memory_correction_report","arguments":{"schema_version":2,"kind":"agent_correction_request","capability":corrections::CAPABILITY,"request":request}}});
+    let before = v.snapshot().unwrap();
+    for n in 0..5 {
+        let mut bad = call.clone();
+        bad["id"] = json!(20 + n);
+        match n {
+            0 => bad["params"]["arguments"]["owner"] = json!(true),
+            1 => bad["params"]["arguments"]["schema_version"] = json!(1),
+            2 => {
+                bad["params"]["arguments"]["capability"] = json!("memory-agent-initialized-read-1")
+            }
+            3 => {
+                bad["params"]["arguments"]["request"]["principal"] = json!(e.descriptor.created_by)
+            }
+            _ => bad["params"]["arguments"]["request"]["source"]["source_revision"] = json!(0),
+        }
+        assert!(server.handle(&bad).unwrap().get("error").is_some());
+    }
+    assert_eq!(v.snapshot().unwrap(), before);
+    let mut refused = call.clone();
+    refused["id"] = json!("known-refusal");
+    refused["params"]["arguments"]["request"]["quote_hint"] = json!("No such quote.");
+    let refusal = server.handle(&refused).unwrap();
+    let refusal_data = &refusal["result"]["structuredContent"];
+    assert_eq!(refusal_data["error"]["code"], "permission_denied");
+    assert!(refusal_data["receipt"].is_null());
+    assert!(!server.closed());
+    assert!(
+        schema_support::schema::SchemaStore::load()
+            .validate("next/agent-correction-mcp-v1.schema.json", refusal_data)
+            .is_empty()
+    );
+    let response = server.handle(&call).unwrap();
+    let data = &response["result"]["structuredContent"];
+    assert_eq!(data["receipt"]["state"], "report_saved");
+    assert!(data["error"].is_null());
+    assert!(
+        schema_support::schema::SchemaStore::load()
+            .validate("next/agent-correction-mcp-v1.schema.json", data)
+            .is_empty()
+    );
+    assert!(data.get("scope_hash").is_none() && data.get("principal").is_none());
+    assert!(data.get("source").is_none() && data.get("memory_id").is_none());
+    let saved = v.snapshot().unwrap();
+    assert_ne!(saved, before);
+    revise(&e, &v, &p, &request);
+    let saved = v.snapshot().unwrap();
+    call["id"] = json!(4);
+    assert_eq!(
+        server.handle(&call).unwrap()["result"]["structuredContent"],
+        *data
+    );
+    assert_eq!(v.snapshot().unwrap(), saved);
+    assert!(server.handle(&call).unwrap().get("error").is_some()); // Duplicate MCP ID never writes.
+    let mut old = initialized::Server::new(&reader, &profile).unwrap();
+    old.handle(&json!({"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"old-client","version":"1"}}}));
+    old.handle(&json!({"jsonrpc":"2.0","method":"notifications/initialized"}));
+    assert_eq!(
+        old.handle(&json!({"jsonrpc":"2.0","id":2,"method":"tools/list"}))
+            .unwrap()["result"]["tools"]
+            .as_array()
+            .unwrap()
+            .len(),
+        5
+    );
+    assert!(old.handle(&call).unwrap().get("error").is_some());
+    assert_eq!(v.snapshot().unwrap(), saved);
+}
+
+#[test]
+fn correction_server_unknown_returns_no_tool_result_and_keeps_the_entire_original_mcp_value() {
+    use enouia_memory_host::mcp::corrections;
+    for point in [FaultPoint::StagingWritten, FaultPoint::AfterCurrent] {
+        let faults = Faults::armed();
+        let (e, v, p, request) = correction_rig_with(SpeakerRole::User, faults.clone());
+        let host = QualifiedAgentHost::from_authenticated_initialized_owner(
+            v,
+            e.descriptor.created_by.clone(),
+        )
+        .unwrap();
+        let principal = actor(ActorType::Agent, 88);
+        let reader = host
+            .reader(&e.descriptor.created_by, principal.clone(), scope(&p))
+            .unwrap();
+        let writer = host
+            .correction_reporter(&e.descriptor.created_by, principal, scope(&p))
+            .unwrap();
+        let profile: AttentionProfile =
+            serde_json::from_value(value("attention/profile.json")).unwrap();
+        let mut server = corrections::Server::new(&reader, &writer, &profile).unwrap();
+        initialize_corrections(&mut server);
+        let message = json!({"jsonrpc":"2.0","id":"original-note","method":"tools/call","params":{"name":"memory_correction_report","arguments":{"schema_version":2,"kind":"agent_correction_request","capability":corrections::CAPABILITY,"request":request}}});
+        faults.arm(point, 1, FaultAction::Fail(118));
+        assert!(server.handle(&message).is_none());
+        assert!(server.outcome_unknown() && server.closed());
+        assert_eq!(server.original_unknown(), Some(&message));
+        let mut changed = message.clone();
+        changed["id"] = json!("replacement");
+        assert!(server.handle(&changed).is_none());
+        assert_eq!(server.original_unknown(), Some(&message));
+        assert_eq!(
+            digest(writer.original_unknown().unwrap().as_ref().unwrap()),
+            digest(&request)
+        );
     }
 }

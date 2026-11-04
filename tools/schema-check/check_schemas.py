@@ -462,6 +462,15 @@ def main():
                 failures.append(f"Agent note MCP {case['name']}: disagreement")
     counts["agent_note_mcp_cases"] = len(note_wire["request_cases"]) + len(note_wire["response_cases"])
 
+    correction_wire = load(ROOT / "tests/fixtures/agent-correction/mcp-cases.json")
+    for field, group in (("request", "request_cases"), ("response", "response_cases")):
+        for case in correction_wire[group]:
+            value = copy.deepcopy(correction_wire[field])
+            apply_ops(value, case["ops"])
+            if valid("next/agent-correction-mcp-v1.schema.json", value) != case["accept"]:
+                failures.append(f"Agent correction MCP {case['name']}: disagreement")
+    counts["agent_correction_mcp_cases"] = len(correction_wire["request_cases"]) + len(correction_wire["response_cases"])
+
     wire_cases = load(ROOT / "tests/fixtures/runtime-capture/wire-cases.json")
     for case in wire_cases["cases"]:
         value = {"mode": "write", "request": copy.deepcopy(capture_cases["base"])}

@@ -657,6 +657,13 @@ each saved report once through a separate CorrectionAnalyzer port and turns an
 accepted user quote into an ordinary target-bound `correction` revision decided
 by the existing evaluator. No Owner queue; a moved target is refused.
 
+### ADR-MEM-123 — Explicit Agent correction MCP and local transport
+
+[Decision](123-agent-correction-mcp-transport.md): pair independent native read
+and correction delegations on one leased Vault/Agent, expose only report_saved
+through a distinct pipe-7 profile, and disconnect on unknown publication while
+retaining the complete original MCP Value. Pipe-5/6 are unchanged.
+
 ### ADR-MEM-110 — Native empty Owner bootstrap
 
 [Decision](110-native-empty-owner-bootstrap.md): an explicit trusted native local
