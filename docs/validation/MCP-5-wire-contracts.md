@@ -61,3 +61,26 @@ contract/own-process evidence is not real model quality, Runtime adoption or
 Owner acceptance. No real client configuration, Runtime repository/pin/Activity,
 forget-hide, external Agent capture hook, deployment, automation, manual project
 status snapshot, main merge or new MV stage is included.
+
+## Follow-up: native identity/profile matrix
+
+Based on pushed f731161. Test/documentation-only clarification; production code,
+schemas, validator and integration surface unchanged. The pipe matrix now covers
+**15 refused combinations**, including all adjacent pipe-5 through pipe-9,
+wrong Vault ID, wrong native Agent, SourceRead-only / ContextRead-only without
+MemoryRead, wrong hash/claimed Owner, missing SourceRead for a source-enabled
+reader, extra write/context scopes and wrong kernel peer. Each refusal revokes
+the native reader and leaves the synthetic snapshot unchanged. These are
+current binary protocol-profile checks, not executions of old binaries.
+
+The source-disabled reader succeeds with either MemoryRead-only enrollment or
+MemoryRead+SourceRead enrollment; both return source_read=false / sources=[].
+Native delegation remains the authority ceiling. The contract's earlier
+"exactly when" wording is clarified to avoid implying that kernel registration
+can expand that native grant. No permission behavior changed.
+
+opening_pipe **6 passed / 0 failed**, target/mcp5-identity-matrix-tests.log. The
+17 matrix configurations above are cases within those tests, not 17 tests.
+No Python/full suite/surface regeneration: their relevant source is unchanged.
+Scoped Clippy, fmt/whitespace and public-content checks passed (four owned files,
+no private-path/credential-pattern matches).

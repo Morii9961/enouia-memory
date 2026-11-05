@@ -60,8 +60,10 @@ Protocol memory-agent-pipe-10, recordSchema=2,
 layout=automation-segmented-owner-v1,
 profile=memory-agent-initialized-context-1. Exact hello binds initialized read
 compatibility, context schemas and static guide/catalog/prompt descriptors.
-Native OS enrollment requires MemoryRead and SourceRead exactly when the reader
-has it; unsupported write/context scopes never substitute. The same leased
+Native OS enrollment requires MemoryRead, plus SourceRead when the native reader
+has it. Broader SourceRead enrollment never expands a narrower native reader;
+the reader still controls source metadata/text. No other scopes are accepted,
+and unsupported write/context scopes never substitute. The same leased
 Vault/Agent/current native grant is checked before/after each frame and call.
 Every exit revokes the reader and actually disconnects the borrowed pipe.
 

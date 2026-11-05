@@ -145,6 +145,13 @@ fn opening_pipe_process_child() {
     )
     .unwrap();
     let mode = config["mode"].as_str().unwrap();
+    if mode == "old9" {
+        event(
+            json!({"refused":enouia_memory_host::mcp::forget_requests::native::Client::connect(Pipe::connect(&id).unwrap(),peer,&vault,TIMEOUT).is_err()}),
+        );
+        wait_exit(&mut input);
+        return;
+    }
     if mode == "old8" {
         event(
             json!({"refused":enouia_memory_host::mcp::supersedes::native::Client::connect(Pipe::connect(&id).unwrap(), peer, &vault, TIMEOUT).is_err()}),
@@ -447,6 +454,19 @@ fn real_opening_pipe_refuses_other_profiles_claims_write_scopes_and_wrong_proces
         ("old6", vec![Scope::MemoryRead, Scope::SourceRead], false),
         ("old7", vec![Scope::MemoryRead, Scope::SourceRead], false),
         ("old8", vec![Scope::MemoryRead, Scope::SourceRead], false),
+        ("old9", vec![Scope::MemoryRead, Scope::SourceRead], false),
+        (
+            "wrong_agent",
+            vec![Scope::MemoryRead, Scope::SourceRead],
+            false,
+        ),
+        (
+            "wrong_vault",
+            vec![Scope::MemoryRead, Scope::SourceRead],
+            false,
+        ),
+        ("opening", vec![Scope::SourceRead], false),
+        ("opening", vec![Scope::ContextRead], false),
         (
             "bad_hash",
             vec![Scope::MemoryRead, Scope::SourceRead],
@@ -472,7 +492,7 @@ fn real_opening_pipe_refuses_other_profiles_claims_write_scopes_and_wrong_proces
     ] {
         let (e, v, p, _) = correction_rig(SpeakerRole::User);
         let host = QualifiedAgentHost::from_authenticated_initialized_owner(
-            v,
+            v.clone(),
             e.descriptor.created_by.clone(),
         )
         .unwrap();
@@ -483,6 +503,7 @@ fn real_opening_pipe_refuses_other_profiles_claims_write_scopes_and_wrong_proces
         let profile: AttentionProfile =
             serde_json::from_value(value("attention/profile.json")).unwrap();
         let token = sha256(&OsIdSource.random_16());
+        let before = v.snapshot().unwrap();
         let mut pipe = Pipe::listen(&token).unwrap();
         let mut agent = Agent::spawn();
         let enrollment = Enrollment::enroll(
@@ -491,7 +512,11 @@ fn real_opening_pipe_refuses_other_profiles_claims_write_scopes_and_wrong_proces
             } else {
                 agent.child.id()
             },
-            principal,
+            if mode == "wrong_agent" {
+                actor(ActorType::Agent, 89)
+            } else {
+                principal
+            },
             scopes,
         )
         .unwrap();
@@ -500,7 +525,15 @@ fn real_opening_pipe_refuses_other_profiles_claims_write_scopes_and_wrong_proces
                 pipe.accept(TIMEOUT).unwrap();
                 opening::native::serve_connection(&reader, &profile, &mut pipe, enrollment, TIMEOUT)
             });
-            agent.connect(&token, &e.descriptor.vault_id, mode);
+            let vault = if mode == "wrong_vault" {
+                VaultId::parse(&id("vlt", 999)).unwrap()
+            } else {
+                e.descriptor.vault_id.clone()
+            };
+            if mode == "wrong_vault" {
+                assert_ne!(vault, e.descriptor.vault_id);
+            }
+            agent.connect(&token, &vault, mode);
             assert_eq!(agent.event()["refused"], true, "{mode}");
             agent.finish();
             assert!(server.join().unwrap().is_err());
@@ -510,6 +543,7 @@ fn real_opening_pipe_refuses_other_profiles_claims_write_scopes_and_wrong_proces
                 .context_trace(&RequestId::parse(&id("req", 30)).unwrap())
                 .is_err()
         );
+        assert_eq!(v.snapshot().unwrap(), before);
     }
 }
 
@@ -641,43 +675,49 @@ fn real_opening_memory_read_does_not_require_or_infer_source_read() {
     )
     .unwrap();
     let principal = actor(ActorType::Agent, 88);
-    let mut grant = scope(&p);
-    grant.source_read = false;
-    let reader = host
-        .reader(&e.descriptor.created_by, principal.clone(), grant)
-        .unwrap();
-    let profile: AttentionProfile =
-        serde_json::from_value(value("attention/profile.json")).unwrap();
-    let before = v.snapshot().unwrap();
-    let token = sha256(&OsIdSource.random_16());
-    let mut pipe = Pipe::listen(&token).unwrap();
-    let mut agent = Agent::spawn();
-    let enrollment =
-        Enrollment::enroll(agent.child.id(), principal, vec![Scope::MemoryRead]).unwrap();
-    std::thread::scope(|scope| {
-        let server = scope.spawn(|| {
-            pipe.accept(TIMEOUT).unwrap();
-            opening::native::serve_connection(&reader, &profile, &mut pipe, enrollment, TIMEOUT)
+    for source_enrollment in [false, true] {
+        let mut grant = scope(&p);
+        grant.source_read = false;
+        let reader = host
+            .reader(&e.descriptor.created_by, principal.clone(), grant)
+            .unwrap();
+        let profile: AttentionProfile =
+            serde_json::from_value(value("attention/profile.json")).unwrap();
+        let before = v.snapshot().unwrap();
+        let token = sha256(&OsIdSource.random_16());
+        let mut pipe = Pipe::listen(&token).unwrap();
+        let mut agent = Agent::spawn();
+        let mut scopes = vec![Scope::MemoryRead];
+        if source_enrollment {
+            scopes.push(Scope::SourceRead);
+        }
+        let enrollment = Enrollment::enroll(agent.child.id(), principal.clone(), scopes).unwrap();
+        std::thread::scope(|scope| {
+            let server = scope.spawn(|| {
+                pipe.accept(TIMEOUT).unwrap();
+                opening::native::serve_connection(&reader, &profile, &mut pipe, enrollment, TIMEOUT)
+            });
+            agent.connect(&token, &e.descriptor.vault_id, "opening");
+            assert_eq!(agent.event()["connected"], true);
+            agent.initialize();
+            let uri = format!(
+                "enouia-memory://memory/{}",
+                request.target.memory.memory_id.as_str()
+            );
+            let response = agent.rpc(
+                json!({"jsonrpc":"2.0","id":2,"method":"resources/read","params":{"uri":uri}}),
+            );
+            let data: Value = serde_json::from_str(
+                response["response"]["result"]["contents"][0]["text"]
+                    .as_str()
+                    .unwrap(),
+            )
+            .unwrap();
+            assert_eq!(data["data"]["source_read"], false);
+            assert_eq!(data["data"]["sources"], json!([]));
+            agent.finish();
+            let _ = server.join().unwrap();
         });
-        agent.connect(&token, &e.descriptor.vault_id, "opening");
-        assert_eq!(agent.event()["connected"], true);
-        agent.initialize();
-        let uri = format!(
-            "enouia-memory://memory/{}",
-            request.target.memory.memory_id.as_str()
-        );
-        let response = agent
-            .rpc(json!({"jsonrpc":"2.0","id":2,"method":"resources/read","params":{"uri":uri}}));
-        let data: Value = serde_json::from_str(
-            response["response"]["result"]["contents"][0]["text"]
-                .as_str()
-                .unwrap(),
-        )
-        .unwrap();
-        assert_eq!(data["data"]["source_read"], false);
-        assert_eq!(data["data"]["sources"], json!([]));
-        agent.finish();
-        let _ = server.join().unwrap();
-    });
-    assert_eq!(v.snapshot().unwrap(), before);
+        assert_eq!(v.snapshot().unwrap(), before);
+    }
 }

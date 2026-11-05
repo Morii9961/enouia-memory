@@ -1,5 +1,11 @@
 # MCP-5 接续（2026-11-05）
 
+f731161 已提交推送完整响应合同；14 项 Host 定向结果、2 项合同、74 schemas / 31
+wire cases / 7 实际响应 / 4 内层数据、scoped Clippy/fmt/surface/公开内容检查通过。
+随后纯测试/文档加强的身份矩阵六项测试通过：15 种拒绝配置，以及两种 source-disabled
+reader 的成功登记配置。pipe-9、错误 Vault/Agent、缺少 MemoryRead 均拒绝；更宽的
+SourceRead 进程登记不升级 native reader。所有拒绝均撤权，读取不改快照。
+
 Morii 要求继续既定路线，并已明确授权 MCP-5 合成开发；其他硬边界保留。
 当前 codex/mcp5-opening-resources 以 f425c17 接续，工作区开工时干净。
 origin/main 仍为 PR #83 的 2a6310e，包含 f42f3b1；PR #84/#85 未合并。
