@@ -672,6 +672,15 @@ fn explicit_context_launcher_attaches_without_root_or_client_configuration() {
             writeln!(input, "{message}").unwrap();
         }
         writeln!(input,"{}",json!({"jsonrpc":"2.0","id":2,"method":"resources/read","params":{"uri":opening::GUIDE_URI}})).unwrap();
+        let request = RequestId::parse(&id("req", 176)).unwrap();
+        let uri = format!("enouia-memory://recall/{}", request.as_str());
+        writeln!(input,"{}",json!({"jsonrpc":"2.0","id":"stdio-opening","method":"tools/call","params":{"name":"session_start","arguments":{"schema_version":2,"kind":"agent_session_start_request","capability":opening::SESSION_CAPABILITY,"request":{"request_id":request,"at":enouia_memory_contract::time::Timestamp::from_unix_ms(NOW).unwrap()}}}})).unwrap();
+        writeln!(
+            input,
+            "{}",
+            json!({"jsonrpc":"2.0","id":4,"method":"resources/read","params":{"uri":uri}})
+        )
+        .unwrap();
         drop(input);
         let output = child.wait_with_output().unwrap();
         assert!(output.status.success(), "{:?}", output.stderr);
@@ -680,7 +689,7 @@ fn explicit_context_launcher_attaches_without_root_or_client_configuration() {
             .lines()
             .map(|line| serde_json::from_str(line).unwrap())
             .collect();
-        assert_eq!(replies.len(), 2);
+        assert_eq!(replies.len(), 4);
         assert_eq!(
             replies[0]["result"]["capabilities"],
             json!({"tools":{},"resources":{},"prompts":{}})
@@ -689,7 +698,35 @@ fn explicit_context_launcher_attaches_without_root_or_client_configuration() {
             replies[1]["result"]["contents"][0]["uri"],
             opening::GUIDE_URI
         );
+        assert_eq!(replies[2]["id"], "stdio-opening");
+        let schemas = schema_support::schema::SchemaStore::load();
+        assert!(
+            schemas
+                .validate("next/mcp-session-start-wire-v1.schema.json", &replies[2])
+                .is_empty()
+        );
+        let packet = &replies[2]["result"]["structuredContent"];
+        assert_eq!(packet["request_id"], json!(request));
+        assert_eq!(replies[2]["result"]["content"][1]["uri"], uri);
+        assert_eq!(
+            serde_json::from_str::<Value>(
+                replies[2]["result"]["content"][0]["text"].as_str().unwrap()
+            )
+            .unwrap(),
+            *packet
+        );
+        assert_eq!(replies[3]["result"]["contents"][0]["uri"], uri);
+        assert_eq!(
+            serde_json::from_str::<Value>(
+                replies[3]["result"]["contents"][0]["text"]
+                    .as_str()
+                    .unwrap()
+            )
+            .unwrap(),
+            packet["context"]
+        );
         let _ = server.join().unwrap();
+        assert!(reader.context_trace(&request).is_err());
     });
     assert_eq!(v.snapshot().unwrap(), before);
 }

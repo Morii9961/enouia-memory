@@ -109,3 +109,20 @@ The one focused test passed for both entry scenarios, 0 failed
 checks passed. No schema/surface change: the preceding independent schema and
 surface evidence remains applicable; those checks were not rerun for test-only
 edits. No model, new capture permission or actual Runtime integration was used.
+
+## Actual executable stdio exit
+
+After e6e95d2, extended the existing explicit automation-context-v1 launcher
+test. The real built executable attaches only to the owned synthetic native
+pipe using its expected Host PID/Vault ID. Standard input sends initialize,
+guide read, session_start and recall resource read. Standard output preserves
+the original string RPC ID and typed read ID, satisfies the complete session
+wire schema, retains both text and resource_link blocks, and returns a resource
+equal to structuredContent.context. Input EOF exits successfully and revokes
+the native reader; the synthetic snapshot is unchanged.
+
+The one focused launcher test passed, 0 failed
+(target/mcp5-session-stdio-tests.log). Scoped opening_pipe Clippy and fmt passed.
+Implementation/schema/fingerprint are unchanged, so schema/surface checks were
+not rerun for this test-only extension. This is an owned executable/pipe test,
+not an installed external MCP client, Runtime product use or owner acceptance.
