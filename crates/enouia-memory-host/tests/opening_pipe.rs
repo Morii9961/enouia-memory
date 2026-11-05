@@ -720,6 +720,37 @@ fn real_opening_memory_read_does_not_require_or_infer_source_read() {
             .unwrap();
             assert_eq!(data["data"]["source_read"], false);
             assert_eq!(data["data"]["sources"], json!([]));
+            let denied=agent.rpc(json!({"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"memory_source","arguments":{"schema_version":2,"kind":"agent_initialized_read_request","capability":enouia_memory_host::mcp::initialized::CAPABILITY,"request_id":id("req",140),"operation":"memory_source","arguments":{"source_id":request.source.source_id,"revision":null,"from_byte":0,"to_byte":null,"max_bytes":4096}}}}));
+            assert_eq!(denied["response"]["result"]["isError"], true);
+            assert_eq!(
+                denied["response"]["result"]["structuredContent"]["error"]["code"],
+                "permission_denied"
+            );
+            assert!(denied["response"]["result"]["structuredContent"]["data"].is_null());
+            assert!(!denied.to_string().contains("前缀"));
+            let recalled=agent.rpc(json!({"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"memory_recall","arguments":{"schema_version":2,"kind":"agent_initialized_read_request","capability":enouia_memory_host::mcp::initialized::CAPABILITY,"request_id":id("req",141),"operation":"memory_recall","arguments":{"text":"","conditions":[],"event_window":null,"at":enouia_memory_contract::time::Timestamp::from_unix_ms(NOW).unwrap(),"intent":"browse","limit":1,"max_bytes":16384}}}}));
+            assert!(recalled["response"]["result"]["structuredContent"]["error"].is_null());
+            assert_eq!(
+                recalled["response"]["result"]["structuredContent"]["data"]["items"]
+                    .as_array()
+                    .unwrap()
+                    .len(),
+                1
+            );
+            let uri = format!("enouia-memory://recall/{}", id("req", 141));
+            let resource = agent.rpc(
+                json!({"jsonrpc":"2.0","id":5,"method":"resources/read","params":{"uri":uri}}),
+            );
+            let cached: Value = serde_json::from_str(
+                resource["response"]["result"]["contents"][0]["text"]
+                    .as_str()
+                    .unwrap(),
+            )
+            .unwrap();
+            assert_eq!(
+                cached["data"],
+                recalled["response"]["result"]["structuredContent"]["data"]
+            );
             agent.finish();
             let _ = server.join().unwrap();
         });

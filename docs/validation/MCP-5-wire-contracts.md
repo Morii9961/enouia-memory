@@ -182,3 +182,19 @@ snapshot unchanged, and EOF revokes the reader. The affected test **1 passed /
 0 failed**, eight filtered; target/mcp5-cross-entry-context-tests.log. Earlier
 unchanged implementation/schema evidence is reused. Scoped Clippy, fmt/whitespace
 and public-content review passed (four owned files; no matches); no full/Python/surface rerun.
+
+## Follow-up: source refusal preserves valid memory access
+
+Based on d51e341. Strengthened the existing MemoryRead-only pipe test under
+both kernel enrollment ceilings (MemoryRead, and MemoryRead+SourceRead). The
+native reader remains source-disabled: memory_source returns the unchanged
+known permission_denied tool error with data=null and no captured original.
+It does not close or poison the still-valid MemoryRead connection. A later
+memory_recall succeeds and its actual recall resource matches exactly; every
+step leaves the synthetic snapshot unchanged. No Owner escalation, retry queue,
+new source permission or data formation is produced.
+
+Affected test **1 passed / 0 failed**, eight filtered, with two native enrollment
+configurations; target/mcp5-source-refusal-tests.log. Only test/documentation
+changed. Earlier source/schema evidence is reused; scoped Clippy, fmt/whitespace
+and public-content review passed (three owned files; no matches). No full/Python/integration rerun.

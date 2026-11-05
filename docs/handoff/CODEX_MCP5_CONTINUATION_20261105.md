@@ -6,6 +6,11 @@
 召回不覆盖前次成功结果。跨入口重复 RPC ID 仍拒绝，读取不改快照，EOF 撤权。
 开场 prompt 是可选入口，不成为自动读取的人工前置任务。实现/schema/指纹未改。
 
+d51e341 已推送跨入口验收。随后加强 source-disabled 的两种原生登记配置：
+memory_source 返回已知 permission_denied、无 data/原文，但不关闭仍有效的
+MemoryRead 连接；后续召回成功，其实际资源逐值一致，快照不变。单项测试通过，
+无主人提权任务或权限推导。只改测试/报告，复用未变实现的相关证据。
+
 f731161 已提交推送完整响应合同；14 项 Host 定向结果、2 项合同、74 schemas / 31
 wire cases / 7 实际响应 / 4 内层数据、scoped Clippy/fmt/surface/公开内容检查通过。
 随后纯测试/文档加强的身份矩阵六项测试通过：15 种拒绝配置，以及两种 source-disabled
