@@ -1,6 +1,15 @@
 # MCP-5 session_start 接续（2026-11-05）
 
 Morii 再次要求沿开发路线自主继续，保留全部硬边界，不逐项索要指令。
+0d2f25f 已推送旧 profile 边界验收。其后反例证实 session_start 的 kind 单变体
+枚举接受对象形状（合同只许字符串），失败日志已保存；现已最小修正为 String
+与既有常量校验，拒绝发生在 native recall 前。allowlist：
+opening/mod.rs、opening_session_start.rs、session-start corpus、ADR127/合同的
+必要纠错说明、验证报告/本交接、integration manifest/RUNTIME.md；其他文件保留。
+修正后 session 3 项、实际管道成功 1 项、合同/表面 8 项通过；独立 Python
+76 schemas / 19 session cases / 16 link cases 和实际响应通过。定向 Clippy、
+fmt、surface 通过，无全工作区或真实数据/模型验收。schema/hello 指纹未改，
+当前 source aggregate 为 e4b5c470c69dbe36a9f85d0d9588d036a1222a720f8aab94e816ac56cb94c4c3。
 310d5ba 已推送真实 stdio 出口验收。其后旧 pipe-5 / pipe-6 实际传输验收 2 项
 通过：保持原目录，拒绝 session_start，随后原有读取/提示保存仍可执行。allowlist 为
 initialized_mcp.rs 中既有 stdio 测试、agent_note_pipe.rs 中既有提示保存测试、

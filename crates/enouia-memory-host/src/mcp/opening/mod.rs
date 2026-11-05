@@ -149,11 +149,6 @@ struct StartupRequest {
     _meta: BTreeMap<String, Value>,
 }
 #[derive(Deserialize)]
-enum SessionKind {
-    #[serde(rename = "agent_session_start_request")]
-    Request,
-}
-#[derive(Deserialize)]
 enum SessionName {
     #[serde(rename = "session_start")]
     Start,
@@ -163,8 +158,7 @@ enum SessionName {
 struct SessionArguments {
     #[serde(rename = "schema_version")]
     _version: NextVersion,
-    #[serde(rename = "kind")]
-    _kind: SessionKind,
+    kind: String,
     capability: String,
     request: StartupArgs,
 }
@@ -263,7 +257,9 @@ impl<'a, 'host> Server<'a, 'host> {
                 let Ok(packet) = serde_json::from_value::<SessionCall>(params) else {
                     return Some(error(id, -32602, "invalid_arguments"));
                 };
-                if packet.arguments.capability != SESSION_CAPABILITY {
+                if packet.arguments.kind != "agent_session_start_request"
+                    || packet.arguments.capability != SESSION_CAPABILITY
+                {
                     return Some(error(id, -32602, "unsupported_request"));
                 }
                 let request_id = packet.arguments.request.request_id.clone();

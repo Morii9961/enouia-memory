@@ -144,3 +144,30 @@ target/mcp5-old-note-profile-tests.log). The separate old test that invokes
 NativeMemoryOwner was filtered out and not run. All roots/processes were new
 synthetic fixtures. Scoped two-target Clippy and formatting passed; source,
 schema and integration surface were unchanged, so those checks were not rerun.
+
+## Closed kind input correction
+
+After 0d2f25f, a targeted counterexample demonstrated a real parser/schema
+disagreement: serde's externally tagged unit enum accepted
+kind={agent_session_start_request:null}. The frozen schema allows only the
+string agent_session_start_request. The new negative test failed before the
+fix (target/mcp5-session-kind-repro.log): the call returned success instead of
+invalid arguments. This was a malformed read admission, not a write grant.
+
+The smallest correction parses kind as String and checks the existing constant
+alongside capability before native recall. Removed the single unit enum; no
+schema, capability, hello fingerprint, data format or allowed operation changes.
+The negative corpus now includes this object form. Invalid inputs preserve the
+previous actual-context cache and unchanged native snapshot.
+
+Checks after correction: opening_session_start 3 passed, actual session pipe
+success case 1 passed, mcp_opening 4 + runtime_surface 4 passed; all 0 failed.
+Logs: target/mcp5-session-kind-fixed-tests.log, mcp5-session-kind-pipe-tests.log,
+mcp5-session-kind-contract-tests.log. Independent Python cross-check passed
+76 schemas, 19 session cases, 16 link-envelope cases and the actual envelopes /
+payloads against unchanged source and exported schemas
+(target/mcp5-session-kind-schema.log). Scoped Host lib/session test Clippy,
+formatting, surface and public-content checks passed. No full workspace run.
+
+Current Runtime aggregate:
+e4b5c470c69dbe36a9f85d0d9588d036a1222a720f8aab94e816ac56cb94c4c3.

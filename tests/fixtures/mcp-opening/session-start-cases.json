@@ -343,6 +343,19 @@
         }
       ],
       "accept": false
+    },
+    {
+      "name": "object-kind-is-not-a-string",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/kind",
+          "value": {
+            "agent_session_start_request": null
+          }
+        }
+      ],
+      "accept": false
     }
   ],
   "response_cases": [

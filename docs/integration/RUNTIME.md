@@ -1,5 +1,16 @@
 # Runtime integration (ADR-MEM-45)
 
+2026-11-05 MCP-5 input-contract correction: session_start.kind is parsed as
+a string and checked against its existing constant. A unit enum previously
+also accepted the object {agent_session_start_request:null}, contrary to the
+frozen schema. The targeted counterexample failed before this correction and
+is now refused before recall/cache changes. This narrows implementation to the
+existing contract; capabilities, schema and exact hello hash remain unchanged.
+Matching corrected binaries should be adopted together; no configuration,
+permissions or Runtime pin is activated here. Aggregate:
+`e4b5c470c69dbe36a9f85d0d9588d036a1222a720f8aab94e816ac56cb94c4c3`.
+See [evidence](../validation/MCP-5-session-start.md).
+
 2026-11-05 MCP-5 / ADR127 resource-link follow-up: session_start successes add
 one standard resource_link after the existing text copy. It points only to the
 same reader's actual recall URI, with static name/mime metadata. The link grants

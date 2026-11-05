@@ -125,7 +125,7 @@ fn session_tool_refuses_identity_effect_capture_and_invalid_input_without_overwr
     initialize(&mut server);
     let initial = server.handle(&call()).unwrap();
     let before = v.snapshot().unwrap();
-    for n in 0..11 {
+    for n in 0..12 {
         let mut message = call();
         message["id"] = json!(10 + n);
         match n {
@@ -141,7 +141,10 @@ fn session_tool_refuses_identity_effect_capture_and_invalid_input_without_overwr
                 message["params"]["arguments"]["request"]["at"] = json!("2026-02-30T00:00:00.000Z")
             }
             9 => message["params"]["arguments"]["request"]["topic"] = json!("界".repeat(700)),
-            _ => message["params"]["_meta"] = json!(null),
+            10 => message["params"]["_meta"] = json!(null),
+            _ => {
+                message["params"]["arguments"]["kind"] = json!({"agent_session_start_request":null})
+            }
         }
         assert_eq!(
             server.handle(&message).unwrap()["error"]["code"],
