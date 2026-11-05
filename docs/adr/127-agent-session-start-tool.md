@@ -33,3 +33,18 @@ defines tool discovery/invocation and structured output schemas. Protocol shape
 and read-only annotations grant no authority or assurance about model behavior.
 No real client/configuration, Runtime pin, private root or new MV is activated.
 See [contract](../contracts/AGENT_SESSION_START_MCP_V1.md).
+
+## Standard resource link follow-up
+
+Keep structuredContent unchanged. Add one standard MCP resource_link content
+item after its text copy, pointing to context.uri with static name
+actual_recall and application/json mimeType. The URI is that same reader's
+actual result, not an external path, subscription or grant. Its current cache /
+scope/snapshot rules still apply; no fallback or recomputation is introduced.
+No per-memory link list or duplicate embedded memory text is needed.
+
+Freeze the closed complete session tool success envelope separately from its
+structured output schema; bind it in the exact pipe-10 fingerprint. Validate
+the actual wire result, original ID, link/context URI equality and parsed text
+copy separately. Resource links are defined by the pinned MCP tools source
+above and need not appear in resources/list. No new method or permission.

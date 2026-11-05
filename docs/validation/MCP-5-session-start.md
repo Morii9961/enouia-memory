@@ -55,3 +55,38 @@ Vault/Runtime adoption, product use, deployment or owner acceptance is claimed.
 Merging remains a separate owner instruction. Manual project snapshots remain
 untouched. Continue only MCP-5 synthetic opening/resources work; no new MV,
 forget-hide, external Agent capture hook or real client configuration.
+
+## Standard resource links follow-up
+
+Based on bf4a747. ADR127/contract were extended before coding. Successful
+session_start content now has its existing text copy followed by one standard
+resource_link to the exact actual recall URI; static name/mime metadata reveals
+no memory title. Structured output stays unchanged. The closed complete success
+envelope is versioned separately as mcp-session-start-wire-v1 and exported by
+session_result_schema(). The native exact fingerprint binds this schema; an
+actual pipe test reconstructs the hash and confirms removing this contract
+changes it. No old tools/profile, native authority or persistent format changes.
+
+Checks actually run after this change:
+
+- opening_pipe 10 + opening_session_start 3 = 13 passed, 0 failed
+  (target/mcp5-resource-links-tests.log). The subsequent fingerprint assertion
+  was then run as one focused passing test, not counted as a new unique test
+  (target/mcp5-resource-link-fingerprint-tests.log).
+- mcp_opening 4 + runtime_surface 4 = 8 passed, 0 failed
+  (target/mcp5-resource-links-contract-tests.log).
+- Independent Python: 76 schemas, 16 new link-envelope cases, both actual
+  session payloads and the actual complete link envelope passed source and
+  exported schemas, alongside existing opening cases/transcripts
+  (target/mcp5-resource-links-schema.log).
+- Scoped Host lib/affected tests Clippy, formatting and Runtime surface checks
+  passed. Aggregate: ef4679f92dc027f24d64378fa43b80d3756aec354f81ef3fa1f1e8df8d512320.
+
+Tests distinguish structural schema checks from cross-field checks: a
+well-formed but different recall URI or mismatched text copy can pass JSON
+Schema, yet fails the separate equality checks. The actual pipe response
+preserves original RPC ID, links its own context URI, and resources/read returns
+that exact native context. A link is neither a grant nor an automatic fetch;
+normal scope/snapshot/cache gates, unknown disconnection and explicit recovery
+rules remain in force. Synthetic evidence only; no real client/model or
+Runtime adoption is claimed, and no full workspace run is implied.

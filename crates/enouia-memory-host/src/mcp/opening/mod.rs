@@ -31,6 +31,25 @@ const WIRE_DOCUMENT: &str =
     include_str!("../../../../../contracts/next/mcp-opening-wire-v1.schema.json");
 const SESSION_DOCUMENT: &str =
     include_str!("../../../../../contracts/next/mcp-session-start-v1.schema.json");
+const SESSION_WIRE_DOCUMENT: &str =
+    include_str!("../../../../../contracts/next/mcp-session-start-wire-v1.schema.json");
+
+pub fn session_result_schema() -> Value {
+    let mut documents = initialized::schemas::documents();
+    documents.insert("mcp-opening-v1.schema.json", DOCUMENT);
+    documents.insert("mcp-opening-wire-v1.schema.json", WIRE_DOCUMENT);
+    documents.insert("mcp-session-start-v1.schema.json", SESSION_DOCUMENT);
+    documents.insert(
+        "mcp-session-start-wire-v1.schema.json",
+        SESSION_WIRE_DOCUMENT,
+    );
+    super::v2::schemas::bundle(
+        documents,
+        "mcp-session-start-wire-v1.schema.json",
+        "session_tool",
+        true,
+    )
+}
 
 pub fn session_schema(output: bool) -> Value {
     let mut documents = initialized::schemas::documents();
@@ -248,7 +267,12 @@ impl<'a, 'host> Server<'a, 'host> {
                     return Some(error(id, -32602, "unsupported_request"));
                 }
                 let request_id = packet.arguments.request.request_id.clone();
-                self.recall_opening(packet.arguments.request).map(|context|reply(id.clone(),tool_result(json!({"schema_version":2,"kind":"agent_session_start_response","capability":SESSION_CAPABILITY,"request_id":request_id,"context":context}),false)))
+                self.recall_opening(packet.arguments.request).map(|context| {
+                    let link=json!({"type":"resource_link","uri":context["uri"],"name":"actual_recall","mimeType":"application/json"});
+                    let mut result=tool_result(json!({"schema_version":2,"kind":"agent_session_start_response","capability":SESSION_CAPABILITY,"request_id":request_id,"context":context}),false);
+                    result["content"].as_array_mut().expect("tool text content").push(link);
+                    reply(id.clone(),result)
+                })
             }
             "tools/call" => {
                 let response = self.reads.call(id.clone(), &params);

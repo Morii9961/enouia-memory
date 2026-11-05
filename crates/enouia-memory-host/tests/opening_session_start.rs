@@ -57,6 +57,11 @@ fn session_tool_advertises_closed_schemas_and_returns_exact_actual_context_witho
     let result = server.handle(&message).unwrap();
     let packet = &result["result"]["structuredContent"];
     assert_eq!(result["result"]["isError"], false);
+    assert_eq!(result["result"]["content"].as_array().unwrap().len(), 2);
+    assert_eq!(
+        result["result"]["content"][1],
+        json!({"type":"resource_link","uri":packet["context"]["uri"],"name":"actual_recall","mimeType":"application/json"})
+    );
     assert_eq!(packet["kind"], "agent_session_start_response");
     assert_eq!(
         serde_json::from_str::<Value>(result["result"]["content"][0]["text"].as_str().unwrap())

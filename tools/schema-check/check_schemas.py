@@ -563,6 +563,21 @@ def main():
             if valid("next/mcp-session-start-v1.schema.json", value) != case["accept"]:
                 failures.append(f"MCP session start {case['name']}: disagreement")
     counts["mcp_session_start_cases"] = sum(len(session_cases[f"{d}_cases"]) for d in ("request", "response"))
+    session_wire_cases = load(ROOT / "tests/fixtures/mcp-opening/session-link-cases.json")
+    for case in session_wire_cases["cases"]:
+        value = copy.deepcopy(session_wire_cases["base"])
+        apply_ops(value, case["ops"])
+        if valid("next/mcp-session-start-wire-v1.schema.json", value) != case["accept"]:
+            failures.append(f"MCP session link {case['name']}: disagreement")
+        if "text_matches" in case:
+            text_matches = json.loads(value["result"]["content"][0]["text"]) == value["result"]["structuredContent"]
+            if text_matches != case["text_matches"]:
+                failures.append(f"MCP session link text {case['name']}: disagreement")
+        if "uri_matches" in case:
+            uri_matches = value["result"]["content"][1]["uri"] == value["result"]["structuredContent"]["context"]["uri"]
+            if uri_matches != case["uri_matches"]:
+                failures.append(f"MCP session link URI {case['name']}: disagreement")
+    counts["mcp_session_link_wire_cases"] = len(session_wire_cases["cases"])
     session_transcript = os.environ.get("ENOUIA_SESSION_START_TRANSCRIPT")
     if session_transcript:
         transcript = load(pathlib.Path(session_transcript))
@@ -579,6 +594,23 @@ def main():
                 if validator.is_valid(value) != case["accept"]:
                     failures.append(f"MCP session start exported {case['name']}: disagreement")
         counts["mcp_session_start_actual_payloads"] = 2
+        schema = transcript["wire_schema"]
+        Draft202012Validator.check_schema(schema)
+        validator = Draft202012Validator(schema)
+        value = transcript["wire_response"]
+        if (not validator.is_valid(value)
+                or not valid("next/mcp-session-start-wire-v1.schema.json", value)):
+            failures.append("MCP session actual link envelope rejected")
+        result = value["result"]
+        if (json.loads(result["content"][0]["text"]) != result["structuredContent"]
+                or result["content"][1]["uri"] != result["structuredContent"]["context"]["uri"]):
+            failures.append("MCP session actual text/link mismatch")
+        for case in session_wire_cases["cases"]:
+            value = copy.deepcopy(session_wire_cases["base"])
+            apply_ops(value, case["ops"])
+            if validator.is_valid(value) != case["accept"]:
+                failures.append(f"MCP session exported link {case['name']}: disagreement")
+        counts["mcp_session_link_actual_envelopes"] = 1
     opening_transcript = os.environ.get("ENOUIA_MCP_OPENING_TRANSCRIPT")
     if opening_transcript:
         transcript = load(pathlib.Path(opening_transcript))

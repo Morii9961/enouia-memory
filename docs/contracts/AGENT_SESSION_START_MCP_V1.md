@@ -45,3 +45,17 @@ No ContextRead, NotePermit, CorrectionPermit or MemoryPropose inference.
 The pipe-10 context fingerprint binds the additional descriptor/input/output
 schemas and guide field opening_tool=session_start. Match endpoint revisions;
 no old profile upgrade or fallback. No real MCP config or Runtime adoption.
+
+Resource-link follow-up: success content has exactly two items in order: the
+existing text copy, then {type:resource_link, uri:context.uri,
+name:actual_recall, mimeType:application/json}. Static metadata leaks no memory
+title or source content. Fetching the link uses resources/read and all existing
+current reader/cache checks; the link itself grants nothing, issues no
+subscription, and need not be listed in resources/list. structuredContent and
+its advertised outputSchema keep the preceding contract.
+
+session_result_schema() describes this complete JSON-RPC success Value: the
+original admitted ID, isError=false, closed two-item content and structured
+response. Cross-field URI/ID and text-copy equality are runtime assertions,
+not assurances provided by JSON Schema. The complete schema enters the exact
+pipe-10 hash; mismatched revisions refuse without fallback.

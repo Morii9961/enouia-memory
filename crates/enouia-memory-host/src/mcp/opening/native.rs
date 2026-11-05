@@ -43,7 +43,8 @@ pub fn hello(vault: &VaultId) -> Value {
             "resourceInput":super::schema(false,false),"resourceOutput":super::schema(false,true),
             "guide":super::guide(),"resources":super::resources(),"templates":super::templates(),
             "prompts":super::prompts(),"preamble":super::PREAMBLE,
-            "responses":responses,"sessionStartTool":super::session_tool()
+            "responses":responses,"sessionStartTool":super::session_tool(),
+            "sessionToolResponse":super::session_result_schema()
         }))
         .expect("closed compatibility metadata"),
     );

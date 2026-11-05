@@ -1,6 +1,44 @@
 mod support;
 
 #[test]
+fn session_resource_link_wire_contract_and_cross_field_checks_are_distinct() {
+    let corpus = support::fixture("../mcp-opening/session-link-cases.json");
+    let schemas = support::schema::SchemaStore::load();
+    for case in corpus["cases"].as_array().unwrap() {
+        let mut value = corpus["base"].clone();
+        support::apply_ops(&mut value, &case["ops"]);
+        assert_eq!(
+            schemas
+                .validate("next/mcp-session-start-wire-v1.schema.json", &value)
+                .is_empty(),
+            case["accept"].as_bool().unwrap(),
+            "{}",
+            case["name"]
+        );
+        if let Some(matches) = case["text_matches"].as_bool() {
+            let parsed: serde_json::Value =
+                serde_json::from_str(value["result"]["content"][0]["text"].as_str().unwrap())
+                    .unwrap();
+            assert_eq!(
+                parsed == value["result"]["structuredContent"],
+                matches,
+                "{}",
+                case["name"]
+            );
+        }
+        if let Some(matches) = case["uri_matches"].as_bool() {
+            assert_eq!(
+                value["result"]["content"][1]["uri"]
+                    == value["result"]["structuredContent"]["context"]["uri"],
+                matches,
+                "{}",
+                case["name"]
+            );
+        }
+    }
+}
+
+#[test]
 fn session_start_contract_refuses_authority_capture_and_false_session_receipts() {
     let corpus = support::fixture("../mcp-opening/session-start-cases.json");
     let schemas = support::schema::SchemaStore::load();

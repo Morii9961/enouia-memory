@@ -1,6 +1,11 @@
 # MCP-5 session_start 接续（2026-11-05）
 
 Morii 再次要求沿开发路线自主继续，保留全部硬边界，不逐项索要指令。
+bf4a747 已推送 session_start 实现，草稿 #85 已更新。其后补标准 resource_link
+及完整工具成功响应合同，先补充 ADR127/合同再编码；不新增方法/权限/持久化。
+本片 owned allowlist：现有 session schema/corpus、opening/mod.rs/native.rs、
+opening_session_start/opening_pipe 和 mcp_opening 测试、Python schema checker、
+ADR127/本合同、本交接、验证报告及 integration manifest/RUNTIME.md。
 起点 codex/mcp5-opening-resources / 399a217，依赖草稿 PR #85（base #84）；
 main 仍为 PR #83。旧交接列 session_start 未交付，现有 memory_start 是 prompt，
 故本片先冻结 ADR127 / AGENT_SESSION_START_MCP_V1，再实现可被 Agent 作为工具
@@ -25,6 +30,15 @@ AGENTS、手动状态快照、其他 worktrees 和并行修改均保留。提交
 05a92cd3e3cc0889f84e68fcec016617f75ced5f50b227b8982d895a0cde2fde。
 实际 session 工具在无 SourceRead 的 MemoryRead 租约上返回资源逐值一致；原生未知
 发布则不回结果、保留完整原包并断开。未改持久化格式，也未创建 Session。
+
+资源链接片：工具成功文本后增加标准 resource_link，地址等于实际 context.uri，
+读取仍走当前 reader 的原生缓存与快照检查。独立完整 wire schema 纳入 exact
+fingerprint；旧五工具结构不变。相关 Host 13 passed、合同/表面 8 passed，独立
+Python 76 schemas / 16 新增 wire cases / 实际完整响应及 payload 通过；定向
+Clippy、fmt、surface 通过。当前 aggregate：
+ef4679f92dc027f24d64378fa43b80d3756aec354f81ef3fa1f1e8df8d512320。
+原 RPC ID、文本/结构化内容相等、链接/实际资源相等均独立断言；schema 本身不保证
+这些跨字段关系。完整证据及未做事项仍见上述验证报告，不把新结果写回手动状态快照。
 
 继续同一草稿分支的 MCP-5 开场/资源合成路线；每片先冻结最小合同、实现验证、公开
 检查、提交推送并更新草稿；不要为继续工作逐项询问，也不能把此授权扩为新 MV 或

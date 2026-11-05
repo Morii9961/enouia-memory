@@ -394,7 +394,7 @@ fn real_opening_pipe_serves_scoped_prompt_resource_and_poisons_failed_stdout() {
             "resourceInput":opening::schema(false,false),"resourceOutput":opening::schema(false,true),
             "guide":payloads.iter().find(|p|p["payload"]["resource_type"]=="guide").unwrap()["payload"]["data"],
             "resources":catalog("resources/list","resources"),"templates":catalog("resources/templates/list","resourceTemplates"),
-            "prompts":catalog("prompts/list","prompts"),"preamble":preamble,"sessionStartTool":session_tool});
+            "prompts":catalog("prompts/list","prompts"),"preamble":preamble,"sessionStartTool":session_tool,"sessionToolResponse":opening::session_result_schema()});
         let previous = sha256(&canonical_bytes(&material).unwrap());
         material["responses"] = json!(bundles);
         assert_eq!(
@@ -402,6 +402,15 @@ fn real_opening_pipe_serves_scoped_prompt_resource_and_poisons_failed_stdout() {
             json!(sha256(&canonical_bytes(&material).unwrap()))
         );
         assert_ne!(hello["compatibilityHash"], json!(previous));
+        let mut without_link_contract = material.clone();
+        without_link_contract
+            .as_object_mut()
+            .unwrap()
+            .remove("sessionToolResponse");
+        assert_ne!(
+            hello["compatibilityHash"],
+            json!(sha256(&canonical_bytes(&without_link_contract).unwrap()))
+        );
         if let Some(path) = std::env::var_os("ENOUIA_MCP_OPENING_TRANSCRIPT") {
             let payload_schemas = json!({"prompts/get":opening::schema(true,true),"resources/read":opening::schema(false,true)});
             std::fs::write(
@@ -1224,7 +1233,20 @@ fn real_session_start_tool_returns_actual_resource_without_creating_a_session() 
                 .validate("next/mcp-session-start-v1.schema.json", packet)
                 .is_empty()
         );
-        let resource=agent.rpc(json!({"jsonrpc":"2.0","id":3,"method":"resources/read","params":{"uri":packet["context"]["uri"]}}));
+        let link = &response["response"]["result"]["content"][1];
+        assert_eq!(link["type"], "resource_link");
+        assert_eq!(link["uri"], packet["context"]["uri"]);
+        assert!(
+            schemas
+                .validate(
+                    "next/mcp-session-start-wire-v1.schema.json",
+                    &response["response"]
+                )
+                .is_empty()
+        );
+        let resource = agent.rpc(
+            json!({"jsonrpc":"2.0","id":3,"method":"resources/read","params":{"uri":link["uri"]}}),
+        );
         assert_eq!(
             serde_json::from_str::<Value>(
                 resource["response"]["result"]["contents"][0]["text"]
@@ -1235,7 +1257,7 @@ fn real_session_start_tool_returns_actual_resource_without_creating_a_session() 
             packet["context"]
         );
         if let Some(path) = std::env::var_os("ENOUIA_SESSION_START_TRANSCRIPT") {
-            std::fs::write(path,serde_json::to_vec(&json!({"arguments":call["params"]["arguments"],"response":packet,"input_schema":opening::session_schema(false),"output_schema":opening::session_schema(true)})).unwrap()).unwrap();
+            std::fs::write(path,serde_json::to_vec(&json!({"arguments":call["params"]["arguments"],"response":packet,"input_schema":opening::session_schema(false),"output_schema":opening::session_schema(true),"wire_response":response["response"],"wire_schema":opening::session_result_schema()})).unwrap()).unwrap();
         }
         assert_eq!(v.snapshot().unwrap(), before);
         agent.finish();

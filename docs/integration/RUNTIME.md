@@ -1,5 +1,18 @@
 # Runtime integration (ADR-MEM-45)
 
+2026-11-05 MCP-5 / ADR127 resource-link follow-up: session_start successes add
+one standard resource_link after the existing text copy. It points only to the
+same reader's actual recall URI, with static name/mime metadata. The link grants
+no authority and resources/read still enforces current native scope/snapshot /
+cache validity. Structured output and old tools remain unchanged. New
+session_result_schema() / mcp-session-start-wire-v1 binds the closed complete
+success envelope into pipe-10's exact fingerprint. Match endpoint revisions;
+no fallback, subscription, external URL/path or automatic fetch/retry is added.
+No Runtime/configuration or real data/model adoption. Aggregate:
+`ef4679f92dc027f24d64378fa43b80d3756aec354f81ef3fa1f1e8df8d512320`.
+See [contract](../contracts/AGENT_SESSION_START_MCP_V1.md) and
+[evidence](../validation/MCP-5-session-start.md).
+
 2026-11-05 MCP-5 / ADR-MEM-127: pipe-10 additionally advertises the read-only
 session_start tool with memory-agent-session-start-1 input/output schemas and
 hello sessionCapability. It prepares the same bounded native recall as
