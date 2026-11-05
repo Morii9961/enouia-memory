@@ -54,3 +54,44 @@ adapters before treating this class as closed. No domain-wide enum rewrite,
 new runtime validator or speculative authority mechanism is supplied. All
 existing capture/evidence/unknown-result/private-data/Runtime boundaries remain;
 targeted synthetic evidence does not prove real adoption or owner acceptance.
+
+## Catalog / qualified follow-up (2026-11-06)
+
+Continue from c346838 with the same frozen string-only contracts. The adjacent
+catalog and qualified adapters each reproduced all eight malformed tags before
+correction (target/mcp-read-enum-catalog-repro.log and
+target/mcp-read-enum-qualified-repro.log). Each now reuses string_enum on
+operation and intent: four field annotations, no domain-wide enum rewrite,
+new capability, output change or fingerprint change.
+
+Checks actually completed:
+
+- Catalog direct control-field and qualified pre-dispatch tests: 2 passed,
+  0 failed. Eight cases each now reject with zero native dispatch counts;
+  the catalog snapshot is unchanged (target/mcp-read-enum-catalog-fixed.log,
+  target/mcp-read-enum-qualified-fixed.log).
+- Actual executable stdio for each profile: 2 passed, 0 failed. Eight malformed
+  calls reject, then the original valid recall still returns its exact native
+  trace without modifying business bytes; EOF reaps the owned process
+  (target/mcp-read-enum-catalog-stdio.log,
+  target/mcp-read-enum-qualified-stdio.log).
+- Independent Python: 76 schemas OK; catalog and qualified manifests each
+  cover 22 documents, including eight new negative controls. Optional actual
+  transcript validation was not enabled (target/mcp-read-enum-adjacent-schema.log).
+- Scoped Host lib / qualified_mcp / segmented_agent Clippy passed with warnings
+  denied. Runtime surface tests: 4 passed, 0 failed
+  (target/mcp-read-enum-adjacent-clippy.log,
+  target/mcp-read-enum-adjacent-surface.log). Formatting/surface/public checks
+  passed. No full workspace or NativeMemoryOwner test was run.
+
+The initial attempt to run Clippy/surface tests was not executed because the
+automatic approval review hit the usage limit; it was not judged unsafe. After
+Morii's continuation, that same authorized check completed on 2026-11-06.
+Earlier successful behavior/schema evidence was reused because its source was
+unchanged. No retry of a Memory operation or unknown publication was involved.
+
+Current integration aggregate:
+2c856f8deb96d9dd8bafc68ee4a8f97bd6e66f2e28808aa11cb56af768a38520.
+This closes the adapter-owned operation/intent representation gap in the four
+read adapters. It does not claim domain-wide enum/schema equivalence, real
+client use, Runtime adoption, private-root validation or owner acceptance.

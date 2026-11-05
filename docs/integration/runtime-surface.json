@@ -770,7 +770,7 @@
     {
       "path": "crates/enouia-memory-host/src/mcp/catalog/mod.rs",
       "role": "host-session",
-      "sha256": "ac7efb580aa4eb72c33cb2ddc94d0d6ad21622d092997c53ad2e62cf9b17689c"
+      "sha256": "4345ebd6c0bd7a414c21ee93b7ea16824ceaa6a093d6e33c59b4e3ebf51dc518"
     },
     {
       "path": "crates/enouia-memory-host/src/mcp/catalog/native.rs",
@@ -870,7 +870,7 @@
     {
       "path": "crates/enouia-memory-host/src/mcp/qualified/mod.rs",
       "role": "host-session",
-      "sha256": "b25aef12cb519908662be5d4b6285dc44524cfcd46d87a4b20ed4724df69d962"
+      "sha256": "3efc4ca5c03293c80a45171e30b0b00c6d0065df7b08243655f53e93c2b4e25f"
     },
     {
       "path": "crates/enouia-memory-host/src/mcp/qualified/native.rs",
@@ -1298,5 +1298,5 @@
       "sha256": "3603c1855d9f9ec9b3585143a0191508980b260b1ffd26c82b3e6f9b7223a75d"
     }
   ],
-  "aggregate": "0a969a802b2d919f209cb976662b2e9f3112d689fbd1ad5aaad9d5417f2a0c76"
+  "aggregate": "2c856f8deb96d9dd8bafc68ee4a8f97bd6e66f2e28808aa11cb56af768a38520"
 }

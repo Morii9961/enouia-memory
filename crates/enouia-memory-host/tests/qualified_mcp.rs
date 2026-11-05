@@ -347,6 +347,23 @@ fn qualified_request_versions_identity_and_scope_refuse_before_dispatch_counts()
         let rpc = json!({"jsonrpc":"2.0","id":index+2,"method":"tools/call","params":{"name":"memory_search","arguments":case["value"]}});
         assert_eq!(server.handle(&rpc).unwrap()["error"]["code"], -32602);
     }
+    let mut admitted = Vec::new();
+    for (index, case) in cases["invalid"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|c| c["name"].as_str().unwrap().starts_with("object enum/"))
+        .enumerate()
+    {
+        let raw = json!({"jsonrpc":"2.0","id":20+index,"method":"tools/call","params":{"name":case["tool"],"arguments":case["value"]}});
+        if server.handle(&raw).unwrap()["error"]["code"] != json!(-32602) {
+            admitted.push(case["name"].clone());
+        }
+    }
+    assert!(
+        admitted.is_empty(),
+        "malformed strings admitted: {admitted:?}"
+    );
     assert_eq!(server.counts.search, 0);
     assert_eq!(
         server.counts.read + server.counts.source + server.counts.related + server.counts.recall,
@@ -854,6 +871,17 @@ fn stdio_executable_attaches_to_owner_host_and_reaps_on_eof() {
             child.event()["result"]["tools"].as_array().unwrap().len(),
             5
         );
+        let malformed = support::fixture("../agent-qualified-read/manifest.json");
+        for (n, case) in malformed["invalid"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter(|c| c["name"].as_str().unwrap().starts_with("object enum/"))
+            .enumerate()
+        {
+            child.send(json!({"jsonrpc":"2.0","id":20+n,"method":"tools/call","params":{"name":case["tool"],"arguments":case["value"]}}));
+            assert_eq!(child.event()["error"]["code"], -32602, "{}", case["name"]);
+        }
         let call = packet(
             3,
             "memory_recall",

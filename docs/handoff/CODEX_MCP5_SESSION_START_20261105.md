@@ -1,5 +1,18 @@
 # MCP-5 session_start 接续（2026-11-05）
 
+c346838 已推送 initialized/v2 读取控制字段修正，草稿 #85 已更新。其后已复现
+并收束 catalog/qualified 的同两字段。owned allowlist：这两个 MCP mod.rs、
+segmented_agent.rs / qualified_mcp.rs 对应定向测试、agent-catalog/qualified-read
+合成 manifest、本交接/read-control 报告、integration manifest/RUNTIME.md。
+不改领域全局 enum，不调用 NativeMemoryOwner，不改变有效工具/权限/布局/指纹。
+2026-11-06 接续：这两个入口各复现 8 个反例后复用 string_enum。直接入口 2 项、
+实际 stdio 2 项、surface 4 项通过；独立 Python 76 schemas、两个 manifest 各
+22 件通过。定向 Clippy/fmt/surface/公开检查通过，无全量。此前 Clippy/surface
+因审批检查额度耗尽未执行，现已同一步重试通过，未把失败审批写为验证通过。
+当前 aggregate 为 2c856f8deb96d9dd8bafc68ee4a8f97bd6e66f2e28808aa11cb56af768a38520。
+四个读取 adapter 的 operation/intent 对象标签缺口已收束，未宣称领域所有 enum
+均完成合同一致性验证；详见 read-control 报告的 2026-11-06 小节。
+
 本片从 2fde3f7 接续：反例确认读取 operation / intent 的字符串合同被 serde
 对象标签绕过，context/initialized 共 16 条路径已复现并最小修正。owned
 allowlist：mcp/json.rs、initialized/mod.rs、v2/mod.rs、opening_mcp.rs、必要的
@@ -16,7 +29,8 @@ schema/hello 指纹未改。报告见 [read-control](../validation/MCP-5-read-co
 
 Morii 要求沿既定路线自主继续，不逐项索要指令；已明确启动 MCP-5 合成开发，
 其他硬边界继续保留。当前分支 codex/mcp5-opening-resources，最新实现提交
-c9eb8f4 已推送。草稿 PR #85 仍以未合并的 MCP-4 分支 / PR #84（4aa1605）为
+c346838 已推送；其后的 catalog/qualified 修正以本文件开头及 Git 为准。
+草稿 PR #85 仍以未合并的 MCP-4 分支 / PR #84（4aa1605）为
 base；不合并。origin/main 为 PR #83 的 2a6310e，包含 f42f3b1，已核对远端。
 其他 main / captured-source-lifecycle worktree 保留；无 reset/clean。
 

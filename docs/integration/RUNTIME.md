@@ -1,5 +1,14 @@
 # Runtime integration (ADR-MEM-45)
 
+2026-11-05 adjacent read-control correction: catalog and qualified MCP adapters
+now use the same string-only operation/intent boundary as initialized/v2. Each
+had eight schema-invalid object tags admitted; targeted counterexamples are
+saved. Only input representation is narrowed to the existing contract. Valid
+reads, independent scopes, profile meanings, output schemas and exact hello
+metadata remain unchanged. No Runtime/configuration or real adoption.
+Aggregate: `2c856f8deb96d9dd8bafc68ee4a8f97bd6e66f2e28808aa11cb56af768a38520`.
+See [read-control validation](../validation/MCP-5-read-control-strings.md).
+
 2026-11-05 read-control contract correction: initialized/context and schema-2
 MCP read adapters now deserialize operation and recall intent from strings only,
 then keep the existing typed enum flow. Externally tagged objects had been
