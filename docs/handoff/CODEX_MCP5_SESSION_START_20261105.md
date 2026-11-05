@@ -1,5 +1,17 @@
 # MCP-5 session_start 接续（2026-11-05）
 
+本片从 2fde3f7 接续：反例确认读取 operation / intent 的字符串合同被 serde
+对象标签绕过，context/initialized 共 16 条路径已复现并最小修正。owned
+allowlist：mcp/json.rs、initialized/mod.rs、v2/mod.rs、opening_mcp.rs、必要的
+对应读取测试/合成语料、ADR126/合同、本交接/验证报告及 integration manifest /
+RUNTIME.md。不改 AGENTS、手动状态或其他 worktree，不新增方法/权限/持久化。
+实现为 json::string_enum，在 initialized/v2 的两个控制字段处要求字符串，再
+传原类型向内。Host 12 项、实际管道 3 项及 surface 4 项通过；独立 Python
+76 schemas（两语料分别 18/22 件）通过；定向 Clippy/fmt/公开检查通过，无全量。
+本片 aggregate 0a969a802b2d919f209cb976662b2e9f3112d689fbd1ad5aaad9d5417f2a0c76，
+schema/hello 指纹未改。报告见 [read-control](../validation/MCP-5-read-control-strings.md)。
+提交后接着核实 catalog/qualified 相同字段，不做领域全局 enum 重写或新 MV。
+
 ## 当前基线与授权
 
 Morii 要求沿既定路线自主继续，不逐项索要指令；已明确启动 MCP-5 合成开发，

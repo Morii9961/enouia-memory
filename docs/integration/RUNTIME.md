@@ -1,5 +1,15 @@
 # Runtime integration (ADR-MEM-45)
 
+2026-11-05 read-control contract correction: initialized/context and schema-2
+MCP read adapters now deserialize operation and recall intent from strings only,
+then keep the existing typed enum flow. Externally tagged objects had been
+accepted contrary to the frozen schemas. This closes malformed-input admission
+before native dispatch/cache changes; valid five-tool behavior, independent
+authority, profiles, response schemas and compatibility metadata are unchanged.
+No Runtime pin/configuration or real adoption is supplied. Aggregate:
+`0a969a802b2d919f209cb976662b2e9f3112d689fbd1ad5aaad9d5417f2a0c76`.
+See [read-control validation](../validation/MCP-5-read-control-strings.md).
+
 2026-11-05 MCP-5 input-contract correction: session_start.kind is parsed as
 a string and checked against its existing constant. A unit enum previously
 also accepted the object {agent_session_start_request:null}, contrary to the

@@ -1129,6 +1129,22 @@ fn real_opening_tools_and_prompt_share_actual_context_without_requiring_an_openi
         let first_data = &first_response["response"]["result"]["structuredContent"];
         assert_eq!(first_data["kind"], "agent_initialized_read_response");
         assert!(first_data["error"].is_null());
+        let malformed = schema_support::fixture("../agent-initialized-read/manifest.json");
+        for (n, case) in malformed["invalid"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter(|c| c["name"].as_str().unwrap().starts_with("object enum/"))
+            .enumerate()
+        {
+            let raw = json!({"jsonrpc":"2.0","id":40+n,"method":"tools/call","params":{"name":case["tool"],"arguments":case["value"]}});
+            assert_eq!(
+                agent.rpc(raw)["response"]["error"]["code"],
+                -32602,
+                "{}",
+                case["name"]
+            );
+        }
         let memory = &request.target.memory.memory_id;
         let filter = CatalogFilter::default();
         let reads = [

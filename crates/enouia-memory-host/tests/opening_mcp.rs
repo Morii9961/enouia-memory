@@ -37,6 +37,114 @@ fn profile() -> AttentionProfile {
 }
 
 #[test]
+fn read_control_enums_require_strings_before_dispatch_and_preserve_actual_context() {
+    let (e, v, p, _) = correction_rig(SpeakerRole::User);
+    let host = QualifiedAgentHost::from_authenticated_initialized_owner(
+        v.clone(),
+        e.descriptor.created_by.clone(),
+    )
+    .unwrap();
+    let reader = host
+        .reader(
+            &e.descriptor.created_by,
+            actor(ActorType::Agent, 88),
+            scope(&p),
+        )
+        .unwrap();
+    let profile = profile();
+    let mut context = opening::Server::new(&reader, &profile).unwrap();
+    initialize(&mut context);
+    let mut old = initialized::Server::new(&reader, &profile).unwrap();
+    old.handle(&json!({"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"synthetic-enum-check","version":"1"}}}));
+    old.handle(&json!({"jsonrpc":"2.0","method":"notifications/initialized"}));
+    let start = call(
+        &mut context,
+        2,
+        "prompts/get",
+        json!({"name":"memory_start","arguments":{"request_id":id("req",180),"at":Timestamp::from_unix_ms(NOW).unwrap()}}),
+    );
+    let initial: Value = serde_json::from_str(
+        start["result"]["messages"][0]["content"]["text"]
+            .as_str()
+            .unwrap()
+            .split_once('\n')
+            .unwrap()
+            .1,
+    )
+    .unwrap();
+    let corpus = schema_support::fixture("../agent-initialized-read/manifest.json");
+    let schemas = schema_support::schema::SchemaStore::load();
+    let mut cases = Vec::new();
+    for name in [
+        "memory_search",
+        "memory_read",
+        "memory_source",
+        "memory_related",
+        "memory_recall",
+    ] {
+        let mut packet = corpus["valid"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|p| p["operation"] == name)
+            .unwrap()
+            .clone();
+        packet["operation"] = json!({name:null});
+        cases.push((format!("operation/{name}"), name, packet));
+    }
+    for intent in ["current", "historical", "browse"] {
+        let mut packet = corpus["valid"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|p| p["operation"] == "memory_recall")
+            .unwrap()
+            .clone();
+        packet["arguments"]["intent"] = json!({intent:null});
+        cases.push((format!("intent/{intent}"), "memory_recall", packet));
+    }
+    let before = v.snapshot().unwrap();
+    let mut admitted = Vec::new();
+    for (n, (label, name, mut packet)) in cases.into_iter().enumerate() {
+        packet["request_id"] = json!(id("req", 200 + n as u32));
+        assert!(
+            !schemas
+                .validate("next/agent-initialized-read-v2.schema.json", &packet)
+                .is_empty()
+        );
+        let raw = json!({"jsonrpc":"2.0","id":10+n,"method":"tools/call","params":{"name":name,"arguments":packet}});
+        for (profile, response) in [
+            ("context", context.handle(&raw).unwrap()),
+            ("initialized", old.handle(&raw).unwrap()),
+        ] {
+            if response["error"]["code"] != json!(-32602) {
+                admitted.push(format!("{profile}/{label}"));
+            }
+        }
+    }
+    assert!(
+        admitted.is_empty(),
+        "malformed strings admitted: {admitted:?}"
+    );
+    assert_eq!(
+        old.counts.search
+            + old.counts.read
+            + old.counts.source
+            + old.counts.related
+            + old.counts.recall,
+        0
+    );
+    assert_eq!(
+        reader
+            .context_trace(&RequestId::parse(&id("req", 180)).unwrap())
+            .unwrap()
+            .unwrap(),
+        initial["data"]
+    );
+    assert_eq!(v.snapshot().unwrap(), before);
+}
+
+#[test]
 fn opening_catalogs_are_static_and_old_read_profile_stays_tools_only() {
     let (e, v, p, request) = correction_rig(SpeakerRole::User);
     let host = QualifiedAgentHost::from_authenticated_initialized_owner(

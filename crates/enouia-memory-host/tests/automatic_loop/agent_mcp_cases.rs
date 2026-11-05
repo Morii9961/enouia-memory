@@ -443,6 +443,22 @@ fn mcp2_old_client_and_forged_or_unfrozen_arguments_are_refused() {
                     }
                     assert!(child.rpc(request)["response"]["error"].is_object());
                 }
+                let malformed = support::fixture("../agent-read/manifest.json");
+                for (n, case) in malformed["invalid"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .filter(|c| c["name"].as_str().unwrap().starts_with("object enum/"))
+                    .enumerate()
+                {
+                    let raw = json!({"jsonrpc":"2.0","id":20+n,"method":"tools/call","params":{"name":case["tool"],"arguments":case["value"]}});
+                    assert_eq!(
+                        child.rpc(raw)["response"]["error"]["code"],
+                        -32602,
+                        "{}",
+                        case["name"]
+                    );
+                }
                 let denied=child.rpc(packet(8,"memory_source",json!({"source_id":id_source(1),"revision":null,"from_byte":0,"to_byte":null,"max_bytes":8192})));
                 assert_eq!(
                     denied["response"]["result"]["structuredContent"]["error"]["code"],

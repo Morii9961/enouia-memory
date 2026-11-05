@@ -15,6 +15,12 @@ Session is created. Guide includes opening_tool=session_start. The additional
 descriptor/input/output schemas enter the exact pipe-10 fingerprint. All three
 recall entry points share the actual-context cache and current validity rules.
 
+Read control fields operation and recall arguments.intent are strings exactly
+as specified by the existing initialized read schemas. Object-shaped enum tags
+are malformed input, not aliases. Reject them before native dispatch or cache
+changes. This also applies to the underlying explicit schema-2 read adapter;
+it does not change valid pipe-5/6 behavior or confer new authority.
+
 ## Resources
 
 resources/list returns the fixed enouia-memory://guide descriptor.

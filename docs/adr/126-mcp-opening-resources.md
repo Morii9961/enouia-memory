@@ -77,3 +77,12 @@ valid MCP envelope is not proof of valid memory content or authorization.
 This closes contract coverage in the unadopted draft. No new method, authority,
 capture, model or native business effect is added. The new exact fingerprint
 requires matching endpoint revisions; do not reconnect or fall back on mismatch.
+
+## String control fields at read boundaries
+
+The existing operation and recall intent schema fields admit JSON strings only.
+Malformed externally tagged objects must not be normalized into valid operations
+or intents by serde. Enforce string representation when these fields enter the
+MCP read adapters, then pass the existing typed enums inward. This is conformity
+to the frozen read contracts, not a new profile, permission or tool meaning.
+Keep valid reads, output envelopes and exact compatibility metadata unchanged.
