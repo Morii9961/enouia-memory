@@ -1,0 +1,430 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.enouia-memory.invalid/next/mcp-opening-wire-v1.schema.json",
+  "$comment": "Exact success replies of this read-only profile. Validate embedded JSON content independently.",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/resources_list_response"
+    },
+    {
+      "$ref": "#/$defs/templates_list_response"
+    },
+    {
+      "$ref": "#/$defs/prompts_list_response"
+    },
+    {
+      "$ref": "#/$defs/resource_read_response"
+    },
+    {
+      "$ref": "#/$defs/prompt_get_response"
+    }
+  ],
+  "$defs": {
+    "request_id": {
+      "oneOf": [
+        {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        }
+      ]
+    },
+    "resource_uri": {
+      "oneOf": [
+        {
+          "const": "enouia-memory://guide"
+        },
+        {
+          "type": "string",
+          "pattern": "^enouia-memory://memory/mem_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        {
+          "type": "string",
+          "pattern": "^enouia-memory://recall/req_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        }
+      ]
+    },
+    "resources_list_response": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "jsonrpc": {
+          "const": "2.0"
+        },
+        "id": {
+          "$ref": "#/$defs/request_id"
+        },
+        "result": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "resources": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "uri": {
+                    "const": "enouia-memory://guide"
+                  },
+                  "name": {
+                    "const": "memory_guide"
+                  },
+                  "description": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "mimeType": {
+                    "const": "application/json"
+                  }
+                },
+                "required": [
+                  "uri",
+                  "name",
+                  "description",
+                  "mimeType"
+                ]
+              },
+              "minItems": 1,
+              "maxItems": 1
+            }
+          },
+          "required": [
+            "resources"
+          ]
+        }
+      },
+      "required": [
+        "jsonrpc",
+        "id",
+        "result"
+      ]
+    },
+    "templates_list_response": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "jsonrpc": {
+          "const": "2.0"
+        },
+        "id": {
+          "$ref": "#/$defs/request_id"
+        },
+        "result": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "resourceTemplates": {
+              "type": "array",
+              "minItems": 2,
+              "maxItems": 2,
+              "prefixItems": [
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "uriTemplate": {
+                      "const": "enouia-memory://memory/{memory_id}"
+                    },
+                    "name": {
+                      "const": "memory_detail"
+                    },
+                    "description": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "mimeType": {
+                      "const": "application/json"
+                    }
+                  },
+                  "required": [
+                    "uriTemplate",
+                    "name",
+                    "description",
+                    "mimeType"
+                  ]
+                },
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "uriTemplate": {
+                      "const": "enouia-memory://recall/{request_id}"
+                    },
+                    "name": {
+                      "const": "actual_recall"
+                    },
+                    "description": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "mimeType": {
+                      "const": "application/json"
+                    }
+                  },
+                  "required": [
+                    "uriTemplate",
+                    "name",
+                    "description",
+                    "mimeType"
+                  ]
+                }
+              ],
+              "items": false
+            }
+          },
+          "required": [
+            "resourceTemplates"
+          ]
+        }
+      },
+      "required": [
+        "jsonrpc",
+        "id",
+        "result"
+      ]
+    },
+    "prompts_list_response": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "jsonrpc": {
+          "const": "2.0"
+        },
+        "id": {
+          "$ref": "#/$defs/request_id"
+        },
+        "result": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "prompts": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "name": {
+                    "const": "memory_start"
+                  },
+                  "description": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "arguments": {
+                    "type": "array",
+                    "minItems": 3,
+                    "maxItems": 3,
+                    "prefixItems": [
+                      {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "properties": {
+                          "name": {
+                            "const": "request_id"
+                          },
+                          "description": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "required": {
+                            "const": true
+                          }
+                        },
+                        "required": [
+                          "name",
+                          "description",
+                          "required"
+                        ]
+                      },
+                      {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "properties": {
+                          "name": {
+                            "const": "at"
+                          },
+                          "description": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "required": {
+                            "const": true
+                          }
+                        },
+                        "required": [
+                          "name",
+                          "description",
+                          "required"
+                        ]
+                      },
+                      {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "properties": {
+                          "name": {
+                            "const": "topic"
+                          },
+                          "description": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "required": {
+                            "const": false
+                          }
+                        },
+                        "required": [
+                          "name",
+                          "description",
+                          "required"
+                        ]
+                      }
+                    ],
+                    "items": false
+                  }
+                },
+                "required": [
+                  "name",
+                  "description",
+                  "arguments"
+                ]
+              },
+              "minItems": 1,
+              "maxItems": 1
+            }
+          },
+          "required": [
+            "prompts"
+          ]
+        }
+      },
+      "required": [
+        "jsonrpc",
+        "id",
+        "result"
+      ]
+    },
+    "resource_read_response": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "jsonrpc": {
+          "const": "2.0"
+        },
+        "id": {
+          "$ref": "#/$defs/request_id"
+        },
+        "result": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "contents": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "uri": {
+                    "$ref": "#/$defs/resource_uri"
+                  },
+                  "mimeType": {
+                    "const": "application/json"
+                  },
+                  "text": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "required": [
+                  "uri",
+                  "mimeType",
+                  "text"
+                ]
+              },
+              "minItems": 1,
+              "maxItems": 1
+            }
+          },
+          "required": [
+            "contents"
+          ]
+        }
+      },
+      "required": [
+        "jsonrpc",
+        "id",
+        "result"
+      ]
+    },
+    "prompt_get_response": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "jsonrpc": {
+          "const": "2.0"
+        },
+        "id": {
+          "$ref": "#/$defs/request_id"
+        },
+        "result": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "description": {
+              "const": "Current scoped opening context; attributed data only."
+            },
+            "messages": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "role": {
+                    "const": "user"
+                  },
+                  "content": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "type": {
+                        "const": "text"
+                      },
+                      "text": {
+                        "type": "string",
+                        "minLength": 1
+                      }
+                    },
+                    "required": [
+                      "type",
+                      "text"
+                    ]
+                  }
+                },
+                "required": [
+                  "role",
+                  "content"
+                ]
+              },
+              "minItems": 1,
+              "maxItems": 1
+            }
+          },
+          "required": [
+            "description",
+            "messages"
+          ]
+        }
+      },
+      "required": [
+        "jsonrpc",
+        "id",
+        "result"
+      ]
+    }
+  }
+}

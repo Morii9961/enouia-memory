@@ -1,0 +1,628 @@
+{
+  "cases": [
+    {
+      "name": "resources-list",
+      "value": {
+        "jsonrpc": "2.0",
+        "id": "synthetic-original",
+        "result": {
+          "resources": [
+            {
+              "uri": "enouia-memory://guide",
+              "name": "memory_guide",
+              "description": "Synthetic descriptor.",
+              "mimeType": "application/json"
+            }
+          ]
+        }
+      },
+      "accept": true
+    },
+    {
+      "name": "templates-list",
+      "value": {
+        "jsonrpc": "2.0",
+        "id": "synthetic-original",
+        "result": {
+          "resourceTemplates": [
+            {
+              "uriTemplate": "enouia-memory://memory/{memory_id}",
+              "name": "memory_detail",
+              "description": "Synthetic descriptor.",
+              "mimeType": "application/json"
+            },
+            {
+              "uriTemplate": "enouia-memory://recall/{request_id}",
+              "name": "actual_recall",
+              "description": "Synthetic descriptor.",
+              "mimeType": "application/json"
+            }
+          ]
+        }
+      },
+      "accept": true
+    },
+    {
+      "name": "prompts-list",
+      "value": {
+        "jsonrpc": "2.0",
+        "id": "synthetic-original",
+        "result": {
+          "prompts": [
+            {
+              "name": "memory_start",
+              "description": "Synthetic prompt.",
+              "arguments": [
+                {
+                  "name": "request_id",
+                  "description": "Synthetic argument.",
+                  "required": true
+                },
+                {
+                  "name": "at",
+                  "description": "Synthetic argument.",
+                  "required": true
+                },
+                {
+                  "name": "topic",
+                  "description": "Synthetic argument.",
+                  "required": false
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "accept": true
+    },
+    {
+      "name": "resource-read",
+      "value": {
+        "jsonrpc": "2.0",
+        "id": "synthetic-original",
+        "result": {
+          "contents": [
+            {
+              "uri": "enouia-memory://guide",
+              "mimeType": "application/json",
+              "text": "{\"schema_version\": 2, \"kind\": \"agent_context_resource\", \"capability\": \"memory-agent-context-1\", \"uri\": \"enouia-memory://guide\", \"resource_type\": \"guide\", \"data\": {\"schema_version\": 2, \"capability\": \"memory-agent-context-1\", \"read_capability\": \"memory-agent-initialized-read-1\", \"capture\": \"runtime_only\", \"source_text\": \"requires_independent_source_read\", \"opening_prompt\": \"memory_start\", \"memory_meaning\": \"attributed_statements_not_independent_verification\", \"prompt_role\": \"not_runtime_user_evidence_or_owner_consent\", \"writes\": \"unavailable\", \"uncertainty\": \"retain_original_no_automatic_retry_or_reconnect\"}}"
+            }
+          ]
+        }
+      },
+      "accept": true
+    },
+    {
+      "name": "prompt-get",
+      "value": {
+        "jsonrpc": "2.0",
+        "id": "synthetic-original",
+        "result": {
+          "description": "Current scoped opening context; attributed data only.",
+          "messages": [
+            {
+              "role": "user",
+              "content": {
+                "type": "text",
+                "text": "Attributed synthetic context."
+              }
+            }
+          ]
+        }
+      },
+      "accept": true
+    },
+    {
+      "name": "error-and-result",
+      "value": {
+        "jsonrpc": "2.0",
+        "id": "synthetic-original",
+        "result": {
+          "contents": [
+            {
+              "uri": "enouia-memory://guide",
+              "mimeType": "application/json",
+              "text": "{\"schema_version\": 2, \"kind\": \"agent_context_resource\", \"capability\": \"memory-agent-context-1\", \"uri\": \"enouia-memory://guide\", \"resource_type\": \"guide\", \"data\": {\"schema_version\": 2, \"capability\": \"memory-agent-context-1\", \"read_capability\": \"memory-agent-initialized-read-1\", \"capture\": \"runtime_only\", \"source_text\": \"requires_independent_source_read\", \"opening_prompt\": \"memory_start\", \"memory_meaning\": \"attributed_statements_not_independent_verification\", \"prompt_role\": \"not_runtime_user_evidence_or_owner_consent\", \"writes\": \"unavailable\", \"uncertainty\": \"retain_original_no_automatic_retry_or_reconnect\"}}"
+            }
+          ]
+        },
+        "error": {
+          "code": -32000,
+          "message": "unknown"
+        }
+      },
+      "accept": false
+    },
+    {
+      "name": "owner-claim-in-envelope",
+      "value": {
+        "jsonrpc": "2.0",
+        "id": "synthetic-original",
+        "result": {
+          "description": "Current scoped opening context; attributed data only.",
+          "messages": [
+            {
+              "role": "user",
+              "content": {
+                "type": "text",
+                "text": "Attributed synthetic context."
+              }
+            }
+          ]
+        },
+        "principal": "owner"
+      },
+      "accept": false
+    },
+    {
+      "name": "bad-jsonrpc-version",
+      "value": {
+        "jsonrpc": "1.0",
+        "id": "synthetic-original",
+        "result": {
+          "contents": [
+            {
+              "uri": "enouia-memory://guide",
+              "mimeType": "application/json",
+              "text": "{\"schema_version\": 2, \"kind\": \"agent_context_resource\", \"capability\": \"memory-agent-context-1\", \"uri\": \"enouia-memory://guide\", \"resource_type\": \"guide\", \"data\": {\"schema_version\": 2, \"capability\": \"memory-agent-context-1\", \"read_capability\": \"memory-agent-initialized-read-1\", \"capture\": \"runtime_only\", \"source_text\": \"requires_independent_source_read\", \"opening_prompt\": \"memory_start\", \"memory_meaning\": \"attributed_statements_not_independent_verification\", \"prompt_role\": \"not_runtime_user_evidence_or_owner_consent\", \"writes\": \"unavailable\", \"uncertainty\": \"retain_original_no_automatic_retry_or_reconnect\"}}"
+            }
+          ]
+        }
+      },
+      "accept": false
+    },
+    {
+      "name": "null-success-id",
+      "value": {
+        "jsonrpc": "2.0",
+        "id": null,
+        "result": {
+          "contents": [
+            {
+              "uri": "enouia-memory://guide",
+              "mimeType": "application/json",
+              "text": "{\"schema_version\": 2, \"kind\": \"agent_context_resource\", \"capability\": \"memory-agent-context-1\", \"uri\": \"enouia-memory://guide\", \"resource_type\": \"guide\", \"data\": {\"schema_version\": 2, \"capability\": \"memory-agent-context-1\", \"read_capability\": \"memory-agent-initialized-read-1\", \"capture\": \"runtime_only\", \"source_text\": \"requires_independent_source_read\", \"opening_prompt\": \"memory_start\", \"memory_meaning\": \"attributed_statements_not_independent_verification\", \"prompt_role\": \"not_runtime_user_evidence_or_owner_consent\", \"writes\": \"unavailable\", \"uncertainty\": \"retain_original_no_automatic_retry_or_reconnect\"}}"
+            }
+          ]
+        }
+      },
+      "accept": false
+    },
+    {
+      "name": "unsafe-number-id",
+      "value": {
+        "jsonrpc": "2.0",
+        "id": 9007199254740992,
+        "result": {
+          "contents": [
+            {
+              "uri": "enouia-memory://guide",
+              "mimeType": "application/json",
+              "text": "{\"schema_version\": 2, \"kind\": \"agent_context_resource\", \"capability\": \"memory-agent-context-1\", \"uri\": \"enouia-memory://guide\", \"resource_type\": \"guide\", \"data\": {\"schema_version\": 2, \"capability\": \"memory-agent-context-1\", \"read_capability\": \"memory-agent-initialized-read-1\", \"capture\": \"runtime_only\", \"source_text\": \"requires_independent_source_read\", \"opening_prompt\": \"memory_start\", \"memory_meaning\": \"attributed_statements_not_independent_verification\", \"prompt_role\": \"not_runtime_user_evidence_or_owner_consent\", \"writes\": \"unavailable\", \"uncertainty\": \"retain_original_no_automatic_retry_or_reconnect\"}}"
+            }
+          ]
+        }
+      },
+      "accept": false
+    },
+    {
+      "name": "fractional-id",
+      "value": {
+        "jsonrpc": "2.0",
+        "id": 1.25,
+        "result": {
+          "contents": [
+            {
+              "uri": "enouia-memory://guide",
+              "mimeType": "application/json",
+              "text": "{\"schema_version\": 2, \"kind\": \"agent_context_resource\", \"capability\": \"memory-agent-context-1\", \"uri\": \"enouia-memory://guide\", \"resource_type\": \"guide\", \"data\": {\"schema_version\": 2, \"capability\": \"memory-agent-context-1\", \"read_capability\": \"memory-agent-initialized-read-1\", \"capture\": \"runtime_only\", \"source_text\": \"requires_independent_source_read\", \"opening_prompt\": \"memory_start\", \"memory_meaning\": \"attributed_statements_not_independent_verification\", \"prompt_role\": \"not_runtime_user_evidence_or_owner_consent\", \"writes\": \"unavailable\", \"uncertainty\": \"retain_original_no_automatic_retry_or_reconnect\"}}"
+            }
+          ]
+        }
+      },
+      "accept": false
+    },
+    {
+      "name": "empty-success-id",
+      "value": {
+        "jsonrpc": "2.0",
+        "id": "",
+        "result": {
+          "contents": [
+            {
+              "uri": "enouia-memory://guide",
+              "mimeType": "application/json",
+              "text": "{\"schema_version\": 2, \"kind\": \"agent_context_resource\", \"capability\": \"memory-agent-context-1\", \"uri\": \"enouia-memory://guide\", \"resource_type\": \"guide\", \"data\": {\"schema_version\": 2, \"capability\": \"memory-agent-context-1\", \"read_capability\": \"memory-agent-initialized-read-1\", \"capture\": \"runtime_only\", \"source_text\": \"requires_independent_source_read\", \"opening_prompt\": \"memory_start\", \"memory_meaning\": \"attributed_statements_not_independent_verification\", \"prompt_role\": \"not_runtime_user_evidence_or_owner_consent\", \"writes\": \"unavailable\", \"uncertainty\": \"retain_original_no_automatic_retry_or_reconnect\"}}"
+            }
+          ]
+        }
+      },
+      "accept": false
+    },
+    {
+      "name": "long-success-id",
+      "value": {
+        "jsonrpc": "2.0",
+        "id": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+        "result": {
+          "contents": [
+            {
+              "uri": "enouia-memory://guide",
+              "mimeType": "application/json",
+              "text": "{\"schema_version\": 2, \"kind\": \"agent_context_resource\", \"capability\": \"memory-agent-context-1\", \"uri\": \"enouia-memory://guide\", \"resource_type\": \"guide\", \"data\": {\"schema_version\": 2, \"capability\": \"memory-agent-context-1\", \"read_capability\": \"memory-agent-initialized-read-1\", \"capture\": \"runtime_only\", \"source_text\": \"requires_independent_source_read\", \"opening_prompt\": \"memory_start\", \"memory_meaning\": \"attributed_statements_not_independent_verification\", \"prompt_role\": \"not_runtime_user_evidence_or_owner_consent\", \"writes\": \"unavailable\", \"uncertainty\": \"retain_original_no_automatic_retry_or_reconnect\"}}"
+            }
+          ]
+        }
+      },
+      "accept": false
+    },
+    {
+      "name": "system-prompt-role",
+      "value": {
+        "jsonrpc": "2.0",
+        "id": "synthetic-original",
+        "result": {
+          "description": "Current scoped opening context; attributed data only.",
+          "messages": [
+            {
+              "role": "system",
+              "content": {
+                "type": "text",
+                "text": "Attributed synthetic context."
+              }
+            }
+          ]
+        }
+      },
+      "accept": false
+    },
+    {
+      "name": "assistant-prompt-role",
+      "value": {
+        "jsonrpc": "2.0",
+        "id": "synthetic-original",
+        "result": {
+          "description": "Current scoped opening context; attributed data only.",
+          "messages": [
+            {
+              "role": "assistant",
+              "content": {
+                "type": "text",
+                "text": "Attributed synthetic context."
+              }
+            }
+          ]
+        }
+      },
+      "accept": false
+    },
+    {
+      "name": "binary-prompt",
+      "value": {
+        "jsonrpc": "2.0",
+        "id": "synthetic-original",
+        "result": {
+          "description": "Current scoped opening context; attributed data only.",
+          "messages": [
+            {
+              "role": "user",
+              "content": {
+                "type": "image",
+                "data": "synthetic",
+                "mimeType": "image/png"
+              }
+            }
+          ]
+        }
+      },
+      "accept": false
+    },
+    {
+      "name": "extra-prompt-message",
+      "value": {
+        "jsonrpc": "2.0",
+        "id": "synthetic-original",
+        "result": {
+          "description": "Current scoped opening context; attributed data only.",
+          "messages": [
+            {
+              "role": "user",
+              "content": {
+                "type": "text",
+                "text": "Attributed synthetic context."
+              }
+            },
+            {
+              "role": "user",
+              "content": {
+                "type": "text",
+                "text": "Attributed synthetic context."
+              }
+            }
+          ]
+        }
+      },
+      "accept": false
+    },
+    {
+      "name": "no-prompt-message",
+      "value": {
+        "jsonrpc": "2.0",
+        "id": "synthetic-original",
+        "result": {
+          "description": "Current scoped opening context; attributed data only.",
+          "messages": []
+        }
+      },
+      "accept": false
+    },
+    {
+      "name": "resource-file-uri",
+      "value": {
+        "jsonrpc": "2.0",
+        "id": "synthetic-original",
+        "result": {
+          "contents": [
+            {
+              "uri": "file:///synthetic",
+              "mimeType": "application/json",
+              "text": "{\"schema_version\": 2, \"kind\": \"agent_context_resource\", \"capability\": \"memory-agent-context-1\", \"uri\": \"enouia-memory://guide\", \"resource_type\": \"guide\", \"data\": {\"schema_version\": 2, \"capability\": \"memory-agent-context-1\", \"read_capability\": \"memory-agent-initialized-read-1\", \"capture\": \"runtime_only\", \"source_text\": \"requires_independent_source_read\", \"opening_prompt\": \"memory_start\", \"memory_meaning\": \"attributed_statements_not_independent_verification\", \"prompt_role\": \"not_runtime_user_evidence_or_owner_consent\", \"writes\": \"unavailable\", \"uncertainty\": \"retain_original_no_automatic_retry_or_reconnect\"}}"
+            }
+          ]
+        }
+      },
+      "accept": false
+    },
+    {
+      "name": "resource-query-uri",
+      "value": {
+        "jsonrpc": "2.0",
+        "id": "synthetic-original",
+        "result": {
+          "contents": [
+            {
+              "uri": "enouia-memory://guide?owner=true",
+              "mimeType": "application/json",
+              "text": "{\"schema_version\": 2, \"kind\": \"agent_context_resource\", \"capability\": \"memory-agent-context-1\", \"uri\": \"enouia-memory://guide\", \"resource_type\": \"guide\", \"data\": {\"schema_version\": 2, \"capability\": \"memory-agent-context-1\", \"read_capability\": \"memory-agent-initialized-read-1\", \"capture\": \"runtime_only\", \"source_text\": \"requires_independent_source_read\", \"opening_prompt\": \"memory_start\", \"memory_meaning\": \"attributed_statements_not_independent_verification\", \"prompt_role\": \"not_runtime_user_evidence_or_owner_consent\", \"writes\": \"unavailable\", \"uncertainty\": \"retain_original_no_automatic_retry_or_reconnect\"}}"
+            }
+          ]
+        }
+      },
+      "accept": false
+    },
+    {
+      "name": "resource-blob",
+      "value": {
+        "jsonrpc": "2.0",
+        "id": "synthetic-original",
+        "result": {
+          "contents": [
+            {
+              "uri": "enouia-memory://guide",
+              "mimeType": "application/json",
+              "text": "{\"schema_version\": 2, \"kind\": \"agent_context_resource\", \"capability\": \"memory-agent-context-1\", \"uri\": \"enouia-memory://guide\", \"resource_type\": \"guide\", \"data\": {\"schema_version\": 2, \"capability\": \"memory-agent-context-1\", \"read_capability\": \"memory-agent-initialized-read-1\", \"capture\": \"runtime_only\", \"source_text\": \"requires_independent_source_read\", \"opening_prompt\": \"memory_start\", \"memory_meaning\": \"attributed_statements_not_independent_verification\", \"prompt_role\": \"not_runtime_user_evidence_or_owner_consent\", \"writes\": \"unavailable\", \"uncertainty\": \"retain_original_no_automatic_retry_or_reconnect\"}}",
+              "blob": "synthetic"
+            }
+          ]
+        }
+      },
+      "accept": false
+    },
+    {
+      "name": "resource-wrong-mime",
+      "value": {
+        "jsonrpc": "2.0",
+        "id": "synthetic-original",
+        "result": {
+          "contents": [
+            {
+              "uri": "enouia-memory://guide",
+              "mimeType": "application/octet-stream",
+              "text": "{\"schema_version\": 2, \"kind\": \"agent_context_resource\", \"capability\": \"memory-agent-context-1\", \"uri\": \"enouia-memory://guide\", \"resource_type\": \"guide\", \"data\": {\"schema_version\": 2, \"capability\": \"memory-agent-context-1\", \"read_capability\": \"memory-agent-initialized-read-1\", \"capture\": \"runtime_only\", \"source_text\": \"requires_independent_source_read\", \"opening_prompt\": \"memory_start\", \"memory_meaning\": \"attributed_statements_not_independent_verification\", \"prompt_role\": \"not_runtime_user_evidence_or_owner_consent\", \"writes\": \"unavailable\", \"uncertainty\": \"retain_original_no_automatic_retry_or_reconnect\"}}"
+            }
+          ]
+        }
+      },
+      "accept": false
+    },
+    {
+      "name": "resource-no-content",
+      "value": {
+        "jsonrpc": "2.0",
+        "id": "synthetic-original",
+        "result": {
+          "contents": []
+        }
+      },
+      "accept": false
+    },
+    {
+      "name": "extra-resource-content",
+      "value": {
+        "jsonrpc": "2.0",
+        "id": "synthetic-original",
+        "result": {
+          "contents": [
+            {
+              "uri": "enouia-memory://guide",
+              "mimeType": "application/json",
+              "text": "{\"schema_version\": 2, \"kind\": \"agent_context_resource\", \"capability\": \"memory-agent-context-1\", \"uri\": \"enouia-memory://guide\", \"resource_type\": \"guide\", \"data\": {\"schema_version\": 2, \"capability\": \"memory-agent-context-1\", \"read_capability\": \"memory-agent-initialized-read-1\", \"capture\": \"runtime_only\", \"source_text\": \"requires_independent_source_read\", \"opening_prompt\": \"memory_start\", \"memory_meaning\": \"attributed_statements_not_independent_verification\", \"prompt_role\": \"not_runtime_user_evidence_or_owner_consent\", \"writes\": \"unavailable\", \"uncertainty\": \"retain_original_no_automatic_retry_or_reconnect\"}}"
+            },
+            {
+              "uri": "enouia-memory://guide",
+              "mimeType": "application/json",
+              "text": "{\"schema_version\": 2, \"kind\": \"agent_context_resource\", \"capability\": \"memory-agent-context-1\", \"uri\": \"enouia-memory://guide\", \"resource_type\": \"guide\", \"data\": {\"schema_version\": 2, \"capability\": \"memory-agent-context-1\", \"read_capability\": \"memory-agent-initialized-read-1\", \"capture\": \"runtime_only\", \"source_text\": \"requires_independent_source_read\", \"opening_prompt\": \"memory_start\", \"memory_meaning\": \"attributed_statements_not_independent_verification\", \"prompt_role\": \"not_runtime_user_evidence_or_owner_consent\", \"writes\": \"unavailable\", \"uncertainty\": \"retain_original_no_automatic_retry_or_reconnect\"}}"
+            }
+          ]
+        }
+      },
+      "accept": false
+    },
+    {
+      "name": "unissued-resource-cursor",
+      "value": {
+        "jsonrpc": "2.0",
+        "id": "synthetic-original",
+        "result": {
+          "resources": [
+            {
+              "uri": "enouia-memory://guide",
+              "name": "memory_guide",
+              "description": "Synthetic descriptor.",
+              "mimeType": "application/json"
+            }
+          ],
+          "nextCursor": "unissued"
+        }
+      },
+      "accept": false
+    },
+    {
+      "name": "dynamic-memory-list",
+      "value": {
+        "jsonrpc": "2.0",
+        "id": "synthetic-original",
+        "result": {
+          "resources": [
+            {
+              "uri": "enouia-memory://memory/mem_00000000-0000-4000-8000-000000000001",
+              "name": "memory_guide",
+              "description": "Synthetic descriptor.",
+              "mimeType": "application/json"
+            }
+          ]
+        }
+      },
+      "accept": false
+    },
+    {
+      "name": "arbitrary-template",
+      "value": {
+        "jsonrpc": "2.0",
+        "id": "synthetic-original",
+        "result": {
+          "resourceTemplates": [
+            {
+              "uriTemplate": "file:///{path}",
+              "name": "memory_detail",
+              "description": "Synthetic descriptor.",
+              "mimeType": "application/json"
+            },
+            {
+              "uriTemplate": "enouia-memory://recall/{request_id}",
+              "name": "actual_recall",
+              "description": "Synthetic descriptor.",
+              "mimeType": "application/json"
+            }
+          ]
+        }
+      },
+      "accept": false
+    },
+    {
+      "name": "extra-prompt-argument",
+      "value": {
+        "jsonrpc": "2.0",
+        "id": "synthetic-original",
+        "result": {
+          "prompts": [
+            {
+              "name": "memory_start",
+              "description": "Synthetic prompt.",
+              "arguments": [
+                {
+                  "name": "request_id",
+                  "description": "Synthetic argument.",
+                  "required": true
+                },
+                {
+                  "name": "at",
+                  "description": "Synthetic argument.",
+                  "required": true
+                },
+                {
+                  "name": "topic",
+                  "description": "Synthetic argument.",
+                  "required": false
+                },
+                {
+                  "name": "owner",
+                  "description": "Forged",
+                  "required": true
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "accept": false
+    },
+    {
+      "name": "optional-required-clock",
+      "value": {
+        "jsonrpc": "2.0",
+        "id": "synthetic-original",
+        "result": {
+          "prompts": [
+            {
+              "name": "memory_start",
+              "description": "Synthetic prompt.",
+              "arguments": [
+                {
+                  "name": "request_id",
+                  "description": "Synthetic argument.",
+                  "required": true
+                },
+                {
+                  "name": "at",
+                  "description": "Synthetic argument.",
+                  "required": false
+                },
+                {
+                  "name": "topic",
+                  "description": "Synthetic argument.",
+                  "required": false
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "accept": false
+    },
+    {
+      "name": "integer-id",
+      "value": {
+        "jsonrpc": "2.0",
+        "id": -9007199254740991,
+        "result": {
+          "contents": [
+            {
+              "uri": "enouia-memory://guide",
+              "mimeType": "application/json",
+              "text": "{\"schema_version\": 2, \"kind\": \"agent_context_resource\", \"capability\": \"memory-agent-context-1\", \"uri\": \"enouia-memory://guide\", \"resource_type\": \"guide\", \"data\": {\"schema_version\": 2, \"capability\": \"memory-agent-context-1\", \"read_capability\": \"memory-agent-initialized-read-1\", \"capture\": \"runtime_only\", \"source_text\": \"requires_independent_source_read\", \"opening_prompt\": \"memory_start\", \"memory_meaning\": \"attributed_statements_not_independent_verification\", \"prompt_role\": \"not_runtime_user_evidence_or_owner_consent\", \"writes\": \"unavailable\", \"uncertainty\": \"retain_original_no_automatic_retry_or_reconnect\"}}"
+            }
+          ]
+        }
+      },
+      "accept": true
+    },
+    {
+      "name": "unicode-id",
+      "value": {
+        "jsonrpc": "2.0",
+        "id": "合成请求",
+        "result": {
+          "contents": [
+            {
+              "uri": "enouia-memory://guide",
+              "mimeType": "application/json",
+              "text": "{\"schema_version\": 2, \"kind\": \"agent_context_resource\", \"capability\": \"memory-agent-context-1\", \"uri\": \"enouia-memory://guide\", \"resource_type\": \"guide\", \"data\": {\"schema_version\": 2, \"capability\": \"memory-agent-context-1\", \"read_capability\": \"memory-agent-initialized-read-1\", \"capture\": \"runtime_only\", \"source_text\": \"requires_independent_source_read\", \"opening_prompt\": \"memory_start\", \"memory_meaning\": \"attributed_statements_not_independent_verification\", \"prompt_role\": \"not_runtime_user_evidence_or_owner_consent\", \"writes\": \"unavailable\", \"uncertainty\": \"retain_original_no_automatic_retry_or_reconnect\"}}"
+            }
+          ]
+        }
+      },
+      "accept": true
+    }
+  ]
+}

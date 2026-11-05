@@ -1,5 +1,19 @@
 # Runtime integration (ADR-MEM-45)
 
+2026-11-05 MCP-5 response contracts: response_schema(method) now exports the
+complete JSON-RPC success envelope for each of the five new context methods.
+The existing schema(startup, output) still describes arguments/parsed memory
+content. New mcp-opening-wire-v1 covers the exact advertised catalog/text subset;
+it does not authenticate roles/URIs or validate JSON embedded in a string.
+All five success schemas enter the pipe-10 exact compatibility hash. Matching
+endpoint revisions are required; no automatic fallback or reconnect. Existing
+method behavior, native authority, errors and pipe-5/report profiles are unchanged.
+Actual synthetic pipe replies and their separately parsed payloads are checked
+by Rust and independent Python validators. No Runtime pin/config or real
+model/data adoption is supplied. Aggregate:
+`fadc0afc1991275de9972277e7ab98d16a0c4a789c31c9a424e82e773dd5222d`.
+See [wire validation](../validation/MCP-5-wire-contracts.md).
+
 2026-11-04 MCP-5 synthetic / ADR-MEM-126: opt-in pipe-10 and explicit
 automation-context-v1 attach add memory_start and standard resources/prompts to
 the same initialized QualifiedAgentReader. Existing five tools keep their

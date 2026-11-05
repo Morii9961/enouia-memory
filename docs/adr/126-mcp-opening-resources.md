@@ -60,3 +60,20 @@ See [contract](../contracts/MCP_OPENING_RESOURCES_V1.md).
   prompts capability, list/get, string arguments and structured messages.
 
 These describe protocol behavior, not authorization or model/client adoption.
+
+## 2026-11-05 — Complete response contracts before adoption
+
+Keep mcp-opening-v1 and schema(startup, output) as the existing parsed content /
+argument contracts. Add mcp-opening-wire-v1 for the actual closed JSON-RPC
+success replies of resources/list, resources/templates/list, resources/read,
+prompts/list and prompts/get. Match the pinned 2025-11-25 standard fields;
+restrict this profile to its advertised static catalogs and one text item.
+Expose response_schema(method) for those five methods, bind all five schemas in
+the exact pipe-10 compatibility hash and validate actual replies against them.
+Existing errors and initialized tools retain their contracts. Parsing/checking
+the text's embedded memory payload remains a separate test; a JSON string in a
+valid MCP envelope is not proof of valid memory content or authorization.
+
+This closes contract coverage in the unadopted draft. No new method, authority,
+capture, model or native business effect is added. The new exact fingerprint
+requires matching endpoint revisions; do not reconnect or fall back on mismatch.

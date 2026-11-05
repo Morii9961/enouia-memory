@@ -77,3 +77,23 @@ are poisoned and there is no automatic retry, reconnect or replacement key.
 The supported MCP resources/prompts signatures are those of the pinned official
 2025-11-25 specification linked from ADR126. This profile has no write, real
 model/Provider, private-root access, Runtime configuration or product acceptance.
+
+## Actual success envelopes (2026-11-05)
+
+mcp-opening-v1 / schema(startup, output) continue to describe parsed content
+payloads and method arguments. mcp-opening-wire-v1 / response_schema(method)
+describe complete JSON-RPC success Values for the five new methods:
+resources/list, resources/templates/list, resources/read, prompts/list, prompts/get.
+Each requires jsonrpc=2.0, the original admitted string/safe-integer id and the
+method-specific result, with no error or unknown envelope fields. Catalogs have
+exactly the advertised static entries and issue no nextCursor. prompts/get has
+one user/text message; resources/read has one application/json text content
+with a supported logical URI. This is the exact emitted profile subset, not a
+schema for every possible MCP server or client extension.
+
+Validate the full Value, then independently parse/validate the embedded JSON
+payload. The response schema cannot authenticate a user role, authorize an ID,
+make Agent text evidence or validate JSON hidden inside a string. Native gates
+still own those decisions. All five success-envelope schemas enter the pipe-10
+compatibility fingerprint; mismatch refuses before business dispatch, with no
+automatic fallback/reconnect. Existing error/tool envelopes are unchanged.

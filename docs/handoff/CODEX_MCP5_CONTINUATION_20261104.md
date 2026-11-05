@@ -1,5 +1,7 @@
 # MCP-5 合成接续（2026-11-04）
 
+2026-11-05 接续见 [最新交接](CODEX_MCP5_CONTINUATION_20261105.md)；下文保留本日历史证据。
+
 Morii 已明确启动 MCP-5 合成开发，其他硬边界继续保留。当前 checkout 的
 codex/mcp5-opening-resources 从已推送 MCP-4 收束提交 4aa1605 新建；依赖草稿
 [PR #84](https://github.com/Morii9961/enouia-memory/pull/84)，未合并 main。

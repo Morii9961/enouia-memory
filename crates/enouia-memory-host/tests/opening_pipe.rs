@@ -1,10 +1,13 @@
 #![cfg(windows)]
 #[path = "support/agent_correction_fixture.rs"]
 mod fixture;
+#[path = "../../enouia-memory-contract/tests/support/mod.rs"]
+mod schema_support;
 use enouia_memory_contract::{
     common::*,
     hash::{Sha256Hex, sha256},
     ids::*,
+    json::canonical_bytes,
     next::*,
     policy::Scope,
     ports::IdSource,
@@ -282,6 +285,7 @@ fn real_opening_pipe_serves_scoped_prompt_resource_and_poisons_failed_stdout() {
         agent.initialize();
         let prompt=agent.rpc(json!({"jsonrpc":"2.0","id":2,"method":"prompts/get","params":{"name":"memory_start","arguments":{"request_id":request.request_id,"at":enouia_memory_contract::time::Timestamp::from_unix_ms(NOW).unwrap()}}}));
         assert_eq!(prompt["response"]["result"]["messages"][0]["role"], "user");
+        assert_eq!(prompt["response"]["id"], json!(2));
         let uri = format!("enouia-memory://recall/{}", request.request_id.as_str());
         let resource = agent
             .rpc(json!({"jsonrpc":"2.0","id":3,"method":"resources/read","params":{"uri":uri}}));
@@ -292,6 +296,104 @@ fn real_opening_pipe_serves_scoped_prompt_resource_and_poisons_failed_stdout() {
         )
         .unwrap();
         assert_eq!(data["data"]["request_id"], json!(request.request_id));
+        assert_eq!(resource["response"]["id"], json!(3));
+        let mut exchanges = vec![
+            json!({"method":"prompts/get","response":prompt["response"]}),
+            json!({"method":"resources/read","response":resource["response"]}),
+        ];
+        for (n,(method,params)) in [
+            ("resources/list",json!({})),
+            ("resources/templates/list",json!({})),
+            ("prompts/list",json!({})),
+            ("resources/read",json!({"uri":opening::GUIDE_URI})),
+            ("resources/read",json!({"uri":format!("enouia-memory://memory/{}",request.target.memory.memory_id.as_str())})),
+        ].into_iter().enumerate() {
+            let response=agent.rpc(json!({"jsonrpc":"2.0","id":10+n,"method":method,"params":params}));
+            assert_eq!(response["response"]["id"],json!(10+n));
+            if method=="resources/read" {
+                assert_eq!(response["response"]["result"]["contents"][0]["uri"],params["uri"]);
+            }
+            exchanges.push(json!({"method":method,"response":response["response"]}));
+        }
+        let schemas = schema_support::schema::SchemaStore::load();
+        let mut bundles = serde_json::Map::new();
+        let mut payloads = Vec::new();
+        for exchange in &exchanges {
+            let method = exchange["method"].as_str().unwrap();
+            let response = &exchange["response"];
+            let errors = schemas.validate("next/mcp-opening-wire-v1.schema.json", response);
+            assert!(errors.is_empty(), "{method}: {errors:?}");
+            bundles.insert(method.into(), opening::response_schema(method).unwrap());
+            let text = match method {
+                "resources/read" => {
+                    Some(response["result"]["contents"][0]["text"].as_str().unwrap())
+                }
+                "prompts/get" => Some(
+                    response["result"]["messages"][0]["content"]["text"]
+                        .as_str()
+                        .unwrap()
+                        .split_once('\n')
+                        .unwrap()
+                        .1,
+                ),
+                _ => None,
+            };
+            if let Some(text) = text {
+                let payload: Value = serde_json::from_str(text).unwrap();
+                if method == "resources/read" {
+                    assert_eq!(payload["uri"], response["result"]["contents"][0]["uri"]);
+                }
+                let errors = schemas.validate("next/mcp-opening-v1.schema.json", &payload);
+                assert!(errors.is_empty(), "{method} embedded payload: {errors:?}");
+                payloads.push(payload);
+            }
+        }
+        assert!(opening::response_schema("tools/call").is_none());
+        // Reconstruct the fingerprint from the actual advertised wire data.
+        let hello = opening::native::hello(&e.descriptor.vault_id);
+        let mut descriptor = hello.clone();
+        descriptor.as_object_mut().unwrap().remove("vaultId");
+        descriptor
+            .as_object_mut()
+            .unwrap()
+            .remove("compatibilityHash");
+        let catalog = |method: &str, key: &str| {
+            exchanges.iter().find(|e| e["method"] == method).unwrap()["response"]["result"][key]
+                .clone()
+        };
+        let preamble = format!(
+            "{}\n",
+            prompt["response"]["result"]["messages"][0]["content"]["text"]
+                .as_str()
+                .unwrap()
+                .split_once('\n')
+                .unwrap()
+                .0
+        );
+        let mut material = json!({"descriptor":descriptor,
+            "readCompatibility":enouia_memory_host::mcp::initialized::native::hello(&e.descriptor.vault_id)["compatibilityHash"],
+            "startupInput":opening::schema(true,false),"startupOutput":opening::schema(true,true),
+            "resourceInput":opening::schema(false,false),"resourceOutput":opening::schema(false,true),
+            "guide":payloads.iter().find(|p|p["resource_type"]=="guide").unwrap()["data"],
+            "resources":catalog("resources/list","resources"),"templates":catalog("resources/templates/list","resourceTemplates"),
+            "prompts":catalog("prompts/list","prompts"),"preamble":preamble});
+        let previous = sha256(&canonical_bytes(&material).unwrap());
+        material["responses"] = json!(bundles);
+        assert_eq!(
+            hello["compatibilityHash"],
+            json!(sha256(&canonical_bytes(&material).unwrap()))
+        );
+        assert_ne!(hello["compatibilityHash"], json!(previous));
+        if let Some(path) = std::env::var_os("ENOUIA_MCP_OPENING_TRANSCRIPT") {
+            std::fs::write(
+                path,
+                serde_json::to_vec(
+                    &json!({"exchanges":exchanges,"schemas":bundles,"payloads":payloads}),
+                )
+                .unwrap(),
+            )
+            .unwrap();
+        }
         agent.finish();
         let _ = server.join().unwrap();
     });
