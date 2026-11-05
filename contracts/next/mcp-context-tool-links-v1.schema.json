@@ -1,0 +1,375 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.enouia-memory.invalid/next/mcp-context-tool-links-v1.schema.json",
+  "$comment": "Context profile read/recall tool results only. Assert cross-field ID/URI and parsed text equality separately.",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/read_tool_response"
+    },
+    {
+      "$ref": "#/$defs/recall_tool_response"
+    }
+  ],
+  "$defs": {
+    "read_tool_response": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "jsonrpc": {
+          "const": "2.0"
+        },
+        "id": {
+          "$ref": "mcp-opening-wire-v1.schema.json#/$defs/request_id"
+        },
+        "result": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "content": {
+              "type": "array"
+            },
+            "structuredContent": {
+              "$ref": "agent-initialized-read-v2.schema.json#/$defs/read_response"
+            },
+            "isError": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "content",
+            "structuredContent",
+            "isError"
+          ],
+          "oneOf": [
+            {
+              "properties": {
+                "content": {
+                  "type": "array",
+                  "minItems": 2,
+                  "maxItems": 2,
+                  "prefixItems": [
+                    {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "properties": {
+                        "type": {
+                          "const": "text"
+                        },
+                        "text": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "type",
+                        "text"
+                      ]
+                    },
+                    {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "properties": {
+                        "type": {
+                          "const": "resource_link"
+                        },
+                        "uri": {
+                          "type": "string",
+                          "pattern": "^enouia-memory://memory/mem_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                        },
+                        "name": {
+                          "const": "memory_detail"
+                        },
+                        "mimeType": {
+                          "const": "application/json"
+                        }
+                      },
+                      "required": [
+                        "type",
+                        "uri",
+                        "name",
+                        "mimeType"
+                      ]
+                    }
+                  ]
+                },
+                "isError": {
+                  "const": false
+                },
+                "structuredContent": {
+                  "properties": {
+                    "data": {
+                      "type": "object"
+                    },
+                    "error": {
+                      "type": "null"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "properties": {
+                "content": {
+                  "type": "array",
+                  "minItems": 1,
+                  "maxItems": 1,
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "type": {
+                        "const": "text"
+                      },
+                      "text": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "type",
+                      "text"
+                    ]
+                  }
+                },
+                "isError": {
+                  "const": false
+                },
+                "structuredContent": {
+                  "properties": {
+                    "data": {
+                      "type": "null"
+                    },
+                    "error": {
+                      "type": "null"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "properties": {
+                "content": {
+                  "type": "array",
+                  "minItems": 1,
+                  "maxItems": 1,
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "type": {
+                        "const": "text"
+                      },
+                      "text": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "type",
+                      "text"
+                    ]
+                  }
+                },
+                "isError": {
+                  "const": true
+                },
+                "structuredContent": {
+                  "properties": {
+                    "data": {
+                      "type": "null"
+                    },
+                    "error": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      "required": [
+        "jsonrpc",
+        "id",
+        "result"
+      ]
+    },
+    "recall_tool_response": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "jsonrpc": {
+          "const": "2.0"
+        },
+        "id": {
+          "$ref": "mcp-opening-wire-v1.schema.json#/$defs/request_id"
+        },
+        "result": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "content": {
+              "type": "array"
+            },
+            "structuredContent": {
+              "$ref": "agent-initialized-read-v2.schema.json#/$defs/recall_response"
+            },
+            "isError": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "content",
+            "structuredContent",
+            "isError"
+          ],
+          "oneOf": [
+            {
+              "properties": {
+                "content": {
+                  "type": "array",
+                  "minItems": 2,
+                  "maxItems": 2,
+                  "prefixItems": [
+                    {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "properties": {
+                        "type": {
+                          "const": "text"
+                        },
+                        "text": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "type",
+                        "text"
+                      ]
+                    },
+                    {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "properties": {
+                        "type": {
+                          "const": "resource_link"
+                        },
+                        "uri": {
+                          "type": "string",
+                          "pattern": "^enouia-memory://recall/req_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                        },
+                        "name": {
+                          "const": "actual_recall"
+                        },
+                        "mimeType": {
+                          "const": "application/json"
+                        }
+                      },
+                      "required": [
+                        "type",
+                        "uri",
+                        "name",
+                        "mimeType"
+                      ]
+                    }
+                  ]
+                },
+                "isError": {
+                  "const": false
+                },
+                "structuredContent": {
+                  "properties": {
+                    "data": {
+                      "type": "object"
+                    },
+                    "error": {
+                      "type": "null"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "properties": {
+                "content": {
+                  "type": "array",
+                  "minItems": 1,
+                  "maxItems": 1,
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "type": {
+                        "const": "text"
+                      },
+                      "text": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "type",
+                      "text"
+                    ]
+                  }
+                },
+                "isError": {
+                  "const": false
+                },
+                "structuredContent": {
+                  "properties": {
+                    "data": {
+                      "type": "null"
+                    },
+                    "error": {
+                      "type": "null"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "properties": {
+                "content": {
+                  "type": "array",
+                  "minItems": 1,
+                  "maxItems": 1,
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "type": {
+                        "const": "text"
+                      },
+                      "text": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "type",
+                      "text"
+                    ]
+                  }
+                },
+                "isError": {
+                  "const": true
+                },
+                "structuredContent": {
+                  "properties": {
+                    "data": {
+                      "type": "null"
+                    },
+                    "error": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      "required": [
+        "jsonrpc",
+        "id",
+        "result"
+      ]
+    }
+  }
+}

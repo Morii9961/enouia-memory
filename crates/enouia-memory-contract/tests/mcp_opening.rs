@@ -1,6 +1,44 @@
 mod support;
 
 #[test]
+fn context_tool_links_cover_native_results_without_inventing_resources_for_null_data() {
+    let corpus = support::fixture("../mcp-opening/tool-link-cases.json");
+    let schemas = support::schema::SchemaStore::load();
+    for case in corpus["cases"].as_array().unwrap() {
+        let mut value = corpus["bases"][case["base"].as_str().unwrap()].clone();
+        support::apply_ops(&mut value, &case["ops"]);
+        assert_eq!(
+            schemas
+                .validate("next/mcp-context-tool-links-v1.schema.json", &value)
+                .is_empty(),
+            case["accept"].as_bool().unwrap(),
+            "{}",
+            case["name"]
+        );
+        if let Some(matches) = case["text_matches"].as_bool() {
+            assert_eq!(
+                serde_json::from_str::<serde_json::Value>(
+                    value["result"]["content"][0]["text"].as_str().unwrap()
+                )
+                .unwrap()
+                    == value["result"]["structuredContent"],
+                matches
+            );
+        }
+        if let Some(matches) = case["link_matches"].as_bool() {
+            let expected = format!(
+                    "enouia-memory://memory/{}",
+                    value["result"]["structuredContent"]["data"]["item"]["base"]["base"]["memory"]
+                        ["memory_id"]
+                        .as_str()
+                        .unwrap()
+                );
+            assert_eq!(value["result"]["content"][1]["uri"] == expected, matches);
+        }
+    }
+}
+
+#[test]
 fn session_resource_link_wire_contract_and_cross_field_checks_are_distinct() {
     let corpus = support::fixture("../mcp-opening/session-link-cases.json");
     let schemas = support::schema::SchemaStore::load();

@@ -21,6 +21,27 @@ are malformed input, not aliases. Reject them before native dispatch or cache
 changes. This also applies to the underlying explicit schema-2 read adapter;
 it does not change valid pipe-5/6 behavior or confer new authority.
 
+2026-11-06 tool links: only in the context profile, successful non-null
+memory_read / memory_recall results retain the exact initialized structured
+response and serialized text block, then append one resource_link. Memory
+links use enouia-memory://memory/{returned item memory_id}, name memory_detail;
+recall links use enouia-memory://recall/{returned request_id}, name actual_recall.
+Both use mimeType application/json and static metadata. No link on missing data,
+known errors or search/source/related results. Old profiles remain text-only.
+
+The linked memory resource is the current independently authorized detail
+recipe below, not a promise to reproduce the original tool's page, expected
+snapshot, byte limit or source text. Recall links retain the exact actual-cache
+semantics. Constructing a link performs no extra read or fetch and grants no
+permission. Current policy/snapshot checks still apply when it is fetched.
+
+linked_result_schema(tool) exports complete read/recall JSON-RPC result schemas
+from mcp-context-tool-links-v1. It includes successful, absent and known-error
+native-result branches; JSON-RPC protocol errors keep their existing mapping.
+Both schemas enter the exact pipe-10 hash. Returned RPC ID, URI/returned native
+identifier and text/structured equality are independently checked, not encoded
+as cross-field promises in JSON Schema. New schema metadata is not adoption.
+
 ## Resources
 
 resources/list returns the fixed enouia-memory://guide descriptor.

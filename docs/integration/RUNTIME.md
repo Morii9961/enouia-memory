@@ -1,5 +1,20 @@
 # Runtime integration (ADR-MEM-45)
 
+2026-11-06 MCP-5 read tool links: only pipe-10 appends a standard resource_link
+to successful non-null memory_read and memory_recall results. Structured native
+data/text stay unchanged; missing/known-error results and other tools have no
+link. URIs derive from the returned authorized memory ID / request ID, with
+static metadata. Memory links fetch current scoped detail using the existing
+resource recipe (no original source text or page pin); recall links fetch the
+same reader's actual current cache. No extra selection, fetch or grant occurs.
+linked_result_schema(tool) exports two complete result schemas, including
+null/error branches without links. Both enter pipe-10's exact fingerprint;
+match endpoints without fallback. Pipe-5/6 and report profiles stay unchanged.
+No Runtime/config or real data/model adoption. Aggregate:
+`20fcbe005023e0070acd996c5e72436809d806858ec815287d02e1f1793687f6`.
+See [contract](../contracts/MCP_OPENING_RESOURCES_V1.md) and
+[evidence](../validation/MCP-5-read-tool-links.md).
+
 2026-11-05 adjacent read-control correction: catalog and qualified MCP adapters
 now use the same string-only operation/intent boundary as initialized/v2. Each
 had eight schema-invalid object tags admitted; targeted counterexamples are

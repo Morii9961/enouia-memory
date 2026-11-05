@@ -394,7 +394,7 @@ fn real_opening_pipe_serves_scoped_prompt_resource_and_poisons_failed_stdout() {
             "resourceInput":opening::schema(false,false),"resourceOutput":opening::schema(false,true),
             "guide":payloads.iter().find(|p|p["payload"]["resource_type"]=="guide").unwrap()["payload"]["data"],
             "resources":catalog("resources/list","resources"),"templates":catalog("resources/templates/list","resourceTemplates"),
-            "prompts":catalog("prompts/list","prompts"),"preamble":preamble,"sessionStartTool":session_tool,"sessionToolResponse":opening::session_result_schema()});
+            "prompts":catalog("prompts/list","prompts"),"preamble":preamble,"sessionStartTool":session_tool,"sessionToolResponse":opening::session_result_schema(),"linkedReadResponses":{"memory_read":opening::linked_result_schema("memory_read").unwrap(),"memory_recall":opening::linked_result_schema("memory_recall").unwrap()}});
         let previous = sha256(&canonical_bytes(&material).unwrap());
         material["responses"] = json!(bundles);
         assert_eq!(
@@ -410,6 +410,15 @@ fn real_opening_pipe_serves_scoped_prompt_resource_and_poisons_failed_stdout() {
         assert_ne!(
             hello["compatibilityHash"],
             json!(sha256(&canonical_bytes(&without_link_contract).unwrap()))
+        );
+        let mut without_read_links = material.clone();
+        without_read_links
+            .as_object_mut()
+            .unwrap()
+            .remove("linkedReadResponses");
+        assert_ne!(
+            hello["compatibilityHash"],
+            json!(sha256(&canonical_bytes(&without_read_links).unwrap()))
         );
         if let Some(path) = std::env::var_os("ENOUIA_MCP_OPENING_TRANSCRIPT") {
             let payload_schemas = json!({"prompts/get":opening::schema(true,true),"resources/read":opening::schema(false,true)});
@@ -1186,6 +1195,20 @@ fn real_opening_tools_and_prompt_share_actual_context_without_requiring_an_openi
             ),
         ];
         let schemas = schema_support::schema::SchemaStore::load();
+        assert!(
+            schemas
+                .validate(
+                    "next/mcp-context-tool-links-v1.schema.json",
+                    &first_response["response"]
+                )
+                .is_empty()
+        );
+        assert_eq!(
+            first_response["response"]["result"]["content"][1]["uri"],
+            format!("enouia-memory://recall/{}", first.as_str())
+        );
+        let mut linked_exchanges =
+            vec![json!({"tool":"memory_recall","response":first_response["response"]})];
         for (n, (operation, arguments, expected)) in reads.into_iter().enumerate() {
             let response=agent.rpc(json!({"jsonrpc":"2.0","id":20+n,"method":"tools/call","params":{"name":operation,"arguments":{"schema_version":2,"kind":"agent_initialized_read_request","capability":enouia_memory_host::mcp::initialized::CAPABILITY,"request_id":id("req",150+n as u32),"operation":operation,"arguments":arguments}}}));
             let envelope = &response["response"]["result"]["structuredContent"];
@@ -1195,6 +1218,56 @@ fn real_opening_tools_and_prompt_share_actual_context_without_requiring_an_openi
             assert_eq!(envelope["data"], expected);
             let errors = schemas.validate("next/agent-initialized-read-v2.schema.json", envelope);
             assert!(errors.is_empty(), "{operation}: {errors:?}");
+            if operation == "memory_read" {
+                assert!(
+                    schemas
+                        .validate(
+                            "next/mcp-context-tool-links-v1.schema.json",
+                            &response["response"]
+                        )
+                        .is_empty()
+                );
+                let link = &response["response"]["result"]["content"][1];
+                assert_eq!(
+                    link["uri"],
+                    format!("enouia-memory://memory/{}", memory.as_str())
+                );
+                let current=resource_payload(agent.rpc(json!({"jsonrpc":"2.0","id":60+n,"method":"resources/read","params":{"uri":link["uri"]}})));
+                assert_eq!(current["data"], expected);
+                linked_exchanges.push(json!({"tool":operation,"response":response["response"]}));
+            } else {
+                assert_eq!(
+                    response["response"]["result"]["content"]
+                        .as_array()
+                        .unwrap()
+                        .len(),
+                    1
+                );
+            }
+        }
+        for (rpc_id, target, max_bytes) in [
+            (70, MemoryId::parse(&id("mem", 999)).unwrap(), 65536),
+            (71, memory.clone(), 0),
+        ] {
+            let call = json!({"jsonrpc":"2.0","id":rpc_id,"method":"tools/call","params":{"name":"memory_read","arguments":{"schema_version":2,"kind":"agent_initialized_read_request","capability":enouia_memory_host::mcp::initialized::CAPABILITY,"request_id":id("req",rpc_id),"operation":"memory_read","arguments":{"memory_id":target,"expected":null,"history_cursor":null,"include_source_text":false,"max_bytes":max_bytes}}}});
+            let response = agent.rpc(call);
+            assert!(
+                schemas
+                    .validate(
+                        "next/mcp-context-tool-links-v1.schema.json",
+                        &response["response"]
+                    )
+                    .is_empty()
+            );
+            assert_eq!(
+                response["response"]["result"]["content"]
+                    .as_array()
+                    .unwrap()
+                    .len(),
+                1
+            );
+            assert!(response["response"]["result"]["structuredContent"]["data"].is_null());
+            linked_exchanges.push(json!({"tool":"memory_read","response":response["response"]}));
         }
         let uri = format!("enouia-memory://recall/{}", first.as_str());
         assert_eq!(
@@ -1221,6 +1294,22 @@ fn real_opening_tools_and_prompt_share_actual_context_without_requiring_an_openi
         );
         let prompt_uri = format!("enouia-memory://recall/{}", prompt_id.as_str());
         let failed = agent.rpc(recall(6, &invalid, 0));
+        assert!(
+            schemas
+                .validate(
+                    "next/mcp-context-tool-links-v1.schema.json",
+                    &failed["response"]
+                )
+                .is_empty()
+        );
+        assert_eq!(
+            failed["response"]["result"]["content"]
+                .as_array()
+                .unwrap()
+                .len(),
+            1
+        );
+        linked_exchanges.push(json!({"tool":"memory_recall","response":failed["response"]}));
         assert_eq!(failed["response"]["result"]["isError"], true);
         assert_eq!(
             failed["response"]["result"]["structuredContent"]["error"]["code"],
@@ -1245,6 +1334,9 @@ fn real_opening_tools_and_prompt_share_actual_context_without_requiring_an_openi
         );
         assert_eq!(agent.rpc(json!({"jsonrpc":"2.0","id":10,"method":"resources/read","params":{"uri":prompt_uri}}))["response"]["error"]["message"],"resource_not_found");
         assert_eq!(v.snapshot().unwrap(), before);
+        if let Some(path) = std::env::var_os("ENOUIA_CONTEXT_TOOL_LINK_TRANSCRIPT") {
+            std::fs::write(path,serde_json::to_vec(&json!({"exchanges":linked_exchanges,"schemas":{"memory_read":opening::linked_result_schema("memory_read").unwrap(),"memory_recall":opening::linked_result_schema("memory_recall").unwrap()}})).unwrap()).unwrap();
+        }
         agent.finish();
         let _ = server.join().unwrap();
     });

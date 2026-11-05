@@ -33,6 +33,25 @@ const SESSION_DOCUMENT: &str =
     include_str!("../../../../../contracts/next/mcp-session-start-v1.schema.json");
 const SESSION_WIRE_DOCUMENT: &str =
     include_str!("../../../../../contracts/next/mcp-session-start-wire-v1.schema.json");
+const LINKS_DOCUMENT: &str =
+    include_str!("../../../../../contracts/next/mcp-context-tool-links-v1.schema.json");
+
+pub fn linked_result_schema(tool: &str) -> Option<Value> {
+    let short = match tool {
+        "memory_read" => "read_tool",
+        "memory_recall" => "recall_tool",
+        _ => return None,
+    };
+    let mut documents = initialized::schemas::documents();
+    documents.insert("mcp-opening-wire-v1.schema.json", WIRE_DOCUMENT);
+    documents.insert("mcp-context-tool-links-v1.schema.json", LINKS_DOCUMENT);
+    Some(super::v2::schemas::bundle(
+        documents,
+        "mcp-context-tool-links-v1.schema.json",
+        short,
+        true,
+    ))
+}
 
 pub fn session_result_schema() -> Value {
     let mut documents = initialized::schemas::documents();
@@ -271,9 +290,27 @@ impl<'a, 'host> Server<'a, 'host> {
                 })
             }
             "tools/call" => {
-                let response = self.reads.call(id.clone(), &params);
+                let mut response = self.reads.call(id.clone(), &params);
                 if self.reads.closed() {
                     self.session.close();
+                }
+                let native = &response["result"]["structuredContent"];
+                if response["result"]["isError"] == false && !native["data"].is_null() {
+                    let link = match native["operation"].as_str() {
+                        Some("memory_read") => Some(
+                            json!({"type":"resource_link","uri":format!("{MEMORY_PREFIX}{}",native["data"]["item"]["base"]["base"]["memory"]["memory_id"].as_str().expect("native memory ID")),"name":"memory_detail","mimeType":"application/json"}),
+                        ),
+                        Some("memory_recall") => Some(
+                            json!({"type":"resource_link","uri":format!("{RECALL_PREFIX}{}",native["request_id"].as_str().expect("native request ID")),"name":"actual_recall","mimeType":"application/json"}),
+                        ),
+                        _ => None,
+                    };
+                    if let Some(link) = link {
+                        response["result"]["content"]
+                            .as_array_mut()
+                            .expect("native tool text content")
+                            .push(link);
+                    }
                 }
                 Ok(response)
             }

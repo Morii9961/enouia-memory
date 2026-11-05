@@ -555,6 +555,56 @@ def main():
                 failures.append(f"MCP opening combined-root {case['name']}: disagreement")
     counts["mcp_opening_wire_cases"] = len(opening_wire["cases"])
     counts["mcp_opening_typed_payload_cases"] = sum("payload_method" in c for c in opening_wire["cases"])
+    link_cases = load(ROOT / "tests/fixtures/mcp-opening/tool-link-cases.json")
+    linked_validators = {
+        tool: Draft202012Validator({"$ref": (
+            "https://contracts.enouia-memory.invalid/next/mcp-context-tool-links-v1.schema.json"
+            f"#/$defs/{short}_tool_response"
+        )}, registry=registry)
+        for tool, short in (("memory_read", "read"), ("memory_recall", "recall"))
+    }
+    for case in link_cases["cases"]:
+        value = copy.deepcopy(link_cases["bases"][case["base"]])
+        apply_ops(value, case["ops"])
+        if linked_validators[case["tool"]].is_valid(value) != case["accept"]:
+            failures.append(f"MCP read tool link {case['name']}: disagreement")
+        if "text_matches" in case:
+            matches = json.loads(value["result"]["content"][0]["text"]) == value["result"]["structuredContent"]
+            if matches != case["text_matches"]:
+                failures.append(f"MCP read tool text {case['name']}: disagreement")
+        if "link_matches" in case:
+            memory = value["result"]["structuredContent"]["data"]["item"]["base"]["base"]["memory"]["memory_id"]
+            matches = value["result"]["content"][1]["uri"] == f"enouia-memory://memory/{memory}"
+            if matches != case["link_matches"]:
+                failures.append(f"MCP read tool URI {case['name']}: disagreement")
+    counts["mcp_linked_read_cases"] = len(link_cases["cases"])
+    linked_transcript = os.environ.get("ENOUIA_CONTEXT_TOOL_LINK_TRANSCRIPT")
+    if linked_transcript:
+        transcript = load(pathlib.Path(linked_transcript))
+        bundles = {}
+        for tool, schema in transcript["schemas"].items():
+            Draft202012Validator.check_schema(schema)
+            bundles[tool] = Draft202012Validator(schema)
+        for case in link_cases["cases"]:
+            value = copy.deepcopy(link_cases["bases"][case["base"]])
+            apply_ops(value, case["ops"])
+            if bundles[case["tool"]].is_valid(value) != case["accept"]:
+                failures.append(f"MCP exported linked tool {case['name']}: disagreement")
+        for entry in transcript["exchanges"]:
+            value, tool = entry["response"], entry["tool"]
+            if not linked_validators[tool].is_valid(value) or not bundles[tool].is_valid(value):
+                failures.append(f"MCP actual linked tool {tool}: rejected")
+            result = value["result"]
+            if json.loads(result["content"][0]["text"]) != result["structuredContent"]:
+                failures.append(f"MCP actual linked tool {tool}: text mismatch")
+            body = result["structuredContent"]
+            if body["data"] is not None:
+                key = (body["data"]["item"]["base"]["base"]["memory"]["memory_id"]
+                       if tool == "memory_read" else body["request_id"])
+                kind = "memory" if tool == "memory_read" else "recall"
+                if result["content"][1]["uri"] != f"enouia-memory://{kind}/{key}":
+                    failures.append(f"MCP actual linked tool {tool}: URI mismatch")
+        counts["mcp_linked_read_actual_envelopes"] = len(transcript["exchanges"])
     session_cases = load(ROOT / "tests/fixtures/mcp-opening/session-start-cases.json")
     for direction in ("request", "response"):
         for case in session_cases[f"{direction}_cases"]:

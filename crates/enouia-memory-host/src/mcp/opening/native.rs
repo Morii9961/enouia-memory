@@ -36,6 +36,15 @@ pub fn hello(vault: &VaultId) -> Value {
         )
     })
     .collect();
+    let linked_responses: std::collections::BTreeMap<_, _> = ["memory_read", "memory_recall"]
+        .into_iter()
+        .map(|tool| {
+            (
+                tool,
+                super::linked_result_schema(tool).expect("linked read contract"),
+            )
+        })
+        .collect();
     let hash = sha256(
         &canonical_bytes(&json!({"descriptor":descriptor,
             "readCompatibility":read_hello["compatibilityHash"],
@@ -44,7 +53,7 @@ pub fn hello(vault: &VaultId) -> Value {
             "guide":super::guide(),"resources":super::resources(),"templates":super::templates(),
             "prompts":super::prompts(),"preamble":super::PREAMBLE,
             "responses":responses,"sessionStartTool":super::session_tool(),
-            "sessionToolResponse":super::session_result_schema()
+            "sessionToolResponse":super::session_result_schema(),"linkedReadResponses":linked_responses
         }))
         .expect("closed compatibility metadata"),
     );

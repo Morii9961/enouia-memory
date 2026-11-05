@@ -86,3 +86,26 @@ or intents by serde. Enforce string representation when these fields enter the
 MCP read adapters, then pass the existing typed enums inward. This is conformity
 to the frozen read contracts, not a new profile, permission or tool meaning.
 Keep valid reads, output envelopes and exact compatibility metadata unchanged.
+
+## Resource links from existing read tools (2026-11-06)
+
+In pipe-10 only, append one standard resource_link after the existing text
+block for a successful non-null memory_read or memory_recall result. Keep the
+native structured response and text copy unchanged. Derive the memory URI from
+the returned authorized item, and the recall URI from the returned request ID.
+Use static names memory_detail / actual_recall and application/json metadata.
+Missing items, known native failures and other tools get no link.
+
+Recall links retrieve the actual same-reader cache while current. Memory links
+retrieve current scoped detail using the existing resource recipe; they do not
+pin the tool's page, expected snapshot or source text. No source-read inference,
+extra native selection, automatic fetch or new permission is added. Pipe-5/6
+and report-profile tool results keep their existing content.
+
+Freeze complete linked read/recall result schemas, including missing/error
+branches without links, and bind both to pipe-10's exact fingerprint. Schema
+shape alone cannot prove link/returned-ID or text/structured equality; assert
+those separately against actual synthetic pipe output. Matching endpoints are
+required; no fallback, reconnect or replay on mismatch. The pinned MCP tool
+resource-link shape is the same one already used by ADR127.
+See the pinned [MCP tools resource-link definition](https://modelcontextprotocol.io/specification/2025-11-25/server/tools#resource-links).

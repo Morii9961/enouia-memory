@@ -1,5 +1,21 @@
 # MCP-5 session_start 接续（2026-11-05）
 
+2026-11-06：dab0160 已推送 catalog/qualified 控制字段修正。其后沿 ADR126
+资源路线，已为 context profile 的成功 memory_read / memory_recall 添加标准
+resource_link；先冻结上述 ADR/合同补充，再实现。memory 链接为当前独立授权
+详情，不承诺复现原工具分页/来源全文；recall 链接仍是同 reader 实际缓存。
+owned allowlist：opening/mod.rs/native.rs、新 tool-links schema/corpus、
+opening_tool_links.rs / opening_pipe.rs / 合同测试、Python schema checker、
+ADR126/现有合同、本交接/新验证报告及 runtime-surface.json/RUNTIME.md。
+旧 profile、手动状态、AGENTS 和其他 worktree 不改，不新增读取或写入授权。
+当前四个 Host 目标分两组共 25 passed、合同/表面 9 passed；独立 Python
+77 schemas / 23 新样例 / 5 实际工具响应通过源合同及方法专用 bundle。定向
+Clippy、fmt、surface、公开检查通过，无全量。空的有界召回仍有实际缓存链接；
+missing/error 无链接，原生结构化数据/文本保持，旧 profile 仍仅原文本块。
+当前 aggregate 为 20fcbe005023e0070acd996c5e72436809d806858ec815287d02e1f1793687f6。
+详见 [读取工具链接报告](../validation/MCP-5-read-tool-links.md)。新指纹绑定两份
+完整响应 schema；必须匹配端点，不自动回退/重连。不是 Runtime 或真实模型采用。
+
 c346838 已推送 initialized/v2 读取控制字段修正，草稿 #85 已更新。其后已复现
 并收束 catalog/qualified 的同两字段。owned allowlist：这两个 MCP mod.rs、
 segmented_agent.rs / qualified_mcp.rs 对应定向测试、agent-catalog/qualified-read
