@@ -968,3 +968,107 @@ fn real_opening_authority_loss_poisoned_connection_never_recovers_itself() {
         }
     }
 }
+
+#[test]
+fn real_opening_tools_and_prompt_share_actual_context_without_requiring_an_opening_prompt() {
+    let (e, v, p, _) = correction_rig(SpeakerRole::User);
+    let host = QualifiedAgentHost::from_authenticated_initialized_owner(
+        v.clone(),
+        e.descriptor.created_by.clone(),
+    )
+    .unwrap();
+    let principal = actor(ActorType::Agent, 88);
+    let reader = host
+        .reader(&e.descriptor.created_by, principal.clone(), scope(&p))
+        .unwrap();
+    let profile: AttentionProfile =
+        serde_json::from_value(value("attention/profile.json")).unwrap();
+    let before = v.snapshot().unwrap();
+    let token = sha256(&OsIdSource.random_16());
+    let mut pipe = Pipe::listen(&token).unwrap();
+    let mut agent = Agent::spawn();
+    let enrollment = Enrollment::enroll(
+        agent.child.id(),
+        principal,
+        vec![Scope::MemoryRead, Scope::SourceRead],
+    )
+    .unwrap();
+    let first = RequestId::parse(&id("req", 130)).unwrap();
+    let prompt_id = RequestId::parse(&id("req", 131)).unwrap();
+    let invalid = RequestId::parse(&id("req", 132)).unwrap();
+    let last = RequestId::parse(&id("req", 133)).unwrap();
+    let recall = |rpc_id: i64, request_id: &RequestId, max_bytes: u64| json!({"jsonrpc":"2.0","id":rpc_id,"method":"tools/call","params":{"name":"memory_recall","arguments":{"schema_version":2,"kind":"agent_initialized_read_request","capability":enouia_memory_host::mcp::initialized::CAPABILITY,"request_id":request_id,"operation":"memory_recall","arguments":{"text":"","conditions":[],"event_window":null,"at":enouia_memory_contract::time::Timestamp::from_unix_ms(NOW).unwrap(),"intent":"browse","limit":1,"max_bytes":max_bytes}}}});
+    let resource_payload = |response: Value| {
+        serde_json::from_str::<Value>(
+            response["response"]["result"]["contents"][0]["text"]
+                .as_str()
+                .unwrap(),
+        )
+        .unwrap()
+    };
+    std::thread::scope(|scope| {
+        let server = scope.spawn(|| {
+            pipe.accept(TIMEOUT).unwrap();
+            opening::native::serve_connection(&reader, &profile, &mut pipe, enrollment, TIMEOUT)
+        });
+        agent.connect(&token, &e.descriptor.vault_id, "opening");
+        assert_eq!(agent.event()["connected"], true);
+        agent.initialize();
+        let first_response = agent.rpc(recall(2, &first, 16384));
+        let first_data = &first_response["response"]["result"]["structuredContent"];
+        assert_eq!(first_data["kind"], "agent_initialized_read_response");
+        assert!(first_data["error"].is_null());
+        let uri = format!("enouia-memory://recall/{}", first.as_str());
+        assert_eq!(
+            resource_payload(agent.rpc(
+                json!({"jsonrpc":"2.0","id":3,"method":"resources/read","params":{"uri":uri}})
+            ))["data"],
+            first_data["data"]
+        );
+        let prompt=agent.rpc(json!({"jsonrpc":"2.0","id":4,"method":"prompts/get","params":{"name":"memory_start","arguments":{"request_id":prompt_id,"at":enouia_memory_contract::time::Timestamp::from_unix_ms(NOW).unwrap()}}}));
+        let prompt_payload: Value = serde_json::from_str(
+            prompt["response"]["result"]["messages"][0]["content"]["text"]
+                .as_str()
+                .unwrap()
+                .split_once('\n')
+                .unwrap()
+                .1,
+        )
+        .unwrap();
+        assert_eq!(
+            agent.rpc(
+                json!({"jsonrpc":"2.0","id":5,"method":"resources/read","params":{"uri":uri}})
+            )["response"]["error"]["message"],
+            "resource_not_found"
+        );
+        let prompt_uri = format!("enouia-memory://recall/{}", prompt_id.as_str());
+        let failed = agent.rpc(recall(6, &invalid, 0));
+        assert_eq!(failed["response"]["result"]["isError"], true);
+        assert_eq!(
+            failed["response"]["result"]["structuredContent"]["error"]["code"],
+            "invalid_request"
+        );
+        assert!(failed["response"]["result"]["structuredContent"]["data"].is_null());
+        assert_eq!(resource_payload(agent.rpc(json!({"jsonrpc":"2.0","id":7,"method":"resources/read","params":{"uri":prompt_uri}}))),prompt_payload);
+        let final_response = agent.rpc(recall(8, &last, 16384));
+        let final_data = &final_response["response"]["result"]["structuredContent"];
+        assert!(final_data["error"].is_null());
+        assert_eq!(
+            agent.rpc(json!({"jsonrpc":"2.0","id":8,"method":"resources/list"}))["response"]["error"]
+                ["message"],
+            "duplicate_request_id"
+        );
+        let final_uri = format!("enouia-memory://recall/{}", last.as_str());
+        assert_eq!(
+            resource_payload(agent.rpc(
+                json!({"jsonrpc":"2.0","id":9,"method":"resources/read","params":{"uri":final_uri}})
+            ))["data"],
+            final_data["data"]
+        );
+        assert_eq!(agent.rpc(json!({"jsonrpc":"2.0","id":10,"method":"resources/read","params":{"uri":prompt_uri}}))["response"]["error"]["message"],"resource_not_found");
+        assert_eq!(v.snapshot().unwrap(), before);
+        agent.finish();
+        let _ = server.join().unwrap();
+    });
+    assert!(reader.context_trace(&last).is_err());
+}

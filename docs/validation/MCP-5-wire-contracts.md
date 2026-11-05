@@ -163,3 +163,22 @@ The affected test **1 passed / 0 failed**, seven filtered;
 target/mcp5-authority-loss-tests.log. No production/schema/validator changes;
 earlier relevant checks are reused. Scoped opening_pipe strict Clippy, fmt /
 whitespace and public-content review passed (three owned files; no matches).
+
+## Follow-up: optional opening and cross-entry actual context
+
+Based on 2cb7604. Test/contract clarification only; no production/schema change.
+A native-pipe client first calls the existing memory_recall tool, before any
+prompt. Its unchanged initialized tool envelope succeeds and the recall URI
+returns exactly that data. A later memory_start replaces this cache entry;
+the old tool URI becomes not-found. An invalid tool recall then returns the
+existing known tool error, with no data, while the last successful prompt
+payload remains unchanged and accessible. Another valid tool recall replaces
+the prompt entry. A duplicate JSON-RPC ID across tools/resources refuses without
+altering the current cache. No lookup invents a trace or silently recomputes.
+
+The opening prompt is optional; it is not a required manual precondition for
+using the five tools or actual recall resource. Every read leaves the synthetic
+snapshot unchanged, and EOF revokes the reader. The affected test **1 passed /
+0 failed**, eight filtered; target/mcp5-cross-entry-context-tests.log. Earlier
+unchanged implementation/schema evidence is reused. Scoped Clippy, fmt/whitespace
+and public-content review passed (four owned files; no matches); no full/Python/surface rerun.
