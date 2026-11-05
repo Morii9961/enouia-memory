@@ -783,132 +783,152 @@ fn real_opening_memory_read_does_not_require_or_infer_source_read() {
 
 #[test]
 fn real_opening_stale_context_requires_explicit_new_read_on_the_same_connection() {
-    use enouia_memory_vault::automation::segmented::AgentNoteRequest;
-    let (e, v, p, request) = correction_rig(SpeakerRole::User);
-    let host = QualifiedAgentHost::from_authenticated_initialized_owner(
-        v.clone(),
-        e.descriptor.created_by.clone(),
-    )
-    .unwrap();
-    let principal = actor(ActorType::Agent, 88);
-    let reader = host
-        .reader(&e.descriptor.created_by, principal.clone(), scope(&p))
-        .unwrap();
-    let note_writer = host
-        .note_writer(&e.descriptor.created_by, principal, scope(&p))
-        .unwrap();
-    let profile: AttentionProfile =
-        serde_json::from_value(value("attention/profile.json")).unwrap();
-    let token = sha256(&OsIdSource.random_16());
-    let mut pipe = Pipe::listen(&token).unwrap();
-    let mut agent = Agent::spawn();
-    let enrollment = Enrollment::enroll(
-        agent.child.id(),
-        actor(ActorType::Agent, 88),
-        vec![Scope::MemoryRead, Scope::SourceRead],
-    )
-    .unwrap();
-    let old = RequestId::parse(&id("req", 121)).unwrap();
-    let fresh = RequestId::parse(&id("req", 122)).unwrap();
-    std::thread::scope(|scope| {
-        let server = scope.spawn(|| {
-            pipe.accept(TIMEOUT).unwrap();
-            opening::native::serve_connection(&reader, &profile, &mut pipe, enrollment, TIMEOUT)
-        });
-        agent.connect(&token, &e.descriptor.vault_id, "opening");
-        assert_eq!(agent.event()["connected"], true);
-        agent.initialize();
-        let first=agent.rpc(json!({"jsonrpc":"2.0","id":2,"method":"prompts/get","params":{"name":"memory_start","arguments":{"request_id":old,"at":enouia_memory_contract::time::Timestamp::from_unix_ms(NOW).unwrap()}}}));
-        let initial: Value = serde_json::from_str(
-            first["response"]["result"]["messages"][0]["content"]["text"]
-                .as_str()
-                .unwrap()
-                .split_once('\n')
-                .unwrap()
-                .1,
+    for is_tool in [false, true] {
+        use enouia_memory_vault::automation::segmented::AgentNoteRequest;
+        let (e, v, p, request) = correction_rig(SpeakerRole::User);
+        let host = QualifiedAgentHost::from_authenticated_initialized_owner(
+            v.clone(),
+            e.descriptor.created_by.clone(),
         )
         .unwrap();
-        assert_eq!(initial["data"]["items"].as_array().unwrap().len(), 1);
-        let old_uri = format!("enouia-memory://recall/{}", old.as_str());
-        assert!(
+        let principal = actor(ActorType::Agent, 88);
+        let reader = host
+            .reader(&e.descriptor.created_by, principal.clone(), scope(&p))
+            .unwrap();
+        let note_writer = host
+            .note_writer(&e.descriptor.created_by, principal, scope(&p))
+            .unwrap();
+        let profile: AttentionProfile =
+            serde_json::from_value(value("attention/profile.json")).unwrap();
+        let token = sha256(&OsIdSource.random_16());
+        let mut pipe = Pipe::listen(&token).unwrap();
+        let mut agent = Agent::spawn();
+        let enrollment = Enrollment::enroll(
+            agent.child.id(),
+            actor(ActorType::Agent, 88),
+            vec![Scope::MemoryRead, Scope::SourceRead],
+        )
+        .unwrap();
+        let old = RequestId::parse(&id("req", 121)).unwrap();
+        let fresh = RequestId::parse(&id("req", 122)).unwrap();
+        std::thread::scope(|scope| {
+            let server = scope.spawn(|| {
+                pipe.accept(TIMEOUT).unwrap();
+                opening::native::serve_connection(&reader, &profile, &mut pipe, enrollment, TIMEOUT)
+            });
+            agent.connect(&token, &e.descriptor.vault_id, "opening");
+            assert_eq!(agent.event()["connected"], true);
+            agent.initialize();
+            let opening_read = |rpc_id: u64, request: &RequestId| {
+                let args = json!({"request_id":request,"at":enouia_memory_contract::time::Timestamp::from_unix_ms(NOW).unwrap()});
+                if is_tool {
+                    json!({"jsonrpc":"2.0","id":rpc_id,"method":"tools/call","params":{"name":"session_start","arguments":{"schema_version":2,"kind":"agent_session_start_request","capability":opening::SESSION_CAPABILITY,"request":args}}})
+                } else {
+                    json!({"jsonrpc":"2.0","id":rpc_id,"method":"prompts/get","params":{"name":"memory_start","arguments":args}})
+                }
+            };
+            let context = |response: &Value| {
+                let result = &response["response"]["result"];
+                if is_tool {
+                    let packet = &result["structuredContent"];
+                    assert_eq!(result["content"][1]["uri"], packet["context"]["uri"]);
+                    assert_eq!(
+                        serde_json::from_str::<Value>(
+                            result["content"][0]["text"].as_str().unwrap()
+                        )
+                        .unwrap(),
+                        *packet
+                    );
+                    packet["context"].clone()
+                } else {
+                    serde_json::from_str::<Value>(
+                        result["messages"][0]["content"]["text"]
+                            .as_str()
+                            .unwrap()
+                            .split_once('\n')
+                            .unwrap()
+                            .1,
+                    )
+                    .unwrap()
+                }
+            };
+            let first = agent.rpc(opening_read(2, &old));
+            let initial = context(&first);
+            assert_eq!(initial["data"]["items"].as_array().unwrap().len(), 1);
+            let old_uri = format!("enouia-memory://recall/{}", old.as_str());
+            assert!(
             agent.rpc(
                 json!({"jsonrpc":"2.0","id":3,"method":"resources/read","params":{"uri":old_uri}})
             )["response"]
                 .get("result")
                 .is_some()
         );
-        note_writer
-            .submit(&AgentNoteRequest {
-                request_id: request.request_id.clone(),
-                source: request.source.clone(),
-                quote_hint: request.quote_hint.clone(),
-                note: "UNTRUSTED_STALE_CONTEXT_NOTE: not a memory or evidence".into(),
-            })
-            .unwrap();
-        let actual = v
-            .read(&e.descriptor.system_actor, Sensitivity::Private, |data| {
-                (*data.sources.get(&request.source.source_id).unwrap()).clone()
-            })
-            .unwrap();
-        assert_eq!(actual.record.evidence_class, EvidenceClass::UserStatement);
-        // Synthetic System formation from the already authorized real Runtime
-        // capture; no analyzer/model or new capture authority is introduced.
-        publish(&e, &v, e.input(&actual, &p, 11));
-        let after_writes = v.snapshot().unwrap();
-        let stale=agent.rpc(json!({"jsonrpc":"2.0","id":4,"method":"resources/read","params":{"uri":old_uri,"_meta":{"noReplay":true}}}));
-        assert_eq!(stale["response"]["error"]["message"], "stale_scope");
-        assert!(stale["response"].get("result").is_none());
-        assert_eq!(v.snapshot().unwrap(), after_writes);
-        let next=agent.rpc(json!({"jsonrpc":"2.0","id":5,"method":"prompts/get","params":{"name":"memory_start","arguments":{"request_id":fresh,"at":enouia_memory_contract::time::Timestamp::from_unix_ms(NOW).unwrap()}}}));
-        let current: Value = serde_json::from_str(
-            next["response"]["result"]["messages"][0]["content"]["text"]
-                .as_str()
-                .unwrap()
-                .split_once('\n')
-                .unwrap()
-                .1,
-        )
-        .unwrap();
-        assert_eq!(current["data"]["items"].as_array().unwrap().len(), 2);
-        assert_eq!(current["data"]["scope_hash"], initial["data"]["scope_hash"]);
-        assert_ne!(
-            current["data"]["trace"]["snapshot"],
-            initial["data"]["trace"]["snapshot"]
-        );
-        assert!(!current.to_string().contains("UNTRUSTED_STALE_CONTEXT_NOTE"));
-        let uri = format!("enouia-memory://recall/{}", fresh.as_str());
-        let resource = agent
-            .rpc(json!({"jsonrpc":"2.0","id":6,"method":"resources/read","params":{"uri":uri}}));
-        assert_eq!(
-            serde_json::from_str::<Value>(
-                resource["response"]["result"]["contents"][0]["text"]
-                    .as_str()
-                    .unwrap()
-            )
-            .unwrap(),
-            current
-        );
-        assert_eq!(
+            note_writer
+                .submit(&AgentNoteRequest {
+                    request_id: request.request_id.clone(),
+                    source: request.source.clone(),
+                    quote_hint: request.quote_hint.clone(),
+                    note: "UNTRUSTED_STALE_CONTEXT_NOTE: not a memory or evidence".into(),
+                })
+                .unwrap();
+            let actual = v
+                .read(&e.descriptor.system_actor, Sensitivity::Private, |data| {
+                    (*data.sources.get(&request.source.source_id).unwrap()).clone()
+                })
+                .unwrap();
+            assert_eq!(actual.record.evidence_class, EvidenceClass::UserStatement);
+            // Synthetic System formation from the already authorized real Runtime
+            // capture; no analyzer/model or new capture authority is introduced.
+            publish(&e, &v, e.input(&actual, &p, 11));
+            let after_writes = v.snapshot().unwrap();
+            let stale=agent.rpc(json!({"jsonrpc":"2.0","id":4,"method":"resources/read","params":{"uri":old_uri,"_meta":{"noReplay":true}}}));
+            assert_eq!(stale["response"]["error"]["message"], "stale_scope");
+            assert!(stale["response"].get("result").is_none());
+            assert_eq!(v.snapshot().unwrap(), after_writes);
+            let next = agent.rpc(opening_read(5, &fresh));
+            let current = context(&next);
+            assert_eq!(current["data"]["items"].as_array().unwrap().len(), 2);
+            assert_eq!(current["data"]["scope_hash"], initial["data"]["scope_hash"]);
+            assert_ne!(
+                current["data"]["trace"]["snapshot"],
+                initial["data"]["trace"]["snapshot"]
+            );
+            assert!(!current.to_string().contains("UNTRUSTED_STALE_CONTEXT_NOTE"));
+            let uri = format!("enouia-memory://recall/{}", fresh.as_str());
+            let resource = agent.rpc(
+                json!({"jsonrpc":"2.0","id":6,"method":"resources/read","params":{"uri":uri}}),
+            );
+            assert_eq!(
+                serde_json::from_str::<Value>(
+                    resource["response"]["result"]["contents"][0]["text"]
+                        .as_str()
+                        .unwrap()
+                )
+                .unwrap(),
+                current
+            );
+            assert_eq!(
             agent.rpc(
                 json!({"jsonrpc":"2.0","id":7,"method":"resources/read","params":{"uri":old_uri}})
             )["response"]["error"]["message"],
             "resource_not_found"
         );
-        assert_eq!(v.snapshot().unwrap(), after_writes);
-        agent.finish();
-        let _ = server.join().unwrap();
-    });
-    assert!(reader.context_trace(&fresh).is_err());
-    assert!(
-        v.queued_captures(&e.descriptor.system_actor)
-            .unwrap()
-            .is_empty()
-    );
-    v.read(&e.descriptor.system_actor, Sensitivity::Private, |data| {
-        assert_eq!(data.memories.len(), 2);
-        assert!(data.owner_actions.is_empty());
-    })
-    .unwrap();
+            assert_eq!(v.snapshot().unwrap(), after_writes);
+            agent.finish();
+            let _ = server.join().unwrap();
+        });
+        assert!(reader.context_trace(&fresh).is_err());
+        assert!(
+            v.queued_captures(&e.descriptor.system_actor)
+                .unwrap()
+                .is_empty()
+        );
+        v.read(&e.descriptor.system_actor, Sensitivity::Private, |data| {
+            assert_eq!(data.memories.len(), 2);
+            assert!(data.owner_actions.is_empty());
+        })
+        .unwrap();
+    }
 }
 
 #[test]

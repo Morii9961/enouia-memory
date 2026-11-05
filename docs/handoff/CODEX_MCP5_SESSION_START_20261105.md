@@ -1,6 +1,10 @@
 # MCP-5 session_start 接续（2026-11-05）
 
 Morii 再次要求沿开发路线自主继续，保留全部硬边界，不逐项索要指令。
+9bd2b5d 已推送标准资源链接与完整成功合同。其后开场工具在新记忆形成后的实际
+管道生命周期验收已通过：旧链接拒绝、同连接显式新读、来源仍为 Runtime
+UserStatement；不改变实现或权限。当前片 allowlist 仅 opening_pipe.rs、验证
+报告和本交接；未因测试改动重跑 schema/surface，全工作区也未运行。
 bf4a747 已推送 session_start 实现，草稿 #85 已更新。其后补标准 resource_link
 及完整工具成功响应合同，先补充 ADR127/合同再编码；不新增方法/权限/持久化。
 本片 owned allowlist：现有 session schema/corpus、opening/mod.rs/native.rs、

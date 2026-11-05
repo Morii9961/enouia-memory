@@ -90,3 +90,22 @@ that exact native context. A link is neither a grant nor an automatic fetch;
 normal scope/snapshot/cache gates, unknown disconnection and explicit recovery
 rules remain in force. Synthetic evidence only; no real client/model or
 Runtime adoption is claimed, and no full workspace run is implied.
+
+## Actual stale-link lifecycle after formation
+
+Based on 9bd2b5d; implementation, schemas and fingerprint unchanged. Extended
+the existing actual pipe scenario to both memory_start and session_start.
+Each entry first returns one memory. An independently permitted synthetic note
+is saved, and synthetic System formation from an already captured Runtime
+UserStatement adds a second memory. The old recall link returns stale_scope
+without a result or recomputation. An explicit new read on the same still-live
+connection returns the current two-item context with the same scope hash and a
+new snapshot. Its resource equals that context, the old link is then absent,
+and the untrusted note text never appears in the opening content. Reads do not
+change the post-formation snapshot or create captures/Owner actions.
+
+The one focused test passed for both entry scenarios, 0 failed
+(target/mcp5-session-stale-link-tests.log). Scoped opening_pipe Clippy and fmt
+checks passed. No schema/surface change: the preceding independent schema and
+surface evidence remains applicable; those checks were not rerun for test-only
+edits. No model, new capture permission or actual Runtime integration was used.
