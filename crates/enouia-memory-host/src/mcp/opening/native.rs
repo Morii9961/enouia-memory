@@ -19,6 +19,8 @@ use std::time::Duration;
 pub fn hello(vault: &VaultId) -> Value {
     let descriptor = json!({"protocol":"memory-agent-pipe-10","recordSchema":2,"layout":"automation-segmented-owner-v1","capability":"memory-agent-initialized-context-1","readCapability":super::super::initialized::CAPABILITY,"contextCapability":super::CAPABILITY,"nativeReadCapability":"memory-agent-initialized-native-read-1","sourceCarrier":"captured-source-import-1","mcpVersion":PROTOCOL_VERSION,"memoryVersion":2});
     let read_hello = super::super::initialized::native::hello(vault);
+    let mut descriptor = descriptor;
+    descriptor["sessionCapability"] = json!(super::SESSION_CAPABILITY);
     let responses: std::collections::BTreeMap<_, _> = [
         "resources/list",
         "resources/templates/list",
@@ -41,7 +43,7 @@ pub fn hello(vault: &VaultId) -> Value {
             "resourceInput":super::schema(false,false),"resourceOutput":super::schema(false,true),
             "guide":super::guide(),"resources":super::resources(),"templates":super::templates(),
             "prompts":super::prompts(),"preamble":super::PREAMBLE,
-            "responses":responses
+            "responses":responses,"sessionStartTool":super::session_tool()
         }))
         .expect("closed compatibility metadata"),
     );

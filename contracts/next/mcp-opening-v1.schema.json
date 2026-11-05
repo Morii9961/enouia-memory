@@ -46,6 +46,9 @@
         },
         "uncertainty": {
           "const": "retain_original_no_automatic_retry_or_reconnect"
+        },
+        "opening_tool": {
+          "const": "session_start"
         }
       },
       "required": [
@@ -58,7 +61,8 @@
         "memory_meaning",
         "prompt_role",
         "writes",
-        "uncertainty"
+        "uncertainty",
+        "opening_tool"
       ]
     },
     "startup_request": {

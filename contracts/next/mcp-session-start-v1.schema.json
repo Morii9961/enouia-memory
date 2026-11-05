@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.enouia-memory.invalid/next/mcp-session-start-v1.schema.json",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/session_request"
+    },
+    {
+      "$ref": "#/$defs/session_response"
+    }
+  ],
+  "$defs": {
+    "session_request": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "const": 2
+        },
+        "kind": {
+          "const": "agent_session_start_request"
+        },
+        "capability": {
+          "const": "memory-agent-session-start-1"
+        },
+        "request": {
+          "$ref": "mcp-opening-v1.schema.json#/$defs/startup_request/properties/arguments"
+        }
+      },
+      "required": [
+        "schema_version",
+        "kind",
+        "capability",
+        "request"
+      ]
+    },
+    "session_response": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "const": 2
+        },
+        "kind": {
+          "const": "agent_session_start_response"
+        },
+        "capability": {
+          "const": "memory-agent-session-start-1"
+        },
+        "request_id": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/requestId"
+        },
+        "context": {
+          "$ref": "mcp-opening-v1.schema.json#/$defs/startup_response"
+        }
+      },
+      "required": [
+        "schema_version",
+        "kind",
+        "capability",
+        "request_id",
+        "context"
+      ]
+    }
+  }
+}

@@ -1,5 +1,19 @@
 # Runtime integration (ADR-MEM-45)
 
+2026-11-05 MCP-5 / ADR-MEM-127: pipe-10 additionally advertises the read-only
+session_start tool with memory-agent-session-start-1 input/output schemas and
+hello sessionCapability. It prepares the same bounded native recall as
+memory_start, returns its exact actual-context resource, and creates no durable
+Session, capture, checkpoint, write grant, job or Owner action. MemoryRead is
+independently required; SourceRead remains optional. The guide names
+opening_tool=session_start. Exact fingerprint now binds this descriptor and
+both schemas; matching endpoints are required without fallback. Pipe-5/6 and
+report profiles keep their prior meanings. No Runtime pin/config, real model,
+private root or product adoption is supplied. Aggregate:
+`05a92cd3e3cc0889f84e68fcec016617f75ced5f50b227b8982d895a0cde2fde`.
+See [session tool contract](../contracts/AGENT_SESSION_START_MCP_V1.md) and
+[synthetic validation](../validation/MCP-5-session-start.md).
+
 2026-11-05 MCP-5 response contracts: response_schema(method) now exports the
 complete JSON-RPC success envelope for each of the five new context methods.
 The existing schema(startup, output) still describes arguments/parsed memory

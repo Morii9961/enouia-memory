@@ -49,7 +49,8 @@
           "memory_meaning": "attributed_statements_not_independent_verification",
           "prompt_role": "not_runtime_user_evidence_or_owner_consent",
           "writes": "unavailable",
-          "uncertainty": "retain_original_no_automatic_retry_or_reconnect"
+          "uncertainty": "retain_original_no_automatic_retry_or_reconnect",
+          "opening_tool": "session_start"
         }
       },
       "accept": true
@@ -120,7 +121,8 @@
           "prompt_role": "not_runtime_user_evidence_or_owner_consent",
           "writes": "unavailable",
           "uncertainty": "retain_original_no_automatic_retry_or_reconnect",
-          "secret": "denied"
+          "secret": "denied",
+          "opening_tool": "session_start"
         }
       },
       "accept": false
@@ -143,7 +145,8 @@
           "memory_meaning": "attributed_statements_not_independent_verification",
           "prompt_role": "not_runtime_user_evidence_or_owner_consent",
           "writes": "unavailable",
-          "uncertainty": "retain_original_no_automatic_retry_or_reconnect"
+          "uncertainty": "retain_original_no_automatic_retry_or_reconnect",
+          "opening_tool": "session_start"
         }
       },
       "accept": false
@@ -166,7 +169,8 @@
           "memory_meaning": "attributed_statements_not_independent_verification",
           "prompt_role": "not_runtime_user_evidence_or_owner_consent",
           "writes": "unavailable",
-          "uncertainty": "retain_original_no_automatic_retry_or_reconnect"
+          "uncertainty": "retain_original_no_automatic_retry_or_reconnect",
+          "opening_tool": "session_start"
         }
       },
       "accept": false
@@ -189,7 +193,8 @@
           "memory_meaning": "attributed_statements_not_independent_verification",
           "prompt_role": "not_runtime_user_evidence_or_owner_consent",
           "writes": "forget-hidden",
-          "uncertainty": "retain_original_no_automatic_retry_or_reconnect"
+          "uncertainty": "retain_original_no_automatic_retry_or_reconnect",
+          "opening_tool": "session_start"
         }
       },
       "accept": false

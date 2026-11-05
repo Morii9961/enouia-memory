@@ -1,0 +1,37 @@
+# MCP-5 session_start 接续（2026-11-05）
+
+Morii 再次要求沿开发路线自主继续，保留全部硬边界，不逐项索要指令。
+起点 codex/mcp5-opening-resources / 399a217，依赖草稿 PR #85（base #84）；
+main 仍为 PR #83。旧交接列 session_start 未交付，现有 memory_start 是 prompt，
+故本片先冻结 ADR127 / AGENT_SESSION_START_MCP_V1，再实现可被 Agent 作为工具
+调用的只读开场 recipe。没有开始新 MV、真实模型或 Runtime 采用。
+
+session_start 不创建 Session、不捕获、不 checkpoint、不形成记忆。复用同一 reader
+和 memory_start 的有界召回；输出同一个 actual-recall context，进入原缓存语义。
+新 capability 只标记工具合同，不产生权限。只有 pipe-10 context profile 增至六个
+读工具；pipe-5、pipe-6、报告 profiles 保持原义。Guide 新增 opening_tool；exact
+fingerprint 绑定新 descriptor/schemas，旧端点不回退。实现及本片定向验证已完成。
+
+Owned files：ADR127/register、新合同与 session schema/corpus；mcp/opening 服务和
+native 指纹；opening_mcp/opening_pipe 与新增 session 工具测试；Python schema
+登记、既有 guide 合成样例；runtime-surface.json/RUNTIME.md；本交接和验证报告。
+AGENTS、手动状态快照、其他 worktrees 和并行修改均保留。提交需 Codex trailer，
+公开检查后推送既有接续分支并更新草稿 #85；不合并。
+
+本片证据见 [session_start 验证](../validation/MCP-5-session-start.md)：当前 Host
+三个目标共 21 passed，合同/表面测试 7 passed；独立 Python 75 schemas、18 个新增
+语料和实际输入/输出 2 件通过；定向 Clippy、fmt、surface 通过。未跑全工作区，不
+沿用 913/948 为当前证据。surface aggregate 为
+05a92cd3e3cc0889f84e68fcec016617f75ced5f50b227b8982d895a0cde2fde。
+实际 session 工具在无 SourceRead 的 MemoryRead 租约上返回资源逐值一致；原生未知
+发布则不回结果、保留完整原包并断开。未改持久化格式，也未创建 Session。
+
+继续同一草稿分支的 MCP-5 开场/资源合成路线；每片先冻结最小合同、实现验证、公开
+检查、提交推送并更新草稿；不要为继续工作逐项询问，也不能把此授权扩为新 MV 或
+真实接入。既有主交接仍有效，本交接补充 ADR127，不替代 Runtime 自己的交接。
+
+最终行为/检查以本片验证报告与实际日志为准。只有新建合成根和自有进程；不打开
+私人 Vault/导出/备份/恢复材料/凭据，不读 Runtime Activity/Usage，不改其仓库、
+pin、真实配置或共享壳。无外部 Agent capture hook、真实模型/Provider/embedding、
+forget-hide、部署、迁主、双写或自动化。未知结果保留完整原 Value/原键，停止连接 /
+授权，显式恢复，不自动重发/重连/换键。不要把 schema 通过当作真实模型质量或采用。

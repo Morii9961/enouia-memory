@@ -90,7 +90,7 @@ fn opening_catalogs_are_static_and_old_read_profile_stays_tools_only() {
             .as_array()
             .unwrap()
             .len(),
-        5
+        6
     );
     assert_eq!(
         call(&mut server, 5, "resources/list", json!({}))["error"]["message"],

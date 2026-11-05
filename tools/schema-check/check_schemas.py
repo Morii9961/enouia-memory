@@ -555,6 +555,30 @@ def main():
                 failures.append(f"MCP opening combined-root {case['name']}: disagreement")
     counts["mcp_opening_wire_cases"] = len(opening_wire["cases"])
     counts["mcp_opening_typed_payload_cases"] = sum("payload_method" in c for c in opening_wire["cases"])
+    session_cases = load(ROOT / "tests/fixtures/mcp-opening/session-start-cases.json")
+    for direction in ("request", "response"):
+        for case in session_cases[f"{direction}_cases"]:
+            value = copy.deepcopy(session_cases[direction])
+            apply_ops(value, case["ops"])
+            if valid("next/mcp-session-start-v1.schema.json", value) != case["accept"]:
+                failures.append(f"MCP session start {case['name']}: disagreement")
+    counts["mcp_session_start_cases"] = sum(len(session_cases[f"{d}_cases"]) for d in ("request", "response"))
+    session_transcript = os.environ.get("ENOUIA_SESSION_START_TRANSCRIPT")
+    if session_transcript:
+        transcript = load(pathlib.Path(session_transcript))
+        for direction, field in (("request", "arguments"), ("response", "response")):
+            schema = transcript["input_schema" if direction == "request" else "output_schema"]
+            Draft202012Validator.check_schema(schema)
+            validator = Draft202012Validator(schema)
+            if (not validator.is_valid(transcript[field])
+                    or not valid("next/mcp-session-start-v1.schema.json", transcript[field])):
+                failures.append(f"MCP session start actual {direction}: rejected")
+            for case in session_cases[f"{direction}_cases"]:
+                value = copy.deepcopy(session_cases[direction])
+                apply_ops(value, case["ops"])
+                if validator.is_valid(value) != case["accept"]:
+                    failures.append(f"MCP session start exported {case['name']}: disagreement")
+        counts["mcp_session_start_actual_payloads"] = 2
     opening_transcript = os.environ.get("ENOUIA_MCP_OPENING_TRANSCRIPT")
     if opening_transcript:
         transcript = load(pathlib.Path(opening_transcript))

@@ -8,6 +8,13 @@ existing tools, memory_start and resources. Global MCP request-ID/count and
 initialization gates are shared. Existing tool input/output envelopes stay
 memory-agent-initialized-read-1. New content capability is memory-agent-context-1.
 
+2026-11-05: [ADR127](../adr/127-agent-session-start-tool.md) adds the optional
+[session_start tool](AGENT_SESSION_START_MCP_V1.md) to this profile only. Its
+six-tool catalog uses the same reader and bounded opening recipe; no durable
+Session is created. Guide includes opening_tool=session_start. The additional
+descriptor/input/output schemas enter the exact pipe-10 fingerprint. All three
+recall entry points share the actual-context cache and current validity rules.
+
 ## Resources
 
 resources/list returns the fixed enouia-memory://guide descriptor.

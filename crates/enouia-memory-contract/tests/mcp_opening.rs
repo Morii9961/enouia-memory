@@ -1,6 +1,26 @@
 mod support;
 
 #[test]
+fn session_start_contract_refuses_authority_capture_and_false_session_receipts() {
+    let corpus = support::fixture("../mcp-opening/session-start-cases.json");
+    let schemas = support::schema::SchemaStore::load();
+    for direction in ["request", "response"] {
+        for case in corpus[format!("{direction}_cases")].as_array().unwrap() {
+            let mut value = corpus[direction].clone();
+            support::apply_ops(&mut value, &case["ops"]);
+            assert_eq!(
+                schemas
+                    .validate("next/mcp-session-start-v1.schema.json", &value)
+                    .is_empty(),
+                case["accept"].as_bool().unwrap(),
+                "{}",
+                case["name"]
+            );
+        }
+    }
+}
+
+#[test]
 fn opening_contract_is_closed_and_has_no_authority_or_effect_fields() {
     let corpus = support::fixture("../mcp-opening/cases.json");
     let schemas = support::schema::SchemaStore::load();

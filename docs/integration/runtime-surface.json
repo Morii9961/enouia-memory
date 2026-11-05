@@ -340,12 +340,17 @@
     {
       "path": "contracts/next/mcp-opening-v1.schema.json",
       "role": "automation-contract",
-      "sha256": "d9ab0c965f1cd4c86a5ca3c89cf05bcb16655bffe4e099d46757dcabea834039"
+      "sha256": "2ac76de5db46bafa6c250fba026c817667c47f2c12667e19eac3987e60c641e9"
     },
     {
       "path": "contracts/next/mcp-opening-wire-v1.schema.json",
       "role": "automation-contract",
       "sha256": "02f41b0179098fcfa4a3e6478d3cc586d08e184305d6603acee16506c32ea541"
+    },
+    {
+      "path": "contracts/next/mcp-session-start-v1.schema.json",
+      "role": "automation-contract",
+      "sha256": "b3ddf600ae23d624cd1e07469c4a047ec98d6e7c8ef796618120c3c4794a679c"
     },
     {
       "path": "contracts/next/owner-execution-v2.schema.json",
@@ -845,12 +850,12 @@
     {
       "path": "crates/enouia-memory-host/src/mcp/opening/mod.rs",
       "role": "host-session",
-      "sha256": "7f3c28ec073f85336bd1e13e6c0853b056c606678c359cf0a01832d62a094704"
+      "sha256": "db2c22589c72de3551fd8585626e5f5593fc612a42e25b9b36a014199a6eca3a"
     },
     {
       "path": "crates/enouia-memory-host/src/mcp/opening/native.rs",
       "role": "host-session",
-      "sha256": "e64e6cf8bf3b622fd7ddd5013cb388afc244091fbeddac10b90174361cee2679"
+      "sha256": "58143458896af859c9d05c5c4db33ecff996e8913e209c0a9191c6be25fe255d"
     },
     {
       "path": "crates/enouia-memory-host/src/mcp/propose.rs",
@@ -1288,5 +1293,5 @@
       "sha256": "3603c1855d9f9ec9b3585143a0191508980b260b1ffd26c82b3e6f9b7223a75d"
     }
   ],
-  "aggregate": "fadc0afc1991275de9972277e7ab98d16a0c4a789c31c9a424e82e773dd5222d"
+  "aggregate": "05a92cd3e3cc0889f84e68fcec016617f75ced5f50b227b8982d895a0cde2fde"
 }

@@ -304,6 +304,13 @@ fn real_opening_pipe_serves_scoped_prompt_resource_and_poisons_failed_stdout() {
         .unwrap();
         assert_eq!(data["data"]["request_id"], json!(request.request_id));
         assert_eq!(resource["response"]["id"], json!(3));
+        let tools = agent.rpc(json!({"jsonrpc":"2.0","id":15,"method":"tools/list"}));
+        let session_tool = tools["response"]["result"]["tools"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|t| t["name"] == "session_start")
+            .unwrap();
         let mut exchanges = vec![
             json!({"method":"prompts/get","response":prompt["response"]}),
             json!({"method":"resources/read","response":resource["response"]}),
@@ -387,7 +394,7 @@ fn real_opening_pipe_serves_scoped_prompt_resource_and_poisons_failed_stdout() {
             "resourceInput":opening::schema(false,false),"resourceOutput":opening::schema(false,true),
             "guide":payloads.iter().find(|p|p["payload"]["resource_type"]=="guide").unwrap()["payload"]["data"],
             "resources":catalog("resources/list","resources"),"templates":catalog("resources/templates/list","resourceTemplates"),
-            "prompts":catalog("prompts/list","prompts"),"preamble":preamble});
+            "prompts":catalog("prompts/list","prompts"),"preamble":preamble,"sessionStartTool":session_tool});
         let previous = sha256(&canonical_bytes(&material).unwrap());
         material["responses"] = json!(bundles);
         assert_eq!(
@@ -554,49 +561,56 @@ fn real_opening_pipe_refuses_other_profiles_claims_write_scopes_and_wrong_proces
 
 #[test]
 fn real_opening_unknown_gate_disconnects_without_reply_and_retains_original_packet() {
-    let faults = Faults::armed();
-    let (e, v, p, request) = correction_rig_with(SpeakerRole::User, faults.clone());
-    let host = QualifiedAgentHost::from_authenticated_initialized_owner(
-        v,
-        e.descriptor.created_by.clone(),
-    )
-    .unwrap();
-    let principal = actor(ActorType::Agent, 88);
-    let reader = host
-        .reader(&e.descriptor.created_by, principal.clone(), scope(&p))
+    for session_tool in [false, true] {
+        let faults = Faults::armed();
+        let (e, v, p, request) = correction_rig_with(SpeakerRole::User, faults.clone());
+        let host = QualifiedAgentHost::from_authenticated_initialized_owner(
+            v,
+            e.descriptor.created_by.clone(),
+        )
         .unwrap();
-    let writer = host
-        .correction_reporter(&e.descriptor.created_by, principal.clone(), scope(&p))
+        let principal = actor(ActorType::Agent, 88);
+        let reader = host
+            .reader(&e.descriptor.created_by, principal.clone(), scope(&p))
+            .unwrap();
+        let writer = host
+            .correction_reporter(&e.descriptor.created_by, principal.clone(), scope(&p))
+            .unwrap();
+        let profile: AttentionProfile =
+            serde_json::from_value(value("attention/profile.json")).unwrap();
+        let token = sha256(&OsIdSource.random_16());
+        let mut pipe = Pipe::listen(&token).unwrap();
+        let mut agent = Agent::spawn();
+        let enrollment = Enrollment::enroll(
+            agent.child.id(),
+            principal,
+            vec![Scope::MemoryRead, Scope::SourceRead],
+        )
         .unwrap();
-    let profile: AttentionProfile =
-        serde_json::from_value(value("attention/profile.json")).unwrap();
-    let token = sha256(&OsIdSource.random_16());
-    let mut pipe = Pipe::listen(&token).unwrap();
-    let mut agent = Agent::spawn();
-    let enrollment = Enrollment::enroll(
-        agent.child.id(),
-        principal,
-        vec![Scope::MemoryRead, Scope::SourceRead],
-    )
-    .unwrap();
-    std::thread::scope(|scope| {
-        let server = scope.spawn(|| {
-            pipe.accept(TIMEOUT).unwrap();
-            opening::native::serve_connection(&reader, &profile, &mut pipe, enrollment, TIMEOUT)
+        std::thread::scope(|scope| {
+            let server = scope.spawn(|| {
+                pipe.accept(TIMEOUT).unwrap();
+                opening::native::serve_connection(&reader, &profile, &mut pipe, enrollment, TIMEOUT)
+            });
+            agent.connect(&token, &e.descriptor.vault_id, "opening");
+            assert_eq!(agent.event()["connected"], true);
+            agent.initialize();
+            faults.arm(FaultPoint::AfterCurrent, 1, FaultAction::Fail(118));
+            assert!(writer.submit(&request).is_err());
+            let raw = json!({"jsonrpc":"2.0","id":"original-prompt","method":"prompts/get","params":{"name":"memory_start","arguments":{"request_id":request.request_id,"at":enouia_memory_contract::time::Timestamp::from_unix_ms(NOW).unwrap()},"_meta":{"retained":"complete packet"}}});
+            let raw = if session_tool {
+                json!({"jsonrpc":"2.0","id":"original-session-start","method":"tools/call","params":{"name":"session_start","arguments":{"schema_version":2,"kind":"agent_session_start_request","capability":opening::SESSION_CAPABILITY,"request":{"request_id":request.request_id,"at":enouia_memory_contract::time::Timestamp::from_unix_ms(NOW).unwrap()}},"_meta":{"retained":"complete packet"}}})
+            } else {
+                raw
+            };
+            let failed = agent.rpc(raw.clone());
+            assert!(failed.get("response").is_none());
+            assert_eq!(failed["original"], raw);
+            assert_eq!(failed["retained"], raw);
+            agent.finish();
+            assert!(server.join().unwrap().is_err());
         });
-        agent.connect(&token, &e.descriptor.vault_id, "opening");
-        assert_eq!(agent.event()["connected"], true);
-        agent.initialize();
-        faults.arm(FaultPoint::AfterCurrent, 1, FaultAction::Fail(118));
-        assert!(writer.submit(&request).is_err());
-        let raw = json!({"jsonrpc":"2.0","id":"original-prompt","method":"prompts/get","params":{"name":"memory_start","arguments":{"request_id":request.request_id,"at":enouia_memory_contract::time::Timestamp::from_unix_ms(NOW).unwrap()},"_meta":{"retained":"complete packet"}}});
-        let failed = agent.rpc(raw.clone());
-        assert!(failed.get("response").is_none());
-        assert_eq!(failed["original"], raw);
-        assert_eq!(failed["retained"], raw);
-        agent.finish();
-        assert!(server.join().unwrap().is_err());
-    });
+    }
 }
 
 #[test]
@@ -1153,4 +1167,79 @@ fn real_opening_tools_and_prompt_share_actual_context_without_requiring_an_openi
         let _ = server.join().unwrap();
     });
     assert!(reader.context_trace(&last).is_err());
+}
+
+#[test]
+fn real_session_start_tool_returns_actual_resource_without_creating_a_session() {
+    let (e, v, p, _) = correction_rig(SpeakerRole::User);
+    let host = QualifiedAgentHost::from_authenticated_initialized_owner(
+        v.clone(),
+        e.descriptor.created_by.clone(),
+    )
+    .unwrap();
+    let principal = actor(ActorType::Agent, 88);
+    let mut read_scope = scope(&p);
+    read_scope.source_read = false;
+    let reader = host
+        .reader(&e.descriptor.created_by, principal.clone(), read_scope)
+        .unwrap();
+    let profile: AttentionProfile =
+        serde_json::from_value(value("attention/profile.json")).unwrap();
+    let before = v.snapshot().unwrap();
+    let token = sha256(&OsIdSource.random_16());
+    let mut pipe = Pipe::listen(&token).unwrap();
+    let mut agent = Agent::spawn();
+    let enrollment =
+        Enrollment::enroll(agent.child.id(), principal, vec![Scope::MemoryRead]).unwrap();
+    let request_id = RequestId::parse(&id("req", 170)).unwrap();
+    std::thread::scope(|scope| {
+        let server = scope.spawn(|| {
+            pipe.accept(TIMEOUT).unwrap();
+            opening::native::serve_connection(&reader, &profile, &mut pipe, enrollment, TIMEOUT)
+        });
+        agent.connect(&token, &e.descriptor.vault_id, "opening");
+        assert_eq!(agent.event()["connected"], true);
+        agent.initialize();
+        let tools = agent.rpc(json!({"jsonrpc":"2.0","id":2,"method":"tools/list"}));
+        assert_eq!(
+            tools["response"]["result"]["tools"]
+                .as_array()
+                .unwrap()
+                .len(),
+            6
+        );
+        let call = json!({"jsonrpc":"2.0","id":"original-session-read","method":"tools/call","params":{"name":"session_start","arguments":{"schema_version":2,"kind":"agent_session_start_request","capability":opening::SESSION_CAPABILITY,"request":{"request_id":request_id,"at":enouia_memory_contract::time::Timestamp::from_unix_ms(NOW).unwrap()}},"_meta":{"trace":"synthetic session recipe"}}});
+        let response = agent.rpc(call.clone());
+        let packet = &response["response"]["result"]["structuredContent"];
+        assert_eq!(response["response"]["id"], call["id"]);
+        assert_eq!(packet["request_id"], json!(request_id));
+        assert_eq!(packet["kind"], "agent_session_start_response");
+        assert_eq!(
+            packet["context"]["data"]["items"].as_array().unwrap().len(),
+            1
+        );
+        let schemas = schema_support::schema::SchemaStore::load();
+        assert!(
+            schemas
+                .validate("next/mcp-session-start-v1.schema.json", packet)
+                .is_empty()
+        );
+        let resource=agent.rpc(json!({"jsonrpc":"2.0","id":3,"method":"resources/read","params":{"uri":packet["context"]["uri"]}}));
+        assert_eq!(
+            serde_json::from_str::<Value>(
+                resource["response"]["result"]["contents"][0]["text"]
+                    .as_str()
+                    .unwrap()
+            )
+            .unwrap(),
+            packet["context"]
+        );
+        if let Some(path) = std::env::var_os("ENOUIA_SESSION_START_TRANSCRIPT") {
+            std::fs::write(path,serde_json::to_vec(&json!({"arguments":call["params"]["arguments"],"response":packet,"input_schema":opening::session_schema(false),"output_schema":opening::session_schema(true)})).unwrap()).unwrap();
+        }
+        assert_eq!(v.snapshot().unwrap(), before);
+        agent.finish();
+        let _ = server.join().unwrap();
+    });
+    assert!(reader.context_trace(&request_id).is_err());
 }
