@@ -40,7 +40,7 @@ def build():
         resources.append((schema["$id"], Resource.from_contents(schema, default_specification=DRAFT202012)))
     registry = Registry().with_resources(resources)
     validators = {rel: Draft202012Validator(s, registry=registry) for rel, s in schemas.items()}
-    return validators
+    return validators, registry
 
 
 def apply_ops(root, ops):
@@ -102,7 +102,7 @@ def main():
     version = importlib.metadata.version("jsonschema")
     if version != EXPECTED_VERSION:
         sys.exit(f"jsonschema {version} installed; pinned {EXPECTED_VERSION}")
-    validators = build()
+    validators, registry = build()
     failures, counts = [], {"schemas": len(validators)}
 
     def valid(schema, instance):
@@ -523,10 +523,38 @@ def main():
             failures.append(f"MCP opening {case['name']}: disagreement")
     counts["mcp_opening_cases"] = len(opening_cases["cases"])
     opening_wire = load(ROOT / "tests/fixtures/mcp-opening/wire-cases.json")
+    payload_validators = {
+        method: Draft202012Validator({"$ref": (
+            "https://contracts.enouia-memory.invalid/next/mcp-opening-v1.schema.json"
+            f"#/$defs/{definition}_response"
+        )}, registry=registry)
+        for method, definition in (("prompts/get", "startup"), ("resources/read", "resource"))
+    }
+    payload_cases = []
     for case in opening_wire["cases"]:
         if valid("next/mcp-opening-wire-v1.schema.json", case["value"]) != case["accept"]:
             failures.append(f"MCP opening envelope {case['name']}: disagreement")
+        if "payload_method" in case:
+            method = case["payload_method"]
+            result = case["value"]["result"]
+            text = (result["messages"][0]["content"]["text"] if method == "prompts/get"
+                    else result["contents"][0]["text"])
+            if method == "prompts/get":
+                text = text.partition("\n")[2]
+            try:
+                payload = json.loads(text)
+            except json.JSONDecodeError:
+                accepted = root_accepted = False
+            else:
+                accepted = payload_validators[method].is_valid(payload)
+                root_accepted = valid("next/mcp-opening-v1.schema.json", payload)
+                payload_cases.append((case["name"], method, payload, case["payload_accept"]))
+            if accepted != case["payload_accept"]:
+                failures.append(f"MCP opening embedded {case['name']}: disagreement")
+            if root_accepted != case["payload_root_accept"]:
+                failures.append(f"MCP opening combined-root {case['name']}: disagreement")
     counts["mcp_opening_wire_cases"] = len(opening_wire["cases"])
+    counts["mcp_opening_typed_payload_cases"] = sum("payload_method" in c for c in opening_wire["cases"])
     opening_transcript = os.environ.get("ENOUIA_MCP_OPENING_TRANSCRIPT")
     if opening_transcript:
         transcript = load(pathlib.Path(opening_transcript))
@@ -534,13 +562,22 @@ def main():
         for method, schema in transcript["schemas"].items():
             Draft202012Validator.check_schema(schema)
             bundles[method] = Draft202012Validator(schema)
+        payload_bundles = {}
+        for method, schema in transcript["payload_schemas"].items():
+            Draft202012Validator.check_schema(schema)
+            payload_bundles[method] = Draft202012Validator(schema)
         for exchange in transcript["exchanges"]:
             if (not valid("next/mcp-opening-wire-v1.schema.json", exchange["response"])
                     or not bundles[exchange["method"]].is_valid(exchange["response"])):
                 failures.append(f"MCP opening actual envelope {exchange['method']}: rejected")
-        for payload in transcript["payloads"]:
-            if not valid("next/mcp-opening-v1.schema.json", payload):
+        for entry in transcript["payloads"]:
+            method, payload = entry["method"], entry["payload"]
+            if (not payload_validators[method].is_valid(payload)
+                    or not payload_bundles[method].is_valid(payload)):
                 failures.append("MCP opening actual embedded payload rejected")
+        for name, method, payload, accepted in payload_cases:
+            if payload_bundles[method].is_valid(payload) != accepted:
+                failures.append(f"MCP opening exported payload schema {name}: disagreement")
         counts["mcp_opening_actual_envelopes"] = len(transcript["exchanges"])
         counts["mcp_opening_actual_payloads"] = len(transcript["payloads"])
 

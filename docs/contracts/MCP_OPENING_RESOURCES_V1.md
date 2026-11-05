@@ -100,7 +100,9 @@ with a supported logical URI. This is the exact emitted profile subset, not a
 schema for every possible MCP server or client extension.
 
 Validate the full Value, then independently parse/validate the embedded JSON
-payload. The response schema cannot authenticate a user role, authorize an ID,
+payload with schema(method == prompts/get, output=true). The combined document
+root also describes requests and is insufficient for validating an output slot.
+The response schema cannot authenticate a user role, authorize an ID,
 make Agent text evidence or validate JSON hidden inside a string. Native gates
 still own those decisions. All five success-envelope schemas enter the pipe-10
 compatibility fingerprint; mismatch refuses before business dispatch, with no

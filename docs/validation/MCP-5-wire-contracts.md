@@ -108,3 +108,36 @@ so prior targeted/schema/integration evidence applies. Scoped Clippy and
 fmt/whitespace/public-content review passed (four owned files; no matches). These
 synthetic steps do not prove real Runtime worker/model adoption or capture of
 new sources outside the original delegated source closure.
+
+## Follow-up: method-specific inner outputs
+
+Based on f7c92d5. Production code, JSON schemas and the integration fingerprint
+are unchanged; test tooling now selects the output definition for the actual
+method. The combined mcp-opening-v1 document also accepts valid requests, so a
+whole-document check alone is insufficient for an embedded output slot.
+
+The corpus grows to **36 outer-envelope cases**, including **5 typed inner
+cases**. A resource request is accepted by the combined document but refused
+as resource output. A guide is valid resource output and valid in the combined
+document, but refused as opening recall. An Agent-claim report_saved receipt
+under an otherwise valid MCP user/text message and malformed embedded JSON are
+also refused as outputs. A user role or valid envelope does not authenticate
+content. This is validation coverage, not a production exploit claim.
+
+The actual-pipe fixture exports method-tagged payloads and both output bundles.
+Independent Python validates the 4 actual payloads against the method-selected
+source definition **and** compiled output bundle, and tests the parseable inner
+counterexamples against those bundles. All 7 outer replies still validate.
+The optional synthetic transcript must be regenerated for this tooling format;
+no compatibility fallback or production persistence is added.
+
+- Affected actual-pipe test: **1 passed**, six filtered;
+  target/mcp5-typed-payload-tests.log.
+- Contract mcp_opening: **2 passed / 0 failed**. Rust also verifies the combined
+  root's acceptance of the request/guide counterexamples.
+- Python jsonschema: **74 schemas / 36 outer cases / 5 typed inner cases /
+  7 actual replies / 4 actual payloads**, all registered corpora agree;
+  target/mcp5-typed-payload-schema.log. No tools/dependencies installed.
+- Scoped opening_pipe strict Clippy, final fmt/whitespace and public-content
+  review passed (seven owned files; no matches). No full suite or surface regeneration:
+  relevant production source is unchanged from the earlier verified revision.

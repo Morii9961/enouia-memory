@@ -29,5 +29,29 @@ fn opening_success_envelopes_refuse_extra_authority_binary_content_and_unissued_
             "{}",
             case["name"]
         );
+        if let Some(method) = case["payload_method"].as_str() {
+            let result = &case["value"]["result"];
+            let text = if method == "prompts/get" {
+                result["messages"][0]["content"]["text"]
+                    .as_str()
+                    .unwrap()
+                    .split_once('\n')
+                    .unwrap()
+                    .1
+            } else {
+                result["contents"][0]["text"].as_str().unwrap()
+            };
+            let accepted = serde_json::from_str::<serde_json::Value>(text).is_ok_and(|payload| {
+                schemas
+                    .validate("next/mcp-opening-v1.schema.json", &payload)
+                    .is_empty()
+            });
+            assert_eq!(
+                accepted,
+                case["payload_root_accept"].as_bool().unwrap(),
+                "{}",
+                case["name"]
+            );
+        }
     }
 }

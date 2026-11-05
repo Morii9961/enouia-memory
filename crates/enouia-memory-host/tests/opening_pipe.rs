@@ -347,12 +347,16 @@ fn real_opening_pipe_serves_scoped_prompt_resource_and_poisons_failed_stdout() {
             };
             if let Some(text) = text {
                 let payload: Value = serde_json::from_str(text).unwrap();
+                assert_eq!(payload["kind"], "agent_context_resource");
+                if method == "prompts/get" {
+                    assert_eq!(payload["resource_type"], "recall");
+                }
                 if method == "resources/read" {
                     assert_eq!(payload["uri"], response["result"]["contents"][0]["uri"]);
                 }
                 let errors = schemas.validate("next/mcp-opening-v1.schema.json", &payload);
                 assert!(errors.is_empty(), "{method} embedded payload: {errors:?}");
-                payloads.push(payload);
+                payloads.push(json!({"method":method,"payload":payload}));
             }
         }
         assert!(opening::response_schema("tools/call").is_none());
@@ -381,7 +385,7 @@ fn real_opening_pipe_serves_scoped_prompt_resource_and_poisons_failed_stdout() {
             "readCompatibility":enouia_memory_host::mcp::initialized::native::hello(&e.descriptor.vault_id)["compatibilityHash"],
             "startupInput":opening::schema(true,false),"startupOutput":opening::schema(true,true),
             "resourceInput":opening::schema(false,false),"resourceOutput":opening::schema(false,true),
-            "guide":payloads.iter().find(|p|p["resource_type"]=="guide").unwrap()["data"],
+            "guide":payloads.iter().find(|p|p["payload"]["resource_type"]=="guide").unwrap()["payload"]["data"],
             "resources":catalog("resources/list","resources"),"templates":catalog("resources/templates/list","resourceTemplates"),
             "prompts":catalog("prompts/list","prompts"),"preamble":preamble});
         let previous = sha256(&canonical_bytes(&material).unwrap());
@@ -392,10 +396,11 @@ fn real_opening_pipe_serves_scoped_prompt_resource_and_poisons_failed_stdout() {
         );
         assert_ne!(hello["compatibilityHash"], json!(previous));
         if let Some(path) = std::env::var_os("ENOUIA_MCP_OPENING_TRANSCRIPT") {
+            let payload_schemas = json!({"prompts/get":opening::schema(true,true),"resources/read":opening::schema(false,true)});
             std::fs::write(
                 path,
                 serde_json::to_vec(
-                    &json!({"exchanges":exchanges,"schemas":bundles,"payloads":payloads}),
+                    &json!({"exchanges":exchanges,"schemas":bundles,"payloads":payloads,"payload_schemas":payload_schemas}),
                 )
                 .unwrap(),
             )
