@@ -198,3 +198,28 @@ Affected test **1 passed / 0 failed**, eight filtered, with two native enrollmen
 configurations; target/mcp5-source-refusal-tests.log. Only test/documentation
 changed. Earlier source/schema evidence is reused; scoped Clippy, fmt/whitespace
 and public-content review passed (three owned files; no matches). No full/Python/integration rerun.
+
+## Follow-up: five-tool parity in the context profile
+
+Based on 31d2aa6. The cross-entry actual-pipe test now calls memory_search,
+memory_read, memory_source and memory_related through the context profile and
+compares each result with the same qualified native reader's projection using
+identical arguments. Existing initialized envelopes/operations validate against
+their original schema. Together with memory_recall, all five tools are exercised
+without requiring an opening prompt. The four ordinary reads do not replace the
+first actual recall cache entry; the later prompt/tool recall replacement and
+failed-recall retention checks still pass. These are transport equivalence
+checks, not independent tests of the underlying ranking/projection algorithms.
+
+Affected test: **1 passed**, eight filtered;
+target/mcp5-five-tool-parity-tests.log. Because the shared pipe test flow changed
+across these follow-ups, the current two MCP-5 targets were run together:
+**17 passed / 0 failed** (opening_mcp 8, opening_pipe 9, including its child-process
+harness entry); target/mcp5-read-surface-tests.log. No full-workspace claim.
+Production/schema/validator source is unchanged; existing Python/integration
+evidence applies. Scoped Clippy, fmt/whitespace and public-content review passed
+(three owned files; no matches).
+
+Read-only GitHub diagnostics at 31d2aa660144a2447cf7719de3be5222adf25598 returned
+no checks/statuses/jobs and no review threads/comments. This is not CI passing
+evidence, and no workflow was created or rerun.

@@ -11,6 +11,12 @@ memory_source 返回已知 permission_denied、无 data/原文，但不关闭仍
 MemoryRead 连接；后续召回成功，其实际资源逐值一致，快照不变。单项测试通过，
 无主人提权任务或权限推导。只改测试/报告，复用未变实现的相关证据。
 
+31d2aa6 已推送来源权限拒绝验收。后续五工具对照通过：新 profile 的 search/read/
+source/related 逐值等于同一 qualified reader 原生投影，保持既有 envelope；普通
+读取不替换 recall 缓存。两项当前 MCP-5 目标合跑 17 passed / 0 failed（8+9），
+仅为定向合成证据。实现/schema/指纹不变。#85 在 31d2aa6 没有 CI checks/statuses
+或评论/评审，不能称为 CI 通过；未创建或重跑 workflow。
+
 f731161 已提交推送完整响应合同；14 项 Host 定向结果、2 项合同、74 schemas / 31
 wire cases / 7 实际响应 / 4 内层数据、scoped Clippy/fmt/surface/公开内容检查通过。
 随后纯测试/文档加强的身份矩阵六项测试通过：15 种拒绝配置，以及两种 source-disabled

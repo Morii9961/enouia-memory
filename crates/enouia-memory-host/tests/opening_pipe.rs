@@ -1002,7 +1002,7 @@ fn real_opening_authority_loss_poisoned_connection_never_recovers_itself() {
 
 #[test]
 fn real_opening_tools_and_prompt_share_actual_context_without_requiring_an_opening_prompt() {
-    let (e, v, p, _) = correction_rig(SpeakerRole::User);
+    let (e, v, p, request) = correction_rig(SpeakerRole::User);
     let host = QualifiedAgentHost::from_authenticated_initialized_owner(
         v.clone(),
         e.descriptor.created_by.clone(),
@@ -1049,6 +1049,57 @@ fn real_opening_tools_and_prompt_share_actual_context_without_requiring_an_openi
         let first_data = &first_response["response"]["result"]["structuredContent"];
         assert_eq!(first_data["kind"], "agent_initialized_read_response");
         assert!(first_data["error"].is_null());
+        let memory = &request.target.memory.memory_id;
+        let filter = CatalogFilter::default();
+        let reads = [
+            (
+                "memory_search",
+                json!({"include_facets":false,"filter":filter,"cursor":null,"limit":1,"max_bytes":65536}),
+                serde_json::to_value(
+                    reader
+                        .page(&profile, &filter, None, 1, 65536, false)
+                        .unwrap(),
+                )
+                .unwrap(),
+            ),
+            (
+                "memory_read",
+                json!({"memory_id":memory,"expected":null,"history_cursor":null,"include_source_text":false,"max_bytes":65536}),
+                serde_json::to_value(
+                    reader
+                        .detail_page(&profile, memory, None, false, 65536, None)
+                        .unwrap(),
+                )
+                .unwrap(),
+            ),
+            (
+                "memory_source",
+                json!({"source_id":request.source.source_id,"revision":null,"from_byte":0,"to_byte":null,"max_bytes":4096}),
+                serde_json::to_value(
+                    reader
+                        .source(&request.source.source_id, None, 0, None, 4096)
+                        .unwrap(),
+                )
+                .unwrap(),
+            ),
+            (
+                "memory_related",
+                json!({"memory_id":memory,"expected":null,"max_bytes":65536}),
+                serde_json::to_value(reader.related(&profile, memory, None, 65536).unwrap())
+                    .unwrap(),
+            ),
+        ];
+        let schemas = schema_support::schema::SchemaStore::load();
+        for (n, (operation, arguments, expected)) in reads.into_iter().enumerate() {
+            let response=agent.rpc(json!({"jsonrpc":"2.0","id":20+n,"method":"tools/call","params":{"name":operation,"arguments":{"schema_version":2,"kind":"agent_initialized_read_request","capability":enouia_memory_host::mcp::initialized::CAPABILITY,"request_id":id("req",150+n as u32),"operation":operation,"arguments":arguments}}}));
+            let envelope = &response["response"]["result"]["structuredContent"];
+            assert!(envelope["error"].is_null(), "{operation}: {response}");
+            assert_eq!(envelope["kind"], "agent_initialized_read_response");
+            assert_eq!(envelope["operation"], operation);
+            assert_eq!(envelope["data"], expected);
+            let errors = schemas.validate("next/agent-initialized-read-v2.schema.json", envelope);
+            assert!(errors.is_empty(), "{operation}: {errors:?}");
+        }
         let uri = format!("enouia-memory://recall/{}", first.as_str());
         assert_eq!(
             resource_payload(agent.rpc(
