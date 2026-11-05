@@ -126,3 +126,21 @@ The one focused launcher test passed, 0 failed
 Implementation/schema/fingerprint are unchanged, so schema/surface checks were
 not rerun for this test-only extension. This is an owned executable/pipe test,
 not an installed external MCP client, Runtime product use or owner acceptance.
+
+## Old profile meanings on actual transports
+
+After 310d5ba, extended two existing targeted synthetic cases. Pipe-5's actual
+stdio executable still lists five tools, refuses session_start as unknown_tool,
+then completes its existing authorized recall with exact native context. The
+pipe-6 note server still lists the five readers plus memory_note, does not list
+session_start, refuses it as unknown_tool, then saves/replays hint_saved through
+its independently permitted note writer. This does not create a Session or
+infer correction permission from read/note authority.
+
+Only the specified stdio_executable_attaches_to_owner_host_and_reaps_on_eof and
+real_note_pipe_saves_replays_and_keeps_five_reads_with_the_explicit_write_tool
+were executed: 2 passed, 0 failed (target/mcp5-old-read-profile-tests.log and
+target/mcp5-old-note-profile-tests.log). The separate old test that invokes
+NativeMemoryOwner was filtered out and not run. All roots/processes were new
+synthetic fixtures. Scoped two-target Clippy and formatting passed; source,
+schema and integration surface were unchanged, so those checks were not rerun.

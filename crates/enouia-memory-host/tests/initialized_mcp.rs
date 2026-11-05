@@ -973,6 +973,8 @@ fn stdio_executable_attaches_to_owner_host_and_reaps_on_eof() {
             child.event()["result"]["tools"].as_array().unwrap().len(),
             5
         );
+        child.send(json!({"jsonrpc":"2.0","id":"unsupported-session-start","method":"tools/call","params":{"name":"session_start","arguments":{"schema_version":2,"kind":"agent_session_start_request","capability":"memory-agent-session-start-1","request":{"request_id":fixture::id("req",176),"at":Timestamp::from_unix_ms(NOW).unwrap()}}}}));
+        assert_eq!(child.event()["error"]["message"], "unknown_tool");
         let call = packet(
             3,
             "memory_recall",

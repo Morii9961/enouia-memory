@@ -1,6 +1,12 @@
 # MCP-5 session_start 接续（2026-11-05）
 
 Morii 再次要求沿开发路线自主继续，保留全部硬边界，不逐项索要指令。
+310d5ba 已推送真实 stdio 出口验收。其后旧 pipe-5 / pipe-6 实际传输验收 2 项
+通过：保持原目录，拒绝 session_start，随后原有读取/提示保存仍可执行。allowlist 为
+initialized_mcp.rs 中既有 stdio 测试、agent_note_pipe.rs 中既有提示保存测试、
+验证报告和本交接；不改实现/schema。只运行指定用例，不运行调用 NativeMemoryOwner
+的旧测试；仅使用新建合成根与自有进程。定向 Clippy、fmt 通过；source/schema/
+surface 未变，不重复运行其检查。主实现仍为 9bd2b5d，后续提交均为定向验收。
 e6e95d2 已推送双入口形成后生命周期验收；其后实际可执行文件 stdio 出口的
 session_start/资源链接透传验收也已通过：原 ID、文本/结构化内容、链接/资源
 逐值一致，输入 EOF 退出并撤权，快照不变。不改实现/schema/权限。allowlist
