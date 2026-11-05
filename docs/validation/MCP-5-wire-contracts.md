@@ -141,3 +141,25 @@ no compatibility fallback or production persistence is added.
 - Scoped opening_pipe strict Clippy, final fmt/whitespace and public-content
   review passed (seven owned files; no matches). No full suite or surface regeneration:
   relevant production source is unchanged from the earlier verified revision.
+
+## Follow-up: authority loss is not connection recovery
+
+Based on af99484; tests/documentation only. One actual-pipe test exercises five
+common invalidations: explicit reader revocation, Host lock/unlock generation
+replacement, delegated policy revision, native grant expiry and OS enrollment
+revocation. Each causes actual disconnect/no new result, retains the first full
+MCP Value (including nested metadata), rejects another send as Closed without
+replacing that original, and leaves the post-invalidation snapshot unchanged.
+The old reader remains revoked. The client cannot identify a discarded reply's
+effect from EOF, so its exchange is OutcomeUnknown; this is not a simulated
+Vault publication or access to recovery material.
+
+After the lock/unlock case only, the native test operator explicitly creates
+another reader, owned process/pipe and enrollment. That separate setup can
+accept the original read Value; the old reader/client never resumes. There is
+no retry loop, replacement key, automatic setup or product recovery behavior.
+
+The affected test **1 passed / 0 failed**, seven filtered;
+target/mcp5-authority-loss-tests.log. No production/schema/validator changes;
+earlier relevant checks are reused. Scoped opening_pipe strict Clippy, fmt /
+whitespace and public-content review passed (three owned files; no matches).

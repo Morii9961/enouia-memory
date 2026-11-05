@@ -856,3 +856,115 @@ fn real_opening_stale_context_requires_explicit_new_read_on_the_same_connection(
     })
     .unwrap();
 }
+
+#[test]
+fn real_opening_authority_loss_poisoned_connection_never_recovers_itself() {
+    for invalidation in 0..5 {
+        let (e, v, p, _) = correction_rig(SpeakerRole::User);
+        let host = QualifiedAgentHost::from_authenticated_initialized_owner(
+            v.clone(),
+            e.descriptor.created_by.clone(),
+        )
+        .unwrap();
+        let principal = actor(ActorType::Agent, 88);
+        let reader = host
+            .reader(&e.descriptor.created_by, principal.clone(), scope(&p))
+            .unwrap();
+        let profile: AttentionProfile =
+            serde_json::from_value(value("attention/profile.json")).unwrap();
+        let token = sha256(&OsIdSource.random_16());
+        let mut pipe = Pipe::listen(&token).unwrap();
+        let mut agent = Agent::spawn();
+        let enrollment = Enrollment::enroll(
+            agent.child.id(),
+            principal.clone(),
+            vec![Scope::MemoryRead, Scope::SourceRead],
+        )
+        .unwrap();
+        let kernel_grant = enrollment.revocation();
+        let original = json!({"jsonrpc":"2.0","id":"original-authorized-read","method":"resources/read","params":{"uri":opening::GUIDE_URI,"_meta":{"trace":["full",{"keep":true}]}}});
+        std::thread::scope(|scope| {
+            let server = scope.spawn(|| {
+                pipe.accept(TIMEOUT).unwrap();
+                opening::native::serve_connection(&reader, &profile, &mut pipe, enrollment, TIMEOUT)
+            });
+            agent.connect(&token, &e.descriptor.vault_id, "opening");
+            assert_eq!(agent.event()["connected"], true);
+            agent.initialize();
+            match invalidation {
+                0 => reader.revoke(),
+                1 => {
+                    host.lock().unwrap();
+                    host.unlock(&e.descriptor.created_by).unwrap();
+                }
+                2 => {
+                    let mut replacement = p.clone();
+                    replacement.revision = enouia_memory_contract::json::Revision::new(2).unwrap();
+                    v.set_policy(&e.descriptor.created_by, replacement).unwrap();
+                }
+                3 => e.clock.set(NOW + 120_001),
+                _ => kernel_grant.revoke(),
+            }
+            let after_invalidation = v.snapshot().unwrap();
+            let failed = agent.rpc(original.clone());
+            assert!(
+                failed.get("response").is_none(),
+                "invalidation {invalidation}: {failed}"
+            );
+            assert_eq!(failed["fault"], "OutcomeUnknown");
+            assert_eq!(failed["original"], original);
+            assert_eq!(failed["retained"], original);
+            let mut changed = original.clone();
+            changed["id"] = json!("replacement-read");
+            let stopped = agent.rpc(changed);
+            assert_eq!(stopped["fault"], "Closed");
+            assert_eq!(stopped["retained"], original);
+            assert_eq!(v.snapshot().unwrap(), after_invalidation);
+            agent.finish();
+            assert!(server.join().unwrap().is_err());
+        });
+        assert!(
+            reader
+                .context_trace(&RequestId::parse(&id("req", 121)).unwrap())
+                .is_err()
+        );
+        if invalidation == 1 {
+            // The native test operator explicitly creates new authority and an
+            // owned channel after unlock. Neither the old client nor old reader
+            // resumes, and the original read Value is not silently replaced.
+            let fresh = host
+                .reader(&e.descriptor.created_by, principal.clone(), scope(&p))
+                .unwrap();
+            let token = sha256(&OsIdSource.random_16());
+            let mut pipe = Pipe::listen(&token).unwrap();
+            let mut agent = Agent::spawn();
+            let enrollment = Enrollment::enroll(
+                agent.child.id(),
+                principal,
+                vec![Scope::MemoryRead, Scope::SourceRead],
+            )
+            .unwrap();
+            std::thread::scope(|scope| {
+                let server = scope.spawn(|| {
+                    pipe.accept(TIMEOUT).unwrap();
+                    opening::native::serve_connection(
+                        &fresh, &profile, &mut pipe, enrollment, TIMEOUT,
+                    )
+                });
+                agent.connect(&token, &e.descriptor.vault_id, "opening");
+                assert_eq!(agent.event()["connected"], true);
+                agent.initialize();
+                let response = agent.rpc(original.clone());
+                assert_eq!(response["response"]["id"], original["id"]);
+                assert!(response["response"].get("result").is_some());
+                agent.finish();
+                let _ = server.join().unwrap();
+            });
+            assert!(
+                reader
+                    .context_trace(&RequestId::parse(&id("req", 121)).unwrap())
+                    .is_err()
+            );
+        }
+    }
+}
