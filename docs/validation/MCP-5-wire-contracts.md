@@ -84,3 +84,27 @@ opening_pipe **6 passed / 0 failed**, target/mcp5-identity-matrix-tests.log. The
 No Python/full suite/surface regeneration: their relevant source is unchanged.
 Scoped Clippy, fmt/whitespace and public-content checks passed (four owned files,
 no private-path/credential-pattern matches).
+
+## Follow-up: current formation and explicit fresh reads
+
+Based on 1d01558; test/contract clarification only. One owned real pipe keeps
+the same enrolled reader/connection while an independently delegated optional
+AgentNote is saved and a second memory is formed by the existing System
+evaluator from the already-authorized synthetic Runtime UserStatement. No
+analyzer, model, new capture authority or report consumer runs.
+
+The old recall URI returns content-free known stale_scope and does not rerank.
+The caller then explicitly sends a new memory_start read with its own read ID
+on that still-authorized connection. It returns two current memories with the
+same scope hash/new snapshot, no Agent note marker, and exactly the response
+later returned through the new recall URI. The old URI is not an alias for the
+new context. Read-only steps leave the post-formation snapshot unchanged; EOF
+revokes the reader, no capture jobs or Owner actions are created. This is a
+known stale read, not OutcomeUnknown recovery, replay or automatic reconnect.
+
+The affected test **1 passed / 0 failed**, six filtered;
+target/mcp5-stale-context-tests.log. Production/schema/validator source unchanged,
+so prior targeted/schema/integration evidence applies. Scoped Clippy and
+fmt/whitespace/public-content review passed (four owned files; no matches). These
+synthetic steps do not prove real Runtime worker/model adoption or capture of
+new sources outside the original delegated source closure.

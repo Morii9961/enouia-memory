@@ -6,6 +6,12 @@ wire cases / 7 实际响应 / 4 内层数据、scoped Clippy/fmt/surface/公开�
 reader 的成功登记配置。pipe-9、错误 Vault/Agent、缺少 MemoryRead 均拒绝；更宽的
 SourceRead 进程登记不升级 native reader。所有拒绝均撤权，读取不改快照。
 
+1d01558 已推送身份矩阵。后续单项实际管道测试通过：保持同一 reader/连接，保存
+可选 AgentNote，再从已授权的合成 Runtime UserStatement 经普通 System evaluator
+形成第二条记忆。旧 recall URI 已过期且不重算；明确的新 read ID 可在原连接取得
+当前两条记忆，新 URI 逐值一致，旧 URI 不冒充新结果。无模型/新捕获授权/自动重连，
+Agent 文字不入内容，读取不改快照，无采集作业或主人操作；EOF 后 reader 撤权。
+
 Morii 要求继续既定路线，并已明确授权 MCP-5 合成开发；其他硬边界保留。
 当前 codex/mcp5-opening-resources 以 f425c17 接续，工作区开工时干净。
 origin/main 仍为 PR #83 的 2a6310e，包含 f42f3b1；PR #84/#85 未合并。

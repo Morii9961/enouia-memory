@@ -54,6 +54,12 @@ current; a later recall replaces it. No file, receipt, job, reinforcement,
 checkpoint, model call or mandatory human work is produced. There is no automatic
 client startup/configuration or promise that an Agent used the returned context.
 
+If new authorized formation changes the snapshot, an old recall URI returns
+known stale_scope without recomputing it. While authority is still live, an
+explicit new memory_start read may run on the same connection with its own read
+request ID. This is not automatic replay/reconnection, and does not apply to
+OutcomeUnknown or a revoked grant. A later recall replaces the old cache entry.
+
 ## Lifecycle and transport
 
 Protocol memory-agent-pipe-10, recordSchema=2,
