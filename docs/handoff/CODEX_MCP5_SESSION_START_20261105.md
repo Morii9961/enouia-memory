@@ -1,5 +1,16 @@
 # MCP-5 session_start 接续（2026-11-05）
 
+b9bc1c9 已推送共享元数据形状修正，草稿 #85 已更新。其后已补现有资源承诺
+的修订生命周期证据：同一 memory_id 的 System 更新后，记忆链接读当前修订，
+旧 recall 链接 stale；显式新召回后读当前结果。新证据必须来自已保存的 Runtime
+UserStatement 原话，不使用 fixture.revise（该辅助函数另造来源），不调用
+NativeMemoryOwner。owned allowlist 仅 opening_tool_links.rs、本交接与 read-tool-links
+验证报告；无实现/schema/surface 改动，不重复其独立检查，保持 -j 1。
+单项修订生命周期测试通过：使用实际 Runtime 捕获原话更新同一记忆到 revision 2，
+原 memory 链接读取当前修订；旧 recall 仍 stale，只有显式新召回替换旧缓存。
+scope_hash 保持，SourceRead=false，读取不改更新后快照、不增 capture/Owner 动作。
+定向 Clippy/fmt 通过，无全量；见 read-tool-links 报告的修订生命周期小节。
+
 f514016 已推送读取工具资源链接，草稿 #85 已更新。其后复现共享会话层的
 非对象 _meta 在 20 条路径被接纳/推进初始化，已在 wire-session 边界最小修正。已有
 ADR126/合同先补充。owned allowlist：read_session.rs、新 opening_metadata.rs、

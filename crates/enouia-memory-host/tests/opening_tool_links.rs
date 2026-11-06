@@ -218,6 +218,102 @@ fn memory_link_keeps_current_resource_recipe_without_copying_tool_source_text() 
 }
 
 #[test]
+fn memory_link_reads_current_revision_while_old_recall_stays_stale_until_explicit_new_read() {
+    let (e, v, p, request) = correction_rig(SpeakerRole::User);
+    let host = QualifiedAgentHost::from_authenticated_initialized_owner(
+        v.clone(),
+        e.descriptor.created_by.clone(),
+    )
+    .unwrap();
+    let mut scope = scope(&p);
+    scope.source_read = false;
+    let reader = host
+        .reader(&e.descriptor.created_by, actor(ActorType::Agent, 88), scope)
+        .unwrap();
+    let profile: AttentionProfile =
+        serde_json::from_value(value("attention/profile.json")).unwrap();
+    let mut server = opening::Server::new(&reader, &profile).unwrap();
+    for message in initialization() {
+        server.handle(&message);
+    }
+    let first = server
+        .handle(&packet(
+            2,
+            "memory_read",
+            read_args(&request.target.memory.memory_id, false),
+        ))
+        .unwrap();
+    let recalled = server
+        .handle(&packet(3, "memory_recall", recall_args(16384)))
+        .unwrap();
+    let memory_uri = first["result"]["content"][1]["uri"].clone();
+    let recall_uri = recalled["result"]["content"][1]["uri"].clone();
+    let actual = v
+        .read(&e.descriptor.system_actor, Sensitivity::Private, |data| {
+            (*data.sources.get(&request.source.source_id).unwrap()).clone()
+        })
+        .unwrap();
+    assert_eq!(actual.record.evidence_class, EvidenceClass::UserStatement);
+    assert_eq!(actual.record.speaker_role, SpeakerRole::User);
+    let mut input = e.input(&actual, &p, 11);
+    input.target = Some(request.target.clone());
+    input.dimensions.as_mut().unwrap().change = FormationChange::Update;
+    assert_eq!(input.content, actual.text);
+    publish(&e, &v, input);
+    let after_update = v.snapshot().unwrap();
+    let stale = server
+        .handle(
+            &json!({"jsonrpc":"2.0","id":4,"method":"resources/read","params":{"uri":recall_uri}}),
+        )
+        .unwrap();
+    assert_eq!(stale["error"]["message"], "stale_scope");
+    assert!(stale.get("result").is_none());
+    let current = server
+        .handle(
+            &json!({"jsonrpc":"2.0","id":5,"method":"resources/read","params":{"uri":memory_uri}}),
+        )
+        .unwrap();
+    let current: Value =
+        serde_json::from_str(current["result"]["contents"][0]["text"].as_str().unwrap()).unwrap();
+    let memory = &current["data"]["item"]["base"]["base"];
+    assert_eq!(
+        memory["memory"]["memory_id"],
+        json!(request.target.memory.memory_id)
+    );
+    assert_eq!(memory["memory"]["revision"], 2);
+    assert_eq!(memory["content"], actual.text);
+    assert_eq!(current["data"]["source_read"], false);
+    assert_ne!(
+        current["data"]["snapshot"],
+        first["result"]["structuredContent"]["data"]["snapshot"]
+    );
+    assert_eq!(server.handle(&json!({"jsonrpc":"2.0","id":6,"method":"resources/read","params":{"uri":recall_uri}})).unwrap()["error"]["message"],"stale_scope");
+    let fresh = server
+        .handle(&packet(7, "memory_recall", recall_args(16384)))
+        .unwrap();
+    check(&fresh);
+    assert_eq!(
+        fresh["result"]["structuredContent"]["data"]["items"][0]["base"]["base"]["memory"]["revision"],
+        2
+    );
+    assert_eq!(
+        fresh["result"]["structuredContent"]["scope_hash"],
+        recalled["result"]["structuredContent"]["scope_hash"]
+    );
+    assert_eq!(server.handle(&json!({"jsonrpc":"2.0","id":8,"method":"resources/read","params":{"uri":recall_uri}})).unwrap()["error"]["message"],"resource_not_found");
+    assert_eq!(v.snapshot().unwrap(), after_update);
+    assert!(
+        v.queued_captures(&e.descriptor.system_actor)
+            .unwrap()
+            .is_empty()
+    );
+    v.read(&e.descriptor.system_actor, Sensitivity::Private, |data| {
+        assert!(data.owner_actions.is_empty())
+    })
+    .unwrap();
+}
+
+#[test]
 fn missing_and_denied_reads_emit_no_link_and_failed_recall_preserves_actual_cache() {
     let (e, v, p, request) = correction_rig(SpeakerRole::User);
     let host = QualifiedAgentHost::from_authenticated_initialized_owner(

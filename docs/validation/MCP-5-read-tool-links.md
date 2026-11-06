@@ -61,3 +61,25 @@ Owner action, queue, forget-hide, Runtime edit/pin/config, deployment or merge.
 All existing uncertainty/disconnection/original-key recovery rules remain.
 These are synthetic protocol/domain tests, not real model quality, private-data
 validation, Runtime product use or owner acceptance.
+
+## Same-ID current revision versus stale recall (2026-11-06)
+
+After b9bc1c9, added one focused lifecycle case without implementation/schema /
+surface changes. The read-only context server first returns a memory link and
+an actual-recall link. A separate synthetic System operator updates the same
+memory ID using the already persisted Runtime UserStatement source from the
+capture fixture. Input content and quoted evidence are that captured raw text;
+no Agent hint or new synthetic source is substituted, and NativeMemoryOwner /
+fixture.revise is not called. No actual model or Runtime product is used.
+
+The old recall URI returns stale_scope. The original memory URI still resolves
+through fresh qualified detail to revision 2 with the exact captured user text,
+source_read=false and a new snapshot. Reading that memory URI does not refresh
+the stale recall cache. Only an explicit new recall produces the current
+revision with the same scope hash and replaces the old recall entry. Reads keep
+the post-update snapshot unchanged and create no captures or Owner actions.
+
+The single lifecycle test passed, 0 failed
+(target/mcp5-current-memory-link-revision.log). Scoped opening_tool_links Clippy
+and formatting passed. Earlier schema/surface evidence remains applicable; these
+checks were not rerun for this test-only slice. No full-suite or real-use claim.
