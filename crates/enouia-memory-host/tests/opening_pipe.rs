@@ -1288,7 +1288,7 @@ fn real_opening_tools_and_prompt_share_actual_context_without_requiring_an_openi
             .as_array()
             .unwrap()
             .iter()
-            .filter(|c| c["name"].as_str().unwrap().starts_with("object enum/"))
+            .filter(|c| c["name"].as_str().unwrap().starts_with("object "))
             .enumerate()
         {
             let raw = json!({"jsonrpc":"2.0","id":40+n,"method":"tools/call","params":{"name":case["tool"],"arguments":case["value"]}});

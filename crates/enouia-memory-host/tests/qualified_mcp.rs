@@ -352,7 +352,7 @@ fn qualified_request_versions_identity_and_scope_refuse_before_dispatch_counts()
         .as_array()
         .unwrap()
         .iter()
-        .filter(|c| c["name"].as_str().unwrap().starts_with("object enum/"))
+        .filter(|c| c["name"].as_str().unwrap().starts_with("object "))
         .enumerate()
     {
         let raw = json!({"jsonrpc":"2.0","id":20+index,"method":"tools/call","params":{"name":case["tool"],"arguments":case["value"]}});
@@ -876,7 +876,7 @@ fn stdio_executable_attaches_to_owner_host_and_reaps_on_eof() {
             .as_array()
             .unwrap()
             .iter()
-            .filter(|c| c["name"].as_str().unwrap().starts_with("object enum/"))
+            .filter(|c| c["name"].as_str().unwrap().starts_with("object "))
             .enumerate()
         {
             child.send(json!({"jsonrpc":"2.0","id":20+n,"method":"tools/call","params":{"name":case["tool"],"arguments":case["value"]}}));

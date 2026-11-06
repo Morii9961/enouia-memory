@@ -1,4 +1,4 @@
-//! Reject duplicate decoded keys before any protocol or tool dispatch.
+//! MCP boundary parsing: unique keys and the frozen enum representations.
 use serde::de::{self, Deserialize, Deserializer, MapAccess, SeqAccess, Visitor};
 use serde_json::{Map, Number, Value};
 use std::fmt;
@@ -12,6 +12,31 @@ where
     T::deserialize(de::value::StringDeserializer::<D::Error>::new(
         String::deserialize(deserializer)?,
     ))
+}
+
+pub(super) fn catalog_filter<'de, D: Deserializer<'de>>(
+    deserializer: D,
+) -> Result<enouia_memory_contract::next::CatalogFilter, D::Error> {
+    let value = Value::deserialize(deserializer)?;
+    for field in [
+        "form",
+        "state",
+        "knowledge",
+        "adoption",
+        "validity",
+        "attention",
+        "time_axis",
+    ] {
+        if value
+            .get(field)
+            .is_some_and(|v| !v.is_null() && !v.is_string())
+        {
+            return Err(de::Error::custom(
+                "catalog filter enum requires string or null",
+            ));
+        }
+    }
+    enouia_memory_contract::next::CatalogFilter::deserialize(value).map_err(de::Error::custom)
 }
 
 struct Unique(Value);

@@ -49,6 +49,7 @@ struct Packet {
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct SearchArgs {
+    #[serde(deserialize_with = "super::json::catalog_filter")]
     filter: CatalogFilter,
     #[serde(deserialize_with = "nullable")]
     cursor: Option<CatalogCursor>,

@@ -86,7 +86,7 @@ fn catalog_control_enums_require_strings_before_native_dispatch() {
         .as_array()
         .unwrap()
         .iter()
-        .filter(|c| c["name"].as_str().unwrap().starts_with("object enum/"))
+        .filter(|c| c["name"].as_str().unwrap().starts_with("object "))
         .enumerate()
     {
         assert!(
@@ -887,7 +887,7 @@ fn stdio_executable_attaches_to_the_existing_segmented_host_and_reaps_on_eof() {
             .as_array()
             .unwrap()
             .iter()
-            .filter(|c| c["name"].as_str().unwrap().starts_with("object enum/"))
+            .filter(|c| c["name"].as_str().unwrap().starts_with("object "))
             .enumerate()
         {
             child.send(json!({"jsonrpc":"2.0","id":20+n,"method":"tools/call","params":{"name":case["tool"],"arguments":case["value"]}}));

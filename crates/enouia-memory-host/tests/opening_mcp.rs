@@ -145,6 +145,108 @@ fn read_control_enums_require_strings_before_dispatch_and_preserve_actual_contex
 }
 
 #[test]
+fn catalog_filter_objects_do_not_normalize_into_string_enums_or_dispatch_searches() {
+    let (e, v, p, _) = correction_rig(SpeakerRole::User);
+    let host = QualifiedAgentHost::from_authenticated_initialized_owner(
+        v.clone(),
+        e.descriptor.created_by.clone(),
+    )
+    .unwrap();
+    let reader = host
+        .reader(
+            &e.descriptor.created_by,
+            actor(ActorType::Agent, 88),
+            scope(&p),
+        )
+        .unwrap();
+    let profile = profile();
+    let mut context = opening::Server::new(&reader, &profile).unwrap();
+    initialize(&mut context);
+    let mut old = initialized::Server::new(&reader, &profile).unwrap();
+    old.handle(&json!({"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"synthetic-filter-check","version":"1"}}}));
+    old.handle(&json!({"jsonrpc":"2.0","method":"notifications/initialized"}));
+    let corpus = schema_support::fixture("../agent-initialized-read/manifest.json");
+    let schemas = schema_support::schema::SchemaStore::load();
+    let before = v.snapshot().unwrap();
+    let mut admitted = Vec::new();
+    for (n, case) in corpus["invalid"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|c| c["name"].as_str().unwrap().starts_with("object filter/"))
+        .enumerate()
+    {
+        assert!(
+            !schemas
+                .validate("next/agent-initialized-read-v2.schema.json", &case["value"])
+                .is_empty()
+        );
+        let raw = json!({"jsonrpc":"2.0","id":10+n,"method":"tools/call","params":{"name":"memory_search","arguments":case["value"]}});
+        for (profile, response) in [
+            ("context", context.handle(&raw).unwrap()),
+            ("initialized", old.handle(&raw).unwrap()),
+        ] {
+            if response["error"]["code"] != json!(-32602) {
+                admitted.push(format!("{profile}/{}", case["name"].as_str().unwrap()));
+            }
+        }
+    }
+    assert!(
+        admitted.is_empty(),
+        "object filter enums admitted: {admitted:?}"
+    );
+    assert_eq!(old.counts.search, 0);
+    let base = corpus["valid"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|p| p["operation"] == "memory_search")
+        .unwrap()
+        .clone();
+    let mut filters = vec![
+        base["arguments"]["filter"].clone(),
+        json!({"text":"","include_unknown_time":false}),
+    ];
+    for (field, variant) in [
+        ("form", "preference"),
+        ("state", "planned"),
+        ("knowledge", "attributed_statement"),
+        ("adoption", "adopted"),
+        ("validity", "unspecified"),
+        ("attention", "active"),
+        ("time_axis", "learned"),
+    ] {
+        let mut filter = base["arguments"]["filter"].clone();
+        filter[field] = json!(variant);
+        if field == "time_axis" {
+            filter["time_window"] =
+                json!({"from":"2026-10-24T00:00:00.000Z","until":"2026-10-25T00:00:00.000Z"});
+        }
+        filters.push(filter);
+    }
+    for (n, filter) in filters.into_iter().enumerate() {
+        let mut packet = base.clone();
+        packet["arguments"]["filter"] = filter;
+        packet["request_id"] = json!(id("req", 700 + n as u32));
+        assert!(
+            schemas
+                .validate("next/agent-initialized-read-v2.schema.json", &packet)
+                .is_empty()
+        );
+        let raw = json!({"jsonrpc":"2.0","id":50+n,"method":"tools/call","params":{"name":"memory_search","arguments":packet}});
+        for response in [context.handle(&raw).unwrap(), old.handle(&raw).unwrap()] {
+            assert!(response.get("result").is_some(), "{response}");
+            assert!(
+                response["result"]["structuredContent"]["error"].is_null(),
+                "{response}"
+            );
+        }
+    }
+    assert_eq!(old.counts.search, 9);
+    assert_eq!(v.snapshot().unwrap(), before);
+}
+
+#[test]
 fn opening_catalogs_are_static_and_old_read_profile_stays_tools_only() {
     let (e, v, p, request) = correction_rig(SpeakerRole::User);
     let host = QualifiedAgentHost::from_authenticated_initialized_owner(

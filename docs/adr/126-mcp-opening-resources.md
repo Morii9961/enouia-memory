@@ -119,3 +119,13 @@ initialization. Enforce this at the common wire-session boundary. Metadata
 values stay opaque; no progress mechanism, authorization interpretation or
 new field policy is introduced. Valid metadata and the original Value remain
 untouched, including first-packet retention on unknown publication.
+
+## Catalog filter enum representation (2026-11-06)
+
+The catalog-based read adapters must also honor the existing nullable-string
+representation of form/state/knowledge/adoption/validity/attention/time_axis.
+Reject object tags at their MCP filter boundary before constructing the existing
+typed CatalogFilter. Reuse one boundary parser across initialized, catalog and
+qualified adapters. Core domain types, cursor rules, valid filters, permissions
+and public schemas stay unchanged; this is not a domain-wide enum rewrite or
+a claim that every nested input already has full schema equivalence.

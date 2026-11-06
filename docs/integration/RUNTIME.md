@@ -1,5 +1,15 @@
 # Runtime integration (ADR-MEM-45)
 
+2026-11-06 catalog filter representation correction: initialized/context,
+catalog and qualified MCP search adapters use one boundary parser to require
+the existing nullable-string representation for seven filter enums. Object
+tags had normalized into native enum values contrary to catalog-v2. Parsing
+then returns the unchanged typed CatalogFilter; Core types/semantics, valid
+filters/null/defaults, scopes, outputs, schema and hello metadata are unchanged.
+No new filter, v2-only field, cursor change or Runtime/configuration adoption.
+Aggregate: `ecc8332a5025d9b87b776d2bdb2e85400efdd49e5fe8bb3032509c9a2452a455`.
+See [read-control validation](../validation/MCP-5-read-control-strings.md).
+
 2026-11-06 shared MCP metadata correction: ReadSession checks the optional
 params._meta container once before method dispatch. Non-objects return
 -32602/invalid_metadata after normal ID/session accounting; malformed initialized

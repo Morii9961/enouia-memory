@@ -95,3 +95,45 @@ Current integration aggregate:
 This closes the adapter-owned operation/intent representation gap in the four
 read adapters. It does not claim domain-wide enum/schema equivalence, real
 client use, Runtime adoption, private-root validation or owner acceptance.
+
+## Catalog filter string enums (2026-11-06)
+
+Continue from 7f98d2b. The existing catalog-v2 filter allows nullable strings for
+form/state/knowledge/adoption/validity/attention/time_axis. Raw objects with a
+unit tag were instead normalized by Core serde parsing and dispatched. Before
+the correction, the focused context/initialized case recorded 14 admissions,
+and the catalog/qualified cases recorded seven each: 28 malformed paths
+(target/mcp5-filter-shape-repro.log, mcp5-filter-catalog-repro.log,
+mcp5-filter-qualified-repro.log). Native authority still bounded all queries.
+
+The MCP-owned catalog_filter parser checks only those seven representations,
+then constructs the existing typed CatalogFilter. Three search adapters reuse
+it. Core domain enums/validation, valid strings/null/absent fields, cursor rules,
+permissions, outputs, schemas and hello fingerprints are unchanged. This does
+not extend v2-only filters or claim full schema equivalence for every nested
+input. ADR126 / MCP_OPENING_RESOURCES_V1 were clarified before coding.
+
+Checks actually run on this correction:
+
+- opening_mcp: 10 passed, 0 failed (target/mcp5-filter-shape-fixed.log). The new
+  case checks seven malformed filters on both entry points, zero search dispatch
+  before valid cases, then nine valid filters per entry (null/absent controls
+  and all seven string variants), with unchanged native snapshot.
+- Catalog and qualified direct boundary cases: 2 passed, 0 failed
+  (target/mcp5-filter-catalog-fixed.log, mcp5-filter-qualified-fixed.log).
+- Actual context pipe and catalog/qualified executable stdio cases: 3 passed,
+  0 failed (target/mcp5-filter-context-pipe.log, mcp5-filter-catalog-stdio.log,
+  mcp5-filter-qualified-stdio.log). The expanded negative manifests reject
+  before later valid reads; native context/business bytes stay intact.
+- Independent Python jsonschema 4.26.0: 77 schemas OK; each of the three catalog
+  manifests now covers 29 documents, including seven new object filters each
+  (target/mcp5-filter-shape-schema.log). Optional actual-transcript checking was
+  not enabled for this run.
+- Scoped Host lib / four affected test targets Clippy, formatting, public-content
+  and Runtime surface checks passed; runtime_surface: 4 passed, 0 failed
+  (target/mcp5-filter-shape-clippy.log, mcp5-filter-shape-surface.log).
+
+Current integration aggregate:
+ecc8332a5025d9b87b776d2bdb2e85400efdd49e5fe8bb3032509c9a2452a455.
+No full workspace, NativeMemoryOwner, actual model/Provider, private root or
+Runtime product/config/pin was used. No new stage, capture or mandatory queue.

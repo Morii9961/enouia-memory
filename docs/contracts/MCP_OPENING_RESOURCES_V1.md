@@ -49,6 +49,12 @@ session. Opaque valid metadata grants nothing and is not rewritten or promoted
 to content/evidence. This conforms to existing protocol shape; capabilities,
 valid tool behavior and compatibility metadata do not change.
 
+Catalog-based search filters retain the nullable-string enum forms already
+defined in catalog-v2. form/state/knowledge/adoption/validity/attention/time_axis
+objects are not aliases for those strings. Refuse them at MCP parsing before
+native search counting/query dispatch; pass the existing typed CatalogFilter
+inward. Null/absent optional fields and valid strings retain current behavior.
+
 ## Resources
 
 resources/list returns the fixed enouia-memory://guide descriptor.

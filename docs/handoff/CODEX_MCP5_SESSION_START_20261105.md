@@ -1,5 +1,18 @@
 # MCP-5 session_start 接续（2026-11-05）
 
+7f98d2b 已推送部分输出/flush 验收。其后复现 catalog 筛选七个枚举字段的
+对象标签违反既有可空字符串合同，共 28 条路径；已在 MCP 筛选边界最小修正。owned
+allowlist：mcp/json.rs 与 initialized/catalog/qualified SearchArgs、opening_mcp.rs /
+opening_pipe.rs 及两相邻读取定向测试、三个 catalog 型合成 manifest、ADR126/
+合同、本交接/read-control 报告及 integration manifest/RUNTIME.md。
+不改领域 CatalogFilter 本身，不扩展 v2 独有筛选字段，不动游标/模型/真实配置。
+三个 catalog 型适配器共用 json::catalog_filter，先约束七字段表示再构造原类型。
+开场 10 项、相邻直接入口 2 项、实际管道/stdio 3 项、surface 4 项通过；合法
+字符串/null/缺省保持可用，拒绝不增加 native search 计数，快照/业务字节不变。
+独立 Python 77 schemas、三个 manifest 各 29 件通过；定向 Clippy/fmt/公开检查
+通过，无全量。当前 aggregate ecc8332a5025d9b87b776d2bdb2e85400efdd49e5fe8bb3032509c9a2452a455。
+schema/hello 指纹未改；仍不声称领域所有嵌套 enum/游标均已完整 schema 等价。
+
 ba97e17 已推送同一记忆修订资源生命周期验收。其后已补 stdio 输出部分写入/
 flush 失败的合成故障注入，证明完整首包保留、停止后续输入、实际断开撤权。
 owned allowlist 仅 opening_pipe.rs、本交接与 read-tool-links 验证报告；不改
