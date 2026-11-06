@@ -42,6 +42,13 @@ Both schemas enter the exact pipe-10 hash. Returned RPC ID, URI/returned native
 identifier and text/structured equality are independently checked, not encoded
 as cross-field promises in JSON Schema. New schema metadata is not adoption.
 
+Shared wire metadata is absent or an object. A request with non-object _meta
+returns -32602/invalid_metadata after normal ID/session accounting and before
+method dispatch. A malformed initialized notification does not advance the
+session. Opaque valid metadata grants nothing and is not rewritten or promoted
+to content/evidence. This conforms to existing protocol shape; capabilities,
+valid tool behavior and compatibility metadata do not change.
+
 ## Resources
 
 resources/list returns the fixed enouia-memory://guide descriptor.

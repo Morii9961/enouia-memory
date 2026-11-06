@@ -109,3 +109,13 @@ those separately against actual synthetic pipe output. Matching endpoints are
 required; no fallback, reconnect or replay on mismatch. The pinned MCP tool
 resource-link shape is the same one already used by ADR127.
 See the pinned [MCP tools resource-link definition](https://modelcontextprotocol.io/specification/2025-11-25/server/tools#resource-links).
+
+## Shared metadata shape (2026-11-06)
+
+The shared MCP session admits absent _meta or an object, consistent with the
+pinned [RequestParams / notification metadata definitions](https://github.com/modelcontextprotocol/specification/blob/main/schema/2025-11-25/schema.ts).
+Non-object metadata must not dispatch tools, answer ping successfully or finish
+initialization. Enforce this at the common wire-session boundary. Metadata
+values stay opaque; no progress mechanism, authorization interpretation or
+new field policy is introduced. Valid metadata and the original Value remain
+untouched, including first-packet retention on unknown publication.

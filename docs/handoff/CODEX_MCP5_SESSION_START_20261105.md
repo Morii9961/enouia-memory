@@ -1,5 +1,21 @@
 # MCP-5 session_start 接续（2026-11-05）
 
+f514016 已推送读取工具资源链接，草稿 #85 已更新。其后复现共享会话层的
+非对象 _meta 在 20 条路径被接纳/推进初始化，已在 wire-session 边界最小修正。已有
+ADR126/合同先补充。owned allowlist：read_session.rs、新 opening_metadata.rs、
+opening_pipe.rs 必要实际管道用例、ADR126/合同、本交接/验证报告、integration
+manifest/RUNTIME.md。只处理元数据容器形状，不解释其权限，不改 legacy MCP
+独立入口，不新增协议特性、模型、Owner 动作或队列。
+ReadSession 对元数据容器只检查一次；合法对象不改写、不授予权限。元数据/开场
+13 项、实际管道 10 项、原 note 保存回放 1 项及 surface 4 项通过；独立 Python
+既有 77 schemas/语料通过，不冒称其覆盖新元数据状态机。定向 Clippy/fmt/公开
+检查通过，无全量。未知状态优先于元数据拒绝：_meta:null 原包仍完整保留、断开。
+当前 aggregate 4cb740a0f0daab6363df2c07734a796b2c7e0e1a26b85979c45a0fb14ec8d11a，
+schema/hello 指纹未改。报告见 [元数据边界](../validation/MCP-5-metadata-boundary.md)。
+曾因空间不足链接失败；只删除本工作树 target/debug/deps 中四个有新替代、未占用、
+路径/标记核实的旧测试 exe（约 1.3 GB），未删目录/数据/.local/其他 worktree。
+重跑 -j 1 已通过；后续保持单编译任务，勿把磁盘错误或首次缺登记检查写为通过。
+
 2026-11-06：dab0160 已推送 catalog/qualified 控制字段修正。其后沿 ADR126
 资源路线，已为 context profile 的成功 memory_read / memory_recall 添加标准
 resource_link；先冻结上述 ADR/合同补充，再实现。memory 链接为当前独立授权

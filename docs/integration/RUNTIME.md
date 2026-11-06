@@ -1,5 +1,17 @@
 # Runtime integration (ADR-MEM-45)
 
+2026-11-06 shared MCP metadata correction: ReadSession checks the optional
+params._meta container once before method dispatch. Non-objects return
+-32602/invalid_metadata after normal ID/session accounting; malformed initialized
+notifications do not advance readiness. Opaque valid objects remain unchanged
+and grant no authority. Existing protocol/capability/schema/hello metadata and
+valid profile behavior are unchanged; the independent legacy MCP entry is not
+modified. Native uncertainty gates still precede this check and preserve the
+complete first Value, including a null _meta, without result or reconnection.
+No Runtime/configuration or real-model/private-root adoption. Aggregate:
+`4cb740a0f0daab6363df2c07734a796b2c7e0e1a26b85979c45a0fb14ec8d11a`.
+See [metadata validation](../validation/MCP-5-metadata-boundary.md).
+
 2026-11-06 MCP-5 read tool links: only pipe-10 appends a standard resource_link
 to successful non-null memory_read and memory_recall results. Structured native
 data/text stay unchanged; missing/known-error results and other tools have no

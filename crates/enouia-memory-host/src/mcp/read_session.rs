@@ -51,10 +51,12 @@ impl ReadSession {
         }
         let method = message["method"].as_str().expect("checked");
         let params = message.get("params").cloned().unwrap_or_else(|| json!({}));
+        let metadata_valid = params.get("_meta").is_none_or(Value::is_object);
         let Some(id) = message.get("id") else {
             if method == "notifications/initialized"
                 && self.phase == Phase::Initializing
                 && closed(&params, &["_meta"])
+                && metadata_valid
             {
                 self.phase = Phase::Ready;
             }
@@ -77,6 +79,9 @@ impl ReadSession {
         }
         if !self.ids.insert(id.to_string()) {
             return Route::Response(Some(error(id, -32600, "duplicate_request_id")));
+        }
+        if !metadata_valid {
+            return Route::Response(Some(error(id, -32602, "invalid_metadata")));
         }
         if method == "ping" && closed(&params, &["_meta"]) {
             return Route::Response(Some(reply(id, json!({}))));
