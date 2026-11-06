@@ -106,20 +106,41 @@ fn event(value: Value) {
     println!("opening-event {value}");
     std::io::stdout().flush().unwrap();
 }
+enum OutputFailure {
+    BeforeReply,
+    Partial(usize),
+    Flush,
+}
 struct FailAfterInitialize<'a> {
     output: &'a mut Vec<u8>,
     lines: usize,
+    failure: OutputFailure,
 }
 impl Write for FailAfterInitialize<'_> {
     fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
         if self.lines >= 1 {
-            return Err(std::io::ErrorKind::BrokenPipe.into());
+            match &mut self.failure {
+                OutputFailure::BeforeReply => return Err(std::io::ErrorKind::BrokenPipe.into()),
+                OutputFailure::Partial(remaining) => {
+                    if *remaining == 0 {
+                        return Err(std::io::ErrorKind::BrokenPipe.into());
+                    }
+                    let n = (*remaining).min(bytes.len());
+                    *remaining -= n;
+                    self.output.extend_from_slice(&bytes[..n]);
+                    return Ok(n);
+                }
+                OutputFailure::Flush => {}
+            }
         }
         self.lines += bytes.iter().filter(|b| **b == b'\n').count();
         self.output.extend_from_slice(bytes);
         Ok(bytes.len())
     }
     fn flush(&mut self) -> std::io::Result<()> {
+        if matches!(self.failure, OutputFailure::Flush) && self.lines >= 2 {
+            return Err(std::io::ErrorKind::BrokenPipe.into());
+        }
         Ok(())
     }
 }
@@ -228,19 +249,35 @@ fn opening_pipe_process_child() {
                 .collect::<String>();
             let mut input = std::io::Cursor::new(text.into_bytes());
             let mut output = Vec::new();
-            let result = if command["fail_output"] == true {
+            let failure = if command["fail_output"] == true {
+                Some(OutputFailure::BeforeReply)
+            } else {
+                match command["output_fault"].as_str() {
+                    Some("partial") => Some(OutputFailure::Partial(64)),
+                    Some("flush") => Some(OutputFailure::Flush),
+                    _ => None,
+                }
+            };
+            let result = if let Some(failure) = failure {
                 client.serve_stdio(
                     &mut input,
                     &mut FailAfterInitialize {
                         output: &mut output,
                         lines: 0,
+                        failure,
                     },
                 )
             } else {
                 client.serve_stdio(&mut input, &mut output)
             };
-            let output: Vec<Value> = String::from_utf8(output)
-                .unwrap()
+            let output_text = String::from_utf8(output).unwrap();
+            if command.get("output_fault").is_some() {
+                event(
+                    json!({"stdio_ok":result.is_ok(),"text":output_text,"consumed":input.position(),"input_bytes":input.get_ref().len(),"retained":client.original_unknown()}),
+                );
+                continue;
+            }
+            let output: Vec<Value> = output_text
                 .lines()
                 .map(|l| serde_json::from_str(l).unwrap())
                 .collect();
@@ -254,6 +291,87 @@ fn opening_pipe_process_child() {
             Err(fault) => event(
                 json!({"fault":format!("{:?}",fault.fault),"original":fault.original_message,"retained":client.original_unknown()}),
             ),
+        }
+    }
+}
+
+#[test]
+fn linked_read_output_partial_or_flush_failure_retains_first_packet_and_revokes_before_next_input()
+{
+    for fault in ["partial", "flush"] {
+        for tool in ["memory_read", "memory_recall"] {
+            let (e, v, p, request) = correction_rig(SpeakerRole::User);
+            let host = QualifiedAgentHost::from_authenticated_initialized_owner(
+                v.clone(),
+                e.descriptor.created_by.clone(),
+            )
+            .unwrap();
+            let principal = actor(ActorType::Agent, 88);
+            let mut read_scope = scope(&p);
+            read_scope.source_read = false;
+            let reader = host
+                .reader(&e.descriptor.created_by, principal.clone(), read_scope)
+                .unwrap();
+            let profile: AttentionProfile =
+                serde_json::from_value(value("attention/profile.json")).unwrap();
+            let token = sha256(&OsIdSource.random_16());
+            let mut pipe = Pipe::listen(&token).unwrap();
+            let mut agent = Agent::spawn();
+            let enrollment =
+                Enrollment::enroll(agent.child.id(), principal, vec![Scope::MemoryRead]).unwrap();
+            let request_id = RequestId::parse(&id("req", 600)).unwrap();
+            let arguments = if tool == "memory_read" {
+                json!({"memory_id":request.target.memory.memory_id,"expected":null,"history_cursor":null,"include_source_text":false,"max_bytes":65536})
+            } else {
+                json!({"text":"","conditions":[],"event_window":null,"at":enouia_memory_contract::time::Timestamp::from_unix_ms(NOW).unwrap(),"intent":"browse","limit":1,"max_bytes":16384})
+            };
+            let original = json!({"jsonrpc":"2.0","id":format!("original-{fault}-{tool}"),"method":"tools/call","params":{"name":tool,"arguments":{"schema_version":2,"kind":"agent_initialized_read_request","capability":enouia_memory_host::mcp::initialized::CAPABILITY,"request_id":request_id,"operation":tool,"arguments":arguments},"_meta":{"trace":["full",{"keep":true}]}}});
+            let next = json!({"jsonrpc":"2.0","id":"unconsumed","method":"resources/read","params":{"uri":opening::GUIDE_URI}});
+            let before = v.snapshot().unwrap();
+            std::thread::scope(|scope| {
+                let server = scope.spawn(|| {
+                    pipe.accept(TIMEOUT).unwrap();
+                    opening::native::serve_connection(
+                        &reader, &profile, &mut pipe, enrollment, TIMEOUT,
+                    )
+                });
+                agent.connect(&token, &e.descriptor.vault_id, "opening");
+                assert_eq!(agent.event()["connected"], true);
+                let messages = [
+                    initialization().to_vec(),
+                    vec![original.clone(), next.clone()],
+                ]
+                .concat();
+                agent.send(json!({"stdio":messages,"output_fault":fault}));
+                let output = agent.event();
+                assert_eq!(output["stdio_ok"], false);
+                assert_eq!(output["retained"], original);
+                assert!(
+                    output["consumed"].as_u64().unwrap() < output["input_bytes"].as_u64().unwrap()
+                );
+                let lines = output["text"].as_str().unwrap().lines().collect::<Vec<_>>();
+                assert_eq!(lines.len(), 2);
+                assert!(
+                    serde_json::from_str::<Value>(lines[0])
+                        .unwrap()
+                        .get("result")
+                        .is_some()
+                );
+                if fault == "partial" {
+                    assert!(serde_json::from_str::<Value>(lines[1]).is_err());
+                } else {
+                    let reply: Value = serde_json::from_str(lines[1]).unwrap();
+                    assert_eq!(reply["id"], original["id"]);
+                    assert_eq!(reply["result"]["content"][1]["type"], "resource_link");
+                }
+                let stopped = agent.rpc(next.clone());
+                assert_eq!(stopped["fault"], "Closed");
+                assert_eq!(stopped["retained"], original);
+                agent.finish();
+                assert!(server.join().unwrap().is_err());
+            });
+            assert!(reader.context_trace(&request_id).is_err());
+            assert_eq!(v.snapshot().unwrap(), before);
         }
     }
 }

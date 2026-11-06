@@ -83,3 +83,30 @@ The single lifecycle test passed, 0 failed
 (target/mcp5-current-memory-link-revision.log). Scoped opening_tool_links Clippy
 and formatting passed. Earlier schema/surface evidence remains applicable; these
 checks were not rerun for this test-only slice. No full-suite or real-use claim.
+
+## Partial write / flush uncertainty (2026-11-06)
+
+After ba97e17, extended only the actual-pipe test harness. An owned Agent
+process uses the real native client/pipe and an injected stdio writer fault.
+For each memory_read / memory_recall result, test a 64-byte partial reply and a
+complete reply followed by flush failure: four scenarios in one focused case.
+The original RPC/domain IDs and nested metadata are retained as the exact first
+MCP Value. serve_stdio returns an error, does not consume the queued next input,
+closes the native connection and revokes the reader. A deliberate Closed probe
+does not send another request or overwrite retention; native snapshot is stable.
+
+Partial output contains an incomplete JSON reply. In the flush case complete
+JSON, including its resource_link, already exists in the writer buffer. Those
+bytes cannot be retracted; transport uncertainty must not be described as no
+bytes written or inferred Memory publication failure/success. This test uses
+healthy read-only native operations and an injected writer fault, not actual
+OS stdout failure or a model/client acceptance claim. Native publication-unknown
+no-result behavior remains covered by the separate gate tests.
+
+The new focused case passed (four scenarios), and the original before-reply
+failure/prompt/resource case passed: 2 tests, 0 failed
+(target/mcp5-linked-output-failure.log,
+target/mcp5-linked-output-before-reply-regression.log). Scoped opening_pipe
+Clippy and formatting passed. Implementation/schema/surface were unchanged;
+their previous evidence is reused without rerunning unrelated checks. No full
+workspace, real model, private root, Runtime change, Owner method or new feature.

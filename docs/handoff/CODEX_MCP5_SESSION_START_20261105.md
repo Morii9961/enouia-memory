@@ -1,5 +1,16 @@
 # MCP-5 session_start 接续（2026-11-05）
 
+ba97e17 已推送同一记忆修订资源生命周期验收。其后已补 stdio 输出部分写入/
+flush 失败的合成故障注入，证明完整首包保留、停止后续输入、实际断开撤权。
+owned allowlist 仅 opening_pipe.rs、本交接与 read-tool-links 验证报告；不改
+生产代码/schema/surface，不补跑无关检查，保持 -j 1。已经写出的字节无法撤回，
+不得把传输不确定误称为“未写出任何字节”或 Memory 发布成功/失败。
+新单项覆盖 memory_read / memory_recall 的 partial / flush 四场景，通过；旧的
+写入前失败用例也单项通过。完整原 Value/原键保留，不消费后续输入，实际断开
+并撤权；主动 Closed 探测未重发或覆盖首包。partial 是半条 JSON，flush 场景
+完整含链接 JSON 已在缓冲区，不能撤回，不冒称无输出。定向 Clippy/fmt 通过，
+不重跑未变的 schema/surface；详见 read-tool-links 报告对应小节。
+
 b9bc1c9 已推送共享元数据形状修正，草稿 #85 已更新。其后已补现有资源承诺
 的修订生命周期证据：同一 memory_id 的 System 更新后，记忆链接读当前修订，
 旧 recall 链接 stale；显式新召回后读当前结果。新证据必须来自已保存的 Runtime
