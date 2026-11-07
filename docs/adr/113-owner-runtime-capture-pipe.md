@@ -24,3 +24,14 @@ Background execution is slice B. No Provider, Agent capture, Runtime modificatio
 private data or required human review is activated.
 
 See [contract](../contracts/OWNER_RUNTIME_CAPTURE_PIPE_V2.md).
+
+## Enum representation on the capture wires (2026-11-07)
+
+Both Runtime capture pipes (pipe-1 RUNTIME_CAPTURE_PIPE_V1 and this pipe-2)
+define mode, request.kind and turns[].speaker as JSON strings. serde had also
+accepted externally tagged objects such as {"user": null} and normalized them,
+so a malformed frame could be captured as a valid user turn. The server-side
+parse now checks these representations once, after the existing
+version/capability gate and before decoding the request, and refuses mismatches
+as an invalid frame. A conforming Runtime client (which serializes typed calls)
+is unaffected; no mode, field, schema, reply or Runtime adoption change.

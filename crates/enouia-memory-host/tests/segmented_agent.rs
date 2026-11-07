@@ -62,6 +62,59 @@ fn catalog_request_schema_fixtures_reject_versions_impersonation_and_unbounded_a
     }
 }
 #[test]
+fn catalog_control_enums_require_strings_before_native_dispatch() {
+    let e = Env::new();
+    let vault = Arc::new(e.create(Faults::none()));
+    e.populate(&vault, 8);
+    let before = vault.snapshot().unwrap();
+    let host = SegmentedAgentHost::from_authenticated_owner(
+        vault.clone(),
+        e.descriptor.created_by.clone(),
+    )
+    .unwrap();
+    let reader = host
+        .reader(&e.descriptor.created_by, agent(), scope(&e, 8, true))
+        .unwrap();
+    let profile = profile();
+    let mut server = catalog::Server::new(&reader, &profile).unwrap();
+    server.handle(&json!({"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"synthetic-enum-check","version":"1"}}}));
+    server.handle(&json!({"jsonrpc":"2.0","method":"notifications/initialized"}));
+    let cases = value("agent-catalog-read/manifest.json");
+    let schemas = support::schema::SchemaStore::load();
+    let mut admitted = Vec::new();
+    for (n, case) in cases["invalid"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|c| c["name"].as_str().unwrap().starts_with("object "))
+        .enumerate()
+    {
+        assert!(
+            !schemas
+                .validate("next/agent-catalog-read-v2.schema.json", &case["value"])
+                .is_empty()
+        );
+        let raw = json!({"jsonrpc":"2.0","id":20+n,"method":"tools/call","params":{"name":case["tool"],"arguments":case["value"]}});
+        if server.handle(&raw).unwrap()["error"]["code"] != json!(-32602) {
+            admitted.push(case["name"].clone());
+        }
+    }
+    assert!(
+        admitted.is_empty(),
+        "malformed strings admitted: {admitted:?}"
+    );
+    assert_eq!(
+        server.counts.search
+            + server.counts.read
+            + server.counts.source
+            + server.counts.related
+            + server.counts.recall,
+        0
+    );
+    assert_eq!(vault.snapshot().unwrap(), before);
+}
+
+#[test]
 fn scoped_catalog_filters_match_native_catalog_semantics_on_the_same_authorized_rows() {
     use enouia_memory_host::automation::catalog::{
         CatalogReadOptions, CatalogReadRequest, SegmentedMemoryReader,
@@ -829,6 +882,17 @@ fn stdio_executable_attaches_to_the_existing_segmented_host_and_reaps_on_eof() {
             child.event()["result"]["tools"].as_array().unwrap().len(),
             5
         );
+        let malformed = support::fixture("../agent-catalog-read/manifest.json");
+        for (n, case) in malformed["invalid"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter(|c| c["name"].as_str().unwrap().starts_with("object "))
+            .enumerate()
+        {
+            child.send(json!({"jsonrpc":"2.0","id":20+n,"method":"tools/call","params":{"name":case["tool"],"arguments":case["value"]}}));
+            assert_eq!(child.event()["error"]["code"], -32602, "{}", case["name"]);
+        }
         let call = packet(
             3,
             "memory_recall",

@@ -1,0 +1,1055 @@
+{
+  "bases": {
+    "recall_present": {
+      "id": 2,
+      "jsonrpc": "2.0",
+      "result": {
+        "content": [
+          {
+            "text": "{\"capability\":\"memory-agent-initialized-read-1\",\"coverage\":{\"capture\":\"runtime_only_future\",\"graph\":\"recorded_lineage_entity_and_theme_suggestions\",\"import_attachments\":\"unavailable\",\"owner_actions\":\"native_proofs_read_only\",\"qualification\":\"owner-qualified-catalog-4\",\"record_fields\":\"ui-records-v2\",\"source_carrier\":\"captured-source-original-1\",\"trace_exclusions\":\"bounded_128_with_exact_reason_counts\",\"unavailable_relations\":[\"same_conversation\",\"semantic_neighbors\"]},\"data\":{\"capability\":\"memory-agent-initialized-native-read-1\",\"complete_in_scope\":true,\"items\":[{\"base\":{\"base\":{\"adoption\":\"adopted\",\"attention\":\"active\",\"committed_in\":\"cmt_a9117c35-0c7a-4013-8d7d-06d1d062e38e\",\"content\":\"合成条目 8：我喜欢夜间散步。\",\"context_source_refs\":[],\"dimensions\":{\"change\":\"initial\",\"conditions\":[],\"counter_sources\":[],\"derived_from\":[],\"event_time\":null,\"kind\":\"preference\",\"occurrence\":\"unknown\",\"reverts_to\":null,\"state\":null,\"valid_time\":null},\"evidence\":[{\"evidence_class\":\"user_statement\",\"locator\":{\"event_id\":\"evt_00000008-0000-4000-8000-000000000001\",\"kind\":\"runtime_event\"},\"object_hash\":\"d16b70d340b667c2bc6542064f41f3936f98db9b697d3fa6c39ca465c3cf11a2\",\"source_id\":\"src_00000008-0000-4000-8000-000000000001\",\"source_revision\":1,\"supports\":\"content\"}],\"knowledge\":\"attributed_statement\",\"learned_at\":\"2026-10-24T12:00:00.000Z\",\"memory\":{\"memory_id\":\"mem_453691c3-6996-4ae1-a057-a413e57fa01e\",\"revision\":1},\"policy\":{\"hash\":\"227968b41f4aa3bf730bcfc1f440619ab1c1fdc16e596e9eba6c0534d1f251ef\",\"policy_id\":\"pol_000003e9-0000-4000-8000-000000000001\",\"revision\":1},\"project_id\":null,\"receipt\":{\"binding_hash\":\"7f7a0fc3a5948d45f0dd081e449aac86d8c120dd7818cdc2a99ae7d09ab94b4c\",\"committed_in\":\"cmt_a9117c35-0c7a-4013-8d7d-06d1d062e38e\",\"decision_hash\":\"54a2c7643085aa080e8598e34160918a74b96caa69fcf959a1c12e3ed98a972e\",\"job_key\":\"eb80c33c09a7a5d9c21d946a1b4f8dae67323d6d6389af19dc5e8c927449f271\",\"operation_id\":\"op_51b887dc-ce32-4361-87d1-0915954d7acd\",\"request_hash\":\"213de99aca48c09189201982dabeb100820c98b97ce4b4ab25542fb0bcfddf0c\",\"response_hash\":\"5958ad60b7e8d1c85bf47abfc6e8b8e72808fdcdb5b56a1b9a03d560ca66c683\",\"result\":{\"memory_id\":\"mem_453691c3-6996-4ae1-a057-a413e57fa01e\",\"revision\":1}},\"rule_version\":\"admission-rules-3\",\"source_captured_at\":\"2026-10-24T12:00:00.000Z\",\"subject_id\":\"sub_00000001-0000-4000-8000-000000000001\",\"system_actor\":{\"actor_id\":\"prn_00000002-0000-4000-8000-000000000001\",\"actor_type\":\"system\"},\"validity\":\"unspecified\"},\"content_lang\":\"zh-Hans\",\"effective_sensitivity\":\"public\",\"entities\":[],\"event_time\":{\"basis\":\"unknown\",\"bound\":\"within\",\"from\":null,\"precision\":\"unknown\",\"tz\":null,\"until\":null},\"formation_reason\":{\"import_batch_id\":null,\"interpretation\":\"clear_self_report\",\"mode\":\"live\",\"model_version\":null,\"note\":null,\"note_is_machine_annotation\":true,\"prompt_version\":\"synthetic-ui-1\",\"rule_version\":\"admission-rules-3\"},\"owner_marks\":{\"attention\":null,\"corrected\":null,\"tag_count_in_scope\":0,\"tags\":[],\"tags_complete\":true},\"title\":\"合成条目 8\",\"valid_time\":{\"basis\":\"unknown\",\"bound\":\"within\",\"from\":null,\"precision\":\"unknown\",\"tz\":null,\"until\":null}},\"record\":{\"annotations_scope\":\"authorized_current_targets\",\"entities\":[],\"fields\":{\"annotations\":null,\"content_lang\":\"zh-Hans\",\"entities\":[],\"event_time\":{\"basis\":\"unknown\",\"bound\":\"within\",\"from\":null,\"precision\":\"unknown\",\"tz\":null,\"until\":null},\"evidence\":[{\"end\":15,\"quote\":\"合成条目 8：我喜欢夜间散步。\",\"reference\":{\"evidence_class\":\"user_statement\",\"locator\":{\"event_id\":\"evt_00000008-0000-4000-8000-000000000001\",\"kind\":\"runtime_event\"},\"object_hash\":\"d16b70d340b667c2bc6542064f41f3936f98db9b697d3fa6c39ca465c3cf11a2\",\"source_id\":\"src_00000008-0000-4000-8000-000000000001\",\"source_revision\":1,\"supports\":\"content\"},\"speaker\":\"user\",\"start\":0}],\"formation\":{\"import_batch_id\":null,\"mode\":\"live\",\"prompt_version\":\"synthetic-ui-1\"},\"title\":\"合成条目 8\",\"valid_time\":{\"basis\":\"unknown\",\"bound\":\"within\",\"from\":null,\"precision\":\"unknown\",\"tz\":null,\"until\":null}},\"memory\":{\"memory_id\":\"mem_453691c3-6996-4ae1-a057-a413e57fa01e\",\"revision\":1},\"model_version\":null,\"producer_version\":\"synthetic-analysis-1\"}}],\"qualification\":\"owner-qualified-catalog-4\",\"rendered_context\":\"Subject stated (not independently verified): 合成条目 8：我喜欢夜间散步。\\nForm: Preference; state: None; occurrence: Unknown. Conditions: unspecified. Event time: unknown. Valid time: unknown.\\nQualified record: {\\\"base\\\":{\\\"owner_marks\\\":{\\\"corrected\\\":null,\\\"attention\\\":null,\\\"tags\\\":[],\\\"tag_count_in_scope\\\":0,\\\"tags_complete\\\":true},\\\"base\\\":{\\\"memory\\\":{\\\"memory_id\\\":\\\"mem_453691c3-6996-4ae1-a057-a413e57fa01e\\\",\\\"revision\\\":1},\\\"system_actor\\\":{\\\"actor_id\\\":\\\"prn_00000002-0000-4000-8000-000000000001\\\",\\\"actor_type\\\":\\\"system\\\"},\\\"subject_id\\\":\\\"sub_00000001-0000-4000-8000-000000000001\\\",\\\"project_id\\\":null,\\\"content\\\":\\\"合成条目 8：我喜欢夜间散步。\\\",\\\"knowledge\\\":\\\"attributed_statement\\\",\\\"adoption\\\":\\\"adopted\\\",\\\"dimensions\\\":{\\\"kind\\\":\\\"preference\\\",\\\"occurrence\\\":\\\"unknown\\\",\\\"state\\\":null,\\\"change\\\":\\\"initial\\\",\\\"conditions\\\":[],\\\"event_time\\\":null,\\\"valid_time\\\":null,\\\"counter_sources\\\":[],\\\"derived_from\\\":[],\\\"reverts_to\\\":null},\\\"policy\\\":{\\\"policy_id\\\":\\\"pol_000003e9-0000-4000-8000-000000000001\\\",\\\"revision\\\":1,\\\"hash\\\":\\\"227968b41f4aa3bf730bcfc1f440619ab1c1fdc16e596e9eba6c0534d1f251ef\\\"},\\\"rule_version\\\":\\\"admission-rules-3\\\",\\\"committed_in\\\":\\\"cmt_a9117c35-0c7a-4013-8d7d-06d1d062e38e\\\",\\\"learned_at\\\":\\\"2026-10-24T12:00:00.000Z\\\",\\\"source_captured_at\\\":\\\"2026-10-24T12:00:00.000Z\\\",\\\"attention\\\":\\\"active\\\",\\\"validity\\\":\\\"unspecified\\\",\\\"evidence\\\":[{\\\"source_id\\\":\\\"src_00000008-0000-4000-8000-000000000001\\\",\\\"source_revision\\\":1,\\\"locator\\\":{\\\"kind\\\":\\\"runtime_event\\\",\\\"event_id\\\":\\\"evt_00000008-0000-4000-8000-000000000001\\\"},\\\"object_hash\\\":\\\"d16b70d340b667c2bc6542064f41f3936f98db9b697d3fa6c39ca465c3cf11a2\\\",\\\"evidence_class\\\":\\\"user_statement\\\",\\\"supports\\\":\\\"content\\\"}],\\\"context_source_refs\\\":[],\\\"receipt\\\":{\\\"job_key\\\":\\\"eb80c33c09a7a5d9c21d946a1b4f8dae67323d6d6389af19dc5e8c927449f271\\\",\\\"binding_hash\\\":\\\"7f7a0fc3a5948d45f0dd081e449aac86d8c120dd7818cdc2a99ae7d09ab94b4c\\\",\\\"operation_id\\\":\\\"op_51b887dc-ce32-4361-87d1-0915954d7acd\\\",\\\"request_hash\\\":\\\"213de99aca48c09189201982dabeb100820c98b97ce4b4ab25542fb0bcfddf0c\\\",\\\"response_hash\\\":\\\"5958ad60b7e8d1c85bf47abfc6e8b8e72808fdcdb5b56a1b9a03d560ca66c683\\\",\\\"decision_hash\\\":\\\"54a2c7643085aa080e8598e34160918a74b96caa69fcf959a1c12e3ed98a972e\\\",\\\"committed_in\\\":\\\"cmt_a9117c35-0c7a-4013-8d7d-06d1d062e38e\\\",\\\"result\\\":{\\\"memory_id\\\":\\\"mem_453691c3-6996-4ae1-a057-a413e57fa01e\\\",\\\"revision\\\":1}}},\\\"title\\\":\\\"合成条目 8\\\",\\\"content_lang\\\":\\\"zh-Hans\\\",\\\"event_time\\\":{\\\"from\\\":null,\\\"until\\\":null,\\\"precision\\\":\\\"unknown\\\",\\\"bound\\\":\\\"within\\\",\\\"tz\\\":null,\\\"basis\\\":\\\"unknown\\\"},\\\"valid_time\\\":{\\\"from\\\":null,\\\"until\\\":null,\\\"precision\\\":\\\"unknown\\\",\\\"bound\\\":\\\"within\\\",\\\"tz\\\":null,\\\"basis\\\":\\\"unknown\\\"},\\\"entities\\\":[],\\\"effective_sensitivity\\\":\\\"public\\\",\\\"formation_reason\\\":{\\\"interpretation\\\":\\\"clear_self_report\\\",\\\"rule_version\\\":\\\"admission-rules-3\\\",\\\"prompt_version\\\":\\\"synthetic-ui-1\\\",\\\"model_version\\\":null,\\\"mode\\\":\\\"live\\\",\\\"import_batch_id\\\":null,\\\"note\\\":null,\\\"note_is_machine_annotation\\\":true}},\\\"record\\\":{\\\"memory\\\":{\\\"memory_id\\\":\\\"mem_453691c3-6996-4ae1-a057-a413e57fa01e\\\",\\\"revision\\\":1},\\\"producer_version\\\":\\\"synthetic-analysis-1\\\",\\\"model_version\\\":null,\\\"annotations_scope\\\":\\\"authorized_current_targets\\\",\\\"fields\\\":{\\\"title\\\":\\\"合成条目 8\\\",\\\"content_lang\\\":\\\"zh-Hans\\\",\\\"event_time\\\":{\\\"from\\\":null,\\\"until\\\":null,\\\"precision\\\":\\\"unknown\\\",\\\"bound\\\":\\\"within\\\",\\\"tz\\\":null,\\\"basis\\\":\\\"unknown\\\"},\\\"valid_time\\\":{\\\"from\\\":null,\\\"until\\\":null,\\\"precision\\\":\\\"unknown\\\",\\\"bound\\\":\\\"within\\\",\\\"tz\\\":null,\\\"basis\\\":\\\"unknown\\\"},\\\"entities\\\":[],\\\"evidence\\\":[{\\\"reference\\\":{\\\"source_id\\\":\\\"src_00000008-0000-4000-8000-000000000001\\\",\\\"source_revision\\\":1,\\\"locator\\\":{\\\"kind\\\":\\\"runtime_event\\\",\\\"event_id\\\":\\\"evt_00000008-0000-4000-8000-000000000001\\\"},\\\"object_hash\\\":\\\"d16b70d340b667c2bc6542064f41f3936f98db9b697d3fa6c39ca465c3cf11a2\\\",\\\"evidence_class\\\":\\\"user_statement\\\",\\\"supports\\\":\\\"content\\\"},\\\"quote\\\":\\\"合成条目 8：我喜欢夜间散步。\\\",\\\"speaker\\\":\\\"user\\\",\\\"start\\\":0,\\\"end\\\":15}],\\\"formation\\\":{\\\"prompt_version\\\":\\\"synthetic-ui-1\\\",\\\"import_batch_id\\\":null,\\\"mode\\\":\\\"live\\\"},\\\"annotations\\\":null},\\\"entities\\\":[]}}\",\"request_id\":\"req_00000082-0000-4000-8000-000000000001\",\"scope_hash\":\"a7b98283b37b1d5d7a99f78061d8d767ea5bf1dfd29e54a28f94d4e662a92097\",\"trace\":{\"algorithm\":\"attention-rank-1\",\"at\":\"2026-10-24T12:00:00.000Z\",\"authorized_at\":\"2026-10-24T12:00:00.000Z\",\"considered\":1,\"excluded\":[],\"profile_hash\":\"e23dce3de472f5e99f52511a55d98426dcb5624957b2def3325645a065426642\",\"rendered_bytes\":3803,\"selected\":[{\"attention\":\"active\",\"memory\":{\"memory_id\":\"mem_453691c3-6996-4ae1-a057-a413e57fa01e\",\"revision\":1},\"reasons\":[\"fresh\"],\"score\":3}],\"snapshot\":{\"base_commit_id\":\"cmt_a9117c35-0c7a-4013-8d7d-06d1d062e38e\",\"deletion_watermark\":1,\"policy_watermark\":2,\"primary_epoch\":1,\"vault_id\":\"vlt_00000001-0000-4000-8000-000000000001\"}},\"trace_coverage\":{\"complete\":true,\"excluded_in_scope\":0,\"excluded_returned\":0,\"reason_counts\":{}}},\"error\":null,\"kind\":\"agent_initialized_read_response\",\"operation\":\"memory_recall\",\"principal\":{\"actor_id\":\"prn_00000058-0000-4000-8000-000000000001\",\"actor_type\":\"agent\"},\"request_id\":\"req_00000082-0000-4000-8000-000000000001\",\"schema_version\":2,\"scope_hash\":\"a7b98283b37b1d5d7a99f78061d8d767ea5bf1dfd29e54a28f94d4e662a92097\"}",
+            "type": "text"
+          },
+          {
+            "mimeType": "application/json",
+            "name": "actual_recall",
+            "type": "resource_link",
+            "uri": "enouia-memory://recall/req_00000082-0000-4000-8000-000000000001"
+          }
+        ],
+        "isError": false,
+        "structuredContent": {
+          "capability": "memory-agent-initialized-read-1",
+          "coverage": {
+            "capture": "runtime_only_future",
+            "graph": "recorded_lineage_entity_and_theme_suggestions",
+            "import_attachments": "unavailable",
+            "owner_actions": "native_proofs_read_only",
+            "qualification": "owner-qualified-catalog-4",
+            "record_fields": "ui-records-v2",
+            "source_carrier": "captured-source-original-1",
+            "trace_exclusions": "bounded_128_with_exact_reason_counts",
+            "unavailable_relations": [
+              "same_conversation",
+              "semantic_neighbors"
+            ]
+          },
+          "data": {
+            "capability": "memory-agent-initialized-native-read-1",
+            "complete_in_scope": true,
+            "items": [
+              {
+                "base": {
+                  "base": {
+                    "adoption": "adopted",
+                    "attention": "active",
+                    "committed_in": "cmt_a9117c35-0c7a-4013-8d7d-06d1d062e38e",
+                    "content": "合成条目 8：我喜欢夜间散步。",
+                    "context_source_refs": [],
+                    "dimensions": {
+                      "change": "initial",
+                      "conditions": [],
+                      "counter_sources": [],
+                      "derived_from": [],
+                      "event_time": null,
+                      "kind": "preference",
+                      "occurrence": "unknown",
+                      "reverts_to": null,
+                      "state": null,
+                      "valid_time": null
+                    },
+                    "evidence": [
+                      {
+                        "evidence_class": "user_statement",
+                        "locator": {
+                          "event_id": "evt_00000008-0000-4000-8000-000000000001",
+                          "kind": "runtime_event"
+                        },
+                        "object_hash": "d16b70d340b667c2bc6542064f41f3936f98db9b697d3fa6c39ca465c3cf11a2",
+                        "source_id": "src_00000008-0000-4000-8000-000000000001",
+                        "source_revision": 1,
+                        "supports": "content"
+                      }
+                    ],
+                    "knowledge": "attributed_statement",
+                    "learned_at": "2026-10-24T12:00:00.000Z",
+                    "memory": {
+                      "memory_id": "mem_453691c3-6996-4ae1-a057-a413e57fa01e",
+                      "revision": 1
+                    },
+                    "policy": {
+                      "hash": "227968b41f4aa3bf730bcfc1f440619ab1c1fdc16e596e9eba6c0534d1f251ef",
+                      "policy_id": "pol_000003e9-0000-4000-8000-000000000001",
+                      "revision": 1
+                    },
+                    "project_id": null,
+                    "receipt": {
+                      "binding_hash": "7f7a0fc3a5948d45f0dd081e449aac86d8c120dd7818cdc2a99ae7d09ab94b4c",
+                      "committed_in": "cmt_a9117c35-0c7a-4013-8d7d-06d1d062e38e",
+                      "decision_hash": "54a2c7643085aa080e8598e34160918a74b96caa69fcf959a1c12e3ed98a972e",
+                      "job_key": "eb80c33c09a7a5d9c21d946a1b4f8dae67323d6d6389af19dc5e8c927449f271",
+                      "operation_id": "op_51b887dc-ce32-4361-87d1-0915954d7acd",
+                      "request_hash": "213de99aca48c09189201982dabeb100820c98b97ce4b4ab25542fb0bcfddf0c",
+                      "response_hash": "5958ad60b7e8d1c85bf47abfc6e8b8e72808fdcdb5b56a1b9a03d560ca66c683",
+                      "result": {
+                        "memory_id": "mem_453691c3-6996-4ae1-a057-a413e57fa01e",
+                        "revision": 1
+                      }
+                    },
+                    "rule_version": "admission-rules-3",
+                    "source_captured_at": "2026-10-24T12:00:00.000Z",
+                    "subject_id": "sub_00000001-0000-4000-8000-000000000001",
+                    "system_actor": {
+                      "actor_id": "prn_00000002-0000-4000-8000-000000000001",
+                      "actor_type": "system"
+                    },
+                    "validity": "unspecified"
+                  },
+                  "content_lang": "zh-Hans",
+                  "effective_sensitivity": "public",
+                  "entities": [],
+                  "event_time": {
+                    "basis": "unknown",
+                    "bound": "within",
+                    "from": null,
+                    "precision": "unknown",
+                    "tz": null,
+                    "until": null
+                  },
+                  "formation_reason": {
+                    "import_batch_id": null,
+                    "interpretation": "clear_self_report",
+                    "mode": "live",
+                    "model_version": null,
+                    "note": null,
+                    "note_is_machine_annotation": true,
+                    "prompt_version": "synthetic-ui-1",
+                    "rule_version": "admission-rules-3"
+                  },
+                  "owner_marks": {
+                    "attention": null,
+                    "corrected": null,
+                    "tag_count_in_scope": 0,
+                    "tags": [],
+                    "tags_complete": true
+                  },
+                  "title": "合成条目 8",
+                  "valid_time": {
+                    "basis": "unknown",
+                    "bound": "within",
+                    "from": null,
+                    "precision": "unknown",
+                    "tz": null,
+                    "until": null
+                  }
+                },
+                "record": {
+                  "annotations_scope": "authorized_current_targets",
+                  "entities": [],
+                  "fields": {
+                    "annotations": null,
+                    "content_lang": "zh-Hans",
+                    "entities": [],
+                    "event_time": {
+                      "basis": "unknown",
+                      "bound": "within",
+                      "from": null,
+                      "precision": "unknown",
+                      "tz": null,
+                      "until": null
+                    },
+                    "evidence": [
+                      {
+                        "end": 15,
+                        "quote": "合成条目 8：我喜欢夜间散步。",
+                        "reference": {
+                          "evidence_class": "user_statement",
+                          "locator": {
+                            "event_id": "evt_00000008-0000-4000-8000-000000000001",
+                            "kind": "runtime_event"
+                          },
+                          "object_hash": "d16b70d340b667c2bc6542064f41f3936f98db9b697d3fa6c39ca465c3cf11a2",
+                          "source_id": "src_00000008-0000-4000-8000-000000000001",
+                          "source_revision": 1,
+                          "supports": "content"
+                        },
+                        "speaker": "user",
+                        "start": 0
+                      }
+                    ],
+                    "formation": {
+                      "import_batch_id": null,
+                      "mode": "live",
+                      "prompt_version": "synthetic-ui-1"
+                    },
+                    "title": "合成条目 8",
+                    "valid_time": {
+                      "basis": "unknown",
+                      "bound": "within",
+                      "from": null,
+                      "precision": "unknown",
+                      "tz": null,
+                      "until": null
+                    }
+                  },
+                  "memory": {
+                    "memory_id": "mem_453691c3-6996-4ae1-a057-a413e57fa01e",
+                    "revision": 1
+                  },
+                  "model_version": null,
+                  "producer_version": "synthetic-analysis-1"
+                }
+              }
+            ],
+            "qualification": "owner-qualified-catalog-4",
+            "rendered_context": "Subject stated (not independently verified): 合成条目 8：我喜欢夜间散步。\nForm: Preference; state: None; occurrence: Unknown. Conditions: unspecified. Event time: unknown. Valid time: unknown.\nQualified record: {\"base\":{\"owner_marks\":{\"corrected\":null,\"attention\":null,\"tags\":[],\"tag_count_in_scope\":0,\"tags_complete\":true},\"base\":{\"memory\":{\"memory_id\":\"mem_453691c3-6996-4ae1-a057-a413e57fa01e\",\"revision\":1},\"system_actor\":{\"actor_id\":\"prn_00000002-0000-4000-8000-000000000001\",\"actor_type\":\"system\"},\"subject_id\":\"sub_00000001-0000-4000-8000-000000000001\",\"project_id\":null,\"content\":\"合成条目 8：我喜欢夜间散步。\",\"knowledge\":\"attributed_statement\",\"adoption\":\"adopted\",\"dimensions\":{\"kind\":\"preference\",\"occurrence\":\"unknown\",\"state\":null,\"change\":\"initial\",\"conditions\":[],\"event_time\":null,\"valid_time\":null,\"counter_sources\":[],\"derived_from\":[],\"reverts_to\":null},\"policy\":{\"policy_id\":\"pol_000003e9-0000-4000-8000-000000000001\",\"revision\":1,\"hash\":\"227968b41f4aa3bf730bcfc1f440619ab1c1fdc16e596e9eba6c0534d1f251ef\"},\"rule_version\":\"admission-rules-3\",\"committed_in\":\"cmt_a9117c35-0c7a-4013-8d7d-06d1d062e38e\",\"learned_at\":\"2026-10-24T12:00:00.000Z\",\"source_captured_at\":\"2026-10-24T12:00:00.000Z\",\"attention\":\"active\",\"validity\":\"unspecified\",\"evidence\":[{\"source_id\":\"src_00000008-0000-4000-8000-000000000001\",\"source_revision\":1,\"locator\":{\"kind\":\"runtime_event\",\"event_id\":\"evt_00000008-0000-4000-8000-000000000001\"},\"object_hash\":\"d16b70d340b667c2bc6542064f41f3936f98db9b697d3fa6c39ca465c3cf11a2\",\"evidence_class\":\"user_statement\",\"supports\":\"content\"}],\"context_source_refs\":[],\"receipt\":{\"job_key\":\"eb80c33c09a7a5d9c21d946a1b4f8dae67323d6d6389af19dc5e8c927449f271\",\"binding_hash\":\"7f7a0fc3a5948d45f0dd081e449aac86d8c120dd7818cdc2a99ae7d09ab94b4c\",\"operation_id\":\"op_51b887dc-ce32-4361-87d1-0915954d7acd\",\"request_hash\":\"213de99aca48c09189201982dabeb100820c98b97ce4b4ab25542fb0bcfddf0c\",\"response_hash\":\"5958ad60b7e8d1c85bf47abfc6e8b8e72808fdcdb5b56a1b9a03d560ca66c683\",\"decision_hash\":\"54a2c7643085aa080e8598e34160918a74b96caa69fcf959a1c12e3ed98a972e\",\"committed_in\":\"cmt_a9117c35-0c7a-4013-8d7d-06d1d062e38e\",\"result\":{\"memory_id\":\"mem_453691c3-6996-4ae1-a057-a413e57fa01e\",\"revision\":1}}},\"title\":\"合成条目 8\",\"content_lang\":\"zh-Hans\",\"event_time\":{\"from\":null,\"until\":null,\"precision\":\"unknown\",\"bound\":\"within\",\"tz\":null,\"basis\":\"unknown\"},\"valid_time\":{\"from\":null,\"until\":null,\"precision\":\"unknown\",\"bound\":\"within\",\"tz\":null,\"basis\":\"unknown\"},\"entities\":[],\"effective_sensitivity\":\"public\",\"formation_reason\":{\"interpretation\":\"clear_self_report\",\"rule_version\":\"admission-rules-3\",\"prompt_version\":\"synthetic-ui-1\",\"model_version\":null,\"mode\":\"live\",\"import_batch_id\":null,\"note\":null,\"note_is_machine_annotation\":true}},\"record\":{\"memory\":{\"memory_id\":\"mem_453691c3-6996-4ae1-a057-a413e57fa01e\",\"revision\":1},\"producer_version\":\"synthetic-analysis-1\",\"model_version\":null,\"annotations_scope\":\"authorized_current_targets\",\"fields\":{\"title\":\"合成条目 8\",\"content_lang\":\"zh-Hans\",\"event_time\":{\"from\":null,\"until\":null,\"precision\":\"unknown\",\"bound\":\"within\",\"tz\":null,\"basis\":\"unknown\"},\"valid_time\":{\"from\":null,\"until\":null,\"precision\":\"unknown\",\"bound\":\"within\",\"tz\":null,\"basis\":\"unknown\"},\"entities\":[],\"evidence\":[{\"reference\":{\"source_id\":\"src_00000008-0000-4000-8000-000000000001\",\"source_revision\":1,\"locator\":{\"kind\":\"runtime_event\",\"event_id\":\"evt_00000008-0000-4000-8000-000000000001\"},\"object_hash\":\"d16b70d340b667c2bc6542064f41f3936f98db9b697d3fa6c39ca465c3cf11a2\",\"evidence_class\":\"user_statement\",\"supports\":\"content\"},\"quote\":\"合成条目 8：我喜欢夜间散步。\",\"speaker\":\"user\",\"start\":0,\"end\":15}],\"formation\":{\"prompt_version\":\"synthetic-ui-1\",\"import_batch_id\":null,\"mode\":\"live\"},\"annotations\":null},\"entities\":[]}}",
+            "request_id": "req_00000082-0000-4000-8000-000000000001",
+            "scope_hash": "a7b98283b37b1d5d7a99f78061d8d767ea5bf1dfd29e54a28f94d4e662a92097",
+            "trace": {
+              "algorithm": "attention-rank-1",
+              "at": "2026-10-24T12:00:00.000Z",
+              "authorized_at": "2026-10-24T12:00:00.000Z",
+              "considered": 1,
+              "excluded": [],
+              "profile_hash": "e23dce3de472f5e99f52511a55d98426dcb5624957b2def3325645a065426642",
+              "rendered_bytes": 3803,
+              "selected": [
+                {
+                  "attention": "active",
+                  "memory": {
+                    "memory_id": "mem_453691c3-6996-4ae1-a057-a413e57fa01e",
+                    "revision": 1
+                  },
+                  "reasons": [
+                    "fresh"
+                  ],
+                  "score": 3
+                }
+              ],
+              "snapshot": {
+                "base_commit_id": "cmt_a9117c35-0c7a-4013-8d7d-06d1d062e38e",
+                "deletion_watermark": 1,
+                "policy_watermark": 2,
+                "primary_epoch": 1,
+                "vault_id": "vlt_00000001-0000-4000-8000-000000000001"
+              }
+            },
+            "trace_coverage": {
+              "complete": true,
+              "excluded_in_scope": 0,
+              "excluded_returned": 0,
+              "reason_counts": {}
+            }
+          },
+          "error": null,
+          "kind": "agent_initialized_read_response",
+          "operation": "memory_recall",
+          "principal": {
+            "actor_id": "prn_00000058-0000-4000-8000-000000000001",
+            "actor_type": "agent"
+          },
+          "request_id": "req_00000082-0000-4000-8000-000000000001",
+          "schema_version": 2,
+          "scope_hash": "a7b98283b37b1d5d7a99f78061d8d767ea5bf1dfd29e54a28f94d4e662a92097"
+        }
+      }
+    },
+    "read_present": {
+      "id": 21,
+      "jsonrpc": "2.0",
+      "result": {
+        "content": [
+          {
+            "text": "{\"capability\":\"memory-agent-initialized-read-1\",\"coverage\":{\"capture\":\"runtime_only_future\",\"graph\":\"recorded_lineage_entity_and_theme_suggestions\",\"import_attachments\":\"unavailable\",\"owner_actions\":\"native_proofs_read_only\",\"qualification\":\"owner-qualified-catalog-4\",\"record_fields\":\"ui-records-v2\",\"source_carrier\":\"captured-source-original-1\",\"trace_exclusions\":\"bounded_128_with_exact_reason_counts\",\"unavailable_relations\":[\"same_conversation\",\"semantic_neighbors\"]},\"data\":{\"authorized_at\":\"2026-10-24T12:00:00.000Z\",\"capability\":\"memory-agent-initialized-native-read-1\",\"complete_in_scope\":true,\"history\":[{\"adoption\":\"adopted\",\"content\":\"合成条目 8：我喜欢夜间散步。\",\"dimensions\":{\"change\":\"initial\",\"conditions\":[],\"counter_sources\":[],\"derived_from\":[],\"event_time\":null,\"kind\":\"preference\",\"occurrence\":\"unknown\",\"reverts_to\":null,\"state\":null,\"valid_time\":null},\"is_current\":true,\"knowledge\":\"attributed_statement\",\"learned_at\":\"2026-10-24T12:00:00.000Z\",\"memory\":{\"hash\":\"0f314562896acd2f65694748db1f4835be578710411abef91a951f5d9da63523\",\"memory\":{\"memory_id\":\"mem_453691c3-6996-4ae1-a057-a413e57fa01e\",\"revision\":1}},\"receipt\":{\"binding_hash\":\"7f7a0fc3a5948d45f0dd081e449aac86d8c120dd7818cdc2a99ae7d09ab94b4c\",\"committed_in\":\"cmt_a9117c35-0c7a-4013-8d7d-06d1d062e38e\",\"decision_hash\":\"54a2c7643085aa080e8598e34160918a74b96caa69fcf959a1c12e3ed98a972e\",\"job_key\":\"eb80c33c09a7a5d9c21d946a1b4f8dae67323d6d6389af19dc5e8c927449f271\",\"operation_id\":\"op_51b887dc-ce32-4361-87d1-0915954d7acd\",\"request_hash\":\"213de99aca48c09189201982dabeb100820c98b97ce4b4ab25542fb0bcfddf0c\",\"response_hash\":\"5958ad60b7e8d1c85bf47abfc6e8b8e72808fdcdb5b56a1b9a03d560ca66c683\",\"result\":{\"memory_id\":\"mem_453691c3-6996-4ae1-a057-a413e57fa01e\",\"revision\":1}},\"record\":{\"annotations_scope\":\"authorized_current_targets\",\"entities\":[],\"fields\":{\"annotations\":null,\"content_lang\":\"zh-Hans\",\"entities\":[],\"event_time\":{\"basis\":\"unknown\",\"bound\":\"within\",\"from\":null,\"precision\":\"unknown\",\"tz\":null,\"until\":null},\"evidence\":[{\"end\":15,\"quote\":\"合成条目 8：我喜欢夜间散步。\",\"reference\":{\"evidence_class\":\"user_statement\",\"locator\":{\"event_id\":\"evt_00000008-0000-4000-8000-000000000001\",\"kind\":\"runtime_event\"},\"object_hash\":\"d16b70d340b667c2bc6542064f41f3936f98db9b697d3fa6c39ca465c3cf11a2\",\"source_id\":\"src_00000008-0000-4000-8000-000000000001\",\"source_revision\":1,\"supports\":\"content\"},\"speaker\":\"user\",\"start\":0}],\"formation\":{\"import_batch_id\":null,\"mode\":\"live\",\"prompt_version\":\"synthetic-ui-1\"},\"title\":\"合成条目 8\",\"valid_time\":{\"basis\":\"unknown\",\"bound\":\"within\",\"from\":null,\"precision\":\"unknown\",\"tz\":null,\"until\":null}},\"memory\":{\"memory_id\":\"mem_453691c3-6996-4ae1-a057-a413e57fa01e\",\"revision\":1},\"model_version\":null,\"producer_version\":\"synthetic-analysis-1\"}}],\"history_complete\":true,\"history_count_in_scope\":1,\"item\":{\"base\":{\"base\":{\"adoption\":\"adopted\",\"attention\":\"active\",\"committed_in\":\"cmt_a9117c35-0c7a-4013-8d7d-06d1d062e38e\",\"content\":\"合成条目 8：我喜欢夜间散步。\",\"context_source_refs\":[],\"dimensions\":{\"change\":\"initial\",\"conditions\":[],\"counter_sources\":[],\"derived_from\":[],\"event_time\":null,\"kind\":\"preference\",\"occurrence\":\"unknown\",\"reverts_to\":null,\"state\":null,\"valid_time\":null},\"evidence\":[{\"evidence_class\":\"user_statement\",\"locator\":{\"event_id\":\"evt_00000008-0000-4000-8000-000000000001\",\"kind\":\"runtime_event\"},\"object_hash\":\"d16b70d340b667c2bc6542064f41f3936f98db9b697d3fa6c39ca465c3cf11a2\",\"source_id\":\"src_00000008-0000-4000-8000-000000000001\",\"source_revision\":1,\"supports\":\"content\"}],\"knowledge\":\"attributed_statement\",\"learned_at\":\"2026-10-24T12:00:00.000Z\",\"memory\":{\"memory_id\":\"mem_453691c3-6996-4ae1-a057-a413e57fa01e\",\"revision\":1},\"policy\":{\"hash\":\"227968b41f4aa3bf730bcfc1f440619ab1c1fdc16e596e9eba6c0534d1f251ef\",\"policy_id\":\"pol_000003e9-0000-4000-8000-000000000001\",\"revision\":1},\"project_id\":null,\"receipt\":{\"binding_hash\":\"7f7a0fc3a5948d45f0dd081e449aac86d8c120dd7818cdc2a99ae7d09ab94b4c\",\"committed_in\":\"cmt_a9117c35-0c7a-4013-8d7d-06d1d062e38e\",\"decision_hash\":\"54a2c7643085aa080e8598e34160918a74b96caa69fcf959a1c12e3ed98a972e\",\"job_key\":\"eb80c33c09a7a5d9c21d946a1b4f8dae67323d6d6389af19dc5e8c927449f271\",\"operation_id\":\"op_51b887dc-ce32-4361-87d1-0915954d7acd\",\"request_hash\":\"213de99aca48c09189201982dabeb100820c98b97ce4b4ab25542fb0bcfddf0c\",\"response_hash\":\"5958ad60b7e8d1c85bf47abfc6e8b8e72808fdcdb5b56a1b9a03d560ca66c683\",\"result\":{\"memory_id\":\"mem_453691c3-6996-4ae1-a057-a413e57fa01e\",\"revision\":1}},\"rule_version\":\"admission-rules-3\",\"source_captured_at\":\"2026-10-24T12:00:00.000Z\",\"subject_id\":\"sub_00000001-0000-4000-8000-000000000001\",\"system_actor\":{\"actor_id\":\"prn_00000002-0000-4000-8000-000000000001\",\"actor_type\":\"system\"},\"validity\":\"unspecified\"},\"content_lang\":\"zh-Hans\",\"effective_sensitivity\":\"public\",\"entities\":[],\"event_time\":{\"basis\":\"unknown\",\"bound\":\"within\",\"from\":null,\"precision\":\"unknown\",\"tz\":null,\"until\":null},\"formation_reason\":{\"import_batch_id\":null,\"interpretation\":\"clear_self_report\",\"mode\":\"live\",\"model_version\":null,\"note\":null,\"note_is_machine_annotation\":true,\"prompt_version\":\"synthetic-ui-1\",\"rule_version\":\"admission-rules-3\"},\"owner_marks\":{\"attention\":null,\"corrected\":null,\"tag_count_in_scope\":0,\"tags\":[],\"tags_complete\":true},\"title\":\"合成条目 8\",\"valid_time\":{\"basis\":\"unknown\",\"bound\":\"within\",\"from\":null,\"precision\":\"unknown\",\"tz\":null,\"until\":null}},\"record\":{\"annotations_scope\":\"authorized_current_targets\",\"entities\":[],\"fields\":{\"annotations\":null,\"content_lang\":\"zh-Hans\",\"entities\":[],\"event_time\":{\"basis\":\"unknown\",\"bound\":\"within\",\"from\":null,\"precision\":\"unknown\",\"tz\":null,\"until\":null},\"evidence\":[{\"end\":15,\"quote\":\"合成条目 8：我喜欢夜间散步。\",\"reference\":{\"evidence_class\":\"user_statement\",\"locator\":{\"event_id\":\"evt_00000008-0000-4000-8000-000000000001\",\"kind\":\"runtime_event\"},\"object_hash\":\"d16b70d340b667c2bc6542064f41f3936f98db9b697d3fa6c39ca465c3cf11a2\",\"source_id\":\"src_00000008-0000-4000-8000-000000000001\",\"source_revision\":1,\"supports\":\"content\"},\"speaker\":\"user\",\"start\":0}],\"formation\":{\"import_batch_id\":null,\"mode\":\"live\",\"prompt_version\":\"synthetic-ui-1\"},\"title\":\"合成条目 8\",\"valid_time\":{\"basis\":\"unknown\",\"bound\":\"within\",\"from\":null,\"precision\":\"unknown\",\"tz\":null,\"until\":null}},\"memory\":{\"memory_id\":\"mem_453691c3-6996-4ae1-a057-a413e57fa01e\",\"revision\":1},\"model_version\":null,\"producer_version\":\"synthetic-analysis-1\"}},\"next_history\":null,\"profile_hash\":\"e23dce3de472f5e99f52511a55d98426dcb5624957b2def3325645a065426642\",\"scope_hash\":\"a7b98283b37b1d5d7a99f78061d8d767ea5bf1dfd29e54a28f94d4e662a92097\",\"snapshot\":{\"base_commit_id\":\"cmt_a9117c35-0c7a-4013-8d7d-06d1d062e38e\",\"deletion_watermark\":1,\"policy_watermark\":2,\"primary_epoch\":1,\"vault_id\":\"vlt_00000001-0000-4000-8000-000000000001\"},\"source_count_in_scope\":1,\"source_read\":true,\"source_text_complete\":true,\"sources\":[{\"attachments\":[],\"attachments_complete_in_scope\":true,\"attributed_subject\":\"sub_00000001-0000-4000-8000-000000000001\",\"capture_timezone\":null,\"effective_sensitivity\":\"public\",\"projection_scope\":\"authorized_source_metadata_v1\",\"record\":{\"access_policy_id\":\"pol_00000002-0000-4000-8000-000000000001\",\"account_scope\":null,\"agent_submission\":null,\"attachment_refs\":[],\"author_label\":null,\"branch_id\":null,\"captured_at\":\"2026-10-24T12:00:00.000Z\",\"completeness\":\"complete\",\"content_hash\":\"d16b70d340b667c2bc6542064f41f3936f98db9b697d3fa6c39ca465c3cf11a2\",\"created_at\":\"2026-10-24T12:00:00.000Z\",\"evidence_class\":\"user_statement\",\"extensions\":{},\"import_id\":null,\"locator\":{\"event_id\":\"evt_00000008-0000-4000-8000-000000000001\",\"kind\":\"runtime_event\"},\"manual_assertion\":null,\"occurred_at\":\"2026-06-10T10:00:00.000Z\",\"original_conversation_id\":null,\"original_message_id\":null,\"original_time\":null,\"original_timezone\":null,\"parent_source_ids\":[],\"parse_warnings\":[],\"parser_version\":null,\"provider\":null,\"raw_object_hash\":null,\"revision\":1,\"schema_version\":1,\"sensitivity\":\"public\",\"source_id\":\"src_00000008-0000-4000-8000-000000000001\",\"source_kind\":\"runtime_event\",\"speaker_role\":\"user\",\"time_precision\":\"minute\"},\"record_fields\":{\"assistant_model\":null,\"content_lang\":\"zh-Hans\",\"conversation_id\":null},\"text\":null}],\"sources_complete\":true},\"error\":null,\"kind\":\"agent_initialized_read_response\",\"operation\":\"memory_read\",\"principal\":{\"actor_id\":\"prn_00000058-0000-4000-8000-000000000001\",\"actor_type\":\"agent\"},\"request_id\":\"req_00000097-0000-4000-8000-000000000001\",\"schema_version\":2,\"scope_hash\":\"a7b98283b37b1d5d7a99f78061d8d767ea5bf1dfd29e54a28f94d4e662a92097\"}",
+            "type": "text"
+          },
+          {
+            "mimeType": "application/json",
+            "name": "memory_detail",
+            "type": "resource_link",
+            "uri": "enouia-memory://memory/mem_453691c3-6996-4ae1-a057-a413e57fa01e"
+          }
+        ],
+        "isError": false,
+        "structuredContent": {
+          "capability": "memory-agent-initialized-read-1",
+          "coverage": {
+            "capture": "runtime_only_future",
+            "graph": "recorded_lineage_entity_and_theme_suggestions",
+            "import_attachments": "unavailable",
+            "owner_actions": "native_proofs_read_only",
+            "qualification": "owner-qualified-catalog-4",
+            "record_fields": "ui-records-v2",
+            "source_carrier": "captured-source-original-1",
+            "trace_exclusions": "bounded_128_with_exact_reason_counts",
+            "unavailable_relations": [
+              "same_conversation",
+              "semantic_neighbors"
+            ]
+          },
+          "data": {
+            "authorized_at": "2026-10-24T12:00:00.000Z",
+            "capability": "memory-agent-initialized-native-read-1",
+            "complete_in_scope": true,
+            "history": [
+              {
+                "adoption": "adopted",
+                "content": "合成条目 8：我喜欢夜间散步。",
+                "dimensions": {
+                  "change": "initial",
+                  "conditions": [],
+                  "counter_sources": [],
+                  "derived_from": [],
+                  "event_time": null,
+                  "kind": "preference",
+                  "occurrence": "unknown",
+                  "reverts_to": null,
+                  "state": null,
+                  "valid_time": null
+                },
+                "is_current": true,
+                "knowledge": "attributed_statement",
+                "learned_at": "2026-10-24T12:00:00.000Z",
+                "memory": {
+                  "hash": "0f314562896acd2f65694748db1f4835be578710411abef91a951f5d9da63523",
+                  "memory": {
+                    "memory_id": "mem_453691c3-6996-4ae1-a057-a413e57fa01e",
+                    "revision": 1
+                  }
+                },
+                "receipt": {
+                  "binding_hash": "7f7a0fc3a5948d45f0dd081e449aac86d8c120dd7818cdc2a99ae7d09ab94b4c",
+                  "committed_in": "cmt_a9117c35-0c7a-4013-8d7d-06d1d062e38e",
+                  "decision_hash": "54a2c7643085aa080e8598e34160918a74b96caa69fcf959a1c12e3ed98a972e",
+                  "job_key": "eb80c33c09a7a5d9c21d946a1b4f8dae67323d6d6389af19dc5e8c927449f271",
+                  "operation_id": "op_51b887dc-ce32-4361-87d1-0915954d7acd",
+                  "request_hash": "213de99aca48c09189201982dabeb100820c98b97ce4b4ab25542fb0bcfddf0c",
+                  "response_hash": "5958ad60b7e8d1c85bf47abfc6e8b8e72808fdcdb5b56a1b9a03d560ca66c683",
+                  "result": {
+                    "memory_id": "mem_453691c3-6996-4ae1-a057-a413e57fa01e",
+                    "revision": 1
+                  }
+                },
+                "record": {
+                  "annotations_scope": "authorized_current_targets",
+                  "entities": [],
+                  "fields": {
+                    "annotations": null,
+                    "content_lang": "zh-Hans",
+                    "entities": [],
+                    "event_time": {
+                      "basis": "unknown",
+                      "bound": "within",
+                      "from": null,
+                      "precision": "unknown",
+                      "tz": null,
+                      "until": null
+                    },
+                    "evidence": [
+                      {
+                        "end": 15,
+                        "quote": "合成条目 8：我喜欢夜间散步。",
+                        "reference": {
+                          "evidence_class": "user_statement",
+                          "locator": {
+                            "event_id": "evt_00000008-0000-4000-8000-000000000001",
+                            "kind": "runtime_event"
+                          },
+                          "object_hash": "d16b70d340b667c2bc6542064f41f3936f98db9b697d3fa6c39ca465c3cf11a2",
+                          "source_id": "src_00000008-0000-4000-8000-000000000001",
+                          "source_revision": 1,
+                          "supports": "content"
+                        },
+                        "speaker": "user",
+                        "start": 0
+                      }
+                    ],
+                    "formation": {
+                      "import_batch_id": null,
+                      "mode": "live",
+                      "prompt_version": "synthetic-ui-1"
+                    },
+                    "title": "合成条目 8",
+                    "valid_time": {
+                      "basis": "unknown",
+                      "bound": "within",
+                      "from": null,
+                      "precision": "unknown",
+                      "tz": null,
+                      "until": null
+                    }
+                  },
+                  "memory": {
+                    "memory_id": "mem_453691c3-6996-4ae1-a057-a413e57fa01e",
+                    "revision": 1
+                  },
+                  "model_version": null,
+                  "producer_version": "synthetic-analysis-1"
+                }
+              }
+            ],
+            "history_complete": true,
+            "history_count_in_scope": 1,
+            "item": {
+              "base": {
+                "base": {
+                  "adoption": "adopted",
+                  "attention": "active",
+                  "committed_in": "cmt_a9117c35-0c7a-4013-8d7d-06d1d062e38e",
+                  "content": "合成条目 8：我喜欢夜间散步。",
+                  "context_source_refs": [],
+                  "dimensions": {
+                    "change": "initial",
+                    "conditions": [],
+                    "counter_sources": [],
+                    "derived_from": [],
+                    "event_time": null,
+                    "kind": "preference",
+                    "occurrence": "unknown",
+                    "reverts_to": null,
+                    "state": null,
+                    "valid_time": null
+                  },
+                  "evidence": [
+                    {
+                      "evidence_class": "user_statement",
+                      "locator": {
+                        "event_id": "evt_00000008-0000-4000-8000-000000000001",
+                        "kind": "runtime_event"
+                      },
+                      "object_hash": "d16b70d340b667c2bc6542064f41f3936f98db9b697d3fa6c39ca465c3cf11a2",
+                      "source_id": "src_00000008-0000-4000-8000-000000000001",
+                      "source_revision": 1,
+                      "supports": "content"
+                    }
+                  ],
+                  "knowledge": "attributed_statement",
+                  "learned_at": "2026-10-24T12:00:00.000Z",
+                  "memory": {
+                    "memory_id": "mem_453691c3-6996-4ae1-a057-a413e57fa01e",
+                    "revision": 1
+                  },
+                  "policy": {
+                    "hash": "227968b41f4aa3bf730bcfc1f440619ab1c1fdc16e596e9eba6c0534d1f251ef",
+                    "policy_id": "pol_000003e9-0000-4000-8000-000000000001",
+                    "revision": 1
+                  },
+                  "project_id": null,
+                  "receipt": {
+                    "binding_hash": "7f7a0fc3a5948d45f0dd081e449aac86d8c120dd7818cdc2a99ae7d09ab94b4c",
+                    "committed_in": "cmt_a9117c35-0c7a-4013-8d7d-06d1d062e38e",
+                    "decision_hash": "54a2c7643085aa080e8598e34160918a74b96caa69fcf959a1c12e3ed98a972e",
+                    "job_key": "eb80c33c09a7a5d9c21d946a1b4f8dae67323d6d6389af19dc5e8c927449f271",
+                    "operation_id": "op_51b887dc-ce32-4361-87d1-0915954d7acd",
+                    "request_hash": "213de99aca48c09189201982dabeb100820c98b97ce4b4ab25542fb0bcfddf0c",
+                    "response_hash": "5958ad60b7e8d1c85bf47abfc6e8b8e72808fdcdb5b56a1b9a03d560ca66c683",
+                    "result": {
+                      "memory_id": "mem_453691c3-6996-4ae1-a057-a413e57fa01e",
+                      "revision": 1
+                    }
+                  },
+                  "rule_version": "admission-rules-3",
+                  "source_captured_at": "2026-10-24T12:00:00.000Z",
+                  "subject_id": "sub_00000001-0000-4000-8000-000000000001",
+                  "system_actor": {
+                    "actor_id": "prn_00000002-0000-4000-8000-000000000001",
+                    "actor_type": "system"
+                  },
+                  "validity": "unspecified"
+                },
+                "content_lang": "zh-Hans",
+                "effective_sensitivity": "public",
+                "entities": [],
+                "event_time": {
+                  "basis": "unknown",
+                  "bound": "within",
+                  "from": null,
+                  "precision": "unknown",
+                  "tz": null,
+                  "until": null
+                },
+                "formation_reason": {
+                  "import_batch_id": null,
+                  "interpretation": "clear_self_report",
+                  "mode": "live",
+                  "model_version": null,
+                  "note": null,
+                  "note_is_machine_annotation": true,
+                  "prompt_version": "synthetic-ui-1",
+                  "rule_version": "admission-rules-3"
+                },
+                "owner_marks": {
+                  "attention": null,
+                  "corrected": null,
+                  "tag_count_in_scope": 0,
+                  "tags": [],
+                  "tags_complete": true
+                },
+                "title": "合成条目 8",
+                "valid_time": {
+                  "basis": "unknown",
+                  "bound": "within",
+                  "from": null,
+                  "precision": "unknown",
+                  "tz": null,
+                  "until": null
+                }
+              },
+              "record": {
+                "annotations_scope": "authorized_current_targets",
+                "entities": [],
+                "fields": {
+                  "annotations": null,
+                  "content_lang": "zh-Hans",
+                  "entities": [],
+                  "event_time": {
+                    "basis": "unknown",
+                    "bound": "within",
+                    "from": null,
+                    "precision": "unknown",
+                    "tz": null,
+                    "until": null
+                  },
+                  "evidence": [
+                    {
+                      "end": 15,
+                      "quote": "合成条目 8：我喜欢夜间散步。",
+                      "reference": {
+                        "evidence_class": "user_statement",
+                        "locator": {
+                          "event_id": "evt_00000008-0000-4000-8000-000000000001",
+                          "kind": "runtime_event"
+                        },
+                        "object_hash": "d16b70d340b667c2bc6542064f41f3936f98db9b697d3fa6c39ca465c3cf11a2",
+                        "source_id": "src_00000008-0000-4000-8000-000000000001",
+                        "source_revision": 1,
+                        "supports": "content"
+                      },
+                      "speaker": "user",
+                      "start": 0
+                    }
+                  ],
+                  "formation": {
+                    "import_batch_id": null,
+                    "mode": "live",
+                    "prompt_version": "synthetic-ui-1"
+                  },
+                  "title": "合成条目 8",
+                  "valid_time": {
+                    "basis": "unknown",
+                    "bound": "within",
+                    "from": null,
+                    "precision": "unknown",
+                    "tz": null,
+                    "until": null
+                  }
+                },
+                "memory": {
+                  "memory_id": "mem_453691c3-6996-4ae1-a057-a413e57fa01e",
+                  "revision": 1
+                },
+                "model_version": null,
+                "producer_version": "synthetic-analysis-1"
+              }
+            },
+            "next_history": null,
+            "profile_hash": "e23dce3de472f5e99f52511a55d98426dcb5624957b2def3325645a065426642",
+            "scope_hash": "a7b98283b37b1d5d7a99f78061d8d767ea5bf1dfd29e54a28f94d4e662a92097",
+            "snapshot": {
+              "base_commit_id": "cmt_a9117c35-0c7a-4013-8d7d-06d1d062e38e",
+              "deletion_watermark": 1,
+              "policy_watermark": 2,
+              "primary_epoch": 1,
+              "vault_id": "vlt_00000001-0000-4000-8000-000000000001"
+            },
+            "source_count_in_scope": 1,
+            "source_read": true,
+            "source_text_complete": true,
+            "sources": [
+              {
+                "attachments": [],
+                "attachments_complete_in_scope": true,
+                "attributed_subject": "sub_00000001-0000-4000-8000-000000000001",
+                "capture_timezone": null,
+                "effective_sensitivity": "public",
+                "projection_scope": "authorized_source_metadata_v1",
+                "record": {
+                  "access_policy_id": "pol_00000002-0000-4000-8000-000000000001",
+                  "account_scope": null,
+                  "agent_submission": null,
+                  "attachment_refs": [],
+                  "author_label": null,
+                  "branch_id": null,
+                  "captured_at": "2026-10-24T12:00:00.000Z",
+                  "completeness": "complete",
+                  "content_hash": "d16b70d340b667c2bc6542064f41f3936f98db9b697d3fa6c39ca465c3cf11a2",
+                  "created_at": "2026-10-24T12:00:00.000Z",
+                  "evidence_class": "user_statement",
+                  "extensions": {},
+                  "import_id": null,
+                  "locator": {
+                    "event_id": "evt_00000008-0000-4000-8000-000000000001",
+                    "kind": "runtime_event"
+                  },
+                  "manual_assertion": null,
+                  "occurred_at": "2026-06-10T10:00:00.000Z",
+                  "original_conversation_id": null,
+                  "original_message_id": null,
+                  "original_time": null,
+                  "original_timezone": null,
+                  "parent_source_ids": [],
+                  "parse_warnings": [],
+                  "parser_version": null,
+                  "provider": null,
+                  "raw_object_hash": null,
+                  "revision": 1,
+                  "schema_version": 1,
+                  "sensitivity": "public",
+                  "source_id": "src_00000008-0000-4000-8000-000000000001",
+                  "source_kind": "runtime_event",
+                  "speaker_role": "user",
+                  "time_precision": "minute"
+                },
+                "record_fields": {
+                  "assistant_model": null,
+                  "content_lang": "zh-Hans",
+                  "conversation_id": null
+                },
+                "text": null
+              }
+            ],
+            "sources_complete": true
+          },
+          "error": null,
+          "kind": "agent_initialized_read_response",
+          "operation": "memory_read",
+          "principal": {
+            "actor_id": "prn_00000058-0000-4000-8000-000000000001",
+            "actor_type": "agent"
+          },
+          "request_id": "req_00000097-0000-4000-8000-000000000001",
+          "schema_version": 2,
+          "scope_hash": "a7b98283b37b1d5d7a99f78061d8d767ea5bf1dfd29e54a28f94d4e662a92097"
+        }
+      }
+    },
+    "read_absent": {
+      "id": 70,
+      "jsonrpc": "2.0",
+      "result": {
+        "content": [
+          {
+            "text": "{\"capability\":\"memory-agent-initialized-read-1\",\"coverage\":{\"capture\":\"runtime_only_future\",\"graph\":\"recorded_lineage_entity_and_theme_suggestions\",\"import_attachments\":\"unavailable\",\"owner_actions\":\"native_proofs_read_only\",\"qualification\":\"owner-qualified-catalog-4\",\"record_fields\":\"ui-records-v2\",\"source_carrier\":\"captured-source-original-1\",\"trace_exclusions\":\"bounded_128_with_exact_reason_counts\",\"unavailable_relations\":[\"same_conversation\",\"semantic_neighbors\"]},\"data\":null,\"error\":null,\"kind\":\"agent_initialized_read_response\",\"operation\":\"memory_read\",\"principal\":{\"actor_id\":\"prn_00000058-0000-4000-8000-000000000001\",\"actor_type\":\"agent\"},\"request_id\":\"req_00000046-0000-4000-8000-000000000001\",\"schema_version\":2,\"scope_hash\":\"a7b98283b37b1d5d7a99f78061d8d767ea5bf1dfd29e54a28f94d4e662a92097\"}",
+            "type": "text"
+          }
+        ],
+        "isError": false,
+        "structuredContent": {
+          "capability": "memory-agent-initialized-read-1",
+          "coverage": {
+            "capture": "runtime_only_future",
+            "graph": "recorded_lineage_entity_and_theme_suggestions",
+            "import_attachments": "unavailable",
+            "owner_actions": "native_proofs_read_only",
+            "qualification": "owner-qualified-catalog-4",
+            "record_fields": "ui-records-v2",
+            "source_carrier": "captured-source-original-1",
+            "trace_exclusions": "bounded_128_with_exact_reason_counts",
+            "unavailable_relations": [
+              "same_conversation",
+              "semantic_neighbors"
+            ]
+          },
+          "data": null,
+          "error": null,
+          "kind": "agent_initialized_read_response",
+          "operation": "memory_read",
+          "principal": {
+            "actor_id": "prn_00000058-0000-4000-8000-000000000001",
+            "actor_type": "agent"
+          },
+          "request_id": "req_00000046-0000-4000-8000-000000000001",
+          "schema_version": 2,
+          "scope_hash": "a7b98283b37b1d5d7a99f78061d8d767ea5bf1dfd29e54a28f94d4e662a92097"
+        }
+      }
+    },
+    "read_error": {
+      "id": 71,
+      "jsonrpc": "2.0",
+      "result": {
+        "content": [
+          {
+            "text": "{\"capability\":\"memory-agent-initialized-read-1\",\"coverage\":{\"capture\":\"runtime_only_future\",\"graph\":\"recorded_lineage_entity_and_theme_suggestions\",\"import_attachments\":\"unavailable\",\"owner_actions\":\"native_proofs_read_only\",\"qualification\":\"owner-qualified-catalog-4\",\"record_fields\":\"ui-records-v2\",\"source_carrier\":\"captured-source-original-1\",\"trace_exclusions\":\"bounded_128_with_exact_reason_counts\",\"unavailable_relations\":[\"same_conversation\",\"semantic_neighbors\"]},\"data\":null,\"error\":{\"code\":\"invalid_request\",\"retryable\":false},\"kind\":\"agent_initialized_read_response\",\"operation\":\"memory_read\",\"principal\":{\"actor_id\":\"prn_00000058-0000-4000-8000-000000000001\",\"actor_type\":\"agent\"},\"request_id\":\"req_00000047-0000-4000-8000-000000000001\",\"schema_version\":2,\"scope_hash\":\"a7b98283b37b1d5d7a99f78061d8d767ea5bf1dfd29e54a28f94d4e662a92097\"}",
+            "type": "text"
+          }
+        ],
+        "isError": true,
+        "structuredContent": {
+          "capability": "memory-agent-initialized-read-1",
+          "coverage": {
+            "capture": "runtime_only_future",
+            "graph": "recorded_lineage_entity_and_theme_suggestions",
+            "import_attachments": "unavailable",
+            "owner_actions": "native_proofs_read_only",
+            "qualification": "owner-qualified-catalog-4",
+            "record_fields": "ui-records-v2",
+            "source_carrier": "captured-source-original-1",
+            "trace_exclusions": "bounded_128_with_exact_reason_counts",
+            "unavailable_relations": [
+              "same_conversation",
+              "semantic_neighbors"
+            ]
+          },
+          "data": null,
+          "error": {
+            "code": "invalid_request",
+            "retryable": false
+          },
+          "kind": "agent_initialized_read_response",
+          "operation": "memory_read",
+          "principal": {
+            "actor_id": "prn_00000058-0000-4000-8000-000000000001",
+            "actor_type": "agent"
+          },
+          "request_id": "req_00000047-0000-4000-8000-000000000001",
+          "schema_version": 2,
+          "scope_hash": "a7b98283b37b1d5d7a99f78061d8d767ea5bf1dfd29e54a28f94d4e662a92097"
+        }
+      }
+    },
+    "recall_error": {
+      "id": 6,
+      "jsonrpc": "2.0",
+      "result": {
+        "content": [
+          {
+            "text": "{\"capability\":\"memory-agent-initialized-read-1\",\"coverage\":{\"capture\":\"runtime_only_future\",\"graph\":\"recorded_lineage_entity_and_theme_suggestions\",\"import_attachments\":\"unavailable\",\"owner_actions\":\"native_proofs_read_only\",\"qualification\":\"owner-qualified-catalog-4\",\"record_fields\":\"ui-records-v2\",\"source_carrier\":\"captured-source-original-1\",\"trace_exclusions\":\"bounded_128_with_exact_reason_counts\",\"unavailable_relations\":[\"same_conversation\",\"semantic_neighbors\"]},\"data\":null,\"error\":{\"code\":\"invalid_request\",\"retryable\":false},\"kind\":\"agent_initialized_read_response\",\"operation\":\"memory_recall\",\"principal\":{\"actor_id\":\"prn_00000058-0000-4000-8000-000000000001\",\"actor_type\":\"agent\"},\"request_id\":\"req_00000084-0000-4000-8000-000000000001\",\"schema_version\":2,\"scope_hash\":\"a7b98283b37b1d5d7a99f78061d8d767ea5bf1dfd29e54a28f94d4e662a92097\"}",
+            "type": "text"
+          }
+        ],
+        "isError": true,
+        "structuredContent": {
+          "capability": "memory-agent-initialized-read-1",
+          "coverage": {
+            "capture": "runtime_only_future",
+            "graph": "recorded_lineage_entity_and_theme_suggestions",
+            "import_attachments": "unavailable",
+            "owner_actions": "native_proofs_read_only",
+            "qualification": "owner-qualified-catalog-4",
+            "record_fields": "ui-records-v2",
+            "source_carrier": "captured-source-original-1",
+            "trace_exclusions": "bounded_128_with_exact_reason_counts",
+            "unavailable_relations": [
+              "same_conversation",
+              "semantic_neighbors"
+            ]
+          },
+          "data": null,
+          "error": {
+            "code": "invalid_request",
+            "retryable": false
+          },
+          "kind": "agent_initialized_read_response",
+          "operation": "memory_recall",
+          "principal": {
+            "actor_id": "prn_00000058-0000-4000-8000-000000000001",
+            "actor_type": "agent"
+          },
+          "request_id": "req_00000084-0000-4000-8000-000000000001",
+          "schema_version": 2,
+          "scope_hash": "a7b98283b37b1d5d7a99f78061d8d767ea5bf1dfd29e54a28f94d4e662a92097"
+        }
+      }
+    }
+  },
+  "cases": [
+    {
+      "name": "recall_present",
+      "base": "recall_present",
+      "tool": "memory_recall",
+      "ops": [],
+      "accept": true
+    },
+    {
+      "name": "read_present",
+      "base": "read_present",
+      "tool": "memory_read",
+      "ops": [],
+      "accept": true
+    },
+    {
+      "name": "read_absent",
+      "base": "read_absent",
+      "tool": "memory_read",
+      "ops": [],
+      "accept": true
+    },
+    {
+      "name": "read_error",
+      "base": "read_error",
+      "tool": "memory_read",
+      "ops": [],
+      "accept": true
+    },
+    {
+      "name": "recall_error",
+      "base": "recall_error",
+      "tool": "memory_recall",
+      "ops": [],
+      "accept": true
+    },
+    {
+      "name": "read_present-missing-link",
+      "base": "read_present",
+      "tool": "memory_read",
+      "ops": [
+        {
+          "op": "remove",
+          "path": "/result/content/1"
+        }
+      ],
+      "accept": false
+    },
+    {
+      "name": "recall_present-missing-link",
+      "base": "recall_present",
+      "tool": "memory_recall",
+      "ops": [
+        {
+          "op": "remove",
+          "path": "/result/content/1"
+        }
+      ],
+      "accept": false
+    },
+    {
+      "name": "read_absent-invented-link",
+      "base": "read_absent",
+      "tool": "memory_read",
+      "ops": [
+        {
+          "op": "append",
+          "path": "/result/content",
+          "value": {
+            "mimeType": "application/json",
+            "name": "memory_detail",
+            "type": "resource_link",
+            "uri": "enouia-memory://memory/mem_453691c3-6996-4ae1-a057-a413e57fa01e"
+          }
+        }
+      ],
+      "accept": false
+    },
+    {
+      "name": "read_error-invented-link",
+      "base": "read_error",
+      "tool": "memory_read",
+      "ops": [
+        {
+          "op": "append",
+          "path": "/result/content",
+          "value": {
+            "mimeType": "application/json",
+            "name": "memory_detail",
+            "type": "resource_link",
+            "uri": "enouia-memory://memory/mem_453691c3-6996-4ae1-a057-a413e57fa01e"
+          }
+        }
+      ],
+      "accept": false
+    },
+    {
+      "name": "recall_error-invented-link",
+      "base": "recall_error",
+      "tool": "memory_recall",
+      "ops": [
+        {
+          "op": "append",
+          "path": "/result/content",
+          "value": {
+            "mimeType": "application/json",
+            "name": "actual_recall",
+            "type": "resource_link",
+            "uri": "enouia-memory://recall/req_00000082-0000-4000-8000-000000000001"
+          }
+        }
+      ],
+      "accept": false
+    },
+    {
+      "name": "external-uri",
+      "base": "read_present",
+      "tool": "memory_read",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/result/content/1/uri",
+          "value": "https://example.invalid/memory"
+        }
+      ],
+      "accept": false
+    },
+    {
+      "name": "filesystem-uri",
+      "base": "read_present",
+      "tool": "memory_read",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/result/content/1/uri",
+          "value": "file:///synthetic/memory.json"
+        }
+      ],
+      "accept": false
+    },
+    {
+      "name": "wrong-resource-kind",
+      "base": "read_present",
+      "tool": "memory_read",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/result/content/1/type",
+          "value": "resource"
+        }
+      ],
+      "accept": false
+    },
+    {
+      "name": "wrong-memory-uri",
+      "base": "read_present",
+      "tool": "memory_read",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/result/content/1/uri",
+          "value": "enouia-memory://recall/req_00000082-0000-4000-8000-000000000001"
+        }
+      ],
+      "accept": false
+    },
+    {
+      "name": "wrong-recall-uri",
+      "base": "recall_present",
+      "tool": "memory_recall",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/result/content/1/uri",
+          "value": "enouia-memory://memory/mem_453691c3-6996-4ae1-a057-a413e57fa01e"
+        }
+      ],
+      "accept": false
+    },
+    {
+      "name": "dynamic-title",
+      "base": "read_present",
+      "tool": "memory_read",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/result/content/1/name",
+          "value": "synthetic item title"
+        }
+      ],
+      "accept": false
+    },
+    {
+      "name": "extra-grant",
+      "base": "read_present",
+      "tool": "memory_read",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/result/authorized",
+          "value": true
+        }
+      ],
+      "accept": false
+    },
+    {
+      "name": "wrong-error-state",
+      "base": "read_present",
+      "tool": "memory_read",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/result/isError",
+          "value": true
+        }
+      ],
+      "accept": false
+    },
+    {
+      "name": "bad-rpc-id",
+      "base": "read_present",
+      "tool": "memory_read",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/id",
+          "value": null
+        }
+      ],
+      "accept": false
+    },
+    {
+      "name": "binary-content",
+      "base": "recall_present",
+      "tool": "memory_recall",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/result/content/0",
+          "value": {
+            "type": "image",
+            "data": "AA==",
+            "mimeType": "image/png"
+          }
+        }
+      ],
+      "accept": false
+    },
+    {
+      "name": "wrong-envelope-kind",
+      "base": "read_present",
+      "tool": "memory_read",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/result/structuredContent/kind",
+          "value": "agent_session_start_response"
+        }
+      ],
+      "accept": false
+    },
+    {
+      "name": "text-copy-is-separate",
+      "base": "read_present",
+      "tool": "memory_read",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/result/content/0/text",
+          "value": "{}"
+        }
+      ],
+      "accept": true,
+      "text_matches": false
+    },
+    {
+      "name": "id-link-is-separate",
+      "base": "read_present",
+      "tool": "memory_read",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/result/content/1/uri",
+          "value": "enouia-memory://memory/mem_00000000-0000-4000-8000-000000000999"
+        }
+      ],
+      "accept": true,
+      "link_matches": false
+    }
+  ]
+}

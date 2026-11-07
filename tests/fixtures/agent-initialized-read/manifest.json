@@ -367,6 +367,479 @@
           "max_bytes": 262144
         }
       }
+    },
+    {
+      "name": "object enum/operation/memory_search",
+      "tool": "memory_search",
+      "value": {
+        "schema_version": 2,
+        "kind": "agent_initialized_read_request",
+        "capability": "memory-agent-initialized-read-1",
+        "request_id": "req_00000001-0000-4000-8000-000000000001",
+        "operation": {
+          "memory_search": null
+        },
+        "arguments": {
+          "filter": {
+            "text": "",
+            "form": null,
+            "state": null,
+            "knowledge": null,
+            "adoption": null,
+            "validity": null,
+            "attention": null,
+            "entity": null,
+            "project": null,
+            "theme": null,
+            "time_axis": null,
+            "time_window": null,
+            "include_unknown_time": false
+          },
+          "cursor": null,
+          "limit": 100,
+          "max_bytes": 262144,
+          "include_facets": true
+        }
+      }
+    },
+    {
+      "name": "object enum/operation/memory_read",
+      "tool": "memory_read",
+      "value": {
+        "schema_version": 2,
+        "kind": "agent_initialized_read_request",
+        "capability": "memory-agent-initialized-read-1",
+        "request_id": "req_00000001-0000-4000-8000-000000000001",
+        "operation": {
+          "memory_read": null
+        },
+        "arguments": {
+          "memory_id": "mem_00000001-0000-4000-8000-000000000001",
+          "expected": null,
+          "include_source_text": false,
+          "max_bytes": 262144,
+          "history_cursor": null
+        }
+      }
+    },
+    {
+      "name": "object enum/operation/memory_source",
+      "tool": "memory_source",
+      "value": {
+        "schema_version": 2,
+        "kind": "agent_initialized_read_request",
+        "capability": "memory-agent-initialized-read-1",
+        "request_id": "req_00000001-0000-4000-8000-000000000001",
+        "operation": {
+          "memory_source": null
+        },
+        "arguments": {
+          "source_id": "src_00000001-0000-4000-8000-000000000001",
+          "revision": null,
+          "from_byte": 0,
+          "to_byte": null,
+          "max_bytes": 8192
+        }
+      }
+    },
+    {
+      "name": "object enum/operation/memory_related",
+      "tool": "memory_related",
+      "value": {
+        "schema_version": 2,
+        "kind": "agent_initialized_read_request",
+        "capability": "memory-agent-initialized-read-1",
+        "request_id": "req_00000001-0000-4000-8000-000000000001",
+        "operation": {
+          "memory_related": null
+        },
+        "arguments": {
+          "memory_id": "mem_00000001-0000-4000-8000-000000000001",
+          "expected": null,
+          "max_bytes": 262144
+        }
+      }
+    },
+    {
+      "name": "object enum/operation/memory_recall",
+      "tool": "memory_recall",
+      "value": {
+        "schema_version": 2,
+        "kind": "agent_initialized_read_request",
+        "capability": "memory-agent-initialized-read-1",
+        "request_id": "req_00000001-0000-4000-8000-000000000001",
+        "operation": {
+          "memory_recall": null
+        },
+        "arguments": {
+          "text": "synthetic",
+          "conditions": [],
+          "event_window": null,
+          "at": "2026-10-24T00:00:00.000Z",
+          "intent": "current",
+          "limit": 8,
+          "max_bytes": 4096
+        }
+      }
+    },
+    {
+      "name": "object enum/intent/current",
+      "tool": "memory_recall",
+      "value": {
+        "schema_version": 2,
+        "kind": "agent_initialized_read_request",
+        "capability": "memory-agent-initialized-read-1",
+        "request_id": "req_00000001-0000-4000-8000-000000000001",
+        "operation": "memory_recall",
+        "arguments": {
+          "text": "synthetic",
+          "conditions": [],
+          "event_window": null,
+          "at": "2026-10-24T00:00:00.000Z",
+          "intent": {
+            "current": null
+          },
+          "limit": 8,
+          "max_bytes": 4096
+        }
+      }
+    },
+    {
+      "name": "object enum/intent/historical",
+      "tool": "memory_recall",
+      "value": {
+        "schema_version": 2,
+        "kind": "agent_initialized_read_request",
+        "capability": "memory-agent-initialized-read-1",
+        "request_id": "req_00000001-0000-4000-8000-000000000001",
+        "operation": "memory_recall",
+        "arguments": {
+          "text": "synthetic",
+          "conditions": [],
+          "event_window": null,
+          "at": "2026-10-24T00:00:00.000Z",
+          "intent": {
+            "historical": null
+          },
+          "limit": 8,
+          "max_bytes": 4096
+        }
+      }
+    },
+    {
+      "name": "object enum/intent/browse",
+      "tool": "memory_recall",
+      "value": {
+        "schema_version": 2,
+        "kind": "agent_initialized_read_request",
+        "capability": "memory-agent-initialized-read-1",
+        "request_id": "req_00000001-0000-4000-8000-000000000001",
+        "operation": "memory_recall",
+        "arguments": {
+          "text": "synthetic",
+          "conditions": [],
+          "event_window": null,
+          "at": "2026-10-24T00:00:00.000Z",
+          "intent": {
+            "browse": null
+          },
+          "limit": 8,
+          "max_bytes": 4096
+        }
+      }
+    },
+    {
+      "name": "object filter/form",
+      "tool": "memory_search",
+      "value": {
+        "schema_version": 2,
+        "kind": "agent_initialized_read_request",
+        "capability": "memory-agent-initialized-read-1",
+        "request_id": "req_00000001-0000-4000-8000-000000000001",
+        "operation": "memory_search",
+        "arguments": {
+          "filter": {
+            "text": "",
+            "form": {
+              "preference": null
+            },
+            "state": null,
+            "knowledge": null,
+            "adoption": null,
+            "validity": null,
+            "attention": null,
+            "entity": null,
+            "project": null,
+            "theme": null,
+            "time_axis": null,
+            "time_window": null,
+            "include_unknown_time": false
+          },
+          "cursor": null,
+          "limit": 100,
+          "max_bytes": 262144,
+          "include_facets": true
+        }
+      }
+    },
+    {
+      "name": "object filter/state",
+      "tool": "memory_search",
+      "value": {
+        "schema_version": 2,
+        "kind": "agent_initialized_read_request",
+        "capability": "memory-agent-initialized-read-1",
+        "request_id": "req_00000001-0000-4000-8000-000000000001",
+        "operation": "memory_search",
+        "arguments": {
+          "filter": {
+            "text": "",
+            "form": null,
+            "state": {
+              "planned": null
+            },
+            "knowledge": null,
+            "adoption": null,
+            "validity": null,
+            "attention": null,
+            "entity": null,
+            "project": null,
+            "theme": null,
+            "time_axis": null,
+            "time_window": null,
+            "include_unknown_time": false
+          },
+          "cursor": null,
+          "limit": 100,
+          "max_bytes": 262144,
+          "include_facets": true
+        }
+      }
+    },
+    {
+      "name": "object filter/knowledge",
+      "tool": "memory_search",
+      "value": {
+        "schema_version": 2,
+        "kind": "agent_initialized_read_request",
+        "capability": "memory-agent-initialized-read-1",
+        "request_id": "req_00000001-0000-4000-8000-000000000001",
+        "operation": "memory_search",
+        "arguments": {
+          "filter": {
+            "text": "",
+            "form": null,
+            "state": null,
+            "knowledge": {
+              "attributed_statement": null
+            },
+            "adoption": null,
+            "validity": null,
+            "attention": null,
+            "entity": null,
+            "project": null,
+            "theme": null,
+            "time_axis": null,
+            "time_window": null,
+            "include_unknown_time": false
+          },
+          "cursor": null,
+          "limit": 100,
+          "max_bytes": 262144,
+          "include_facets": true
+        }
+      }
+    },
+    {
+      "name": "object filter/adoption",
+      "tool": "memory_search",
+      "value": {
+        "schema_version": 2,
+        "kind": "agent_initialized_read_request",
+        "capability": "memory-agent-initialized-read-1",
+        "request_id": "req_00000001-0000-4000-8000-000000000001",
+        "operation": "memory_search",
+        "arguments": {
+          "filter": {
+            "text": "",
+            "form": null,
+            "state": null,
+            "knowledge": null,
+            "adoption": {
+              "adopted": null
+            },
+            "validity": null,
+            "attention": null,
+            "entity": null,
+            "project": null,
+            "theme": null,
+            "time_axis": null,
+            "time_window": null,
+            "include_unknown_time": false
+          },
+          "cursor": null,
+          "limit": 100,
+          "max_bytes": 262144,
+          "include_facets": true
+        }
+      }
+    },
+    {
+      "name": "object filter/validity",
+      "tool": "memory_search",
+      "value": {
+        "schema_version": 2,
+        "kind": "agent_initialized_read_request",
+        "capability": "memory-agent-initialized-read-1",
+        "request_id": "req_00000001-0000-4000-8000-000000000001",
+        "operation": "memory_search",
+        "arguments": {
+          "filter": {
+            "text": "",
+            "form": null,
+            "state": null,
+            "knowledge": null,
+            "adoption": null,
+            "validity": {
+              "unspecified": null
+            },
+            "attention": null,
+            "entity": null,
+            "project": null,
+            "theme": null,
+            "time_axis": null,
+            "time_window": null,
+            "include_unknown_time": false
+          },
+          "cursor": null,
+          "limit": 100,
+          "max_bytes": 262144,
+          "include_facets": true
+        }
+      }
+    },
+    {
+      "name": "object filter/attention",
+      "tool": "memory_search",
+      "value": {
+        "schema_version": 2,
+        "kind": "agent_initialized_read_request",
+        "capability": "memory-agent-initialized-read-1",
+        "request_id": "req_00000001-0000-4000-8000-000000000001",
+        "operation": "memory_search",
+        "arguments": {
+          "filter": {
+            "text": "",
+            "form": null,
+            "state": null,
+            "knowledge": null,
+            "adoption": null,
+            "validity": null,
+            "attention": {
+              "active": null
+            },
+            "entity": null,
+            "project": null,
+            "theme": null,
+            "time_axis": null,
+            "time_window": null,
+            "include_unknown_time": false
+          },
+          "cursor": null,
+          "limit": 100,
+          "max_bytes": 262144,
+          "include_facets": true
+        }
+      }
+    },
+    {
+      "name": "object filter/time_axis",
+      "tool": "memory_search",
+      "value": {
+        "schema_version": 2,
+        "kind": "agent_initialized_read_request",
+        "capability": "memory-agent-initialized-read-1",
+        "request_id": "req_00000001-0000-4000-8000-000000000001",
+        "operation": "memory_search",
+        "arguments": {
+          "filter": {
+            "text": "",
+            "form": null,
+            "state": null,
+            "knowledge": null,
+            "adoption": null,
+            "validity": null,
+            "attention": null,
+            "entity": null,
+            "project": null,
+            "theme": null,
+            "time_axis": {
+              "learned": null
+            },
+            "time_window": {
+              "from": "2026-10-24T00:00:00.000Z",
+              "until": "2026-10-25T00:00:00.000Z"
+            },
+            "include_unknown_time": false
+          },
+          "cursor": null,
+          "limit": 100,
+          "max_bytes": 262144,
+          "include_facets": true
+        }
+      }
+    },
+    {
+      "name": "object cursor/selection/algorithm",
+      "tool": "memory_search",
+      "value": {
+        "schema_version": 2,
+        "kind": "agent_initialized_read_request",
+        "capability": "memory-agent-initialized-read-1",
+        "request_id": "req_00000001-0000-4000-8000-000000000001",
+        "operation": "memory_search",
+        "arguments": {
+          "filter": {
+            "text": "",
+            "form": null,
+            "state": null,
+            "knowledge": null,
+            "adoption": null,
+            "validity": null,
+            "attention": null,
+            "entity": null,
+            "project": null,
+            "theme": null,
+            "time_axis": null,
+            "time_window": null,
+            "include_unknown_time": false
+          },
+          "cursor": {
+            "selection": {
+              "snapshot": {
+                "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+                "base_commit_id": "cmt_00000001-0000-4000-8000-000000000001",
+                "primary_epoch": 1,
+                "policy_watermark": 1,
+                "deletion_watermark": 1
+              },
+              "scope_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "query_hash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+              "evaluated_at": "2026-10-24T00:00:00.000Z",
+              "algorithm": {
+                "owner-qualified-catalog-4": null
+              },
+              "version": 4,
+              "profile_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+              "withdrawal_watermark": 1
+            },
+            "after": "mem_00000001-0000-4000-8000-000000000001"
+          },
+          "limit": 100,
+          "max_bytes": 262144,
+          "include_facets": true
+        }
+      }
     }
   ]
 }

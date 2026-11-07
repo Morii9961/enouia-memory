@@ -272,6 +272,15 @@ fn real_note_pipe_saves_replays_and_keeps_five_reads_with_the_explicit_write_too
                 .len(),
             6
         );
+        assert!(
+            !tools["response"]["result"]["tools"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|tool| tool["name"] == "session_start")
+        );
+        let unsupported=agent.rpc(json!({"jsonrpc":"2.0","id":"unsupported-session-start","method":"tools/call","params":{"name":"session_start","arguments":{"schema_version":2,"kind":"agent_session_start_request","capability":"memory-agent-session-start-1","request":{"request_id":id("req",176),"at":enouia_memory_contract::time::Timestamp::from_unix_ms(NOW).unwrap()}}}}));
+        assert_eq!(unsupported["response"]["error"]["message"], "unknown_tool");
         let message = note_call(&request);
         let saved = agent.rpc(message.clone())["response"]["result"]["structuredContent"].clone();
         assert_eq!(saved["receipt"]["state"], "hint_saved");

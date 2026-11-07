@@ -676,6 +676,18 @@ Original user quotes remain the only evidence; no correction alias or Owner queu
 request-only storage and pipe-9 return forget_request_saved, with no hiding,
 deletion, Owner action, model dispatch or mandatory review queue.
 
+### ADR-MEM-126 — Scoped MCP opening prompt and resources
+
+[Decision](126-mcp-opening-resources.md): explicit read-only pipe-10 supplies
+memory_start and logical-ID memory/actual-recall resources on the same current
+initialized Agent reader. No capture, model call, Owner action or old-profile change.
+
+### ADR-MEM-127 — Read-only Agent session_start tool
+
+[Decision](127-agent-session-start-tool.md): the context profile adds an optional
+Agent-invocable bounded opening recipe on the same qualified reader. It returns
+actual recall context, never creates/captures a Session or calls a model.
+
 ### ADR-MEM-110 — Native empty Owner bootstrap
 
 [Decision](110-native-empty-owner-bootstrap.md): an explicit trusted native local

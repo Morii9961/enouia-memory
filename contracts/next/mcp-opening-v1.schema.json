@@ -1,0 +1,262 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.enouia-memory.invalid/next/mcp-opening-v1.schema.json",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/startup_request"
+    },
+    {
+      "$ref": "#/$defs/resource_request"
+    },
+    {
+      "$ref": "#/$defs/resource_response"
+    }
+  ],
+  "$defs": {
+    "guide": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "const": 2
+        },
+        "capability": {
+          "const": "memory-agent-context-1"
+        },
+        "read_capability": {
+          "const": "memory-agent-initialized-read-1"
+        },
+        "capture": {
+          "const": "runtime_only"
+        },
+        "source_text": {
+          "const": "requires_independent_source_read"
+        },
+        "opening_prompt": {
+          "const": "memory_start"
+        },
+        "memory_meaning": {
+          "const": "attributed_statements_not_independent_verification"
+        },
+        "prompt_role": {
+          "const": "not_runtime_user_evidence_or_owner_consent"
+        },
+        "writes": {
+          "const": "unavailable"
+        },
+        "uncertainty": {
+          "const": "retain_original_no_automatic_retry_or_reconnect"
+        },
+        "opening_tool": {
+          "const": "session_start"
+        }
+      },
+      "required": [
+        "schema_version",
+        "capability",
+        "read_capability",
+        "capture",
+        "source_text",
+        "opening_prompt",
+        "memory_meaning",
+        "prompt_role",
+        "writes",
+        "uncertainty",
+        "opening_tool"
+      ]
+    },
+    "startup_request": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "const": "memory_start"
+        },
+        "arguments": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "request_id": {
+              "$ref": "../memory/common-v1.schema.json#/$defs/requestId"
+            },
+            "at": {
+              "$ref": "../memory/common-v1.schema.json#/$defs/timestamp"
+            },
+            "topic": {
+              "type": "string",
+              "maxLength": 2048,
+              "$comment": "Native boundary also bounds UTF-8 bytes to 2048."
+            }
+          },
+          "required": [
+            "request_id",
+            "at"
+          ]
+        },
+        "_meta": {
+          "type": "object"
+        }
+      },
+      "required": [
+        "name",
+        "arguments"
+      ]
+    },
+    "startup_response": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "schema_version": {
+              "const": 2
+            },
+            "kind": {
+              "const": "agent_context_resource"
+            },
+            "capability": {
+              "const": "memory-agent-context-1"
+            },
+            "uri": {
+              "type": "string",
+              "pattern": "^enouia-memory://recall/req_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+            },
+            "resource_type": {
+              "const": "recall"
+            },
+            "data": {
+              "$ref": "agent-initialized-read-v2.schema.json#/$defs/recall_data"
+            }
+          },
+          "required": [
+            "schema_version",
+            "kind",
+            "capability",
+            "uri",
+            "resource_type",
+            "data"
+          ]
+        }
+      ]
+    },
+    "resource_request": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "uri": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "_meta": {
+          "type": "object"
+        }
+      },
+      "required": [
+        "uri"
+      ]
+    },
+    "resource_response": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "schema_version": {
+              "const": 2
+            },
+            "kind": {
+              "const": "agent_context_resource"
+            },
+            "capability": {
+              "const": "memory-agent-context-1"
+            },
+            "uri": {
+              "const": "enouia-memory://guide"
+            },
+            "resource_type": {
+              "const": "guide"
+            },
+            "data": {
+              "$ref": "#/$defs/guide"
+            }
+          },
+          "required": [
+            "schema_version",
+            "kind",
+            "capability",
+            "uri",
+            "resource_type",
+            "data"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "schema_version": {
+              "const": 2
+            },
+            "kind": {
+              "const": "agent_context_resource"
+            },
+            "capability": {
+              "const": "memory-agent-context-1"
+            },
+            "uri": {
+              "type": "string",
+              "pattern": "^enouia-memory://memory/mem_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+            },
+            "resource_type": {
+              "const": "memory"
+            },
+            "data": {
+              "$ref": "agent-initialized-read-v2.schema.json#/$defs/read_data"
+            }
+          },
+          "required": [
+            "schema_version",
+            "kind",
+            "capability",
+            "uri",
+            "resource_type",
+            "data"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "schema_version": {
+              "const": 2
+            },
+            "kind": {
+              "const": "agent_context_resource"
+            },
+            "capability": {
+              "const": "memory-agent-context-1"
+            },
+            "uri": {
+              "type": "string",
+              "pattern": "^enouia-memory://recall/req_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+            },
+            "resource_type": {
+              "const": "recall"
+            },
+            "data": {
+              "$ref": "agent-initialized-read-v2.schema.json#/$defs/recall_data"
+            }
+          },
+          "required": [
+            "schema_version",
+            "kind",
+            "capability",
+            "uri",
+            "resource_type",
+            "data"
+          ]
+        }
+      ]
+    }
+  }
+}

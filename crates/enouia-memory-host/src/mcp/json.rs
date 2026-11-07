@@ -1,7 +1,85 @@
-//! Reject duplicate decoded keys before any protocol or tool dispatch.
+//! MCP boundary parsing: unique keys and the frozen enum representations.
 use serde::de::{self, Deserialize, Deserializer, MapAccess, SeqAccess, Visitor};
 use serde_json::{Map, Number, Value};
 use std::fmt;
+
+/// The MCP enum contracts use strings, never serde's object-tag alternative.
+pub(super) fn string_enum<'de, D, T>(deserializer: D) -> Result<T, D::Error>
+where
+    D: Deserializer<'de>,
+    T: Deserialize<'de>,
+{
+    T::deserialize(de::value::StringDeserializer::<D::Error>::new(
+        String::deserialize(deserializer)?,
+    ))
+}
+
+/// Parse a search filter after its enum fields pass the string/null check.
+fn string_enum_fields<'de, D: Deserializer<'de>, T: serde::de::DeserializeOwned>(
+    deserializer: D,
+    fields: &[&str],
+) -> Result<T, D::Error> {
+    let value = Value::deserialize(deserializer)?;
+    if fields.iter().any(|field| {
+        value
+            .get(field)
+            .is_some_and(|v| !v.is_null() && !v.is_string())
+    }) {
+        return Err(de::Error::custom("filter enum requires string or null"));
+    }
+    T::deserialize(value).map_err(de::Error::custom)
+}
+
+pub(super) fn catalog_filter<'de, D: Deserializer<'de>>(
+    deserializer: D,
+) -> Result<enouia_memory_contract::next::CatalogFilter, D::Error> {
+    string_enum_fields(
+        deserializer,
+        &[
+            "form",
+            "state",
+            "knowledge",
+            "adoption",
+            "validity",
+            "attention",
+            "time_axis",
+        ],
+    )
+}
+
+pub(super) fn agent_search_filter<'de, D: Deserializer<'de>>(
+    deserializer: D,
+) -> Result<crate::automation::agent_read::AgentSearchFilter, D::Error> {
+    string_enum_fields(
+        deserializer,
+        &[
+            "form",
+            "adoption",
+            "state",
+            "time_axis",
+            "precision",
+            "knowledge",
+            "validity",
+            "attention",
+        ],
+    )
+}
+
+/// Required, nullable search cursor whose selection algorithm is a string.
+pub(super) fn catalog_cursor<'de, D: Deserializer<'de>>(
+    deserializer: D,
+) -> Result<Option<enouia_memory_contract::next::CatalogCursor>, D::Error> {
+    let value = Value::deserialize(deserializer)?;
+    if value["selection"]
+        .get("algorithm")
+        .is_some_and(|v| !v.is_string())
+    {
+        return Err(de::Error::custom(
+            "catalog cursor algorithm requires string",
+        ));
+    }
+    Option::deserialize(value).map_err(de::Error::custom)
+}
 
 struct Unique(Value);
 impl<'de> Deserialize<'de> for Unique {

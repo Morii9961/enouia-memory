@@ -7,5 +7,8 @@
   {"name":"claimed source pool","ops":[{"op":"set","path":"/source_ids","value":[]}],"accept":false},
   {"name":"major","ops":[{"op":"set","path":"/request/schema_version","value":1}],"accept":false},
   {"name":"Agent read capability","ops":[{"op":"set","path":"/request/capability","value":"memory-agent-catalog-read-1"}],"accept":false},
-  {"name":"missing mode","ops":[{"op":"remove","path":"/mode"}],"accept":false}
+  {"name":"missing mode","ops":[{"op":"remove","path":"/mode"}],"accept":false},
+  {"name":"object-mode","ops":[{"op":"set","path":"/mode","value":{"write":null}}],"accept":false},
+  {"name":"object-kind","ops":[{"op":"set","path":"/request/kind","value":{"runtime_capture_request":null}}],"accept":false},
+  {"name":"object-speaker","ops":[{"op":"set","path":"/request/turns/0/speaker","value":{"user":null}}],"accept":false}
 ]}

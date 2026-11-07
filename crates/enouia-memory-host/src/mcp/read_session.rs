@@ -16,14 +16,23 @@ pub(super) struct ReadSession {
     ids: BTreeSet<String>,
     server_name: &'static str,
     max_requests: usize,
+    capabilities: Value,
 }
 impl ReadSession {
     pub(super) fn new(server_name: &'static str, max_requests: usize) -> Self {
+        Self::with_capabilities(server_name, max_requests, json!({"tools":{}}))
+    }
+    pub(super) fn with_capabilities(
+        server_name: &'static str,
+        max_requests: usize,
+        capabilities: Value,
+    ) -> Self {
         Self {
             phase: Phase::New,
             ids: BTreeSet::new(),
             server_name,
             max_requests,
+            capabilities,
         }
     }
     pub(super) fn closed(&self) -> bool {
@@ -42,10 +51,12 @@ impl ReadSession {
         }
         let method = message["method"].as_str().expect("checked");
         let params = message.get("params").cloned().unwrap_or_else(|| json!({}));
+        let metadata_valid = params.get("_meta").is_none_or(Value::is_object);
         let Some(id) = message.get("id") else {
             if method == "notifications/initialized"
                 && self.phase == Phase::Initializing
                 && closed(&params, &["_meta"])
+                && metadata_valid
             {
                 self.phase = Phase::Ready;
             }
@@ -69,6 +80,9 @@ impl ReadSession {
         if !self.ids.insert(id.to_string()) {
             return Route::Response(Some(error(id, -32600, "duplicate_request_id")));
         }
+        if !metadata_valid {
+            return Route::Response(Some(error(id, -32602, "invalid_metadata")));
+        }
         if method == "ping" && closed(&params, &["_meta"]) {
             return Route::Response(Some(reply(id, json!({}))));
         }
@@ -89,7 +103,7 @@ impl ReadSession {
             self.phase = Phase::Initializing;
             return Route::Response(Some(reply(
                 id,
-                json!({"protocolVersion":PROTOCOL_VERSION,"capabilities":{"tools":{}},"serverInfo":{"name":self.server_name,"version":env!("CARGO_PKG_VERSION")}}),
+                json!({"protocolVersion":PROTOCOL_VERSION,"capabilities":self.capabilities,"serverInfo":{"name":self.server_name,"version":env!("CARGO_PKG_VERSION")}}),
             )));
         }
         if self.phase != Phase::Ready {

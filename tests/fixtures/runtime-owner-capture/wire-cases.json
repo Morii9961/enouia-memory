@@ -15,7 +15,7 @@
           "branch_id": "main",
           "sequence": 1,
           "speaker": "user",
-          "text": "Synthetic exact raw turn.\n\uff21 B",
+          "text": "Synthetic exact raw turn.\nＡ B",
           "original_time": null,
           "original_timezone": null,
           "occurred_at": null,
@@ -69,6 +69,45 @@
           "op": "set",
           "path": "/principal",
           "value": "owner"
+        }
+      ],
+      "accept": false
+    },
+    {
+      "name": "object-mode",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/mode",
+          "value": {
+            "write": null
+          }
+        }
+      ],
+      "accept": false
+    },
+    {
+      "name": "object-kind",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/request/kind",
+          "value": {
+            "runtime_capture_request": null
+          }
+        }
+      ],
+      "accept": false
+    },
+    {
+      "name": "object-speaker",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/request/turns/0/speaker",
+          "value": {
+            "user": null
+          }
         }
       ],
       "accept": false

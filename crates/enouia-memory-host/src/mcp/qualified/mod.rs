@@ -43,6 +43,7 @@ struct Packet {
     kind: String,
     capability: String,
     request_id: RequestId,
+    #[serde(deserialize_with = "super::json::string_enum")]
     operation: Operation,
     arguments: Value,
 }
@@ -50,8 +51,9 @@ struct Packet {
 #[serde(deny_unknown_fields)]
 struct SearchArgs {
     include_facets: bool,
+    #[serde(deserialize_with = "super::json::catalog_filter")]
     filter: CatalogFilter,
-    #[serde(deserialize_with = "nullable")]
+    #[serde(deserialize_with = "super::json::catalog_cursor")]
     cursor: Option<CatalogCursor>,
     limit: usize,
     max_bytes: usize,
@@ -101,6 +103,7 @@ struct RecallArgs {
     #[serde(deserialize_with = "nullable")]
     event_window: Option<FormationTime>,
     at: Timestamp,
+    #[serde(deserialize_with = "super::json::string_enum")]
     intent: Intent,
     limit: usize,
     max_bytes: usize,

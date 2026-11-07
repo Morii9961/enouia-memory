@@ -8,6 +8,7 @@ pub(crate) mod json;
 #[cfg(windows)]
 pub mod native;
 pub mod notes;
+pub mod opening;
 pub mod qualified;
 pub mod quote_locator;
 mod read;

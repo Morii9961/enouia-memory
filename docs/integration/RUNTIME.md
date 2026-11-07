@@ -1,5 +1,154 @@
 # Runtime integration (ADR-MEM-45)
 
+2026-11-07 capture wire enum representation: pipe-1 and pipe-2 Runtime capture
+servers refuse object-tagged mode, request.kind or turns[].speaker as invalid
+frames before decoding. Runtime's typed client already sends strings, so no
+Runtime change is required. Schemas, replies and hello metadata are unchanged.
+Aggregate: `15a5385770b1077984078280062c85e8b0a5da622632a18c3aa8253572cb0728`.
+See [Owner wire validation](../validation/MCP-3-owner-runtime-wire.md).
+
+2026-11-07 MCP-2 filter representation correction: the v2 read adapter
+(legacy and record roots) refuses object-tagged search filter enums before
+native dispatch, sharing the catalog filter's string/null check. Valid filters,
+record-root gating, outputs, schemas and hello metadata are unchanged.
+Aggregate: `43f0d1e986c4da7a5b652702fb9f8f4cfee8d72e5036b7101caa342a5107b491`.
+See [read-control validation](../validation/MCP-5-read-control-strings.md).
+
+2026-11-07 search cursor representation correction: the same three MCP search
+adapters (initialized/context, catalog, qualified) refuse an object-tagged
+cursor selection.algorithm before native search dispatch, then pass the
+unchanged typed CatalogCursor inward. Null and actually issued cursors page as
+before. No Core type, schema, hello metadata, output or Runtime adoption change.
+Aggregate: `807719f48e232d5b758296562ada3c010deac4635a84856695d88905b1233f1e`.
+See [read-control validation](../validation/MCP-5-read-control-strings.md).
+
+2026-11-06 catalog filter representation correction: initialized/context,
+catalog and qualified MCP search adapters use one boundary parser to require
+the existing nullable-string representation for seven filter enums. Object
+tags had normalized into native enum values contrary to catalog-v2. Parsing
+then returns the unchanged typed CatalogFilter; Core types/semantics, valid
+filters/null/defaults, scopes, outputs, schema and hello metadata are unchanged.
+No new filter, v2-only field, cursor change or Runtime/configuration adoption.
+Aggregate: `ecc8332a5025d9b87b776d2bdb2e85400efdd49e5fe8bb3032509c9a2452a455`.
+See [read-control validation](../validation/MCP-5-read-control-strings.md).
+
+2026-11-06 shared MCP metadata correction: ReadSession checks the optional
+params._meta container once before method dispatch. Non-objects return
+-32602/invalid_metadata after normal ID/session accounting; malformed initialized
+notifications do not advance readiness. Opaque valid objects remain unchanged
+and grant no authority. Existing protocol/capability/schema/hello metadata and
+valid profile behavior are unchanged; the independent legacy MCP entry is not
+modified. Native uncertainty gates still precede this check and preserve the
+complete first Value, including a null _meta, without result or reconnection.
+No Runtime/configuration or real-model/private-root adoption. Aggregate:
+`4cb740a0f0daab6363df2c07734a796b2c7e0e1a26b85979c45a0fb14ec8d11a`.
+See [metadata validation](../validation/MCP-5-metadata-boundary.md).
+
+2026-11-06 MCP-5 read tool links: only pipe-10 appends a standard resource_link
+to successful non-null memory_read and memory_recall results. Structured native
+data/text stay unchanged; missing/known-error results and other tools have no
+link. URIs derive from the returned authorized memory ID / request ID, with
+static metadata. Memory links fetch current scoped detail using the existing
+resource recipe (no original source text or page pin); recall links fetch the
+same reader's actual current cache. No extra selection, fetch or grant occurs.
+linked_result_schema(tool) exports two complete result schemas, including
+null/error branches without links. Both enter pipe-10's exact fingerprint;
+match endpoints without fallback. Pipe-5/6 and report profiles stay unchanged.
+No Runtime/config or real data/model adoption. Aggregate:
+`20fcbe005023e0070acd996c5e72436809d806858ec815287d02e1f1793687f6`.
+See [contract](../contracts/MCP_OPENING_RESOURCES_V1.md) and
+[evidence](../validation/MCP-5-read-tool-links.md).
+
+2026-11-05 adjacent read-control correction: catalog and qualified MCP adapters
+now use the same string-only operation/intent boundary as initialized/v2. Each
+had eight schema-invalid object tags admitted; targeted counterexamples are
+saved. Only input representation is narrowed to the existing contract. Valid
+reads, independent scopes, profile meanings, output schemas and exact hello
+metadata remain unchanged. No Runtime/configuration or real adoption.
+Aggregate: `2c856f8deb96d9dd8bafc68ee4a8f97bd6e66f2e28808aa11cb56af768a38520`.
+See [read-control validation](../validation/MCP-5-read-control-strings.md).
+
+2026-11-05 read-control contract correction: initialized/context and schema-2
+MCP read adapters now deserialize operation and recall intent from strings only,
+then keep the existing typed enum flow. Externally tagged objects had been
+accepted contrary to the frozen schemas. This closes malformed-input admission
+before native dispatch/cache changes; valid five-tool behavior, independent
+authority, profiles, response schemas and compatibility metadata are unchanged.
+No Runtime pin/configuration or real adoption is supplied. Aggregate:
+`0a969a802b2d919f209cb976662b2e9f3112d689fbd1ad5aaad9d5417f2a0c76`.
+See [read-control validation](../validation/MCP-5-read-control-strings.md).
+
+2026-11-05 MCP-5 input-contract correction: session_start.kind is parsed as
+a string and checked against its existing constant. A unit enum previously
+also accepted the object {agent_session_start_request:null}, contrary to the
+frozen schema. The targeted counterexample failed before this correction and
+is now refused before recall/cache changes. This narrows implementation to the
+existing contract; capabilities, schema and exact hello hash remain unchanged.
+Matching corrected binaries should be adopted together; no configuration,
+permissions or Runtime pin is activated here. Aggregate:
+`e4b5c470c69dbe36a9f85d0d9588d036a1222a720f8aab94e816ac56cb94c4c3`.
+See [evidence](../validation/MCP-5-session-start.md).
+
+2026-11-05 MCP-5 / ADR127 resource-link follow-up: session_start successes add
+one standard resource_link after the existing text copy. It points only to the
+same reader's actual recall URI, with static name/mime metadata. The link grants
+no authority and resources/read still enforces current native scope/snapshot /
+cache validity. Structured output and old tools remain unchanged. New
+session_result_schema() / mcp-session-start-wire-v1 binds the closed complete
+success envelope into pipe-10's exact fingerprint. Match endpoint revisions;
+no fallback, subscription, external URL/path or automatic fetch/retry is added.
+No Runtime/configuration or real data/model adoption. Aggregate:
+`ef4679f92dc027f24d64378fa43b80d3756aec354f81ef3fa1f1e8df8d512320`.
+See [contract](../contracts/AGENT_SESSION_START_MCP_V1.md) and
+[evidence](../validation/MCP-5-session-start.md).
+
+2026-11-05 MCP-5 / ADR-MEM-127: pipe-10 additionally advertises the read-only
+session_start tool with memory-agent-session-start-1 input/output schemas and
+hello sessionCapability. It prepares the same bounded native recall as
+memory_start, returns its exact actual-context resource, and creates no durable
+Session, capture, checkpoint, write grant, job or Owner action. MemoryRead is
+independently required; SourceRead remains optional. The guide names
+opening_tool=session_start. Exact fingerprint now binds this descriptor and
+both schemas; matching endpoints are required without fallback. Pipe-5/6 and
+report profiles keep their prior meanings. No Runtime pin/config, real model,
+private root or product adoption is supplied. Aggregate:
+`05a92cd3e3cc0889f84e68fcec016617f75ced5f50b227b8982d895a0cde2fde`.
+See [session tool contract](../contracts/AGENT_SESSION_START_MCP_V1.md) and
+[synthetic validation](../validation/MCP-5-session-start.md).
+
+2026-11-05 MCP-5 response contracts: response_schema(method) now exports the
+complete JSON-RPC success envelope for each of the five new context methods.
+The existing schema(startup, output) still describes arguments/parsed memory
+content. New mcp-opening-wire-v1 covers the exact advertised catalog/text subset;
+it does not authenticate roles/URIs or validate JSON embedded in a string.
+All five success schemas enter the pipe-10 exact compatibility hash. Matching
+endpoint revisions are required; no automatic fallback or reconnect. Existing
+method behavior, native authority, errors and pipe-5/report profiles are unchanged.
+Actual synthetic pipe replies and their separately parsed payloads are checked
+by Rust and independent Python validators. No Runtime pin/config or real
+model/data adoption is supplied. Aggregate:
+`fadc0afc1991275de9972277e7ab98d16a0c4a789c31c9a424e82e773dd5222d`.
+See [wire validation](../validation/MCP-5-wire-contracts.md).
+
+2026-11-04 MCP-5 synthetic / ADR-MEM-126: opt-in pipe-10 and explicit
+automation-context-v1 attach add memory_start and standard resources/prompts to
+the same initialized QualifiedAgentReader. Existing five tools keep their
+input/output envelopes; no new write or capture authority exists. Static catalogs
+list no memory identities/counts. Memory resources use native current detail
+without source text; recall resources return only that reader's actual last
+current trace, never a recomputation. MCP prompt role=user supplies attributed
+data, never captured UserStatement or Owner consent. Native policy/expiry/lock
+checks apply to every context call. A dedicated context poll keeps pipe-5's
+existing policy-refusal behavior; all read polls now stop when this native Vault
+requires recovery after unknown publication. The new profile retains the first
+full MCP Value for OutcomeUnknown/RecoveryRequired and disconnects without Reply;
+no automatic reconnect or retry. Every exit revokes the reader. Runtime/client
+adoption, real models/egress and root/config selection remain separate decisions.
+No Runtime edit/pin, real data/model or automatic client configuration is supplied.
+Aggregate: `345d086989f4d5326fb40c4ea88a4490365eb5fc278d9ab99f3e4894cf900a28`.
+See [context contract](../contracts/MCP_OPENING_RESOURCES_V1.md) and
+[synthetic validation](../validation/MCP-5-opening-resources.md).
+
 2026-11-04 MCP-4 follow-up: correction/supersede/forget MCP servers now also
 retain the first complete incoming MCP Value when their native writer's live
 gate already reports OutcomeUnknown. They still return no tool result and keep

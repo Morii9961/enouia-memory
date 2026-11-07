@@ -42,12 +42,14 @@ struct Packet {
     kind: String,
     capability: String,
     request_id: RequestId,
+    #[serde(deserialize_with = "super::json::string_enum")]
     operation: Operation,
     arguments: Value,
 }
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct SearchArgs {
+    #[serde(deserialize_with = "super::json::agent_search_filter")]
     filter: AgentSearchFilter,
     #[serde(deserialize_with = "nullable")]
     cursor: Option<MemoryReadCursor>,
@@ -97,6 +99,7 @@ struct RecallArgs {
     #[serde(deserialize_with = "nullable")]
     event_window: Option<FormationTime>,
     at: Timestamp,
+    #[serde(deserialize_with = "super::json::string_enum")]
     intent: Intent,
     limit: usize,
     max_bytes: usize,
