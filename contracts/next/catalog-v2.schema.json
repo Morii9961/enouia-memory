@@ -345,6 +345,38 @@
                   "$ref": "agent-correction-v1.schema.json#/$defs/record"
                 }
               }
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "change",
+                "report"
+              ],
+              "properties": {
+                "change": {
+                  "const": "agent_supersede"
+                },
+                "report": {
+                  "$ref": "agent-supersede-v1.schema.json#/$defs/record"
+                }
+              }
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "change",
+                "request"
+              ],
+              "properties": {
+                "change": {
+                  "const": "agent_forget_request"
+                },
+                "request": {
+                  "$ref": "agent-forget-v1.schema.json#/$defs/record"
+                }
+              }
             }
           ]
         },

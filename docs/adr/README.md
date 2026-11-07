@@ -657,6 +657,25 @@ each saved report once through a separate CorrectionAnalyzer port and turns an
 accepted user quote into an ordinary target-bound `correction` revision decided
 by the existing evaluator. No Owner queue; a moved target is refused.
 
+### ADR-MEM-123 — Explicit Agent correction MCP and local transport
+
+[Decision](123-agent-correction-mcp-transport.md): pair independent native read
+and correction delegations on one leased Vault/Agent, expose only report_saved
+through a distinct pipe-7 profile, and disconnect on unknown publication while
+retaining the complete original MCP Value. Pipe-5/6 are unchanged.
+
+### ADR-MEM-124 — Independent Agent supersede reports
+
+[Decision](124-agent-supersede-reports.md): independent permit, saved report,
+System update analyzer and pipe-8 for previously true facts that changed.
+Original user quotes remain the only evidence; no correction alias or Owner queue.
+
+### ADR-MEM-125 — Record Agent forget requests without forgetting
+
+[Decision](125-agent-forget-request-recording.md): independently authorized
+request-only storage and pipe-9 return forget_request_saved, with no hiding,
+deletion, Owner action, model dispatch or mandatory review queue.
+
 ### ADR-MEM-110 — Native empty Owner bootstrap
 
 [Decision](110-native-empty-owner-bootstrap.md): an explicit trusted native local

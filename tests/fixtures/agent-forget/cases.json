@@ -1,0 +1,302 @@
+{
+  "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+  "record": {
+    "request_key": "09b3d2bcdb5bc0773e88894eb38bc67908ef65db4423baaf6e4c18cb0aa0ca4f",
+    "request_id": "req_0000000c-0000-4000-8000-000000000001",
+    "request_hash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "principal": {
+      "actor_type": "agent",
+      "actor_id": "prn_00000058-0000-4000-8000-000000000001"
+    },
+    "scope_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "target": {
+      "memory": {
+        "memory_id": "mem_00000001-0000-4000-8000-000000000001",
+        "revision": 2
+      },
+      "hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+    },
+    "policy": {
+      "policy_id": "pol_00000001-0000-4000-8000-000000000001",
+      "revision": 1,
+      "hash": "4806d596418345a9401fc4022417b5ca416a1b9b6dae09d924609d16317ea6d4"
+    },
+    "evidence": {
+      "reference": {
+        "source_id": "src_00000001-0000-4000-8000-000000000001",
+        "locator": {
+          "event_id": "evt_00000015-0000-4000-8000-000000000015",
+          "kind": "runtime_event"
+        },
+        "evidence_class": "user_statement",
+        "source_revision": 1,
+        "object_hash": "452c51c0e5d693cc71a4434687ce9f7984b288c9b5f70cfa79440ae0fbd98f4f",
+        "supports": "content"
+      },
+      "quote": "Synthetic subject says: I prefer quiet workspaces.",
+      "speaker": "user",
+      "start": 0,
+      "end": 50
+    },
+    "forget": "Untrusted Agent request to forget this target; recording has no effect."
+  },
+  "receipt": {
+    "request_key": "09b3d2bcdb5bc0773e88894eb38bc67908ef65db4423baaf6e4c18cb0aa0ca4f",
+    "request_id": "req_0000000c-0000-4000-8000-000000000001",
+    "request_hash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "target": {
+      "memory": {
+        "memory_id": "mem_00000001-0000-4000-8000-000000000001",
+        "revision": 2
+      },
+      "hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+    },
+    "committed_in": "cmt_00000004-0000-4000-8000-000000000001",
+    "state": "forget_request_saved"
+  },
+  "record_cases": [
+    {
+      "name": "valid",
+      "ops": [],
+      "schema": true,
+      "native": true
+    },
+    {
+      "name": "Owner principal",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/principal/actor_type",
+          "value": "owner"
+        }
+      ],
+      "schema": false,
+      "native": false
+    },
+    {
+      "name": "unknown field",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/corrected",
+          "value": true
+        }
+      ],
+      "schema": false,
+      "native": false
+    },
+    {
+      "name": "empty forget",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/forget",
+          "value": ""
+        }
+      ],
+      "schema": false,
+      "native": false
+    },
+    {
+      "name": "oversized forget",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/forget",
+          "value": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+        }
+      ],
+      "schema": false,
+      "native": false
+    },
+    {
+      "name": "whitespace forget",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/forget",
+          "value": " "
+        }
+      ],
+      "schema": true,
+      "native": false
+    },
+    {
+      "name": "wrong deterministic key",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/request_key",
+          "value": "0000000000000000000000000000000000000000000000000000000000000000"
+        }
+      ],
+      "schema": true,
+      "native": false
+    },
+    {
+      "name": "note key is not a report key",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/request_key",
+          "value": "9f247fee6b447520a7e845ce4ed69874153e7313e272254396f896f670ecb308"
+        }
+      ],
+      "schema": true,
+      "native": false
+    },
+    {
+      "name": "wrong source support",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/evidence/reference/supports",
+          "value": "other"
+        }
+      ],
+      "schema": false,
+      "native": false
+    },
+    {
+      "name": "invalid scalar span",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/evidence/start",
+          "value": 50
+        }
+      ],
+      "schema": true,
+      "native": false
+    },
+    {
+      "name": "assistant speaker",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/evidence/speaker",
+          "value": "assistant"
+        }
+      ],
+      "schema": false,
+      "native": false
+    },
+    {
+      "name": "fabricated confirmation",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/evidence/reference/evidence_class",
+          "value": "user_confirmation"
+        }
+      ],
+      "schema": false,
+      "native": false
+    },
+    {
+      "name": "missing target",
+      "ops": [
+        {
+          "op": "remove",
+          "path": "/target"
+        }
+      ],
+      "schema": false,
+      "native": false
+    },
+    {
+      "name": "target revision zero",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/target/memory/revision",
+          "value": 0
+        }
+      ],
+      "schema": false,
+      "native": false
+    }
+  ],
+  "receipt_cases": [
+    {
+      "name": "valid",
+      "ops": [],
+      "schema": true,
+      "native": true
+    },
+    {
+      "name": "must not claim forget",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/state",
+          "value": "corrected"
+        }
+      ],
+      "schema": false,
+      "native": false
+    },
+    {
+      "name": "must not claim queued",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/state",
+          "value": "queued"
+        }
+      ],
+      "schema": false,
+      "native": false
+    },
+    {
+      "name": "must not expose memory result",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/result",
+          "value": {
+            "memory_id": "mem_00000001-0000-4000-8000-000000000001",
+            "revision": 3
+          }
+        }
+      ],
+      "schema": false,
+      "native": false
+    },
+    {
+      "name": "must not expose sequence",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/sequence",
+          "value": 1
+        }
+      ],
+      "schema": false,
+      "native": false
+    },
+    {
+      "name": "invalid commit",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/committed_in",
+          "value": "unknown"
+        }
+      ],
+      "schema": false,
+      "native": false
+    },
+    {
+      "name": "missing target",
+      "ops": [
+        {
+          "op": "remove",
+          "path": "/target"
+        }
+      ],
+      "schema": false,
+      "native": false
+    }
+  ]
+}

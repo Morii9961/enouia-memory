@@ -45,7 +45,9 @@ impl PublishedChange {
             // Queue state is not a record change; authorized views stay valid.
             SegmentedDelta::Enqueue { .. }
             | SegmentedDelta::AgentNote { .. }
-            | SegmentedDelta::AgentCorrection { .. } => false,
+            | SegmentedDelta::AgentCorrection { .. }
+            | SegmentedDelta::AgentSupersede { .. }
+            | SegmentedDelta::AgentForgetRequest { .. } => false,
             _ => true,
         };
         Self {

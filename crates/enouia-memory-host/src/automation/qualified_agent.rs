@@ -12,8 +12,9 @@ use enouia_memory_contract::{
 use enouia_memory_vault::automation::{
     AutomationFault,
     segmented::{
-        AgentCorrectionDraft, AgentCorrectionPermit, AgentCorrectionRequest, AgentNoteDraft,
-        AgentNotePermit, AgentNoteRequest, AuthorizedSegmentedAgentRead,
+        AgentCorrectionDraft, AgentCorrectionPermit, AgentCorrectionRequest, AgentForgetPermit,
+        AgentForgetRequest, AgentNoteDraft, AgentNotePermit, AgentNoteRequest, AgentSupersedeDraft,
+        AgentSupersedePermit, AgentSupersedeRequest, AuthorizedSegmentedAgentRead,
         INITIALIZED_AGENT_READ_CAPABILITY, QUALIFIED_AGENT_READ_CAPABILITY, SegmentedAgentPermit,
         SegmentedAgentScope, SegmentedAutomationVault, SegmentedMemory,
     },
@@ -55,6 +56,34 @@ pub struct AgentCorrectionReporter<'a> {
     unknown: Mutex<Option<AgentCorrectionRequest>>,
 }
 impl AgentCorrectionReporter<'_> {
+    pub(crate) fn shares_vault(&self, reader: &QualifiedAgentReader<'_>) -> bool {
+        Arc::ptr_eq(&self.host.vault, &reader.host.vault)
+    }
+    pub fn principal(&self) -> &ActorRef {
+        self.permit.principal()
+    }
+    pub fn check_connection(&self) -> ApplicationResult<()> {
+        if self
+            .unknown
+            .lock()
+            .map_err(|_| ApplicationFault::Locked)?
+            .is_some()
+        {
+            return Err(AutomationFault::OutcomeUnknown.into());
+        }
+        let gate = self
+            .host
+            .generation
+            .read()
+            .map_err(|_| ApplicationFault::Locked)?;
+        if gate.is_none() || !self.generation.load(Ordering::SeqCst) {
+            return Err(ApplicationFault::Locked);
+        }
+        self.host
+            .vault
+            .check_agent_correction_live(&self.permit)
+            .map_err(Into::into)
+    }
     pub fn revoke(&self) {
         self.permit.revoke();
     }
@@ -104,6 +133,168 @@ impl AgentCorrectionReporter<'_> {
         result.map_err(Into::into)
     }
     pub fn original_unknown(&self) -> ApplicationResult<Option<AgentCorrectionRequest>> {
+        Ok(self
+            .unknown
+            .lock()
+            .map_err(|_| ApplicationFault::Locked)?
+            .clone())
+    }
+}
+pub struct AgentSupersedeReporter<'a> {
+    host: &'a QualifiedAgentHost,
+    permit: AgentSupersedePermit,
+    generation: Arc<AtomicBool>,
+    unknown: Mutex<Option<AgentSupersedeRequest>>,
+}
+impl AgentSupersedeReporter<'_> {
+    pub(crate) fn shares_vault(&self, reader: &QualifiedAgentReader<'_>) -> bool {
+        Arc::ptr_eq(&self.host.vault, &reader.host.vault)
+    }
+    pub fn principal(&self) -> &ActorRef {
+        self.permit.principal()
+    }
+    pub fn check_connection(&self) -> ApplicationResult<()> {
+        if self
+            .unknown
+            .lock()
+            .map_err(|_| ApplicationFault::Locked)?
+            .is_some()
+        {
+            return Err(AutomationFault::OutcomeUnknown.into());
+        }
+        let gate = self
+            .host
+            .generation
+            .read()
+            .map_err(|_| ApplicationFault::Locked)?;
+        if gate.is_none() || !self.generation.load(Ordering::SeqCst) {
+            return Err(ApplicationFault::Locked);
+        }
+        self.host
+            .vault
+            .check_agent_supersede_live(&self.permit)
+            .map_err(Into::into)
+    }
+    pub fn revoke(&self) {
+        self.permit.revoke();
+    }
+    pub fn prepare(
+        &self,
+        request: &AgentSupersedeRequest,
+    ) -> ApplicationResult<AgentSupersedeDraft> {
+        let gate = self
+            .host
+            .generation
+            .read()
+            .map_err(|_| ApplicationFault::Locked)?;
+        if gate.is_none() || !self.generation.load(Ordering::SeqCst) {
+            return Err(ApplicationFault::Locked);
+        }
+        Ok(self
+            .host
+            .vault
+            .prepare_agent_supersede(&self.permit, request, locate_agent_quote)?)
+    }
+    /// `supersede_report_saved` only; never a corrected memory or Owner confirmation.
+    pub fn submit(
+        &self,
+        request: &AgentSupersedeRequest,
+    ) -> ApplicationResult<AgentSupersedeReceipt> {
+        // Same packet/lifecycle lock order as note submission.
+        let mut unknown = self.unknown.lock().map_err(|_| ApplicationFault::Locked)?;
+        if unknown.is_some() {
+            return Err(AutomationFault::OutcomeUnknown.into());
+        }
+        let gate = self
+            .host
+            .generation
+            .read()
+            .map_err(|_| ApplicationFault::Locked)?;
+        if gate.is_none() || !self.generation.load(Ordering::SeqCst) {
+            return Err(ApplicationFault::Locked);
+        }
+        let result =
+            self.host
+                .vault
+                .submit_agent_supersede(&self.permit, request, locate_agent_quote);
+        if matches!(result, Err(AutomationFault::OutcomeUnknown)) {
+            *unknown = Some(request.clone());
+            self.permit.revoke();
+        }
+        result.map_err(Into::into)
+    }
+    pub fn original_unknown(&self) -> ApplicationResult<Option<AgentSupersedeRequest>> {
+        Ok(self
+            .unknown
+            .lock()
+            .map_err(|_| ApplicationFault::Locked)?
+            .clone())
+    }
+}
+pub struct AgentForgetRequester<'a> {
+    host: &'a QualifiedAgentHost,
+    permit: AgentForgetPermit,
+    generation: Arc<AtomicBool>,
+    unknown: Mutex<Option<AgentForgetRequest>>,
+}
+impl AgentForgetRequester<'_> {
+    pub(crate) fn shares_vault(&self, reader: &QualifiedAgentReader<'_>) -> bool {
+        Arc::ptr_eq(&self.host.vault, &reader.host.vault)
+    }
+    pub fn principal(&self) -> &ActorRef {
+        self.permit.principal()
+    }
+    pub fn check_connection(&self) -> ApplicationResult<()> {
+        if self
+            .unknown
+            .lock()
+            .map_err(|_| ApplicationFault::Locked)?
+            .is_some()
+        {
+            return Err(AutomationFault::OutcomeUnknown.into());
+        }
+        let gate = self
+            .host
+            .generation
+            .read()
+            .map_err(|_| ApplicationFault::Locked)?;
+        if gate.is_none() || !self.generation.load(Ordering::SeqCst) {
+            return Err(ApplicationFault::Locked);
+        }
+        self.host
+            .vault
+            .check_agent_forget_live(&self.permit)
+            .map_err(Into::into)
+    }
+    pub fn revoke(&self) {
+        self.permit.revoke();
+    }
+    /// `forget_request_saved` only; never a corrected memory or Owner confirmation.
+    pub fn submit(&self, request: &AgentForgetRequest) -> ApplicationResult<AgentForgetReceipt> {
+        // Same packet/lifecycle lock order as note submission.
+        let mut unknown = self.unknown.lock().map_err(|_| ApplicationFault::Locked)?;
+        if unknown.is_some() {
+            return Err(AutomationFault::OutcomeUnknown.into());
+        }
+        let gate = self
+            .host
+            .generation
+            .read()
+            .map_err(|_| ApplicationFault::Locked)?;
+        if gate.is_none() || !self.generation.load(Ordering::SeqCst) {
+            return Err(ApplicationFault::Locked);
+        }
+        let result = self
+            .host
+            .vault
+            .submit_agent_forget(&self.permit, request, locate_agent_quote);
+        if matches!(result, Err(AutomationFault::OutcomeUnknown)) {
+            *unknown = Some(request.clone());
+            self.permit.revoke();
+        }
+        result.map_err(Into::into)
+    }
+    pub fn original_unknown(&self) -> ApplicationResult<Option<AgentForgetRequest>> {
         Ok(self
             .unknown
             .lock()
@@ -261,6 +452,52 @@ impl QualifiedAgentHost {
             .vault
             .authorize_agent_correction(owner, principal, scope)?;
         Ok(AgentCorrectionReporter {
+            host: self,
+            permit,
+            generation,
+            unknown: Mutex::new(None),
+        })
+    }
+    pub fn supersede_reporter(
+        &self,
+        owner: &ActorRef,
+        principal: ActorRef,
+        scope: SegmentedAgentScope,
+    ) -> ApplicationResult<AgentSupersedeReporter<'_>> {
+        if owner != &self.owner || self.capability != INITIALIZED_CAPABILITY {
+            return Err(AutomationFault::Denied.into());
+        }
+        let gate = self
+            .generation
+            .read()
+            .map_err(|_| ApplicationFault::Locked)?;
+        let generation = gate.as_ref().ok_or(ApplicationFault::Locked)?.clone();
+        let permit = self
+            .vault
+            .authorize_agent_supersede(owner, principal, scope)?;
+        Ok(AgentSupersedeReporter {
+            host: self,
+            permit,
+            generation,
+            unknown: Mutex::new(None),
+        })
+    }
+    pub fn forget_requester(
+        &self,
+        owner: &ActorRef,
+        principal: ActorRef,
+        scope: SegmentedAgentScope,
+    ) -> ApplicationResult<AgentForgetRequester<'_>> {
+        if owner != &self.owner || self.capability != INITIALIZED_CAPABILITY {
+            return Err(AutomationFault::Denied.into());
+        }
+        let gate = self
+            .generation
+            .read()
+            .map_err(|_| ApplicationFault::Locked)?;
+        let generation = gate.as_ref().ok_or(ApplicationFault::Locked)?.clone();
+        let permit = self.vault.authorize_agent_forget(owner, principal, scope)?;
+        Ok(AgentForgetRequester {
             host: self,
             permit,
             generation,

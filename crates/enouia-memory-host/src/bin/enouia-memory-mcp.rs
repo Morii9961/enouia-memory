@@ -86,6 +86,42 @@ fn run() -> Result<(), ()> {
         let peer = ProcessPeer::enroll(pid, HostSurface::QuickSearch).map_err(|_| ())?;
         let pipe = Pipe::connect(&pipe).map_err(|_| ())?;
         return match options["--protocol"].to_str().ok_or(())? {
+            "automation-corrections-v1" => {
+                let mut client = enouia_memory_host::mcp::corrections::native::Client::connect(
+                    pipe,
+                    peer,
+                    &vault,
+                    Duration::from_secs(10),
+                )
+                .map_err(|_| ())?;
+                client
+                    .serve_stdio(&mut std::io::stdin().lock(), &mut std::io::stdout().lock())
+                    .map_err(|_| ())
+            }
+            "automation-supersedes-v1" => {
+                let mut client = enouia_memory_host::mcp::supersedes::native::Client::connect(
+                    pipe,
+                    peer,
+                    &vault,
+                    Duration::from_secs(10),
+                )
+                .map_err(|_| ())?;
+                client
+                    .serve_stdio(&mut std::io::stdin().lock(), &mut std::io::stdout().lock())
+                    .map_err(|_| ())
+            }
+            "automation-forget-requests-v1" => {
+                let mut client = enouia_memory_host::mcp::forget_requests::native::Client::connect(
+                    pipe,
+                    peer,
+                    &vault,
+                    Duration::from_secs(10),
+                )
+                .map_err(|_| ())?;
+                client
+                    .serve_stdio(&mut std::io::stdin().lock(), &mut std::io::stdout().lock())
+                    .map_err(|_| ())
+            }
             "automation-notes-v1" => {
                 let mut client = enouia_memory_host::mcp::notes::native::Client::connect(
                     pipe,

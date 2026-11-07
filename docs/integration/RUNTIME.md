@@ -1,5 +1,56 @@
 # Runtime integration (ADR-MEM-45)
 
+2026-11-04 MCP-4 follow-up: correction/supersede/forget MCP servers now also
+retain the first complete incoming MCP Value when their native writer's live
+gate already reports OutcomeUnknown. They still return no tool result and keep
+the session closed; subsequent calls cannot replace the original. No capability,
+schema, transport or grant meaning changes. Actual pipes retain their existing
+disconnect/revocation behavior. Aggregate:
+`f7ea9ce2b4351deb743e4772474590fc1d736e768b62494b6ba25cb5385a94fb`.
+See [retention regression](../validation/MCP-4-live-gate-retention.md).
+
+2026-11-04: ADR-MEM-125 adds independent AgentForgetPermit/Requester, the closed
+agent_forget_request delta and explicit MCP pipe-9/automation-forget-requests-v1.
+It records a request against the exact authorized target and Runtime user quote;
+success means forget_request_saved only. No hide/delete/Owner action, recall
+suppression, model dispatch or worker change is supplied. Forget-hide rules still
+need Morii's decision. Pair a reader with the independent requester on the same
+Agent/exact leased Vault. Unknown publication disconnects without Reply, revokes
+both grants and retains the full original MCP Value; explicit original-key
+recovery only. Older binaries must not open roots with the new delta; read
+fingerprints binding catalog-v2 change and require matching revisions. Existing
+pipe-5/6/7/8 meanings remain unchanged. Runtime/client adoption is separate;
+no actual pin, model, private root or MCP configuration is activated.
+Aggregate: `222a23794af63f4a1abd84abcb1ca8038ef47dd746b48220427a3e58028237d1`.
+See [forget-request contract](../contracts/AGENT_FORGET_REQUEST_V1.md).
+
+2026-11-04: ADR-MEM-124 adds independent AgentSupersedeReporter/Permit,
+agent_supersede chain delta, SupersedeAnalyzer, step_supersedes and opt-in
+start_worker_with_reports. Only a user-quote-backed update may reach the existing
+evaluator; corrections are a separate port. The same journal v1 gains optional
+supersede_key, preserving old identities. Capture/correction/supersede dispatch
+never overlaps. Existing worker entry points retain their consumers.
+Explicit MCP pipe-8/automation-supersedes-v1 pairs a reader and independent
+supersede reporter; success is supersede_report_saved only. Pipe-5/6/7 meanings
+remain unchanged. New closed deltas exclude older binaries; catalog fingerprint
+changes require matching read/client revisions. Runtime must separately adopt
+the new report profile/worker port and select a real adapter/egress policy.
+No Runtime edit/pin, real client/model or private root is activated.
+Aggregate: `ec66818e22d355d386976534d0a1d3286a251bf8f5cc8340da1617deb16728db`.
+See [supersede contract](../contracts/AGENT_SUPERSEDE_V1.md).
+
+2026-11-04: ADR-MEM-123 adds opt-in correction MCP/pipe-7 and explicit launcher
+attach mode automation-corrections-v1. Pair an initialized reader with a separate
+AgentCorrectionReporter for the same authenticated Agent and exact leased Vault.
+The new reporter live check and Vault poll cover native lifecycle and policy;
+submission retains target/source authority and original-key receipt semantics.
+Success is only report_saved. On unknown publication disconnect before Reply,
+revoke both delegations and retain the full parsed MCP Value, including in stdio.
+Pipe-5/6 and captured worker interfaces are unchanged. Runtime may separately
+adopt this explicit profile; no pin, real MCP configuration or model is activated.
+Aggregate: `1f3c9f79adbf180b494e0f5fa4a4c7af13cb86ad422b79706f26a21d741336c8`.
+See [correction pipe contract](../contracts/AGENT_CORRECTION_PIPE_V1.md).
+
 2026-11-03: ADR-MEM-122 adds native CorrectionAnalyzer, CorrectionTarget,
 CapturedFormation::step_corrections and opt-in
 RuntimeCaptureHost::start_worker_with_corrections. start_worker and

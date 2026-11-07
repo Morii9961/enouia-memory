@@ -83,6 +83,16 @@ pub trait CorrectionAnalyzer {
         stop: &CaptureStopToken,
     ) -> std::result::Result<Box<dyn PendingCaptureAnalysis>, CaptureAnalysis>;
 }
+pub trait SupersedeAnalyzer {
+    /// Bounded nonblocking handoff only, as for captured analysis.
+    fn start(
+        &mut self,
+        report: &AgentSupersedeRecord,
+        target: &CorrectionTarget,
+        source: &CapturedSource,
+        stop: &CaptureStopToken,
+    ) -> std::result::Result<Box<dyn PendingCaptureAnalysis>, CaptureAnalysis>;
+}
 #[derive(Default)]
 struct StopState {
     cancelled: AtomicBool,
@@ -113,7 +123,7 @@ struct PendingAnalysis {
     stop: CaptureStopToken,
     started: Instant,
 }
-struct PendingCorrection {
+struct PendingReport {
     job_key: Sha256Hex,
     source: CapturedSource,
     policy: AutomationPolicy,
@@ -126,6 +136,19 @@ enum CorrectionInput {
     Ready(
         Box<(
             AgentCorrectionRecord,
+            CapturedSource,
+            AutomationPolicy,
+            CorrectionTarget,
+        )>,
+    ),
+    /// Deleted target/source or an inactive/non-covering policy: no analysis.
+    Closed,
+}
+
+enum SupersedeInput {
+    Ready(
+        Box<(
+            AgentSupersedeRecord,
             CapturedSource,
             AutomationPolicy,
             CorrectionTarget,
@@ -175,6 +198,8 @@ struct Job {
     note_keys: Vec<Sha256Hex>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     report_key: Option<Sha256Hex>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    supersede_key: Option<Sha256Hex>,
     state: FormationJobState,
     work: Vec<Work>,
     receipts: Vec<MemoryReceipt>,
@@ -508,6 +533,81 @@ impl SegmentedAutomationVault {
             ))),
         )))
     }
+    /// The first saved report, in key order, without a journal entry.
+    fn next_supersede(
+        &self,
+        system: &ActorRef,
+        known: impl Fn(&Sha256Hex) -> bool,
+    ) -> Result<Option<(Sha256Hex, Sha256Hex, SupersedeInput)>> {
+        self.native.system(system)?;
+        let _writer = lock::acquire(&self.native.root, Duration::ZERO)?;
+        let state = self
+            .state
+            .lock()
+            .map_err(|_| AutomationFault::Unavailable)?;
+        self.current(&state)?;
+        let now = self.native.now()?;
+        let Some((job_key, report)) = state
+            .agent_supersedes
+            .iter()
+            .map(|(key, (report, _))| (digest(&("agent-supersede-job-1", key)), report))
+            .find(|(job_key, _)| !known(job_key))
+        else {
+            return Ok(None);
+        };
+        let reference = enouia_memory_contract::common::SourceRevisionRef {
+            source_id: report.evidence.reference.source_id.clone(),
+            source_revision: report.evidence.reference.source_revision,
+        };
+        let memory = &report.target.memory.memory_id;
+        let current = state
+            .memories
+            .get(memory)
+            .and_then(|v| v.last())
+            .filter(|_| !state.deleted_memories.contains(memory));
+        let source = state
+            .source(&reference)
+            .filter(|_| !state.deleted_sources.contains(&reference.source_id));
+        let policy = state.policies.get(&report.policy.policy_id).filter(|p| {
+            p.active
+                && now >= p.valid_from
+                && now < p.valid_until
+                && state.source_in_policy(&reference, p, p.max_sensitivity)
+        });
+        let input = current.map(|m| &m.memory.decision.input);
+        let (Some(current), Some(source), Some(policy), Some(fields), Some(dimensions)) = (
+            current,
+            source,
+            policy,
+            input.and_then(|i| i.record_fields.as_ref()),
+            input.and_then(|i| i.dimensions.as_ref()),
+        ) else {
+            return Ok(Some((
+                job_key,
+                report.report_key.clone(),
+                SupersedeInput::Closed,
+            )));
+        };
+        let input = &current.memory.decision.input;
+        let target = CorrectionTarget {
+            target: current.target.clone(),
+            content: input.content.clone(),
+            title: fields.title.clone(),
+            interpretation: input.interpretation,
+            dimensions: dimensions.clone(),
+            sensitivity: input.sensitivity,
+        };
+        Ok(Some((
+            job_key,
+            report.report_key.clone(),
+            SupersedeInput::Ready(Box::new((
+                report.clone(),
+                source.clone(),
+                policy.clone(),
+                target,
+            ))),
+        )))
+    }
 }
 
 /// A moved head or a policy gap says nothing about the analysis: re-evaluate.
@@ -538,7 +638,8 @@ pub struct CapturedFormation {
     _lease: File,
     poisoned: bool,
     pending: Option<PendingAnalysis>,
-    pending_correction: Option<PendingCorrection>,
+    pending_correction: Option<PendingReport>,
+    pending_supersede: Option<PendingReport>,
     analysis_timeout: Duration,
     stop: CaptureStopToken,
 }
@@ -549,6 +650,9 @@ impl Drop for CapturedFormation {
             pending.stop.cancel();
         }
         if let Some(pending) = &self.pending_correction {
+            pending.stop.cancel();
+        }
+        if let Some(pending) = &self.pending_supersede {
             pending.stop.cancel();
         }
     }
@@ -593,6 +697,7 @@ impl CapturedFormation {
             poisoned: false,
             pending: None,
             pending_correction: None,
+            pending_supersede: None,
             analysis_timeout: timeout,
             stop: CaptureStopToken::default(),
         };
@@ -635,7 +740,9 @@ impl CapturedFormation {
         self.step_with_stop(analyzer, &self.stop.clone())
     }
     pub fn has_pending(&self) -> bool {
-        self.pending.is_some() || self.pending_correction.is_some()
+        self.pending.is_some()
+            || self.pending_correction.is_some()
+            || self.pending_supersede.is_some()
     }
     pub fn step_with_stop(
         &mut self,
@@ -735,7 +842,11 @@ impl CapturedFormation {
         match next {
             None => Ok(false),
             // Dispatches never overlap; finish_analysis owns the last entry.
-            Some((_, None)) if self.pending_correction.is_some() => Ok(false),
+            Some((_, None))
+                if self.pending_correction.is_some() || self.pending_supersede.is_some() =>
+            {
+                Ok(false)
+            }
             Some((job, None)) => self.dispatch(&job, analyzer, stop),
             Some((_, Some(index))) => self.form(index),
         }
@@ -755,6 +866,7 @@ impl CapturedFormation {
             job_key: job.job_key.clone(),
             note_keys: notes.iter().map(|note| note.note_key.clone()).collect(),
             report_key: None,
+            supersede_key: None,
             state: FormationJobState::Dispatched,
             work: vec![],
             receipts: vec![],
@@ -1004,7 +1116,8 @@ impl CapturedFormation {
                 return Ok(false);
             };
             pending.stop.cancel();
-            return self.finish_correction(
+            return self.finish_report(
+                FormationChange::Correction,
                 &pending.job_key,
                 &pending.source,
                 &pending.policy,
@@ -1012,7 +1125,7 @@ impl CapturedFormation {
                 result,
             );
         }
-        if stop.is_cancelled() || self.pending.is_some() {
+        if stop.is_cancelled() || self.pending.is_some() || self.pending_supersede.is_some() {
             return Ok(false);
         }
         if let Some(index) = self
@@ -1039,6 +1152,7 @@ impl CapturedFormation {
             job_key: job_key.clone(),
             note_keys: vec![],
             report_key: Some(report_key),
+            supersede_key: None,
             state: if ready.is_some() {
                 FormationJobState::Dispatched
             } else {
@@ -1054,7 +1168,8 @@ impl CapturedFormation {
         };
         let (report, source, policy, target) = *ready;
         if stop.is_cancelled() {
-            return self.finish_correction(
+            return self.finish_report(
+                FormationChange::Correction,
                 &job_key,
                 &source,
                 &policy,
@@ -1070,7 +1185,8 @@ impl CapturedFormation {
         .unwrap_or(Err(CaptureAnalysis::Unknown));
         if stop.is_cancelled() || started.elapsed() >= self.analysis_timeout {
             pending_stop.cancel();
-            return self.finish_correction(
+            return self.finish_report(
+                FormationChange::Correction,
                 &job_key,
                 &source,
                 &policy,
@@ -1080,7 +1196,7 @@ impl CapturedFormation {
         }
         match analysis {
             Ok(pending) => {
-                self.pending_correction = Some(PendingCorrection {
+                self.pending_correction = Some(PendingReport {
                     job_key,
                     source,
                     policy,
@@ -1091,11 +1207,147 @@ impl CapturedFormation {
                 });
                 Ok(true)
             }
-            Err(analysis) => self.finish_correction(&job_key, &source, &policy, &target, analysis),
+            Err(analysis) => self.finish_report(
+                FormationChange::Correction,
+                &job_key,
+                &source,
+                &policy,
+                &target,
+                analysis,
+            ),
         }
     }
-    fn finish_correction(
+    pub fn step_supersedes(
         &mut self,
+        analyzer: &mut impl SupersedeAnalyzer,
+        stop: &CaptureStopToken,
+    ) -> Result<bool> {
+        if self.poisoned {
+            return Err(AutomationFault::OutcomeUnknown);
+        }
+        if let Some(mut pending) = self.pending_supersede.take() {
+            let result = if stop.is_cancelled() || pending.stop.is_cancelled() {
+                Some(CaptureAnalysis::Unknown)
+            } else {
+                catch_unwind(AssertUnwindSafe(|| pending.pending.poll(&pending.stop)))
+                    .unwrap_or(Some(CaptureAnalysis::Unknown))
+            };
+            let result = if stop.is_cancelled()
+                || pending.stop.is_cancelled()
+                || pending.started.elapsed() >= self.analysis_timeout
+            {
+                Some(CaptureAnalysis::Unknown)
+            } else {
+                result
+            };
+            let Some(result) = result else {
+                self.pending_supersede = Some(pending);
+                return Ok(false);
+            };
+            pending.stop.cancel();
+            return self.finish_report(
+                FormationChange::Update,
+                &pending.job_key,
+                &pending.source,
+                &pending.policy,
+                &pending.target,
+                result,
+            );
+        }
+        if stop.is_cancelled() || self.pending.is_some() || self.pending_correction.is_some() {
+            return Ok(false);
+        }
+        if let Some(index) =
+            self.journal.jobs.iter().position(|job| {
+                job.supersede_key.is_some() && job.state == FormationJobState::Forming
+            })
+        {
+            return self.form(index);
+        }
+        let journal = &self.journal;
+        let Some((job_key, supersede_key, input)) =
+            self.vault.next_supersede(&self.system, |key| {
+                journal.jobs.iter().any(|job| &job.job_key == key)
+            })?
+        else {
+            return Ok(false);
+        };
+        let ready = match input {
+            SupersedeInput::Ready(ready) => Some(ready),
+            SupersedeInput::Closed => None,
+        };
+        self.journal.jobs.push(Job {
+            job_key: job_key.clone(),
+            note_keys: vec![],
+            report_key: None,
+            supersede_key: Some(supersede_key),
+            state: if ready.is_some() {
+                FormationJobState::Dispatched
+            } else {
+                FormationJobState::Rejected
+            },
+            work: vec![],
+            receipts: vec![],
+            refused: 0,
+        });
+        self.save()?;
+        let Some(ready) = ready else {
+            return Ok(true);
+        };
+        let (report, source, policy, target) = *ready;
+        if stop.is_cancelled() {
+            return self.finish_report(
+                FormationChange::Update,
+                &job_key,
+                &source,
+                &policy,
+                &target,
+                CaptureAnalysis::Paused,
+            );
+        }
+        let started = Instant::now();
+        let pending_stop = stop.child();
+        let analysis = catch_unwind(AssertUnwindSafe(|| {
+            analyzer.start(&report, &target, &source, &pending_stop)
+        }))
+        .unwrap_or(Err(CaptureAnalysis::Unknown));
+        if stop.is_cancelled() || started.elapsed() >= self.analysis_timeout {
+            pending_stop.cancel();
+            return self.finish_report(
+                FormationChange::Update,
+                &job_key,
+                &source,
+                &policy,
+                &target,
+                CaptureAnalysis::Unknown,
+            );
+        }
+        match analysis {
+            Ok(pending) => {
+                self.pending_supersede = Some(PendingReport {
+                    job_key,
+                    source,
+                    policy,
+                    target,
+                    pending,
+                    stop: pending_stop,
+                    started,
+                });
+                Ok(true)
+            }
+            Err(analysis) => self.finish_report(
+                FormationChange::Update,
+                &job_key,
+                &source,
+                &policy,
+                &target,
+                analysis,
+            ),
+        }
+    }
+    fn finish_report(
+        &mut self,
+        change: FormationChange,
         job_key: &Sha256Hex,
         source: &CapturedSource,
         policy: &AutomationPolicy,
@@ -1132,7 +1384,7 @@ impl CapturedFormation {
             }
             CaptureAnalysis::Statements(statements) => {
                 // Bound to the dispatched current revision; never retargeted.
-                let seed = (statements[0].dimensions.change == FormationChange::Correction)
+                let seed = (statements[0].dimensions.change == change)
                     .then(|| {
                         let result = MemoryRevisionRef {
                             memory_id: target.target.memory.memory_id.clone(),

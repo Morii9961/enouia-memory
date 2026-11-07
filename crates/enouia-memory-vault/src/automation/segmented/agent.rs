@@ -5,7 +5,10 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Instant;
 
 pub const INITIALIZED_AGENT_READ_CAPABILITY: &str = "memory-agent-initialized-native-read-1";
-pub use enouia_memory_contract::next::{AGENT_CORRECTION_CAPABILITY, AGENT_NOTE_CAPABILITY};
+pub use enouia_memory_contract::next::{
+    AGENT_CORRECTION_CAPABILITY, AGENT_FORGET_CAPABILITY, AGENT_NOTE_CAPABILITY,
+    AGENT_SUPERSEDE_CAPABILITY,
+};
 
 /// Independent native delegation for reporting a correction, never Owner action.
 pub struct AgentCorrectionPermit {
@@ -19,7 +22,7 @@ impl AgentCorrectionPermit {
     pub(super) fn live(&self, vault: &SegmentedAutomationVault) -> Result<Timestamp> {
         self.read.live(vault)
     }
-    pub(super) fn principal(&self) -> &ActorRef {
+    pub fn principal(&self) -> &ActorRef {
         self.read.principal()
     }
     /// A delegated policy that currently covers the exact evidence revision.
@@ -65,6 +68,127 @@ pub struct AgentCorrectionDraft {
 /// Result of the shared authorization gate for preparation and submission.
 pub(super) enum CorrectionAdmission {
     Current(Box<AgentCorrectionDraft>),
+    /// The exact requested revision is in the currently authorized history of
+    /// a currently qualified target; only an already saved key may replay.
+    Original(SnapshotBinding),
+}
+
+/// Independent native delegation for reporting a supersede, never Owner action.
+pub struct AgentSupersedePermit {
+    read: SegmentedAgentPermit,
+    hash: Sha256Hex,
+}
+impl AgentSupersedePermit {
+    pub fn revoke(&self) {
+        self.read.revoke();
+    }
+    pub(super) fn live(&self, vault: &SegmentedAutomationVault) -> Result<Timestamp> {
+        self.read.live(vault)
+    }
+    pub fn principal(&self) -> &ActorRef {
+        self.read.principal()
+    }
+    /// A delegated policy that currently covers the exact evidence revision.
+    pub(super) fn source_policy(
+        &self,
+        state: &State,
+        source: &enouia_memory_contract::common::SourceRevisionRef,
+    ) -> Option<PolicyRef> {
+        self.read
+            .source_policies
+            .get(&source.source_id)?
+            .iter()
+            .filter_map(|id| state.policies.get(id))
+            .find(|p| state.source_in_policy(source, p, self.read.scope.max_sensitivity))
+            .map(|p| p.reference())
+    }
+}
+#[derive(Clone, serde::Serialize, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct AgentSupersedeRequest {
+    pub request_id: RequestId,
+    pub target: TargetRef,
+    pub source: enouia_memory_contract::common::SourceRevisionRef,
+    pub quote_hint: String,
+    pub supersede: String,
+}
+/// Untrusted report data, not a saved receipt or permission to revise a memory.
+#[derive(serde::Serialize)]
+pub struct AgentSupersedeDraft {
+    pub schema_version: NextVersion,
+    pub capability: &'static str,
+    pub request_id: RequestId,
+    pub request_hash: Sha256Hex,
+    pub report_key: Sha256Hex,
+    pub principal: ActorRef,
+    pub scope_hash: Sha256Hex,
+    pub snapshot: SnapshotBinding,
+    pub authorized_at: Timestamp,
+    pub target: TargetRef,
+    pub evidence: QuotedEvidence,
+    pub supersede: String,
+}
+/// Result of the shared authorization gate for preparation and submission.
+pub(super) enum SupersedeAdmission {
+    Current(Box<AgentSupersedeDraft>),
+    /// The exact requested revision is in the currently authorized history of
+    /// a currently qualified target; only an already saved key may replay.
+    Original(SnapshotBinding),
+}
+
+pub struct AgentForgetPermit {
+    read: SegmentedAgentPermit,
+    hash: Sha256Hex,
+}
+impl AgentForgetPermit {
+    pub fn revoke(&self) {
+        self.read.revoke();
+    }
+    pub(super) fn live(&self, vault: &SegmentedAutomationVault) -> Result<Timestamp> {
+        self.read.live(vault)
+    }
+    pub fn principal(&self) -> &ActorRef {
+        self.read.principal()
+    }
+    /// A delegated policy that currently covers the exact evidence revision.
+    pub(super) fn source_policy(
+        &self,
+        state: &State,
+        source: &enouia_memory_contract::common::SourceRevisionRef,
+    ) -> Option<PolicyRef> {
+        self.read
+            .source_policies
+            .get(&source.source_id)?
+            .iter()
+            .filter_map(|id| state.policies.get(id))
+            .find(|p| state.source_in_policy(source, p, self.read.scope.max_sensitivity))
+            .map(|p| p.reference())
+    }
+}
+#[derive(Clone, serde::Serialize, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct AgentForgetRequest {
+    pub request_id: RequestId,
+    pub target: TargetRef,
+    pub source: enouia_memory_contract::common::SourceRevisionRef,
+    pub quote_hint: String,
+    pub forget: String,
+}
+/// Untrusted report data, not a saved receipt or permission to revise a memory.
+pub(super) struct AuthorizedForget {
+    pub request_id: RequestId,
+    pub request_hash: Sha256Hex,
+    pub request_key: Sha256Hex,
+    pub principal: ActorRef,
+    pub scope_hash: Sha256Hex,
+    pub snapshot: SnapshotBinding,
+    pub target: TargetRef,
+    pub evidence: QuotedEvidence,
+    pub forget: String,
+}
+/// Result of the shared authorization gate for preparation and submission.
+pub(super) enum ForgetAdmission {
+    Current(Box<AuthorizedForget>),
     /// The exact requested revision is in the currently authorized history of
     /// a currently qualified target; only an already saved key may replay.
     Original(SnapshotBinding),
@@ -399,6 +523,20 @@ impl SegmentedAutomationVault {
                 )))
             },
         )?
+    }
+    /// Metadata-only correction connection poll; submission owns target/source checks.
+    pub fn check_agent_correction_live(&self, permit: &AgentCorrectionPermit) -> Result<()> {
+        self.native.available()?;
+        permit.live(self)?;
+        let state = self
+            .state
+            .lock()
+            .map_err(|_| AutomationFault::Unavailable)?;
+        if !permit.read.policies_current(&state) {
+            permit.revoke();
+            return Err(AutomationFault::Denied);
+        }
+        Ok(())
     }
     /// Metadata-only connection poll; submission owns CURRENT/source checks.
     pub fn check_agent_note_live(&self, permit: &AgentNotePermit) -> Result<()> {
@@ -753,5 +891,231 @@ impl SegmentedAutomationVault {
             current: data,
             history,
         }))
+    }
+}
+
+impl SegmentedAutomationVault {
+    pub fn authorize_agent_supersede(
+        &self,
+        owner: &ActorRef,
+        principal: ActorRef,
+        scope: SegmentedAgentScope,
+    ) -> Result<AgentSupersedePermit> {
+        if !scope.source_read {
+            return Err(AutomationFault::Denied);
+        }
+        let read = self.authorize_initialized_agent_read(owner, principal, scope)?;
+        let hash = digest(&(AGENT_SUPERSEDE_CAPABILITY, read.scope_hash()));
+        Ok(AgentSupersedePermit { read, hash })
+    }
+    /// Both target closure and supersede source must be currently authorized.
+    /// A quoted user statement remains evidence; the Agent interpretation does
+    /// not inherit its authority. No state is published by this preparation.
+    pub fn prepare_agent_supersede(
+        &self,
+        permit: &AgentSupersedePermit,
+        request: &AgentSupersedeRequest,
+        locate: impl FnOnce(&CapturedSource, &str) -> Option<QuotedEvidence>,
+    ) -> Result<AgentSupersedeDraft> {
+        match self.admit_agent_supersede(permit, request, locate)? {
+            SupersedeAdmission::Current(draft) => Ok(*draft),
+            SupersedeAdmission::Original(_) => Err(AutomationFault::Stale),
+        }
+    }
+    pub(super) fn admit_agent_supersede(
+        &self,
+        permit: &AgentSupersedePermit,
+        request: &AgentSupersedeRequest,
+        locate: impl FnOnce(&CapturedSource, &str) -> Option<QuotedEvidence>,
+    ) -> Result<SupersedeAdmission> {
+        if request.quote_hint.trim().is_empty()
+            || request.quote_hint.len() > 2000
+            || request.quote_hint.chars().count() > 500
+            || request.supersede.trim().is_empty()
+            || request.supersede.len() > 8192
+            || request.supersede.chars().count() > 2000
+        {
+            return Err(AutomationFault::Denied);
+        }
+        self.read_agent(
+            &permit.read,
+            Some(&request.target.memory.memory_id),
+            |data| {
+                let target = data
+                    .current
+                    .memories
+                    .iter()
+                    .find(|m| m.target.memory.memory_id == request.target.memory.memory_id)
+                    .ok_or(AutomationFault::Denied)?;
+                let original = target.target != request.target;
+                if original && !data.history.iter().any(|m| m.target == request.target) {
+                    return Err(AutomationFault::Stale);
+                }
+                let source = data
+                    .current
+                    .sources
+                    .get(&request.source.source_id)
+                    .ok_or(AutomationFault::Denied)?;
+                if source.reference() != request.source
+                    || source.record.source_kind
+                        != enouia_memory_contract::source::SourceKind::RuntimeEvent
+                    || super::runtime_capture::provenance(source).is_none()
+                    || source.record.speaker_role
+                        != enouia_memory_contract::common::SpeakerRole::User
+                    || source.record.evidence_class
+                        != enouia_memory_contract::common::EvidenceClass::UserStatement
+                    || source.text.len() > 16384
+                {
+                    return Err(AutomationFault::Denied);
+                }
+                if original {
+                    permit.read.live(self)?;
+                    return Ok(SupersedeAdmission::Original(data.current.snapshot));
+                }
+                let evidence =
+                    locate(source, &request.quote_hint).ok_or(AutomationFault::Denied)?;
+                if !evidence.resolves(std::slice::from_ref(*source)) {
+                    return Err(AutomationFault::Denied);
+                }
+                let authorized_at = permit.read.live(self)?;
+                Ok(SupersedeAdmission::Current(Box::new(AgentSupersedeDraft {
+                    schema_version: NextVersion,
+                    capability: AGENT_SUPERSEDE_CAPABILITY,
+                    request_id: request.request_id.clone(),
+                    request_hash: digest(request),
+                    report_key: agent_supersede_key(
+                        &self.descriptor().vault_id,
+                        permit.read.principal(),
+                        &request.request_id,
+                    ),
+                    principal: permit.read.principal().clone(),
+                    scope_hash: permit.hash.clone(),
+                    snapshot: data.current.snapshot,
+                    authorized_at,
+                    target: request.target.clone(),
+                    evidence,
+                    supersede: request.supersede.clone(),
+                })))
+            },
+        )?
+    }
+    /// Metadata-only supersede connection poll; submission owns target/source checks.
+    pub fn check_agent_supersede_live(&self, permit: &AgentSupersedePermit) -> Result<()> {
+        self.native.available()?;
+        permit.live(self)?;
+        let state = self
+            .state
+            .lock()
+            .map_err(|_| AutomationFault::Unavailable)?;
+        if !permit.read.policies_current(&state) {
+            permit.revoke();
+            return Err(AutomationFault::Denied);
+        }
+        Ok(())
+    }
+}
+
+impl SegmentedAutomationVault {
+    pub fn authorize_agent_forget(
+        &self,
+        owner: &ActorRef,
+        principal: ActorRef,
+        scope: SegmentedAgentScope,
+    ) -> Result<AgentForgetPermit> {
+        if !scope.source_read {
+            return Err(AutomationFault::Denied);
+        }
+        let read = self.authorize_initialized_agent_read(owner, principal, scope)?;
+        let hash = digest(&(AGENT_FORGET_CAPABILITY, read.scope_hash()));
+        Ok(AgentForgetPermit { read, hash })
+    }
+    pub(super) fn admit_agent_forget(
+        &self,
+        permit: &AgentForgetPermit,
+        request: &AgentForgetRequest,
+        locate: impl FnOnce(&CapturedSource, &str) -> Option<QuotedEvidence>,
+    ) -> Result<ForgetAdmission> {
+        if request.quote_hint.trim().is_empty()
+            || request.quote_hint.len() > 2000
+            || request.quote_hint.chars().count() > 500
+            || request.forget.trim().is_empty()
+            || request.forget.len() > 8192
+            || request.forget.chars().count() > 2000
+        {
+            return Err(AutomationFault::Denied);
+        }
+        self.read_agent(
+            &permit.read,
+            Some(&request.target.memory.memory_id),
+            |data| {
+                let target = data
+                    .current
+                    .memories
+                    .iter()
+                    .find(|m| m.target.memory.memory_id == request.target.memory.memory_id)
+                    .ok_or(AutomationFault::Denied)?;
+                let original = target.target != request.target;
+                if original && !data.history.iter().any(|m| m.target == request.target) {
+                    return Err(AutomationFault::Stale);
+                }
+                let source = data
+                    .current
+                    .sources
+                    .get(&request.source.source_id)
+                    .ok_or(AutomationFault::Denied)?;
+                if source.reference() != request.source
+                    || source.record.source_kind
+                        != enouia_memory_contract::source::SourceKind::RuntimeEvent
+                    || super::runtime_capture::provenance(source).is_none()
+                    || source.record.speaker_role
+                        != enouia_memory_contract::common::SpeakerRole::User
+                    || source.record.evidence_class
+                        != enouia_memory_contract::common::EvidenceClass::UserStatement
+                    || source.text.len() > 16384
+                {
+                    return Err(AutomationFault::Denied);
+                }
+                if original {
+                    permit.read.live(self)?;
+                    return Ok(ForgetAdmission::Original(data.current.snapshot));
+                }
+                let evidence =
+                    locate(source, &request.quote_hint).ok_or(AutomationFault::Denied)?;
+                if !evidence.resolves(std::slice::from_ref(*source)) {
+                    return Err(AutomationFault::Denied);
+                }
+                permit.read.live(self)?;
+                Ok(ForgetAdmission::Current(Box::new(AuthorizedForget {
+                    request_id: request.request_id.clone(),
+                    request_hash: digest(request),
+                    request_key: agent_forget_key(
+                        &self.descriptor().vault_id,
+                        permit.read.principal(),
+                        &request.request_id,
+                    ),
+                    principal: permit.read.principal().clone(),
+                    scope_hash: permit.hash.clone(),
+                    snapshot: data.current.snapshot,
+
+                    target: request.target.clone(),
+                    evidence,
+                    forget: request.forget.clone(),
+                })))
+            },
+        )?
+    }
+    /// Metadata-only forget connection poll; submission owns target/source checks.
+    pub fn check_agent_forget_live(&self, permit: &AgentForgetPermit) -> Result<()> {
+        self.native.available()?;
+        permit.live(self)?;
+        let state = self
+            .state
+            .lock()
+            .map_err(|_| AutomationFault::Unavailable)?;
+        if !permit.read.policies_current(&state) {
+            permit.revoke();
+            return Err(AutomationFault::Denied);
+        }
+        Ok(())
     }
 }

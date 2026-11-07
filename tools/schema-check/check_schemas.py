@@ -462,6 +462,61 @@ def main():
                 failures.append(f"Agent note MCP {case['name']}: disagreement")
     counts["agent_note_mcp_cases"] = len(note_wire["request_cases"]) + len(note_wire["response_cases"])
 
+    correction_wire = load(ROOT / "tests/fixtures/agent-correction/mcp-cases.json")
+    for field, group in (("request", "request_cases"), ("response", "response_cases")):
+        for case in correction_wire[group]:
+            value = copy.deepcopy(correction_wire[field])
+            apply_ops(value, case["ops"])
+            if valid("next/agent-correction-mcp-v1.schema.json", value) != case["accept"]:
+                failures.append(f"Agent correction MCP {case['name']}: disagreement")
+    counts["agent_correction_mcp_cases"] = len(correction_wire["request_cases"]) + len(correction_wire["response_cases"])
+
+    supersede_cases = load(ROOT / "tests/fixtures/agent-supersede/cases.json")
+    for field, group in (("record", "record_cases"), ("receipt", "receipt_cases")):
+        for case in supersede_cases[group]:
+            value = copy.deepcopy(supersede_cases[field])
+            apply_ops(value, case["ops"])
+            if valid("next/agent-supersede-v1.schema.json", value) != case["schema"]:
+                failures.append(f"Agent supersede {case['name']}: disagreement")
+    supersede_segment = load(catalog_dir / "capture.json")
+    supersede_segment["delta"] = {"change": "agent_supersede", "report": supersede_cases["record"]}
+    if not valid("next/catalog-v2.schema.json", supersede_segment):
+        failures.append("valid Agent supersede segment rejected")
+    counts["agent_supersede_cases"] = (
+        1 + len(supersede_cases["record_cases"]) + len(supersede_cases["receipt_cases"])
+    )
+    supersede_wire = load(ROOT / "tests/fixtures/agent-supersede/mcp-cases.json")
+    for field, group in (("request", "request_cases"), ("response", "response_cases")):
+        for case in supersede_wire[group]:
+            value = copy.deepcopy(supersede_wire[field])
+            apply_ops(value, case["ops"])
+            if valid("next/agent-supersede-mcp-v1.schema.json", value) != case["accept"]:
+                failures.append(f"Agent supersede MCP {case['name']}: disagreement")
+    counts["agent_supersede_mcp_cases"] = len(supersede_wire["request_cases"]) + len(supersede_wire["response_cases"])
+
+    forget_cases = load(ROOT / "tests/fixtures/agent-forget/cases.json")
+    for field, group in (("record", "record_cases"), ("receipt", "receipt_cases")):
+        for case in forget_cases[group]:
+            value = copy.deepcopy(forget_cases[field])
+            apply_ops(value, case["ops"])
+            if valid("next/agent-forget-v1.schema.json", value) != case["schema"]:
+                failures.append(f"Agent forget {case['name']}: disagreement")
+    forget_segment = load(catalog_dir / "capture.json")
+    forget_segment["delta"] = {"change": "agent_forget_request", "request": forget_cases["record"]}
+    if not valid("next/catalog-v2.schema.json", forget_segment):
+        failures.append("valid Agent forget segment rejected")
+    counts["agent_forget_cases"] = (
+        1 + len(forget_cases["record_cases"]) + len(forget_cases["receipt_cases"])
+    )
+    forget_wire = load(ROOT / "tests/fixtures/agent-forget/mcp-cases.json")
+    for field, group in (("request", "request_cases"), ("response", "response_cases")):
+        for case in forget_wire[group]:
+            value = copy.deepcopy(forget_wire[field])
+            apply_ops(value, case["ops"])
+            if valid("next/agent-forget-mcp-v1.schema.json", value) != case["accept"]:
+                failures.append(f"Agent forget MCP {case['name']}: disagreement")
+    counts["agent_forget_mcp_cases"] = len(forget_wire["request_cases"]) + len(forget_wire["response_cases"])
+
     wire_cases = load(ROOT / "tests/fixtures/runtime-capture/wire-cases.json")
     for case in wire_cases["cases"]:
         value = {"mode": "write", "request": copy.deepcopy(capture_cases["base"])}

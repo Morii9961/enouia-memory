@@ -1,0 +1,125 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.enouia-memory.invalid/next/agent-forget-v1.schema.json",
+  "title": "Saved Agent forget report or forget_request_saved receipt; no memory or Owner authority",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/record"
+    },
+    {
+      "$ref": "#/$defs/receipt"
+    }
+  ],
+  "$defs": {
+    "record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "request_key",
+        "request_id",
+        "request_hash",
+        "principal",
+        "scope_hash",
+        "target",
+        "policy",
+        "evidence",
+        "forget"
+      ],
+      "properties": {
+        "request_key": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/sha256"
+        },
+        "request_id": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/requestId"
+        },
+        "request_hash": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/sha256"
+        },
+        "principal": {
+          "allOf": [
+            {
+              "$ref": "../memory/common-v1.schema.json#/$defs/actorRef"
+            },
+            {
+              "properties": {
+                "actor_type": {
+                  "const": "agent"
+                }
+              }
+            }
+          ]
+        },
+        "scope_hash": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/sha256"
+        },
+        "target": {
+          "$ref": "automation-v2.schema.json#/$defs/targetRef"
+        },
+        "policy": {
+          "$ref": "automation-v2.schema.json#/$defs/policyRef"
+        },
+        "evidence": {
+          "allOf": [
+            {
+              "$ref": "ui-records-v2.schema.json#/$defs/quote"
+            },
+            {
+              "properties": {
+                "speaker": {
+                  "const": "user"
+                },
+                "reference": {
+                  "properties": {
+                    "supports": {
+                      "const": "content"
+                    },
+                    "evidence_class": {
+                      "const": "user_statement"
+                    }
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "forget": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000
+        }
+      }
+    },
+    "receipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "request_key",
+        "request_id",
+        "request_hash",
+        "target",
+        "committed_in",
+        "state"
+      ],
+      "properties": {
+        "request_key": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/sha256"
+        },
+        "request_id": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/requestId"
+        },
+        "request_hash": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/sha256"
+        },
+        "target": {
+          "$ref": "automation-v2.schema.json#/$defs/targetRef"
+        },
+        "committed_in": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/commitId"
+        },
+        "state": {
+          "const": "forget_request_saved"
+        }
+      }
+    }
+  }
+}
