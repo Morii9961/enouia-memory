@@ -1,27 +1,27 @@
 {
-  "schema_version": "1.0",
+  "schema_version": "1.1",
   "project_id": "enouia.memory",
   "project_name": "Enouia Memory",
-  "snapshot_at": "2026-11-02T17:02:10+08:00",
+  "snapshot_at": "2026-11-07T13:26:23+08:00",
   "source": {
-    "branch": "codex/mv8-mcp-boundary",
-    "commit_sha": "9286cd8f89669d9ec3b92f943fd74072457536e7",
+    "branch": "main",
+    "commit_sha": "2a6310e2987f0568554ce007fde8d62966387900",
     "tests_rerun": false,
     "basis": [
-      "2026-11-02 读取主目录 codex/mv8-mcp-boundary@9286cd8f89669d9ec3b92f943fd74072457536e7；另核对主线 c9bf1be7819dba19915adf6031b1900c032b73d1。本地主目录、已合并主线和开发分支分别记录，不同步或重置代码。",
-      "2026-11-02 GitHub 只读 API 核对 main 和开启 PR；开发分支另列，不以代码或 CI 代替正式部署/主人验收。",
-      "保留上一份快照的事项 ID 与历史验证证据；本次不重跑项目测试、构建、私人数据或真实 Provider 验收。",
-      "https://github.com/Morii9961/enouia-memory/blob/c9bf1be7819dba19915adf6031b1900c032b73d1/docs/validation/CORE-main-integration.md",
-      "https://github.com/Morii9961/enouia-memory/blob/c9bf1be7819dba19915adf6031b1900c032b73d1/docs/validation/MCP-mainline-integration-2026-10-24.md",
-      "https://github.com/Morii9961/enouia-memory/pull/78",
-      "https://github.com/Morii9961/enouia-memory/pull/79",
-      "https://github.com/Morii9961/enouia-memory/pull/80",
-      "https://github.com/Morii9961/enouia-memory/pull/81",
-      "PR #81 保存报告：861 通过/4 忽略、真实线程/管道等合成验证；仅 fake analyzers，不代表真实模型或 Runtime 产品采用。本次未重跑。"
+      "2026-11-07 生成快照：只读 Git、GitHub PR 和仓库文档；不重跑测试、构建或真实验收",
+      "main@2a6310e（PR #83 合并提交），与 origin/main 一致",
+      "PR #82（#56～#81 合入主线）、PR #83",
+      "docs/handoff/CODEX_MCP4_HANDOFF_20261104.md",
+      "开启的草稿 PR #84（MCP-4）、#85（MCP-5，叠在 #84 上），未合并",
+      "PR #83 报告：913 passed / 0 failed / 4 ignored；PR #84 报告：948 passed / 0 failed / 4 ignored。均为保存结果，本次未重跑"
     ]
   },
+  "reporter": {
+    "agent": "claude",
+    "note": "Claude Opus 5.5"
+  },
   "stage": "integration",
-  "summary": "Core-1～7 底座和受限 Host/MCP 已在主线，Runtime 已采用旧 v1 58 命令。新 Owner 初始化、UI 读取、Runtime 采集/排队/后台形成推进至 #81，#56～#81 仍是草稿链，未合并或被 Runtime 采用；真实分析器、个人迁移及云端未验收。",
+  "summary": "#56～#81 新管道已经 #82 合入主线，#83 又加入 Agent 笔记、纠正报告持久化与 System 自动消费。MCP-4 传输（#84）和 MCP-5 开场资源（#85）仍是草稿。Runtime 只采用 v1 58 命令和合成 read-2；真实分析器、个人迁移与云端均未验收。",
   "overall_progress": null,
   "milestones": [
     {
@@ -73,14 +73,14 @@
     },
     {
       "id": "runtime_integration",
-      "title": "Runtime 主线采用集成 Core、58 命令及合成自动记忆入口",
+      "title": "Runtime 主线采用 Memory 精确 pin 0d338f1（Workspace v1 58 命令；read-2 仅合成入口）",
       "status": "done",
-      "evidence_level": "existing_test",
+      "evidence_level": "repository",
       "evidence_refs": [
-        "https://github.com/Morii9961/enouia-runtime/blob/d0208eb60e75f05d283b0866fe528b1b47080786/docs/validation/Core8-main-integration-2026-10-25.md",
-        "https://github.com/Morii9961/enouia-runtime/blob/d0208eb60e75f05d283b0866fe528b1b47080786/docs/integration/memory-pin.json"
+        "enouia-runtime docs/integration/CLAUDE_TO_CODEX_2026-11-04.md",
+        "enouia-runtime PR #116"
       ],
-      "human_acceptance": "pending"
+      "human_acceptance": "not_required"
     },
     {
       "id": "long_running_safety",
@@ -107,12 +107,13 @@
     },
     {
       "id": "cloud_mcp",
-      "title": "受限 Host/MCP 主线基础；Owner/Agent/Runtime 新管道草稿及云端待接入",
+      "title": "受限 Host/MCP 主线基础；纠正/取代/遗忘请求传输与开场资源仍在草稿，云端待接入",
       "status": "in_progress",
-      "evidence_level": "existing_test",
+      "evidence_level": "repository",
       "evidence_refs": [
-        "https://github.com/Morii9961/enouia-memory/blob/c9bf1be7819dba19915adf6031b1900c032b73d1/docs/validation/MCP-mainline-integration-2026-10-24.md",
-        "https://github.com/Morii9961/enouia-memory/pull/81"
+        "docs/validation/MCP-mainline-integration-2026-10-24.md",
+        "PR #84",
+        "PR #85"
       ],
       "human_acceptance": "pending"
     },
@@ -153,49 +154,75 @@
       "id": "automated_memory_core",
       "title": "Core-1～7：准入、持久任务、自动循环、策略、形成、召回、授权读模型",
       "status": "done",
+      "evidence_level": "existing_test",
       "evidence_refs": [
         "https://github.com/Morii9961/enouia-memory/blob/c9bf1be7819dba19915adf6031b1900c032b73d1/docs/validation/CORE-main-integration.md"
       ],
-      "evidence_level": "existing_test",
       "human_acceptance": "not_required"
     },
     {
       "id": "ui_v2_agent_drafts",
-      "title": "Owner 初始化、UI/Agent 读取与 Runtime 采集/后台形成（#56～#81 草稿）",
-      "status": "in_progress",
-      "evidence_refs": [
-        "https://github.com/Morii9961/enouia-memory/pull/56",
-        "https://github.com/Morii9961/enouia-memory/pull/68",
-        "https://github.com/Morii9961/enouia-memory/pull/78",
-        "https://github.com/Morii9961/enouia-memory/pull/80",
-        "https://github.com/Morii9961/enouia-memory/pull/81"
-      ],
+      "title": "Owner 初始化、UI/Agent 读取与 Runtime 采集/后台形成（#56～#81 经 #82 合入主线）",
+      "status": "done",
       "evidence_level": "repository",
+      "evidence_refs": [
+        "PR #82",
+        "git:0d338f1"
+      ],
+      "human_acceptance": "not_required"
+    },
+    {
+      "id": "agent_notes_corrections",
+      "title": "Agent 笔记、纠正报告持久化与 System 自动消费（ADR121/122，#83 已合并）",
+      "status": "done",
+      "evidence_level": "existing_test",
+      "evidence_refs": [
+        "PR #83",
+        "docs/validation/MCP-4-agent-correction-intake.md",
+        "docs/validation/MCP-4-correction-consumption.md"
+      ],
+      "human_acceptance": "not_required"
+    },
+    {
+      "id": "mcp4_mcp5_transports",
+      "title": "MCP-4 纠正/取代/仅请求遗忘传输（#84）与 MCP-5 开场工具和资源（#85，叠在 #84 上）",
+      "status": "in_progress",
+      "evidence_level": "existing_test",
+      "evidence_refs": [
+        "PR #84",
+        "PR #85",
+        "docs/handoff/CODEX_MCP4_HANDOFF_20261104.md"
+      ],
       "human_acceptance": "pending"
     }
   ],
   "blockers": [
     {
-      "title": "新能力仍在草稿整合链",
-      "impact": "26 个草稿不等于主线功能；Runtime 尚未采用新 Owner 初始化、采集 pipe-2 或后台形成。需选定精确依赖链评审与接入。"
+      "id": "runtime_not_adopted",
+      "title": "新管道已入主线，Runtime 尚未采用",
+      "impact": "Runtime 只用 0d338f1 的 v1 58 命令和合成 read-2；Owner 初始化、采集 pipe-2、后台形成、纠正消费都没有在产品里接入。"
     },
     {
+      "id": "real_quality_unverified",
       "title": "真实质量与个人使用验收不足",
-      "impact": "仅假分析器和合成根；真实模型/embedding、私人初始化、独立恢复、旧主隔离与云端均未证明可用。"
+      "impact": "只有假分析器和合成根；真实模型/embedding、私人初始化、独立恢复、旧主隔离与云端均未证明可用。"
     }
   ],
   "next_actions": [
     {
-      "title": "收束新 Owner/采集/形成草稿链",
+      "id": "review_mcp4_mcp5",
+      "title": "评审草稿链 #84 → #85",
       "priority": "P1",
-      "result": "核对 #78～#81 与前置契约的完成度及验证范围，形成可评审整合点，不自行合并。"
+      "result": "确认验证范围后由 Morii 决定是否按顺序合并；合并后 main 成为新基线。"
     },
     {
+      "id": "runtime_adoption",
       "title": "安排 Runtime 采用所选精确契约",
       "priority": "P1",
-      "result": "先明确旧 v1 与新 Owner 入口边界，再做合成产品接入，保持现有个人库。"
+      "result": "明确旧 v1 与新 Owner 入口边界，先用合成数据接线，保持现有个人库。"
     },
     {
+      "id": "first_real_acceptance",
       "title": "确定第一轮真实质量验收",
       "priority": "P1",
       "result": "由 Morii 明确资料、分析器、预算、恢复和迁移范围。"
@@ -203,13 +230,20 @@
   ],
   "needs_morii": [
     {
-      "decision": "是否优先收束 #78～#81 的 Owner 采集与后台形成链，再安排 Runtime 接入？"
+      "id": "merge_84_85",
+      "decision": "是否按顺序评审并合并草稿 PR #84（MCP-4）和 #85（MCP-5）？"
     },
     {
-      "decision": "首轮真实分析器、个人资料及恢复验收允许什么范围？"
+      "id": "forget_hide",
+      "decision": "forget-hide（立即可逆隐藏）是否实现？范围、期限、恢复和撤权规则是什么？"
     },
     {
-      "decision": "哪些 MCP 客户端和云端工作进入后续切片，验收条件是什么？"
+      "id": "real_scope",
+      "decision": "首轮真实分析器/纠正模型、预算与外发范围，以及个人资料和恢复验收允许什么范围？"
+    },
+    {
+      "id": "runtime_adopt_when",
+      "decision": "Runtime 何时采用新 Owner 管道（含 start_worker_with_corrections），先接哪一条？"
     }
   ]
 }
