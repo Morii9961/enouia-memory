@@ -39,6 +39,22 @@ pub(super) fn catalog_filter<'de, D: Deserializer<'de>>(
     enouia_memory_contract::next::CatalogFilter::deserialize(value).map_err(de::Error::custom)
 }
 
+/// Required, nullable search cursor whose selection algorithm is a string.
+pub(super) fn catalog_cursor<'de, D: Deserializer<'de>>(
+    deserializer: D,
+) -> Result<Option<enouia_memory_contract::next::CatalogCursor>, D::Error> {
+    let value = Value::deserialize(deserializer)?;
+    if value["selection"]
+        .get("algorithm")
+        .is_some_and(|v| !v.is_string())
+    {
+        return Err(de::Error::custom(
+            "catalog cursor algorithm requires string",
+        ));
+    }
+    Option::deserialize(value).map_err(de::Error::custom)
+}
+
 struct Unique(Value);
 impl<'de> Deserialize<'de> for Unique {
     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {

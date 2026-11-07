@@ -1,5 +1,16 @@
 # MCP-5 session_start 接续（2026-11-05）
 
+2026-11-07（Claude 接续，Codex 限额耗尽）：5fe7380 之后复现搜索游标
+selection.algorithm 的对象标签仍被 serde 接受并派发，context/initialized 入口
+实测接纳。owned allowlist：mcp/json.rs 与三处 SearchArgs.cursor、opening_mcp.rs
+定向用例、三个 catalog 型合成 manifest、ADR126/合同、本交接/read-control 报告及
+integration manifest/RUNTIME.md。新增 json::catalog_cursor，只检查该字段表示后
+构造原 Option<CatalogCursor>；null 与实际签发的游标照常分页（新用例取真实下一页）。
+开场 1 项、直接入口 2 项、实际管道/stdio 3 项、surface 4 项通过；Python 77
+schemas、三个 manifest 各 30 件通过；Host 全目标 Clippy/fmt 通过，无全量。
+当前 aggregate 807719f48e232d5b758296562ada3c010deac4635a84856695d88905b1233f1e。
+schema/hello 指纹未改。三个 catalog 型搜索入口的枚举已收束；v2 AgentSearchFilter 待下一片核实。
+
 7f98d2b 已推送部分输出/flush 验收。其后复现 catalog 筛选七个枚举字段的
 对象标签违反既有可空字符串合同，共 28 条路径；已在 MCP 筛选边界最小修正。owned
 allowlist：mcp/json.rs 与 initialized/catalog/qualified SearchArgs、opening_mcp.rs /

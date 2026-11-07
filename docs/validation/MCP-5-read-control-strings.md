@@ -137,3 +137,36 @@ Current integration aggregate:
 ecc8332a5025d9b87b776d2bdb2e85400efdd49e5fe8bb3032509c9a2452a455.
 No full workspace, NativeMemoryOwner, actual model/Provider, private root or
 Runtime product/config/pin was used. No new stage, capture or mandatory queue.
+
+## Search cursor algorithm (2026-11-07)
+
+Claude continued from 5fe7380 after Codex's quota ran out. The cursor was the
+remaining enum in the read-tool search inputs: its selection.algorithm is a
+string const/enum in all three search schemas, but serde accepted an
+externally tagged object and dispatched the search. One new invalid manifest
+case per catalog-type corpus ("object cursor/selection/algorithm") is otherwise
+schema-valid; replacing the object with its tag string validates.
+
+Before the fix, the focused opening case admitted it on both the context and
+initialized entry points (target/mcp-cursor-enum-repro.log). The MCP-owned
+json::catalog_cursor parser now checks that one representation and constructs
+the existing Option<CatalogCursor>; the three search adapters use it.
+
+Checks actually run on this correction:
+
+- opening_mcp focused case: 1 passed, 0 failed. It now also forms a second
+  synthetic memory, takes the actual next cursor from a limit-1 page and
+  confirms both entry points return the second page (target/mcp-cursor-enum-fixed.log).
+- Catalog and qualified direct boundary cases: 2 passed, 0 failed (same run
+  family; the first fixed run).
+- Actual context pipe and catalog/qualified executable stdio cases: 3 passed,
+  0 failed (target/mcp-cursor-enum-stdio.log).
+- Independent Python jsonschema 4.26.0: 77 schemas OK; each catalog-type corpus
+  now covers 30 documents (target/mcp-cursor-enum-schema.log).
+- Host Clippy for all targets with -D warnings, formatting, Runtime surface
+  manifest regeneration and runtime_surface tests (target/mcp-cursor-enum-clippy.log,
+  mcp-cursor-enum-surface.log).
+
+Current integration aggregate: 807719f48e232d5b758296562ada3c010deac4635a84856695d88905b1233f1e.
+No full workspace, NativeMemoryOwner, model/Provider, private root or Runtime
+product/config/pin was used. Domain-wide enum rewriting is still not claimed.

@@ -145,8 +145,16 @@ fn read_control_enums_require_strings_before_dispatch_and_preserve_actual_contex
 }
 
 #[test]
-fn catalog_filter_objects_do_not_normalize_into_string_enums_or_dispatch_searches() {
+fn catalog_filter_and_cursor_objects_do_not_normalize_into_string_enums_or_dispatch_searches() {
     let (e, v, p, _) = correction_rig(SpeakerRole::User);
+    let source = e.source(2, Sensitivity::Public);
+    v.capture(
+        &e.descriptor.system_actor,
+        vec![source.clone()],
+        RecordCatalog::default(),
+    )
+    .unwrap();
+    publish(&e, &v, e.input(&source, &p, 2));
     let host = QualifiedAgentHost::from_authenticated_initialized_owner(
         v.clone(),
         e.descriptor.created_by.clone(),
@@ -173,7 +181,10 @@ fn catalog_filter_objects_do_not_normalize_into_string_enums_or_dispatch_searche
         .as_array()
         .unwrap()
         .iter()
-        .filter(|c| c["name"].as_str().unwrap().starts_with("object filter/"))
+        .filter(|c| {
+            let name = c["name"].as_str().unwrap();
+            name.starts_with("object filter/") || name.starts_with("object cursor/")
+        })
         .enumerate()
     {
         assert!(
@@ -193,7 +204,7 @@ fn catalog_filter_objects_do_not_normalize_into_string_enums_or_dispatch_searche
     }
     assert!(
         admitted.is_empty(),
-        "object filter enums admitted: {admitted:?}"
+        "object filter or cursor enums admitted: {admitted:?}"
     );
     assert_eq!(old.counts.search, 0);
     let base = corpus["valid"]
@@ -243,6 +254,37 @@ fn catalog_filter_objects_do_not_normalize_into_string_enums_or_dispatch_searche
         }
     }
     assert_eq!(old.counts.search, 9);
+    let mut first = base.clone();
+    first["arguments"]["limit"] = json!(1);
+    first["request_id"] = json!(id("req", 720));
+    let raw = json!({"jsonrpc":"2.0","id":70,"method":"tools/call","params":{"name":"memory_search","arguments":first}});
+    let page = old.handle(&raw).unwrap();
+    let next = page["result"]["structuredContent"]["data"]["next"].clone();
+    assert!(next["selection"]["algorithm"].is_string(), "{page}");
+    let mut second = first.clone();
+    second["arguments"]["cursor"] = next;
+    second["request_id"] = json!(id("req", 721));
+    assert!(
+        schemas
+            .validate("next/agent-initialized-read-v2.schema.json", &second)
+            .is_empty()
+    );
+    let raw = json!({"jsonrpc":"2.0","id":71,"method":"tools/call","params":{"name":"memory_search","arguments":second}});
+    for response in [context.handle(&raw).unwrap(), old.handle(&raw).unwrap()] {
+        assert!(
+            response["result"]["structuredContent"]["error"].is_null(),
+            "{response}"
+        );
+        assert_eq!(
+            response["result"]["structuredContent"]["data"]["items"]
+                .as_array()
+                .unwrap()
+                .len(),
+            1,
+            "{response}"
+        );
+    }
+    assert_eq!(old.counts.search, 11);
     assert_eq!(v.snapshot().unwrap(), before);
 }
 

@@ -54,6 +54,9 @@ defined in catalog-v2. form/state/knowledge/adoption/validity/attention/time_axi
 objects are not aliases for those strings. Refuse them at MCP parsing before
 native search counting/query dispatch; pass the existing typed CatalogFilter
 inward. Null/absent optional fields and valid strings retain current behavior.
+The required nullable search cursor is likewise checked once: an object in
+selection.algorithm is refused before native counting/dispatch, while null and
+actually issued string cursors keep paging with existing native binding checks.
 
 ## Resources
 

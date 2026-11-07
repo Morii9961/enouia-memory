@@ -129,3 +129,13 @@ typed CatalogFilter. Reuse one boundary parser across initialized, catalog and
 qualified adapters. Core domain types, cursor rules, valid filters, permissions
 and public schemas stay unchanged; this is not a domain-wide enum rewrite or
 a claim that every nested input already has full schema equivalence.
+
+## Search cursor algorithm representation (2026-11-07)
+
+The search cursor echoes a frozen selection whose algorithm is a string
+(owner-qualified-catalog-4 for initialized/context/qualified; the catalog-v2
+algorithm strings for the catalog adapter). Object tags must not normalize into
+that enum through serde. Check the cursor's selection.algorithm representation
+once at the MCP search boundary, then pass the existing typed CatalogCursor
+inward. Null cursors, valid string cursors, native cursor binding/staleness
+rules, permissions, schemas and hello fingerprints stay unchanged.

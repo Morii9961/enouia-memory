@@ -51,7 +51,7 @@ struct Packet {
 struct SearchArgs {
     #[serde(deserialize_with = "super::json::catalog_filter")]
     filter: CatalogFilter,
-    #[serde(deserialize_with = "nullable")]
+    #[serde(deserialize_with = "super::json::catalog_cursor")]
     cursor: Option<CatalogCursor>,
     limit: usize,
     max_bytes: usize,

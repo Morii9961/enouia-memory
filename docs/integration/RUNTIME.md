@@ -1,5 +1,13 @@
 # Runtime integration (ADR-MEM-45)
 
+2026-11-07 search cursor representation correction: the same three MCP search
+adapters (initialized/context, catalog, qualified) refuse an object-tagged
+cursor selection.algorithm before native search dispatch, then pass the
+unchanged typed CatalogCursor inward. Null and actually issued cursors page as
+before. No Core type, schema, hello metadata, output or Runtime adoption change.
+Aggregate: `807719f48e232d5b758296562ada3c010deac4635a84856695d88905b1233f1e`.
+See [read-control validation](../validation/MCP-5-read-control-strings.md).
+
 2026-11-06 catalog filter representation correction: initialized/context,
 catalog and qualified MCP search adapters use one boundary parser to require
 the existing nullable-string representation for seven filter enums. Object
