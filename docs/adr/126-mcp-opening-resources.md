@@ -139,3 +139,15 @@ that enum through serde. Check the cursor's selection.algorithm representation
 once at the MCP search boundary, then pass the existing typed CatalogCursor
 inward. Null cursors, valid string cursors, native cursor binding/staleness
 rules, permissions, schemas and hello fingerprints stay unchanged.
+
+## MCP-2 search filter enum representation (2026-11-07)
+
+The older pipe-5/6 v2 read adapter shares the same conformity gap. Its
+agent-read-v2 / agent-record-read-v2 filters admit strings for form, adoption,
+state and time_axis, plus precision, knowledge, validity and attention on the
+record root. Refuse object tags for those fields once at the v2 MCP filter
+boundary, reusing the catalog parser's string/null check, then pass the existing
+AgentSearchFilter inward. Native record-root gating, valid strings, absent
+fields, outputs, schemas and hello metadata stay unchanged. Explicit null on the
+four record-only fields stays as tolerant as before (equivalent to absent);
+tightening it is not part of this correction.

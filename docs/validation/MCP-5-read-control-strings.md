@@ -170,3 +170,37 @@ Checks actually run on this correction:
 Current integration aggregate: 807719f48e232d5b758296562ada3c010deac4635a84856695d88905b1233f1e.
 No full workspace, NativeMemoryOwner, model/Provider, private root or Runtime
 product/config/pin was used. Domain-wide enum rewriting is still not claimed.
+
+## MCP-2 search filter enums (2026-11-07)
+
+The v2 read adapter (pipe-5 legacy root and the record root) parsed
+AgentSearchFilter through plain serde, so object tags for its enum fields were
+normalized and dispatched. New invalid cases: four "object filter/*" in
+agent-read (form, adoption, state, time_axis) and eight in agent-record-read
+(those plus precision, knowledge, validity, attention). Each is schema-invalid
+and becomes schema-valid when the object is replaced by its tag string.
+
+Before the fix, the new in-process case recorded all four legacy-root
+admissions, and the real-pipe refusal case failed on the first one
+(target/mcp-v2-filter-repro.log). The test stopped at the legacy root, so
+record-root admissions before the fix were not separately observed; the same
+struct and serde path applied. json::agent_search_filter now reuses the
+catalog filter's string/null field check and constructs the existing type.
+
+Checks actually run on this correction:
+
+- New in-process case on both roots: object filters return -32602 with zero
+  native search counts; the matching string filters (4 and 8) then search
+  successfully; root bytes unchanged.
+- agent_mcp_cases module: 13 passed, 0 failed, including the real-pipe refusal
+  case and record stdio round trips (target/mcp-v2-filter-module.log).
+- Catalog-side regression after sharing the parser: opening, direct boundary
+  and stdio cases 5 passed, 0 failed (target/mcp-v2-filter-catalog-regression.log).
+- Independent Python jsonschema 4.26.0: 77 schemas OK; agent read 22 and record
+  read 20 documents (target/mcp-v2-filter-schema.log).
+- Host Clippy for all targets with -D warnings, formatting, Runtime surface
+  regeneration and runtime_surface tests (target/mcp-v2-filter-clippy.log,
+  mcp-v2-filter-surface.log).
+
+Current integration aggregate: 43f0d1e986c4da7a5b652702fb9f8f4cfee8d72e5036b7101caa342a5107b491.
+No full workspace, model/Provider, private root or Runtime product/config/pin.

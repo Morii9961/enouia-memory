@@ -49,6 +49,7 @@ struct Packet {
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct SearchArgs {
+    #[serde(deserialize_with = "super::json::agent_search_filter")]
     filter: AgentSearchFilter,
     #[serde(deserialize_with = "nullable")]
     cursor: Option<MemoryReadCursor>,

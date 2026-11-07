@@ -1,5 +1,13 @@
 # MCP-5 session_start 接续（2026-11-05）
 
+2026-11-07（Claude 第二片）：MCP-2 v2 读取入口的 AgentSearchFilter 同样
+接纳对象标签（legacy 根 form/adoption/state/time_axis，records 根另加
+precision/knowledge/validity/attention）。新增 json::agent_search_filter，与
+catalog_filter 共用字符串/null 检查后构造原类型；原生 records 根门控不变。
+新在进程用例两种根、agent_mcp_cases 13 项、catalog 回归 5 项、surface 4 项通过；
+Python 77 schemas 通过；Clippy/fmt 通过，无全量。records 根四字段的显式 null
+仍与缺省等价（未收紧）。当前 aggregate 43f0d1e986c4da7a5b652702fb9f8f4cfee8d72e5036b7101caa342a5107b491。
+
 2026-11-07（Claude 接续，Codex 限额耗尽）：5fe7380 之后复现搜索游标
 selection.algorithm 的对象标签仍被 serde 接受并派发，context/initialized 入口
 实测接纳。owned allowlist：mcp/json.rs 与三处 SearchArgs.cursor、opening_mcp.rs
@@ -9,7 +17,7 @@ integration manifest/RUNTIME.md。新增 json::catalog_cursor，只检查该字�
 开场 1 项、直接入口 2 项、实际管道/stdio 3 项、surface 4 项通过；Python 77
 schemas、三个 manifest 各 30 件通过；Host 全目标 Clippy/fmt 通过，无全量。
 当前 aggregate 807719f48e232d5b758296562ada3c010deac4635a84856695d88905b1233f1e。
-schema/hello 指纹未改。三个 catalog 型搜索入口的枚举已收束；v2 AgentSearchFilter 待下一片核实。
+schema/hello 指纹未改。三个 catalog 型搜索入口的枚举已收束；v2 AgentSearchFilter 见上条。
 
 7f98d2b 已推送部分输出/flush 验收。其后复现 catalog 筛选七个枚举字段的
 对象标签违反既有可空字符串合同，共 28 条路径；已在 MCP 筛选边界最小修正。owned

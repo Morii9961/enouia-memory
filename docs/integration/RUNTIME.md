@@ -1,5 +1,12 @@
 # Runtime integration (ADR-MEM-45)
 
+2026-11-07 MCP-2 filter representation correction: the v2 read adapter
+(legacy and record roots) refuses object-tagged search filter enums before
+native dispatch, sharing the catalog filter's string/null check. Valid filters,
+record-root gating, outputs, schemas and hello metadata are unchanged.
+Aggregate: `43f0d1e986c4da7a5b652702fb9f8f4cfee8d72e5036b7101caa342a5107b491`.
+See [read-control validation](../validation/MCP-5-read-control-strings.md).
+
 2026-11-07 search cursor representation correction: the same three MCP search
 adapters (initialized/context, catalog, qualified) refuse an object-tagged
 cursor selection.algorithm before native search dispatch, then pass the

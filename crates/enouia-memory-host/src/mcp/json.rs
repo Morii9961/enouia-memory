@@ -14,29 +14,55 @@ where
     ))
 }
 
+/// Parse a search filter after its enum fields pass the string/null check.
+fn string_enum_fields<'de, D: Deserializer<'de>, T: serde::de::DeserializeOwned>(
+    deserializer: D,
+    fields: &[&str],
+) -> Result<T, D::Error> {
+    let value = Value::deserialize(deserializer)?;
+    if fields.iter().any(|field| {
+        value
+            .get(field)
+            .is_some_and(|v| !v.is_null() && !v.is_string())
+    }) {
+        return Err(de::Error::custom("filter enum requires string or null"));
+    }
+    T::deserialize(value).map_err(de::Error::custom)
+}
+
 pub(super) fn catalog_filter<'de, D: Deserializer<'de>>(
     deserializer: D,
 ) -> Result<enouia_memory_contract::next::CatalogFilter, D::Error> {
-    let value = Value::deserialize(deserializer)?;
-    for field in [
-        "form",
-        "state",
-        "knowledge",
-        "adoption",
-        "validity",
-        "attention",
-        "time_axis",
-    ] {
-        if value
-            .get(field)
-            .is_some_and(|v| !v.is_null() && !v.is_string())
-        {
-            return Err(de::Error::custom(
-                "catalog filter enum requires string or null",
-            ));
-        }
-    }
-    enouia_memory_contract::next::CatalogFilter::deserialize(value).map_err(de::Error::custom)
+    string_enum_fields(
+        deserializer,
+        &[
+            "form",
+            "state",
+            "knowledge",
+            "adoption",
+            "validity",
+            "attention",
+            "time_axis",
+        ],
+    )
+}
+
+pub(super) fn agent_search_filter<'de, D: Deserializer<'de>>(
+    deserializer: D,
+) -> Result<crate::automation::agent_read::AgentSearchFilter, D::Error> {
+    string_enum_fields(
+        deserializer,
+        &[
+            "form",
+            "adoption",
+            "state",
+            "time_axis",
+            "precision",
+            "knowledge",
+            "validity",
+            "attention",
+        ],
+    )
 }
 
 /// Required, nullable search cursor whose selection algorithm is a string.

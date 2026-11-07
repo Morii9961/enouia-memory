@@ -448,7 +448,7 @@ fn mcp2_old_client_and_forged_or_unfrozen_arguments_are_refused() {
                     .as_array()
                     .unwrap()
                     .iter()
-                    .filter(|c| c["name"].as_str().unwrap().starts_with("object enum/"))
+                    .filter(|c| c["name"].as_str().unwrap().starts_with("object "))
                     .enumerate()
                 {
                     let raw = json!({"jsonrpc":"2.0","id":20+n,"method":"tools/call","params":{"name":case["tool"],"arguments":case["value"]}});
@@ -1183,4 +1183,80 @@ fn mcp2b_suggested_annotation_targets_do_not_leak_hidden_ids_or_change_stored_hi
             .any(|r| r.target == hidden.result)
     );
     assert_eq!(bytes(e.root.path()), before);
+}
+#[test]
+fn mcp2_search_filter_enum_objects_are_refused_before_dispatch_in_both_profiles() {
+    let legacy_env = super::formation_cases::env();
+    let legacy_host = legacy_env.host(legacy_env.vault(Faults::none()), legacy_env.jobs());
+    let legacy = legacy_host
+        .agent_reader(
+            &legacy_env.descriptor.created_by,
+            agent(),
+            scope(&legacy_env, false),
+        )
+        .unwrap();
+    let record_env = record_env();
+    let (record_host, _) = record_host(&record_env, false);
+    let records = record_host
+        .agent_record_reader(
+            &record_env.descriptor.created_by,
+            agent(),
+            scope(&record_env, true),
+        )
+        .unwrap();
+    let p = profile();
+    let schemas = support::schema::SchemaStore::load();
+    for (reader, root, fields) in [
+        (&legacy, legacy_env.root.path(), 4),
+        (&records, record_env.root.path(), 8),
+    ] {
+        let corpus = if reader.records() {
+            support::fixture("../agent-record-read/manifest.json")
+        } else {
+            support::fixture("../agent-read/manifest.json")
+        };
+        let schema = corpus["schema"].as_str().unwrap().to_owned();
+        let before = bytes(root);
+        let mut server = v2::Server::new(reader, &p).unwrap();
+        server.handle(&json!({"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"synthetic-filter-check","version":"1"}}}));
+        server.handle(&json!({"jsonrpc":"2.0","method":"notifications/initialized"}));
+        let mut admitted = Vec::new();
+        let mut valid = Vec::new();
+        for (n, case) in corpus["invalid"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter(|c| c["name"].as_str().unwrap().starts_with("object filter/"))
+            .enumerate()
+        {
+            assert!(!schemas.validate(&schema, &case["value"]).is_empty());
+            let raw = json!({"jsonrpc":"2.0","id":10+n,"method":"tools/call","params":{"name":"memory_search","arguments":case["value"]}});
+            if server.handle(&raw).unwrap()["error"]["code"] != json!(-32602) {
+                admitted.push(case["name"].clone());
+            }
+            let mut ok = case["value"].clone();
+            let filter = ok["arguments"]["filter"].as_object_mut().unwrap();
+            let (field, tagged) = filter.iter().next().unwrap();
+            let string = json!(tagged.as_object().unwrap().keys().next().unwrap());
+            filter.insert(field.clone(), string);
+            assert!(schemas.validate(&schema, &ok).is_empty());
+            valid.push(ok);
+        }
+        assert_eq!(valid.len(), fields);
+        assert!(
+            admitted.is_empty(),
+            "object filter enums admitted: {admitted:?}"
+        );
+        assert_eq!(server.counts.search, 0);
+        for (n, packet) in valid.into_iter().enumerate() {
+            let raw = json!({"jsonrpc":"2.0","id":40+n,"method":"tools/call","params":{"name":"memory_search","arguments":packet}});
+            let response = server.handle(&raw).unwrap();
+            assert!(
+                response["result"]["structuredContent"]["error"].is_null(),
+                "{response}"
+            );
+        }
+        assert_eq!(server.counts.search, fields as u64);
+        assert_eq!(bytes(root), before);
+    }
 }
