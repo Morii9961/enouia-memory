@@ -1,5 +1,13 @@
 # MCP-5 session_start 接续（2026-11-05）
 
+2026-11-07（Claude 第三片）：Runtime 捕获管道 pipe-1/pipe-2 的 mode、
+request.kind、turns[].speaker 同样接纳对象标签（如 {"user":null} 被当作用户原话）。
+新增 runtime_capture_transport::enum_strings，两处 parse 在版本/能力门之后、
+serde 解码前检查；对象标签按 invalid frame 拒绝。Runtime 类型化客户端本就发送
+字符串，无需采用。单元 8 项、实际管道 29 项、contract 3 项、surface 4 项通过；
+Python 77 schemas 通过；Clippy/fmt 通过，无全量。MCP-4 四个写入请求只含
+ID/修订/字符串，无同类缺口。当前 aggregate 15a5385770b1077984078280062c85e8b0a5da622632a18c3aa8253572cb0728。
+
 2026-11-07（Claude 第二片）：MCP-2 v2 读取入口的 AgentSearchFilter 同样
 接纳对象标签（legacy 根 form/adoption/state/time_axis，records 根另加
 precision/knowledge/validity/attention）。新增 json::agent_search_filter，与

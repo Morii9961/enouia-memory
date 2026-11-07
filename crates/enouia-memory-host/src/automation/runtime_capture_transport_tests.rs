@@ -185,3 +185,32 @@ fn witnessed_capture_then_lost_pipe_reply_keeps_original_and_never_reconnects() 
     .unwrap();
     assert_eq!(after, v.snapshot().unwrap());
 }
+#[test]
+fn object_tagged_mode_kind_and_speaker_are_refused_before_decoding() {
+    let base = serde_json::to_value(Call {
+        mode: Mode::Write,
+        request: request(),
+    })
+    .unwrap();
+    let mut admitted = Vec::new();
+    for (path, tag) in [
+        ("/mode", "write"),
+        ("/mode", "preflight"),
+        ("/mode", "status"),
+        ("/request/kind", "runtime_capture_request"),
+        ("/request/turns/0/speaker", "user"),
+        ("/request/turns/0/speaker", "assistant"),
+    ] {
+        let mut v = base.clone();
+        *v.pointer_mut(path).unwrap() = json!({ tag: null });
+        if parse(&serde_json::to_vec(&v).unwrap()).is_ok() {
+            admitted.push(format!("{path}={tag}"));
+        }
+    }
+    assert!(admitted.is_empty(), "object enums admitted: {admitted:?}");
+    for mode in ["write", "preflight"] {
+        let mut v = base.clone();
+        v["mode"] = json!(mode);
+        assert!(parse(&serde_json::to_vec(&v).unwrap()).is_ok());
+    }
+}

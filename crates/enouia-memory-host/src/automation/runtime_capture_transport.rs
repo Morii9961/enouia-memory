@@ -135,6 +135,14 @@ fn error(e: &ApplicationFault) -> &'static str {
         _ => "unavailable",
     }
 }
+/// The capture wire's enums are strings; serde's object tags are not aliases.
+pub(super) fn enum_strings(value: &Value) -> bool {
+    value["mode"].is_string()
+        && value["request"]["kind"].is_string()
+        && value["request"]["turns"]
+            .as_array()
+            .is_none_or(|turns| turns.iter().all(|turn| turn["speaker"].is_string()))
+}
 fn parse(bytes: &[u8]) -> Result<Call> {
     let value = crate::mcp::json::parse(bytes).map_err(|_| TransportFault::InvalidFrame)?;
     // Refuse unsupported record/capability before decoding any turn text.
@@ -142,6 +150,9 @@ fn parse(bytes: &[u8]) -> Result<Call> {
         || value["request"]["capability"] != RUNTIME_CAPTURE_CAPABILITY
     {
         return Err(TransportFault::Incompatible);
+    }
+    if !enum_strings(&value) {
+        return Err(TransportFault::InvalidFrame);
     }
     let call: Call = serde_json::from_value(value).map_err(|_| TransportFault::InvalidFrame)?;
     if !call.request.valid() {

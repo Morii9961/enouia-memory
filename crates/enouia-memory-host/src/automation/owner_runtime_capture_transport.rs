@@ -232,6 +232,9 @@ fn parse(bytes: &[u8]) -> Result<Call> {
     {
         return Err(TransportFault::Incompatible);
     }
+    if !super::runtime_capture_transport::enum_strings(&value) {
+        return Err(TransportFault::InvalidFrame);
+    }
     let call: Call = serde_json::from_value(value).map_err(|_| TransportFault::InvalidFrame)?;
     if !call.request.valid() {
         return Err(TransportFault::InvalidFrame);

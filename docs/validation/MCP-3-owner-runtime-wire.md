@@ -79,3 +79,30 @@ limitations (single-source context, no entity/revision publication, deleted jobs
 remaining forming, journal capacity and no old-binary rollback execution) remain.
 No semantic quality or daily-use acceptance is claimed. Ambiguous analysis stages
 automatically; no mandatory per-memory human queue is introduced.
+
+## Capture wire enum representation (2026-11-07)
+
+Claude, continuing the MCP-5 conformity work after Codex's quota ran out,
+checked the Runtime capture wires for the same serde object-tag gap. Before the
+fix, the new unit cases recorded six admissions on pipe-2 (three modes, kind,
+two speakers) and five on pipe-1 (it has no status mode)
+(target/capture-enum-repro.log). runtime_capture_transport::enum_strings now
+checks mode, request.kind and every turn speaker once; both parse functions use
+it before serde decoding.
+
+Checks actually run on this correction:
+
+- Host lib capture transport tests: 8 passed, 0 failed, including the two new
+  cases and string-mode positives (target/capture-enum-fixed.log).
+- Real pipe tests owner_runtime_capture_wire, runtime_capture_wire and
+  owner_runtime_capture: 18 + 6 + 5 passed, 0 failed (target/capture-enum-wire.log).
+- Contract runtime_capture: 3 passed; independent Python jsonschema 4.26.0:
+  77 schemas OK, with three new object-* rejection cases per wire corpus
+  (12 and 7 wire cases; target/capture-enum-contract.log, capture-enum-schema.log).
+- Host Clippy for all targets with -D warnings, formatting, Runtime surface
+  regeneration and runtime_surface tests (target/capture-enum-clippy.log,
+  capture-enum-surface.log).
+
+Current integration aggregate: 15a5385770b1077984078280062c85e8b0a5da622632a18c3aa8253572cb0728.
+No Runtime repository, real configuration, model, private data or full
+workspace run was used.

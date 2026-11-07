@@ -1,5 +1,12 @@
 # Runtime integration (ADR-MEM-45)
 
+2026-11-07 capture wire enum representation: pipe-1 and pipe-2 Runtime capture
+servers refuse object-tagged mode, request.kind or turns[].speaker as invalid
+frames before decoding. Runtime's typed client already sends strings, so no
+Runtime change is required. Schemas, replies and hello metadata are unchanged.
+Aggregate: `15a5385770b1077984078280062c85e8b0a5da622632a18c3aa8253572cb0728`.
+See [Owner wire validation](../validation/MCP-3-owner-runtime-wire.md).
+
 2026-11-07 MCP-2 filter representation correction: the v2 read adapter
 (legacy and record roots) refuses object-tagged search filter enums before
 native dispatch, sharing the catalog filter's string/null check. Valid filters,
