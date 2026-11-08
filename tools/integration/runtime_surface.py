@@ -38,6 +38,9 @@ FILES = {
     "tests/fixtures/memory/workspace-manifest.json": "wire",
     "crates/enouia-memory-contract/src/workspace.rs": "wire",
     "crates/enouia-memory-contract/src/error.rs": "wire",
+    # Public persona projection results and file contract (ADR-MEM-128).
+    "crates/enouia-memory-contract/src/persona.rs": "wire",
+    "contracts/persona/public-persona-projection-1.schema.json": "wire",
     # Additive MV-8 Host contracts; not activation of a new Runtime transport.
     "crates/enouia-memory-contract/src/lib.rs": "contract-api",
     "crates/enouia-memory-contract/src/host.rs": "host-contract",

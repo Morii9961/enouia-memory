@@ -11,6 +11,7 @@ const PAGES = [
   ["sessions", "会话"],
   ["context", "上下文检查"],
   ["vault", "Vault 与恢复"],
+  ["persona", "公开人设导出"],
 ] as const;
 type Page = (typeof PAGES)[number][0];
 
@@ -736,6 +737,74 @@ function Vault({ status, refresh }: { status: J; refresh: () => void }) {
   );
 }
 
+/** Minimal acceptance entry for ADR-MEM-128; the product UI lives in Runtime.
+ * Shows the exact projection text, the diff and exclusion counts; exports only
+ * after both acknowledgements, keeping the request key for an owner retry. */
+function PersonaExport() {
+  const [options, setOptions] = useState<J>(null);
+  const [identity, setIdentity] = useState<J>(null);
+  const [chosen, setChosen] = useState<string[]>([]);
+  const [preview, setPreview] = useState<J>(null);
+  const [receipt, setReceipt] = useState<J>(null);
+  const [acks, setAcks] = useState({ provider: false, extraction: false });
+  const action = useAction();
+  const load = () => void action.run(async () => {
+    const o = await call("persona_options", { audience: "public_group" });
+    setOptions(o);
+    setChosen(o.lastExport?.memoryIds ?? []);
+    setIdentity(o.identities.find((i: J) => i.identityId === o.lastExport?.identityId) ?? null);
+  });
+  useEffect(load, []);
+  const selection = identity && { audience: "public_group", identityId: identity.identityId, identityRevision: identity.revision, memoryIds: chosen };
+  const changeSelection = (next: () => void) => { next(); setPreview(null); setReceipt(null); setAcks({ provider: false, extraction: false }); };
+  return (
+    <div>
+      <ErrorBox error={action.error} />
+      <p className="muted">只导出所选 Identity 修订里的 <code>enouia-public-persona-1</code> 公开块，以及敏感度为 public 且在这里勾选的记录。不联网，不自动同步。</p>
+      {options && (
+        <>
+          <fieldset>
+            <legend>Identity 修订</legend>
+            {options.identities.map((i: J) => (
+              <label key={i.identityId}>
+                <input type="radio" name="persona-identity" checked={identity?.identityId === i.identityId} disabled={i.publicBlock !== "valid"}
+                  onChange={() => changeSelection(() => setIdentity(i))} /> {i.title} · 修订 {i.revision} · 公开块 {i.publicBlock}
+              </label>
+            ))}
+          </fieldset>
+          <fieldset>
+            <legend>公开知识（只列出 public 记录）</legend>
+            {options.publicMemories.map((m: J) => (
+              <label key={m.memoryId}>
+                <input type="checkbox" checked={chosen.includes(m.memoryId)}
+                  onChange={(e) => changeSelection(() => setChosen(e.target.checked ? [...chosen, m.memoryId] : chosen.filter((id) => id !== m.memoryId)))} /> {m.title}{m.namesPeople ? "（涉及人物）" : ""}
+              </label>
+            ))}
+          </fieldset>
+          <button type="button" disabled={!selection || action.busy} onClick={() => void action.run(async () => setPreview(await call("persona_preview", selection)))}>预览</button>
+        </>
+      )}
+      {preview && (
+        <section className="card" aria-label="预览">
+          <p>版本 {preview.version} · 投影摘要 <code>{preview.projectionSha256}</code></p>
+          <p>剔除：Identity 公开块外 {preview.exclusions.identityLinesOutsideBlock} 行；非公开记录 {JSON.stringify(preview.exclusions.memoriesNotPublic)}；未勾选的公开记录 {preview.exclusions.publicMemoriesNotSelected}；勾选但非公开 {preview.exclusions.selectedNotPublic}；勾选但已不可用 {preview.exclusions.selectedUnavailable}</p>
+          {preview.warnings.map((w: J) => <p key={w.code} className="warn">提醒：{w.code === "names_people" ? `${w.itemIds.length} 条公开知识涉及人物` : "所选 Identity 属于关系语境"}</p>)}
+          <p>与上次导出（{preview.diff.baselineVersion ?? "无"}）相比：字段 {preview.diff.fields.map((f: J) => `${f.field} ${f.change}`).join("，") || "无变化"}；知识 {preview.diff.knowledge.map((k: J) => `${k.itemId} ${k.change}`).join("，") || "无变化"}</p>
+          <pre>{JSON.stringify(preview.projection, null, 2)}</pre>
+          <label><input type="checkbox" checked={acks.provider} onChange={(e) => setAcks({ ...acks, provider: e.target.checked })} /> 这些内容会发给模型服务商</label>
+          <label><input type="checkbox" checked={acks.extraction} onChange={(e) => setAcks({ ...acks, extraction: e.target.checked })} /> 群友可能通过提问套出这些内容</label>
+          <button type="button" className="primary" disabled={!acks.provider || !acks.extraction || action.busy}
+            onClick={() => void action.run(async (key) => {
+              const p = await pick("persona_destination");
+              if (p) setReceipt(await call("persona_export", { ...selection, previewDigest: preview.previewDigest, destinationToken: p.token }, key));
+            })}>导出到文件夹…</button>
+        </section>
+      )}
+      {receipt && <p className="card" role="status">已写出 {receipt.fileName}：版本 {receipt.version}，文件 SHA-256 <code>{receipt.fileSha256}</code>{receipt.replayed ? "（重放的回执）" : ""}</p>}
+    </div>
+  );
+}
+
 function StartupSettings() {
   const [startup, setStartup] = useState<J>(null);
   const [note, setNote] = useState("");
@@ -851,6 +920,7 @@ export default function App() {
             {page === "sessions" && <Sessions inspect={(id) => { setCapsule(id); go("context"); }} />}
             {page === "context" && <Context key={capsule ?? "none"} capsuleId={capsule} />}
             {page === "vault" && <Vault status={status} refresh={refresh} />}
+            {page === "persona" && <PersonaExport />}
           </>
         )}
       </main>

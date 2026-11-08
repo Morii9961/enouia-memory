@@ -21,6 +21,7 @@ const WRITES = new Set([
   "history_materialize", "history_resume",
   "history_batch_prepare",
   "history_batch_apply",
+  "persona_export",
 ]);
 
 const uuid = () => crypto.randomUUID();
@@ -51,7 +52,7 @@ export async function call(command: string, args: Record<string, unknown> = {}, 
 }
 
 export type Picked = { token: string; displayName: string; bytes: number | null };
-export type PickKind = "import_file" | "vault_root" | "backup_destination" | "export_folder";
+export type PickKind = "import_file" | "vault_root" | "backup_destination" | "export_folder" | "persona_destination";
 
 export async function pick(kind: PickKind): Promise<Picked | null> {
   let result: J;

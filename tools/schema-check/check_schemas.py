@@ -10,6 +10,7 @@ Usage (from the repository root, with the pinned requirements installed):
     python tools/schema-check/check_schemas.py
 """
 import copy
+import hashlib
 import importlib.metadata
 import os
 import json
@@ -752,6 +753,33 @@ def main():
         if valid(owner_schemas[case["base"]], value) != (case["schema"] == "accept"):
             failures.append(f"owner case {case['id']}: disagreement")
     counts["owner_documents"] = len(owner["valid"]) + len(owner["invalid"])
+
+    # Public persona projection v1 (ADR-MEM-128): schema verdicts, plus the
+    # canonical digest a downstream consumer recomputes independently.
+    persona_dir = ROOT / "tests" / "fixtures" / "persona"
+    persona = load(persona_dir / "manifest.json")
+    persona_schemas = {e["file"]: e["schema"] for e in persona["valid"]}
+    for entry in persona["valid"]:
+        if not valid(entry["schema"], load(persona_dir / entry["file"])):
+            failures.append(f"valid persona document rejected: {entry['file']}")
+    for case in persona["invalid"]:
+        value = load(persona_dir / case["base"])
+        apply_ops(value, case["ops"])
+        if valid(persona_schemas[case["base"]], value) != (case["schema"] == "accept"):
+            failures.append(f"persona case {case['id']}: disagreement")
+    sample_bytes = (persona_dir / "projection-sample.json").read_bytes()
+    sample = json.loads(sample_bytes)
+
+    def canonical(v):
+        return (json.dumps(v, sort_keys=True, indent=2, ensure_ascii=False) + "\n").encode("utf-8")
+
+    if canonical(sample) != sample_bytes:
+        failures.append("persona sample is not canonical bytes")
+    if hashlib.sha256(canonical(sample["projection"])).hexdigest() != sample["projection_sha256"]:
+        failures.append("persona sample projection_sha256 does not recompute")
+    if hashlib.sha256(sample_bytes).hexdigest() != load(persona_dir / "receipt.json")["fileSha256"]:
+        failures.append("persona receipt fileSha256 does not match the sample bytes")
+    counts["persona_documents"] = len(persona["valid"]) + len(persona["invalid"])
 
     invocation_cases = load(FIXTURES / "provider-invocation-cases.json")
     for case in invocation_cases["cases"]:

@@ -180,6 +180,15 @@
     },
     {
       "$ref": "#/$defs/request_supersession_preview"
+    },
+    {
+      "$ref": "#/$defs/request_persona_options"
+    },
+    {
+      "$ref": "#/$defs/request_persona_preview"
+    },
+    {
+      "$ref": "#/$defs/request_persona_export"
     }
   ],
   "$defs": {
@@ -2377,7 +2386,10 @@
             "history_task",
             "history_comparison",
             "history_brief",
-            "supersession_preview"
+            "supersession_preview",
+            "persona_options",
+            "persona_preview",
+            "persona_exported"
           ]
         },
         "vaultCommitId": {
@@ -3109,6 +3121,161 @@
             },
             "effectiveFrom": {
               "$ref": "../memory/common-v1.schema.json#/$defs/businessTime"
+            }
+          }
+        }
+      }
+    },
+    "request_persona_options": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "requestId",
+        "command",
+        "idempotencyKey",
+        "arguments"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": 1
+        },
+        "requestId": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/requestId"
+        },
+        "command": {
+          "const": "persona_options"
+        },
+        "idempotencyKey": {
+          "type": "null"
+        },
+        "arguments": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "audience"
+          ],
+          "properties": {
+            "audience": {
+              "$ref": "../persona/public-persona-projection-1.schema.json#/$defs/audience"
+            }
+          }
+        }
+      }
+    },
+    "request_persona_preview": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "requestId",
+        "command",
+        "idempotencyKey",
+        "arguments"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": 1
+        },
+        "requestId": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/requestId"
+        },
+        "command": {
+          "const": "persona_preview"
+        },
+        "idempotencyKey": {
+          "type": "null"
+        },
+        "arguments": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "audience",
+            "identityId",
+            "identityRevision",
+            "memoryIds"
+          ],
+          "properties": {
+            "audience": {
+              "$ref": "../persona/public-persona-projection-1.schema.json#/$defs/audience"
+            },
+            "identityId": {
+              "$ref": "../memory/common-v1.schema.json#/$defs/identityId"
+            },
+            "identityRevision": {
+              "$ref": "../memory/common-v1.schema.json#/$defs/revision"
+            },
+            "memoryIds": {
+              "type": "array",
+              "maxItems": 64,
+              "uniqueItems": true,
+              "items": {
+                "$ref": "../memory/common-v1.schema.json#/$defs/memoryId"
+              }
+            }
+          }
+        }
+      }
+    },
+    "request_persona_export": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "requestId",
+        "command",
+        "idempotencyKey",
+        "arguments"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": 1
+        },
+        "requestId": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/requestId"
+        },
+        "command": {
+          "const": "persona_export"
+        },
+        "idempotencyKey": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{16,128}$"
+        },
+        "arguments": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "audience",
+            "identityId",
+            "identityRevision",
+            "memoryIds",
+            "previewDigest",
+            "destinationToken"
+          ],
+          "properties": {
+            "audience": {
+              "$ref": "../persona/public-persona-projection-1.schema.json#/$defs/audience"
+            },
+            "identityId": {
+              "$ref": "../memory/common-v1.schema.json#/$defs/identityId"
+            },
+            "identityRevision": {
+              "$ref": "../memory/common-v1.schema.json#/$defs/revision"
+            },
+            "memoryIds": {
+              "type": "array",
+              "maxItems": 64,
+              "uniqueItems": true,
+              "items": {
+                "$ref": "../memory/common-v1.schema.json#/$defs/memoryId"
+              }
+            },
+            "previewDigest": {
+              "$ref": "../memory/common-v1.schema.json#/$defs/sha256"
+            },
+            "destinationToken": {
+              "type": "string",
+              "pattern": "^tok_[0-9a-f]{32}$"
             }
           }
         }

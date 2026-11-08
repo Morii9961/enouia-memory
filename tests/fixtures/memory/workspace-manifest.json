@@ -622,6 +622,45 @@
         "targetRevision": 1,
         "effectiveFrom": "unknown"
       }
+    },
+    {
+      "schemaVersion": 1,
+      "requestId": "req_00000000-0000-4000-8000-00000000000d",
+      "command": "persona_options",
+      "idempotencyKey": null,
+      "arguments": {
+        "audience": "public_group"
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "requestId": "req_00000000-0000-4000-8000-00000000000e",
+      "command": "persona_preview",
+      "idempotencyKey": null,
+      "arguments": {
+        "audience": "public_group",
+        "identityId": "idn_00000000-0000-4000-8000-000000000001",
+        "identityRevision": 1,
+        "memoryIds": [
+          "mem_00000000-0000-4000-8000-000000000001"
+        ]
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "requestId": "req_00000000-0000-4000-8000-00000000000f",
+      "command": "persona_export",
+      "idempotencyKey": "synthetic-persona-export-0001",
+      "arguments": {
+        "audience": "public_group",
+        "identityId": "idn_00000000-0000-4000-8000-000000000001",
+        "identityRevision": 1,
+        "memoryIds": [
+          "mem_00000000-0000-4000-8000-000000000001"
+        ],
+        "previewDigest": "0000000000000000000000000000000000000000000000000000000000000000",
+        "destinationToken": "tok_0123456789abcdef0123456789abcdef"
+      }
     }
   ],
   "invalid_requests": [
@@ -1857,6 +1896,73 @@
       ],
       "schema": "reject",
       "rust_rule": "ipc.idempotency_key"
+    },
+    {
+      "id": "persona-unknown-audience",
+      "base": 58,
+      "ops": [
+        {
+          "op": "set",
+          "path": "/arguments/audience",
+          "value": "private_chat"
+        }
+      ],
+      "schema": "reject",
+      "rust_rule": "shape"
+    },
+    {
+      "id": "persona-duplicate-selection",
+      "base": 59,
+      "ops": [
+        {
+          "op": "set",
+          "path": "/arguments/memoryIds",
+          "value": [
+            "mem_00000000-0000-4000-8000-000000000001",
+            "mem_00000000-0000-4000-8000-000000000001"
+          ]
+        }
+      ],
+      "schema": "reject",
+      "rust_rule": "workspace.persona_selection"
+    },
+    {
+      "id": "persona-export-without-key",
+      "base": 60,
+      "ops": [
+        {
+          "op": "set",
+          "path": "/idempotencyKey",
+          "value": null
+        }
+      ],
+      "schema": "reject",
+      "rust_rule": "ipc.idempotency_key"
+    },
+    {
+      "id": "persona-export-path-token",
+      "base": 60,
+      "ops": [
+        {
+          "op": "set",
+          "path": "/arguments/destinationToken",
+          "value": "D:/exports"
+        }
+      ],
+      "schema": "reject",
+      "rust_rule": "workspace.token"
+    },
+    {
+      "id": "persona-preview-without-revision",
+      "base": 59,
+      "ops": [
+        {
+          "op": "remove",
+          "path": "/arguments/identityRevision"
+        }
+      ],
+      "schema": "reject",
+      "rust_rule": "shape"
     }
   ],
   "valid_responses": [
@@ -2050,6 +2156,42 @@
         "schemaVersion": 1,
         "requestId": "req_00000000-0000-4000-8000-00000000000c",
         "kind": "supersession_preview",
+        "vaultCommitId": null,
+        "operationId": null,
+        "result": {},
+        "error": null
+      }
+    },
+    {
+      "command": "persona_options",
+      "message": {
+        "schemaVersion": 1,
+        "requestId": "req_00000000-0000-4000-8000-00000000000d",
+        "kind": "persona_options",
+        "vaultCommitId": null,
+        "operationId": null,
+        "result": {},
+        "error": null
+      }
+    },
+    {
+      "command": "persona_preview",
+      "message": {
+        "schemaVersion": 1,
+        "requestId": "req_00000000-0000-4000-8000-00000000000e",
+        "kind": "persona_preview",
+        "vaultCommitId": null,
+        "operationId": null,
+        "result": {},
+        "error": null
+      }
+    },
+    {
+      "command": "persona_export",
+      "message": {
+        "schemaVersion": 1,
+        "requestId": "req_00000000-0000-4000-8000-00000000000f",
+        "kind": "persona_exported",
         "vaultCommitId": null,
         "operationId": null,
         "result": {},

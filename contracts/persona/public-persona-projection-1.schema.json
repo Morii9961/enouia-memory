@@ -1,0 +1,878 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.enouia-memory.invalid/persona/public-persona-projection-1.schema.json",
+  "title": "Public persona projection v1 (ADR-MEM-128): exported document, Identity block, owner options/preview/export results",
+  "$comment": "Rust additionally rejects whitespace-only text, credential- or local-path-shaped text, unordered or duplicate knowledge item IDs, invalid tags, and a projection_sha256 that is not SHA-256 over the canonical projection bytes.",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/document"
+    },
+    {
+      "$ref": "#/$defs/identity_block"
+    },
+    {
+      "$ref": "#/$defs/receipt"
+    },
+    {
+      "$ref": "#/$defs/preview"
+    },
+    {
+      "$ref": "#/$defs/options"
+    }
+  ],
+  "$defs": {
+    "contract": {
+      "const": "public-persona-projection-1"
+    },
+    "audience": {
+      "enum": [
+        "public_group"
+      ]
+    },
+    "projection_id": {
+      "type": "string",
+      "pattern": "^ppj_[0-9a-f]{32}$"
+    },
+    "item_id": {
+      "type": "string",
+      "pattern": "^pkn_[0-9a-f]{32}$"
+    },
+    "memory_version": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9._+/-]{1,64}$"
+    },
+    "persona_settings": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "background",
+        "personality",
+        "voice",
+        "motivation",
+        "values",
+        "rules",
+        "limits"
+      ],
+      "properties": {
+        "background": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4000,
+          "pattern": "^[^\u0000-\t\u000b-\u001f\u007f-\u009f]*$"
+        },
+        "personality": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4000,
+          "pattern": "^[^\u0000-\t\u000b-\u001f\u007f-\u009f]*$"
+        },
+        "voice": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4000,
+          "pattern": "^[^\u0000-\t\u000b-\u001f\u007f-\u009f]*$"
+        },
+        "motivation": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4000,
+          "pattern": "^[^\u0000-\t\u000b-\u001f\u007f-\u009f]*$"
+        },
+        "values": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4000,
+          "pattern": "^[^\u0000-\t\u000b-\u001f\u007f-\u009f]*$"
+        },
+        "rules": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4000,
+          "pattern": "^[^\u0000-\t\u000b-\u001f\u007f-\u009f]*$"
+        },
+        "limits": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4000,
+          "pattern": "^[^\u0000-\t\u000b-\u001f\u007f-\u009f]*$"
+        }
+      }
+    },
+    "style": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "rules",
+        "anti_examples"
+      ],
+      "properties": {
+        "rules": {
+          "type": "array",
+          "maxItems": 32,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500,
+            "pattern": "^[^\u0000-\t\u000b-\u001f\u007f-\u009f]*$"
+          }
+        },
+        "anti_examples": {
+          "type": "array",
+          "maxItems": 32,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500,
+            "pattern": "^[^\u0000-\t\u000b-\u001f\u007f-\u009f]*$"
+          }
+        }
+      }
+    },
+    "turn": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "speaker",
+        "text"
+      ],
+      "properties": {
+        "speaker": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64,
+          "pattern": "^[^\u0000-\t\u000b-\u001f\u007f-\u009f]*$"
+        },
+        "text": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "^[^\u0000-\t\u000b-\u001f\u007f-\u009f]*$"
+        }
+      }
+    },
+    "example": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "turns"
+      ],
+      "properties": {
+        "turns": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 16,
+          "items": {
+            "$ref": "#/$defs/turn"
+          }
+        }
+      }
+    },
+    "boundaries": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "refuse",
+        "ai_disclosure",
+        "avoid_topics",
+        "forbidden_words"
+      ],
+      "properties": {
+        "refuse": {
+          "type": "array",
+          "maxItems": 64,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500,
+            "pattern": "^[^\u0000-\t\u000b-\u001f\u007f-\u009f]*$"
+          }
+        },
+        "ai_disclosure": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1000,
+          "pattern": "^[^\u0000-\t\u000b-\u001f\u007f-\u009f]*$"
+        },
+        "avoid_topics": {
+          "type": "array",
+          "maxItems": 64,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200,
+            "pattern": "^[^\u0000-\t\u000b-\u001f\u007f-\u009f]*$"
+          }
+        },
+        "forbidden_words": {
+          "type": "array",
+          "maxItems": 128,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "pattern": "^[^\u0000-\t\u000b-\u001f\u007f-\u009f]*$"
+          }
+        }
+      }
+    },
+    "identity_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "display_name",
+        "persona",
+        "style",
+        "examples",
+        "interests",
+        "boundaries"
+      ],
+      "properties": {
+        "display_name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64,
+          "pattern": "^[^\u0000-\t\u000b-\u001f\u007f-\u009f]*$"
+        },
+        "persona": {
+          "$ref": "#/$defs/persona_settings"
+        },
+        "style": {
+          "$ref": "#/$defs/style"
+        },
+        "examples": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 8,
+          "items": {
+            "$ref": "#/$defs/example"
+          }
+        },
+        "interests": {
+          "type": "array",
+          "maxItems": 32,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200,
+            "pattern": "^[^\u0000-\t\u000b-\u001f\u007f-\u009f]*$"
+          }
+        },
+        "boundaries": {
+          "$ref": "#/$defs/boundaries"
+        }
+      }
+    },
+    "knowledge_item": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "item_id",
+        "text",
+        "source",
+        "tags"
+      ],
+      "properties": {
+        "item_id": {
+          "$ref": "#/$defs/item_id"
+        },
+        "text": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 20000,
+          "pattern": "^[^\u0000-\t\u000b-\u001f\u007f-\u009f]*$"
+        },
+        "source": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "memory_id",
+            "memory_revision"
+          ],
+          "properties": {
+            "memory_id": {
+              "$ref": "../memory/common-v1.schema.json#/$defs/memoryId"
+            },
+            "memory_revision": {
+              "$ref": "../memory/common-v1.schema.json#/$defs/revision"
+            }
+          }
+        },
+        "tags": {
+          "type": "array",
+          "maxItems": 32,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "../memory/common-v1.schema.json#/$defs/label"
+          }
+        }
+      }
+    },
+    "projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "projection_id",
+        "audience",
+        "source",
+        "display_name",
+        "persona",
+        "style",
+        "examples",
+        "interests",
+        "public_knowledge",
+        "boundaries"
+      ],
+      "properties": {
+        "projection_id": {
+          "$ref": "#/$defs/projection_id"
+        },
+        "audience": {
+          "$ref": "#/$defs/audience"
+        },
+        "source": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "projection_id",
+            "identity_id",
+            "identity_revision",
+            "contract"
+          ],
+          "properties": {
+            "projection_id": {
+              "$ref": "#/$defs/projection_id"
+            },
+            "identity_id": {
+              "$ref": "../memory/common-v1.schema.json#/$defs/identityId"
+            },
+            "identity_revision": {
+              "$ref": "../memory/common-v1.schema.json#/$defs/revision"
+            },
+            "contract": {
+              "$ref": "#/$defs/contract"
+            }
+          }
+        },
+        "display_name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64,
+          "pattern": "^[^\u0000-\t\u000b-\u001f\u007f-\u009f]*$"
+        },
+        "persona": {
+          "$ref": "#/$defs/persona_settings"
+        },
+        "style": {
+          "$ref": "#/$defs/style"
+        },
+        "examples": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 8,
+          "items": {
+            "$ref": "#/$defs/example"
+          }
+        },
+        "interests": {
+          "type": "array",
+          "maxItems": 32,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200,
+            "pattern": "^[^\u0000-\t\u000b-\u001f\u007f-\u009f]*$"
+          }
+        },
+        "public_knowledge": {
+          "type": "array",
+          "maxItems": 64,
+          "items": {
+            "$ref": "#/$defs/knowledge_item"
+          }
+        },
+        "boundaries": {
+          "$ref": "#/$defs/boundaries"
+        }
+      }
+    },
+    "document": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "contract",
+        "projection",
+        "projection_sha256",
+        "version",
+        "exported_at",
+        "memory_version"
+      ],
+      "properties": {
+        "contract": {
+          "$ref": "#/$defs/contract"
+        },
+        "projection": {
+          "$ref": "#/$defs/projection"
+        },
+        "projection_sha256": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/sha256"
+        },
+        "version": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "exported_at": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/timestamp"
+        },
+        "memory_version": {
+          "$ref": "#/$defs/memory_version"
+        }
+      }
+    },
+    "receipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "audience",
+        "projectionId",
+        "version",
+        "projectionSha256",
+        "fileName",
+        "fileSha256",
+        "bytes",
+        "exportedAt",
+        "memoryVersion",
+        "replayed"
+      ],
+      "properties": {
+        "audience": {
+          "$ref": "#/$defs/audience"
+        },
+        "projectionId": {
+          "$ref": "#/$defs/projection_id"
+        },
+        "version": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "projectionSha256": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/sha256"
+        },
+        "fileName": {
+          "type": "string",
+          "pattern": "^public-persona-[a-z_]+-v[1-9][0-9]*\\.json$"
+        },
+        "fileSha256": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/sha256"
+        },
+        "bytes": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/count"
+        },
+        "exportedAt": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/timestamp"
+        },
+        "memoryVersion": {
+          "$ref": "#/$defs/memory_version"
+        },
+        "replayed": {
+          "type": "boolean"
+        }
+      }
+    },
+    "preview": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "audience",
+        "projectionId",
+        "version",
+        "projectionSha256",
+        "previewDigest",
+        "memoryVersion",
+        "contract",
+        "projection",
+        "diff",
+        "exclusions",
+        "warnings"
+      ],
+      "properties": {
+        "audience": {
+          "$ref": "#/$defs/audience"
+        },
+        "projectionId": {
+          "$ref": "#/$defs/projection_id"
+        },
+        "version": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "projectionSha256": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/sha256"
+        },
+        "previewDigest": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/sha256"
+        },
+        "memoryVersion": {
+          "$ref": "#/$defs/memory_version"
+        },
+        "contract": {
+          "$ref": "#/$defs/contract"
+        },
+        "projection": {
+          "$ref": "#/$defs/projection"
+        },
+        "diff": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "baselineVersion",
+            "fields",
+            "knowledge",
+            "unchangedKnowledge"
+          ],
+          "properties": {
+            "baselineVersion": {
+              "oneOf": [
+                {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 9007199254740991
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "fields": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "field",
+                  "change"
+                ],
+                "properties": {
+                  "field": {
+                    "enum": [
+                      "/source",
+                      "/display_name",
+                      "/persona/background",
+                      "/persona/personality",
+                      "/persona/voice",
+                      "/persona/motivation",
+                      "/persona/values",
+                      "/persona/rules",
+                      "/persona/limits",
+                      "/style/rules",
+                      "/style/anti_examples",
+                      "/examples",
+                      "/interests",
+                      "/boundaries/refuse",
+                      "/boundaries/ai_disclosure",
+                      "/boundaries/avoid_topics",
+                      "/boundaries/forbidden_words"
+                    ]
+                  },
+                  "change": {
+                    "enum": [
+                      "added",
+                      "changed"
+                    ]
+                  }
+                }
+              }
+            },
+            "knowledge": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "itemId",
+                  "change",
+                  "source"
+                ],
+                "properties": {
+                  "itemId": {
+                    "$ref": "#/$defs/item_id"
+                  },
+                  "change": {
+                    "enum": [
+                      "added",
+                      "changed",
+                      "removed"
+                    ]
+                  },
+                  "source": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "memory_id",
+                      "memory_revision"
+                    ],
+                    "properties": {
+                      "memory_id": {
+                        "$ref": "../memory/common-v1.schema.json#/$defs/memoryId"
+                      },
+                      "memory_revision": {
+                        "$ref": "../memory/common-v1.schema.json#/$defs/revision"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "unchangedKnowledge": {
+              "$ref": "../memory/common-v1.schema.json#/$defs/count"
+            }
+          }
+        },
+        "exclusions": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "identityLinesOutsideBlock",
+            "otherIdentityRecords",
+            "memoriesNotPublic",
+            "publicMemoriesNotSelected",
+            "selectedNotPublic",
+            "selectedUnavailable"
+          ],
+          "properties": {
+            "identityLinesOutsideBlock": {
+              "$ref": "../memory/common-v1.schema.json#/$defs/count"
+            },
+            "otherIdentityRecords": {
+              "$ref": "../memory/common-v1.schema.json#/$defs/count"
+            },
+            "memoriesNotPublic": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "normal": {
+                  "$ref": "../memory/common-v1.schema.json#/$defs/count"
+                },
+                "private": {
+                  "$ref": "../memory/common-v1.schema.json#/$defs/count"
+                },
+                "highly_sensitive": {
+                  "$ref": "../memory/common-v1.schema.json#/$defs/count"
+                }
+              }
+            },
+            "publicMemoriesNotSelected": {
+              "$ref": "../memory/common-v1.schema.json#/$defs/count"
+            },
+            "selectedNotPublic": {
+              "$ref": "../memory/common-v1.schema.json#/$defs/count"
+            },
+            "selectedUnavailable": {
+              "$ref": "../memory/common-v1.schema.json#/$defs/count"
+            }
+          }
+        },
+        "warnings": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "code",
+              "itemIds"
+            ],
+            "properties": {
+              "code": {
+                "enum": [
+                  "relationship_identity",
+                  "names_people"
+                ]
+              },
+              "itemIds": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/$defs/item_id"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "options": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "audience",
+        "projectionId",
+        "identities",
+        "publicMemories",
+        "publicMemoriesTotal",
+        "truncated",
+        "lastExport"
+      ],
+      "properties": {
+        "audience": {
+          "$ref": "#/$defs/audience"
+        },
+        "projectionId": {
+          "$ref": "#/$defs/projection_id"
+        },
+        "identities": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "identityId",
+              "revision",
+              "slug",
+              "title",
+              "sensitivity",
+              "publicBlock"
+            ],
+            "properties": {
+              "identityId": {
+                "$ref": "../memory/common-v1.schema.json#/$defs/identityId"
+              },
+              "revision": {
+                "$ref": "../memory/common-v1.schema.json#/$defs/revision"
+              },
+              "slug": {
+                "enum": [
+                  "core",
+                  "runtime_rules",
+                  "style",
+                  "relationship",
+                  "boundaries"
+                ]
+              },
+              "title": {
+                "type": "string"
+              },
+              "sensitivity": {
+                "$ref": "../memory/common-v1.schema.json#/$defs/sensitivity"
+              },
+              "publicBlock": {
+                "enum": [
+                  "valid",
+                  "missing",
+                  "invalid"
+                ]
+              }
+            }
+          }
+        },
+        "publicMemories": {
+          "type": "array",
+          "maxItems": 500,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "memoryId",
+              "revision",
+              "title",
+              "type",
+              "tags",
+              "namesPeople"
+            ],
+            "properties": {
+              "memoryId": {
+                "$ref": "../memory/common-v1.schema.json#/$defs/memoryId"
+              },
+              "revision": {
+                "$ref": "../memory/common-v1.schema.json#/$defs/revision"
+              },
+              "title": {
+                "type": "string"
+              },
+              "type": {
+                "$ref": "../memory/common-v1.schema.json#/$defs/memoryType"
+              },
+              "tags": {
+                "type": "array",
+                "items": {
+                  "$ref": "../memory/common-v1.schema.json#/$defs/label"
+                }
+              },
+              "namesPeople": {
+                "type": "boolean"
+              }
+            }
+          }
+        },
+        "publicMemoriesTotal": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/count"
+        },
+        "truncated": {
+          "type": "boolean"
+        },
+        "lastExport": {
+          "oneOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "version",
+                "projectionSha256",
+                "identityId",
+                "identityRevision",
+                "memoryIds",
+                "exportedAt",
+                "fileName",
+                "fileSha256"
+              ],
+              "properties": {
+                "version": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 9007199254740991
+                },
+                "projectionSha256": {
+                  "$ref": "../memory/common-v1.schema.json#/$defs/sha256"
+                },
+                "identityId": {
+                  "$ref": "../memory/common-v1.schema.json#/$defs/identityId"
+                },
+                "identityRevision": {
+                  "$ref": "../memory/common-v1.schema.json#/$defs/revision"
+                },
+                "memoryIds": {
+                  "type": "array",
+                  "maxItems": 64,
+                  "uniqueItems": true,
+                  "items": {
+                    "$ref": "../memory/common-v1.schema.json#/$defs/memoryId"
+                  }
+                },
+                "exportedAt": {
+                  "$ref": "../memory/common-v1.schema.json#/$defs/timestamp"
+                },
+                "fileName": {
+                  "type": "string",
+                  "pattern": "^public-persona-[a-z_]+-v[1-9][0-9]*\\.json$"
+                },
+                "fileSha256": {
+                  "$ref": "../memory/common-v1.schema.json#/$defs/sha256"
+                }
+              }
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    }
+  }
+}

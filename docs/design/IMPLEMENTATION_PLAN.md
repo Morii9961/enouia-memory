@@ -1,3 +1,5 @@
+> 2026-11-08：Morii 授权“公开人设投影导出”的设计与第一片：[ADR-MEM-128](../adr/128-public-persona-projection-export.md)、[契约](../contracts/PUBLIC_PERSONA_PROJECTION_V1.md) 与 owner 原生预览/导出，只用合成数据。不给 Bot 授权，不做云端读取、自动导出或群聊回写；Runtime 界面与 pin 由 Runtime 另行实现。不因此开始其他阶段。
+
 > 2026-11-02：Morii 授权收束、验证和合并现有 PR #56～#81，完成后清理已合并分支和可确认无用的开发产物。本轮不开始 #81 之外的新阶段；真实分析器、Runtime 采用及私人数据/部署仍是独立门槛。此前未提交的 [Core 路线](memory-evolution-2026-10-24/07-core-refactor-and-runtime-route.md) 与 UI 交接按历史文档保留，不将旧“暂停 MCP”覆盖后来的授权。
 
 > 2026-10-28 初始化合成切片：[ADR104](../adr/104-synthetic-initialization-intake.md)。

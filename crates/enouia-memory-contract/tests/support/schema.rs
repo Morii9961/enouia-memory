@@ -80,7 +80,7 @@ impl SchemaStore {
         let root = contracts_root();
         let mut docs = BTreeMap::new();
         for dir in [
-            "memory", "context", "provider", "ipc", "store", "host", "next",
+            "memory", "context", "provider", "ipc", "store", "host", "next", "persona",
         ] {
             for entry in std::fs::read_dir(root.join(dir)).expect("contract dir") {
                 let path = entry.unwrap().path();

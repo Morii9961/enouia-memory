@@ -694,3 +694,11 @@ actual recall context, never creates/captures a Session or calls a model.
 creation command, persistent owner-self registration, original-operation recovery
 and empty genesis verification. Creation metadata is not Runtime root selection;
 no import, model, formation queue or MCP Owner route is activated.
+
+### ADR-MEM-128 — Owner-exported public persona projection
+
+[Decision](128-public-persona-projection-export.md): a closed, generic
+`public-persona-projection-1` contract built only from one current Identity
+revision's `enouia-public-persona-1` block and owner-selected `public` records;
+owner options/preview/export with digest-bound writes into a new file outside
+repositories and Vaults. No Agent grant, cloud read, automatic export or Runtime change.

@@ -1,0 +1,69 @@
+{
+  "audience": "public_group",
+  "identities": [
+    {
+      "identityId": "idn_00000000-0000-4000-8000-00000000b011",
+      "publicBlock": "valid",
+      "revision": 1,
+      "sensitivity": "private",
+      "slug": "style",
+      "title": "合成身份"
+    }
+  ],
+  "lastExport": {
+    "exportedAt": "2026-09-21T14:13:46.000Z",
+    "fileName": "public-persona-public_group-v1.json",
+    "fileSha256": "fdebb6bc434e4603f28aeff6fd83767f10f9ffd201f74830cd0457fc399cb4d3",
+    "identityId": "idn_00000000-0000-4000-8000-00000000b011",
+    "identityRevision": 1,
+    "memoryIds": [
+      "mem_00000000-0000-4000-8000-00000000b01f",
+      "mem_00000000-0000-4000-8000-00000000b03f",
+      "mem_00000000-0000-4000-8000-00000000b05f",
+      "mem_00000000-0000-4000-8000-00000000b06f"
+    ],
+    "projectionSha256": "279cde8e4ac6391235f1cbba49872b9d4f13f1bf269d35ee46cd55d3ed3bcd67",
+    "version": 1
+  },
+  "projectionId": "ppj_3d4cc4dc407333a09f5f9111d37145fd",
+  "publicMemories": [
+    {
+      "memoryId": "mem_00000000-0000-4000-8000-00000000b01f",
+      "namesPeople": true,
+      "revision": 1,
+      "tags": [
+        "hobby.astronomy"
+      ],
+      "title": "（合成公开）喜欢看星星。",
+      "type": "fact"
+    },
+    {
+      "memoryId": "mem_00000000-0000-4000-8000-00000000b02f",
+      "namesPeople": true,
+      "revision": 1,
+      "tags": [],
+      "title": "（合成公开）没有被勾选的公开事实。",
+      "type": "fact"
+    },
+    {
+      "memoryId": "mem_00000000-0000-4000-8000-00000000b05f",
+      "namesPeople": true,
+      "revision": 2,
+      "tags": [],
+      "title": "（合成公开）会做番茄炒蛋。",
+      "type": "fact"
+    },
+    {
+      "memoryId": "mem_00000000-0000-4000-8000-00000000b09d",
+      "namesPeople": true,
+      "revision": 1,
+      "tags": [
+        "hobby.outdoor"
+      ],
+      "title": "（合成公开）周末常去爬山。",
+      "type": "fact"
+    }
+  ],
+  "publicMemoriesTotal": 4,
+  "truncated": false
+}
