@@ -702,3 +702,11 @@ no import, model, formation queue or MCP Owner route is activated.
 revision's `enouia-public-persona-1` block and owner-selected `public` records;
 owner options/preview/export with digest-bound writes into a new file outside
 repositories and Vaults. No Agent grant, cloud read, automatic export or Runtime change.
+
+### ADR-MEM-129 — Remote Streamable HTTP endpoint for a ChatGPT connector
+
+[Decision](129-chatgpt-remote-mcp-endpoint.md): a transport-neutral MCP
+2025-11-25 Streamable HTTP endpoint serving the read-only opening profile behind
+an OAuth protected resource (RFC 9728 metadata, mandatory bearer, `memory.read`),
+subject-bound sessions and halt-on-unknown. No listener, authorization server,
+write tools, capture, deployment or Runtime change.
