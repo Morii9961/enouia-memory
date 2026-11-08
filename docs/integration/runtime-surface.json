@@ -61,7 +61,10 @@
     "history_batch_apply",
     "history_compare",
     "history_brief",
-    "supersession_preview"
+    "supersession_preview",
+    "persona_options",
+    "persona_preview",
+    "persona_export"
   ],
   "coveredDirectories": [
     "apps/workspace/src",
@@ -125,7 +128,7 @@
     {
       "path": "apps/workspace/src-tauri/src/main.rs",
       "role": "reference-shell",
-      "sha256": "fac9149a92ee28e583704c777254ee43fdd7b0fa1794827e84a41dba231fe52d"
+      "sha256": "a79605416e72e70ae4cc0b2517ed61e64538ea4c161efb28479650ae7c6423db"
     },
     {
       "path": "apps/workspace/src-tauri/src/native_host.rs",
@@ -170,7 +173,7 @@
     {
       "path": "apps/workspace/src/App.tsx",
       "role": "reference-ui",
-      "sha256": "0464042e400761abb0ac01585ed4ca24f24eb04325a2cb89ff0268137da66f48"
+      "sha256": "870c96438e81ebae3110df8226f190a4f1ab8d58f91a118dfc9b186ae3de93f8"
     },
     {
       "path": "apps/workspace/src/Overlay.tsx",
@@ -180,7 +183,7 @@
     {
       "path": "apps/workspace/src/api.ts",
       "role": "reference-ui",
-      "sha256": "13ed4273594c082170044933ae4c41d01954caa016d2110798c810774e11f824"
+      "sha256": "4ff54dd7b0bcc1362aa51ba07340bca2a12def9cb869211ac4c1f423163d88bd"
     },
     {
       "path": "apps/workspace/src/env.d.ts",
@@ -235,7 +238,7 @@
     {
       "path": "contracts/ipc/workspace-v1.schema.json",
       "role": "wire",
-      "sha256": "a8ab019910a5765cf054e7eb13f7a44c74d5a45f36c076c751d67f45952f8f2e"
+      "sha256": "0173dcee8727fe2399f354bb90aee3501e4f2626840dd06343fa75ebed81392e"
     },
     {
       "path": "contracts/memory/common-v1.schema.json",
@@ -413,6 +416,11 @@
       "sha256": "daf1f1b884f2228b3ccae3936dc434b585051639c16f010dac20f48dfb2d2f84"
     },
     {
+      "path": "contracts/persona/public-persona-projection-1.schema.json",
+      "role": "wire",
+      "sha256": "bb05e8a80b21e6b740c3497b36cde638ecdb15cc09228c463e3082c39e017bb3"
+    },
+    {
       "path": "contracts/store/current-v1.schema.json",
       "role": "host-publication",
       "sha256": "59ff9ae620407aa406e844953be61b7983004a8800445de683fce17928dde5be"
@@ -465,7 +473,7 @@
     {
       "path": "crates/enouia-memory-contract/src/lib.rs",
       "role": "contract-api",
-      "sha256": "d0c751de7ab2087772cc37475e33218c25a43638c829423678967e89d4124f7d"
+      "sha256": "72d9adcfdfe9f76e02bf8a6dd827125d7dd7d76991640b095329a127e0f51283"
     },
     {
       "path": "crates/enouia-memory-contract/src/next/admission.rs",
@@ -583,6 +591,11 @@
       "sha256": "a105baf408de5601c70c2bd6b9a00b918a85fe1951e9d093980ab49ff8d6bcf7"
     },
     {
+      "path": "crates/enouia-memory-contract/src/persona.rs",
+      "role": "wire",
+      "sha256": "ae107382fe674c6bd0b5aa3e446af13ecc52d2a65d18dc45314151e42cded8e0"
+    },
+    {
       "path": "crates/enouia-memory-contract/src/policy.rs",
       "role": "agent-policy",
       "sha256": "7d37d85b3b5671027cfc7a22304e5652e54d77a001e97bcf0cf9d7eea282f67e"
@@ -595,7 +608,7 @@
     {
       "path": "crates/enouia-memory-contract/src/workspace.rs",
       "role": "wire",
-      "sha256": "24ffe7d145f75da84417d2b6f6b987f041b99759275f947898f9ac64a5ce49e6"
+      "sha256": "dd86a874f86db022dc4378157441f4979918bef361016f7944ca3da891c54f38"
     },
     {
       "path": "crates/enouia-memory-govern/Cargo.toml",
@@ -1220,7 +1233,7 @@
     {
       "path": "crates/enouia-memory-workspace/src/lib.rs",
       "role": "core",
-      "sha256": "21c1e6c9401cc6086205f603f04a12dfc8074ee82b8259fc59ff8c5bcd061268"
+      "sha256": "7220188ad3b4b5a5e691d7cccc0193c52901e36599a01f337e47c3240246b243"
     },
     {
       "path": "crates/enouia-memory-workspace/src/materialization.rs",
@@ -1238,6 +1251,11 @@
       "sha256": "f4ab06441dc8bf6e5218d5f15774f018fa220406406707c508547bd6b04ebe0a"
     },
     {
+      "path": "crates/enouia-memory-workspace/src/persona.rs",
+      "role": "core",
+      "sha256": "4cfd9979aacacd8263a12dac08298e297ce80c2f15cb4acbb4794131e5ee41da"
+    },
+    {
       "path": "crates/enouia-memory-workspace/src/supersession.rs",
       "role": "core",
       "sha256": "07567b5b48ae264bada270a46864d67e5384dbef77da671a802d0727171ecd56"
@@ -1245,7 +1263,7 @@
     {
       "path": "crates/enouia-memory-workspace/src/tests.rs",
       "role": "core",
-      "sha256": "7dfe7c01b26a774afec7886748669bb97b8a8b944f221edb64603dff2047e632"
+      "sha256": "c4eaca2529f47e5387944f77e0d044b4b168d5368dea5696e6424d80685d72d7"
     },
     {
       "path": "crates/enouia-memory-workspace/src/tests/history.rs",
@@ -1256,6 +1274,11 @@
       "path": "crates/enouia-memory-workspace/src/tests/native.rs",
       "role": "core",
       "sha256": "ea3c9ad74fcc066eaf55ee94c49809351f132b3738234316c796f67cea911e1f"
+    },
+    {
+      "path": "crates/enouia-memory-workspace/src/tests/persona.rs",
+      "role": "core",
+      "sha256": "203aa7ca4b5cf5a3360e78724bc46a97cb29c96bead81a72f734afb77e85e620"
     },
     {
       "path": "crates/enouia-memory-workspace/src/views.rs",
@@ -1270,7 +1293,7 @@
     {
       "path": "tests/fixtures/memory/workspace-manifest.json",
       "role": "wire",
-      "sha256": "f65b4fee8e62214153dda3aed3c281713e7ac4bded91a034f7e71d94b248534d"
+      "sha256": "b464fff6fc42d8fbd9a6534c386b1fdcd1d17f2eda9a31dc0a7a7e6a20d4aa93"
     },
     {
       "path": "tools/windows/installer-smoke.ps1",
@@ -1303,5 +1326,5 @@
       "sha256": "3603c1855d9f9ec9b3585143a0191508980b260b1ffd26c82b3e6f9b7223a75d"
     }
   ],
-  "aggregate": "15a5385770b1077984078280062c85e8b0a5da622632a18c3aa8253572cb0728"
+  "aggregate": "f93f39ad59dd36824ee1dcdd430f01c0ee95acbb55fc6c4a67bab9117846fec4"
 }

@@ -1,5 +1,44 @@
 # Runtime integration (ADR-MEM-45)
 
+2026-11-08 public persona projection export (ADR-MEM-128, first slice): three
+additive owner commands on Workspace IPC v1 (61 commands): `persona_options`
+and `persona_preview` (reads, null key) and `persona_export` (write, key
+required, kind `persona_exported`). New contract module
+`enouia_memory_contract::persona` and schema
+`contracts/persona/public-persona-projection-1.schema.json`; new native picker
+kind `PickKind::PersonaDestination` (page kind `persona_destination`, folder).
+The Core writes `sync-state/public-persona-1.json` (version ledger) in the
+Vault's managed root. No network, schedule, sync, Agent grant or Host/MCP
+change; existing commands are unchanged.
+Aggregate: `f93f39ad59dd36824ee1dcdd430f01c0ee95acbb55fc6c4a67bab9117846fec4`.
+See [contract](../contracts/PUBLIC_PERSONA_PROJECTION_V1.md) and
+[evidence](../validation/Public-persona-export-v1.md).
+
+What Runtime must adopt, in its own authorized change:
+
+- Pin this commit and aggregate; map `persona_destination` to a native folder
+  dialog and register the choice with `register_pick`; the page never sends a path.
+- Product page (R1): select one Identity record from `persona_options` (only
+  `publicBlock: valid` is selectable), check public records (the list contains
+  public records only; prefill from `lastExport.memoryIds`), preview, two
+  separate acknowledgements (sent to the model provider; extractable by chat
+  participants), folder picker, receipt.
+- Preview (R2): render `projection` as the exact text that will be written
+  (canonical: sorted keys, two-space indentation), plus `diff`, `exclusions`
+  and `warnings`. Never fetch or show bodies of excluded content. Any selection
+  or lifecycle change withdraws the preview and both acknowledgements.
+- Export: send `previewDigest` unchanged and one idempotency key per owner
+  decision. On a lost response keep that key and the original arguments and
+  resend only when the owner asks; never retry automatically, never create a
+  new key for the same decision. Show Memory's refusal rules as given
+  (`persona.preview_changed`, `persona.destination_rejected` with `root.*`,
+  `persona.destination_in_vault`, `persona.destination_exists`,
+  `persona.identity_stale`); no frontend path judgement (R4).
+- Receipt (R5): show `version`, `fileName` and `fileSha256`; `replayed: true`
+  means nothing new was written.
+- Browser preview / Inspector keep fictional data and must not show an export
+  as done before the real Core answers (R6).
+
 2026-11-07 capture wire enum representation: pipe-1 and pipe-2 Runtime capture
 servers refuse object-tagged mode, request.kind or turns[].speaker as invalid
 frames before decoding. Runtime's typed client already sends strings, so no

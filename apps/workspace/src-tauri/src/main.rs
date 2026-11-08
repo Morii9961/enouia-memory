@@ -76,6 +76,7 @@ async fn pick(core: State<'_, Core>, kind: String) -> Result<Value, String> {
             "import_file" => (PickKind::ImportFile, "选择要导入的导出文件"),
             "vault_root" => (PickKind::VaultRoot, "选择 Vault 数据目录"),
             "backup_destination" => (PickKind::BackupDestination, "选择空的备份目标目录"),
+            "persona_destination" => (PickKind::PersonaDestination, "选择公开人设文件的保存文件夹"),
             "export_folder" => (PickKind::ExportFolder, "选择要预览的备份目录"),
             _ => return json!({"error": {"code": "invalid_request", "rules": ["workspace.pick_kind"]}}),
         };

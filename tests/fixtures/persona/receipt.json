@@ -1,0 +1,12 @@
+{
+  "audience": "public_group",
+  "bytes": 3368,
+  "exportedAt": "2026-09-21T14:13:56.000Z",
+  "fileName": "public-persona-public_group-v2.json",
+  "fileSha256": "fa66348d2f40c9872c22b5a46bda5e8f9ddfe006a63d37c0dc33b5ba7aea23ec",
+  "memoryVersion": "enouia-memory-workspace/0.1.0",
+  "projectionId": "ppj_3d4cc4dc407333a09f5f9111d37145fd",
+  "projectionSha256": "8aa845b73b91a54055c8133617bfcaf949b20bfa472a2df4706b92ad415c326f",
+  "replayed": false,
+  "version": 2
+}

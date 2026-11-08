@@ -1,0 +1,144 @@
+{
+  "$comment": "Synthetic public persona projection v1 corpus (ADR-MEM-128). The five documents are real Core output from the ignored workspace test persona_contract_samples. Invalid cases are applied to a copy of their base.",
+  "valid": [
+    {
+      "file": "projection-sample.json",
+      "type": "document",
+      "schema": "persona/public-persona-projection-1.schema.json"
+    },
+    {
+      "file": "identity-block.json",
+      "type": "identity_block",
+      "schema": "persona/public-persona-projection-1.schema.json"
+    },
+    {
+      "file": "preview.json",
+      "type": "preview",
+      "schema": "persona/public-persona-projection-1.schema.json"
+    },
+    {
+      "file": "options.json",
+      "type": "options",
+      "schema": "persona/public-persona-projection-1.schema.json"
+    },
+    {
+      "file": "receipt.json",
+      "type": "receipt",
+      "schema": "persona/public-persona-projection-1.schema.json"
+    }
+  ],
+  "invalid": [
+    {
+      "id": "document-unknown-field",
+      "base": "projection-sample.json",
+      "ops": [{"op": "set", "path": "/projection/group_overrides", "value": {}}],
+      "schema": "reject",
+      "rust_rule": "shape"
+    },
+    {
+      "id": "document-unknown-audience",
+      "base": "projection-sample.json",
+      "ops": [{"op": "set", "path": "/projection/audience", "value": "private_chat"}],
+      "schema": "reject",
+      "rust_rule": "shape"
+    },
+    {
+      "id": "document-unknown-contract",
+      "base": "projection-sample.json",
+      "ops": [{"op": "set", "path": "/contract", "value": "public-persona-projection-2"}],
+      "schema": "reject",
+      "rust_rule": "shape"
+    },
+    {
+      "id": "document-content-without-new-digest",
+      "base": "projection-sample.json",
+      "ops": [{"op": "set", "path": "/projection/display_name", "value": "Synthetic other name"}],
+      "schema": "accept",
+      "rust_rule": "persona.projection_sha256"
+    },
+    {
+      "id": "document-version-zero",
+      "base": "projection-sample.json",
+      "ops": [{"op": "set", "path": "/version", "value": 0}],
+      "schema": "reject",
+      "rust_rule": "persona.version"
+    },
+    {
+      "id": "document-control-character",
+      "base": "projection-sample.json",
+      "ops": [{"op": "set", "path": "/projection/persona/voice", "value": "synthetic\u0007"}],
+      "schema": "reject",
+      "rust_rule": "persona.control_character"
+    },
+    {
+      "id": "document-knowledge-out-of-order",
+      "base": "projection-sample.json",
+      "ops": [{"op": "set", "path": "/projection/public_knowledge/0/item_id", "value": "pkn_ffffffffffffffffffffffffffffffff"}],
+      "schema": "accept",
+      "rust_rule": "persona.item_order"
+    },
+    {
+      "id": "document-credential-shaped-text",
+      "base": "projection-sample.json",
+      "ops": [{"op": "set", "path": "/projection/interests/0", "value": "sk-syntheticsyntheticsynthetic"}],
+      "schema": "accept",
+      "rust_rule": "persona.secret_material"
+    },
+    {
+      "id": "document-local-path",
+      "base": "projection-sample.json",
+      "ops": [{"op": "set", "path": "/projection/public_knowledge/0/text", "value": "see C:\\synthetic\\notes"}],
+      "schema": "accept",
+      "rust_rule": "persona.local_path"
+    },
+    {
+      "id": "document-source-projection-mismatch",
+      "base": "projection-sample.json",
+      "ops": [{"op": "set", "path": "/projection/source/projection_id", "value": "ppj_00000000000000000000000000000000"}],
+      "schema": "accept",
+      "rust_rule": "persona.source_projection"
+    },
+    {
+      "id": "block-two-examples",
+      "base": "identity-block.json",
+      "ops": [{"op": "remove", "path": "/examples/2"}],
+      "schema": "reject",
+      "rust_rule": "persona.example_count"
+    },
+    {
+      "id": "block-unknown-field",
+      "base": "identity-block.json",
+      "ops": [{"op": "set", "path": "/approved_by", "value": "synthetic"}],
+      "schema": "reject",
+      "rust_rule": "shape"
+    },
+    {
+      "id": "block-duplicate-interest",
+      "base": "identity-block.json",
+      "ops": [{"op": "set", "path": "/interests/1", "value": "（合成）天文"}],
+      "schema": "reject",
+      "rust_rule": "persona.list_duplicate"
+    },
+    {
+      "id": "block-single-turn-example",
+      "base": "identity-block.json",
+      "ops": [{"op": "remove", "path": "/examples/0/turns/1"}],
+      "schema": "reject",
+      "rust_rule": "persona.turn_count"
+    },
+    {
+      "id": "receipt-path-field",
+      "base": "receipt.json",
+      "ops": [{"op": "set", "path": "/path", "value": "synthetic"}],
+      "schema": "reject",
+      "rust_rule": null
+    },
+    {
+      "id": "preview-unknown-warning",
+      "base": "preview.json",
+      "ops": [{"op": "set", "path": "/warnings/0/code", "value": "synthetic"}],
+      "schema": "reject",
+      "rust_rule": null
+    }
+  ]
+}

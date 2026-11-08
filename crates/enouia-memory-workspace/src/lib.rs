@@ -18,6 +18,7 @@ mod history;
 mod materialization;
 mod native;
 pub mod ops;
+mod persona;
 mod supersession;
 pub mod views;
 
@@ -200,6 +201,8 @@ pub enum PickKind {
     VaultRoot,
     BackupDestination,
     ExportFolder,
+    /// A folder for a public persona projection file (ADR-MEM-128).
+    PersonaDestination,
 }
 
 /// What the page learns about a pick: the token, a base name, a size.
@@ -285,6 +288,8 @@ pub struct Workspace {
     companion: Mutex<Value>,
     /// Native Provider setup, plans and prepared calls (ADR-MEM-48).
     native: native::Native,
+    /// Serializes public persona exports and their ledger (ADR-MEM-128).
+    persona: Mutex<()>,
 }
 
 fn base_name(path: &Path) -> String {
@@ -417,6 +422,7 @@ impl Workspace {
                 json!({"tray": "absent", "hotkey": {"state": "absent"}, "overlay": "absent"}),
             ),
             native: native::Native::default(),
+            persona: Mutex::new(()),
         }
     }
 
@@ -798,6 +804,9 @@ impl Workspace {
             Command::Remember(a) => Done::of(self.remember(a, key)?),
             Command::CorrectionPropose(a) => Done::of(self.correction(a, key)?),
             Command::SupersessionPreview(a) => Done::of(self.supersession_preview(a)?),
+            Command::PersonaOptions(a) => Done::of(self.persona_options(a)?),
+            Command::PersonaPreview(a) => Done::of(self.persona_preview(a)?),
+            Command::PersonaExport(a) => Done::of(self.persona_export(a, key)?),
             Command::ImportPreview(a) => Done::of(self.import_preview(&a.import_token)?),
             Command::ImportStart(a) => self.import_start(a, key)?,
             Command::ImportResume(a) => self.import_resume(a, key)?,

@@ -3180,3 +3180,4 @@ fn an_import_cancelled_before_its_first_batch_is_resumable() {
 
 mod history;
 mod native;
+mod persona;

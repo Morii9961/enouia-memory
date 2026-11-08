@@ -10,8 +10,8 @@
 use crate::error::{ContractError, MemoryError, MemoryErrorCode, Violation};
 use crate::hash::Sha256Hex;
 use crate::ids::{
-    BranchId, CandidateId, CapsuleId, CommitId, DispatchId, EventId, ExtractionRunId, ImportId,
-    MemoryId, OperationId, PolicyId, RequestId, SessionId, SourceId,
+    BranchId, CandidateId, CapsuleId, CommitId, DispatchId, EventId, ExtractionRunId, IdentityId,
+    ImportId, MemoryId, OperationId, PolicyId, RequestId, SessionId, SourceId,
 };
 use crate::json::{Revision, SchemaVersion};
 use serde::de::DeserializeOwned;
@@ -292,6 +292,34 @@ pub struct SupersessionPreviewArgs {
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct PersonaOptionsArgs {
+    pub audience: crate::persona::Audience,
+}
+
+/// The owner's explicit choice for one audience (ADR-MEM-128): one exact
+/// Identity revision and the records checked for this audience.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct PersonaPreviewArgs {
+    pub audience: crate::persona::Audience,
+    pub identity_id: IdentityId,
+    pub identity_revision: Revision,
+    pub memory_ids: Vec<MemoryId>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct PersonaExportArgs {
+    pub audience: crate::persona::Audience,
+    pub identity_id: IdentityId,
+    pub identity_revision: Revision,
+    pub memory_ids: Vec<MemoryId>,
+    pub preview_digest: Sha256Hex,
+    pub destination_token: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct HistoryBriefArgs {
     pub batches: Vec<HistoryBatchArgs>,
     pub comparison_commit_id: CommitId,
@@ -526,10 +554,13 @@ pub enum Command {
     HistoryCompare(HistoryCompareArgs),
     HistoryBrief(HistoryBriefArgs),
     HistoryResume(HistoryTaskArgs),
+    PersonaOptions(PersonaOptionsArgs),
+    PersonaPreview(PersonaPreviewArgs),
+    PersonaExport(PersonaExportArgs),
 }
 
 /// Command names, in schema order.
-pub const COMMANDS: [&str; 58] = [
+pub const COMMANDS: [&str; 61] = [
     "workspace_status",
     "vault_open",
     "vault_create",
@@ -588,6 +619,9 @@ pub const COMMANDS: [&str; 58] = [
     "history_compare",
     "history_brief",
     "supersession_preview",
+    "persona_options",
+    "persona_preview",
+    "persona_export",
 ];
 
 /// Commands that can commit to the Vault and therefore carry an idempotency key.
@@ -614,6 +648,7 @@ pub fn is_write(command: &str) -> bool {
             | "history_resume"
             | "history_batch_prepare"
             | "history_batch_apply"
+            | "persona_export"
     )
 }
 
@@ -719,6 +754,9 @@ pub fn success_kind(command: &str) -> ResponseKind {
         "history_compare" => K::HistoryComparison,
         "history_brief" => K::HistoryBrief,
         "supersession_preview" => K::SupersessionPreview,
+        "persona_options" => K::PersonaOptions,
+        "persona_preview" => K::PersonaPreview,
+        "persona_export" => K::PersonaExported,
         _ => K::MemoryError,
     }
 }
@@ -774,6 +812,17 @@ fn check_history_selection(batches: &[HistoryBatchArgs], out: &mut Vec<Violation
         out.push(Violation::new(
             "workspace.history_selection",
             "/arguments/batches",
+        ));
+    }
+}
+
+fn check_persona_selection(ids: &[MemoryId], out: &mut Vec<Violation>) {
+    if ids.len() > crate::persona::MAX_KNOWLEDGE_ITEMS
+        || ids.iter().collect::<std::collections::BTreeSet<_>>().len() != ids.len()
+    {
+        out.push(Violation::new(
+            "workspace.persona_selection",
+            "/arguments/memoryIds",
         ));
     }
 }
@@ -1037,6 +1086,15 @@ pub fn parse_request(value: &Value) -> Result<(Request, Command), ContractError>
                 ));
             }
         }
+        Command::PersonaPreview(a) => check_persona_selection(&a.memory_ids, &mut out),
+        Command::PersonaExport(a) => {
+            check_persona_selection(&a.memory_ids, &mut out);
+            check_token(
+                &a.destination_token,
+                "/arguments/destinationToken",
+                &mut out,
+            );
+        }
         Command::ExternalSend(a) if !is_plan_id(&a.call_id) => {
             out.push(Violation::new("workspace.plan_id", "/arguments/callId"));
         }
@@ -1090,6 +1148,9 @@ pub enum ResponseKind {
     HistoryComparison,
     HistoryBrief,
     SupersessionPreview,
+    PersonaOptions,
+    PersonaPreview,
+    PersonaExported,
 }
 
 /// An error as the page sees it: a contract code, whether a retry can help,
