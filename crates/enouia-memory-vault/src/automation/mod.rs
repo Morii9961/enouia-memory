@@ -90,8 +90,14 @@ impl AutomationVault {
     ) -> Result<Self> {
         let verified = verify_data_root(root.path(), &RootPolicy::default())
             .map_err(|_| AutomationFault::Denied)?;
-        if !cfg!(windows)
-            || !verified.filesystem.eq_ignore_ascii_case("NTFS")
+        // Windows: NTFS. Linux (ADR-MEM-133): a durable local filesystem.
+        let local = if cfg!(windows) {
+            verified.filesystem.eq_ignore_ascii_case("NTFS")
+        } else {
+            cfg!(target_os = "linux")
+                && ["ext4", "xfs", "btrfs", "zfs", "f2fs"].contains(&verified.filesystem.as_str())
+        };
+        if !local
             || !platform::inspect_acl(verified.path())
                 .map_err(|_| AutomationFault::Denied)?
                 .is_owner_only()
