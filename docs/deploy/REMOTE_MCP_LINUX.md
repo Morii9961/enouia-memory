@@ -22,11 +22,32 @@ ChatGPT ──HTTPS──▶ Caddy (TLS, :443) ──HTTP──▶ enouia-memory
 - The state directory lives outside the Vault root. The service refuses
   otherwise.
 
+## Creating the Owner Vault (ADR-MEM-134)
+
+As the service account, prepare an owner-data home outside any repository and
+outside `/tmp`, then run the native bootstrap:
+
+```sh
+sudo -u enouia sh -c '
+  home=/var/lib/enouia-memory/home
+  mkdir -p "$home" && chmod 700 "$home"
+  echo "Enouia owner data; never delete" > "$home/DO_NOT_DELETE.USER_DATA"
+  printf %s "{\"format\":\"enouia-owner-data-home/1\",\"storage_class\":\"owner_data\",\"allow_development_cleanup\":false,\"allow_git_upload\":false,\"production_vault_created\":false,\"active_vault\":null}" > "$home/.enouia-owner-data.json"
+  chmod 600 "$home/DO_NOT_DELETE.USER_DATA" "$home/.enouia-owner-data.json"
+  enouia-memory-owner-bootstrap prepare "$home" --bind-current-owner-self
+'
+# then: enouia-memory-owner-bootstrap commit "$home" <operation_id> --bind-current-owner-self
+```
+
+The new Vault is `$home/vaults/<vault_id>`. Use its descriptor's `host_id` in
+the service file. The Vault starts empty; filling it (policies, sources,
+memories) is a separate, owner-authorized step.
+
 ## Service file (`/etc/enouia-memory/remote.json`, mode 0600)
 
 ```json
 {
-  "vault_root": "/var/lib/enouia-memory/vault",
+  "vault_root": "/var/lib/enouia-memory/home/vaults/vlt_00000000-0000-4000-8000-000000000005",
   "host_id": "dev_00000000-0000-4000-8000-000000000000",
   "state_dir": "/var/lib/enouia-memory/oauth",
   "bind": "127.0.0.1:8787",
