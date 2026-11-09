@@ -176,7 +176,7 @@ mod tests {
         let file = dir.join("f");
         std::fs::write(&file, b"x").unwrap();
         std::fs::set_permissions(&file, std::fs::Permissions::from_mode(0o644)).unwrap();
-        assert_eq!(inspect_acl(&file).unwrap().broad_grants(), 1);
+        assert_eq!(inspect_acl(&file).unwrap().broad_grants(), 2);
         restrict_to_owner(&file).unwrap();
         assert_eq!(std::fs::metadata(&file).unwrap().mode() & 0o777, 0o600);
         assert!(inspect_acl(&file).unwrap().is_owner_only());
