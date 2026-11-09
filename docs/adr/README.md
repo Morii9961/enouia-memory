@@ -727,3 +727,12 @@ POSIX mode with no group or other access, owned by the effective user, with no
 ACL extension. Restriction sets 0700/0600 after removing ACL attributes. Windows
 code is unchanged; `libc` is added for Linux only. There is no Linux real-Vault
 entry yet.
+
+### ADR-MEM-132 — Single-owner OAuth authority for the remote endpoint
+
+[Decision](132-remote-mcp-owner-oauth.md): RFC 8414 metadata, RFC 7591
+registration for public clients on allowed HTTPS redirect prefixes, and the
+authorization code grant with S256 PKCE. The owner approves by typing a
+one-time approval code obtained on the server. Codes and tokens are stored as
+digests only; refresh tokens rotate, and any replay revokes the family. No
+password, runnable entry, write tools or deployment.

@@ -1162,3 +1162,14 @@ Surface aggregate: `5718bb6454294ea5bd285488c656b5f968099ec7d6a28770446c369ac2a7
 loopback-only HTTP/1.1 driver meant to sit behind a TLS proxy on the Linux VPS
 for the ChatGPT connector. Runtime calls none of it and adopts nothing. No
 dependency, Workspace IPC or Runtime contract changes.
+
+### 2026-11-09 — Remote MCP OAuth authority (ADR-MEM-132)
+
+Surface aggregate: `b78b1c837311337d163a8ef731a7b14c746d0deb95ca251bfd0da45ea5adfad8`.
+
+`mcp::remote` gains `remote/oauth.rs`, a single-owner OAuth 2.1 authority
+(dynamic registration, S256 PKCE, owner approval code, digest-only rotating
+tokens), and `Router`/`Handler`, so the HTTP/1.1 driver can serve the
+authority before the MCP endpoint. For the ChatGPT connector on the Linux VPS
+only; Runtime calls none of it and adopts nothing. No dependency, Workspace IPC
+or Runtime contract changes.
