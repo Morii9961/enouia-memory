@@ -13,7 +13,8 @@ real ChatGPT client, real Vault or VPS.
 | `remote_http`, `remote_http1`, `remote_http_opening` (Windows) | 5 + 4 + 1 passed, after the driver became generic over `Handler` |
 | `cargo clippy -p enouia-memory-host --all-targets --locked -- -D warnings` (Windows) | clean |
 | `cargo fmt --all -- --check` | clean |
-| Linux (WSL2 Ubuntu 24.04): see below | |
+| Linux (WSL2 Ubuntu 24.04): `remote_oauth`, `remote_http1`, `remote_http` | 6 + 4 + 5 passed |
+| Linux: `cargo clippy -p enouia-memory-host --all-targets --locked -- -D warnings` | clean |
 
 ## What the tests show
 
