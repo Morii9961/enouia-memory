@@ -9,6 +9,7 @@ use enouia_memory_contract::MemoryErrorCode;
 use enouia_memory_vault::root::RootRejection;
 use enouia_memory_vault::{Fault, RootPolicy, verify_data_root};
 use std::path::{Path, PathBuf};
+#[cfg(windows)]
 use std::process::Command;
 use support::{Harness, TempRoot};
 
@@ -16,6 +17,12 @@ fn verify(path: &Path) -> Result<(), RootRejection> {
     verify_data_root(path, &RootPolicy::default()).map(|_| ())
 }
 
+/// A directory junction on Windows; a symlink (the POSIX reparse point) elsewhere.
+#[cfg(not(windows))]
+fn junction(link: &Path, target: &Path) {
+    std::os::unix::fs::symlink(target, link).unwrap();
+}
+#[cfg(windows)]
 fn junction(link: &Path, target: &Path) {
     let status = Command::new("cmd")
         .args(["/C", "mklink", "/J"])
@@ -30,7 +37,15 @@ fn junction(link: &Path, target: &Path) {
 fn a_plain_local_temp_directory_is_accepted() {
     let root = TempRoot::new("root-ok");
     let verified = verify_data_root(root.path(), &RootPolicy::default()).unwrap();
+    #[cfg(windows)]
     assert!(verified.filesystem.eq_ignore_ascii_case("NTFS") || verified.filesystem == "ReFS");
+    #[cfg(target_os = "linux")]
+    assert!(
+        ["ext4", "xfs", "btrfs", "zfs", "f2fs", "tmpfs", "overlay"]
+            .contains(&verified.filesystem.as_str()),
+        "{}",
+        verified.filesystem
+    );
     assert!(verified.free_bytes > 0);
 }
 
@@ -41,18 +56,20 @@ fn malformed_remote_and_missing_roots_are_rejected() {
         verify(Path::new(r"relative\vault")),
         Err(RootRejection::NotAbsolute)
     );
-    assert_eq!(
-        verify(Path::new(r"\\server\share\vault")),
-        Err(RootRejection::NetworkPath)
-    );
-    assert_eq!(
-        verify(Path::new(r"\\.\C:\vault")),
-        Err(RootRejection::NetworkPath)
-    );
-    assert_eq!(
-        verify(Path::new(r"\\?\UNC\server\share\v")),
-        Err(RootRejection::NetworkPath)
-    );
+    // UNC and device paths exist only on Windows; Linux network mounts are
+    // classified by filesystem magic instead.
+    #[cfg(windows)]
+    for unc in [
+        r"\\server\share\vault",
+        r"\\.\C:\vault",
+        r"\\?\UNC\server\share\v",
+    ] {
+        assert_eq!(
+            verify(Path::new(unc)),
+            Err(RootRejection::NetworkPath),
+            "{unc}"
+        );
+    }
     assert_eq!(
         verify(&root.path().join("absent")),
         Err(RootRejection::Missing)
@@ -159,7 +176,10 @@ fn a_junction_inside_the_vault_cannot_redirect_a_commit() {
     );
     assert_eq!(harness.vault.pin_current().unwrap().sequence, 1);
     // Removing the junction (the link only) lets the same request commit.
+    #[cfg(windows)]
     std::fs::remove_dir(records.join("source")).unwrap();
+    #[cfg(not(windows))]
+    std::fs::remove_file(records.join("source")).unwrap();
     harness.apply(1);
     assert_eq!(harness.vault.pin_current().unwrap().sequence, 2);
 }

@@ -36,7 +36,8 @@ fn memory_contract_depends_only_on_serde() {
     assert_eq!(deps, ["serde", "serde_json"]);
 }
 
-/// The store adds only the contract crate and, on Windows, `windows-sys`.
+/// The store adds only the contract crate, `windows-sys` on Windows and
+/// `libc` on Linux (ADR-MEM-131).
 #[test]
 fn memory_vault_dependencies_are_pinned_and_minimal() {
     let manifest =
@@ -47,12 +48,15 @@ fn memory_vault_dependencies_are_pinned_and_minimal() {
         deps,
         [
             "enouia-memory-contract",
+            "libc",
             "serde",
             "serde_json",
             "windows-sys"
         ]
     );
     assert!(manifest.contains("windows-sys = { version = \"=0.61.2\""));
+    assert!(manifest.contains("[target.'cfg(target_os = \"linux\")'.dependencies]"));
+    assert!(manifest.contains("libc = \"=0.2.189\""));
 }
 
 /// The importer adds only pinned, pure-Rust inflate and CRC-32 crates.
