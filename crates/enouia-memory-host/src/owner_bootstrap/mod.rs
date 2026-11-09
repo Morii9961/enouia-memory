@@ -105,7 +105,8 @@ struct LinuxAccount {
 #[cfg(target_os = "linux")]
 impl LinuxAccount {
     fn effective_uid() -> Result<u32> {
-        let status = fs::read_to_string("/proc/self/status").map_err(|_| BootstrapFault::Unauthenticated)?;
+        let status =
+            fs::read_to_string("/proc/self/status").map_err(|_| BootstrapFault::Unauthenticated)?;
         status
             .lines()
             .find_map(|line| line.strip_prefix("Uid:"))
@@ -114,7 +115,8 @@ impl LinuxAccount {
             .ok_or(BootstrapFault::Unauthenticated)
     }
     fn capture() -> Result<Self> {
-        let machine = fs::read_to_string("/etc/machine-id").map_err(|_| BootstrapFault::Unauthenticated)?;
+        let machine =
+            fs::read_to_string("/etc/machine-id").map_err(|_| BootstrapFault::Unauthenticated)?;
         let machine = machine.trim();
         if machine.len() != 32 || !machine.bytes().all(|b| b.is_ascii_hexdigit()) {
             return Err(BootstrapFault::Unauthenticated);
@@ -177,6 +179,14 @@ fn bounded(path: &Path) -> Result<Vec<u8>> {
         return Err(BootstrapFault::Invalid);
     }
     Ok(b)
+}
+/// POSIX files follow the caller's umask while Windows files inherit the
+/// owner-only ACL; keep bootstrap files owner-only on Linux (ADR-MEM-134).
+fn owner_only(path: &Path) -> Result<()> {
+    #[cfg(target_os = "linux")]
+    io(platform::restrict_to_owner(path)).map_err(|_| BootstrapFault::OutcomeUnknown)?;
+    let _ = path;
+    Ok(())
 }
 impl Bootstrap {
     fn home_key(&self) -> Result<&str> {
@@ -285,7 +295,8 @@ impl Bootstrap {
         }
         store
             .write_atomic(JOURNAL, &b)
-            .map_err(|_| BootstrapFault::OutcomeUnknown)
+            .map_err(|_| BootstrapFault::OutcomeUnknown)?;
+        owner_only(&store.root().join(JOURNAL))
     }
     fn prepare(&self) -> Result<Value> {
         let (store, _lock) = self.store(true)?;
@@ -332,6 +343,7 @@ impl Bootstrap {
         store
             .write_new(JOURNAL, &bytes(&r)?)
             .map_err(|_| BootstrapFault::OutcomeUnknown)?;
+        owner_only(&store.root().join(JOURNAL))?;
         Ok(self.result(&r))
     }
     fn result(&self, r: &Registration) -> Value {
@@ -466,6 +478,7 @@ impl Bootstrap {
         io(file.write_all(&bytes(wanted)?))?;
         io(file.sync_all())?;
         drop(file);
+        owner_only(&tmp)?;
         self.identity.verify()?;
         if bounded(&target)? != original {
             return Err(BootstrapFault::Conflict);

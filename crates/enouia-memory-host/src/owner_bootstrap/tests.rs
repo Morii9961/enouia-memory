@@ -138,6 +138,7 @@ fn missing_registration_never_bootstraps_from_a_descriptor() {
     assert!(!b.home.path().join("vaults").exists());
 }
 
+#[cfg(windows)]
 #[test]
 fn native_os_evidence_is_live_but_cannot_adopt_a_synthetic_home() {
     let session = CurrentProcessSession::capture().unwrap();
