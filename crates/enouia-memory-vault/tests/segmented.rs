@@ -1,4 +1,4 @@
-#![cfg(windows)]
+#![cfg(any(windows, target_os = "linux"))]
 #[path = "support/segmented_fixture.rs"]
 mod fixture;
 use enouia_memory_contract::{common::*, hash::sha256, json::Revision, next::*};

@@ -736,3 +736,13 @@ authorization code grant with S256 PKCE. The owner approves by typing a
 one-time approval code obtained on the server. Codes and tokens are stored as
 digests only; refresh tokens rotate, and any replay revokes the family. No
 password, runnable entry, write tools or deployment.
+
+### ADR-MEM-133 — Runnable remote MCP service for one Owner Vault
+
+[Decision](133-remote-mcp-service-entry.md): the `enouia-memory-remote` binary
+(`serve`, `approve`). The Owner is authenticated as the OS account owning the
+0700 Vault root. The service file sets the exposure scope. Vault permits last
+five minutes and renew every four. The OAuth state lives in a locked, atomically
+written, digest-only file beside the Vault. Segmented Vaults now open on durable
+Linux filesystems. No Linux Owner bootstrap, deployment, write tools or real
+scope.

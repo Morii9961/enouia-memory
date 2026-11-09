@@ -1173,3 +1173,19 @@ tokens), and `Router`/`Handler`, so the HTTP/1.1 driver can serve the
 authority before the MCP endpoint. For the ChatGPT connector on the Linux VPS
 only; Runtime calls none of it and adopts nothing. No dependency, Workspace IPC
 or Runtime contract changes.
+
+### 2026-11-09 — Remote MCP service entry and Linux segmented Vaults (ADR-MEM-133)
+
+Surface aggregate: `99d8a0202b672d3dc616c8bf9be68c29a57054c7082ebba4f9450ce6f88dae48`.
+
+Adds `mcp::remote::service` and the `enouia-memory-remote` binary for the
+ChatGPT connector on a Linux VPS. The HTTP/1.1 driver's `serve` now polls while
+idle and passes the served count to `keep_going`, and the OAuth `Authority`
+gains `replace_state`. Runtime calls none of these.
+
+`AutomationVault::acquire` now also admits segmented Vaults on Linux when the
+root is on ext4, xfs, btrfs, zfs or f2fs and is owner-only. Windows still
+requires NTFS, and host-authority mode stays Windows-only. Runtime runs on
+Windows and sees no behaviour change. It adopts nothing beyond the new binary
+target when it next bumps the pin. No dependency, Workspace IPC or Runtime
+contract changes.

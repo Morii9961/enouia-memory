@@ -23,23 +23,34 @@ pub fn bind_loopback(addr: SocketAddr) -> io::Result<TcpListener> {
     TcpListener::bind(addr)
 }
 
-/// Serve connections one at a time until `keep_going` says stop. A failed
-/// connection never stops the loop; a failed `accept` does.
+/// Serve connections one at a time until `keep_going(handler, served)` says
+/// stop. It is asked before every accept and again every 50 ms while idle, so
+/// time-based stops happen without waiting for traffic. A failed connection
+/// never stops the loop; a failed `accept` does.
 pub fn serve<H: Handler>(
     listener: &TcpListener,
     endpoint: &mut H,
     timeout: Duration,
-    mut keep_going: impl FnMut(&H) -> bool,
+    mut keep_going: impl FnMut(&H, usize) -> bool,
 ) -> io::Result<()> {
-    for stream in listener.incoming() {
-        let mut stream = stream?;
-        if stream.set_read_timeout(Some(timeout)).is_ok()
-            && stream.set_write_timeout(Some(timeout)).is_ok()
-        {
-            let _ = exchange(&mut stream, endpoint);
-        }
-        if !keep_going(endpoint) {
-            break;
+    listener.set_nonblocking(true)?;
+    let mut served = 0;
+    while keep_going(endpoint, served) {
+        match listener.accept() {
+            Ok((mut stream, _)) => {
+                // Windows sockets inherit the listener's non-blocking mode.
+                if stream.set_nonblocking(false).is_ok()
+                    && stream.set_read_timeout(Some(timeout)).is_ok()
+                    && stream.set_write_timeout(Some(timeout)).is_ok()
+                {
+                    let _ = exchange(&mut stream, endpoint);
+                }
+                served += 1;
+            }
+            Err(error) if error.kind() == io::ErrorKind::WouldBlock => {
+                std::thread::sleep(Duration::from_millis(50));
+            }
+            Err(error) => return Err(error),
         }
     }
     Ok(())

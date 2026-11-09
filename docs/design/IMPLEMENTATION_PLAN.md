@@ -1,3 +1,5 @@
+> 2026-11-09 同日接续：[ADR-MEM-133](../adr/133-remote-mcp-service-entry.md) 组装可运行的 `enouia-memory-remote`（serve/approve）：服务账户拥有 0700 Vault 根即主人认证，服务文件写明暴露范围，Agent 许可每 4 分钟轮换，OAuth 状态加锁原子写在 Vault 旁；分段 Vault 可在 Linux 持久文件系统上打开。见[合成验证](../validation/Remote-MCP-service.md)与[部署参考](../deploy/REMOTE_MCP_LINUX.md)。Linux 主人初始化/迁移、真实暴露范围、写入与 VPS 部署待 Morii 决定。
+
 > 2026-11-09 同日接续：Morii 授权按路线连续开发。[ADR-MEM-132](../adr/132-remote-mcp-owner-oauth.md) 为远程端点加单主人 OAuth 授权服务（动态注册、S256 PKCE、服务器上一次性批准码、令牌只存摘要并轮换），见[合成验证](../validation/Remote-MCP-oauth.md)。可运行入口、写入和部署仍未做。
 
 > 2026-11-09：Morii 选择 Linux VPS。[ADR-MEM-131](../adr/131-linux-vault-platform.md) 为 Vault 加 Linux 平台层（statfs 空间/文件系统、POSIX 仅属主检查与收紧、ACL 扩展视为宽授权），Windows 代码不变，见[验证](../validation/Linux-vault-platform.md)。本机无 Linux 环境，Linux 单测已写但未运行；Linux 真实 Vault 入口、OAuth、写入和部署仍未做。
