@@ -1153,3 +1153,12 @@ restriction, POSIX ACL extensions treated as broad grants. It also adds a
 `libc` dependency for Linux targets only. Windows builds, the Windows platform
 code, Workspace IPC and every Runtime contract are unchanged. Runtime adopts
 nothing beyond the lock-file entry when it next bumps the pin.
+
+### 2026-11-09 — Remote MCP loopback HTTP/1.1 driver (ADR-MEM-130)
+
+Surface aggregate: `5718bb6454294ea5bd285488c656b5f968099ec7d6a28770446c369ac2a74266`.
+
+`mcp::remote` moves to `remote/mod.rs` and gains `remote/http1.rs`, a
+loopback-only HTTP/1.1 driver meant to sit behind a TLS proxy on the Linux VPS
+for the ChatGPT connector. Runtime calls none of it and adopts nothing. No
+dependency, Workspace IPC or Runtime contract changes.

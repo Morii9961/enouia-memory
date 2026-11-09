@@ -711,6 +711,14 @@ an OAuth protected resource (RFC 9728 metadata, mandatory bearer, `memory.read`)
 subject-bound sessions and halt-on-unknown. No listener, authorization server,
 write tools, capture, deployment or Runtime change.
 
+### ADR-MEM-130 — Loopback HTTP/1.1 driver behind a TLS proxy
+
+[Decision](130-remote-mcp-loopback-http1.md): a blocking, loopback-only
+HTTP/1.1 driver for the remote endpoint. One request per connection,
+`Content-Length` bodies only, strict head limits; TLS and the public port belong
+to a same-host reverse proxy. No new dependency, real Vault entry, OAuth server
+or VPS configuration.
+
 ### ADR-MEM-131 — Linux platform layer for the Vault
 
 [Decision](131-linux-vault-platform.md): on Linux, `statfs` reports free space and

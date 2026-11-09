@@ -3,6 +3,8 @@
 //! HTTPS listener hands over one parsed request and writes back the response.
 //! No listener, TLS, authorization server or deployment lives here.
 use super::{MAX_INPUT_BYTES, PROTOCOL_VERSION, json as unique};
+
+pub mod http1;
 use enouia_memory_contract::ports::IdSource;
 use serde_json::{Value, json};
 use std::collections::BTreeMap;
