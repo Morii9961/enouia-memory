@@ -48,7 +48,7 @@ is unchanged in this slice.
 | `cargo clippy` for the Vault (Windows and Linux targets) and `cargo fmt --all -- --check` | clean |
 | `python tools/integration/runtime_surface.py` | aggregate `49ed1b98…0797` logged |
 | `cargo clippy --workspace --all-targets --locked -- -D warnings` (Windows) | clean |
-| `cargo test --workspace --locked` (Windows) | not completed: drive E: ran out of space while linking; to be rerun after disk cleanup |
+| `cargo test --workspace --locked --no-fail-fast -j 8` (Windows) | 124 test binaries passed; 2 timing-sensitive host tests failed under full load (`owner_runtime_capture` supersede worker, `transport` locked-host reconnect) and passed 3/3 when rerun alone |
 
 The Cargo.lock change is one line: `libc` in the Vault's dependency list.
 
