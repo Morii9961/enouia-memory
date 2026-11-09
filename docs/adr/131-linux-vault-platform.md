@@ -38,9 +38,11 @@ example `UMask=0077` in systemd).
 
 A Linux entry that opens a real Vault and authenticates the owner. The Windows
 owner bootstrap stays Windows-only. Also: the OAuth authorization server, write
-tools, VPS and proxy configuration, and moving real data. The host crate does
-not cross-compile on this PC (its sqlite and ring build scripts need a Linux C
-compiler). The Linux unit tests were written but have not run on Linux yet.
+tools, VPS and proxy configuration, and moving real data. The Tauri reference
+shell is not built on Linux. The Vault suite and the rest of the workspace were
+run on a WSL2 Ubuntu distribution. Tests that asserted Windows-only behaviour
+(junctions, NTFS names, UNC paths, ACL inheritance) now assert each platform's
+semantics.
 
 ## Consequences
 
