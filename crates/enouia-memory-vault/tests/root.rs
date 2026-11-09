@@ -176,7 +176,10 @@ fn a_junction_inside_the_vault_cannot_redirect_a_commit() {
     );
     assert_eq!(harness.vault.pin_current().unwrap().sequence, 1);
     // Removing the junction (the link only) lets the same request commit.
+    #[cfg(windows)]
     std::fs::remove_dir(records.join("source")).unwrap();
+    #[cfg(not(windows))]
+    std::fs::remove_file(records.join("source")).unwrap();
     harness.apply(1);
     assert_eq!(harness.vault.pin_current().unwrap().sequence, 2);
 }
