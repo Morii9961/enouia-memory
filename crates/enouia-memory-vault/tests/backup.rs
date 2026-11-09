@@ -230,10 +230,21 @@ fn exports_need_an_empty_separate_verified_destination() {
 fn the_owner_only_acl_entry_point_protects_the_root_and_its_children() {
     let root = TempRoot::new("acl");
     let before = inspect_acl(root.path()).unwrap();
+    #[cfg(windows)]
     assert!(
         !before.protected,
         "a fresh temp directory inherits its parent's ACL"
     );
+    // POSIX has no inheritance; an ordinary umask leaves the group or others in.
+    #[cfg(not(windows))]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(root.path(), std::fs::Permissions::from_mode(0o755)).unwrap();
+        assert!(
+            !inspect_acl(root.path()).unwrap().is_owner_only(),
+            "{before:?}"
+        );
+    }
     restrict_to_owner(root.path()).unwrap();
     let after = inspect_acl(root.path()).unwrap();
     assert!(after.is_owner_only(), "{after:?}");
@@ -248,8 +259,17 @@ fn the_owner_only_acl_entry_point_protects_the_root_and_its_children() {
     std::fs::create_dir(&child).unwrap();
     std::fs::write(child.join("f"), b"x").unwrap();
     let inherited = inspect_acl(&child.join("f")).unwrap();
-    assert_eq!(inherited.broad_grants(), 0, "{inherited:?}");
-    assert!(inherited.entries.iter().all(|e| e.inherited));
+    #[cfg(windows)]
+    {
+        assert_eq!(inherited.broad_grants(), 0, "{inherited:?}");
+        assert!(inherited.entries.iter().all(|e| e.inherited));
+    }
+    // On Linux children keep umask modes; the 0700 root alone blocks others.
+    #[cfg(not(windows))]
+    assert!(
+        inspect_acl(root.path()).unwrap().is_owner_only(),
+        "{inherited:?}"
+    );
     // A Vault still works on the protected root.
     let _ = verified(root.path());
 }

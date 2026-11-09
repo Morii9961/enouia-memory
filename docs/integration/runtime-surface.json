@@ -1088,7 +1088,7 @@
     {
       "path": "crates/enouia-memory-vault/Cargo.toml",
       "role": "build",
-      "sha256": "3c9147a2fcf2b50d7e943ff9256cd63f4899eaf7e869dfa8202a55970607c874"
+      "sha256": "220aad6b4f363cae560669e76b72200a5a2980e70880ff71c3085368a6f438e0"
     },
     {
       "path": "crates/enouia-memory-vault/src/automation/agent_read.rs",
@@ -1341,5 +1341,5 @@
       "sha256": "3603c1855d9f9ec9b3585143a0191508980b260b1ffd26c82b3e6f9b7223a75d"
     }
   ],
-  "aggregate": "1a017abef2e4376c747586c5ca10f2391f10d225dd7cfc9cb1f0fb8163ffa729"
+  "aggregate": "b78b1c837311337d163a8ef731a7b14c746d0deb95ca251bfd0da45ea5adfad8"
 }

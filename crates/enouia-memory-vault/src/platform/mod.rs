@@ -1,11 +1,15 @@
 //! Operating-system primitives behind a small, testable surface.
 
-#[cfg(not(windows))]
+#[cfg(target_os = "linux")]
+mod linux;
+#[cfg(not(any(windows, target_os = "linux")))]
 mod other;
 #[cfg(windows)]
 mod windows;
 
-#[cfg(not(windows))]
+#[cfg(target_os = "linux")]
+use linux as imp;
+#[cfg(not(any(windows, target_os = "linux")))]
 use other as imp;
 #[cfg(windows)]
 use windows as imp;
