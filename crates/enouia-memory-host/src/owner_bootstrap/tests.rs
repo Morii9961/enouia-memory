@@ -15,6 +15,9 @@ fn fixture() -> Bootstrap {
     )
     .unwrap();
     fs::write(path.join(META),bytes(&json!({"format":"enouia-owner-data-home/1","storage_class":"synthetic_test","allow_development_cleanup":false,"allow_git_upload":false,"production_vault_created":false,"active_vault":null,"unknown":{"keep":[1,2,3]}})).unwrap()).unwrap();
+    // POSIX files follow the umask; an owner keeps the marker owner-only.
+    #[cfg(target_os = "linux")]
+    platform::restrict_to_owner(&path.join(META)).unwrap();
     Bootstrap::home(
         &path,
         Identity::Test(sha256(b"synthetic-owner-a")),
