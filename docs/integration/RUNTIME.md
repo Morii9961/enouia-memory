@@ -1137,3 +1137,28 @@ retained; only the combined integration manifest changes. Workspace IPC remains
 58 commands. Runtime must separately adopt a compatible exact pin, explicit
 Owner root enrollment, native start/poll analyzer and lifecycle cancellation.
 No Runtime pin, private root, real analyzer or client configuration is activated.
+
+### 2026-11-09 — Remote MCP endpoint and Linux Vault platform (ADR-MEM-129, ADR-MEM-131)
+
+Surface aggregate: `49ed1b981424210c05d514548d371a075359f3c3e66c2b05487339f7f85b0797`.
+
+PR #88 (ADR-MEM-129) added `mcp::remote` and changed `mcp/mod.rs` without
+refreshing this manifest; this entry records it. The module is a
+transport-neutral Streamable HTTP endpoint for a ChatGPT connector hosted on a
+VPS. It serves the read-only opening profile only. Runtime does not call it.
+
+ADR-MEM-131 adds a Linux platform layer to `enouia-memory-vault`:
+statfs-based free space and filesystem kind, POSIX owner-only checks and
+restriction, POSIX ACL extensions treated as broad grants. It also adds a
+`libc` dependency for Linux targets only. Windows builds, the Windows platform
+code, Workspace IPC and every Runtime contract are unchanged. Runtime adopts
+nothing beyond the lock-file entry when it next bumps the pin.
+
+### 2026-11-09 — Remote MCP loopback HTTP/1.1 driver (ADR-MEM-130)
+
+Surface aggregate: `5718bb6454294ea5bd285488c656b5f968099ec7d6a28770446c369ac2a74266`.
+
+`mcp::remote` moves to `remote/mod.rs` and gains `remote/http1.rs`, a
+loopback-only HTTP/1.1 driver meant to sit behind a TLS proxy on the Linux VPS
+for the ChatGPT connector. Runtime calls none of it and adopts nothing. No
+dependency, Workspace IPC or Runtime contract changes.

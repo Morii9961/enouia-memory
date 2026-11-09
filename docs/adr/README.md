@@ -718,3 +718,12 @@ HTTP/1.1 driver for the remote endpoint. One request per connection,
 `Content-Length` bodies only, strict head limits; TLS and the public port belong
 to a same-host reverse proxy. No new dependency, real Vault entry, OAuth server
 or VPS configuration.
+
+### ADR-MEM-131 — Linux platform layer for the Vault
+
+[Decision](131-linux-vault-platform.md): on Linux, `statfs` reports free space and
+filesystem kind (network and FUSE mounts count as remote). Owner-only means
+POSIX mode with no group or other access, owned by the effective user, with no
+ACL extension. Restriction sets 0700/0600 after removing ACL attributes. Windows
+code is unchanged; `libc` is added for Linux only. There is no Linux real-Vault
+entry yet.

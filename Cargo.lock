@@ -770,7 +770,6 @@ dependencies = [
  "enouia-memory-vault",
  "enouia-memory-workspace",
  "icu_normalizer",
-
  "jiff",
  "jiff-tzdb",
  "serde",
@@ -836,6 +835,7 @@ name = "enouia-memory-vault"
 version = "0.1.0"
 dependencies = [
  "enouia-memory-contract",
+ "libc",
  "serde",
  "serde_json",
  "windows-sys 0.61.2",
