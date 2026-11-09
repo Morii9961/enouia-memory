@@ -1,3 +1,4 @@
+#![cfg(any(windows, target_os = "linux"))]
 //! ADR-MEM-133 runnable remote service over real loopback sockets, on a
 //! synthetic initialized Owner Vault.
 #[path = "support/agent_correction_fixture.rs"]
