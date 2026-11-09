@@ -6,6 +6,7 @@ use super::{MAX_INPUT_BYTES, PROTOCOL_VERSION, json as unique};
 
 pub mod http1;
 pub mod oauth;
+pub mod service;
 use enouia_memory_contract::ports::IdSource;
 use serde_json::{Value, json};
 use std::collections::BTreeMap;

@@ -302,11 +302,12 @@ fn real_loopback_sockets_serve_sequential_connections_and_stop_on_request() {
     });
     let ids = SequentialIdSource::new(9);
     let mut endpoint = Endpoint::new(config(), &Fixed, &ids, |_: &Bearer| Some(Echo(vec![])));
-    let mut served = 0;
-    http1::serve(&listener, &mut endpoint, Duration::from_millis(300), |_| {
-        served += 1;
-        served < 4
-    })
+    http1::serve(
+        &listener,
+        &mut endpoint,
+        Duration::from_millis(300),
+        |_, served| served < 4,
+    )
     .unwrap();
     let (opened, listed, unauthorized) = client.join().unwrap();
     assert_eq!(status_and_head(&opened).0, 200);

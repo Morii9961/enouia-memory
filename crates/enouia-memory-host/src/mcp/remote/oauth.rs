@@ -224,6 +224,11 @@ impl<'a> Authority<'a> {
         }
     }
 
+    /// Replace the state, e.g. with the persisted copy before each request.
+    pub fn replace_state(&self, state: State) {
+        *self.state.borrow_mut() = state;
+    }
+
     /// The state to persist after any response; it holds digests only.
     pub fn state(&self) -> State {
         self.state.borrow().clone()
