@@ -1137,3 +1137,14 @@ retained; only the combined integration manifest changes. Workspace IPC remains
 58 commands. Runtime must separately adopt a compatible exact pin, explicit
 Owner root enrollment, native start/poll analyzer and lifecycle cancellation.
 No Runtime pin, private root, real analyzer or client configuration is activated.
+
+### 2026-11-09 — Remote MCP HTTP/1.1 driver and OAuth authority (ADR-MEM-130, ADR-MEM-132)
+
+Surface aggregate: `1a017abef2e4376c747586c5ca10f2391f10d225dd7cfc9cb1f0fb8163ffa729`.
+
+`mcp::remote` moves to `remote/mod.rs`. It gains a loopback-only HTTP/1.1
+driver (`remote/http1.rs`, meant to sit behind a TLS proxy on the VPS) and a
+single-owner OAuth 2.1 authority (`remote/oauth.rs`), which `Router` serves
+before the MCP endpoint. Both are for the ChatGPT connector on a Linux VPS.
+Runtime calls none of them and adopts nothing. No dependency, Workspace IPC or
+Runtime contract changes.

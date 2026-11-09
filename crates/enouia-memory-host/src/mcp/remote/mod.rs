@@ -5,6 +5,7 @@
 use super::{MAX_INPUT_BYTES, PROTOCOL_VERSION, json as unique};
 
 pub mod http1;
+pub mod oauth;
 use enouia_memory_contract::ports::IdSource;
 use serde_json::{Value, json};
 use std::collections::BTreeMap;
@@ -136,6 +137,33 @@ pub struct Endpoint<'f, S: Session> {
     open: Open<'f, S>,
     sessions: BTreeMap<String, (String, S)>,
     halted: Option<Value>,
+}
+
+/// Anything the HTTP driver can serve.
+pub trait Handler {
+    fn respond(&mut self, request: &Request) -> Response;
+}
+
+impl<S: Session> Handler for Endpoint<'_, S> {
+    fn respond(&mut self, request: &Request) -> Response {
+        Endpoint::respond(self, request)
+    }
+}
+
+/// The OAuth authority's paths first, then the MCP endpoint, which verifies
+/// bearer tokens against that same authority.
+pub struct Router<'f, S: Session> {
+    pub authority: &'f oauth::Authority<'f>,
+    pub endpoint: Endpoint<'f, S>,
+}
+
+impl<S: Session> Handler for Router<'_, S> {
+    fn respond(&mut self, request: &Request) -> Response {
+        match self.authority.respond(request) {
+            Some(response) => response,
+            None => self.endpoint.respond(request),
+        }
+    }
 }
 
 impl<'f, S: Session> Endpoint<'f, S> {

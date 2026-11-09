@@ -1,3 +1,5 @@
+> 2026-11-09 同日接续：Morii 授权按路线连续开发。[ADR-MEM-132](../adr/132-remote-mcp-owner-oauth.md) 为远程端点加单主人 OAuth 授权服务（动态注册、S256 PKCE、服务器上一次性批准码、令牌只存摘要并轮换），见[合成验证](../validation/Remote-MCP-oauth.md)。可运行入口、写入和部署仍未做。
+
 > 2026-11-08 同日接续：[ADR-MEM-130](../adr/130-remote-mcp-loopback-http1.md) 为远程端点加只监听回环地址的 HTTP/1.1 驱动，TLS 和公网端口交给同机反向代理，见[合成验证](../validation/Remote-MCP-http1.md)。Vault 的生产平台仍是 Windows/NTFS，VPS 操作系统待 Morii 决定；打开真实 Vault 的远程入口、OAuth 授权服务器、写入和部署仍未做。
 
 > 2026-11-08：Morii 确认真实对话来自 ChatGPT，选择 ChatGPT 开发者模式连接器并部署在 VPS（Plus 套餐），不逐条确认，默认时区 Asia/Shanghai。首片按 [ADR-MEM-129](../adr/129-chatgpt-remote-mcp-endpoint.md) 实现与传输无关的 Streamable HTTP 端点，只开放只读开场配置，见[合成验证](../validation/Remote-MCP-endpoint.md)。HTTPS 监听、授权服务器、写入工具、ChatGPT 捕获、VPS 部署和真实 Vault 迁移仍是后续切片或待 Morii 决定。

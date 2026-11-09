@@ -1,8 +1,8 @@
-//! Loopback HTTP/1.1 driver for [`Endpoint`] (ADR-MEM-130). It listens only
+//! Loopback HTTP/1.1 driver for [`super::Endpoint`] or [`super::Router`] (ADR-MEM-130). It listens only
 //! on a loopback address behind a TLS-terminating reverse proxy, answers one
 //! request per connection and closes it. Deliberately narrow: HTTP/1.1 only,
 //! `Content-Length` bodies only, no chunked coding, pipelining or upgrades.
-use super::{Endpoint, Request, Response, Session};
+use super::{Handler, Request, Response};
 use crate::mcp::MAX_INPUT_BYTES;
 use std::io::{self, Read, Write};
 use std::net::{SocketAddr, TcpListener};
@@ -25,11 +25,11 @@ pub fn bind_loopback(addr: SocketAddr) -> io::Result<TcpListener> {
 
 /// Serve connections one at a time until `keep_going` says stop. A failed
 /// connection never stops the loop; a failed `accept` does.
-pub fn serve<S: Session>(
+pub fn serve<H: Handler>(
     listener: &TcpListener,
-    endpoint: &mut Endpoint<'_, S>,
+    endpoint: &mut H,
     timeout: Duration,
-    mut keep_going: impl FnMut(&Endpoint<'_, S>) -> bool,
+    mut keep_going: impl FnMut(&H) -> bool,
 ) -> io::Result<()> {
     for stream in listener.incoming() {
         let mut stream = stream?;
@@ -46,10 +46,7 @@ pub fn serve<S: Session>(
 }
 
 /// Read one request, answer it and leave the stream for the caller to drop.
-pub fn exchange<S: Session>(
-    stream: &mut (impl Read + Write),
-    endpoint: &mut Endpoint<'_, S>,
-) -> io::Result<()> {
+pub fn exchange(stream: &mut (impl Read + Write), endpoint: &mut impl Handler) -> io::Result<()> {
     let response = match read_request(stream) {
         Ok(request) => endpoint.respond(&request),
         Err(Refusal::Status(status)) => Response::new(status),
