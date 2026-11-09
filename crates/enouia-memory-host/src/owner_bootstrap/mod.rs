@@ -2,6 +2,7 @@
 //! for MCP/page callers. OS evidence is consumed only by the authorized native
 //! command's explicit current-owner-self enrollment. No wire identity overrides.
 mod json;
+#[cfg(windows)]
 use crate::windows::CurrentProcessSession;
 use enouia_memory_contract::{
     common::{ActorRef, ActorType},
@@ -54,31 +55,83 @@ enum Origin {
     SyntheticTest,
 }
 enum Identity {
+    #[cfg(windows)]
     Native(CurrentProcessSession),
+    #[cfg(target_os = "linux")]
+    Linux(LinuxAccount),
     #[cfg(test)]
     Test(Sha256Hex),
 }
 impl Identity {
     fn account(&self) -> &Sha256Hex {
         match self {
+            #[cfg(windows)]
             Self::Native(v) => v.account(),
+            #[cfg(target_os = "linux")]
+            Self::Linux(v) => &v.account,
             #[cfg(test)]
             Self::Test(v) => v,
         }
     }
     fn verify(&self) -> Result<()> {
         match self {
+            #[cfg(windows)]
             Self::Native(v) => v.verify().map_err(|_| BootstrapFault::Unauthenticated),
+            #[cfg(target_os = "linux")]
+            Self::Linux(v) => v.verify(),
             #[cfg(test)]
             Self::Test(_) => Ok(()),
         }
     }
     fn origin(&self) -> Origin {
         match self {
+            #[cfg(windows)]
             Self::Native(_) => Origin::NativeLocalCliOwnerSelf,
+            #[cfg(target_os = "linux")]
+            Self::Linux(_) => Origin::NativeLocalCliOwnerSelf,
             #[cfg(test)]
             Self::Test(_) => Origin::SyntheticTest,
         }
+    }
+}
+/// The Linux service account (ADR-MEM-134): the effective uid read from
+/// `/proc/self/status`, bound to this machine's `/etc/machine-id` so the same
+/// uid elsewhere is a different account. Rechecked before every write.
+#[cfg(target_os = "linux")]
+struct LinuxAccount {
+    uid: u32,
+    account: Sha256Hex,
+}
+#[cfg(target_os = "linux")]
+impl LinuxAccount {
+    fn effective_uid() -> Result<u32> {
+        let status =
+            fs::read_to_string("/proc/self/status").map_err(|_| BootstrapFault::Unauthenticated)?;
+        status
+            .lines()
+            .find_map(|line| line.strip_prefix("Uid:"))
+            .and_then(|ids| ids.split_whitespace().nth(1))
+            .and_then(|uid| uid.parse().ok())
+            .ok_or(BootstrapFault::Unauthenticated)
+    }
+    fn capture() -> Result<Self> {
+        let machine =
+            fs::read_to_string("/etc/machine-id").map_err(|_| BootstrapFault::Unauthenticated)?;
+        let machine = machine.trim();
+        if machine.len() != 32 || !machine.bytes().all(|b| b.is_ascii_hexdigit()) {
+            return Err(BootstrapFault::Unauthenticated);
+        }
+        let uid = Self::effective_uid()?;
+        Ok(Self {
+            uid,
+            account: sha256(format!("linux-effective-uid:{uid}:machine-id:{machine}").as_bytes()),
+        })
+    }
+    fn verify(&self) -> Result<()> {
+        if Self::effective_uid()? != self.uid {
+            return Err(BootstrapFault::Unauthenticated);
+        }
+        Ok(())
     }
 }
 #[derive(Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -126,6 +179,14 @@ fn bounded(path: &Path) -> Result<Vec<u8>> {
         return Err(BootstrapFault::Invalid);
     }
     Ok(b)
+}
+/// POSIX files follow the caller's umask while Windows files inherit the
+/// owner-only ACL; keep bootstrap files owner-only on Linux (ADR-MEM-134).
+fn owner_only(path: &Path) -> Result<()> {
+    #[cfg(target_os = "linux")]
+    io(platform::restrict_to_owner(path)).map_err(|_| BootstrapFault::OutcomeUnknown)?;
+    let _ = path;
+    Ok(())
 }
 impl Bootstrap {
     fn home_key(&self) -> Result<&str> {
@@ -234,7 +295,8 @@ impl Bootstrap {
         }
         store
             .write_atomic(JOURNAL, &b)
-            .map_err(|_| BootstrapFault::OutcomeUnknown)
+            .map_err(|_| BootstrapFault::OutcomeUnknown)?;
+        owner_only(&store.root().join(JOURNAL))
     }
     fn prepare(&self) -> Result<Value> {
         let (store, _lock) = self.store(true)?;
@@ -281,6 +343,7 @@ impl Bootstrap {
         store
             .write_new(JOURNAL, &bytes(&r)?)
             .map_err(|_| BootstrapFault::OutcomeUnknown)?;
+        owner_only(&store.root().join(JOURNAL))?;
         Ok(self.result(&r))
     }
     fn result(&self, r: &Registration) -> Value {
@@ -415,6 +478,7 @@ impl Bootstrap {
         io(file.write_all(&bytes(wanted)?))?;
         io(file.sync_all())?;
         drop(file);
+        owner_only(&tmp)?;
         self.identity.verify()?;
         if bounded(&target)? != original {
             return Err(BootstrapFault::Conflict);
@@ -448,9 +512,12 @@ pub fn run_cli(args: &[String]) -> Result<Value> {
     if !valid {
         return Err(BootstrapFault::Invalid);
     }
+    #[cfg(windows)]
     let identity = Identity::Native(
         CurrentProcessSession::capture().map_err(|_| BootstrapFault::Unauthenticated)?,
     );
+    #[cfg(target_os = "linux")]
+    let identity = Identity::Linux(LinuxAccount::capture()?);
     let boot = Bootstrap::home(Path::new(&args[1]), identity, Arc::new(SystemClock))?;
     match command {
         "prepare" => boot.prepare(),

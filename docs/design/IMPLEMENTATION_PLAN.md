@@ -1,3 +1,5 @@
+> 2026-11-09 同日接续：[ADR-MEM-134](../adr/134-linux-owner-bootstrap.md) 让原生主人初始化在 Linux 上可用（有效 uid 绑定 machine-id，写入前复核；日志与元数据保持 0600），Linux 上用真实 CLI 合成冒烟建出空的初始化 Vault，见[验证](../validation/Linux-owner-bootstrap.md)。迁移现有 Vault、部署与真实数据仍待 Morii 决定。
+
 > 2026-11-09 同日接续：[ADR-MEM-133](../adr/133-remote-mcp-service-entry.md) 组装可运行的 `enouia-memory-remote`（serve/approve）：服务账户拥有 0700 Vault 根即主人认证，服务文件写明暴露范围，Agent 许可每 4 分钟轮换，OAuth 状态加锁原子写在 Vault 旁；分段 Vault 可在 Linux 持久文件系统上打开。见[合成验证](../validation/Remote-MCP-service.md)与[部署参考](../deploy/REMOTE_MCP_LINUX.md)。Linux 主人初始化/迁移、真实暴露范围、写入与 VPS 部署待 Morii 决定。
 
 > 2026-11-09 同日接续：Morii 授权按路线连续开发。[ADR-MEM-132](../adr/132-remote-mcp-owner-oauth.md) 为远程端点加单主人 OAuth 授权服务（动态注册、S256 PKCE、服务器上一次性批准码、令牌只存摘要并轮换），见[合成验证](../validation/Remote-MCP-oauth.md)。可运行入口、写入和部署仍未做。

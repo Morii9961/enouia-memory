@@ -746,3 +746,11 @@ five minutes and renew every four. The OAuth state lives in a locked, atomically
 written, digest-only file beside the Vault. Segmented Vaults now open on durable
 Linux filesystems. No Linux Owner bootstrap, deployment, write tools or real
 scope.
+
+### ADR-MEM-134 — Linux Owner bootstrap
+
+[Decision](134-linux-owner-bootstrap.md): the native Owner bootstrap also runs
+on Linux. The account is the effective uid bound to `/etc/machine-id` and is
+re-read before every write. Journal and metadata files are kept 0600 on Linux,
+while the existing broad-grant refusals stay. No migration, deployment or real
+data.

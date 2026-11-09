@@ -1,5 +1,5 @@
 //! Explicit trusted local Owner command, never an MCP route.
-#[cfg(windows)]
+#[cfg(any(windows, target_os = "linux"))]
 fn main() {
     match enouia_memory_host::owner_bootstrap::run_cli(
         &std::env::args().skip(1).collect::<Vec<_>>(),
@@ -11,8 +11,8 @@ fn main() {
         }
     }
 }
-#[cfg(not(windows))]
+#[cfg(not(any(windows, target_os = "linux")))]
 fn main() {
-    eprintln!("Owner bootstrap requires its Windows native enrollment adapter");
+    eprintln!("Owner bootstrap requires a Windows or Linux native enrollment adapter");
     std::process::exit(1);
 }

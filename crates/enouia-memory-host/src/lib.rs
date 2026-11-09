@@ -6,7 +6,7 @@ pub mod automation;
 pub mod broker;
 mod compatibility;
 mod framing;
-#[cfg(windows)]
+#[cfg(any(windows, target_os = "linux"))]
 pub mod owner_bootstrap;
 pub use compatibility::compatibility_hash;
 pub mod mcp;

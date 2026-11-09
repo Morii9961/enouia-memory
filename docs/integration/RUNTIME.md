@@ -1189,3 +1189,12 @@ requires NTFS, and host-authority mode stays Windows-only. Runtime runs on
 Windows and sees no behaviour change. It adopts nothing beyond the new binary
 target when it next bumps the pin. No dependency, Workspace IPC or Runtime
 contract changes.
+
+### 2026-11-09 — Linux Owner bootstrap (ADR-MEM-134)
+
+Surface aggregate: `31fc7e4453848f937f39ecc7510e0b63ee3c77847526236bc13ecfbd969e8705`.
+
+`owner_bootstrap` and its binary now also build on Linux, with a Linux account
+identity (effective uid bound to machine id). On Linux they keep journal and
+metadata files owner-only. Windows behaviour is unchanged. Runtime embeds the
+Windows path and adopts nothing.
