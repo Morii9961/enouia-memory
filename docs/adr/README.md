@@ -754,3 +754,13 @@ on Linux. The account is the effective uid bound to `/etc/machine-id` and is
 re-read before every write. Journal and metadata files are kept 0600 on Linux,
 while the existing broad-grant refusals stay. No migration, deployment or real
 data.
+
+### ADR-MEM-135 — Re-initialize the legacy library into a new Owner Vault
+
+[Proposed](135-legacy-library-reinitialization.md): the real data sits in a v1
+library that cannot be upgraded, because a segmented Owner root binds the
+Owner in its genesis commit. The plan is a read-only export from a working
+copy, then a production initializer that turns every legacy candidate into a
+formal memory with no model call and no review queue. The run is verified and
+backed up, then uploaded to the Linux VPS. The old library is deleted only
+after acceptance and Morii's renewed confirmation. No code yet.
