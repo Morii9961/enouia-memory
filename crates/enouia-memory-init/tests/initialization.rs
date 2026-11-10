@@ -42,6 +42,7 @@ fn statement(source_index: usize, quote: &str) -> Statement {
         annotations: AnalysisAnnotations::default(),
         revises_statement: None,
         derives_from_statements: vec![],
+        context_sources: vec![],
     }
 }
 fn plan(e: &Env, prep: &Preparation, statements: &[Statement], mode: FormationMode) -> Plan {
