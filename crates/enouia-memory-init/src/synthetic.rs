@@ -228,6 +228,7 @@ pub fn suite() -> Suite {
             annotations: AnalysisAnnotations::default(),
             revises_statement: None,
             derives_from_statements: vec![],
+            context_sources: vec![],
         });
     }
     // Independent time-precision examples use quoted calendar evidence, not an
@@ -350,6 +351,7 @@ pub fn display_suite() -> Suite {
             annotations: AnalysisAnnotations::default(),
             revises_statement: None,
             derives_from_statements: if index == 4 { vec![32, 33] } else { vec![] },
+            context_sources: vec![],
         });
     }
     suite

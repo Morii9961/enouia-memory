@@ -105,6 +105,10 @@ pub struct Statement {
     /// Explicit analysis link, not a name/similarity-based automatic merge.
     pub revises_statement: Option<usize>,
     pub derives_from_statements: Vec<usize>,
+    /// Further sources the analysis cites beside the quoted one. They become
+    /// context dependencies of the memory, never extra quoted evidence.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub context_sources: Vec<usize>,
 }
 
 /// Advisory values retained verbatim; these never become factual dimensions.
@@ -570,6 +574,19 @@ impl Plan {
                 }),
             })
             .ok_or(AutomationFault::Denied)?;
+            let mut seed = seed;
+            for ci in &statement.context_sources {
+                let reference = sources
+                    .get(*ci)
+                    .filter(|_| *ci != statement.source_index)
+                    .ok_or(AutomationFault::Denied)?
+                    .reference();
+                if seed.input_refs.contains(&reference) {
+                    return Err(AutomationFault::Denied);
+                }
+                seed.input_refs.push(reference.clone());
+                seed.context_source_refs.push(reference);
+            }
             work.push(Work {
                 analysis_index,
                 target_analysis: statement.revises_statement,
@@ -754,6 +771,58 @@ impl Initializer {
                 descriptor_hash,
                 plans: vec![],
             },
+            _lease: lease,
+            poisoned: false,
+        };
+        this.save()?;
+        Ok(this)
+    }
+    /// Production entry (ADR-MEM-135): take over an Owner Vault the native
+    /// Owner bootstrap has just created. The bootstrap authenticated the Owner
+    /// and wrote the genesis; this refuses any root that already holds
+    /// sources, memories or an initialization journal, so a used root is never
+    /// re-initialized. The caller runs as the account owning the owner-only root.
+    pub fn adopt_bootstrapped(
+        root: &VerifiedRoot,
+        host: DeviceId,
+        clock: Arc<dyn Clock + Send + Sync>,
+        ids: Arc<dyn IdSource + Send + Sync>,
+    ) -> Result<Self> {
+        let managed = ManagedRoot::new(root.path(), Faults::none());
+        let lease = managed.open_lock_file(LEASE)?;
+        lease.try_lock().map_err(|_| AutomationFault::Busy)?;
+        if managed.read_bounded(JOURNAL, 16 * 1024 * 1024)?.is_some() {
+            return Err(AutomationFault::Conflict);
+        }
+        let vault = Arc::new(SegmentedAutomationVault::open(
+            root,
+            host,
+            clock,
+            ids,
+            Faults::none(),
+        )?);
+        let descriptor = vault.descriptor().clone();
+        if descriptor.layout != AutomationLayout::SegmentedOwnerV1
+            || descriptor.owner_subject_id.is_none()
+        {
+            return Err(AutomationFault::Denied);
+        }
+        if !vault.read(&descriptor.system_actor, Sensitivity::Private, |data| {
+            data.sources.is_empty() && data.memories.is_empty()
+        })? {
+            return Err(AutomationFault::Conflict);
+        }
+        let this = Self {
+            journal: Journal {
+                version: 1,
+                vault_id: descriptor.vault_id.clone(),
+                descriptor_hash: digest(&descriptor),
+                plans: vec![],
+            },
+            system: descriptor.system_actor,
+            owner: descriptor.created_by,
+            vault,
+            managed,
             _lease: lease,
             poisoned: false,
         };

@@ -777,6 +777,7 @@ fn live_captures_run_before_backfill_on_one_scheduler() {
         annotations: AnalysisAnnotations::default(),
         revises_statement: None,
         derives_from_statements: vec![],
+        context_sources: vec![],
     };
     let mut init = Initializer::create_synthetic(
         &e.root,

@@ -78,8 +78,36 @@ supported path, not a workaround.
   `RecordSet`), `objects/<sha256>` (import inputs and stored attachments, byte
   for byte) and `manifest.json` (counts, object roles, purged items skipped).
   It refuses a non-empty destination and does not write to the Vault. The
-  evidence is synthetic; see the `legacy_snapshot_*` CLI test. It has not been
-  run on real data.
+  evidence is synthetic; see the `legacy_snapshot_*` CLI test.
+- 2026-11-10: step 3 landed.
+  - **Production entry.** `Initializer::adopt_bootstrapped` takes over a root
+    that the Owner bootstrap has just created. It refuses a root that already
+    holds sources, memories or a journal.
+  - **Batching.** `legacy::legacy_batches` matches old sources to re-parsed
+    export messages, by message id or by content hash for documents. It turns
+    every live candidate into one self-report statement and packs batches
+    within plan capacity.
+  - **Driver.** `enouia-memory-reinit plan|run`.
+
+  Details that differ from the plan above:
+  - **Quote.** The quote is the cited owner message. A message longer than the
+    500-character quote limit is excerpted to the sentence sharing the most
+    character pairs with the candidate's wording, widened by its neighbours.
+  - **Title.** The title is the candidate's wording when the quote contains
+    it. Otherwise it is the first line of the quote: titles may not hold
+    control characters.
+  - **Kind.** Project-state candidates form facts, because a project state
+    needs a stage the candidate never stated.
+  - **Note.** The candidate's wording and id stay in the formation note.
+  - **Other citations.** A candidate's other cited messages become context
+    dependencies only when they share its batch. The rest are counted as
+    dropped. Batching never merges conversations for them, because that
+    chained most of the library into one oversized batch.
+  - **Long conversations.** The old library kept only the owner's turns, so
+    each turn is its own branch (a plan allows 32 per conversation). A
+    conversation therefore contributes at most one 32-turn chunk per batch.
+
+  Evidence: [validation](../validation/Legacy-reinitialization.md).
 
 ## Not in this slice
 
