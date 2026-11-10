@@ -449,3 +449,98 @@ fn purge_confirms_its_plan_then_purges_the_files() {
     assert_eq!(code, 0);
     assert_eq!(verified["clean"], true, "{verified}");
 }
+
+/// ADR-MEM-135: a v1 Vault becomes a re-initialization input without being
+/// written: every record revision as a validated snapshot, plus the original
+/// import bytes.
+#[test]
+fn legacy_snapshot_exports_records_and_original_bytes_read_only() {
+    let temp = Temp::new("legacy-snapshot");
+    let install = PathBuf::from(temp.dir("install"));
+    let exe = install.join("enouia-memory.exe");
+    std::fs::copy(env!("CARGO_BIN_EXE_enouia-memory"), &exe).unwrap();
+    let cli = Installed {
+        exe,
+        cwd: install.clone(),
+    };
+    let root = temp.dir("vault-root");
+    assert_eq!(cli.run(&["init", &root, "--confirm-new-vault"]).0, 0);
+    let export = serde_json::json!([{
+    "conversation_id": "conv-legacy", "current_node": "m2",
+    "mapping": {
+        "m1": {"id": "m1", "parent": null, "children": ["m2"], "message": {"id": "m1", "author": {"role": "user"},
+               "create_time": 1719910000.0, "content": {"content_type": "text", "parts": ["（合成）旧库来源。"]}}},
+        "m2": {"id": "m2", "parent": "m1", "children": [], "message": {"id": "m2", "author": {"role": "assistant"},
+               "create_time": 1719910005.0, "content": {"content_type": "text", "parts": ["（合成）好的。"]}}}
+    }}]);
+    let original = serde_json::to_vec(&export).unwrap();
+    let input = Path::new(&temp.dir("inputs")).join("conversations.json");
+    std::fs::write(&input, &original).unwrap();
+    let input = input.display().to_string();
+    let (code, imported) = cli.run(&[
+        "import",
+        &root,
+        &input,
+        "--account",
+        "acct-main",
+        "--confirm-import",
+    ]);
+    assert_eq!(code, 0, "{imported}");
+    // A wrong confirmation code leaves one pending candidate behind.
+    let (code, _, _) = cli.interact(
+        &[
+            "remember",
+            &root,
+            "--text",
+            "（合成）我周末读纸质书。",
+            "--claim",
+            "reading.habit",
+        ],
+        |_| "nope".into(),
+    );
+    assert_eq!(code, 3);
+    let (_, before) = cli.run(&["status", &root]);
+
+    let out = temp.dir("snapshot");
+    std::fs::write(Path::new(&out).join("stray"), b"x").unwrap();
+    let (code, refused) = cli.run(&["legacy-snapshot", &root, &out]);
+    assert_ne!(code, 0, "needs an empty destination: {refused}");
+    std::fs::remove_file(Path::new(&out).join("stray")).unwrap();
+    let (code, report) = cli.run(&["legacy-snapshot", &root, &out]);
+    assert_eq!(code, 0, "{report}");
+    // Counts are record revisions: the import manifest was written twice
+    // (started, completed) and both revisions are kept.
+    assert_eq!(report["counts"]["candidates"], 1);
+    assert_eq!(report["counts"]["imports"], 2);
+    assert_eq!(report["purged_skipped"], 0);
+    assert!(
+        !report.to_string().contains("（合成）"),
+        "no text in output"
+    );
+
+    let snapshot: Value =
+        serde_json::from_slice(&std::fs::read(Path::new(&out).join("snapshot.json")).unwrap())
+            .unwrap();
+    let set = enouia_memory_contract::set::RecordSet::from_value(&snapshot).unwrap();
+    assert!(enouia_memory_contract::set::validate_set(&set).is_empty());
+    let ids: std::collections::BTreeSet<_> = set
+        .candidates
+        .iter()
+        .map(|c| c.candidate_id.as_str())
+        .collect();
+    assert_eq!(ids.len(), 1);
+    assert!(set.sources.len() >= 2);
+    let manifest: Value =
+        serde_json::from_slice(&std::fs::read(Path::new(&out).join("manifest.json")).unwrap())
+            .unwrap();
+    let hash = set.imports[0].input_object_hash.as_str().to_owned();
+    assert_eq!(manifest["objects"][0]["role"], "import_input");
+    assert_eq!(
+        std::fs::read(Path::new(&out).join("objects").join(&hash)).unwrap(),
+        original,
+        "the original export bytes, byte for byte"
+    );
+    // Reading never moved the Vault.
+    let (_, after) = cli.run(&["status", &root]);
+    assert_eq!(before["head_sequence"], after["head_sequence"]);
+}

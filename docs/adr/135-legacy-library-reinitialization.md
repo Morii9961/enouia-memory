@@ -71,6 +71,16 @@ supported path, not a workaround.
    under the service account (ADR-MEM-133) and is opened with its own host id.
    The policy and source scope exposed to ChatGPT is still Morii's decision.
 
+## Progress
+
+- 2026-11-10: step 2 landed as `enouia-memory legacy-snapshot <vault> <empty-dir>`.
+  It writes `snapshot.json` (every record revision, validated as a
+  `RecordSet`), `objects/<sha256>` (import inputs and stored attachments, byte
+  for byte) and `manifest.json` (counts, object roles, purged items skipped).
+  It refuses a non-empty destination and does not write to the Vault. The
+  evidence is synthetic; see the `legacy_snapshot_*` CLI test. It has not been
+  run on real data.
+
 ## Not in this slice
 
 The code. This ADR records the decision and the route. The export, the

@@ -648,6 +648,134 @@ fn run(args: &[String]) -> Outcome {
                 json!({"commit_id": export.commit_id, "sequence": export.sequence, "files": export.files.len()}),
             )
         }
+        "legacy-snapshot" => {
+            // ADR-MEM-135: read-only input for re-initializing a v1 library
+            // into a new Owner Vault. Run it on a working copy of the Vault.
+            let vault = open(arg(args, 2)?)?;
+            let destination = verified(arg(args, 3)?)?;
+            let out = destination.path();
+            if std::fs::read_dir(out).map_or(true, |mut d| d.next().is_some()) {
+                return Err(Failure::Usage(
+                    "legacy-snapshot needs an empty destination".into(),
+                ));
+            }
+            let pin = vault.pin_current()?;
+            let purged = |e: &enouia_memory_vault::VaultError| {
+                e.error.code == enouia_memory_contract::error::MemoryErrorCode::IntentionallyPurged
+            };
+            let kinds = [
+                (RecordKind::Source, "sources"),
+                (RecordKind::Attachment, "attachments"),
+                (RecordKind::Project, "projects"),
+                (RecordKind::Memory, "memories"),
+                (RecordKind::Candidate, "candidates"),
+                (RecordKind::Review, "reviews"),
+                (RecordKind::Identity, "identities"),
+                (RecordKind::Session, "sessions"),
+                (RecordKind::SessionEvent, "session_events"),
+                (RecordKind::Checkpoint, "checkpoints"),
+                (RecordKind::Commit, "commits"),
+                (RecordKind::Tombstone, "tombstones"),
+                (RecordKind::PurgeReceipt, "purge_receipts"),
+                (RecordKind::AuditEvent, "audit_events"),
+                (RecordKind::Capsule, "capsules"),
+                (RecordKind::Inspection, "inspections"),
+                (RecordKind::Dispatch, "dispatches"),
+                (RecordKind::Approval, "approvals"),
+                (RecordKind::Policy, "policies"),
+                (RecordKind::Import, "imports"),
+            ];
+            let mut set = serde_json::Map::new();
+            let mut counts = serde_json::Map::new();
+            let mut purged_skipped = 0;
+            for (kind, key) in kinds {
+                let mut records = vec![];
+                for entry in vault.record_entries(&pin, kind)? {
+                    for revision in 1..=entry.revision.get() {
+                        let reference = RecordRef::new(
+                            kind,
+                            &entry.record_id,
+                            Revision::new(revision).expect("revisions start at 1"),
+                        );
+                        match vault.read_revision(&pin, &reference) {
+                            Ok(bytes) => {
+                                records.push(serde_json::from_slice::<Value>(&bytes).map_err(
+                                    |_| Failure::Rejected(format!("unreadable {key} record")),
+                                )?)
+                            }
+                            Err(e) if purged(&e) => purged_skipped += 1,
+                            Err(e) => return Err(e.into()),
+                        }
+                    }
+                }
+                counts.insert(key.into(), json!(records.len()));
+                set.insert(key.into(), Value::Array(records));
+            }
+            let set = Value::Object(set);
+            let parsed = enouia_memory_contract::set::RecordSet::from_value(&set)
+                .map_err(|(at, _)| Failure::Rejected(format!("snapshot record invalid at {at}")))?;
+            let violations = enouia_memory_contract::set::validate_set(&parsed);
+            if let Some(v) = violations.first() {
+                return Err(Failure::Rejected(format!("snapshot violates {}", v.rule)));
+            }
+            // Original export bytes and stored attachment bytes, byte for byte.
+            let mut objects = std::collections::BTreeMap::new();
+            for import in &parsed.imports {
+                objects.insert(import.input_object_hash.clone(), "import_input");
+            }
+            for attachment in &parsed.attachments {
+                if let Some(hash) = &attachment.object_hash {
+                    objects.entry(hash.clone()).or_insert("attachment");
+                }
+            }
+            let objects_dir = out.join("objects");
+            std::fs::create_dir(&objects_dir)
+                .map_err(|e| Failure::Rejected(format!("cannot create objects: {e}")))?;
+            let mut listed = vec![];
+            for (hash, role) in objects {
+                match vault.read_object(&pin, &hash) {
+                    Ok(bytes) => {
+                        std::fs::write(objects_dir.join(hash.as_str()), &bytes)
+                            .map_err(|e| Failure::Rejected(format!("cannot write object: {e}")))?;
+                        listed.push(json!({"hash": hash, "role": role, "bytes": bytes.len()}));
+                    }
+                    Err(e) if purged(&e) => purged_skipped += 1,
+                    Err(e)
+                        if e.error.code
+                            == enouia_memory_contract::error::MemoryErrorCode::NotFound =>
+                    {
+                        listed.push(json!({"hash": hash, "role": role, "bytes": null}));
+                    }
+                    Err(e) => return Err(e.into()),
+                }
+            }
+            let snapshot = serde_json::to_vec(&set).expect("JSON values serialize");
+            let manifest = json!({
+                "format": "enouia-legacy-snapshot/1",
+                "vault_id": vault.vault_id(),
+                "commit_id": pin.commit_id,
+                "sequence": pin.sequence,
+                "snapshot_sha256": sha256(&snapshot),
+                "counts": counts,
+                "objects": listed,
+                "purged_skipped": purged_skipped,
+            });
+            std::fs::write(out.join("snapshot.json"), &snapshot)
+                .and_then(|_| {
+                    std::fs::write(
+                        out.join("manifest.json"),
+                        serde_json::to_vec_pretty(&manifest).expect("JSON values serialize"),
+                    )
+                })
+                .map_err(|e| Failure::Rejected(format!("cannot write snapshot: {e}")))?;
+            Ok(json!({
+                "commit_id": manifest["commit_id"],
+                "counts": manifest["counts"],
+                "objects": manifest["objects"].as_array().map_or(0, Vec::len),
+                "purged_skipped": purged_skipped,
+                "snapshot_bytes": snapshot.len(),
+            }))
+        }
         "verify-export" => {
             let export = verify_export(Path::new(arg(args, 2)?))?;
             Ok(
