@@ -62,6 +62,9 @@ original key, never a new analysis or resend. Starting a service is a separate s
 
 ## Windows to Linux
 
+The built-in [synthetic migration rehearsal](../validation/Owner-cross-platform-rehearsal.md)
+exercises the same Windows export on Linux before any owner-authorized real run.
+
 Restore the verified export on ext4/xfs/btrfs/zfs/f2fs under the service account.
 Preserve the descriptor's host/Owner IDs; filesystem permissions are applied for
 the destination OS account. Use that descriptor's host ID when opening the root.

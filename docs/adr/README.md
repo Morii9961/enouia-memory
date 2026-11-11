@@ -780,3 +780,10 @@ absent from its quote, take the first nonempty trimmed control-separated span,
 limited to 60 characters. Original content/evidence and supplied-title validation
 are unchanged. Synthetic verification and Runtime surface registration accompany
 the worker fix.
+
+### ADR-MEM-138 — Synthetic cross-platform Owner restore rehearsal
+
+[Decision](138-owner-cross-platform-rehearsal.md): a built-in synthetic producer
+and native restore harness compare snapshots, receipts, source evidence and
+deletion barriers across Windows export and Linux restore. Only newly allocated
+temporary targets are written; production APIs and Runtime surface stay unchanged.
