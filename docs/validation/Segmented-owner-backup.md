@@ -32,8 +32,11 @@ copying its incremental cache; it did not affect the checks.
 
 ## Linux and acceptance limits
 
-Linux focused validation is pending in an isolated worktree; this report will be
-updated with the actual result before the PR is opened. No encrypted restic media
-or separate failure domain was exercised. Native round trips are not a real
+On WSL Ubuntu-24.04, an isolated detached worktree at implementation commit
+`6ed5e62` passed `segmented_backup` (4 tests), init `legacy` (2 tests), both with
+`--test-threads=2`, and the new CLI's focused `cargo check --locked`. The existing
+Linux checkout's WIP and the synthetic bootstrap root were preserved.
+
+No encrypted restic media or separate failure domain was exercised. Native round trips are not a real
 independent-backup acceptance, a Windows-to-Linux data migration or ChatGPT
 interoperability evidence. Those remain separate owner-authorized drills.
