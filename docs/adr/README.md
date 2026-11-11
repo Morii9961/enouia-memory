@@ -793,3 +793,11 @@ temporary targets are written; production APIs and Runtime surface stay unchange
 [Decision](139-reinit-warning-code-counts.md): the read-only CLI plan adds sorted
 warning-code counts alongside its existing total. No source text or locators are
 printed, and parsing, formation, policies and the real run remain unchanged.
+
+### ADR-MEM-140 — Select original ChatGPT conversations from large shards
+
+[Decision](140-fresh-chatgpt-selection.md): explicit shard-scoped conversation IDs
+produce bounded derived materials containing exact original JSON spans. Source
+metadata and selection watermarks bind shard hashes and byte locations; the
+complete original archive stays separately retained. This pure intake prerequisite
+provides no semantic analyzer, fresh production driver or real initialization.
