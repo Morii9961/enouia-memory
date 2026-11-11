@@ -1131,6 +1131,11 @@
       "sha256": "92abc58b276b45bd731c3144bc749c301097dda515b84ee49c7b86e0786f8f65"
     },
     {
+      "path": "crates/enouia-memory-vault/src/automation/segmented/backup.rs",
+      "role": "automatic-memory-storage",
+      "sha256": "45883a311f2cc375dbb81b082800c2c9a1b494d0202c07dc1886176b69988e88"
+    },
+    {
       "path": "crates/enouia-memory-vault/src/automation/segmented/catalog.rs",
       "role": "automatic-memory-storage",
       "sha256": "034ee2e7fe85aa67141db0c81b74e4cb7342bebbe369cefd27a2f49768558416"
@@ -1163,7 +1168,7 @@
     {
       "path": "crates/enouia-memory-vault/src/automation/segmented/mod.rs",
       "role": "automatic-memory-storage",
-      "sha256": "4ffec904b52acded1dc2bcd86200b13dfc113569bd16e1de03a21bad8a2fb3c7"
+      "sha256": "833a621c4239db219be3b4a62f49fe36893a1dc88c6ba3f16978533ed3301a53"
     },
     {
       "path": "crates/enouia-memory-vault/src/automation/segmented/note_intake.rs",
@@ -1351,5 +1356,5 @@
       "sha256": "3603c1855d9f9ec9b3585143a0191508980b260b1ffd26c82b3e6f9b7223a75d"
     }
   ],
-  "aggregate": "31fc7e4453848f937f39ecc7510e0b63ee3c77847526236bc13ecfbd969e8705"
+  "aggregate": "63129e24f8ca096eeaf00eb1e03bcfe6e6e0b50057bc0a150c3692a7e687bd8f"
 }
