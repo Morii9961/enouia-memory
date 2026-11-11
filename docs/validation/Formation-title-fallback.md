@@ -19,7 +19,9 @@ combined Runtime aggregate is recorded in `docs/integration/RUNTIME.md`.
 - `cargo clippy -p enouia-memory-vault --lib --test formation_title --locked --
   -D warnings`: passed. Targeted formatting and Runtime surface check passed.
 
-The first Windows checks ran on the title slice before incorporating the already
-verified backup prerequisite. Linux verification of the combined slice is pending
-and will be recorded before the PR is opened. No full suite, real data, Provider,
-Runtime repository change, production deployment or manual acceptance is claimed.
+The two focused Windows tests above were also rerun successfully after integrating
+the already verified backup prerequisite. On WSL Ubuntu-24.04, a separate detached worktree at
+combined implementation commit `aaa8370` passed the same `formation_title` test
+and the Runtime surface checker (aggregate `d9b1f19a…`). The Windows-only worker
+test was not run on Linux. No full suite, real data, Provider, Runtime repository
+change, production deployment or manual acceptance is claimed.
