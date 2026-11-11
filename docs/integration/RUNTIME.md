@@ -1,5 +1,15 @@
 # Runtime integration (ADR-MEM-45)
 
+2026-11-11 formation fallback title (ADR-MEM-137): shared `formation_seed` now
+takes the first nonempty trimmed control-separated span (at most 60 characters)
+when the analysis title is absent from the quote. Multiline quotes retain their
+exact content and evidence. Supplied titles still undergo existing validation.
+Runtime must pin this revision/aggregate to adopt the native worker correction;
+there is no IPC, capability, schema, frontend or Runtime checkout change.
+This slice includes the ADR136 backup prerequisite below. Aggregate:
+`d9b1f19aff2f4e2a7ad306373dcd8bef09d9ca667449a2d733f39695589bfed6`.
+See [synthetic evidence](../validation/Formation-title-fallback.md).
+
 2026-11-11 offline segmented Owner backup (ADR-MEM-136): native-only
 `automation::segmented::backup` export/verify/restore/activate, with a new
 `enouia-memory-owner-backup` CLI. Restored roots refuse normal open and forward

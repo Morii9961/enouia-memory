@@ -1158,7 +1158,7 @@
     {
       "path": "crates/enouia-memory-vault/src/automation/segmented/formation_worker.rs",
       "role": "automatic-memory-storage",
-      "sha256": "5979c1e05707edcee29ec1c11153900e9ddd5142a84fc73fa31013f588771b4f"
+      "sha256": "7aba84507160ebde0363c7fd8a70390f7a96fa750f0b6f019414962433915b71"
     },
     {
       "path": "crates/enouia-memory-vault/src/automation/segmented/intake.rs",
@@ -1356,5 +1356,5 @@
       "sha256": "3603c1855d9f9ec9b3585143a0191508980b260b1ffd26c82b3e6f9b7223a75d"
     }
   ],
-  "aggregate": "63129e24f8ca096eeaf00eb1e03bcfe6e6e0b50057bc0a150c3692a7e687bd8f"
+  "aggregate": "d9b1f19aff2f4e2a7ad306373dcd8bef09d9ca667449a2d733f39695589bfed6"
 }

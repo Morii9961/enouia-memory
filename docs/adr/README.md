@@ -772,3 +772,11 @@ independent chain/object verification and isolated restore into an empty root.
 Journals preserve recovery and unknown outcomes; restored roots require explicit
 activation against the current backup before ordinary opening. Real encrypted
 independent media and cross-platform acceptance are separate evidence.
+
+### ADR-MEM-137 — Control-free formation fallback titles
+
+[Decision](137-formation-title-control-boundary.md): when a proposed title is
+absent from its quote, take the first nonempty trimmed control-separated span,
+limited to 60 characters. Original content/evidence and supplied-title validation
+are unchanged. Synthetic verification and Runtime surface registration accompany
+the worker fix.
