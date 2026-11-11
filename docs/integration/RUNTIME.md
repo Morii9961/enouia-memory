@@ -6,8 +6,19 @@ when the analysis title is absent from the quote. Multiline quotes retain their
 exact content and evidence. Supplied titles still undergo existing validation.
 Runtime must pin this revision/aggregate to adopt the native worker correction;
 there is no IPC, capability, schema, frontend or Runtime checkout change.
-Aggregate: `618e529412b8c5f906b809539c6f0a5d256cca1bb996871082624c1d0cbc6803`.
+This slice includes the ADR136 backup prerequisite below. Aggregate:
+`d9b1f19aff2f4e2a7ad306373dcd8bef09d9ca667449a2d733f39695589bfed6`.
 See [synthetic evidence](../validation/Formation-title-fallback.md).
+
+2026-11-11 offline segmented Owner backup (ADR-MEM-136): native-only
+`automation::segmented::backup` export/verify/restore/activate, with a new
+`enouia-memory-owner-backup` CLI. Restored roots refuse normal open and forward
+recovery until the Owner explicitly activates against the exact current backup.
+Runtime must pin this revision and aggregate to honor that gate when opening a
+restored root; no IPC, page, wire capability or Runtime repository change here.
+The backup is not an authority transfer; stop the old Host before activation.
+Aggregate: `63129e24f8ca096eeaf00eb1e03bcfe6e6e0b50057bc0a150c3692a7e687bd8f`.
+See [backup instructions](../deploy/SEGMENTED_OWNER_BACKUP.md).
 
 2026-11-08 public persona projection export (ADR-MEM-128, first slice): three
 additive owner commands on Workspace IPC v1 (61 commands): `persona_options`

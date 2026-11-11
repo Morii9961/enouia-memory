@@ -765,6 +765,14 @@ formal memory with no model call and no review queue. The run is verified and
 backed up, then uploaded to the Linux VPS. The old library is deleted only
 after acceptance and Morii's renewed confirmation. No code yet.
 
+### ADR-MEM-136 — Offline segmented Owner backup
+
+[Decision](136-segmented-owner-backup.md): offline, complete Owner-root export,
+independent chain/object verification and isolated restore into an empty root.
+Journals preserve recovery and unknown outcomes; restored roots require explicit
+activation against the current backup before ordinary opening. Real encrypted
+independent media and cross-platform acceptance are separate evidence.
+
 ### ADR-MEM-137 — Control-free formation fallback titles
 
 [Decision](137-formation-title-control-boundary.md): when a proposed title is
