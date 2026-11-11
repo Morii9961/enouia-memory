@@ -764,3 +764,11 @@ copy, then a production initializer that turns every legacy candidate into a
 formal memory with no model call and no review queue. The run is verified and
 backed up, then uploaded to the Linux VPS. The old library is deleted only
 after acceptance and Morii's renewed confirmation. No code yet.
+
+### ADR-MEM-137 — Control-free formation fallback titles
+
+[Decision](137-formation-title-control-boundary.md): when a proposed title is
+absent from its quote, take the first nonempty trimmed control-separated span,
+limited to 60 characters. Original content/evidence and supplied-title validation
+are unchanged. Synthetic verification and Runtime surface registration accompany
+the worker fix.

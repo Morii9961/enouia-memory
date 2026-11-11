@@ -1,5 +1,14 @@
 # Runtime integration (ADR-MEM-45)
 
+2026-11-11 formation fallback title (ADR-MEM-137): shared `formation_seed` now
+takes the first nonempty trimmed control-separated span (at most 60 characters)
+when the analysis title is absent from the quote. Multiline quotes retain their
+exact content and evidence. Supplied titles still undergo existing validation.
+Runtime must pin this revision/aggregate to adopt the native worker correction;
+there is no IPC, capability, schema, frontend or Runtime checkout change.
+Aggregate: `618e529412b8c5f906b809539c6f0a5d256cca1bb996871082624c1d0cbc6803`.
+See [synthetic evidence](../validation/Formation-title-fallback.md).
+
 2026-11-08 public persona projection export (ADR-MEM-128, first slice): three
 additive owner commands on Workspace IPC v1 (61 commands): `persona_options`
 and `persona_preview` (reads, null key) and `persona_export` (write, key

@@ -348,7 +348,16 @@ pub fn formation_seed(seed: FormationSeed<'_>) -> Option<AdmissionInput> {
             title: if quote.to_lowercase().contains(&seed.title.to_lowercase()) {
                 seed.title.into()
             } else {
-                quote.trim().chars().take(60).collect()
+                quote
+                    .split(char::is_control)
+                    .map(str::trim)
+                    .find(|part| !part.is_empty())
+                    .unwrap_or_default()
+                    .chars()
+                    .take(60)
+                    .collect::<String>()
+                    .trim_end()
+                    .to_owned()
             },
             content_lang: source.record_fields.as_ref()?.content_lang.clone(),
             event_time: seed.event_time,

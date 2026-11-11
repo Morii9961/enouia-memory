@@ -271,6 +271,41 @@ fn captured_jobs_form_through_the_system_route_in_turn_order_and_survive_reopen(
     assert_eq!(v.snapshot().unwrap(), after);
     assert_eq!(worker.status(), status);
 }
+
+#[test]
+fn multiline_quote_forms_with_a_control_free_fallback_title() {
+    let e = owner_env();
+    let (v, p) = rig(&e);
+    let quote = "I prefer quiet rooms.\r\n\tI also enjoy pottery.";
+    capture_and_enqueue(&v, &e, &p, &turn(1, "multiline", None, quote));
+    let mut analysis = statement(quote, Interpretation::ClearSelfReport);
+    analysis.title = "Analysis wording absent from the quote".into();
+    let mut analyzer = Scripted {
+        calls: 0,
+        next: Some(CaptureAnalysis::Statements(vec![analysis])),
+    };
+    let mut worker = CapturedFormation::open(v.clone(), &e.descriptor.system_actor).unwrap();
+    drain(&mut worker, &mut analyzer);
+    assert_eq!(analyzer.calls, 1);
+    assert_eq!(worker.status()[0].state, FormationJobState::Formed);
+    v.read(
+        &e.descriptor.system_actor,
+        Sensitivity::HighlySensitive,
+        |r| {
+            assert_eq!(r.memories.len(), 1);
+            let input = &r.memories[0].memory.decision.input;
+            let fields = input.record_fields.as_ref().unwrap();
+            assert_eq!(fields.title, "I prefer quiet rooms.");
+            assert_eq!(input.content, quote);
+            assert_eq!(fields.evidence[0].quote, quote);
+            assert_eq!(
+                r.memories[0].memory.decision.outcome.adoption,
+                AdoptionState::Adopted
+            );
+        },
+    )
+    .unwrap();
+}
 #[test]
 fn worker_is_exclusive_and_refuses_old_layouts_wrong_actors_and_foreign_journals() {
     let e = owner_env();
