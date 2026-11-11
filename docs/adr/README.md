@@ -787,3 +787,9 @@ the worker fix.
 and native restore harness compare snapshots, receipts, source evidence and
 deletion barriers across Windows export and Linux restore. Only newly allocated
 temporary targets are written; production APIs and Runtime surface stay unchanged.
+
+### ADR-MEM-139 — Re-initialization warning counts by code
+
+[Decision](139-reinit-warning-code-counts.md): the read-only CLI plan adds sorted
+warning-code counts alongside its existing total. No source text or locators are
+printed, and parsing, formation, policies and the real run remain unchanged.
