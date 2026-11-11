@@ -781,6 +781,13 @@ limited to 60 characters. Original content/evidence and supplied-title validatio
 are unchanged. Synthetic verification and Runtime surface registration accompany
 the worker fix.
 
+### ADR-MEM-138 — Synthetic cross-platform Owner restore rehearsal
+
+[Decision](138-owner-cross-platform-rehearsal.md): a built-in synthetic producer
+and native restore harness compare snapshots, receipts, source evidence and
+deletion barriers across Windows export and Linux restore. Only newly allocated
+temporary targets are written; production APIs and Runtime surface stay unchanged.
+
 ### ADR-MEM-139 — Re-initialization warning counts by code
 
 [Decision](139-reinit-warning-code-counts.md): the read-only CLI plan adds sorted
