@@ -20,7 +20,7 @@ use enouia_memory_vault::{
     OsIdSource, RootPolicy, SystemClock, automation::AutomationFault, verify_data_root,
 };
 use serde_json::{Value, json};
-use std::{path::Path, sync::Arc};
+use std::{collections::BTreeMap, path::Path, sync::Arc};
 
 const USAGE: &str =
     "usage: enouia-memory-reinit plan <snapshot-dir> | run <snapshot-dir> <vault-root>";
@@ -131,11 +131,20 @@ fn run(args: &[String]) -> Result<Value, String> {
             &random_policy(),
         )?;
         let sum = |f: fn(&Preflight) -> usize| built.iter().map(|p| f(&p.preflight)).sum::<usize>();
+        let mut warnings_by_code = BTreeMap::<&str, usize>::new();
+        for warning in built
+            .iter()
+            .flat_map(|p| &p.sources)
+            .flat_map(|s| &s.record.parse_warnings)
+        {
+            *warnings_by_code.entry(&warning.code).or_default() += 1;
+        }
         return Ok(
             json!({"command": command, "report": report, "parsed_messages": prep.messages.len(),
             "unparseable": prep.unparseable, "unsupported": prep.unsupported,
             "planned": {"sources": sum(|p| p.parsed_sources), "statements": sum(|p| p.statements),
-                "staged": sum(|p| p.proposed_staged), "warnings": sum(|p| p.warnings)},
+                "staged": sum(|p| p.proposed_staged), "warnings": sum(|p| p.warnings),
+                "warnings_by_code": warnings_by_code},
             "writes": 0}),
         );
     };
@@ -196,5 +205,59 @@ fn main() {
             eprintln!("enouia-memory-reinit: {error}");
             std::process::exit(1);
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn plan_explains_warning_totals_without_exposing_source_text_or_creating_a_vault() {
+        let input = std::env::temp_dir().join(format!(
+            "enouia-reinit-warning-synthetic-{}",
+            enouia_memory_contract::ids::format_uuid_v4(OsIdSource.random_16())
+        ));
+        std::fs::create_dir(&input).unwrap();
+        std::fs::create_dir(input.join("objects")).unwrap();
+        let bytes = serde_json::to_vec(&json!([{
+            "conversation_id": "synthetic-warning", "title": "Synthetic",
+            "current_node": "n1", "mapping": {"n0": {"parent": null, "message": {
+                "id": "a0", "author": {"role": "assistant"}, "create_time": 1781085599,
+                "content": {"parts": ["Synthetic parent omitted by the legacy selection."]}
+            }}, "n1": {"parent": "n0", "message": {
+                "id": "m1", "author": {"role": "user"}, "create_time": 1781085600,
+                "content": {"parts": ["SYNTHETIC PRIVATE TEXT"]}
+            }}}
+        }]))
+        .unwrap();
+        let hash = enouia_memory_contract::hash::sha256(&bytes);
+        std::fs::write(input.join("objects").join(hash.as_str()), bytes).unwrap();
+        let mut source: enouia_memory_contract::source::SourceRecord = serde_json::from_slice(
+            include_bytes!("../../../../tests/fixtures/memory/records/source-export-user.json"),
+        )
+        .unwrap();
+        source.original_conversation_id = Some("synthetic-warning".into());
+        source.original_message_id = Some("m1".into());
+        std::fs::write(
+            input.join("snapshot.json"),
+            serde_json::to_vec(&json!({"sources": [source]})).unwrap(),
+        )
+        .unwrap();
+        std::fs::write(input.join("manifest.json"), serde_json::to_vec(&json!({
+            "format": "enouia-legacy-snapshot/1", "objects": [{"role": "import_input", "hash": hash}]
+        })).unwrap()).unwrap();
+        let result = run(&["plan".into(), input.to_str().unwrap().into()]).unwrap();
+        let codes = result["planned"]["warnings_by_code"].as_object().unwrap();
+        assert_eq!(codes["language_unknown"], 1);
+        assert_eq!(codes["parent_not_in_selection"], 1);
+        assert_eq!(
+            codes.values().map(|v| v.as_u64().unwrap()).sum::<u64>(),
+            result["planned"]["warnings"].as_u64().unwrap()
+        );
+        assert_eq!(result["report"]["matched_sources"], 1);
+        assert_eq!(result["writes"], 0);
+        assert!(!input.join("vault").exists());
+        assert!(!result.to_string().contains("SYNTHETIC PRIVATE TEXT"));
+        // Retain this small, uniquely allocated synthetic input for diagnosis.
     }
 }

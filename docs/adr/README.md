@@ -780,3 +780,9 @@ absent from its quote, take the first nonempty trimmed control-separated span,
 limited to 60 characters. Original content/evidence and supplied-title validation
 are unchanged. Synthetic verification and Runtime surface registration accompany
 the worker fix.
+
+### ADR-MEM-139 — Re-initialization warning counts by code
+
+[Decision](139-reinit-warning-code-counts.md): the read-only CLI plan adds sorted
+warning-code counts alongside its existing total. No source text or locators are
+printed, and parsing, formation, policies and the real run remain unchanged.
