@@ -76,7 +76,18 @@ fn candidate(n: u32, kind: ProposedType, text: &str, cites: &[&SourceRecord]) ->
 
 #[test]
 fn legacy_candidates_become_adopted_memories_in_a_bootstrapped_root() {
-    let prep = prepare(&[export()]).unwrap();
+    let mut prep = prepare(&[export()]).unwrap();
+    let attachment = b"\x89PNG\r\n\x1a\nsynthetic attachment".to_vec();
+    prep.messages[0]
+        .attachments
+        .push(enouia_memory_import::parsed::ParsedAttachment {
+            original_name: Some("synthetic.png".into()),
+            claimed_media_type: Some("image/png".into()),
+            size_bytes: Some(attachment.len() as u64),
+            availability: enouia_memory_contract::source::Availability::Present,
+            bytes: Some(attachment.clone()),
+            external_reference: None,
+        });
     let (a1, a3, b1, c1) = (
         old_source(1, "conv-a", "a1"),
         old_source(2, "conv-a", "a3"),
@@ -215,7 +226,50 @@ fn legacy_candidates_become_adopted_memories_in_a_bootstrapped_root() {
             .all(|p| p.completed() == p.preflight.statements)
     );
     assert_eq!(init.ledger().unwrap()["extraction"]["model_invocations"], 0);
+    let ledger = init.ledger().unwrap();
+    let snapshot = init.vault.snapshot().unwrap();
     drop(init);
+
+    // Simulate a lost acknowledgement after application. The persisted original
+    // operation must be looked up after restore, never re-applied under a new ID.
+    let journal_path = e.path.join("sync-state/initialization-owner-1.json");
+    let mut journal: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(&journal_path).unwrap()).unwrap();
+    journal["plans"][0]["work"][0]["receipt"] = serde_json::Value::Null;
+    journal["plans"][0]["work"][0]["state"] = json!("outcome_unknown");
+    std::fs::write(&journal_path, serde_json::to_vec(&journal).unwrap()).unwrap();
+
+    // ADR136: the production-shaped journal and raw archive restore without
+    // the original index/root and resume the same operations with no model.
+    use enouia_memory_vault::automation::segmented::backup::*;
+    let backup = Env::new();
+    let restored = Env::new();
+    export_owner(&e.root, &backup.root, e.clock.clone(), Arc::new(OsIdSource)).unwrap();
+    restore_owner(&backup.root, &restored.root, e.clock.as_ref()).unwrap();
+    activate_owner(&restored.root, &backup.root, e.clock.as_ref()).unwrap();
+    let mut resumed = Initializer::open_synthetic(
+        &restored.root,
+        host.clone(),
+        e.clock.clone(),
+        Arc::new(OsIdSource),
+    )
+    .unwrap();
+    assert!(resumed.step().unwrap(), "lookup the original receipt");
+    assert_eq!(resumed.ledger().unwrap(), ledger);
+    assert!(!resumed.step().unwrap());
+    assert_eq!(resumed.vault.snapshot().unwrap(), snapshot);
+    assert_eq!(
+        std::fs::read(
+            restored
+                .path
+                .join(enouia_memory_contract::layout::raw_object(
+                    &enouia_memory_contract::hash::sha256(&attachment)
+                ))
+        )
+        .unwrap(),
+        attachment
+    );
+    drop(resumed);
 
     // A used root is never adopted again.
     let again =

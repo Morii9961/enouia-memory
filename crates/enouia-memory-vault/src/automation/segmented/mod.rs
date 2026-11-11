@@ -1,5 +1,6 @@
 //! Explicit ADR-MEM-94 synthetic root. No implicit opening, migration or routes.
 mod agent;
+pub mod backup;
 mod catalog;
 mod correction_intake;
 mod forget_intake;
@@ -185,6 +186,7 @@ impl SegmentedAutomationVault {
             .read_bounded(&layout::vault_descriptor(), 16 * 1024)?
             .ok_or(AutomationFault::Unavailable)?;
         let descriptor: AutomationDescriptor = parse_document(&b)?;
+        backup::require_activated(&managed, &descriptor)?;
         if !matches!(
             descriptor.layout,
             AutomationLayout::SegmentedV1 | AutomationLayout::SegmentedOwnerV1

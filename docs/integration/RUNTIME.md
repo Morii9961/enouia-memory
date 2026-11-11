@@ -1,5 +1,15 @@
 # Runtime integration (ADR-MEM-45)
 
+2026-11-11 offline segmented Owner backup (ADR-MEM-136): native-only
+`automation::segmented::backup` export/verify/restore/activate, with a new
+`enouia-memory-owner-backup` CLI. Restored roots refuse normal open and forward
+recovery until the Owner explicitly activates against the exact current backup.
+Runtime must pin this revision and aggregate to honor that gate when opening a
+restored root; no IPC, page, wire capability or Runtime repository change here.
+The backup is not an authority transfer; stop the old Host before activation.
+Aggregate: `63129e24f8ca096eeaf00eb1e03bcfe6e6e0b50057bc0a150c3692a7e687bd8f`.
+See [backup instructions](../deploy/SEGMENTED_OWNER_BACKUP.md).
+
 2026-11-08 public persona projection export (ADR-MEM-128, first slice): three
 additive owner commands on Workspace IPC v1 (61 commands): `persona_options`
 and `persona_preview` (reads, null key) and `persona_export` (write, key
