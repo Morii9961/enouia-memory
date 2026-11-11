@@ -32,9 +32,16 @@ on the Linux filesystem. Do not copy the source root or its indexes.
 
 ## Cross-platform evidence and limits
 
-The actual Windows-export to Linux-restore run is pending and will be recorded
-before opening this slice's PR. Existing platform-native backup tests are recorded
-separately in [ADR136 evidence](Segmented-owner-backup.md).
+The same 48-file Windows export and its expectations were copied to the Linux
+filesystem under WSL Ubuntu-24.04, without the source root or indexes. A detached
+worktree at implementation commit `1248212` built and ran the restore harness:
+36 sources, 36 visible memories, equal ledger and native observations, resolvable
+source jumps, preserved deletion barrier, zero new commits and model invocations.
+The first copy attempt stopped on Windows/WSL argument quoting before restoring;
+the corrected transfer ran successfully without changing the package.
+
+Existing platform-native backup tests are recorded separately in
+[ADR136 evidence](Segmented-owner-backup.md).
 
 This is not a real-data initialization, encrypted independent-media backup,
 VPS deployment, Runtime acceptance or ChatGPT connector test. Production APIs,
