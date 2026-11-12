@@ -1,0 +1,27 @@
+{
+  "grant_id": "pol_0000238c-0000-4000-8000-000000000001",
+  "revision": 1,
+  "vault_id": "vlt_00000001-0000-4000-8000-000000000001",
+  "principal": {
+    "actor_type": "agent",
+    "actor_id": "prn_00000058-0000-4000-8000-000000000001"
+  },
+  "subject_id": "sub_00000001-0000-4000-8000-000000000001",
+  "project_id": null,
+  "policies": [
+    {
+      "policy_id": "pol_00000001-0000-4000-8000-000000000001",
+      "revision": 1,
+      "hash": "6324d97d2a239b8d6e498776406e3ffcc708a6e03f70b3362eb4030895255ccc"
+    }
+  ],
+  "source_ids": [
+    "src_00000001-0000-4000-8000-000000000001",
+    "src_00000002-0000-4000-8000-000000000001"
+  ],
+  "max_sensitivity": "private",
+  "source_read": false,
+  "active": true,
+  "valid_from": "2026-10-24T00:00:00.000Z",
+  "valid_until": "2026-11-24T00:00:00.000Z"
+}

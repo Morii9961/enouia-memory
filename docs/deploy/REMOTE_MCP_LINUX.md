@@ -5,6 +5,10 @@ describes how the pieces fit together. Deployment, the domain, and which real
 Vault and scope to expose are Morii's decisions and are not made here. All
 values below are placeholders.
 
+For explicit long-term read authority, historical policy revisions, renewal and
+revocation, follow the [Owner read-grant workflow](CONNECTOR_READ_GRANTS.md)
+(ADR-MEM-141). OAuth approval and token expiry do not replace Vault authority.
+
 ## Layout
 
 ```text

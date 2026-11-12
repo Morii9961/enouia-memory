@@ -43,3 +43,11 @@ validator schema, dependency or registered Runtime surface changed.
 Production use awaits Owner merge approval. Complete source packing, attachment
 handling and a fresh production driver remain required before native full-corpus
 initialization; the legacy candidate route is not reused as semantic input.
+
+## Mainline refresh (2026-11-12)
+
+Refreshed on intake revision `f7d56e6`, including merged connector-policy
+mainline `e667fb4`. The sole conflict was the ADR register; ADR140, ADR141
+and ADR142 are retained in order. On this refreshed tree, the focused
+`initialization` target passed all 21 tests and `fresh_chatgpt` passed all four.
+These remain synthetic tests; no real input, Provider or production Vault was used.

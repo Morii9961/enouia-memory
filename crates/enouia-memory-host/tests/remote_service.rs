@@ -1,7 +1,7 @@
 #![cfg(any(windows, target_os = "linux"))]
 //! ADR-MEM-133 runnable remote service over real loopback sockets, on a
 //! synthetic initialized Owner Vault.
-#[path = "support/agent_correction_fixture.rs"]
+#[path = "support/owner_read_grant_fixture.rs"]
 mod fixture;
 use enouia_memory_contract::{common::*, foundation::Clock, hash::sha256, next::*};
 use enouia_memory_host::mcp::remote::{http1, service};
@@ -189,9 +189,95 @@ fn config_is_closed_and_state_never_lives_inside_the_vault() {
 
 #[test]
 fn chatgpt_style_flow_reads_the_vault_and_survives_permit_renewal() {
+    run_read_flow(false);
+}
+
+#[test]
+fn read_check_reuses_read_gates_without_listening_or_creating_oauth_state() {
+    let (e, v, mut p, _) = correction_rig(SpeakerRole::User);
+    let files = Env::new();
+    let state_dir = files.path.join("check-oauth");
+    let listener = http1::bind_loopback("127.0.0.1:0".parse().unwrap()).unwrap();
+    let mut raw = config_json(&e, &p, &state_dir);
+    raw["bind"] = json!(listener.local_addr().unwrap().to_string());
+    let config: service::ServiceConfig = serde_json::from_value(raw.clone()).unwrap();
+    let before = v.snapshot().unwrap();
+    let checked = service::read_check(v.clone(), &config, &*e.clock).unwrap();
+    assert_eq!(checked["authority_mode"], "current_formation_policy");
+    assert_eq!(checked["snapshot"], json!(before));
+    assert_eq!(v.snapshot().unwrap(), before);
+    assert!(!state_dir.exists());
+
+    let mut grant = read_grant(&e, &p);
+    grant.source_read = false;
+    let plan = v
+        .plan_owner_read_grant(&e.descriptor.created_by, grant.clone())
+        .unwrap();
+    v.commit_owner_read_grant(&e.descriptor.created_by, &plan)
+        .unwrap();
+    p.active = false;
+    p.revision = enouia_memory_contract::json::Revision::new(2).unwrap();
+    v.set_policy(&e.descriptor.created_by, p).unwrap();
+    assert!(service::read_check(v.clone(), &config, &*e.clock).is_err());
+    raw["read_grant_id"] = json!(grant.grant_id);
+    raw["source_ids"] = json!(grant.source_ids);
+    raw["source_read"] = json!(false);
+    e.clock.set(grant.valid_until.unix_ms() - 60_000);
+    let config: service::ServiceConfig = serde_json::from_value(raw.clone()).unwrap();
+    let before = v.snapshot().unwrap();
+    let checked = service::read_check(v.clone(), &config, &*e.clock).unwrap();
+    assert_eq!(checked["read_ready"], true);
+    assert_eq!(checked["authority_mode"], "owner_read_grant");
+    assert_eq!(checked["scope"]["valid_until"], json!(grant.valid_until));
+    assert!(!checked.to_string().contains("moonlight"));
+    for change in 0..8 {
+        let mut wrong = raw.clone();
+        match change {
+            0 => wrong["source_read"] = json!(true),
+            1 => wrong["agent_id"] = json!(id("prn", 99)),
+            2 => wrong["source_ids"] = json!([id("src", 99)]),
+            3 => wrong["read_grant_id"] = json!(id("pol", 99)),
+            4 => wrong["issuer"] = json!("http://memory.example"),
+            5 => wrong["bind"] = json!("0.0.0.0:8787"),
+            6 => wrong["state_dir"] = json!(e.root.path().join("oauth")),
+            _ => wrong["profile"]["max_items"] = json!(0),
+        }
+        let wrong: service::ServiceConfig = serde_json::from_value(wrong).unwrap();
+        assert!(
+            service::read_check(v.clone(), &wrong, &*e.clock).is_err(),
+            "change {change}"
+        );
+    }
+    e.clock.set(grant.valid_until.unix_ms());
+    assert!(service::read_check(v.clone(), &config, &*e.clock).is_err());
+    assert_eq!(v.snapshot().unwrap(), before);
+    assert!(!state_dir.exists());
+    assert!(!e.root.path().join("oauth").exists());
+}
+#[test]
+fn explicit_grant_serves_old_memories_after_formation_stops_and_oauth_revocation_stops_old_session()
+{
+    run_read_flow(true);
+}
+fn run_read_flow(independent: bool) {
     let (e, v, p, _) = correction_rig(SpeakerRole::User);
-    let state_dir = temp_dir("flow");
-    let raw = config_json(&e, &p, &state_dir);
+    let state_dir = temp_dir(if independent { "grant-flow" } else { "flow" });
+    let mut raw = config_json(&e, &p, &state_dir);
+    if independent {
+        let g = read_grant(&e, &p);
+        let plan = v
+            .plan_owner_read_grant(&e.descriptor.created_by, g.clone())
+            .unwrap();
+        v.commit_owner_read_grant(&e.descriptor.created_by, &plan)
+            .unwrap();
+        raw["read_grant_id"] = json!(g.grant_id);
+        raw["source_ids"] = json!(g.source_ids);
+        let mut stopped = p.clone();
+        stopped.active = false;
+        stopped.revision = enouia_memory_contract::json::Revision::new(2).unwrap();
+        v.set_policy(&e.descriptor.created_by, stopped).unwrap();
+        e.clock.set(p.valid_until.unix_ms());
+    }
     let config: service::ServiceConfig = serde_json::from_value(raw.clone()).unwrap();
     let listener = http1::bind_loopback("127.0.0.1:0".parse().unwrap()).unwrap();
     let addr = listener.local_addr().unwrap();
@@ -233,6 +319,14 @@ fn chatgpt_style_flow_reads_the_vault_and_survives_permit_renewal() {
                 assert_eq!(mcp(addr, &access, Some(&session), json!({"jsonrpc":"2.0","id":4,"method":"tools/list"})).status, 404);
                 let renewed = initialize(addr, &access);
                 assert_ne!(renewed, session);
+                if independent {
+                    let status = service::oauth_admin(&approver, None, &OsIdSource, &*clock).unwrap();
+                    assert_eq!(status["clients"][0]["client_id"], client_id);
+                    assert!(service::oauth_admin(&approver, Some(&client_id), &OsIdSource, &*clock).unwrap()["revoked"].as_bool().unwrap());
+                    assert_eq!(mcp(addr, &access, Some(&renewed), json!({"jsonrpc":"2.0","id":5,"method":"tools/list"})).status, 401);
+                    let refresh = send(addr, "POST", "/oauth/token", &form_headers, &form(&[("grant_type", "refresh_token"), ("client_id", &client_id), ("refresh_token", tokens["refresh_token"].as_str().unwrap())]));
+                    assert!(refresh.status >= 400);
+                }
                 let saved = std::fs::read_to_string(state_dir.join("oauth-state.json")).unwrap();
                 for secret in [code.as_str(), auth_code.as_str(), access.as_str(), tokens["refresh_token"].as_str().unwrap()] {
                     assert!(!saved.contains(secret));

@@ -802,6 +802,15 @@ metadata and selection watermarks bind shard hashes and byte locations; the
 complete original archive stays separately retained. This pure intake prerequisite
 provides no semantic analyzer, fresh production driver or real initialization.
 
+### ADR-MEM-141 — Independent Owner read grants for the connector
+
+[Decision](141-connector-owner-read-grants.md): Morii explicitly approved separating
+long-term reads from formation expiry/revision/disable. Exact historical policy
+references remain immutable evidence; a native Owner grant controls the Agent,
+source scope, sensitivity, source text and expiry. Explicit opt-in only; short
+permits, deletion barriers and restore quarantine remain. Native management and
+OAuth client revocation reuse the existing service and locked state file.
+
 ### ADR-MEM-142 — Form supplied fresh analysis without legacy candidates
 
 [Decision](142-fresh-authored-formation.md): a pure analyzed-plan entry preserves

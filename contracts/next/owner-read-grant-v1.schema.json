@@ -1,0 +1,5 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.enouia-memory.invalid/next/owner-read-grant-v1.schema.json",
+  "$ref": "catalog-v2.schema.json#/$defs/ownerReadGrant"
+}

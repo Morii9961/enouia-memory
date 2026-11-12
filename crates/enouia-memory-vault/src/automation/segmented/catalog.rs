@@ -202,14 +202,32 @@ impl State {
         max: Sensitivity,
         now: Timestamp,
     ) -> Result<AuthorizedSegmentedRead<'a>> {
+        self.authorized_for(descriptor, max, now, None)
+    }
+    pub(super) fn authorized_for<'a>(
+        &'a self,
+        descriptor: &'a AutomationDescriptor,
+        max: Sensitivity,
+        now: Timestamp,
+        grant: Option<&OwnerReadGrant>,
+    ) -> Result<AuthorizedSegmentedRead<'a>> {
         if self.head.as_ref().is_none_or(|h| now < h.created_at) {
             return Err(AutomationFault::Denied);
         }
-        let policies: BTreeMap<_, _> = self
-            .policies
-            .values()
-            .filter(|p| p.active && now >= p.valid_from && now < p.valid_until)
-            .map(|p| (p.policy_id.clone(), (p, p.reference())))
+        let policy_list: Vec<_> = if let Some(g) = grant {
+            g.policies
+                .iter()
+                .filter_map(|r| self.policy_history.get(&r.hash))
+                .collect()
+        } else {
+            self.policies
+                .values()
+                .filter(|p| p.active && now >= p.valid_from && now < p.valid_until)
+                .collect()
+        };
+        let policies: BTreeMap<_, _> = policy_list
+            .into_iter()
+            .map(|p| (digest(p), (p, p.reference())))
             .collect();
         let mut allowed: BTreeMap<SourceId, Vec<&AutomationPolicy>> = BTreeMap::new();
         for (p, _) in policies.values() {
@@ -256,7 +274,7 @@ impl State {
             state: &'s State,
             descriptor: &'s AutomationDescriptor,
             max: Sensitivity,
-            policies: &'s BTreeMap<PolicyId, (&'s AutomationPolicy, PolicyRef)>,
+            policies: &'s BTreeMap<Sha256Hex, (&'s AutomationPolicy, PolicyRef)>,
             sources: &'s BTreeMap<SourceId, &'s CapturedSource>,
             entities: &'s BTreeMap<String, &'s EntityRecord>,
         }
@@ -282,7 +300,7 @@ impl State {
             };
             let m = &entry.memory;
             let i = &m.decision.input;
-            let Some((p, reference)) = policies.get(&i.policy.policy_id) else {
+            let Some((p, reference)) = policies.get(&i.policy.hash) else {
                 return false;
             };
             let valid = depth < 128
@@ -431,6 +449,7 @@ impl State {
             }
         }
         let mut data = AuthorizedSegmentedRead {
+            independent_read: grant.is_some(),
             owner_actions: Vec::new(),
             entity_redirects: BTreeMap::new(),
             entity_proofs: BTreeMap::new(),
@@ -468,16 +487,19 @@ impl State {
                     && match &r.plan.action {
                         OwnerAction::Correct { .. } => e.correction.as_ref().is_some_and(|c| {
                             targets.contains_key(&c.decision.input.result.memory_id)
-                                && self.policy(&c.decision.input).is_some_and(|p| {
-                                    p.active
-                                        && now >= p.valid_from
-                                        && now < p.valid_until
-                                        && self.source_in_policy(
-                                            &c.source.reference(),
-                                            p,
-                                            c.decision.input.sensitivity,
-                                        )
-                                })
+                                && self
+                                    .read_policy(&c.decision.input, data.independent_read)
+                                    .is_some_and(|p| {
+                                        (data.independent_read
+                                            || (p.active
+                                                && now >= p.valid_from
+                                                && now < p.valid_until))
+                                            && self.source_in_policy(
+                                                &c.source.reference(),
+                                                p,
+                                                c.decision.input.sensitivity,
+                                            )
+                                    })
                         }),
                         OwnerAction::Attention { target, .. } => {
                             targets.contains_key(&target.memory.memory_id)
@@ -546,7 +568,7 @@ impl State {
                 if i.sensitivity > action.effects.max_sensitivity {
                     continue;
                 }
-                let Some(policy) = self.policy(i) else {
+                let Some(policy) = self.read_policy(i, data.independent_read) else {
                     continue;
                 };
                 if !self.entity_in_policy(into, policy, i.sensitivity) {

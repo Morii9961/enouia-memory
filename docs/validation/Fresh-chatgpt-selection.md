@@ -41,3 +41,10 @@ bounded formation/journal execution and the fresh-input CLI remain to be deliver
 Long-term reading scope, independent encrypted backup acceptance and ChatGPT/VPS
 acceptance retain their own owner decisions and evidence. The old legacy-candidate
 CLI is not used as a substitute.
+
+## Mainline refresh (2026-11-12)
+
+Refreshed against merged connector-policy mainline `e667fb4`. The only merge
+conflict was the ADR register; both ADR140 and ADR141 are retained in order.
+The same four `fresh_chatgpt` synthetic tests passed on this refreshed tree.
+No real input or Vault was used, and no additional acceptance is implied.
