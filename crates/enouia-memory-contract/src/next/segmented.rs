@@ -19,6 +19,46 @@ pub const MAX_SEGMENTED_CHAIN_BYTES: usize = 1024 * 1024 * 1024;
 pub const MAX_SEGMENTED_POLICIES: usize = 1024;
 const MAX_QUEUED_CAPTURE_SOURCES: usize = 64;
 
+/// Owner-only read authority. Historical formation references are evidence,
+/// not permission to create, revise or capture anything (ADR-MEM-141).
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct OwnerReadGrant {
+    pub grant_id: PolicyId,
+    pub revision: Revision,
+    pub vault_id: VaultId,
+    pub principal: ActorRef,
+    pub subject_id: SubjectId,
+    #[serde(deserialize_with = "crate::json::nullable")]
+    pub project_id: Option<ProjectId>,
+    pub policies: Vec<PolicyRef>,
+    pub source_ids: Vec<SourceId>,
+    pub max_sensitivity: crate::common::Sensitivity,
+    pub source_read: bool,
+    pub active: bool,
+    pub valid_from: Timestamp,
+    pub valid_until: Timestamp,
+}
+impl OwnerReadGrant {
+    pub fn valid(&self) -> bool {
+        use std::collections::BTreeSet;
+        self.principal.actor_type == crate::common::ActorType::Agent
+            && self.valid_from < self.valid_until
+            && !self.policies.is_empty()
+            && self.policies.len() <= MAX_SEGMENTED_POLICIES
+            && self
+                .policies
+                .iter()
+                .map(|p| &p.hash)
+                .collect::<BTreeSet<_>>()
+                .len()
+                == self.policies.len()
+            && !self.source_ids.is_empty()
+            && self.source_ids.len() <= MAX_SEGMENTED_REVISIONS
+            && self.source_ids.iter().collect::<BTreeSet<_>>().len() == self.source_ids.len()
+    }
+}
+
 /// ADR-MEM-111: exact captured revisions durably waiting for System formation.
 /// Queued is not formed; no request, response, Provider or memory state is held.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -80,6 +120,9 @@ pub enum SegmentedDelta {
     },
     Policy {
         policy: Box<AutomationPolicy>,
+    },
+    OwnerReadGrant {
+        grant: Box<OwnerReadGrant>,
     },
     Capture {
         sources: Vec<CapturedSource>,
@@ -190,6 +233,7 @@ impl NextDocument for SegmentedCommit {
             SegmentedDelta::Policy { policy } => {
                 policy.validate().is_empty() && policy.rule_version == RuleVersion::V3
             }
+            SegmentedDelta::OwnerReadGrant { grant } => grant.valid(),
             SegmentedDelta::Capture { sources, catalog } => {
                 !sources.is_empty()
                     && sources.len() <= 64

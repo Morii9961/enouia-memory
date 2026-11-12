@@ -10,6 +10,9 @@ fn native(kind: &str, v: &Value) -> bool {
     match kind {
         "descriptor" => parse_document::<AutomationDescriptor>(&b).is_ok(),
         "segment" => parse_document::<SegmentedCommit>(&b).is_ok(),
+        "read_grant" => {
+            serde_json::from_value::<OwnerReadGrant>(v.clone()).is_ok_and(|g| g.valid())
+        }
         "page" => parse_document::<CatalogMemoryPage>(&b).is_ok(),
         "stats" => parse_document::<CatalogMemoryStats>(&b).is_ok(),
         "facets" => parse_document::<CatalogMemoryFacets>(&b).is_ok(),

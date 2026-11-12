@@ -1,7 +1,7 @@
 #![cfg(any(windows, target_os = "linux"))]
 //! ADR-MEM-133 runnable remote service over real loopback sockets, on a
 //! synthetic initialized Owner Vault.
-#[path = "support/agent_correction_fixture.rs"]
+#[path = "support/owner_read_grant_fixture.rs"]
 mod fixture;
 use enouia_memory_contract::{common::*, foundation::Clock, hash::sha256, next::*};
 use enouia_memory_host::mcp::remote::{http1, service};
@@ -189,9 +189,32 @@ fn config_is_closed_and_state_never_lives_inside_the_vault() {
 
 #[test]
 fn chatgpt_style_flow_reads_the_vault_and_survives_permit_renewal() {
+    run_read_flow(false);
+}
+#[test]
+fn explicit_grant_serves_old_memories_after_formation_stops_and_oauth_revocation_stops_old_session()
+{
+    run_read_flow(true);
+}
+fn run_read_flow(independent: bool) {
     let (e, v, p, _) = correction_rig(SpeakerRole::User);
-    let state_dir = temp_dir("flow");
-    let raw = config_json(&e, &p, &state_dir);
+    let state_dir = temp_dir(if independent { "grant-flow" } else { "flow" });
+    let mut raw = config_json(&e, &p, &state_dir);
+    if independent {
+        let g = read_grant(&e, &p);
+        let plan = v
+            .plan_owner_read_grant(&e.descriptor.created_by, g.clone())
+            .unwrap();
+        v.commit_owner_read_grant(&e.descriptor.created_by, &plan)
+            .unwrap();
+        raw["read_grant_id"] = json!(g.grant_id);
+        raw["source_ids"] = json!(g.source_ids);
+        let mut stopped = p.clone();
+        stopped.active = false;
+        stopped.revision = enouia_memory_contract::json::Revision::new(2).unwrap();
+        v.set_policy(&e.descriptor.created_by, stopped).unwrap();
+        e.clock.set(p.valid_until.unix_ms());
+    }
     let config: service::ServiceConfig = serde_json::from_value(raw.clone()).unwrap();
     let listener = http1::bind_loopback("127.0.0.1:0".parse().unwrap()).unwrap();
     let addr = listener.local_addr().unwrap();
@@ -233,6 +256,14 @@ fn chatgpt_style_flow_reads_the_vault_and_survives_permit_renewal() {
                 assert_eq!(mcp(addr, &access, Some(&session), json!({"jsonrpc":"2.0","id":4,"method":"tools/list"})).status, 404);
                 let renewed = initialize(addr, &access);
                 assert_ne!(renewed, session);
+                if independent {
+                    let status = service::oauth_admin(&approver, None, &OsIdSource, &*clock).unwrap();
+                    assert_eq!(status["clients"][0]["client_id"], client_id);
+                    assert!(service::oauth_admin(&approver, Some(&client_id), &OsIdSource, &*clock).unwrap()["revoked"].as_bool().unwrap());
+                    assert_eq!(mcp(addr, &access, Some(&renewed), json!({"jsonrpc":"2.0","id":5,"method":"tools/list"})).status, 401);
+                    let refresh = send(addr, "POST", "/oauth/token", &form_headers, &form(&[("grant_type", "refresh_token"), ("client_id", &client_id), ("refresh_token", tokens["refresh_token"].as_str().unwrap())]));
+                    assert!(refresh.status >= 400);
+                }
                 let saved = std::fs::read_to_string(state_dir.join("oauth-state.json")).unwrap();
                 for secret in [code.as_str(), auth_code.as_str(), access.as_str(), tokens["refresh_token"].as_str().unwrap()] {
                     assert!(!saved.contains(secret));

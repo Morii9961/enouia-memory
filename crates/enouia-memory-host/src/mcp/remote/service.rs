@@ -53,6 +53,9 @@ pub struct ServiceConfig {
     pub source_ids: Vec<SourceId>,
     pub max_sensitivity: Sensitivity,
     pub source_read: bool,
+    /// Explicit opt-in. Absent preserves the original current-policy gate.
+    #[serde(default)]
+    pub read_grant_id: Option<PolicyId>,
     pub profile: AttentionProfile,
 }
 
@@ -159,6 +162,30 @@ pub fn approve(
     .map_err(|e| format!("state file: {e}"))
 }
 
+/// Native administration shares the same locked state file as the service.
+pub fn oauth_admin(
+    config: &ServiceConfig,
+    client_to_revoke: Option<&str>,
+    ids: &dyn IdSource,
+    clock: &dyn Clock,
+) -> Result<serde_json::Value, String> {
+    let oauth = config
+        .oauth()
+        .ok_or("invalid issuer, resource or redirect prefixes")?;
+    let file = StateFile::open(&config.state_dir).map_err(|e| format!("state directory: {e}"))?;
+    file.update(|state| {
+        let authority = Authority::new(oauth, ids, clock, std::mem::take(state));
+        let result = if let Some(id) = client_to_revoke {
+            serde_json::json!({"client_id":id,"revoked":authority.revoke_client(id)})
+        } else {
+            authority.client_status()
+        };
+        *state = authority.state();
+        result
+    })
+    .map_err(|e| format!("state file: {e}"))
+}
+
 /// Serve until `stop` says so. One Vault permit per generation; every
 /// generation lasts at most `RENEW_MS`, then sessions end and clients
 /// reinitialize. An unknown outcome stops the service for operator recovery.
@@ -190,10 +217,21 @@ pub fn serve(
     let authority = Authority::new(oauth, ids, clock, State::default());
     while !stop() {
         let now = clock.now_unix_ms();
-        let until = Timestamp::from_unix_ms(now + PERMIT_MS).ok_or("clock out of range")?;
-        let reader = host
-            .reader(&owner, principal.clone(), config.scope(until))
-            .map_err(|e| format!("agent permit: {e:?}"))?;
+        let permit_until = if let Some(id) = &config.read_grant_id {
+            host.owner_read_grant_until(&owner, id)
+                .map_err(|e| format!("read grant: {e:?}"))?
+                .unix_ms()
+                .min(now + PERMIT_MS)
+        } else {
+            now + PERMIT_MS
+        };
+        let until = Timestamp::from_unix_ms(permit_until).ok_or("clock out of range")?;
+        let reader = if let Some(id) = &config.read_grant_id {
+            host.reader_with_owner_grant(&owner, principal.clone(), id, config.scope(until))
+        } else {
+            host.reader(&owner, principal.clone(), config.scope(until))
+        }
+        .map_err(|e| format!("agent permit: {e:?}"))?;
         let endpoint = Endpoint::new(config.endpoint().expect("checked"), &authority, ids, |_| {
             opening::Server::new(&reader, &config.profile)
         });
@@ -205,9 +243,12 @@ pub fn serve(
             authority: &authority,
             file: &file,
         };
-        let renew_at = now + RENEW_MS;
+        let renew_at = (now + RENEW_MS).min(permit_until);
         http1::serve(listener, &mut handler, IO_TIMEOUT, |h, _| {
-            h.inner.endpoint.halted().is_none() && clock.now_unix_ms() < renew_at && !stop()
+            h.inner.endpoint.halted().is_none()
+                && clock.now_unix_ms() < renew_at
+                && reader.check_context_connection().is_ok()
+                && !stop()
         })
         .map_err(|e| format!("listener: {e}"))?;
         let halted = handler.inner.endpoint.halted().is_some();

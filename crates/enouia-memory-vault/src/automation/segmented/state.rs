@@ -20,6 +20,8 @@ pub(super) struct State {
     pub published: Vec<super::process::PublishedChange>,
     pub publication_positions: BTreeMap<CommitId, usize>,
     pub policies: BTreeMap<PolicyId, AutomationPolicy>,
+    pub policy_history: BTreeMap<Sha256Hex, AutomationPolicy>,
+    pub read_grants: BTreeMap<PolicyId, OwnerReadGrant>,
     pub sources: BTreeMap<SourceId, Vec<CapturedSource>>,
     pub memories: BTreeMap<MemoryId, Vec<SegmentedMemory>>,
     pub entities: BTreeMap<String, Vec<EntityRecord>>,
@@ -75,6 +77,19 @@ impl State {
         self.policies
             .get(&input.policy.policy_id)
             .filter(|p| p.reference() == input.policy)
+    }
+    pub(super) fn read_policy(
+        &self,
+        input: &AdmissionInput,
+        independent: bool,
+    ) -> Option<&AutomationPolicy> {
+        if independent {
+            self.policy_history
+                .get(&input.policy.hash)
+                .filter(|p| p.reference() == input.policy)
+        } else {
+            self.policy(input)
+        }
     }
     pub fn context<T>(
         &self,
@@ -350,7 +365,10 @@ impl State {
         let (pw, dw) = self.head.as_ref().map_or((1, 1), |h| {
             (h.policy_watermark.get(), h.deletion_watermark.get())
         });
-        let policy_change = matches!(c.delta, SegmentedDelta::Policy { .. });
+        let policy_change = matches!(
+            c.delta,
+            SegmentedDelta::Policy { .. } | SegmentedDelta::OwnerReadGrant { .. }
+        );
         let delete = matches!(c.delta, SegmentedDelta::Delete { .. })
             || matches!(&c.delta, SegmentedDelta::OwnerAction { record, .. } if matches!(record.plan.action, OwnerAction::Withdraw { .. } | OwnerAction::Forget { .. }));
         if let Some(before) = &self.head {
@@ -404,6 +422,7 @@ impl State {
             }
             SegmentedDelta::Policy { policy: p } => {
                 if c.actor != descriptor.created_by
+                    || self.read_grants.contains_key(&p.policy_id)
                     || self.owner_policies.contains(&p.policy_id)
                     || p.vault_id != descriptor.vault_id
                     || p.system_actor != descriptor.system_actor
@@ -417,6 +436,12 @@ impl State {
                 {
                     return Err(deny());
                 }
+            }
+            SegmentedDelta::OwnerReadGrant { grant } => {
+                if c.actor != descriptor.created_by {
+                    return Err(deny());
+                }
+                self.check_read_grant(descriptor, grant)?;
             }
             SegmentedDelta::Capture { sources, catalog } => {
                 if c.actor != descriptor.system_actor
@@ -679,8 +704,14 @@ impl State {
                 );
             }
             SegmentedDelta::Policy { policy } => {
+                self.policy_history
+                    .insert(digest(policy.as_ref()), policy.as_ref().clone());
                 self.policies
                     .insert(policy.policy_id.clone(), policy.as_ref().clone());
+            }
+            SegmentedDelta::OwnerReadGrant { grant } => {
+                self.read_grants
+                    .insert(grant.grant_id.clone(), grant.as_ref().clone());
             }
             SegmentedDelta::Capture { sources, catalog } => {
                 self.source_revisions += sources.len();
@@ -739,6 +770,8 @@ impl State {
             }
             SegmentedDelta::OwnerAction { record, effects } => {
                 if let Some(correction) = &effects.correction {
+                    self.policy_history
+                        .insert(digest(&correction.policy), correction.policy.clone());
                     self.owner_policies
                         .insert(correction.policy.policy_id.clone());
                     self.policies.insert(

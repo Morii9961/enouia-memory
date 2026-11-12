@@ -793,3 +793,12 @@ temporary targets are written; production APIs and Runtime surface stay unchange
 [Decision](139-reinit-warning-code-counts.md): the read-only CLI plan adds sorted
 warning-code counts alongside its existing total. No source text or locators are
 printed, and parsing, formation, policies and the real run remain unchanged.
+
+### ADR-MEM-141 — Independent Owner read grants for the connector
+
+[Decision](141-connector-owner-read-grants.md): Morii explicitly approved separating
+long-term reads from formation expiry/revision/disable. Exact historical policy
+references remain immutable evidence; a native Owner grant controls the Agent,
+source scope, sensitivity, source text and expiry. Explicit opt-in only; short
+permits, deletion barriers and restore quarantine remain. Native management and
+OAuth client revocation reuse the existing service and locked state file.

@@ -377,6 +377,22 @@
                   "$ref": "agent-forget-v1.schema.json#/$defs/record"
                 }
               }
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "change",
+                "grant"
+              ],
+              "properties": {
+                "change": {
+                  "const": "owner_read_grant"
+                },
+                "grant": {
+                  "$ref": "#/$defs/ownerReadGrant"
+                }
+              }
             }
           ]
         },
@@ -1286,6 +1302,85 @@
         "receipt",
         "validity"
       ]
+    },
+    "ownerReadGrant": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "grant_id",
+        "revision",
+        "vault_id",
+        "principal",
+        "subject_id",
+        "project_id",
+        "policies",
+        "source_ids",
+        "max_sensitivity",
+        "source_read",
+        "active",
+        "valid_from",
+        "valid_until"
+      ],
+      "properties": {
+        "grant_id": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/policyId"
+        },
+        "revision": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/revision"
+        },
+        "vault_id": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/vaultId"
+        },
+        "principal": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/actorRef"
+        },
+        "subject_id": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/subjectId"
+        },
+        "project_id": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "../memory/common-v1.schema.json#/$defs/projectId"
+            }
+          ]
+        },
+        "policies": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 1024,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "automation-v2.schema.json#/$defs/policyRef"
+          }
+        },
+        "source_ids": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 65536,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "../memory/common-v1.schema.json#/$defs/sourceId"
+          }
+        },
+        "max_sensitivity": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/sensitivity"
+        },
+        "source_read": {
+          "type": "boolean"
+        },
+        "active": {
+          "type": "boolean"
+        },
+        "valid_from": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/timestamp"
+        },
+        "valid_until": {
+          "$ref": "../memory/common-v1.schema.json#/$defs/timestamp"
+        }
+      }
     }
   }
 }

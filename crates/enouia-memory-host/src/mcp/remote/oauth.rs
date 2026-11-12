@@ -271,6 +271,29 @@ impl<'a> Authority<'a> {
         state.access.retain(|_, t| t.family != family);
         state.refresh.retain(|_, t| t.family != family);
     }
+    /// Native Owner administration only; no HTTP revocation surface.
+    pub fn revoke_client(&self, client_id: &str) -> bool {
+        let mut state = self.state.borrow_mut();
+        let existed = state.clients.remove(client_id).is_some();
+        state.codes.retain(|_, g| g.client_id != client_id);
+        state.access.retain(|_, t| t.client_id != client_id);
+        state.refresh.retain(|_, t| t.client_id != client_id);
+        state.spent.retain(|_, t| t.client_id != client_id);
+        if existed {
+            state.approval = None;
+        }
+        existed
+    }
+    /// IDs and expiry metadata only; never digests, codes or tokens.
+    pub fn client_status(&self) -> Value {
+        let state = self.state.borrow();
+        let now = self.clock.now_unix_ms();
+        json!({"now_ms":now,"clients":state.clients.keys().map(|id| {
+            json!({"client_id":id,
+                "access_valid_until_ms":state.access.values().filter(|t| &t.client_id == id && t.expires_ms > now).map(|t| t.expires_ms).max(),
+                "refresh_valid_until_ms":state.refresh.values().filter(|t| &t.client_id == id && t.expires_ms > now).map(|t| t.expires_ms).max()})
+        }).collect::<Vec<_>>()})
+    }
 
     /// Serve an OAuth path, or `None` when the request belongs elsewhere.
     pub fn respond(&self, request: &Request) -> Option<Response> {
