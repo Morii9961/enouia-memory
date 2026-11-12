@@ -37,7 +37,30 @@ Windows、Rust 1.98.1、离线且 `--locked`，仅使用虚构临时 Owner 根�
 
 初次受限环境的原生测试遇到 `StorageFailed`，在授权的原生 Windows 权限环境重跑通过；
 不把环境失败算作产品通过。测试中曾修正虚构来源数量预期；静态检查的折叠 if、map 键迭代
-提示也已修正并重跑。没有运行完整 workspace suite/build 或本片 Linux/WSL 测试。
+提示也已修正并重跑。这批未运行完整 workspace suite/build 或 Linux/WSL 测试；
+合并后的 Linux 增补见下节。
+
+## PR #103 合并后的 Linux 增补
+
+2026-11-12，PR #103 合并为 main `d529eebfe2b273cba2a1eeb1dd2f0f8c11181853`。
+本片独立 worktree 从该 main 创建 `codex/connector-read-policy-linux`；并行初始化主工作树
+和仍独立的 PR #102 未被修改。合并后的 Runtime surface checker 通过，aggregate 保持
+`0e2c57a3ce85e42d37707ff53364d506b42b1aa7723cd51cd828055d9936b16a`。
+
+使用既有 WSL2 Ubuntu-24.04、Linux 6.6.114.1、Rust 1.98.1，离线、`--locked`。
+构建输出为新建的独立临时目录；Owner 根和恢复目标均由合成 fixture 新建，未复制真实库。
+
+```text
+cargo +1.98.1 test -p enouia-memory-host --test connector_policy_semantics --test owner_read_grant --test remote_read_admin_cli --test remote_service --test remote_oauth --locked
+cargo +1.98.1 clippy -p enouia-memory-host --lib --bin enouia-memory-remote --test connector_policy_semantics --test owner_read_grant --test remote_read_admin_cli --test remote_service --test remote_oauth --locked -- -D warnings
+```
+
+测试分别为 4 / 6 / 1 / 3 / 6，全 20 项通过；聚焦 Linux clippy 通过。
+包括新授权的删除/范围/期限门槛、未知发布恢复、备份隔离和激活后的读取、实际二进制主人管理，
+以及真实本机回环的 DCR/PKCE、六读工具、session_start 召回、许可换代和 OAuth 主动撤回。
+首次启动检查的自动审批超时未执行，按工具提示重试后执行成功；没有因此跳过检查。
+未安装工具链或依赖，未停止并行会话进程或关闭 WSL。增补只改文档，无实现/Schema/集成面变更，
+未重跑已有 Windows 检查或完整 workspace suite。
 
 ## 新授权证据
 
@@ -66,7 +89,7 @@ OAuth 状态文件不含批准码、code 或 token 原值，读取未改变 Vaul
 ## 证据边界
 
 上述全部为合成根、合成范围与本机回环；不是实际 ChatGPT、Provider、生产 Vault、Linux VPS、
-TLS 或部署验收。原有 Linux/OAuth 报告仅作为既有实现证据，不冒充本片 HEAD 的 Linux 验证。
+TLS 或部署验收。Linux 新证据仅限上节列明的 20 项测试和静态检查，其他既有报告不冒充新回归。
 未读取原始聊天、操作真实 Vault、删除旧库、修改 Runtime 仓库或刷新手动项目状态快照。
-真实来源、敏感度、原文权限和期限仍由 Morii 决定；合并、Runtime 采用、独立加密备份、
-真实恢复、迁移和主人日用验收仍未完成。本片不启动新 MV 阶段。
+真实来源、敏感度、原文权限和期限仍由 Morii 决定。授权实现已通过 PR #103 合并；Runtime 采用、
+独立加密备份、真实恢复、迁移和主人日用验收仍未完成。本片不启动新 MV 阶段。
