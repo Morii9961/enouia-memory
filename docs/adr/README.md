@@ -801,3 +801,10 @@ produce bounded derived materials containing exact original JSON spans. Source
 metadata and selection watermarks bind shard hashes and byte locations; the
 complete original archive stays separately retained. This pure intake prerequisite
 provides no semantic analyzer, fresh production driver or real initialization.
+
+### ADR-MEM-142 — Form supplied fresh analysis without legacy candidates
+
+[Decision](142-fresh-authored-formation.md): a pure analyzed-plan entry preserves
+new distilled content, multiple exact source quotes and explicit analysis
+provenance through the existing native admission and receipt route. It calls no
+Provider and does not supply corpus packing, production execution or read grants.
