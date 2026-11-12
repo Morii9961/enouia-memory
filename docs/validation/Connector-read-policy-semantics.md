@@ -62,6 +62,36 @@ cargo +1.98.1 clippy -p enouia-memory-host --lib --bin enouia-memory-remote --te
 未安装工具链或依赖，未停止并行会话进程或关闭 WSL。增补只改文档，无实现/Schema/集成面变更，
 未重跑已有 Windows 检查或完整 workspace suite。
 
+## 迁移前 read-check 增补
+
+2026-11-12，在 main `f932f5f` 上以独立分支 `codex/connector-read-preflight` 延续 ADR141。
+此前设置授权和服务配置后，只能用实际启动服务来检验许可；现补 `read-check`，与服务共用
+配置检查和短许可构造，不新增授权语义或持久数据类型。
+
+Windows 和 WSL2 Ubuntu-24.04 均使用既有 Rust 1.98.1、离线、`--locked`，执行：
+
+```text
+cargo test -p enouia-memory-host --test remote_service --test remote_read_admin_cli --test owner_read_grant --locked
+cargo clippy -p enouia-memory-host --lib --bin enouia-memory-remote --test remote_service --test remote_read_admin_cli --locked -- -D warnings
+```
+
+每个平台分别为 4 / 1 / 6，全 11 项通过，聚焦 clippy 均通过。Windows 格式检查、
+diff 检查及 Runtime surface checker 通过；Schema/validator 未改，未重复 schema cross-check。
+本片没有运行完整 workspace suite。
+
+新增的 service 测试及实际 CLI 断言确认：
+
+- 自检在配置端口已被占用时仍成功，不启动监听，不创建 OAuth 状态目录，snapshot 不变。
+  输出只有模式、scope、截止时间、snapshot 和临时 scope hash，没有记忆原文。
+- 旧配置明确显示当前形成策略模式；形成停用后失败，显式选择历史读取授权后成功。
+  剩余一分钟时，检查用 permit 同样截止于授权到期。
+- 原文越权、错误 Agent、额外来源、未知 grant、HTTP issuer、公网绑定地址、Vault 内的
+  OAuth 状态路径、无效 opening profile 均被拒绝；授权到期或撤回后自检失败。
+- 既有真实回环 DCR/PKCE、六读、session_start、换代和 OAuth 撤回回归继续通过。
+
+自检结果不能被后续服务当作授权；临时 permit 返回前已撤回，服务仍按当前状态重新核验。
+它不证明目录可写、端口可用、TLS、备份新鲜度、VPS 或真实 ChatGPT 已验收。
+
 ## 新授权证据
 
 六个 `owner_read_grant` 测试覆盖：

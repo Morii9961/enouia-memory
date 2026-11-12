@@ -1242,3 +1242,19 @@ real grant is selected. See the [Owner workflow](../deploy/CONNECTOR_READ_GRANTS
 and [synthetic evidence](../validation/Connector-read-policy-semantics.md).
 If another branch changes this surface before merge, regenerate the manifest
 from the combined source and log that aggregate in the same merge change.
+
+### 2026-11-12 — Native read configuration check (ADR-MEM-141 follow-up)
+
+Surface aggregate: `ac3cc851b1413cfe4782802d73248f5224a18ce34952b7bf05c88b768251b776`.
+
+Adds `enouia-memory-remote read-check` and `service::read_check`. Both the check
+and serving reuse the same configuration and short-reader construction gates.
+The check returns metadata only, revokes its temporary permit, and creates no
+listener, OAuth state or Vault commit. Invalid service configuration is now
+refused before creating the OAuth directory. It does not test filesystem
+writability, occupied ports, TLS or real client interoperability.
+
+Runtime calls none of this and has no new adoption action, UI or IPC contract.
+There is no persisted-layout or authorization-model change. Updating the remote
+binary is sufficient to use the native command; existing readers retain their
+authority semantics. No Runtime checkout or pin is changed here.

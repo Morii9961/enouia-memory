@@ -5,7 +5,7 @@
 //! authentication on the server.
 use super::oauth::{Authority, OAuthConfig, State};
 use super::{Config, Endpoint, Handler, Request, Response, Router, http1};
-use crate::automation::qualified_agent::QualifiedAgentHost;
+use crate::automation::qualified_agent::{QualifiedAgentHost, QualifiedAgentReader};
 use crate::mcp::opening;
 use enouia_memory_contract::{
     common::{ActorRef, ActorType, Sensitivity},
@@ -60,6 +60,21 @@ pub struct ServiceConfig {
 }
 
 impl ServiceConfig {
+    fn checked_oauth(&self) -> Result<OAuthConfig, String> {
+        let oauth = self
+            .oauth()
+            .ok_or("invalid issuer, resource or redirect prefixes")?;
+        if self.endpoint().is_none() {
+            return Err("invalid resource or origins".into());
+        }
+        if !self.bind.ip().is_loopback() {
+            return Err("remote MCP listens on loopback only".into());
+        }
+        if self.state_dir.starts_with(&self.vault_root) {
+            return Err("the state directory must not be inside the Vault".into());
+        }
+        Ok(oauth)
+    }
     pub fn oauth(&self) -> Option<OAuthConfig> {
         let prefixes: Vec<&str> = self.redirect_prefixes.iter().map(String::as_str).collect();
         OAuthConfig::new(&self.issuer, &self.resource, &prefixes)
@@ -79,6 +94,62 @@ impl ServiceConfig {
             valid_until,
         }
     }
+    fn reader<'a>(
+        &self,
+        host: &'a QualifiedAgentHost,
+        owner: &ActorRef,
+        now: i64,
+    ) -> Result<(QualifiedAgentReader<'a>, Timestamp), String> {
+        let permit_until = if let Some(id) = &self.read_grant_id {
+            host.owner_read_grant_until(owner, id)
+                .map_err(|e| format!("read grant: {e:?}"))?
+                .unix_ms()
+                .min(now + PERMIT_MS)
+        } else {
+            now + PERMIT_MS
+        };
+        let until = Timestamp::from_unix_ms(permit_until).ok_or("clock out of range")?;
+        let principal = ActorRef {
+            actor_type: ActorType::Agent,
+            actor_id: self.agent_id.clone(),
+        };
+        let reader = if let Some(id) = &self.read_grant_id {
+            host.reader_with_owner_grant(owner, principal, id, self.scope(until.clone()))
+        } else {
+            host.reader(owner, principal, self.scope(until.clone()))
+        }
+        .map_err(|e| format!("agent permit: {e:?}"))?;
+        Ok((reader, until))
+    }
+}
+
+/// Native read readiness only: no listener, OAuth state or persisted grant.
+/// This short-lived result is not authority for a later service invocation.
+pub fn read_check(
+    vault: Arc<SegmentedAutomationVault>,
+    config: &ServiceConfig,
+    clock: &dyn Clock,
+) -> Result<serde_json::Value, String> {
+    config.checked_oauth()?;
+    let snapshot = vault.snapshot().map_err(|e| format!("snapshot: {e:?}"))?;
+    let owner = vault.descriptor().created_by.clone();
+    let host = QualifiedAgentHost::from_authenticated_initialized_owner(vault, owner.clone())
+        .map_err(|e| format!("owner host: {e:?}"))?;
+    let now = clock.now_unix_ms();
+    let (reader, permit_until) = config.reader(&host, &owner, now)?;
+    opening::Server::new(&reader, &config.profile).ok_or("opening reader or profile refused")?;
+    let result = serde_json::json!({
+        "read_ready":true,
+        "checked_at":Timestamp::from_unix_ms(now).ok_or("clock out of range")?,
+        "snapshot":snapshot,
+        "authority_mode":if config.read_grant_id.is_some() { "owner_read_grant" } else { "current_formation_policy" },
+        "read_grant_id":config.read_grant_id,
+        "principal":reader.principal(),
+        "scope":config.scope(permit_until),
+        "scope_hash":reader.scope_hash(),
+    });
+    reader.revoke();
+    Ok(result)
 }
 
 /// OAuth state in an owner-only directory beside (never inside) the Vault.
@@ -197,41 +268,15 @@ pub fn serve(
     ids: &dyn IdSource,
     mut stop: impl FnMut() -> bool,
 ) -> Result<(), String> {
-    let oauth = config
-        .oauth()
-        .ok_or("invalid issuer, resource or redirect prefixes")?;
-    if config.endpoint().is_none() {
-        return Err("invalid resource or origins".into());
-    }
+    let oauth = config.checked_oauth()?;
     let file = StateFile::open(&config.state_dir).map_err(|e| format!("state directory: {e}"))?;
-    if file.dir.starts_with(&config.vault_root) {
-        return Err("the state directory must not be inside the Vault".into());
-    }
     let owner = vault.descriptor().created_by.clone();
     let host = QualifiedAgentHost::from_authenticated_initialized_owner(vault, owner.clone())
         .map_err(|e| format!("owner host: {e:?}"))?;
-    let principal = ActorRef {
-        actor_type: ActorType::Agent,
-        actor_id: config.agent_id.clone(),
-    };
     let authority = Authority::new(oauth, ids, clock, State::default());
     while !stop() {
         let now = clock.now_unix_ms();
-        let permit_until = if let Some(id) = &config.read_grant_id {
-            host.owner_read_grant_until(&owner, id)
-                .map_err(|e| format!("read grant: {e:?}"))?
-                .unix_ms()
-                .min(now + PERMIT_MS)
-        } else {
-            now + PERMIT_MS
-        };
-        let until = Timestamp::from_unix_ms(permit_until).ok_or("clock out of range")?;
-        let reader = if let Some(id) = &config.read_grant_id {
-            host.reader_with_owner_grant(&owner, principal.clone(), id, config.scope(until))
-        } else {
-            host.reader(&owner, principal.clone(), config.scope(until))
-        }
-        .map_err(|e| format!("agent permit: {e:?}"))?;
+        let (reader, permit_until) = config.reader(&host, &owner, now)?;
         let endpoint = Endpoint::new(config.endpoint().expect("checked"), &authority, ids, |_| {
             opening::Server::new(&reader, &config.profile)
         });
@@ -243,7 +288,7 @@ pub fn serve(
             authority: &authority,
             file: &file,
         };
-        let renew_at = (now + RENEW_MS).min(permit_until);
+        let renew_at = (now + RENEW_MS).min(permit_until.unix_ms());
         http1::serve(listener, &mut handler, IO_TIMEOUT, |h, _| {
             h.inner.endpoint.halted().is_none()
                 && clock.now_unix_ms() < renew_at

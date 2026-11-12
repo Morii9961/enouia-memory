@@ -191,6 +191,69 @@ fn config_is_closed_and_state_never_lives_inside_the_vault() {
 fn chatgpt_style_flow_reads_the_vault_and_survives_permit_renewal() {
     run_read_flow(false);
 }
+
+#[test]
+fn read_check_reuses_read_gates_without_listening_or_creating_oauth_state() {
+    let (e, v, mut p, _) = correction_rig(SpeakerRole::User);
+    let files = Env::new();
+    let state_dir = files.path.join("check-oauth");
+    let listener = http1::bind_loopback("127.0.0.1:0".parse().unwrap()).unwrap();
+    let mut raw = config_json(&e, &p, &state_dir);
+    raw["bind"] = json!(listener.local_addr().unwrap().to_string());
+    let config: service::ServiceConfig = serde_json::from_value(raw.clone()).unwrap();
+    let before = v.snapshot().unwrap();
+    let checked = service::read_check(v.clone(), &config, &*e.clock).unwrap();
+    assert_eq!(checked["authority_mode"], "current_formation_policy");
+    assert_eq!(checked["snapshot"], json!(before));
+    assert_eq!(v.snapshot().unwrap(), before);
+    assert!(!state_dir.exists());
+
+    let mut grant = read_grant(&e, &p);
+    grant.source_read = false;
+    let plan = v
+        .plan_owner_read_grant(&e.descriptor.created_by, grant.clone())
+        .unwrap();
+    v.commit_owner_read_grant(&e.descriptor.created_by, &plan)
+        .unwrap();
+    p.active = false;
+    p.revision = enouia_memory_contract::json::Revision::new(2).unwrap();
+    v.set_policy(&e.descriptor.created_by, p).unwrap();
+    assert!(service::read_check(v.clone(), &config, &*e.clock).is_err());
+    raw["read_grant_id"] = json!(grant.grant_id);
+    raw["source_ids"] = json!(grant.source_ids);
+    raw["source_read"] = json!(false);
+    e.clock.set(grant.valid_until.unix_ms() - 60_000);
+    let config: service::ServiceConfig = serde_json::from_value(raw.clone()).unwrap();
+    let before = v.snapshot().unwrap();
+    let checked = service::read_check(v.clone(), &config, &*e.clock).unwrap();
+    assert_eq!(checked["read_ready"], true);
+    assert_eq!(checked["authority_mode"], "owner_read_grant");
+    assert_eq!(checked["scope"]["valid_until"], json!(grant.valid_until));
+    assert!(!checked.to_string().contains("moonlight"));
+    for change in 0..8 {
+        let mut wrong = raw.clone();
+        match change {
+            0 => wrong["source_read"] = json!(true),
+            1 => wrong["agent_id"] = json!(id("prn", 99)),
+            2 => wrong["source_ids"] = json!([id("src", 99)]),
+            3 => wrong["read_grant_id"] = json!(id("pol", 99)),
+            4 => wrong["issuer"] = json!("http://memory.example"),
+            5 => wrong["bind"] = json!("0.0.0.0:8787"),
+            6 => wrong["state_dir"] = json!(e.root.path().join("oauth")),
+            _ => wrong["profile"]["max_items"] = json!(0),
+        }
+        let wrong: service::ServiceConfig = serde_json::from_value(wrong).unwrap();
+        assert!(
+            service::read_check(v.clone(), &wrong, &*e.clock).is_err(),
+            "change {change}"
+        );
+    }
+    e.clock.set(grant.valid_until.unix_ms());
+    assert!(service::read_check(v.clone(), &config, &*e.clock).is_err());
+    assert_eq!(v.snapshot().unwrap(), before);
+    assert!(!state_dir.exists());
+    assert!(!e.root.path().join("oauth").exists());
+}
 #[test]
 fn explicit_grant_serves_old_memories_after_formation_stops_and_oauth_revocation_stops_old_session()
 {

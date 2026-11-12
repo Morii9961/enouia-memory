@@ -13,7 +13,7 @@ use enouia_memory_vault::{OsIdSource, RootPolicy, SystemClock, fault::Faults, ve
 use std::sync::Arc;
 
 fn run(args: &[String]) -> Result<(), String> {
-    const USAGE: &str = "usage: enouia-memory-remote <serve|approve|read-status|read-plan|read-set|read-renew-plan|read-revoke-plan|oauth-status|oauth-revoke> <config.json> [arguments]";
+    const USAGE: &str = "usage: enouia-memory-remote <serve|approve|read-check|read-status|read-plan|read-set|read-renew-plan|read-revoke-plan|oauth-status|oauth-revoke> <config.json> [arguments]";
     let [command, path, rest @ ..] = args else {
         return Err(USAGE.into());
     };
@@ -38,7 +38,7 @@ fn run(args: &[String]) -> Result<(), String> {
             );
             Ok(())
         }
-        "serve" | "read-status" | "read-plan" | "read-set" | "read-renew-plan"
+        "serve" | "read-check" | "read-status" | "read-plan" | "read-set" | "read-renew-plan"
         | "read-revoke-plan" => {
             let root = verify_data_root(&config.vault_root, &RootPolicy::default())
                 .map_err(|e| format!("vault root: {e:?}"))?;
@@ -50,6 +50,14 @@ fn run(args: &[String]) -> Result<(), String> {
                 Faults::none(),
             )
             .map_err(|e| format!("vault: {e:?}"))?;
+            if command == "read-check" && rest.is_empty() {
+                let result = service::read_check(Arc::new(vault), &config, &SystemClock)?;
+                println!(
+                    "{}",
+                    serde_json::to_string_pretty(&result).map_err(|e| e.to_string())?
+                );
+                return Ok(());
+            }
             let owner = vault.descriptor().created_by.clone();
             let output = match (command.as_str(), rest) {
                 ("read-status", []) => Some(

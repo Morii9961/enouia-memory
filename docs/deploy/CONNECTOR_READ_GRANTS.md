@@ -23,6 +23,7 @@ refresh 每次使用轮换，并从该次重新计算三十天。它们只证明
 
 ```text
 enouia-memory-remote read-status <config.json>
+enouia-memory-remote read-check <config.json>
 enouia-memory-remote read-plan <config.json> <explicit-grant.json>
 enouia-memory-remote read-set <config.json> <reviewed-plan.json> --confirm-owner-read
 enouia-memory-remote read-renew-plan <config.json> <grant-id> <UTC-expiry>
@@ -32,6 +33,17 @@ enouia-memory-remote read-revoke-plan <config.json> <grant-id> --revoke
 `read-status` 返回 snapshot、当前时间、历史形成策略/精确 `policy_refs` 和当前授权；
 没有原文、令牌或令牌摘要。由主人核对 active 与起止时间，选择实际范围。
 同一策略 ID 的多个历史修订须逐一明确选入，不自动批准未来修订。
+
+迁移准备或每次修改配置后，使用 `read-check` 核对这份配置当前能否取得读取许可。
+它复用 `serve` 的配置和许可门槛，校验原生 opening profile；成功返回 `read_ready=true`、
+检查时间、snapshot、`authority_mode`、所选 grant ID、Agent 和范围/短许可截止时间。
+未选择 grant 时明确显示 `current_formation_policy`，不会自动改用其他授权。
+失败以非零退出，不启动监听、不执行召回、不返回原文、不创建 OAuth 目录或状态，也不提交授权。
+这个命令同样要求停止占用 Vault 租约的进程。
+
+输出的 `scope_hash` 对应检查用的临时许可，返回前已撤回，不能提交给服务或客户端复用；
+结果只反映检查时点，不是上线验收。它不检查端口占用、OAuth 目录实际可写性、DNS/TLS、
+反向代理、备份新鲜度或 ChatGPT 互通；随后 `serve` 仍从当前状态重新取得许可。
 
 `explicit-grant.json` 的闭合字段形状见
 [合成示例](../../tests/fixtures/catalog/owner-read-grant.json)和
