@@ -69,6 +69,22 @@ fn native_cli_previews_sets_renews_revokes_and_reports_without_source_text() {
     );
     let status = cli(&config, &["read-status"]);
     assert_eq!(status["grants"][0], json!(g));
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let mut service_config: Value =
+        serde_json::from_slice(&std::fs::read(&config).unwrap()).unwrap();
+    service_config["bind"] = json!(listener.local_addr().unwrap().to_string());
+    std::fs::write(&config, service_config.to_string()).unwrap();
+    let checked = cli(&config, &["read-check"]);
+    assert_eq!(checked["read_ready"], true);
+    assert_eq!(checked["authority_mode"], "owner_read_grant");
+    assert_eq!(checked["snapshot"], status["snapshot"]);
+    assert_eq!(checked["scope"]["source_read"], false);
+    assert!(!checked.to_string().contains("moonlight"));
+    assert!(!files.path.join("oauth").exists());
+    assert_eq!(
+        cli(&config, &["read-status"])["snapshot"],
+        status["snapshot"]
+    );
     let until = Timestamp::from_unix_ms(now + 2 * 86_400_000).unwrap();
     let renewed = cli(
         &config,
@@ -101,6 +117,11 @@ fn native_cli_previews_sets_renews_revokes_and_reports_without_source_text() {
     let final_status = cli(&config, &["read-status"]);
     assert_eq!(final_status["grants"][0]["active"], false);
     assert_eq!(final_status["grants"][0]["revision"], 3);
+    let checked = Command::new(env!("CARGO_BIN_EXE_enouia-memory-remote"))
+        .args(["read-check", config.to_str().unwrap()])
+        .output()
+        .unwrap();
+    assert!(!checked.status.success());
     let refused = Command::new(env!("CARGO_BIN_EXE_enouia-memory-remote"))
         .args([
             "read-renew-plan",
