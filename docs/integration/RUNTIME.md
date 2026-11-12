@@ -1218,3 +1218,43 @@ Surface aggregate: `31fc7e4453848f937f39ecc7510e0b63ee3c77847526236bc13ecfbd969e
 identity (effective uid bound to machine id). On Linux they keep journal and
 metadata files owner-only. Windows behaviour is unchanged. Runtime embeds the
 Windows path and adopts nothing.
+
+### 2026-11-12 — Explicit Owner read grants (ADR-MEM-141)
+
+Surface aggregate: `0e2c57a3ce85e42d37707ff53364d506b42b1aa7723cd51cd828055d9936b16a`.
+
+Adds `OwnerReadGrant` and its Owner-only segmented delta, native plan/commit/status
+APIs, and the explicit initialized `reader_with_owner_grant` factory. This reader
+can use precisely approved historical formation revisions after their formation
+authority ends. Existing factories retain their current-policy checks. Grants
+still constrain Agent, subject/project, sources, sensitivity, source text and
+expiry; deletion/forget barriers and short permits remain enforced. Remote
+configuration opts in with `read_grant_id`; its native CLI manages grants and
+OAuth client status/revocation. Workspace IPC and the initialized output carrier
+are unchanged; there is no new Agent write or Owner wire route.
+
+Runtime must adopt a compatible exact pin before opening a Vault containing the
+new delta. Older binaries can refuse that Vault; preserve a pre-adoption backup
+and do not edit persisted records to downgrade. Runtime may continue using its
+existing readers, or separately adopt the explicit native grant factory with an
+Owner-selected grant and scope. No Runtime checkout or pin is changed here. No
+real grant is selected. See the [Owner workflow](../deploy/CONNECTOR_READ_GRANTS.md)
+and [synthetic evidence](../validation/Connector-read-policy-semantics.md).
+If another branch changes this surface before merge, regenerate the manifest
+from the combined source and log that aggregate in the same merge change.
+
+### 2026-11-12 — Native read configuration check (ADR-MEM-141 follow-up)
+
+Surface aggregate: `ac3cc851b1413cfe4782802d73248f5224a18ce34952b7bf05c88b768251b776`.
+
+Adds `enouia-memory-remote read-check` and `service::read_check`. Both the check
+and serving reuse the same configuration and short-reader construction gates.
+The check returns metadata only, revokes its temporary permit, and creates no
+listener, OAuth state or Vault commit. Invalid service configuration is now
+refused before creating the OAuth directory. It does not test filesystem
+writability, occupied ports, TLS or real client interoperability.
+
+Runtime calls none of this and has no new adoption action, UI or IPC contract.
+There is no persisted-layout or authorization-model change. Updating the remote
+binary is sufficient to use the native command; existing readers retain their
+authority semantics. No Runtime checkout or pin is changed here.

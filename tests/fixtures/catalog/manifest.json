@@ -69,6 +69,11 @@
       "file": "stats-v3.json",
       "type": "stats",
       "schema": "next/catalog-v2.schema.json"
+    },
+    {
+      "file": "owner-read-grant.json",
+      "type": "read_grant",
+      "schema": "next/owner-read-grant-v1.schema.json"
     }
   ],
   "invalid": [
@@ -9405,6 +9410,54 @@
         }
       ],
       "schema": "reject"
+    },
+    {
+      "id": "read-grant-unknown-field",
+      "base": "owner-read-grant.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/allow_create",
+          "value": true
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "read-grant-duplicate-sources",
+      "base": "owner-read-grant.json",
+      "ops": [
+        {
+          "op": "append",
+          "path": "/source_ids",
+          "value_from": "/source_ids/0"
+        }
+      ],
+      "schema": "reject"
+    },
+    {
+      "id": "read-grant-wrong-principal",
+      "base": "owner-read-grant.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/principal/actor_type",
+          "value": "system"
+        }
+      ],
+      "schema": "accept"
+    },
+    {
+      "id": "read-grant-inverted-time",
+      "base": "owner-read-grant.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/valid_until",
+          "value": "2020-01-01T00:00:00.000Z"
+        }
+      ],
+      "schema": "accept"
     }
   ]
 }
