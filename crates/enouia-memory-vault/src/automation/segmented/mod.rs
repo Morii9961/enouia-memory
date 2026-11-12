@@ -8,6 +8,8 @@ mod formation_queue;
 mod formation_worker;
 mod intake;
 mod note_intake;
+mod read_grant;
+pub use read_grant::{OwnerReadGrantPlan, OwnerReadStatus};
 mod supersede_intake;
 pub use agent::{
     AGENT_CORRECTION_CAPABILITY, AGENT_FORGET_CAPABILITY, AGENT_NOTE_CAPABILITY,
@@ -50,6 +52,7 @@ pub struct AuthorizedOwnerAction<'a> {
     pub effects: &'a OwnerActionEffects,
 }
 pub struct AuthorizedSegmentedRead<'a> {
+    pub(super) independent_read: bool,
     pub owner_actions: Vec<AuthorizedOwnerAction<'a>>,
     pub entity_redirects: BTreeMap<(MemoryId, String), String>,
     pub entity_proofs: BTreeMap<(MemoryId, String), OwnerActionProof>,
@@ -327,7 +330,10 @@ impl SegmentedAutomationVault {
             record.committed_in = id.clone();
             record.sequence = sequence;
         }
-        let pw = if matches!(delta, SegmentedDelta::Policy { .. }) {
+        let pw = if matches!(
+            delta,
+            SegmentedDelta::Policy { .. } | SegmentedDelta::OwnerReadGrant { .. }
+        ) {
             next(pw)?
         } else {
             pw

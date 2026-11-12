@@ -620,6 +620,43 @@ impl QualifiedAgentHost {
             context: Mutex::new(None),
         })
     }
+    /// Explicit adoption of an independent Owner read grant, never an upgrade
+    /// of an existing reader or a packet-supplied authority.
+    pub fn reader_with_owner_grant(
+        &self,
+        owner: &ActorRef,
+        principal: ActorRef,
+        grant_id: &PolicyId,
+        scope: SegmentedAgentScope,
+    ) -> ApplicationResult<QualifiedAgentReader<'_>> {
+        if owner != &self.owner || self.capability != INITIALIZED_CAPABILITY {
+            return Err(AutomationFault::Denied.into());
+        }
+        let gate = self
+            .generation
+            .read()
+            .map_err(|_| ApplicationFault::Locked)?;
+        let generation = gate.as_ref().ok_or(ApplicationFault::Locked)?.clone();
+        let permit = self
+            .vault
+            .authorize_owner_grant_read(owner, principal, grant_id, scope)?;
+        Ok(QualifiedAgentReader {
+            host: self,
+            permit,
+            generation,
+            context: Mutex::new(None),
+        })
+    }
+    pub(crate) fn owner_read_grant_until(
+        &self,
+        owner: &ActorRef,
+        id: &PolicyId,
+    ) -> ApplicationResult<Timestamp> {
+        if owner != &self.owner {
+            return Err(AutomationFault::Denied.into());
+        }
+        Ok(self.vault.owner_read_grant(owner, id)?.valid_until)
+    }
 }
 impl QualifiedAgentReader<'_> {
     pub fn capability(&self) -> &'static str {

@@ -275,6 +275,7 @@ pub struct SegmentedAgentPermit {
     sources: BTreeSet<SourceId>,
     source_policies: BTreeMap<SourceId, Vec<PolicyId>>,
     policies: BTreeMap<PolicyId, PolicyRef>,
+    grant: Option<OwnerReadGrant>,
     hash: Sha256Hex,
     active: AtomicBool,
     until: Instant,
@@ -325,6 +326,9 @@ impl SegmentedAgentPermit {
         Ok(now)
     }
     fn policies_current(&self, state: &State) -> bool {
+        if let Some(g) = &self.grant {
+            return state.read_grants.get(&g.grant_id) == Some(g);
+        }
         self.policies.iter().all(|(id, reference)| {
             state
                 .policies
@@ -333,6 +337,16 @@ impl SegmentedAgentPermit {
         })
     }
     fn source_allowed(&self, state: &State, source: &CapturedSource) -> bool {
+        if let Some(g) = &self.grant {
+            return self.sources.contains(&source.record.source_id)
+                && g.policies
+                    .iter()
+                    .filter(|r| self.scope.policy_ids.contains(&r.policy_id))
+                    .filter_map(|r| state.policy_history.get(&r.hash))
+                    .any(|p| {
+                        state.source_in_policy(&source.reference(), p, self.scope.max_sensitivity)
+                    });
+        }
         self.source_policies
             .get(&source.record.source_id)
             .is_some_and(|policies| {
@@ -358,12 +372,16 @@ impl SegmentedAgentPermit {
             return *allowed;
         }
         memo.insert(key.clone(), false);
-        let Some(p) = state.policy(i) else {
+        let Some(p) = state.read_policy(i, self.grant.is_some()) else {
             return false;
         };
         let valid = depth < 128
             && !state.deleted_memories.contains(&m.memory.memory_id)
-            && self.policies.get(&p.policy_id) == Some(&i.policy)
+            && (if let Some(g) = &self.grant {
+                self.scope.policy_ids.contains(&p.policy_id) && g.policies.contains(&i.policy)
+            } else {
+                self.policies.get(&p.policy_id) == Some(&i.policy)
+            })
             && i.actor == descriptor.system_actor
             && i.subject_id == self.scope.subject_id
             && i.project_id == self.scope.project_id
@@ -664,6 +682,7 @@ impl SegmentedAutomationVault {
             scope,
             AutomationLayout::SegmentedV1,
             "memory-agent-catalog-read-1",
+            None,
         )
     }
     /// Trusted native setup only; not an OS authentication/enrollment method.
@@ -679,6 +698,7 @@ impl SegmentedAutomationVault {
             scope,
             AutomationLayout::SegmentedOwnerV1,
             QUALIFIED_AGENT_READ_CAPABILITY,
+            None,
         )
     }
     /// Explicit native adoption of ADR104 sources; never selected by a packet.
@@ -694,6 +714,24 @@ impl SegmentedAutomationVault {
             scope,
             AutomationLayout::SegmentedOwnerV1,
             INITIALIZED_AGENT_READ_CAPABILITY,
+            None,
+        )
+    }
+    /// Explicit opt-in authority; retains the initialized read carrier only.
+    pub fn authorize_owner_grant_read(
+        &self,
+        owner: &ActorRef,
+        principal: ActorRef,
+        grant_id: &PolicyId,
+        scope: SegmentedAgentScope,
+    ) -> Result<SegmentedAgentPermit> {
+        self.authorize_agent_profile(
+            owner,
+            principal,
+            scope,
+            AutomationLayout::SegmentedOwnerV1,
+            INITIALIZED_AGENT_READ_CAPABILITY,
+            Some(grant_id),
         )
     }
     fn authorize_agent_profile(
@@ -703,6 +741,7 @@ impl SegmentedAutomationVault {
         mut scope: SegmentedAgentScope,
         layout: AutomationLayout,
         capability: &'static str,
+        grant_id: Option<&PolicyId>,
     ) -> Result<SegmentedAgentPermit> {
         self.native.owner(owner)?;
         if principal.actor_type != ActorType::Agent || self.native.descriptor.layout != layout {
@@ -718,6 +757,29 @@ impl SegmentedAutomationVault {
             original_carrier(&state)?;
         }
         let now = self.native.now()?;
+        let grant = grant_id
+            .map(|id| {
+                state
+                    .read_grants
+                    .get(id)
+                    .cloned()
+                    .ok_or(AutomationFault::Denied)
+            })
+            .transpose()?;
+        if let Some(g) = &grant
+            && (!g.active
+                || now < g.valid_from
+                || now >= g.valid_until
+                || scope.valid_until > g.valid_until
+                || g.principal != principal
+                || g.subject_id != scope.subject_id
+                || g.project_id != scope.project_id
+                || scope.max_sensitivity > g.max_sensitivity
+                || (scope.source_read && !g.source_read)
+                || scope.source_ids.iter().any(|id| !g.source_ids.contains(id)))
+        {
+            return Err(AutomationFault::Denied);
+        }
         let ttl = scope.valid_until.unix_ms() - now.unix_ms();
         if !(1..=300_000).contains(&ttl)
             || scope.policy_ids.is_empty()
@@ -731,20 +793,38 @@ impl SegmentedAutomationVault {
         }
         let mut policies = BTreeMap::new();
         let mut covered = BTreeSet::new();
+        let candidates: Vec<_> = if let Some(g) = &grant {
+            g.policies
+                .iter()
+                .filter_map(|r| state.policy_history.get(&r.hash))
+                .collect()
+        } else {
+            state.policies.values().collect()
+        };
         for id in &scope.policy_ids {
-            let p = state.policies.get(id).ok_or(AutomationFault::Denied)?;
-            if !p.active
-                || now < p.valid_from
-                || now >= p.valid_until
-                || scope.valid_until > p.valid_until
-                || p.subject_id != scope.subject_id
-                || p.project_id != scope.project_id
-                || scope.max_sensitivity > p.max_sensitivity
-            {
+            let matching: Vec<_> = candidates
+                .iter()
+                .copied()
+                .filter(|p| &p.policy_id == id)
+                .collect();
+            if matching.is_empty() {
                 return Err(AutomationFault::Denied);
             }
-            policies.insert(id.clone(), p.reference());
-            covered.extend(p.source_ids.iter().cloned());
+            for p in matching {
+                if (grant.is_none()
+                    && (!p.active
+                        || now < p.valid_from
+                        || now >= p.valid_until
+                        || scope.valid_until > p.valid_until))
+                    || p.subject_id != scope.subject_id
+                    || p.project_id != scope.project_id
+                    || scope.max_sensitivity > p.max_sensitivity
+                {
+                    return Err(AutomationFault::Denied);
+                }
+                policies.insert(id.clone(), p.reference());
+                covered.extend(p.source_ids.iter().cloned());
+            }
         }
         if scope
             .source_ids
@@ -757,18 +837,21 @@ impl SegmentedAutomationVault {
         scope.source_ids.sort();
         let selected: BTreeSet<_> = scope.source_ids.iter().cloned().collect();
         let mut source_policies: BTreeMap<SourceId, Vec<PolicyId>> = BTreeMap::new();
-        for id in policies.keys() {
-            for source in &state.policies[id].source_ids {
+        for p in &candidates {
+            if !policies.contains_key(&p.policy_id) {
+                continue;
+            }
+            for source in &p.source_ids {
                 if selected.contains(source) {
                     source_policies
                         .entry(source.clone())
                         .or_default()
-                        .push(id.clone());
+                        .push(p.policy_id.clone());
                 }
             }
         }
         let hash = digest(
-            &serde_json::json!({"capability":capability,"layout":layout,"vault":self.native.descriptor.vault_id,"principal":principal,"scope":scope,"policies":policies,"nonce":self.native.ids.random_16()}),
+            &serde_json::json!({"capability":capability,"layout":layout,"vault":self.native.descriptor.vault_id,"principal":principal,"scope":scope,"policies":policies,"read_grant":grant,"nonce":self.native.ids.random_16()}),
         );
         Ok(SegmentedAgentPermit {
             layout,
@@ -779,6 +862,7 @@ impl SegmentedAutomationVault {
             source_policies,
             scope,
             policies,
+            grant,
             hash,
             active: AtomicBool::new(true),
             until: Instant::now() + Duration::from_millis(ttl as u64),
@@ -807,7 +891,7 @@ impl SegmentedAutomationVault {
             .state
             .lock()
             .map_err(|_| AutomationFault::Unavailable)?;
-        if current_policies && !permit.policies_current(&state) {
+        if (current_policies || permit.grant.is_some()) && !permit.policies_current(&state) {
             permit.revoke();
             return Err(AutomationFault::Denied);
         }
@@ -849,8 +933,12 @@ impl SegmentedAutomationVault {
             permit.revoke();
             return Err(AutomationFault::Denied);
         }
-        let mut data =
-            state.authorized(&self.native.descriptor, permit.scope.max_sensitivity, now)?;
+        let mut data = state.authorized_for(
+            &self.native.descriptor,
+            permit.scope.max_sensitivity,
+            now,
+            permit.grant.as_ref(),
+        )?;
         let mut memo = BTreeMap::new();
         data.memories
             .retain(|m| permit.allows(&state, &self.native.descriptor, m, &mut memo, 0));
