@@ -47,3 +47,7 @@ separate work. Do not revive legacy candidate contents or call this completed
 initialization. No deployment, deletion, new MV stage or Runtime edit is included.
 
 Validation: [focused authored-formation checks](../validation/Fresh-authored-formation.md).
+
+The one-range-per-source restriction above is amended by
+[ADR-MEM-143](143-same-source-quoted-ranges.md), which preserves distinct exact
+ranges without multiplying source origins or changing the wire shape.

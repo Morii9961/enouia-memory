@@ -1071,12 +1071,12 @@ fn fresh_authored_content_quotes_provenance_and_resume_use_native_route() {
 }
 
 #[test]
-fn fresh_authored_refuses_unresolved_duplicate_and_assistant_self_report_support() {
+fn fresh_authored_refuses_unresolved_repeated_range_and_assistant_self_report_support() {
     let e = owner_env();
     let prep = prepare(&materials()).unwrap();
     for (index, quote) in [
         (2, "Not present in the retained source."),
-        (0, "I enjoy pottery."),
+        (0, "I prefer quiet rooms."),
         (1, "Maybe you prefer noise."),
         (100, "Missing source."),
     ] {
@@ -1189,4 +1189,64 @@ fn fresh_authored_json_has_no_confirmation_or_unknown_field_escape() {
     let mut encoded = serde_json::to_value(&analysis).unwrap();
     encoded["statements"][0]["statement"]["owner_approved"] = json!(true);
     assert!(serde_json::from_value::<AnalyzedBatch>(encoded).is_err());
+}
+
+#[test]
+fn fresh_authored_same_source_ranges_survive_native_write_and_reopen() {
+    let e = owner_env();
+    let mut inputs = materials();
+    let mut raw: Value = serde_json::from_slice(&inputs[0].bytes).unwrap();
+    raw[0]["mapping"]["n1"]["message"]["content"]["parts"] = json!([format!(
+        "I prefer quiet rooms. {} I enjoy pottery. Keep my maps on paper.",
+        "Synthetic filler 😀. ".repeat(40)
+    )]);
+    inputs[0].bytes = serde_json::to_vec(&raw).unwrap();
+    let prep = prepare(&inputs).unwrap();
+    let mut analysis = authored_batch();
+    analysis.statements[0].content =
+        "The synthetic owner prefers quiet rooms and enjoys pottery.".into();
+    analysis.statements[0].supporting_quotes = vec![StatementQuote {
+        source_index: 0,
+        quote: "I enjoy pottery.".into(),
+    }];
+    let plan = authored_plan(&e, &prep, &analysis);
+    assert_eq!(plan.preflight.exact_quotes, 2);
+    let mut init = initializer(&e);
+    init.enqueue(plan, &prep).unwrap();
+    let mut changed = analysis.clone();
+    changed.statements[0].supporting_quotes[0].quote = "Keep my maps on paper.".into();
+    assert!(
+        init.enqueue(authored_plan(&e, &prep, &changed), &prep)
+            .is_err()
+    );
+    while init.step().unwrap() {}
+    drop(init);
+    let init = Initializer::open_synthetic(
+        &e.root,
+        e.descriptor.host_id.clone(),
+        e.clock.clone(),
+        Arc::new(OsIdSource),
+    )
+    .unwrap();
+    init.vault
+        .read(&e.descriptor.system_actor, Sensitivity::Private, |data| {
+            assert_eq!(data.memories.len(), 1);
+            assert!(data.owner_actions.is_empty());
+            let memory = &data.memories[0].memory;
+            let input = &memory.decision.input;
+            let quotes = &input.record_fields.as_ref().unwrap().evidence;
+            assert_eq!(input.input_refs.len(), 1);
+            assert_eq!(input.evidence.len(), 2);
+            assert_eq!(quotes.len(), 2);
+            assert_eq!(quotes[0].reference, quotes[1].reference);
+            assert!(quotes[1].start - quotes[0].end > 500);
+            assert_eq!(quotes[0].quote, "I prefer quiet rooms.");
+            assert_eq!(quotes[1].quote, "I enjoy pottery.");
+            let sources: Vec<_> = data.sources.values().map(|s| (*s).clone()).collect();
+            assert!(quotes.iter().all(|q| q.resolves(&sources)));
+            assert_eq!(memory.decision.outcome.adoption, AdoptionState::Adopted);
+            assert_eq!(input.content, analysis.statements[0].content);
+        })
+        .unwrap();
+    assert_eq!(init.ledger().unwrap()["extraction"]["model_invocations"], 0);
 }

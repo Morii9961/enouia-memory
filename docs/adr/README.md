@@ -817,3 +817,10 @@ OAuth client revocation reuse the existing service and locked state file.
 new distilled content, multiple exact source quotes and explicit analysis
 provenance through the existing native admission and receipt route. It calls no
 Provider and does not supply corpus packing, production execution or read grants.
+
+### ADR-MEM-143 — Retain distinct quoted ranges from one source
+
+[Decision](143-same-source-quoted-ranges.md): paired exact quote ranges from one
+source may coexist while dependencies and origins remain unique. Repeated
+ranges, unquoted source repetition and copied origins still refuse. The authored
+initializer preserves every range through the existing native write route.
