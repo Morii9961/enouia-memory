@@ -58,7 +58,7 @@ pub fn dimensions(kind: FormationKind) -> FormationDimensions {
         reverts_to: None,
     }
 }
-fn branch_lineage(prep: &Preparation, index: usize, depth: usize) -> Option<String> {
+pub(crate) fn branch_lineage(prep: &Preparation, index: usize, depth: usize) -> Option<String> {
     use enouia_memory_import::parsed::ParentLink;
     if depth > prep.messages.len() {
         return None;

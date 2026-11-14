@@ -145,10 +145,31 @@ analysis and the production driver must be delivered separately; the legacy
 `Plan::build_analyzed` prepares a caller-supplied `AnalyzedBatch` through the
 existing formation pipeline. It keeps distilled content/title, explicit analysis
 actor/prompt/optional model identity, and multiple exact supporting source quotes.
-It calls no Provider. One quoted range per source is the native admission bound;
-unsupported ranges refuse instead of being dropped. This is a preparation API,
+It calls no Provider. Distinct exact ranges from the same source are retained
+under ADR-MEM-143; unsupported or repeated ranges refuse instead of being dropped.
+This is a preparation API,
 not a corpus analyzer, packer, production CLI or read authorization. Use the
 existing authenticated bootstrap/journal/receipt route for any later execution.
 
 See [decision](../../docs/adr/142-fresh-authored-formation.md) and
 [focused synthetic validation](../../docs/validation/Fresh-authored-formation.md).
+
+## Bounded supplied-analysis packing (ADR-MEM-144)
+
+`packing::pack_analyzed` groups an explicitly prepared `AnalyzedBatch` into
+64-source/128-statement plans, keeping all quoted support and context with each
+statement. It preserves wording, provenance, Raw bytes, locators, attachment
+carriers and original branch lineage, and returns original statement positions
+for coverage checks. Every returned batch still needs `Plan::build_analyzed`.
+
+An individual statement exceeding 64 sources, oversized source/Raw objects,
+missing dependencies and cross-statement revision/derivation links refuse the
+whole preparation. Revise semantic units explicitly; the packer never truncates
+or drops evidence. Unused objects are omitted, but selected Raw conversation
+objects retain their surrounding original context; this entry is not redaction.
+Keep the original intake counts separately instead of summing them per plan.
+
+This pure entry does not resolve attachment files, execute the bounded journal,
+bootstrap a production root, authorize reads or supply a fresh production CLI.
+Production use waits for Owner merge. See [decision](../../docs/adr/144-fresh-analysis-packing.md)
+and [focused validation](../../docs/validation/Fresh-analysis-packing.md).

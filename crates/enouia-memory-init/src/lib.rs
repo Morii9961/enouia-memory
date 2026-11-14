@@ -2,6 +2,7 @@
 //! model adapter, legacy mutation, Runtime activation or default timezone.
 pub mod fresh;
 pub mod legacy;
+pub mod packing;
 pub mod parse;
 pub mod pipeline;
 pub mod report;

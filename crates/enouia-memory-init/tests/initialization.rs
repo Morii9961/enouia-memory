@@ -1250,3 +1250,73 @@ fn fresh_authored_same_source_ranges_survive_native_write_and_reopen() {
         .unwrap();
     assert_eq!(init.ledger().unwrap()["extraction"]["model_invocations"], 0);
 }
+
+#[test]
+fn packed_fresh_authored_analysis_writes_reopens_and_refuses_changed_resume() {
+    let e = owner_env();
+    let original = prepare(&materials()).unwrap();
+    let analysis = authored_batch();
+    let batches = enouia_memory_init::packing::pack_analyzed(&original, &analysis).unwrap();
+    assert_eq!(batches.len(), 1);
+    let batch = &batches[0];
+    assert_eq!(batch.preparation.messages.len(), 2);
+    assert_eq!(
+        batch.analysis.statements[0].supporting_quotes[0].source_index,
+        1
+    );
+    let mut init = initializer(&e);
+    let id = init
+        .enqueue(
+            authored_plan(&e, &batch.preparation, &batch.analysis),
+            &batch.preparation,
+        )
+        .unwrap();
+    while init.step().unwrap() {}
+    drop(init);
+    let mut init = Initializer::open_synthetic(
+        &e.root,
+        e.descriptor.host_id.clone(),
+        e.clock.clone(),
+        Arc::new(OsIdSource),
+    )
+    .unwrap();
+    assert_eq!(
+        init.enqueue(
+            authored_plan(&e, &batch.preparation, &batch.analysis),
+            &batch.preparation
+        )
+        .unwrap(),
+        id
+    );
+    let mut changed = analysis.clone();
+    changed.statements[0]
+        .content
+        .push_str(" Changed synthetic wording.");
+    let changed = enouia_memory_init::packing::pack_analyzed(&original, &changed).unwrap();
+    assert_eq!(
+        changed[0].preparation.watermark(),
+        batch.preparation.watermark()
+    );
+    assert!(
+        init.enqueue(
+            authored_plan(&e, &changed[0].preparation, &changed[0].analysis),
+            &changed[0].preparation
+        )
+        .is_err()
+    );
+    assert!(!init.step().unwrap());
+    init.vault
+        .read(&e.descriptor.system_actor, Sensitivity::Private, |data| {
+            assert_eq!(data.memories.len(), 1);
+            assert_eq!(data.sources.len(), 2);
+            assert!(data.owner_actions.is_empty());
+            let input = &data.memories[0].memory.decision.input;
+            assert_eq!(input.content, analysis.statements[0].content);
+            let fields = input.record_fields.as_ref().unwrap();
+            assert_eq!(fields.evidence.len(), 2);
+            let sources: Vec<_> = data.sources.values().map(|s| (*s).clone()).collect();
+            assert!(fields.evidence.iter().all(|q| q.resolves(&sources)));
+        })
+        .unwrap();
+    assert_eq!(init.ledger().unwrap()["extraction"]["model_invocations"], 0);
+}
