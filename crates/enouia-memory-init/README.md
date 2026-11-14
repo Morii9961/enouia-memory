@@ -118,3 +118,24 @@ The script is **not** a semantic extractor or independent model evaluation.
 One integration test exercises a separate native Owner gesture after ordinary
 formation; initialization itself generates no Owner action. Runtime six-view previews/screenshots, real data,
 egress/default-timezone authorization and Core-8 switching are separate work.
+
+## Fresh ChatGPT selection (ADR140)
+
+`fresh::prepare_chatgpt_selection` accepts explicitly supplied shard bytes and
+shard-scoped conversation IDs. Large outer shards are read value by value; only
+selected conversation spans become materials. Each is the exact original JSON
+value wrapped in two array brackets, still bounded at 16 MiB. No original
+conversation is reserialized. Unselected Raw bytes are excluded.
+
+Each message retains the original message metadata under `raw_message` and the
+shard hash/length, alias/account, conversation ID/index and byte span under
+`fresh_chatgpt_origin`. The same origins and derived hashes bind the preparation
+watermark. Keep and back up complete original shards outside the Vault; these
+references cannot reconstruct them. No path discovery or selection authority is
+provided by parsing.
+
+This entry prepares materials only. It does not invoke analysis, resolve sibling
+attachment files, truncate oversized source text, lift formation/journal limits,
+create a production root, or configure a long-term reading policy. Fresh semantic
+analysis and the production driver must be delivered separately; the legacy
+`enouia-memory-reinit` command still consumes legacy candidates only.
