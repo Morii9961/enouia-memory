@@ -311,3 +311,52 @@ fn annotations_do_not_make_native_generated_result_ids_into_new_logical_work() {
     retry.record_fields.as_mut().unwrap().title = "Different formation request".into();
     assert_ne!(admission_batch_key(&[input]), admission_batch_key(&[retry]));
 }
+
+#[test]
+fn same_source_quotes_keep_distinct_scalar_ranges_and_exact_pairs() {
+    let mut s = source();
+    s.text = format!("Alpha 😀. {} Omega.", "Synthetic filler. ".repeat(40));
+    s.record.content_hash = sha256(s.text.as_bytes());
+    let mut input: AdmissionInput = serde_json::from_value(fixture("input")).unwrap();
+    let mut first = input.record_fields.as_ref().unwrap().evidence[0].clone();
+    first.reference.object_hash = s.record.anchor_hash().clone();
+    first.quote = "Alpha 😀.".into();
+    first.start = 0;
+    first.end = first.quote.chars().count() as u32;
+    let mut second = first.clone();
+    second.quote = "Omega.".into();
+    second.start = s.text.chars().count() as u32 - second.quote.chars().count() as u32;
+    second.end = s.text.chars().count() as u32;
+    assert!(second.start - first.end > 500);
+    input.evidence = vec![first.reference.clone(), second.reference.clone()];
+    let fields = input.record_fields.as_mut().unwrap();
+    fields.evidence = vec![first.clone(), second.clone()];
+    fields.entities[0].evidence = vec![first.clone()];
+    assert!(input.validate().is_empty(), "{:?}", input.validate());
+    assert!(first.resolves(&[s.clone()]));
+    assert!(second.resolves(&[s.clone()]));
+
+    let mut repeated = input.clone();
+    repeated.record_fields.as_mut().unwrap().evidence[1] = first;
+    assert!(
+        repeated
+            .validate()
+            .iter()
+            .any(|e| e.rule == "next.duplicate_support")
+    );
+    let mut legacy = input.clone();
+    legacy.record_fields = None;
+    assert!(
+        legacy
+            .validate()
+            .iter()
+            .any(|e| e.rule == "next.duplicate_support")
+    );
+    let mut mismatched = input.clone();
+    mismatched.evidence[1].source_revision = Revision::new(2).unwrap();
+    assert!(!mismatched.validate().is_empty());
+    second.start += 1;
+    second.end += 1;
+    assert!(second.valid_shape());
+    assert!(!second.resolves(&[s]));
+}

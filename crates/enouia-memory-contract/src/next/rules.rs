@@ -139,6 +139,7 @@ pub fn evaluate(
         sensitivity_floor = sensitivity_floor.max(source.record.sensitivity);
     }
 
+    let mut supporting_sources = BTreeSet::new();
     let mut content_hashes = BTreeSet::new();
     let mut upstream_ids = BTreeSet::new();
     for support in &input.evidence {
@@ -163,8 +164,11 @@ pub fn evaluate(
                 message,
             )
         });
-        if !content_hashes.insert(source.content_hash.clone())
-            || upstream.is_some_and(|id| !upstream_ids.insert(id))
+        // Multiple exact ranges remain one source origin. Distinct source IDs
+        // that copy content or the same upstream message are still refused.
+        if supporting_sources.insert(&source.source_id)
+            && (!content_hashes.insert(source.content_hash.clone())
+                || upstream.is_some_and(|id| !upstream_ids.insert(id)))
         {
             return Err(invalid("next.duplicate_origin", "/evidence"));
         }

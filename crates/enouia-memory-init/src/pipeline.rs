@@ -776,15 +776,8 @@ impl Plan {
                     .ok_or(AutomationFault::Denied)?;
                 let quote =
                     quoted_evidence(source, &support.quote).ok_or(AutomationFault::Denied)?;
-                // Native admission accepts one quoted range per source. Never
-                // discard a second range or silently turn it into context.
-                if seed
-                    .evidence
-                    .iter()
-                    .any(|e| e.source_id == quote.reference.source_id)
-                {
-                    return Err(AutomationFault::Denied);
-                }
+                // Preserve all ranges; native admission rejects repeated ranges
+                // while dependency closure still names each source only once.
                 let reference = source.reference();
                 if !seed.input_refs.contains(&reference) {
                     seed.input_refs.push(reference.clone());

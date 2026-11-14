@@ -1,5 +1,14 @@
 # Runtime integration (ADR-MEM-45)
 
+2026-11-13 same-source quoted ranges (ADR-MEM-143): native admission and
+the authored initializer retain distinct scalar ranges from one source while
+dependencies and origin uniqueness still count that source once. Repeated ranges,
+unquoted duplicate sources, copied origins and exact-anchor failures still refuse.
+Runtime must pin this revision and aggregate before writing these records; older
+evaluators can reject them. Wire fields, IPC and frontend are unchanged.
+Aggregate: `39cc2a820fd132770397e3cef37674b8fca17280c8977bcd161622a43ad54c52`.
+See [synthetic validation](../validation/Same-source-quoted-ranges.md).
+
 2026-11-11 formation fallback title (ADR-MEM-137): shared `formation_seed` now
 takes the first nonempty trimmed control-separated span (at most 60 characters)
 when the analysis title is absent from the quote. Multiline quotes retain their

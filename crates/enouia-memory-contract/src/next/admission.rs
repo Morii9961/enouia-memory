@@ -296,12 +296,19 @@ impl NextDocument for AdmissionInput {
             out.push(Violation::new("next.evidence_required", "/evidence"));
         }
         let mut support_ids = BTreeSet::new();
-        for evidence in &self.evidence {
+        for (index, evidence) in self.evidence.iter().enumerate() {
             evidence.locator.validate("/evidence/locator", &mut out);
             if evidence.supports != "content" {
                 out.push(Violation::new("next.evidence_claim", "/evidence/supports"));
             }
-            if !support_ids.insert(&evidence.source_id) {
+            // Paired record fields identify exact scalar ranges. Legacy inputs
+            // without quotes still permit only one citation per source.
+            let range = self
+                .record_fields
+                .as_ref()
+                .and_then(|fields| fields.evidence.get(index))
+                .map(|quote| (quote.start, quote.end));
+            if !support_ids.insert((&evidence.source_id, range)) {
                 out.push(Violation::new("next.duplicate_support", "/evidence"));
             }
         }
