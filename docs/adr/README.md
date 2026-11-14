@@ -824,3 +824,11 @@ Provider and does not supply corpus packing, production execution or read grants
 source may coexist while dependencies and origins remain unique. Repeated
 ranges, unquoted source repetition and copied origins still refuse. The authored
 initializer preserves every range through the existing native write route.
+
+### ADR-MEM-144 — Pack fresh analysis without losing evidence
+
+[Decision](144-fresh-analysis-packing.md): a pure packer groups supplied analysis
+within existing plan limits and remaps source indexes while preserving every
+quote and context dependency. Source values and scope bind each watermark;
+oversized individual statements and cross-statement links refuse. Production
+execution, journal sizing and native acceptance remain separate.
