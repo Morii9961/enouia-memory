@@ -810,3 +810,10 @@ references remain immutable evidence; a native Owner grant controls the Agent,
 source scope, sensitivity, source text and expiry. Explicit opt-in only; short
 permits, deletion barriers and restore quarantine remain. Native management and
 OAuth client revocation reuse the existing service and locked state file.
+
+### ADR-MEM-142 — Form supplied fresh analysis without legacy candidates
+
+[Decision](142-fresh-authored-formation.md): a pure analyzed-plan entry preserves
+new distilled content, multiple exact source quotes and explicit analysis
+provenance through the existing native admission and receipt route. It calls no
+Provider and does not supply corpus packing, production execution or read grants.

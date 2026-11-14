@@ -139,3 +139,16 @@ attachment files, truncate oversized source text, lift formation/journal limits,
 create a production root, or configure a long-term reading policy. Fresh semantic
 analysis and the production driver must be delivered separately; the legacy
 `enouia-memory-reinit` command still consumes legacy candidates only.
+
+## Supplied fresh analysis (ADR-MEM-142)
+
+`Plan::build_analyzed` prepares a caller-supplied `AnalyzedBatch` through the
+existing formation pipeline. It keeps distilled content/title, explicit analysis
+actor/prompt/optional model identity, and multiple exact supporting source quotes.
+It calls no Provider. One quoted range per source is the native admission bound;
+unsupported ranges refuse instead of being dropped. This is a preparation API,
+not a corpus analyzer, packer, production CLI or read authorization. Use the
+existing authenticated bootstrap/journal/receipt route for any later execution.
+
+See [decision](../../docs/adr/142-fresh-authored-formation.md) and
+[focused synthetic validation](../../docs/validation/Fresh-authored-formation.md).

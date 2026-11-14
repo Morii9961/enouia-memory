@@ -1,5 +1,5 @@
-//! One formation route for backfill and live. This pilot executes only scripted
-//! synthetic analysis, through the existing evaluator and witnessed writer.
+//! One formation route for backfill and live, accepting scripted synthetic or
+//! supplied authored analysis through the existing evaluator and witnessed writer.
 use crate::parse::{PARSER, Preparation};
 use enouia_memory_contract::{
     common::*,
@@ -89,8 +89,9 @@ fn branch_lineage(prep: &Preparation, index: usize, depth: usize) -> Option<Stri
     m.upstream_id.clone()
 }
 
-/// Scripted synthetic analysis. This is untrusted analysis output, not approval.
-#[derive(Clone, Serialize)]
+/// Untrusted analysis output, not approval.
+#[derive(Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct Statement {
     pub source_index: usize,
     pub quote: String,
@@ -107,18 +108,48 @@ pub struct Statement {
     pub derives_from_statements: Vec<usize>,
     /// Further sources the analysis cites beside the quoted one. They become
     /// context dependencies of the memory, never extra quoted evidence.
-    #[serde(skip_serializing_if = "Vec::is_empty")]
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub context_sources: Vec<usize>,
 }
 
 /// Advisory values retained verbatim; these never become factual dimensions.
-#[derive(Clone, Default, Serialize)]
+#[derive(Clone, Default, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct AnalysisAnnotations {
     pub suggested_tags: Vec<String>,
     pub tone: Option<ToneGuess>,
     pub importance_guess_milli: Option<u16>,
     pub current_state_note: Option<String>,
     pub suggested_relations: Vec<SuggestedRelation>,
+}
+
+/// Explicit externally authored analysis; decoding does not confer Owner authority.
+#[derive(Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct AnalyzedBatch {
+    pub provenance: AnalysisProvenance,
+    pub statements: Vec<AnalyzedStatement>,
+}
+#[derive(Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct AnalysisProvenance {
+    pub actor: String,
+    pub prompt_version: String,
+    pub model_version: Option<String>,
+}
+#[derive(Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct AnalyzedStatement {
+    pub statement: Statement,
+    /// Distilled wording, distinct from the exact source quotes.
+    pub content: String,
+    pub supporting_quotes: Vec<StatementQuote>,
+}
+#[derive(Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct StatementQuote {
+    pub source_index: usize,
+    pub quote: String,
 }
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -711,6 +742,102 @@ impl Plan {
             work,
         })
     }
+    /// Pure formation preparation for already authored analysis (ADR-MEM-142).
+    /// Uses the same admission evaluator, journal and receipt route as build.
+    pub fn build_analyzed(
+        prep: &Preparation,
+        analysis: &AnalyzedBatch,
+        policy: AutomationPolicy,
+        mode: FormationMode,
+        captured_at: Timestamp,
+        ids: &dyn IdSource,
+    ) -> Result<Self> {
+        let provenance = &analysis.provenance;
+        if [&provenance.actor, &provenance.prompt_version]
+            .iter()
+            .any(|s| s.trim().is_empty() || s.len() > 128 || s.chars().any(char::is_control))
+            || provenance.prompt_version == "scripted-init-1"
+        {
+            return Err(AutomationFault::Denied);
+        }
+        let statements: Vec<_> = analysis
+            .statements
+            .iter()
+            .map(|s| s.statement.clone())
+            .collect();
+        let mut plan = Self::build(prep, &statements, policy, mode, captured_at, ids)?;
+        for work in &mut plan.work {
+            let analyzed = &analysis.statements[work.analysis_index];
+            let seed = &mut work.seed;
+            for support in &analyzed.supporting_quotes {
+                let source = plan
+                    .sources
+                    .get(support.source_index)
+                    .ok_or(AutomationFault::Denied)?;
+                let quote =
+                    quoted_evidence(source, &support.quote).ok_or(AutomationFault::Denied)?;
+                // Native admission accepts one quoted range per source. Never
+                // discard a second range or silently turn it into context.
+                if seed
+                    .evidence
+                    .iter()
+                    .any(|e| e.source_id == quote.reference.source_id)
+                {
+                    return Err(AutomationFault::Denied);
+                }
+                let reference = source.reference();
+                if !seed.input_refs.contains(&reference) {
+                    seed.input_refs.push(reference.clone());
+                }
+                seed.context_source_refs.retain(|r| r != &reference);
+                seed.evidence.push(quote.reference.clone());
+                seed.record_fields.as_mut().unwrap().evidence.push(quote);
+            }
+            if seed.interpretation == Interpretation::ClearSelfReport
+                && seed
+                    .record_fields
+                    .as_ref()
+                    .unwrap()
+                    .evidence
+                    .iter()
+                    .any(|q| {
+                        q.speaker != SpeakerRole::User
+                            || !q.reference.evidence_class.is_user_evidence()
+                    })
+            {
+                return Err(AutomationFault::Denied);
+            }
+            seed.sensitivity = plan
+                .sources
+                .iter()
+                .filter(|s| seed.input_refs.contains(&s.reference()))
+                .map(|s| s.record.sensitivity)
+                .max()
+                .ok_or(AutomationFault::Denied)?;
+            seed.content = analyzed.content.clone();
+            seed.producer_version = provenance.prompt_version.clone();
+            seed.model_version = provenance.model_version.clone();
+            let fields = seed.record_fields.as_mut().unwrap();
+            fields.title = analyzed.statement.title.clone();
+            fields.formation.prompt_version = provenance.prompt_version.clone();
+            let annotations = fields.annotations.as_mut().unwrap();
+            annotations.prompt_version = provenance.prompt_version.clone();
+            annotations.model_version = provenance.model_version.clone();
+            if !seed.validate().is_empty() {
+                return Err(AutomationFault::Denied);
+            }
+        }
+        plan.preflight.exact_quotes = plan
+            .work
+            .iter()
+            .map(|w| w.seed.record_fields.as_ref().unwrap().evidence.len())
+            .sum();
+        plan.preflight.title_fallbacks = 0;
+        plan.analysis_artifact = json!({"format":"fresh-authored-analysis/1","analysis":analysis,
+            "external_provider_calls_by_initializer":0});
+        plan.analysis_hash = digest(&plan.analysis_artifact);
+        Ok(plan)
+    }
     pub fn completed(&self) -> usize {
         self.work.iter().filter(|w| w.receipt.is_some()).count()
     }
@@ -971,7 +1098,9 @@ impl Initializer {
             "parsed":{"sources":plans.iter().map(|p|p.sources.len()).sum::<usize>(),"unparseable":plans.iter().map(|p|p.preflight.unparseable).sum::<usize>(),
                 "unsupported":plans.iter().map(|p|p.preflight.unsupported).sum::<usize>(),"excluded_by_legacy_deletion":plans.iter().map(|p|p.preflight.excluded_by_legacy_deletion).sum::<usize>()},
             "extraction":{"batches":plans.len(),"planned_statements":plans.iter().map(|p|p.work.len()).sum::<usize>(),"committed_revisions":plans.iter().map(Plan::completed).sum::<usize>(),
-                "outcome_unknown":plans.iter().flat_map(|p|&p.work).filter(|w|matches!(w.state.as_str(),"applying"|"outcome_unknown")).count(),"model_invocations":0},
+                "outcome_unknown":plans.iter().flat_map(|p|&p.work).filter(|w|matches!(w.state.as_str(),"applying"|"outcome_unknown")).count(),"model_invocations":0,
+                "model_invocations_scope":"calls made by this initializer, not authorship of supplied analysis",
+                "authored_analysis":plans.iter().filter(|p|p.analysis_artifact["format"]=="fresh-authored-analysis/1").map(|p|json!({"batch_id":p.batch_id,"provenance":p.analysis_artifact["analysis"]["provenance"]})).collect::<Vec<_>>()},
             "candidates":{"semantic_quality":null,"independent_model_evaluation":"not_run"},
             "owner_review":{"imported_exact_confirmation_sources":plans.iter().flat_map(|p|&p.sources).filter(|s|s.record.evidence_class==EvidenceClass::UserConfirmation).count(),
                 "new_owner_actions":0,"unchecked_is_correct":false},"usage":{"recall_quality":null,"runtime_acceptance":"not_run"}}),

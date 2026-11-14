@@ -964,3 +964,229 @@ fn selected_owner_input_forms_one_record_and_native_owner_actions_remain_separat
         1
     );
 }
+
+fn authored_batch() -> AnalyzedBatch {
+    AnalyzedBatch {
+        provenance: AnalysisProvenance {
+            actor: "Synthetic external analysis actor".into(),
+            prompt_version: "synthetic-authored-init-1".into(),
+            model_version: None,
+        },
+        statements: vec![AnalyzedStatement {
+            statement: statement(0, "I prefer quiet rooms."),
+            content: "The synthetic owner described a preference for quiet rooms, then reported changing that preference to music.".into(),
+            supporting_quotes: vec![StatementQuote {
+                source_index: 2,
+                quote: "I changed my preference to music.".into(),
+            }],
+        }],
+    }
+}
+fn authored_plan(e: &Env, prep: &Preparation, analysis: &AnalyzedBatch) -> Plan {
+    Plan::build_analyzed(
+        prep,
+        analysis,
+        e.policy(1, 1, 1),
+        FormationMode::Backfill,
+        Timestamp::from_unix_ms(NOW).unwrap(),
+        &OsIdSource,
+    )
+    .unwrap()
+}
+
+#[test]
+fn fresh_authored_content_quotes_provenance_and_resume_use_native_route() {
+    let e = owner_env();
+    let prep = prepare(&materials()).unwrap();
+    let mut analysis = authored_batch();
+    analysis.statements[0].statement.title = "Synthetic preference history".into();
+    analysis.statements[0].content += &" Synthetic untruncated context.".repeat(25);
+    // A supporting source explicitly quoted below must not remain context-only.
+    analysis.statements[0].statement.context_sources = vec![2];
+    let plan = authored_plan(&e, &prep, &analysis);
+    assert_eq!(plan.preflight.exact_quotes, 2);
+    assert_eq!(plan.preflight.title_fallbacks, 0);
+    let mut init = initializer(&e);
+    let batch = init.enqueue(plan, &prep).unwrap();
+    assert_eq!(
+        init.enqueue(authored_plan(&e, &prep, &analysis), &prep)
+            .unwrap(),
+        batch
+    );
+    let mut changed = analysis.clone();
+    changed.statements[0].content.push_str(" Changed analysis.");
+    assert!(
+        init.enqueue(authored_plan(&e, &prep, &changed), &prep)
+            .is_err()
+    );
+    changed = analysis.clone();
+    changed.provenance.actor = "Different synthetic analysis actor".into();
+    assert!(
+        init.enqueue(authored_plan(&e, &prep, &changed), &prep)
+            .is_err()
+    );
+    while init.step().unwrap() {}
+    drop(init);
+    let init = Initializer::open_synthetic(
+        &e.root,
+        e.descriptor.host_id.clone(),
+        e.clock.clone(),
+        Arc::new(OsIdSource),
+    )
+    .unwrap();
+    assert_eq!(init.plans()[0].completed(), 1);
+    init.vault
+        .read(&e.descriptor.system_actor, Sensitivity::Private, |data| {
+            assert_eq!(data.memories.len(), 1);
+            assert_eq!(data.owner_actions.len(), 0);
+            let memory = &data.memories[0].memory;
+            let input = &memory.decision.input;
+            assert_eq!(input.content, analysis.statements[0].content);
+            assert!(input.content.chars().count() > 500);
+            assert_eq!(input.producer_version, analysis.provenance.prompt_version);
+            assert_eq!(input.model_version, None);
+            assert_eq!(input.input_refs.len(), 2);
+            assert!(input.context_source_refs.is_empty());
+            assert_eq!(memory.decision.outcome.adoption, AdoptionState::Adopted);
+            let fields = input.record_fields.as_ref().unwrap();
+            assert_eq!(fields.title, "Synthetic preference history");
+            assert_eq!(fields.evidence.len(), 2);
+            assert_eq!(fields.event_time, unknown_time());
+            assert_eq!(fields.valid_time, unknown_time());
+            let sources: Vec<_> = data.sources.values().map(|s| (*s).clone()).collect();
+            assert!(fields.evidence.iter().all(|q| q.resolves(&sources)));
+            assert_eq!(
+                fields.formation.prompt_version,
+                analysis.provenance.prompt_version
+            );
+            assert_eq!(fields.annotations.as_ref().unwrap().model_version, None);
+        })
+        .unwrap();
+    let ledger = init.ledger().unwrap();
+    assert_eq!(ledger["extraction"]["model_invocations"], 0);
+    assert_eq!(
+        ledger["extraction"]["authored_analysis"][0]["provenance"]["actor"],
+        analysis.provenance.actor
+    );
+}
+
+#[test]
+fn fresh_authored_refuses_unresolved_duplicate_and_assistant_self_report_support() {
+    let e = owner_env();
+    let prep = prepare(&materials()).unwrap();
+    for (index, quote) in [
+        (2, "Not present in the retained source."),
+        (0, "I enjoy pottery."),
+        (1, "Maybe you prefer noise."),
+        (100, "Missing source."),
+    ] {
+        let mut analysis = authored_batch();
+        analysis.statements[0].supporting_quotes = vec![StatementQuote {
+            source_index: index,
+            quote: quote.into(),
+        }];
+        assert!(
+            Plan::build_analyzed(
+                &prep,
+                &analysis,
+                e.policy(1, 1, 1),
+                FormationMode::Backfill,
+                Timestamp::from_unix_ms(NOW).unwrap(),
+                &OsIdSource
+            )
+            .is_err()
+        );
+    }
+    for content in [String::new(), "x".repeat(16 * 1024 + 1)] {
+        let mut analysis = authored_batch();
+        analysis.statements[0].content = content;
+        assert!(
+            Plan::build_analyzed(
+                &prep,
+                &analysis,
+                e.policy(1, 1, 1),
+                FormationMode::Backfill,
+                Timestamp::from_unix_ms(NOW).unwrap(),
+                &OsIdSource
+            )
+            .is_err()
+        );
+    }
+    let mut analysis = authored_batch();
+    analysis.provenance.prompt_version = "scripted-init-1".into();
+    assert!(
+        Plan::build_analyzed(
+            &prep,
+            &analysis,
+            e.policy(1, 1, 1),
+            FormationMode::Backfill,
+            Timestamp::from_unix_ms(NOW).unwrap(),
+            &OsIdSource
+        )
+        .is_err()
+    );
+    assert!(std::fs::read_dir(e.root.path()).unwrap().next().is_none());
+}
+
+#[test]
+fn fresh_authored_sensitivity_covers_support_and_inference_stays_staged() {
+    let e = owner_env();
+    let mut prep = prepare(&materials()).unwrap();
+    prep.messages[1].sensitivity = Sensitivity::HighlySensitive;
+    let mut analysis = authored_batch();
+    analysis.provenance.model_version = Some("synthetic-analysis-model".into());
+    analysis.statements[0].statement.interpretation = Interpretation::Inference;
+    analysis.statements[0].supporting_quotes = vec![StatementQuote {
+        source_index: 1,
+        quote: "Maybe you prefer noise.".into(),
+    }];
+    let mut policy = e.policy(1, 1, 1);
+    policy.max_sensitivity = Sensitivity::HighlySensitive;
+    let plan = Plan::build_analyzed(
+        &prep,
+        &analysis,
+        policy,
+        FormationMode::Backfill,
+        Timestamp::from_unix_ms(NOW).unwrap(),
+        &OsIdSource,
+    )
+    .unwrap();
+    let mut init = initializer(&e);
+    init.enqueue(plan, &prep).unwrap();
+    while init.step().unwrap() {}
+    init.vault
+        .read(
+            &e.descriptor.system_actor,
+            Sensitivity::HighlySensitive,
+            |data| {
+                let input = &data.memories[0].memory.decision.input;
+                assert_eq!(input.sensitivity, Sensitivity::HighlySensitive);
+                assert_eq!(
+                    input.model_version.as_deref(),
+                    Some("synthetic-analysis-model")
+                );
+                assert_eq!(
+                    data.memories[0].memory.decision.outcome.adoption,
+                    AdoptionState::Staged
+                );
+                assert!(data.owner_actions.is_empty());
+            },
+        )
+        .unwrap();
+}
+
+#[test]
+fn fresh_authored_json_has_no_confirmation_or_unknown_field_escape() {
+    let analysis = authored_batch();
+    let mut encoded = serde_json::to_value(&analysis).unwrap();
+    let decoded: AnalyzedBatch = serde_json::from_value(encoded.clone()).unwrap();
+    assert_eq!(
+        decoded.statements[0].content,
+        analysis.statements[0].content
+    );
+    encoded["owner_approved"] = json!(true);
+    assert!(serde_json::from_value::<AnalyzedBatch>(encoded).is_err());
+    let mut encoded = serde_json::to_value(&analysis).unwrap();
+    encoded["statements"][0]["statement"]["owner_approved"] = json!(true);
+    assert!(serde_json::from_value::<AnalyzedBatch>(encoded).is_err());
+}
