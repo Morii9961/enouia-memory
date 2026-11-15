@@ -29,6 +29,32 @@ fn operation(value: &Value) -> OperationId {
     serde_json::from_value(value["operation_id"].clone()).unwrap()
 }
 #[test]
+fn fresh_driver_root_requires_recorded_operation_and_exact_authenticated_binding() {
+    let b = fixture();
+    let p = b.prepare().unwrap();
+    let op = operation(&p);
+    assert!(b.registered_root(&op).is_err());
+    b.commit(&op, false).unwrap();
+    let (root, descriptor) = b.registered_root(&op).unwrap();
+    assert_eq!(
+        descriptor,
+        serde_json::from_value::<AutomationDescriptor>(p["descriptor"].clone()).unwrap()
+    );
+    assert!(root.path().exists());
+    assert!(
+        b.registered_root(&OperationId::from_random(OsIdSource.random_16()))
+            .is_err()
+    );
+    // Production entry refuses a synthetic enrollment/home before opening a root.
+    assert!(registered_owner_root(b.home.path(), &op).is_err());
+    let mut foreign = b;
+    foreign.identity = Identity::Test(sha256(b"different synthetic account"));
+    assert!(matches!(
+        foreign.registered_root(&op),
+        Err(BootstrapFault::Unauthenticated)
+    ));
+}
+#[test]
 fn registered_empty_creation_reopens_and_preserves_unknown_home_fields() {
     let b = fixture();
     let p = b.prepare().unwrap();

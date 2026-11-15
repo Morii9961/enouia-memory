@@ -832,3 +832,11 @@ within existing plan limits and remaps source indexes while preserving every
 quote and context dependency. Source values and scope bind each watermark;
 oversized individual statements and cross-statement links refuse. Production
 execution, journal sizing and native acceptance remain separate.
+
+### ADR-MEM-145 — Explicit fresh input to native Owner formation
+
+[Decision](145-fresh-native-driver.md): hash-bound explicit shards, source
+revisions, scalar quote anchors, attachment originals and supplied analysis feed
+the existing bounded plans. Complete lifecycle journal preflight precedes writes;
+the trusted CLI reauthenticates the recorded bootstrap and enrolls one whole run.
+Resume retains original plans and uncertainty bindings. Real input waits for merge.

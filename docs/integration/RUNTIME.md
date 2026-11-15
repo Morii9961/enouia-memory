@@ -1,5 +1,23 @@
 # Runtime integration (ADR-MEM-45)
 
+2026-11-15 fresh native initialization driver (ADR-MEM-145): the Host exposes a
+trusted-native `registered_owner_root` lookup to reauthenticate the exact recorded
+bootstrap operation/root/descriptor. The separate initializer CLI uses it before
+adoption or explicit recovery. No Workspace command, wire field, adapter, UI,
+read grant or persisted Vault delta changes; Workspace stays at 61 commands.
+The regenerated aggregate is
+`4db435948c78200564429ec64b0304fc0f2e7d0c464d4bd4da2f3b56ed07b29a`.
+Runtime need not redo its completed adoption of `eb70509`/`39cc2a82`; its existing
+native readers can read records formed by this CLI. A future pin bump carries the
+additive Host helper. No Runtime checkout/pin or installer is changed here. The
+initializer's private fresh-run journal extension belongs to this driver, not a
+Runtime IPC or Vault layout migration. See [synthetic evidence](../validation/Fresh-native-driver.md).
+
+This is driver availability, not a delivered real Owner library. Native real-data
+formation, reopen/query/source acceptance and independent backup remain gates
+before notifying Runtime that the library is ready. The old installation candidate
+has not been rebuilt by this change.
+
 2026-11-13 same-source quoted ranges (ADR-MEM-143): native admission and
 the authored initializer retain distinct scalar ranges from one source while
 dependencies and origin uniqueness still count that source once. Repeated ranges,
