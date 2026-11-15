@@ -752,6 +752,17 @@ impl Plan {
         captured_at: Timestamp,
         ids: &dyn IdSource,
     ) -> Result<Self> {
+        Self::build_analyzed_anchored(prep, analysis, policy, mode, captured_at, ids, None)
+    }
+    pub(crate) fn build_analyzed_anchored(
+        prep: &Preparation,
+        analysis: &AnalyzedBatch,
+        policy: AutomationPolicy,
+        mode: FormationMode,
+        captured_at: Timestamp,
+        ids: &dyn IdSource,
+        ranges: Option<&[Vec<(u32, u32)>]>,
+    ) -> Result<Self> {
         let provenance = &analysis.provenance;
         if [&provenance.actor, &provenance.prompt_version]
             .iter()
@@ -769,13 +780,47 @@ impl Plan {
         for work in &mut plan.work {
             let analyzed = &analysis.statements[work.analysis_index];
             let seed = &mut work.seed;
-            for support in &analyzed.supporting_quotes {
+            let anchors = ranges
+                .map(|all| all.get(work.analysis_index).ok_or(AutomationFault::Denied))
+                .transpose()?;
+            if let Some(anchors) = anchors {
+                if anchors.len() != 1 + analyzed.supporting_quotes.len() {
+                    return Err(AutomationFault::Denied);
+                }
+                let fields = seed.record_fields.as_mut().unwrap();
+                let quote = &mut fields.evidence[0];
+                (quote.start, quote.end) = anchors[0];
+                if !quote.resolves(&plan.sources) {
+                    return Err(AutomationFault::Denied);
+                }
+                // Entities were created from the primary quote by build().
+                // Keep their evidence on that explicitly selected occurrence.
+                let primary = quote.clone();
+                for mention in &mut fields.entities {
+                    mention.evidence = vec![primary.clone()];
+                    if let Some(entity) = plan
+                        .catalog
+                        .entities
+                        .iter_mut()
+                        .find(|e| e.entity_id == mention.entity_id)
+                    {
+                        entity.evidence = vec![primary.clone()];
+                    }
+                }
+            }
+            for (i, support) in analyzed.supporting_quotes.iter().enumerate() {
                 let source = plan
                     .sources
                     .get(support.source_index)
                     .ok_or(AutomationFault::Denied)?;
-                let quote =
+                let mut quote =
                     quoted_evidence(source, &support.quote).ok_or(AutomationFault::Denied)?;
+                if let Some(anchors) = anchors {
+                    (quote.start, quote.end) = anchors[i + 1];
+                    if !quote.resolves(&plan.sources) {
+                        return Err(AutomationFault::Denied);
+                    }
+                }
                 // Preserve all ranges; native admission rejects repeated ranges
                 // while dependency closure still names each source only once.
                 let reference = source.reference();
@@ -828,6 +873,10 @@ impl Plan {
         plan.preflight.title_fallbacks = 0;
         plan.analysis_artifact = json!({"format":"fresh-authored-analysis/1","analysis":analysis,
             "external_provider_calls_by_initializer":0});
+        if let Some(ranges) = ranges {
+            plan.analysis_artifact["quote_ranges"] =
+                serde_json::to_value(ranges).map_err(|_| AutomationFault::Unavailable)?;
+        }
         plan.analysis_hash = digest(&plan.analysis_artifact);
         Ok(plan)
     }
@@ -846,6 +895,100 @@ struct Journal {
     vault_id: VaultId,
     descriptor_hash: Sha256Hex,
     plans: Vec<Plan>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    fresh_run: Option<Sha256Hex>,
+}
+
+/// Complete fresh-run journal budget, including the largest persisted work
+/// states. This evaluates the supplied seeds without a Vault or authority write.
+#[derive(Serialize)]
+pub struct JournalCapacity {
+    pub queued_bytes: usize,
+    pub lifecycle_bound_bytes: usize,
+    pub limit_bytes: usize,
+    pub fits: bool,
+}
+pub fn fresh_journal_capacity(
+    plans: &[Plan],
+    descriptor: &AutomationDescriptor,
+    run: &Sha256Hex,
+) -> Result<JournalCapacity> {
+    let mut journal = Journal {
+        version: 1,
+        vault_id: descriptor.vault_id.clone(),
+        descriptor_hash: digest(descriptor),
+        plans: plans.to_vec(),
+        fresh_run: Some(run.clone()),
+    };
+    let queued_bytes = canonical_bytes(&journal)?.len();
+    let maximum = Revision::new(enouia_memory_contract::json::MAX_SAFE_INTEGER).unwrap();
+    for plan in &mut journal.plans {
+        let sources: Vec<_> = plan
+            .sources
+            .iter()
+            .map(|s| SourceView {
+                record: &s.record,
+                attributed_subject: s.attributed_subject.clone(),
+                readable: true,
+                deleted: false,
+            })
+            .collect();
+        for work in &mut plan.work {
+            if work.target_analysis.is_some() || !work.derived_analysis.is_empty() {
+                return Err(AutomationFault::Denied);
+            }
+            let mut decision = evaluate(
+                &work.seed,
+                &EvaluationContext {
+                    system_actor: &plan.policy.system_actor,
+                    policy: &plan.policy,
+                    snapshot: &work.seed.snapshot,
+                    now: &plan.policy.valid_from,
+                    sources: &sources,
+                    targets: &[],
+                },
+            )?;
+            let mut request = work.seed.clone();
+            request.snapshot.primary_epoch = maximum;
+            request.snapshot.policy_watermark = maximum;
+            request.snapshot.deletion_watermark = maximum;
+            decision.input = request.clone();
+            if !decision.validate().is_empty() {
+                return Err(AutomationFault::Capacity);
+            }
+            let response =
+                serde_json::to_string(&decision).map_err(|_| AutomationFault::Unavailable)?;
+            let hash = digest(&request);
+            work.binding = Some(GenerationBinding {
+                operation_id: request.operation_id.clone(),
+                input_hash: hash.clone(),
+                response_hash: sha256(response.as_bytes()),
+            });
+            work.receipt = Some(MemoryReceipt {
+                job_key: hash.clone(),
+                binding_hash: hash.clone(),
+                operation_id: request.operation_id.clone(),
+                request_hash: hash.clone(),
+                response_hash: hash.clone(),
+                decision_hash: hash,
+                committed_in: request.snapshot.base_commit_id.clone(),
+                sequence: maximum,
+                result: request.result.clone(),
+            });
+            work.request = Some(request);
+            work.response = Some(response);
+            // Longer than queued/prepared/applying/committed. Keep captured=false
+            // (one byte longer than true); use real JSON escaping for responses.
+            work.state = "outcome_unknown".into();
+        }
+    }
+    let lifecycle_bound_bytes = canonical_bytes(&journal)?.len();
+    Ok(JournalCapacity {
+        queued_bytes,
+        lifecycle_bound_bytes,
+        limit_bytes: 16 * 1024 * 1024,
+        fits: lifecycle_bound_bytes <= 16 * 1024 * 1024,
+    })
 }
 
 pub struct Initializer {
@@ -858,6 +1001,21 @@ pub struct Initializer {
     poisoned: bool,
 }
 impl Initializer {
+    /// Read-only run guard, also before an explicit native forward recovery.
+    pub fn check_fresh_run(root: &VerifiedRoot, run: &Sha256Hex) -> Result<bool> {
+        let managed = ManagedRoot::new(root.path(), Faults::none());
+        if let Some(raw) = managed.read_bounded(JOURNAL, 16 * 1024 * 1024)? {
+            let journal: Journal =
+                serde_json::from_slice(&raw).map_err(|_| AutomationFault::Unavailable)?;
+            if journal.fresh_run.as_ref().is_some_and(|old| old != run)
+                || (journal.fresh_run.is_none() && !journal.plans.is_empty())
+            {
+                return Err(AutomationFault::Conflict);
+            }
+            return Ok(journal.fresh_run.is_some());
+        }
+        Ok(false)
+    }
     pub fn create_synthetic(
         root: &VerifiedRoot,
         descriptor: AutomationDescriptor,
@@ -890,6 +1048,7 @@ impl Initializer {
                 vault_id: descriptor.vault_id,
                 descriptor_hash,
                 plans: vec![],
+                fresh_run: None,
             },
             _lease: lease,
             poisoned: false,
@@ -927,17 +1086,14 @@ impl Initializer {
         {
             return Err(AutomationFault::Denied);
         }
-        if !vault.read(&descriptor.system_actor, Sensitivity::Private, |data| {
-            data.sources.is_empty() && data.memories.is_empty()
-        })? {
-            return Err(AutomationFault::Conflict);
-        }
+        vault.empty_owner_genesis_snapshot(&descriptor.system_actor)?;
         let this = Self {
             journal: Journal {
                 version: 1,
                 vault_id: descriptor.vault_id.clone(),
                 descriptor_hash: digest(&descriptor),
                 plans: vec![],
+                fresh_run: None,
             },
             system: descriptor.system_actor,
             owner: descriptor.created_by,
@@ -1004,6 +1160,9 @@ impl Initializer {
         if self.poisoned {
             return Err(AutomationFault::OutcomeUnknown);
         }
+        if self.journal.fresh_run.is_some() {
+            return Err(AutomationFault::Conflict);
+        }
         if plan.input_watermark != prep.watermark() {
             return Err(AutomationFault::Conflict);
         }
@@ -1056,6 +1215,66 @@ impl Initializer {
             return Err(AutomationFault::OutcomeUnknown);
         }
         Ok(id)
+    }
+    /// Atomically enroll a whole fresh run. Archive writes precede enrollment;
+    /// no source/policy/memory commit occurs until step(). A failed enrollment
+    /// never invents replacement plans when the saved outcome is unknown.
+    pub fn enqueue_fresh(
+        &mut self,
+        run: Sha256Hex,
+        plans: Vec<Plan>,
+        preparations: &[Preparation],
+    ) -> Result<()> {
+        if self.poisoned {
+            return Err(AutomationFault::OutcomeUnknown);
+        }
+        if plans.len() != preparations.len() || plans.is_empty() {
+            return Err(AutomationFault::Denied);
+        }
+        if let Some(original) = &self.journal.fresh_run {
+            if original != &run
+                || plans.len() != self.journal.plans.len()
+                || plans.iter().zip(&self.journal.plans).any(|(new, old)| {
+                    new.input_watermark != old.input_watermark
+                        || new.analysis_hash != old.analysis_hash
+                })
+            {
+                return Err(AutomationFault::Conflict);
+            }
+            return Ok(());
+        }
+        if !self.journal.plans.is_empty() {
+            return Err(AutomationFault::Conflict);
+        }
+        for (plan, prep) in plans.iter().zip(preparations) {
+            if plan.input_watermark != prep.watermark()
+                || plan.policy.vault_id != self.vault.descriptor().vault_id
+                || plan.policy.system_actor != self.system
+                || Some(&plan.policy.subject_id)
+                    != self.vault.descriptor().owner_subject_id.as_ref()
+            {
+                return Err(AutomationFault::Conflict);
+            }
+        }
+        if !fresh_journal_capacity(&plans, self.vault.descriptor(), &run)?.fits {
+            return Err(AutomationFault::Capacity);
+        }
+        for prep in preparations {
+            let mut objects = prep.objects.clone();
+            for attachment in prep.messages.iter().flat_map(|m| &m.attachments) {
+                if let Some(bytes) = &attachment.bytes {
+                    objects.insert(sha256(bytes), bytes.clone());
+                }
+            }
+            self.vault.archive_import_objects(&self.system, &objects)?;
+        }
+        self.journal.fresh_run = Some(run);
+        self.journal.plans = plans;
+        if self.save().is_err() {
+            self.poisoned = true;
+            return Err(AutomationFault::OutcomeUnknown);
+        }
+        Ok(())
     }
     pub fn plans(&self) -> &[Plan] {
         &self.journal.plans

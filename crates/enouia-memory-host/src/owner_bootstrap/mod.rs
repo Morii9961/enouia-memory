@@ -298,6 +298,32 @@ impl Bootstrap {
             .map_err(|_| BootstrapFault::OutcomeUnknown)?;
         owner_only(&store.root().join(JOURNAL))
     }
+    fn registered_root(
+        &self,
+        operation: &OperationId,
+    ) -> Result<(VerifiedRoot, AutomationDescriptor)> {
+        let (store, _lock) = self.store(false)?;
+        let r = self.load(&store)?;
+        if &r.operation != operation || r.phase != Phase::Recorded {
+            return Err(BootstrapFault::Conflict);
+        }
+        let root = verify_data_root(
+            &self.home.path().join(&r.root_relative),
+            &RootPolicy::default(),
+        )
+        .map_err(|_| BootstrapFault::UnsafeHome)?;
+        let descriptor: AutomationDescriptor = serde_json::from_slice(&bounded(
+            &root
+                .path()
+                .join(enouia_memory_contract::layout::vault_descriptor()),
+        )?)
+        .map_err(|_| BootstrapFault::Invalid)?;
+        if descriptor != r.descriptor {
+            return Err(BootstrapFault::Conflict);
+        }
+        self.identity.verify()?;
+        Ok((root, descriptor))
+    }
     fn prepare(&self) -> Result<Value> {
         let (store, _lock) = self.store(true)?;
         if store.exists(JOURNAL).map_err(|_| BootstrapFault::Invalid)? {
@@ -512,13 +538,7 @@ pub fn run_cli(args: &[String]) -> Result<Value> {
     if !valid {
         return Err(BootstrapFault::Invalid);
     }
-    #[cfg(windows)]
-    let identity = Identity::Native(
-        CurrentProcessSession::capture().map_err(|_| BootstrapFault::Unauthenticated)?,
-    );
-    #[cfg(target_os = "linux")]
-    let identity = Identity::Linux(LinuxAccount::capture()?);
-    let boot = Bootstrap::home(Path::new(&args[1]), identity, Arc::new(SystemClock))?;
+    let boot = native_home(Path::new(&args[1]))?;
     match command {
         "prepare" => boot.prepare(),
         "status" => {
@@ -530,6 +550,23 @@ pub fn run_cli(args: &[String]) -> Result<Value> {
             command == "recover",
         ),
     }
+}
+fn native_home(home: &Path) -> Result<Bootstrap> {
+    #[cfg(windows)]
+    let identity = Identity::Native(
+        CurrentProcessSession::capture().map_err(|_| BootstrapFault::Unauthenticated)?,
+    );
+    #[cfg(target_os = "linux")]
+    let identity = Identity::Linux(LinuxAccount::capture()?);
+    Bootstrap::home(home, identity, Arc::new(SystemClock))
+}
+/// Trusted native CLI only (ADR110/145). Reauthenticate the recorded creation;
+/// neither a caller-supplied descriptor nor a synthetic registration suffices.
+pub fn registered_owner_root(
+    home: &Path,
+    operation: &OperationId,
+) -> Result<(VerifiedRoot, AutomationDescriptor)> {
+    native_home(home)?.registered_root(operation)
 }
 #[cfg(test)]
 mod tests;
