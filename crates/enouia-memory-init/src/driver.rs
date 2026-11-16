@@ -57,6 +57,8 @@ pub struct SourceInput {
     pub text_hash: Sha256Hex,
     pub sensitivity: Sensitivity,
     pub attachments: Vec<AttachmentInput>,
+    #[serde(default)]
+    pub visible_text_only: bool,
 }
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -69,6 +71,12 @@ pub struct FreshManifest {
     /// Unicode scalar [start, end) pairs, primary then every supporting quote,
     /// in original statement order. Repeated text never guesses an occurrence.
     pub quote_ranges: Vec<Vec<(u32, u32)>>,
+    #[serde(default)]
+    pub context_quotes: Vec<Vec<ContextQuote>>,
+    #[serde(default)]
+    pub authored_records: Option<InputObject>,
+    #[serde(default)]
+    pub record_origins: Vec<usize>,
     pub formed_at: Timestamp,
     pub formation_until: Timestamp,
     pub project_id: Option<ProjectId>,
@@ -78,6 +86,8 @@ pub struct FreshInput {
     pub run_hash: Sha256Hex,
     pub batches: Vec<AnalyzedPlanBatch>,
     pub intake: Value,
+    contexts: Vec<Vec<ContextQuote>>,
+    origins: Vec<Value>,
 }
 
 /// Read exactly the caller's file; no discovery, network, Vault or mutation.
@@ -170,6 +180,7 @@ pub fn load_fresh(path: &Path) -> Result<FreshInput, String> {
             return Err("fresh.source_revision".into());
         }
         let mut message = (*original).clone();
+        message.visible_text_only = source.visible_text_only;
         message.branch = message
             .branch
             .clone()
@@ -231,6 +242,44 @@ pub fn load_fresh(path: &Path) -> Result<FreshInput, String> {
         return Err("fresh.quote_ranges".into());
     }
     let mut used = BTreeSet::new();
+    let mut contexts = manifest.context_quotes.clone();
+    if !contexts.is_empty() && contexts.len() != analysis.statements.len() {
+        return Err("fresh.context_quotes".into());
+    }
+    for (index, quotes) in contexts.iter_mut().enumerate() {
+        for quote in quotes {
+            let statement = &analysis.statements[index];
+            if !statement
+                .statement
+                .context_sources
+                .contains(&quote.source_index)
+                && statement.statement.source_index != quote.source_index
+                && !statement
+                    .supporting_quotes
+                    .iter()
+                    .any(|q| q.source_index == quote.source_index)
+            {
+                return Err("fresh.context_scope".into());
+            }
+            let source = &mapped
+                .get(quote.source_index)
+                .ok_or("fresh.analysis_source_index")?
+                .1;
+            if quote.start >= quote.end
+                || quote.end as usize > source.text.chars().count()
+                || source
+                    .text
+                    .chars()
+                    .skip(quote.start as usize)
+                    .take((quote.end - quote.start) as usize)
+                    .collect::<String>()
+                    != quote.quote
+            {
+                return Err("fresh.context_anchor".into());
+            }
+            quote.source_index = remap[quote.source_index];
+        }
+    }
     for (analyzed, ranges) in analysis.statements.iter_mut().zip(&manifest.quote_ranges) {
         let quotes = std::iter::once((analyzed.statement.source_index, &analyzed.statement.quote))
             .chain(
@@ -278,11 +327,59 @@ pub fn load_fresh(path: &Path) -> Result<FreshInput, String> {
     let run_hash = sha256(&bytes);
     prep.selection_metadata = json!({"format":"fresh-native-driver/1", "manifest_hash":run_hash,
         "original_selection":prep.selection_metadata});
-    let batches = pack_analyzed(&prep, &analysis)?;
+    let mut batches = pack_analyzed(&prep, &analysis)?;
+    let mut origins = Vec::new();
+    if let Some(object) = &manifest.authored_records {
+        if manifest.record_origins.len() != analysis.statements.len() {
+            return Err("fresh.record_origins".into());
+        }
+        let raw = read_object(base, object, MAX_MATERIAL_BYTES)?;
+        let text = std::str::from_utf8(&raw).map_err(|_| "fresh.authored_records")?;
+        let records = text
+            .lines()
+            .map(serde_json::from_str::<Value>)
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|_| "fresh.authored_records")?;
+        for (&index, statement) in manifest
+            .record_origins
+            .iter()
+            .zip(&manifest.analysis.statements)
+        {
+            let record = records.get(index).ok_or("fresh.record_origins")?;
+            let id = record["id"]
+                .as_str()
+                .filter(|id| {
+                    !id.trim().is_empty() && id.len() <= 128 && !id.chars().any(char::is_control)
+                })
+                .ok_or("fresh.authored_record_id")?;
+            let revision = record["revision"]
+                .as_u64()
+                .filter(|&r| r > 0 && r <= enouia_memory_contract::json::MAX_SAFE_INTEGER)
+                .ok_or("fresh.authored_record_revision")?;
+            if record["content"].as_str() != Some(&statement.content)
+                || record["title"].as_str() != Some(&statement.statement.title)
+            {
+                return Err("fresh.authored_record_content".into());
+            }
+            origins.push(json!({"object_hash":object.sha256,"record_index":index,
+                "record_hash":digest(record),"id":id,"revision":revision}));
+        }
+        for batch in &mut batches {
+            batch
+                .preparation
+                .objects
+                .insert(object.sha256.clone(), raw.clone());
+        }
+    } else if !manifest.record_origins.is_empty() {
+        return Err("fresh.record_origins".into());
+    }
     let intake = json!({"parsed_messages":parsed_messages,"selected_sources":prep.messages.len(),
         "statements":analysis.statements.len(),"batches":batches.len(),
         "attachments_present":present,"attachments_explicitly_unavailable":unavailable,
         "unavailable_attachments":unavailable_attachments,
+        "visible_text_views":manifest.sources.iter().filter(|s|s.visible_text_only).count(),
+        "context_quote_ranges":contexts.iter().map(Vec::len).sum::<usize>(),
+        "authored_record_origins":origins.len(),
         "unsupported":prep.unsupported,"unparseable":prep.unparseable,
         "raw_privacy":"complete selected conversations, including surrounding unselected messages; not redacted",
         "external_provider_calls":0,"read_grants":0});
@@ -291,6 +388,8 @@ pub fn load_fresh(path: &Path) -> Result<FreshInput, String> {
         run_hash,
         batches,
         intake,
+        contexts,
+        origins,
     })
 }
 
@@ -346,7 +445,7 @@ impl FreshInput {
                     .iter()
                     .map(|&i| self.manifest.quote_ranges[i].clone())
                     .collect::<Vec<_>>();
-                Plan::build_analyzed_anchored(
+                let mut plan = Plan::build_analyzed_anchored(
                     &batch.preparation,
                     &batch.analysis,
                     policy,
@@ -355,7 +454,35 @@ impl FreshInput {
                     ids,
                     Some(&ranges),
                 )
-                .map_err(|e| format!("fresh.plan: {e:?}"))
+                .map_err(|e| format!("fresh.plan: {e:?}"))?;
+                let mut contexts = Vec::new();
+                if !self.contexts.is_empty() {
+                    for &i in &batch.statement_indices {
+                        let mut quotes = self.contexts[i].clone();
+                        for quote in &mut quotes {
+                            quote.source_index = batch
+                                .source_indices
+                                .iter()
+                                .position(|&source| source == quote.source_index)
+                                .ok_or("fresh.context_scope")?;
+                        }
+                        contexts.push(quotes);
+                    }
+                }
+                let origins = if self.origins.is_empty() {
+                    vec![]
+                } else {
+                    batch
+                        .statement_indices
+                        .iter()
+                        .map(|&i| self.origins[i].clone())
+                        .collect()
+                };
+                if !contexts.is_empty() || !origins.is_empty() {
+                    plan.bind_fresh_provenance(&contexts, &origins)
+                        .map_err(|e| format!("fresh.provenance: {e:?}"))?;
+                }
+                Ok(plan)
             })
             .collect()
     }
