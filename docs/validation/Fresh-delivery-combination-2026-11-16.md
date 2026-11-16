@@ -86,7 +86,9 @@ real corpus preflight, real formation or independent-media recovery ran.
    Rust tree with the tested combination before reusing this evidence; rerun
    affected checks only if code changes.
 4. Keep the status/route preservation and stale-guidance corrections in their
-   independent documentation PR. Resolve any overlap in `INITIALIZED_VAULT.md`
+   independent documentation PR. A three-way merge preview with the tested
+   combination completed without conflicts and retained both sets of guidance.
+   Resolve any later overlap in `INITIALIZED_VAULT.md`
    by retaining the detailed ADR148 retention paragraph and the corrected
    already-merged ADR145/146 and ADR111/112 descriptions. The saved status
    remains a dated snapshot and is not refreshed by these merges.
