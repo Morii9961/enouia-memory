@@ -324,6 +324,27 @@ impl Bootstrap {
         self.identity.verify()?;
         Ok((root, descriptor))
     }
+    fn restored_root(
+        &self,
+        target: &Path,
+        current_export: &Path,
+    ) -> Result<(VerifiedRoot, AutomationDescriptor)> {
+        self.check_home()?;
+        let root = verify_data_root(target, &RootPolicy::default())
+            .map_err(|_| BootstrapFault::UnsafeHome)?;
+        if root.path() == self.home.path() || !root.path().starts_with(self.home.path()) {
+            return Err(BootstrapFault::UnsafeHome);
+        }
+        let export = verify_data_root(current_export, &RootPolicy::default())
+            .map_err(|_| BootstrapFault::UnsafeHome)?;
+        let descriptor =
+            enouia_memory_vault::automation::segmented::backup::activated_owner_restore(
+                &root, &export,
+            )
+            .map_err(|_| BootstrapFault::Conflict)?;
+        self.identity.verify()?;
+        Ok((root, descriptor))
+    }
     fn prepare(&self) -> Result<Value> {
         let (store, _lock) = self.store(true)?;
         if store.exists(JOURNAL).map_err(|_| BootstrapFault::Invalid)? {
@@ -567,6 +588,15 @@ pub fn registered_owner_root(
     operation: &OperationId,
 ) -> Result<(VerifiedRoot, AutomationDescriptor)> {
     native_home(home)?.registered_root(operation)
+}
+/// Trusted native CLI only (ADR147). Select an activated restored child root
+/// without copying, replacing or weakening the original bootstrap registration.
+pub fn restored_owner_root(
+    home: &Path,
+    target: &Path,
+    current_export: &Path,
+) -> Result<(VerifiedRoot, AutomationDescriptor)> {
+    native_home(home)?.restored_root(target, current_export)
 }
 #[cfg(test)]
 mod tests;

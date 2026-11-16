@@ -840,3 +840,11 @@ revisions, scalar quote anchors, attachment originals and supplied analysis feed
 the existing bounded plans. Complete lifecycle journal preflight precedes writes;
 the trusted CLI reauthenticates the recorded bootstrap and enrolls one whole run.
 Resume retains original plans and uncertainty bindings. Real input waits for merge.
+
+### ADR-MEM-147 — Resume a fresh run on an activated restore
+
+[Decision](147-fresh-restored-run-resume.md): a separate trusted native CLI path
+reauthenticates the selected durable Owner home, verifies an already activated
+restore and its exact export, and resumes only its existing identical fresh run.
+The original plans/keys/unknown barriers and logical Owner IDs remain; no new
+registration, activation, authority transfer or persisted format is introduced.

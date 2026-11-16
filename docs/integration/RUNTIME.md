@@ -1,5 +1,14 @@
 # Runtime integration (ADR-MEM-45)
 
+2026-11-16 activated restored-run continuation (ADR-MEM-147): additive native
+Owner-home/restore-proof helpers support the explicit fresh initializer CLI.
+Runtime calls none of them and has no new UI, IPC or command to adopt; Workspace
+remains 61 commands. Existing record/admission adoption gates remain independent.
+No descriptor, commit, journal or restore-receipt format changes. No Runtime
+checkout or real restored root is selected. Aggregate:
+`ba26aab7163b5702a37a73b36b4e61e9c2474869f32d37a0c44bee11ccef66b5`.
+See [synthetic verification](../validation/Fresh-restored-run-resume.md).
+
 2026-11-15 fresh native initialization driver (ADR-MEM-145): the Host exposes a
 trusted-native `registered_owner_root` lookup to reauthenticate the exact recorded
 bootstrap operation/root/descriptor. The separate initializer CLI uses it before
