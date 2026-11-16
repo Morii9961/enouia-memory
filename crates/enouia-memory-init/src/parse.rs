@@ -74,6 +74,8 @@ pub struct Message {
     /// Explicit fresh selection of all visible string parts; never inferred
     /// from the original message metadata or attachment availability.
     pub visible_text_only: bool,
+    /// Explicit run selection, independent of parsed attachment availability.
+    pub attachments_metadata_only: bool,
     pub sensitivity: enouia_memory_contract::common::Sensitivity,
 }
 
@@ -204,6 +206,7 @@ fn message(raw_hash: &Sha256Hex, m: &Material, text: String, locator: Locator) -
         agent_submission: false,
         completeness: enouia_memory_contract::source::Completeness::Complete,
         visible_text_only: false,
+        attachments_metadata_only: false,
         sensitivity: enouia_memory_contract::common::Sensitivity::Private,
     }
 }

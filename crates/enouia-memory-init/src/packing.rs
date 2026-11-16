@@ -94,6 +94,7 @@ pub fn pack_analyzed(
                 "availability":a.availability,"external_reference":a.external_reference,
                 "bytes_hash":a.bytes.as_deref().map(sha256)})).collect::<Vec<_>>()});
         if m.visible_text_only { binding["visible_text_only"] = json!(true); }
+        if m.attachments_metadata_only { binding["attachments_metadata_only"] = json!(true); }
         binding
     }).collect();
     let source_scope = digest(&source_bindings);

@@ -353,7 +353,15 @@ impl Plan {
                     external_reference: a.external_reference.clone(),
                     sensitivity: m.sensitivity,
                     created_at: captured_at.clone(),
-                    extensions: BTreeMap::new(),
+                    extensions: if m.attachments_metadata_only {
+                        BTreeMap::from([(
+                            "memory-init.attachment-retention".into(),
+                            json!({"version":1,"payload":"not_selected",
+                                "parsed_availability":a.availability}),
+                        )])
+                    } else {
+                        BTreeMap::new()
+                    },
                 })
                 .collect();
             let mut record = SourceRecord {

@@ -848,3 +848,11 @@ all attachment states while explicitly selecting the complete string-parts view.
 Native import proves it against Raw before formation. Exact context ranges and
 hash-bound original authored-record artifacts retain context and analysis metadata
 without promoting them to support or replacing witnessed native formation.
+
+### ADR-MEM-148 — Explicit text-only fresh initialization
+
+[Decision](148-fresh-text-only-retention.md): explicitly retain attachment metadata
+without reading or archiving attachment originals. Preserve exact textual source
+and analysis Raw, distinguish intentionally unselected payloads from unavailable
+originals, and bind the choice to the complete native run. External deletion remains
+a later owner-confirmed action after acceptance and independent backup/restore.
