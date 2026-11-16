@@ -1,4 +1,6 @@
-> 2026-11-10：Morii 决定把旧版（v1）记忆库重新初始化成新的 Owner Vault：旧候选直接成为正式记忆（不调模型、不建待审队列），时区 Asia/Shanghai，目标 Linux VPS，新库验收并有已验证备份后再经确认删除旧库。路线见 [ADR-MEM-135](../adr/135-legacy-library-reinitialization.md) 与[接入文档](../integration/INITIALIZED_VAULT.md)；导出、生产初始化入口和核对尚未实现。
+> **2026-11-16 当前接续：** 旧候选迁入已被完整原始聊天的新分析取代，已有新分析不重做；正式新库保留文字来源和附件说明。原生 fresh 驱动 [ADR145](../adr/145-fresh-native-driver.md) 与完整文字视图 [ADR146](../adr/146-explicit-visible-text-view.md) 已合并，分段备份/恢复已有 [ADR136](../adr/136-segmented-owner-backup.md) 实现。备份回归 #110、依赖它的恢复接续 #112、纯文本保留 #113 仍待 Morii 合并。下一步先准备组合源码和聚焦合成证据，合并后才做全量纯文本 Plan/journal 容量预检、真实形成、重开来源与独立恢复；Runtime 兼容采用和产品验收另行交付。见[接续路线](../handoff/MEMORY_DELIVERY_ROUTE_2026-11-16.md)。不启动新 MV 阶段，不扩大真实权限或删除授权。
+
+> **历史决定（2026-11-10，已被取代）：** 当日选择旧候选直接迁入、不调模型、不建待审队列，目标 Linux VPS，见 [ADR135](../adr/135-legacy-library-reinitialization.md)。这不再是当前输入方案；先本机新库与独立恢复验收、再按独立授权迁移 Linux 的顺序及删除前确认仍保留。下列按日期排列的记录只描述各自当时的实现与缺口。
 
 > 2026-11-09 同日接续：[ADR-MEM-134](../adr/134-linux-owner-bootstrap.md) 让原生主人初始化在 Linux 上可用（有效 uid 绑定 machine-id，写入前复核；日志与元数据保持 0600），Linux 上用真实 CLI 合成冒烟建出空的初始化 Vault，见[验证](../validation/Linux-owner-bootstrap.md)。迁移现有 Vault、部署与真实数据仍待 Morii 决定。
 
