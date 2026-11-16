@@ -71,6 +71,9 @@ pub struct Message {
     pub metadata: Value,
     pub agent_submission: bool,
     pub completeness: enouia_memory_contract::source::Completeness,
+    /// Explicit fresh selection of all visible string parts; never inferred
+    /// from the original message metadata or attachment availability.
+    pub visible_text_only: bool,
     pub sensitivity: enouia_memory_contract::common::Sensitivity,
 }
 
@@ -200,6 +203,7 @@ fn message(raw_hash: &Sha256Hex, m: &Material, text: String, locator: Locator) -
         metadata: Value::Null,
         agent_submission: false,
         completeness: enouia_memory_contract::source::Completeness::Complete,
+        visible_text_only: false,
         sensitivity: enouia_memory_contract::common::Sensitivity::Private,
     }
 }

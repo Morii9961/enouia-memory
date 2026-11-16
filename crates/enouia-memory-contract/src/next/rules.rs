@@ -129,7 +129,8 @@ pub fn evaluate(
         }
         if source.deleted
             || !source.readable
-            || source.record.completeness != Completeness::Complete
+            || (source.record.completeness != Completeness::Complete
+                && !source.record.has_visible_text_view())
         {
             return Err(invalid("next.source_unavailable", "/input_refs"));
         }

@@ -840,3 +840,11 @@ revisions, scalar quote anchors, attachment originals and supplied analysis feed
 the existing bounded plans. Complete lifecycle journal preflight precedes writes;
 the trusted CLI reauthenticates the recorded bootstrap and enrolls one whole run.
 Resume retains original plans and uncertainty bindings. Real input waits for merge.
+
+### ADR-MEM-146 — Explicit complete visible-text views
+
+[Decision](146-explicit-visible-text-view.md): retain mixed-message Partial and
+all attachment states while explicitly selecting the complete string-parts view.
+Native import proves it against Raw before formation. Exact context ranges and
+hash-bound original authored-record artifacts retain context and analysis metadata
+without promoting them to support or replacing witnessed native formation.
