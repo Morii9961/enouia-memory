@@ -75,3 +75,11 @@ archives and any other originals outside the Vault are outside this format.
 Preserve and transfer them separately as explicitly selected by Morii; never
 guess their paths or discard the old home. OAuth tokens/service credentials are
 configured separately. VPS, domain and ChatGPT read scope remain owner decisions.
+
+## Fresh initializer compatibility
+
+The [fresh-run synthetic regression](../validation/Fresh-owner-backup-compatibility.md)
+checks ADR145 whole-run bindings, exact journal/Raw/attachment preservation,
+deletions and original-receipt-only uncertainty after local restore. It is not
+real-data or independent-media recovery evidence, and does not transfer ADR110's
+OS-account/canonical-home bootstrap registration to a restored location.
