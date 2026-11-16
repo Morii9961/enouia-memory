@@ -83,3 +83,33 @@ checks ADR145 whole-run bindings, exact journal/Raw/attachment preservation,
 deletions and original-receipt-only uncertainty after local restore. It is not
 real-data or independent-media recovery evidence, and does not transfer ADR110's
 OS-account/canonical-home bootstrap registration to a restored location.
+
+## Resume a fresh initialization after restore (ADR147)
+
+After the existing explicit restore/activation steps, the trusted local native
+initializer can select the activated restored root inside a protected Owner data
+home without copying or replacing the old bootstrap registration:
+
+```text
+enouia-memory-fresh resume-restored <MANIFEST> <OWNER_DATA_HOME> <RESTORED_ROOT> <ACTIVATION_EXPORT> --bind-current-owner-self
+enouia-memory-fresh recover-restored <MANIFEST> <OWNER_DATA_HOME> <RESTORED_ROOT> <ACTIVATION_EXPORT> --bind-current-owner-self
+```
+
+`ACTIVATION_EXPORT` is the exact verified export used for this root's activation;
+it remains selected even after continued formation makes newer commits. This is
+not a new assertion that an older export is current. Keep that export and the
+original manifest/input objects. A subsequent restore uses its own exact activated
+export. Stop the old Host before activation; no command here stops another Host,
+activates a root, rebinds the descriptor or sets Runtime's selected root.
+
+Both commands require the same existing fresh-run binding. Missing/legacy journals,
+changed input, unactivated restores, another export and roots outside the chosen
+home refuse. `resume-restored` never repairs publication; only `recover-restored`
+requests native forward recovery after the run guard. Original unknown packets
+remain receipt-only; unavailable/withheld receipts do not become permission to
+retry. Pending work retains the original formation interval and requires its
+policy to remain current. No bootstrap, new run, policy renewal or read grant.
+
+See [decision](../adr/147-fresh-restored-run-resume.md) and
+[synthetic verification](../validation/Fresh-restored-run-resume.md). Real use waits
+for Morii's merge; local synthetic evidence is not independent-media recovery.

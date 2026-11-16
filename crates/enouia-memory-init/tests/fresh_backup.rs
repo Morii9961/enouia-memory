@@ -357,3 +357,313 @@ fn restored_uncertain_fresh_run_keeps_original_packet_and_resolves_only_existing
         }
     }
 }
+
+#[test]
+#[ignore = "set ENOUIA_SYNTHETIC_DURABLE_PARENT to an explicit durable synthetic parent"]
+fn native_cli_resumes_activated_restore_without_original_home_or_replacement_keys() {
+    use enouia_memory_contract::{foundation::Clock, ports::IdSource};
+    use enouia_memory_host::owner_bootstrap::{registered_owner_root, run_cli};
+    use enouia_memory_vault::{
+        RootPolicy, SystemClock,
+        automation::{AUTOMATION_INTENT, AUTOMATION_WITNESS},
+        platform, verify_data_root,
+    };
+    use std::path::{Path, PathBuf};
+    let parent = PathBuf::from(
+        std::env::var_os("ENOUIA_SYNTHETIC_DURABLE_PARENT").expect("selected synthetic parent"),
+    );
+    assert!(parent.is_absolute() && parent.is_dir());
+    let test_home = parent.join(format!(
+        "fresh-restored-cli-{}",
+        enouia_memory_contract::ids::format_uuid_v4(OsIdSource.random_16())
+    ));
+    std::fs::create_dir(&test_home).unwrap();
+    let home = |name: &str| {
+        let path = test_home.join(name);
+        std::fs::create_dir(&path).unwrap();
+        platform::restrict_to_owner(&path).unwrap();
+        std::fs::write(
+            path.join("DO_NOT_DELETE.USER_DATA"),
+            b"Only synthetic test data. Retain this home.",
+        )
+        .unwrap();
+        std::fs::write(path.join(".enouia-owner-data.json"),serde_json::to_vec(&json!({
+            "format":"enouia-owner-data-home/1","storage_class":"owner_data",
+            "allow_development_cleanup":false,"allow_git_upload":false,
+            "production_vault_created":false,"active_vault":null,"synthetic_validation_only":true
+        })).unwrap()).unwrap();
+        path
+    };
+    let source_home = home("source-home");
+    let restore_home = home("restore-home");
+    let source_arg = source_home.to_str().unwrap().to_owned();
+    let registration = run_cli(&[
+        "prepare".into(),
+        source_arg.clone(),
+        "--bind-current-owner-self".into(),
+    ])
+    .unwrap();
+    let operation = registration["operation_id"].as_str().unwrap().to_owned();
+    run_cli(&[
+        "commit".into(),
+        source_arg,
+        operation.clone(),
+        "--bind-current-owner-self".into(),
+    ])
+    .unwrap();
+    let (source, descriptor) = registered_owner_root(
+        &source_home,
+        &enouia_memory_contract::ids::OperationId::parse(&operation).unwrap(),
+    )
+    .unwrap();
+    let registration_bytes =
+        std::fs::read(source_home.join(".enouia-owner-bootstrap/sync-state/registration.json"))
+            .unwrap();
+    let dir = |path: &Path| {
+        std::fs::create_dir(path).unwrap();
+        verify_data_root(path, &RootPolicy::default()).unwrap()
+    };
+    let empty_export = dir(&test_home.join("empty-export"));
+    export_owner(
+        &source,
+        &empty_export,
+        Arc::new(SystemClock),
+        Arc::new(OsIdSource),
+    )
+    .unwrap();
+    let (inputs, _) = input(3);
+    let manifest_path = inputs.path.join("manifest.json");
+    let mut manifest: Value =
+        serde_json::from_slice(&std::fs::read(&manifest_path).unwrap()).unwrap();
+    let now = SystemClock.now_unix_ms();
+    manifest["formed_at"] = json!(Timestamp::from_unix_ms(now).unwrap());
+    manifest["formation_until"] = json!(Timestamp::from_unix_ms(now + WEEK_MS).unwrap());
+    let original_manifest = serde_json::to_vec(&manifest).unwrap();
+    std::fs::write(&manifest_path, &original_manifest).unwrap();
+    let input = load_fresh(&manifest_path).unwrap();
+    let mut init = Initializer::adopt_bootstrapped(
+        &source,
+        descriptor.host_id.clone(),
+        Arc::new(SystemClock),
+        Arc::new(OsIdSource),
+    )
+    .unwrap();
+    init.enqueue_fresh(
+        input.run_hash.clone(),
+        input.plans(&descriptor, &OsIdSource).unwrap(),
+        &input
+            .batches
+            .iter()
+            .map(|b| b.preparation.clone())
+            .collect::<Vec<_>>(),
+    )
+    .unwrap();
+    init.step().unwrap();
+    init.step().unwrap(); // One witnessed memory, two still queued.
+    let before = init.vault.snapshot().unwrap();
+    let original_receipt = init.plans()[0].receipts()[0].clone();
+    let managed = ManagedRoot::new(source.path(), Faults::none());
+    let mut resumable: Value =
+        serde_json::from_slice(&managed.read(JOURNAL).unwrap().unwrap()).unwrap();
+    resumable["plans"][0]["work"][0]["receipt"] = Value::Null;
+    resumable["plans"][0]["work"][0]["state"] = json!("outcome_unknown");
+    let mut uncertain = resumable.clone();
+    let seed = serde_json::from_value(uncertain["plans"][0]["work"][1]["seed"].clone()).unwrap();
+    let prepared = init
+        .vault
+        .prepare_formation(&descriptor.system_actor, seed)
+        .unwrap();
+    let unknown = &mut uncertain["plans"][0]["work"][1];
+    unknown["request"] = serde_json::to_value(prepared.request).unwrap();
+    unknown["response"] = json!(prepared.response);
+    unknown["binding"] = serde_json::to_value(prepared.binding).unwrap();
+    unknown["state"] = json!("outcome_unknown");
+    let original_unknown = unknown.clone();
+    drop(init);
+    let runnable_export = dir(&test_home.join("runnable-export"));
+    managed
+        .write_atomic(JOURNAL, &canonical_bytes(&resumable).unwrap())
+        .unwrap();
+    export_owner(
+        &source,
+        &runnable_export,
+        Arc::new(SystemClock),
+        Arc::new(OsIdSource),
+    )
+    .unwrap();
+    let unknown_export = dir(&test_home.join("unknown-export"));
+    managed
+        .write_atomic(JOURNAL, &canonical_bytes(&uncertain).unwrap())
+        .unwrap();
+    export_owner(
+        &source,
+        &unknown_export,
+        Arc::new(SystemClock),
+        Arc::new(OsIdSource),
+    )
+    .unwrap();
+    let empty_target = dir(&restore_home.join("empty-restored"));
+    let runnable_target = dir(&restore_home.join("runnable-restored"));
+    let unknown_target = dir(&restore_home.join("unknown-restored"));
+    for (export, target) in [
+        (&empty_export, &empty_target),
+        (&runnable_export, &runnable_target),
+        (&unknown_export, &unknown_target),
+    ] {
+        restore_owner(export, target, &SystemClock).unwrap();
+    }
+    let offline = test_home.join("source-home-offline");
+    std::fs::rename(&source_home, &offline).unwrap();
+    assert!(!source_home.exists());
+    let invoke = |command: &str,
+                  target: &enouia_memory_vault::VerifiedRoot,
+                  export: &enouia_memory_vault::VerifiedRoot| {
+        std::process::Command::new(env!("CARGO_BIN_EXE_enouia-memory-fresh"))
+            .args([
+                command,
+                manifest_path.to_str().unwrap(),
+                restore_home.to_str().unwrap(),
+                target.path().to_str().unwrap(),
+                export.path().to_str().unwrap(),
+                "--bind-current-owner-self",
+            ])
+            .output()
+            .unwrap()
+    };
+    let quarantined = invoke("resume-restored", &runnable_target, &runnable_export);
+    assert!(!quarantined.status.success());
+    assert_eq!(
+        std::fs::read(runnable_target.path().join(JOURNAL)).unwrap(),
+        canonical_bytes(&resumable).unwrap()
+    );
+    for (export, target) in [
+        (&empty_export, &empty_target),
+        (&runnable_export, &runnable_target),
+        (&unknown_export, &unknown_target),
+    ] {
+        activate_owner(target, export, &SystemClock).unwrap();
+    }
+    let empty = invoke("resume-restored", &empty_target, &empty_export);
+    assert!(!empty.status.success());
+    assert!(String::from_utf8_lossy(&empty.stderr).contains("fresh.restored_run_not_enrolled"));
+    assert!(!empty_target.path().join(JOURNAL).exists());
+    let result = invoke("resume-restored", &runnable_target, &runnable_export);
+    assert!(
+        result.status.success(),
+        "{}",
+        String::from_utf8_lossy(&result.stderr)
+    );
+    let result: Value = serde_json::from_slice(&result.stdout).unwrap();
+    assert_eq!(result["ledger"]["extraction"]["committed_revisions"], 3);
+    let open = |target: &enouia_memory_vault::VerifiedRoot| {
+        Initializer::open_synthetic(
+            target,
+            descriptor.host_id.clone(),
+            Arc::new(SystemClock),
+            Arc::new(OsIdSource),
+        )
+        .unwrap()
+    };
+    let complete = open(&runnable_target);
+    assert!(complete.plans()[0].receipts().contains(&original_receipt));
+    let after = complete.vault.snapshot().unwrap();
+    assert_ne!(after, before);
+    complete
+        .vault
+        .read(&descriptor.system_actor, Sensitivity::Private, |data| {
+            assert_eq!(data.memories.len(), 3);
+            assert!(data.owner_actions.is_empty());
+            let sources: Vec<_> = data.sources.values().map(|s| (*s).clone()).collect();
+            for memory in &data.memories {
+                assert!(
+                    memory
+                        .memory
+                        .decision
+                        .input
+                        .record_fields
+                        .as_ref()
+                        .unwrap()
+                        .evidence
+                        .iter()
+                        .all(|q| q.resolves(&sources))
+                );
+            }
+        })
+        .unwrap();
+    drop(complete);
+    for command in ["resume-restored", "recover-restored"] {
+        let result = invoke(command, &runnable_target, &runnable_export);
+        assert!(
+            result.status.success(),
+            "{}",
+            String::from_utf8_lossy(&result.stderr)
+        );
+        assert_eq!(open(&runnable_target).vault.snapshot().unwrap(), after);
+    }
+    let complete_journal = std::fs::read(runnable_target.path().join(JOURNAL)).unwrap();
+    let managed = ManagedRoot::new(runnable_target.path(), Faults::none());
+    let complete_witness = managed.read(AUTOMATION_WITNESS).unwrap().unwrap();
+    let intent: Value =
+        serde_json::from_slice(&managed.read(AUTOMATION_INTENT).unwrap().unwrap()).unwrap();
+    let previous_witness = canonical_bytes(&intent["before"]).unwrap();
+    // Emulate publication interrupted after CURRENT, before the matching witness.
+    managed
+        .write_atomic(AUTOMATION_WITNESS, &previous_witness)
+        .unwrap();
+    let wrong = invoke("recover-restored", &runnable_target, &unknown_export);
+    assert!(!wrong.status.success());
+    manifest["analysis"]["statements"][0]["content"] = json!("Changed synthetic analysis.");
+    std::fs::write(&manifest_path, serde_json::to_vec(&manifest).unwrap()).unwrap();
+    let changed = invoke("recover-restored", &runnable_target, &runnable_export);
+    assert!(!changed.status.success());
+    assert!(String::from_utf8_lossy(&changed.stderr).contains("Conflict"));
+    assert_eq!(
+        std::fs::read(runnable_target.path().join(JOURNAL)).unwrap(),
+        complete_journal
+    );
+    assert_eq!(
+        managed.read(AUTOMATION_WITNESS).unwrap().unwrap(),
+        previous_witness
+    );
+    std::fs::write(&manifest_path, original_manifest).unwrap();
+    let blocked = invoke("resume-restored", &runnable_target, &runnable_export);
+    assert!(!blocked.status.success());
+    assert!(String::from_utf8_lossy(&blocked.stderr).contains("RecoveryRequired"));
+    assert_eq!(
+        managed.read(AUTOMATION_WITNESS).unwrap().unwrap(),
+        previous_witness
+    );
+    let recovered = invoke("recover-restored", &runnable_target, &runnable_export);
+    assert!(
+        recovered.status.success(),
+        "{}",
+        String::from_utf8_lossy(&recovered.stderr)
+    );
+    assert_eq!(
+        managed.read(AUTOMATION_WITNESS).unwrap().unwrap(),
+        complete_witness
+    );
+    assert_eq!(managed.read(JOURNAL).unwrap().unwrap(), complete_journal);
+    assert_eq!(open(&runnable_target).vault.snapshot().unwrap(), after);
+    for command in ["resume-restored", "recover-restored", "resume-restored"] {
+        let result = invoke(command, &unknown_target, &unknown_export);
+        assert!(!result.status.success());
+        assert!(String::from_utf8_lossy(&result.stderr).contains("OutcomeUnknown"));
+        let stopped = open(&unknown_target);
+        assert_eq!(stopped.vault.snapshot().unwrap(), before);
+        assert_eq!(stopped.plans()[0].completed(), 1);
+        drop(stopped);
+        let saved: Value =
+            serde_json::from_slice(&std::fs::read(unknown_target.path().join(JOURNAL)).unwrap())
+                .unwrap();
+        assert_eq!(saved["plans"][0]["work"][1], original_unknown);
+        assert_eq!(saved["plans"][0]["work"][2]["state"], "queued");
+    }
+    assert_eq!(
+        std::fs::read(offline.join(".enouia-owner-bootstrap/sync-state/registration.json"))
+            .unwrap(),
+        registration_bytes
+    );
+    assert!(!restore_home.join(".enouia-owner-bootstrap").exists());
+    // All durable homes are explicitly synthetic and retained; no cleanup.
+}

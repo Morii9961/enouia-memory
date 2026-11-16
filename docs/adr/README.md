@@ -848,3 +848,11 @@ all attachment states while explicitly selecting the complete string-parts view.
 Native import proves it against Raw before formation. Exact context ranges and
 hash-bound original authored-record artifacts retain context and analysis metadata
 without promoting them to support or replacing witnessed native formation.
+
+### ADR-MEM-147 — Resume a fresh run on an activated restore
+
+[Decision](147-fresh-restored-run-resume.md): a separate trusted native CLI path
+reauthenticates the selected durable Owner home, verifies an already activated
+restore and its exact export, and resumes only its existing identical fresh run.
+The original plans/keys/unknown barriers and logical Owner IDs remain; no new
+registration, activation, authority transfer or persisted format is introduced.

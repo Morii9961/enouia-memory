@@ -402,6 +402,36 @@ pub(super) fn require_activated(
     Ok(())
 }
 
+/// Read-only proof of an already activated ADR136 restore and its exact export.
+/// This is not activation, Owner enrollment or authority to select a root.
+/// The trusted native caller authenticates the current Owner separately.
+pub fn activated_owner_restore(
+    target: &VerifiedRoot,
+    current_export: &VerifiedRoot,
+) -> Result<AutomationDescriptor> {
+    separate(target, current_export)?;
+    if !io(platform::inspect_acl(target.path()))?.is_owner_only() {
+        return Err(AutomationFault::Denied);
+    }
+    let export = verify_owner(current_export)?;
+    let root = ManagedRoot::new(target.path(), Faults::none());
+    let descriptor: AutomationDescriptor =
+        parse_document(&read(&root, &layout::vault_descriptor(), 16 * 1024)?)?;
+    let receipt: RestoreReceipt = serde_json::from_slice(&read(&root, RESTORE, 16 * 1024)?)
+        .map_err(|_| AutomationFault::Denied)?;
+    if receipt.version != 1
+        || receipt.activated_at.is_none()
+        || receipt.head != export.head
+        || receipt.descriptor_hash != export.descriptor_hash
+        || receipt.export_hash != digest(&export)
+        || descriptor.layout != AutomationLayout::SegmentedOwnerV1
+        || digest(&descriptor) != export.descriptor_hash
+    {
+        return Err(AutomationFault::Denied);
+    }
+    Ok(descriptor)
+}
+
 /// Trusted native Owner assertion: the caller established that this backup is
 /// current, with no newer deletion/withdrawal/authority state, and stopped the old
 /// Host. A different head requires a new restore, never an implicit merge.

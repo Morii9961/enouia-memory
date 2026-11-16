@@ -253,3 +253,48 @@ fn activation_requires_the_exact_current_backup_and_unchanged_restored_files() {
     std::fs::write(target.path.join("vault/vault.json"), b"{}").unwrap();
     assert!(activate_owner(&target.root, &old.root, e.clock.as_ref()).is_err());
 }
+
+#[test]
+fn activated_restore_proof_requires_exact_export_descriptor_and_explicit_activation() {
+    let source = owner();
+    let first = owner();
+    let second = owner();
+    let target = owner();
+    let vault = source.create(Faults::none());
+    source.populate(&vault, 1);
+    drop(vault);
+    export(&source, &first.root).unwrap();
+    restore_owner(&first.root, &target.root, source.clock.as_ref()).unwrap();
+    let before = std::fs::read(target.path.join("config/segmented-restore-1.json")).unwrap();
+    assert!(activated_owner_restore(&target.root, &first.root).is_err());
+    assert_eq!(
+        std::fs::read(target.path.join("config/segmented-restore-1.json")).unwrap(),
+        before
+    );
+    activate_owner(&target.root, &first.root, source.clock.as_ref()).unwrap();
+    assert_eq!(
+        activated_owner_restore(&target.root, &first.root).unwrap(),
+        source.descriptor
+    );
+    // A valid export from the same Vault but a later deletion is not this restore.
+    let vault = source.open();
+    vault
+        .delete(
+            &source.descriptor.created_by,
+            vec![
+                source
+                    .source(1, enouia_memory_contract::common::Sensitivity::Public)
+                    .record
+                    .source_id,
+            ],
+            vec![],
+        )
+        .unwrap();
+    drop(vault);
+    export(&source, &second.root).unwrap();
+    assert!(activated_owner_restore(&target.root, &second.root).is_err());
+    // The read-only proof cannot activate, rewrite or rebind an arbitrary root.
+    assert!(activated_owner_restore(&source.root, &first.root).is_err());
+    std::fs::write(target.path.join("vault/vault.json"), b"{}").unwrap();
+    assert!(activated_owner_restore(&target.root, &first.root).is_err());
+}

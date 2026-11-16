@@ -314,3 +314,48 @@ fn copied_recorded_registration_cannot_claim_another_home_has_a_created_vault() 
     assert!(matches!(b.prepare(), Err(BootstrapFault::Unauthenticated)));
     assert!(!b.home.path().join("vaults").exists());
 }
+
+#[test]
+fn restored_selection_checks_home_scope_and_preserves_original_bootstrap_registration() {
+    use enouia_memory_vault::automation::segmented::backup::*;
+    let source = fixture();
+    let registration = source.prepare().unwrap();
+    let op = operation(&registration);
+    source.commit(&op, false).unwrap();
+    let (root, descriptor) = source.registered_root(&op).unwrap();
+    let original = fs::read(source.home.path().join(AREA).join(JOURNAL)).unwrap();
+    let target_home = fixture();
+    let output_path = target_home.home.path().join("export");
+    let target_path = target_home.home.path().join("restored");
+    fs::create_dir(&output_path).unwrap();
+    fs::create_dir(&target_path).unwrap();
+    let output = verify_data_root(&output_path, &RootPolicy::default()).unwrap();
+    let target = verify_data_root(&target_path, &RootPolicy::default()).unwrap();
+    export_owner(&root, &output, source.clock.clone(), Arc::new(OsIdSource)).unwrap();
+    restore_owner(&output, &target, source.clock.as_ref()).unwrap();
+    assert!(
+        target_home
+            .restored_root(&target_path, &output_path)
+            .is_err()
+    );
+    activate_owner(&target, &output, source.clock.as_ref()).unwrap();
+    let (selected, observed) = target_home
+        .restored_root(&target_path, &output_path)
+        .unwrap();
+    assert_eq!(selected.path(), target.path());
+    assert_eq!(observed, descriptor);
+    assert!(!target_home.home.path().join(AREA).exists());
+    assert!(source.restored_root(&target_path, &output_path).is_err());
+    assert!(
+        target_home
+            .restored_root(target_home.home.path(), &output_path)
+            .is_err()
+    );
+    // Production selection cannot use a test home/enrollment as native identity.
+    assert!(restored_owner_root(target_home.home.path(), &target_path, &output_path).is_err());
+    assert_eq!(
+        fs::read(source.home.path().join(AREA).join(JOURNAL)).unwrap(),
+        original
+    );
+    assert_eq!(source.registered_root(&op).unwrap().1, descriptor);
+}
