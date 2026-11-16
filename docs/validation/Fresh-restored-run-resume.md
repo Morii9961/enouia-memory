@@ -2,7 +2,8 @@
 
 2026-11-16. Implements [ADR147](../adr/147-fresh-restored-run-resume.md), based on
 merged ADR145 main `442b22f` and the synthetic backup regression in PR110
-(`cc1d418`). No real Owner input, Vault or backup is used.
+(`cc1d418`). No real Owner input, Vault or backup is used. The final combined
+source also includes merged ADR146 main `a543c1e`.
 
 ## Native entry
 
@@ -30,6 +31,12 @@ read grant, second run, replacement packet or automatic resend.
 
 ## Checks actually run
 
+All checks below were repeated on the final ADR146 combination with this
+worktree's own isolated Cargo target. An earlier worktree shared the main target;
+ADR146's saved report demonstrated CLI replacement between concurrent builds.
+This slice stopped using that shared target before the final verification. Its
+new native continuation test includes the publication-interruption check below.
+
 - `cargo test -p enouia-memory-host --lib owner_bootstrap --locked`:
   **16 passed, 54 filtered out**. New test checks home containment, quarantine,
   exact restored descriptor, production refusal of synthetic enrollment and
@@ -44,8 +51,12 @@ read grant, second run, replacement packet or automatic resend.
   **1 passed, 2 filtered out**. Uses a newly allocated durable synthetic parent,
   actual native bootstrap and the production CLI. After source-home removal from
   its original location, an activated restore resolves one original committed
-  receipt and completes two queued statements. All three native source quotes
-  resolve; repeated resume/recover makes no further commit. Another restored copy
+  receipt and completes two queued statements. All three records' native quoted evidence
+  resolves; repeated resume/recover makes no further commit. A synthetic interruption
+  between CURRENT and witness publication keeps `resume-restored` at
+  `RecoveryRequired`; wrong-export/changed-analysis recovery leaves the witness
+  unchanged. Only explicit recovery of the original run completes publication,
+  preserving the same snapshot and journal. Another restored copy
   holds a genuine prepared but unapplied request: it remains `OutcomeUnknown`,
   retains the entire original work item, and leaves the following statement queued.
   Unactivated, wrong-export, changed-analysis and unbound empty-restore cases refuse.
@@ -53,10 +64,15 @@ read grant, second run, replacement packet or automatic resend.
   the restored home. The protected synthetic homes are retained for diagnosis.
 - Existing native CLI compatibility:
   `cargo test -p enouia-memory-init --test fresh_driver trusted_cli_bootstrap_forms_reopens_queries_and_reuses_original_run --locked -- --ignored --exact --nocapture`:
-  **1 passed, 6 filtered out**. Original prepare/commit/run/recover still forms
-  three synthetic records, reopens and resolves sources without multiplication.
+  **1 passed, 8 filtered out** on the final ADR146 combination. Original
+  prepare/commit/run/recover forms two synthetic records, including the explicit
+  mixed-message text view, and reopens/resolves sources without multiplication.
 - Scoped Clippy for the modified initializer binary/test, Host library, and Vault
   library/backup test, all with `--no-deps --locked -- -D warnings`: **passed**.
+- Targeted rustfmt, `git diff --check`, public-content review and Runtime surface
+  regeneration/check: **passed**. Combined aggregate is
+  `d44f0e84f6b07e7e55ee66a291cd418a3811734545f1402686ad110deec56199`;
+  Workspace remains 61 commands.
 
 ## Limits
 
@@ -68,7 +84,8 @@ No schema or validator changed; no schema cross-check was needed or run.
 
 PR110's two earlier full/expired-journal regression results retain their original
 revision scope; they were not rerun here. The selected checks above cover the
-new boundary and the old trusted CLI path. Separate ADR146 admission changes and
-actual corpus capacity/acceptance are outside this branch's baseline. The new
-entry waits for Morii's merge before any real restored-root use. Existing independent
-backup validation and stop-old-Host-before-activation gates remain in force.
+new boundary and the old trusted CLI path. ADR146 admission is retained from
+merged main without being rewritten by this slice. Actual corpus capacity and
+acceptance remain separate. The new entry waits for Morii's merge before real
+restored-root use. Existing independent backup validation and stop-old-Host-before-
+activation gates remain in force.

@@ -28,7 +28,7 @@ fn run(args: &[String]) -> Result<Value, String> {
             if (c == "resume-restored" || c == "recover-restored")
                 && flag == "--bind-current-owner-self" =>
             (c, m, Some((h, root, Some(export)))),
-        _ => return Err("usage: enouia-memory-fresh plan <manifest> | run|recover <manifest> <owner-home> <bootstrap-operation> --bind-current-owner-self | resume-restored|recover-restored <manifest> <owner-home> <restored-root> <current-export> --bind-current-owner-self".into()),
+        _ => return Err("usage: enouia-memory-fresh plan <manifest> | run|recover <manifest> <owner-home> <bootstrap-operation> --bind-current-owner-self | resume-restored|recover-restored <manifest> <owner-home> <restored-root> <activation-export> --bind-current-owner-self".into()),
     };
     let input = load_fresh(Path::new(manifest))?;
     let ids = Arc::new(OsIdSource);

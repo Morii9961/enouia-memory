@@ -363,7 +363,11 @@ fn restored_uncertain_fresh_run_keeps_original_packet_and_resolves_only_existing
 fn native_cli_resumes_activated_restore_without_original_home_or_replacement_keys() {
     use enouia_memory_contract::{foundation::Clock, ports::IdSource};
     use enouia_memory_host::owner_bootstrap::{registered_owner_root, run_cli};
-    use enouia_memory_vault::{RootPolicy, SystemClock, platform, verify_data_root};
+    use enouia_memory_vault::{
+        RootPolicy, SystemClock,
+        automation::{AUTOMATION_INTENT, AUTOMATION_WITNESS},
+        platform, verify_data_root,
+    };
     use std::path::{Path, PathBuf};
     let parent = PathBuf::from(
         std::env::var_os("ENOUIA_SYNTHETIC_DURABLE_PARENT").expect("selected synthetic parent"),
@@ -597,6 +601,15 @@ fn native_cli_resumes_activated_restore_without_original_home_or_replacement_key
         assert_eq!(open(&runnable_target).vault.snapshot().unwrap(), after);
     }
     let complete_journal = std::fs::read(runnable_target.path().join(JOURNAL)).unwrap();
+    let managed = ManagedRoot::new(runnable_target.path(), Faults::none());
+    let complete_witness = managed.read(AUTOMATION_WITNESS).unwrap().unwrap();
+    let intent: Value =
+        serde_json::from_slice(&managed.read(AUTOMATION_INTENT).unwrap().unwrap()).unwrap();
+    let previous_witness = canonical_bytes(&intent["before"]).unwrap();
+    // Emulate publication interrupted after CURRENT, before the matching witness.
+    managed
+        .write_atomic(AUTOMATION_WITNESS, &previous_witness)
+        .unwrap();
     let wrong = invoke("recover-restored", &runnable_target, &unknown_export);
     assert!(!wrong.status.success());
     manifest["analysis"]["statements"][0]["content"] = json!("Changed synthetic analysis.");
@@ -608,8 +621,30 @@ fn native_cli_resumes_activated_restore_without_original_home_or_replacement_key
         std::fs::read(runnable_target.path().join(JOURNAL)).unwrap(),
         complete_journal
     );
-    assert_eq!(open(&runnable_target).vault.snapshot().unwrap(), after);
+    assert_eq!(
+        managed.read(AUTOMATION_WITNESS).unwrap().unwrap(),
+        previous_witness
+    );
     std::fs::write(&manifest_path, original_manifest).unwrap();
+    let blocked = invoke("resume-restored", &runnable_target, &runnable_export);
+    assert!(!blocked.status.success());
+    assert!(String::from_utf8_lossy(&blocked.stderr).contains("RecoveryRequired"));
+    assert_eq!(
+        managed.read(AUTOMATION_WITNESS).unwrap().unwrap(),
+        previous_witness
+    );
+    let recovered = invoke("recover-restored", &runnable_target, &runnable_export);
+    assert!(
+        recovered.status.success(),
+        "{}",
+        String::from_utf8_lossy(&recovered.stderr)
+    );
+    assert_eq!(
+        managed.read(AUTOMATION_WITNESS).unwrap().unwrap(),
+        complete_witness
+    );
+    assert_eq!(managed.read(JOURNAL).unwrap().unwrap(), complete_journal);
+    assert_eq!(open(&runnable_target).vault.snapshot().unwrap(), after);
     for command in ["resume-restored", "recover-restored", "resume-restored"] {
         let result = invoke(command, &unknown_target, &unknown_export);
         assert!(!result.status.success());
