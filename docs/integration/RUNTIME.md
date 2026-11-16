@@ -1,5 +1,14 @@
 # Runtime integration (ADR-MEM-45)
 
+2026-11-16 activated restored-run continuation (ADR-MEM-147): additive native
+Owner-home/restore-proof helpers support the explicit fresh initializer CLI.
+Runtime calls none of them and has no new UI, IPC or command to adopt; Workspace
+remains 61 commands. Existing record/admission adoption gates remain independent.
+No descriptor, commit, journal or restore-receipt format changes. No Runtime
+checkout or real restored root is selected. Aggregate:
+`d44f0e84f6b07e7e55ee66a291cd418a3811734545f1402686ad110deec56199`.
+See [synthetic verification](../validation/Fresh-restored-run-resume.md).
+
 2026-11-16 text-only fresh retention (ADR-MEM-148): the initializer can explicitly
 leave attachment payloads unselected while preserving parsed metadata with the
 additive `memory-init.attachment-retention` extension. Textual sources and authored
