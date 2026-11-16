@@ -94,6 +94,22 @@ impl SegmentedAutomationVault {
         objects: &BTreeMap<Sha256Hex, Vec<u8>>,
     ) -> Result<AutomationCurrent> {
         self.native.system(system)?;
+        let mut text_view_objects = BTreeMap::new();
+        for source in sources.iter().filter(|s| s.record.has_visible_text_view()) {
+            let hash = source.record.raw_object_hash.as_ref().unwrap();
+            if !text_view_objects.contains_key(hash) {
+                let bytes = objects.get(hash).ok_or(AutomationFault::Denied)?;
+                if sha256(bytes) != *hash {
+                    return Err(AutomationFault::Denied);
+                }
+                let value: serde_json::Value =
+                    serde_json::from_slice(bytes).map_err(|_| AutomationFault::Denied)?;
+                text_view_objects.insert(hash.clone(), value);
+            }
+            if !source.visible_text_view_matches(&text_view_objects[hash]) {
+                return Err(AutomationFault::Denied);
+            }
+        }
         if sources.iter().any(|s| {
             !matches!(
                 s.record.source_kind,

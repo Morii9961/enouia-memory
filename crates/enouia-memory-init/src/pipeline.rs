@@ -151,6 +151,14 @@ pub struct StatementQuote {
     pub source_index: usize,
     pub quote: String,
 }
+#[derive(Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ContextQuote {
+    pub source_index: usize,
+    pub quote: String,
+    pub start: u32,
+    pub end: u32,
+}
 
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -255,10 +263,11 @@ impl Plan {
                 .objects
                 .get(&m.raw_hash)
                 .ok_or(AutomationFault::Denied)?;
-            if enouia_memory_import::locate::resolve(raw, &m.locator)
-                .ok()
-                .as_deref()
-                != Some(m.text.as_bytes())
+            if !m.visible_text_only
+                && enouia_memory_import::locate::resolve(raw, &m.locator)
+                    .ok()
+                    .as_deref()
+                    != Some(m.text.as_bytes())
             {
                 return Err(AutomationFault::Denied);
             }
@@ -347,7 +356,7 @@ impl Plan {
                     extensions: BTreeMap::new(),
                 })
                 .collect();
-            let record = SourceRecord {
+            let mut record = SourceRecord {
                 schema_version: SchemaVersion,
                 source_id: source_ids[index].clone(),
                 revision: revision(),
@@ -417,6 +426,12 @@ impl Plan {
                     }),
                 )]),
             };
+            if m.visible_text_only {
+                record.extensions.insert(
+                    "memory-init.visible-text-view".into(),
+                    json!({"version":1,"scope":"all_string_parts"}),
+                );
+            }
             let source = CapturedSource {
                 record,
                 text: m.text.clone(),
@@ -429,6 +444,13 @@ impl Plan {
                     conversation_id: session.clone(),
                 }),
             };
+            if m.visible_text_only {
+                let value: Value =
+                    serde_json::from_slice(raw).map_err(|_| AutomationFault::Denied)?;
+                if sha256(raw) != m.raw_hash || !source.visible_text_view_matches(&value) {
+                    return Err(AutomationFault::Denied);
+                }
+            }
             if !source.validate().is_empty() {
                 return Err(AutomationFault::Denied);
             }
@@ -882,6 +904,49 @@ impl Plan {
     }
     pub fn completed(&self) -> usize {
         self.work.iter().filter(|w| w.receipt.is_some()).count()
+    }
+    pub(crate) fn bind_fresh_provenance(
+        &mut self,
+        contexts: &[Vec<ContextQuote>],
+        origins: &[Value],
+    ) -> Result<()> {
+        if !contexts.is_empty() {
+            let mut retained = Vec::new();
+            for (index, quotes) in contexts.iter().enumerate() {
+                let work = self
+                    .work
+                    .iter()
+                    .find(|w| w.analysis_index == index)
+                    .ok_or(AutomationFault::Denied)?;
+                let mut evidence = Vec::new();
+                for q in quotes {
+                    let source = self
+                        .sources
+                        .get(q.source_index)
+                        .ok_or(AutomationFault::Denied)?;
+                    if !work.seed.input_refs.contains(&source.reference()) {
+                        return Err(AutomationFault::Denied);
+                    }
+                    let mut native =
+                        quoted_evidence(source, &q.quote).ok_or(AutomationFault::Denied)?;
+                    (native.start, native.end) = (q.start, q.end);
+                    if !native.resolves(&self.sources) {
+                        return Err(AutomationFault::Denied);
+                    }
+                    evidence.push(native);
+                }
+                retained.push(json!({"analysis_index":index,"quotes":evidence}));
+            }
+            self.analysis_artifact["context_evidence"] = json!(retained);
+        }
+        if !origins.is_empty() {
+            self.analysis_artifact["authored_origins"] = json!(origins);
+        }
+        // Hash authored indexes/ranges, not the freshly allocated SourceIds in
+        // the retained native context references. Resume must reuse the saved
+        // plans when the original input is unchanged.
+        self.analysis_hash = digest(&(&self.analysis_hash, contexts, origins));
+        Ok(())
     }
     pub fn receipts(&self) -> Vec<MemoryReceipt> {
         self.work.iter().filter_map(|w| w.receipt.clone()).collect()

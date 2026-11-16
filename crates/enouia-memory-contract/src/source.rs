@@ -130,6 +130,25 @@ pub fn is_account_alias(value: &str) -> bool {
 }
 
 impl SourceRecord {
+    /// An explicit imported text-view declaration. Trusted native import must
+    /// verify the complete string-parts view against Raw before persisting it.
+    pub fn has_visible_text_view(&self) -> bool {
+        self.source_kind == SourceKind::ExportMessage
+            && self.provider.as_deref() == Some("chatgpt")
+            && self.completeness == Completeness::Partial
+            && self.raw_object_hash.is_some()
+            && self
+                .original_conversation_id
+                .as_ref()
+                .is_some_and(|s| !s.is_empty())
+            && self
+                .original_message_id
+                .as_ref()
+                .is_some_and(|s| !s.is_empty())
+            && matches!(self.locator, Locator::JsonPointer { .. })
+            && self.extensions.get("memory-init.visible-text-view")
+                == Some(&serde_json::json!({"version":1,"scope":"all_string_parts"}))
+    }
     /// The object an evidence citation's `object_hash` must name: the received
     /// raw object for imports, otherwise the evidence content itself.
     pub fn anchor_hash(&self) -> &Sha256Hex {

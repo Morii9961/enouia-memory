@@ -120,6 +120,56 @@ pub struct CapturedSource {
     pub attributed_subject: Option<SubjectId>,
 }
 impl CapturedSource {
+    /// Check the declared complete text view against its original ChatGPT
+    /// object. The native importer separately verifies the Raw bytes/hash.
+    pub fn visible_text_view_matches(&self, raw: &serde_json::Value) -> bool {
+        if !self.record.has_visible_text_view() {
+            return false;
+        }
+        let crate::common::Locator::JsonPointer { pointer } = &self.record.locator else {
+            return false;
+        };
+        let tokens: Vec<_> = pointer.split('/').collect();
+        let ["", index, "mapping", node, "message", "content"] = tokens.as_slice() else {
+            return false;
+        };
+        let Some(conversation) = index
+            .parse::<usize>()
+            .ok()
+            .and_then(|i| raw.as_array()?.get(i))
+        else {
+            return false;
+        };
+        let Some(message) = raw.pointer(pointer.strip_suffix("/content").unwrap()) else {
+            return false;
+        };
+        let Some(parts) = message["content"]["parts"].as_array() else {
+            return false;
+        };
+        let text = parts
+            .iter()
+            .filter_map(serde_json::Value::as_str)
+            .collect::<Vec<_>>()
+            .join("\n");
+        let role = match message["author"]["role"].as_str() {
+            Some("user") => SpeakerRole::User,
+            Some("assistant") => SpeakerRole::Assistant,
+            Some("system") => SpeakerRole::System,
+            Some("tool") => SpeakerRole::Tool,
+            _ => SpeakerRole::Unknown,
+        };
+        let node_id = node.replace("~1", "/").replace("~0", "~");
+        parts.iter().any(|part| !part.is_string())
+            && !text.trim().is_empty()
+            && text == self.text
+            && role == self.record.speaker_role
+            && conversation["conversation_id"]
+                .as_str()
+                .or_else(|| conversation["id"].as_str())
+                == self.record.original_conversation_id.as_deref()
+            && Some(message["id"].as_str().unwrap_or(&node_id))
+                == self.record.original_message_id.as_deref()
+    }
     pub fn reference(&self) -> SourceRevisionRef {
         SourceRevisionRef {
             source_id: self.record.source_id.clone(),
@@ -128,6 +178,17 @@ impl CapturedSource {
     }
     pub fn validate(&self) -> Vec<Violation> {
         let mut errors = self.record.validate();
+        if self
+            .record
+            .extensions
+            .contains_key("memory-init.visible-text-view")
+            && !self.record.has_visible_text_view()
+        {
+            errors.push(Violation::new(
+                "automation.visible_text_view",
+                "/record/extensions",
+            ));
+        }
         if (!self.attachments.is_empty() || self.record_fields.is_some())
             && (self.attachments.len() > 128
                 || self.attachments.iter().any(|a| {

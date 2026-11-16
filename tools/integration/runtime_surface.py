@@ -30,6 +30,7 @@ FILES = {
     "contracts/ipc/memory-v1.schema.json": "agent-wire",
     "crates/enouia-memory-contract/src/ipc.rs": "agent-wire",
     "crates/enouia-memory-contract/src/policy.rs": "agent-policy",
+    "crates/enouia-memory-contract/src/source.rs": "source-view-admission",
     "crates/enouia-memory-govern/src/propose.rs": "agent-governance",
     "crates/enouia-memory-govern/src/lib.rs": "agent-governance",
     "crates/enouia-memory-context/src/compiler.rs": "agent-context",

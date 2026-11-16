@@ -12,6 +12,7 @@ pub struct AnalyzedPlanBatch {
     pub analysis: AnalyzedBatch,
     /// Original analysis positions, in unchanged caller order.
     pub statement_indices: Vec<usize>,
+    pub source_indices: Vec<usize>,
 }
 
 /// Every explicit quote and context source stays with its statement. Never
@@ -79,7 +80,7 @@ pub fn pack_analyzed(
     // filtering a Preparation does not otherwise change its input watermark.
     let source_bindings: Vec<_> = used.iter().map(|&i| {
         let m = &prep.messages[i];
-        json!({"index":i,"raw_hash":m.raw_hash,"platform":m.platform,
+        let mut binding = json!({"index":i,"raw_hash":m.raw_hash,"platform":m.platform,
             "account_alias":m.account_alias,"conversation":m.conversation,"conversation_title":m.conversation_title,
             "message_id":m.upstream_id,"locator":m.locator,"text_hash":sha256(m.text.as_bytes()),
             "sensitivity":m.sensitivity,"metadata":m.metadata,"branch":branches[&i],
@@ -91,7 +92,9 @@ pub fn pack_analyzed(
             "attachments":m.attachments.iter().map(|a|json!({"name":a.original_name,
                 "claimed_media_type":a.claimed_media_type,"size_bytes":a.size_bytes,
                 "availability":a.availability,"external_reference":a.external_reference,
-                "bytes_hash":a.bytes.as_deref().map(sha256)})).collect::<Vec<_>>()})
+                "bytes_hash":a.bytes.as_deref().map(sha256)})).collect::<Vec<_>>()});
+        if m.visible_text_only { binding["visible_text_only"] = json!(true); }
+        binding
     }).collect();
     let source_scope = digest(&source_bindings);
     let mut result = Vec::new();
@@ -149,6 +152,7 @@ pub fn pack_analyzed(
             ..Preparation::default()
         };
         result.push(AnalyzedPlanBatch {
+            source_indices: sources.iter().copied().collect(),
             preparation,
             analysis: AnalyzedBatch {
                 provenance: analysis.provenance.clone(),
