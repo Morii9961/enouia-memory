@@ -94,9 +94,11 @@ before authentication, object work, locking or record access; the old
 `SegmentedV1` layout cannot opt in through parser/model parameters. The ordinary
 runtime-only capture entry refuses typed attachment carriers. Old prototype
 roots are not migrated or offered for formal adoption.
-Already captured Runtime sources must retain their
-original `SourceRevisionRef` and capture key: the initializer does not yet expose
-a queue-only entry for those revisions, so do not repackage them as imports.
+Already captured Runtime sources retain their original `SourceRevisionRef` and
+capture key through Vault's `enqueue_captured` (ADR111). The shared worker
+(ADR112) and `Initializer::step_with_captures` schedule live work before backfill;
+do not repackage captured turns as imports. Runtime adoption and real analyzer
+acceptance remain separate from these native APIs.
 
 ## Explicit limits
 
