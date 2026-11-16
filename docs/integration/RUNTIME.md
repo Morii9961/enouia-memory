@@ -9,6 +9,14 @@ checkout or real restored root is selected. Aggregate:
 `d44f0e84f6b07e7e55ee66a291cd418a3811734545f1402686ad110deec56199`.
 See [synthetic verification](../validation/Fresh-restored-run-resume.md).
 
+2026-11-16 text-only fresh retention (ADR-MEM-148): the initializer can explicitly
+leave attachment payloads unselected while preserving parsed metadata with the
+additive `memory-init.attachment-retention` extension. Textual sources and authored
+analysis remain in Raw. This changes no native admission, contract enum, command,
+wire or integration-surface digest; Workspace remains at 61 commands. ADR146's
+compatible-reader requirement below still applies. No Runtime change or real
+library readiness is claimed. See [decision](../adr/148-fresh-text-only-retention.md).
+
 2026-11-16 explicit visible-text views (ADR-MEM-146): imported ChatGPT sources
 retain `completeness: partial` while an explicit `memory-init.visible-text-view`
 extension selects all string parts. Native import verifies the complete text,

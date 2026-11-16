@@ -75,6 +75,7 @@ fn input(count: usize, statements: usize) -> (PathBuf, FreshManifest) {
         .collect();
     let manifest = FreshManifest {
         format: "enouia-fresh-input/1".into(),
+        attachment_retention: AttachmentRetention::SelectedOriginals,
         shards: vec![ShardInput {
             alias: "shard".into(),
             account_alias: "synthetic".into(),
@@ -277,6 +278,113 @@ fn refuses_missing_changed_and_unbound_inputs_and_reports_explicit_unavailable()
 }
 
 #[test]
+fn explicit_metadata_only_never_opens_originals_or_reports_them_as_lost() {
+    let (dir, mut manifest) = mixed_input();
+    manifest.sources[0].visible_text_only = true;
+    save(&dir, &manifest);
+    let original_mode_hash = load(&dir).run_hash;
+    manifest.attachment_retention = AttachmentRetention::MetadataOnly;
+    // Conflicting selection refuses before attempting the nonexistent file.
+    manifest.sources[0].attachments[0]
+        .original
+        .as_mut()
+        .unwrap()
+        .path = "absent.png".into();
+    save(&dir, &manifest);
+    assert_eq!(
+        load_fresh(&dir.join("manifest.json")).err().unwrap(),
+        "fresh.attachment_retention"
+    );
+    for source in &mut manifest.sources {
+        for attachment in &mut source.attachments {
+            attachment.original = None;
+        }
+    }
+    let slot = manifest.sources[0].attachments.pop().unwrap();
+    save(&dir, &manifest);
+    assert_eq!(
+        load_fresh(&dir.join("manifest.json")).err().unwrap(),
+        "fresh.attachment_unbound"
+    );
+    manifest.sources[0].attachments.push(slot);
+    save(&dir, &manifest);
+    let input = load(&dir);
+    assert_ne!(input.run_hash, original_mode_hash);
+    assert_eq!(input.intake["attachments_present"], 0);
+    assert_eq!(input.intake["attachments_explicitly_unavailable"], 0);
+    assert_eq!(input.intake["unavailable_attachments"], json!([]));
+    assert_eq!(input.intake["attachments_metadata_only"], 3);
+    assert_eq!(input.intake["attachment_retention"], "metadata_only");
+    let env = owner();
+    let plans = input.plans(&env.descriptor, &OsIdSource).unwrap();
+    let source = &plans[0].sources[0];
+    assert!(source.record.has_visible_text_view());
+    assert_eq!(
+        source.attachments[0].availability,
+        Availability::ExternalReference
+    );
+    assert_eq!(source.attachments[1].availability, Availability::Missing);
+    for source in &plans[0].sources {
+        assert!(source.validate().is_empty());
+        for attachment in &source.attachments {
+            assert_eq!(
+                attachment.extensions["memory-init.attachment-retention"]["payload"],
+                "not_selected"
+            );
+            assert!(attachment.object_hash.is_none());
+            assert!(attachment.detected_media_type.is_none());
+        }
+    }
+    assert!(
+        !serde_json::to_value(&plans[0]).unwrap()["object_hashes"]
+            .as_array()
+            .unwrap()
+            .contains(&json!(sha256(b"\x89PNG\r\n\x1a\nsynthetic")))
+    );
+    let raw = input.batches[0]
+        .preparation
+        .objects
+        .values()
+        .next()
+        .unwrap();
+    assert!(
+        std::str::from_utf8(raw)
+            .unwrap()
+            .contains("SYNTHETIC SURROUNDING RAW CONTEXT")
+    );
+    let result = std::process::Command::new(env!("CARGO_BIN_EXE_enouia-memory-fresh"))
+        .args(["plan", dir.join("manifest.json").to_str().unwrap()])
+        .output()
+        .unwrap();
+    assert!(
+        result.status.success(),
+        "{}",
+        String::from_utf8_lossy(&result.stderr)
+    );
+    let result: Value = serde_json::from_slice(&result.stdout).unwrap();
+    assert_eq!(result["writes"], 0);
+    assert_eq!(result["ready_to_run"], true);
+    assert_eq!(result["intake"]["attachments_metadata_only"], 3);
+    let mut unknown = serde_json::to_value(&manifest).unwrap();
+    unknown["attachment_retention"] = json!("unknown_mode");
+    std::fs::write(
+        dir.join("manifest.json"),
+        serde_json::to_vec(&unknown).unwrap(),
+    )
+    .unwrap();
+    assert_eq!(
+        load_fresh(&dir.join("manifest.json")).err().unwrap(),
+        "fresh.manifest_shape"
+    );
+    // Omitting the new field retains the previous selection semantics.
+    let mut old = serde_json::to_value(&manifest).unwrap();
+    old.as_object_mut().unwrap().remove("attachment_retention");
+    std::fs::write(dir.join("manifest.json"), serde_json::to_vec(&old).unwrap()).unwrap();
+    assert_eq!(load(&dir).intake["attachments_explicitly_unavailable"], 3);
+    assert_eq!(load(&dir).intake["attachments_metadata_only"], 0);
+}
+
+#[test]
 fn context_closure_sensitivity_entity_layers_and_later_primary_occurrence_stay_bound() {
     let (dir, mut manifest) = input(3, 3);
     manifest.analysis.statements.pop();
@@ -331,8 +439,13 @@ fn context_closure_sensitivity_entity_layers_and_later_primary_occurrence_stay_b
 }
 
 #[test]
-fn native_multibatch_reopen_query_sources_no_multiplication_and_changed_run_conflicts() {
+fn native_text_only_multibatch_reopen_query_sources_no_multiplication_and_changed_run_conflicts() {
     let (dir, mut manifest) = input(65, 65);
+    manifest.attachment_retention = AttachmentRetention::MetadataOnly;
+    for source in &mut manifest.sources {
+        source.attachments[0].original = None;
+    }
+    save(&dir, &manifest);
     let input = load(&dir);
     let env = owner();
     // Native witnessed genesis, the same storage constructor used by bootstrap.
@@ -452,6 +565,15 @@ fn native_multibatch_reopen_query_sources_no_multiplication_and_changed_run_conf
             assert_eq!(data.memories.len(), 65);
             assert_eq!(data.sources.len(), 65);
             assert!(data.owner_actions.is_empty());
+            for source in data.sources.values() {
+                for attachment in &source.attachments {
+                    assert_eq!(
+                        attachment.extensions["memory-init.attachment-retention"]["payload"],
+                        "not_selected"
+                    );
+                    assert!(attachment.object_hash.is_none());
+                }
+            }
             let sources = data
                 .sources
                 .values()
@@ -472,6 +594,11 @@ fn native_multibatch_reopen_query_sources_no_multiplication_and_changed_run_conf
             }
         })
         .unwrap();
+    manifest.attachment_retention = AttachmentRetention::SelectedOriginals;
+    save(&dir, &manifest);
+    let changed_retention = load(&dir);
+    assert!(Initializer::check_fresh_run(&env.root, &changed_retention.run_hash).is_err());
+    manifest.attachment_retention = AttachmentRetention::MetadataOnly;
     manifest.analysis.statements[0].content.push_str(" changed");
     save(&dir, &manifest);
     let changed = load(&dir);
@@ -921,6 +1048,12 @@ fn trusted_cli_bootstrap_forms_reopens_queries_and_reuses_original_run() {
     .unwrap();
     let (dir, mut manifest) = mixed_input();
     manifest.sources[0].visible_text_only = true;
+    manifest.attachment_retention = AttachmentRetention::MetadataOnly;
+    for source in &mut manifest.sources {
+        for attachment in &mut source.attachments {
+            attachment.original = None;
+        }
+    }
     let now = SystemClock.now_unix_ms();
     manifest.formed_at = Timestamp::from_unix_ms(now).unwrap();
     manifest.formation_until = Timestamp::from_unix_ms(now + WEEK_MS).unwrap();
@@ -967,6 +1100,10 @@ fn trusted_cli_bootstrap_forms_reopens_queries_and_reuses_original_run() {
             assert_eq!(data.memories.len(), 2);
             assert_eq!(data.sources.len(), 2);
             assert!(data.owner_actions.is_empty());
+            assert!(data.sources.values().flat_map(|s| &s.attachments).all(|a| {
+                a.object_hash.is_none()
+                    && a.extensions["memory-init.attachment-retention"]["payload"] == "not_selected"
+            }));
             let sources = data
                 .sources
                 .values()

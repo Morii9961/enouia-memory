@@ -44,8 +44,15 @@ pub struct ShardInput {
 #[serde(deny_unknown_fields)]
 pub struct AttachmentInput {
     pub slot: usize,
-    /// None explicitly retains the parsed missing/external attachment.
+    /// None retains parsed availability; metadata-only also marks non-selection.
     pub original: Option<InputObject>,
+}
+#[derive(Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AttachmentRetention {
+    #[default]
+    SelectedOriginals,
+    MetadataOnly,
 }
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -64,6 +71,9 @@ pub struct SourceInput {
 #[serde(deny_unknown_fields)]
 pub struct FreshManifest {
     pub format: String,
+    /// Explicit run-wide choice; metadata-only never opens attachment files.
+    #[serde(default)]
+    pub attachment_retention: AttachmentRetention,
     pub shards: Vec<ShardInput>,
     /// Analysis indexes address this table. All entries must be dependencies.
     pub sources: Vec<SourceInput>,
@@ -128,6 +138,16 @@ pub fn load_fresh(path: &Path) -> Result<FreshInput, String> {
     {
         return Err("fresh.manifest_scope".into());
     }
+    let metadata_only = manifest.attachment_retention == AttachmentRetention::MetadataOnly;
+    if metadata_only
+        && manifest
+            .sources
+            .iter()
+            .flat_map(|s| &s.attachments)
+            .any(|a| a.original.is_some())
+    {
+        return Err("fresh.attachment_retention".into());
+    }
     let base = path.parent().ok_or("fresh.manifest_path")?;
     let mut materials = Vec::new();
     let mut selections = Vec::new();
@@ -158,6 +178,7 @@ pub fn load_fresh(path: &Path) -> Result<FreshInput, String> {
     let mut present = 0;
     let mut unavailable = 0;
     let mut unavailable_attachments = Vec::new();
+    let mut metadata_only_attachments = Vec::new();
     for (source_position, source) in manifest.sources.iter().enumerate() {
         let candidates: Vec<_> = prep
             .messages
@@ -181,6 +202,7 @@ pub fn load_fresh(path: &Path) -> Result<FreshInput, String> {
         }
         let mut message = (*original).clone();
         message.visible_text_only = source.visible_text_only;
+        message.attachments_metadata_only = metadata_only;
         message.branch = message
             .branch
             .clone()
@@ -195,7 +217,15 @@ pub fn load_fresh(path: &Path) -> Result<FreshInput, String> {
                 .attachments
                 .get_mut(binding.slot)
                 .ok_or("fresh.attachment_slot")?;
-            if let Some(object) = &binding.original {
+            if metadata_only {
+                // Do not redact an embedded payload or silently call it missing.
+                // Fresh selected JSON must already be a text/metadata carrier.
+                if attachment.bytes.is_some() {
+                    return Err("fresh.embedded_attachment_payload".into());
+                }
+                metadata_only_attachments.push(json!({"source_index":source_position,
+                    "slot":binding.slot,"parsed_availability":attachment.availability}));
+            } else if let Some(object) = &binding.original {
                 if attachment.external_reference.is_some()
                     || attachment
                         .original_name
@@ -377,6 +407,9 @@ pub fn load_fresh(path: &Path) -> Result<FreshInput, String> {
         "statements":analysis.statements.len(),"batches":batches.len(),
         "attachments_present":present,"attachments_explicitly_unavailable":unavailable,
         "unavailable_attachments":unavailable_attachments,
+        "attachment_retention":manifest.attachment_retention,
+        "attachments_metadata_only":metadata_only_attachments.len(),
+        "metadata_only_attachments":metadata_only_attachments,
         "visible_text_views":manifest.sources.iter().filter(|s|s.visible_text_only).count(),
         "context_quote_ranges":contexts.iter().map(Vec::len).sum::<usize>(),
         "authored_record_origins":origins.len(),

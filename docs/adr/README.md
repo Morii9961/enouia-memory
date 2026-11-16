@@ -856,3 +856,11 @@ reauthenticates the selected durable Owner home, verifies an already activated
 restore and its exact export, and resumes only its existing identical fresh run.
 The original plans/keys/unknown barriers and logical Owner IDs remain; no new
 registration, activation, authority transfer or persisted format is introduced.
+
+### ADR-MEM-148 — Explicit text-only fresh initialization
+
+[Decision](148-fresh-text-only-retention.md): explicitly retain attachment metadata
+without reading or archiving attachment originals. Preserve exact textual source
+and analysis Raw, distinguish intentionally unselected payloads from unavailable
+originals, and bind the choice to the complete native run. External deletion remains
+a later owner-confirmed action after acceptance and independent backup/restore.

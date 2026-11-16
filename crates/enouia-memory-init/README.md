@@ -173,3 +173,18 @@ This pure entry does not resolve attachment files, execute the bounded journal,
 bootstrap a production root, authorize reads or supply a fresh production CLI.
 Production use waits for Owner merge. See [decision](../../docs/adr/144-fresh-analysis-packing.md)
 and [focused validation](../../docs/validation/Fresh-analysis-packing.md).
+
+## Explicit text-only fresh retention (ADR-MEM-148)
+
+The production `enouia-memory-fresh` manifest accepts
+`"attachment_retention":"metadata_only"`. Bind every parsed attachment slot with
+`original:null`: preserve its metadata and record `payload:"not_selected"` in
+`memory-init.attachment-retention`, without opening or archiving attachment files.
+Conflicting original selections refuse. Preflight reports these slots separately
+from unavailable originals. Omitting the mode retains `selected_originals` behavior.
+
+Complete selected conversation JSON and authored analysis JSONL are still retained
+as exact textual Raw; source evidence, surrounding context and analysis provenance
+are not discarded. Images cannot be retrieved or rechecked from metadata alone.
+This mode neither deletes external originals nor changes any capacity/read boundary.
+See [decision](../../docs/adr/148-fresh-text-only-retention.md).
