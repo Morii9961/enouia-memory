@@ -70,6 +70,7 @@ fn input(count: usize, statements: usize) -> (PathBuf, FreshManifest) {
                     sha256: sha256(b"\x89PNG\r\n\x1a\nsynthetic"),
                 }),
             }],
+            visible_text_only: false,
         })
         .collect();
     let manifest = FreshManifest {
@@ -116,6 +117,9 @@ fn input(count: usize, statements: usize) -> (PathBuf, FreshManifest) {
                 .collect(),
         },
         quote_ranges: vec![vec![(0, 3), (10, 13)]; statements],
+        context_quotes: vec![],
+        authored_records: None,
+        record_origins: vec![],
         formed_at: Timestamp::from_unix_ms(NOW).unwrap(),
         formation_until: Timestamp::from_unix_ms(NOW + WEEK_MS).unwrap(),
         project_id: None,
@@ -129,6 +133,51 @@ fn save(dir: &std::path::Path, manifest: &FreshManifest) {
         serde_json::to_vec_pretty(manifest).unwrap(),
     )
     .unwrap();
+}
+fn mixed_input() -> (PathBuf, FreshManifest) {
+    let (dir, mut manifest) = input(2, 2);
+    let mut shard: Value =
+        serde_json::from_slice(&std::fs::read(dir.join("shard.json")).unwrap()).unwrap();
+    shard[0]["mapping"]["n"]["message"]["content"]["parts"]
+        .as_array_mut()
+        .unwrap()
+        .push(json!({"url":"https://example.invalid/unfetched","mime_type":"image/png"}));
+    let bytes = serde_json::to_vec(&shard).unwrap();
+    std::fs::write(dir.join("shard.json"), &bytes).unwrap();
+    manifest.shards[0].object.sha256 = sha256(&bytes);
+    let selected = prepare_chatgpt_selection(
+        &[Material {
+            alias: "shard".into(),
+            account_alias: "synthetic".into(),
+            format: Format::Auto,
+            bytes,
+        }],
+        &manifest.shards[0]
+            .conversation_ids
+            .iter()
+            .map(|id| ChatGptSelection {
+                shard_alias: "shard".into(),
+                conversation_id: id.clone(),
+            })
+            .collect::<Vec<_>>(),
+    )
+    .unwrap();
+    for source in &mut manifest.sources {
+        source.raw_object_hash = selected
+            .messages
+            .iter()
+            .find(|m| m.upstream_id.as_deref() == Some(&source.message_id))
+            .unwrap()
+            .raw_hash
+            .clone();
+    }
+    manifest.sources[0].attachments[0].slot = 1;
+    manifest.sources[0].attachments.push(AttachmentInput {
+        slot: 0,
+        original: None,
+    });
+    save(&dir, &manifest);
+    (dir, manifest)
 }
 fn owner() -> Env {
     let mut env = Env::new();
@@ -555,6 +604,277 @@ fn uncertain_original_binding_is_lookup_only_with_or_without_a_receipt() {
     }
 }
 
+#[test]
+fn visible_text_view_opt_in_preserves_partial_and_native_raw_proof_refuses_forgery() {
+    let (dir, mut manifest) = mixed_input();
+    let env = owner();
+    let default = load(&dir);
+    let plans = default.plans(&env.descriptor, &OsIdSource).unwrap();
+    assert!(fresh_journal_capacity(&plans, &env.descriptor, &default.run_hash).is_err());
+    manifest.sources[0].visible_text_only = true;
+    save(&dir, &manifest);
+    let input = load(&dir);
+    let plans = input.plans(&env.descriptor, &OsIdSource).unwrap();
+    let source = &plans[0].sources[0];
+    assert_eq!(
+        source.record.completeness,
+        enouia_memory_contract::source::Completeness::Partial
+    );
+    assert!(source.record.has_visible_text_view());
+    assert_eq!(source.attachments.len(), 2);
+    assert_eq!(
+        source.attachments[0].availability,
+        Availability::ExternalReference
+    );
+    assert_eq!(source.attachments[1].availability, Availability::Present);
+    let mut init = Initializer::create_synthetic(
+        &env.root,
+        env.descriptor.clone(),
+        env.clock.clone(),
+        Arc::new(OsIdSource),
+    )
+    .unwrap();
+    let before = init.vault.snapshot().unwrap();
+    for alteration in 0..7 {
+        let mut forged = plans[0].sources.clone();
+        match alteration {
+            0 => {
+                forged[0].text = "cut text".into();
+                forged[0].record.content_hash = sha256(b"cut text");
+            }
+            1 => forged[0].record.original_message_id = Some("other-message".into()),
+            2 => {
+                forged[0].record.locator = Locator::JsonPointer {
+                    pointer: "/0/mapping/n/message/content/parts/0".into(),
+                }
+            }
+            3 => {
+                forged[0].record.extensions.insert(
+                    "memory-init.visible-text-view".into(),
+                    json!({"version":1,"scope":"images"}),
+                );
+            }
+            4 => forged[0].record.raw_object_hash = Some(sha256(b"missing raw")),
+            5 => {
+                forged[0].record.speaker_role = SpeakerRole::Assistant;
+                forged[0].record.evidence_class = EvidenceClass::ModelClaim;
+                forged[0].attributed_subject = None;
+            }
+            _ => forged[0].record.original_conversation_id = Some("other-conversation".into()),
+        }
+        assert!(
+            init.vault
+                .capture_import(
+                    &env.descriptor.system_actor,
+                    forged,
+                    plans[0].catalog.clone(),
+                    &input.batches[0].preparation.objects
+                )
+                .is_err()
+        );
+        assert_eq!(init.vault.snapshot().unwrap(), before);
+    }
+    let capacity = fresh_journal_capacity(&plans, &env.descriptor, &input.run_hash).unwrap();
+    let prep = input
+        .batches
+        .iter()
+        .map(|b| b.preparation.clone())
+        .collect::<Vec<_>>();
+    init.enqueue_fresh(input.run_hash, plans, &prep).unwrap();
+    while init.step().unwrap() {}
+    drop(init);
+    let init = Initializer::open_synthetic(
+        &env.root,
+        env.descriptor.host_id.clone(),
+        env.clock.clone(),
+        Arc::new(OsIdSource),
+    )
+    .unwrap();
+    init.vault
+        .read(&env.descriptor.system_actor, Sensitivity::Private, |data| {
+            assert_eq!(data.memories.len(), 2);
+            assert!(data.owner_actions.is_empty());
+            let source = data
+                .sources
+                .values()
+                .find(|s| s.record.has_visible_text_view())
+                .unwrap();
+            assert_eq!(
+                source.record.completeness,
+                enouia_memory_contract::source::Completeness::Partial
+            );
+            assert_eq!(
+                source.attachments[0].availability,
+                Availability::ExternalReference
+            );
+            let all = data
+                .sources
+                .values()
+                .map(|s| (*s).clone())
+                .collect::<Vec<_>>();
+            assert!(data.memories.iter().all(|m| {
+                m.memory
+                    .decision
+                    .input
+                    .record_fields
+                    .as_ref()
+                    .unwrap()
+                    .evidence
+                    .iter()
+                    .all(|q| q.resolves(&all))
+            }));
+        })
+        .unwrap();
+    assert!(
+        std::fs::metadata(env.path.join("sync-state/initialization-owner-1.json"))
+            .unwrap()
+            .len()
+            <= capacity.lifecycle_bound_bytes as u64
+    );
+}
+
+#[test]
+fn precise_context_and_original_authored_records_are_bound_and_archived_without_promotion() {
+    let (dir, mut manifest) = input(3, 3);
+    manifest.analysis.statements.pop();
+    manifest.quote_ranges.pop();
+    manifest.analysis.statements[0].statement.context_sources = vec![2];
+    manifest.context_quotes = vec![
+        vec![
+            ContextQuote {
+                source_index: 2,
+                quote: "quiet.".into(),
+                start: 3,
+                end: 9,
+            },
+            ContextQuote {
+                source_index: 0,
+                quote: "quiet.".into(),
+                start: 3,
+                end: 9,
+            },
+        ],
+        vec![],
+    ];
+    let records=manifest.analysis.statements.iter().rev().enumerate().map(|(i,s)|json!({
+        "id":format!("synthetic-authored-{i}"),"revision":7,"content":s.content,"title":s.statement.title,
+        "analysis_provenance":{"actor":"Original synthetic author","model_version":null},
+        "layer":"fictional_setting","fine_time":{"precision":"historical_day","basis":"source author metadata, never expiry"},
+        "cautions":["Synthetic original metadata remains unchanged"]})).collect::<Vec<_>>();
+    let raw = records
+        .iter()
+        .map(|r| serde_json::to_string(r).unwrap() + "\n")
+        .collect::<String>()
+        .into_bytes();
+    std::fs::write(dir.join("authored.jsonl"), &raw).unwrap();
+    let hash = sha256(&raw);
+    manifest.authored_records = Some(InputObject {
+        path: "authored.jsonl".into(),
+        sha256: hash.clone(),
+    });
+    manifest.record_origins = vec![1, 0];
+    save(&dir, &manifest);
+    let input = load(&dir);
+    let env = owner();
+    let plans = input.plans(&env.descriptor, &OsIdSource).unwrap();
+    let serialized = serde_json::to_value(&plans[0]).unwrap();
+    let quote = &serialized["analysis_artifact"]["context_evidence"][0]["quotes"][0];
+    assert_eq!(quote["quote"], "quiet.");
+    assert_eq!(quote["start"], 3);
+    assert_eq!(quote["end"], 9);
+    assert_eq!(
+        serialized["analysis_artifact"]["authored_origins"][0]["record_index"],
+        1
+    );
+    let mut init = Initializer::create_synthetic(
+        &env.root,
+        env.descriptor.clone(),
+        env.clock.clone(),
+        Arc::new(OsIdSource),
+    )
+    .unwrap();
+    let prep = input
+        .batches
+        .iter()
+        .map(|b| b.preparation.clone())
+        .collect::<Vec<_>>();
+    init.enqueue_fresh(input.run_hash.clone(), plans, &prep)
+        .unwrap();
+    while init.step().unwrap() {}
+    let managed = ManagedRoot::new(&env.path, Faults::none());
+    assert_eq!(
+        managed
+            .read_bounded(
+                &enouia_memory_contract::layout::raw_object(&hash),
+                16 * 1024 * 1024
+            )
+            .unwrap()
+            .unwrap(),
+        raw
+    );
+    init.vault
+        .read(&env.descriptor.system_actor, Sensitivity::Private, |data| {
+            let memory = data
+                .memories
+                .iter()
+                .find(|m| {
+                    m.memory.decision.input.content == manifest.analysis.statements[0].content
+                })
+                .unwrap();
+            assert_eq!(memory.memory.decision.input.context_source_refs.len(), 1);
+            assert_eq!(
+                memory
+                    .memory
+                    .decision
+                    .input
+                    .record_fields
+                    .as_ref()
+                    .unwrap()
+                    .evidence
+                    .len(),
+                2
+            );
+        })
+        .unwrap();
+    let before = init.vault.snapshot().unwrap();
+    drop(init);
+    let mut init = Initializer::open_synthetic(
+        &env.root,
+        env.descriptor.host_id.clone(),
+        env.clock.clone(),
+        Arc::new(OsIdSource),
+    )
+    .unwrap();
+    init.enqueue_fresh(
+        input.run_hash.clone(),
+        input.plans(&env.descriptor, &OsIdSource).unwrap(),
+        &prep,
+    )
+    .unwrap();
+    assert!(!init.step().unwrap());
+    assert_eq!(init.vault.snapshot().unwrap(), before);
+    manifest.context_quotes[0][0].start = 4;
+    save(&dir, &manifest);
+    assert!(load_fresh(&dir.join("manifest.json")).is_err());
+    manifest.context_quotes[0][0].start = 3;
+    manifest.analysis.statements[0].content.push_str(" changed");
+    save(&dir, &manifest);
+    assert_eq!(
+        load_fresh(&dir.join("manifest.json")).err().unwrap(),
+        "fresh.authored_record_content"
+    );
+    manifest.analysis.statements[0].content = records[1]["content"].as_str().unwrap().into();
+    let changed = String::from_utf8(raw)
+        .unwrap()
+        .replace("Original synthetic author", "Changed synthetic author")
+        .into_bytes();
+    std::fs::write(dir.join("authored.jsonl"), &changed).unwrap();
+    manifest.authored_records.as_mut().unwrap().sha256 = sha256(&changed);
+    save(&dir, &manifest);
+    let changed = load(&dir);
+    assert!(Initializer::check_fresh_run(&env.root, &changed.run_hash).is_err());
+}
+
 /// Opt-in because native bootstrap requires a durable owner-only home outside
 /// repositories/temp roots. Creates a uniquely named, synthetic-only protected
 /// home beneath the explicitly supplied parent; retains it with its markers.
@@ -599,7 +919,8 @@ fn trusted_cli_bootstrap_forms_reopens_queries_and_reuses_original_run() {
         "--bind-current-owner-self".into(),
     ])
     .unwrap();
-    let (dir, mut manifest) = input(3, 3);
+    let (dir, mut manifest) = mixed_input();
+    manifest.sources[0].visible_text_only = true;
     let now = SystemClock.now_unix_ms();
     manifest.formed_at = Timestamp::from_unix_ms(now).unwrap();
     manifest.formation_until = Timestamp::from_unix_ms(now + WEEK_MS).unwrap();
@@ -624,7 +945,7 @@ fn trusted_cli_bootstrap_forms_reopens_queries_and_reuses_original_run() {
             String::from_utf8_lossy(&result.stderr)
         );
         let result: Value = serde_json::from_slice(&result.stdout).unwrap();
-        assert_eq!(result["ledger"]["extraction"]["committed_revisions"], 3);
+        assert_eq!(result["ledger"]["extraction"]["committed_revisions"], 2);
         assert_eq!(result["ledger"]["extraction"]["model_invocations"], 0);
     }
     let (root, descriptor) = registered_owner_root(
@@ -643,8 +964,8 @@ fn trusted_cli_bootstrap_forms_reopens_queries_and_reuses_original_run() {
     let before = init.vault.snapshot().unwrap();
     init.vault
         .read(&descriptor.system_actor, Sensitivity::Private, |data| {
-            assert_eq!(data.memories.len(), 3);
-            assert_eq!(data.sources.len(), 3);
+            assert_eq!(data.memories.len(), 2);
+            assert_eq!(data.sources.len(), 2);
             assert!(data.owner_actions.is_empty());
             let sources = data
                 .sources

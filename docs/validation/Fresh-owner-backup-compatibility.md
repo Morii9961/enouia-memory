@@ -59,7 +59,10 @@ root-opening authority for an actual restored installation must be verified in
 its own authorized acceptance, preserving the original operation and unknown
 barriers. Existing Owner restore quarantine and stop-old-Host requirements remain.
 
-ADR146 work in the separate main checkout is outside this PR's baseline. This
-coverage does not certify its unmerged semantics or a real corpus's capacity.
+After ADR146 merged as main `a543c1e`, this branch integrated that exact main
+without changing the regression fixture. The same focused `fresh_backup` target
+was rerun: **2 passed**, no ignored/filtered tests, 25.54 seconds. This establishes
+combined local compatibility for these synthetic inputs, not real corpus capacity
+or independently encrypted media. No ADR146 implementation was rewritten.
 No full-workspace, Linux, schema, Runtime surface or independent-media checks
 were run for this test-only change.

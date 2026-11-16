@@ -6,8 +6,26 @@ Runtime calls none of them and has no new UI, IPC or command to adopt; Workspace
 remains 61 commands. Existing record/admission adoption gates remain independent.
 No descriptor, commit, journal or restore-receipt format changes. No Runtime
 checkout or real restored root is selected. Aggregate:
-`ba26aab7163b5702a37a73b36b4e61e9c2474869f32d37a0c44bee11ccef66b5`.
+`d44f0e84f6b07e7e55ee66a291cd418a3811734545f1402686ad110deec56199`.
 See [synthetic verification](../validation/Fresh-restored-run-resume.md).
+
+2026-11-16 explicit visible-text views (ADR-MEM-146): imported ChatGPT sources
+retain `completeness: partial` while an explicit `memory-init.visible-text-view`
+extension selects all string parts. Native import verifies the complete text,
+Raw hash, locator, upstream identity and speaker. Admission then permits exact
+text evidence under the existing role/subject/sensitivity/dependency rules.
+Attachments keep their actual availability; this proves no image content and
+creates no read grant. Unselected Partial still refuses. Aggregate:
+`723ec245e7ddcd0c5a5a81b84ac1cb7bbd794c99dab0ed99e4e88b480971d50f`.
+
+Runtime must adopt a compatible pin/aggregate before opening a root containing
+these text-view memories: older admission evaluators can refuse replay. This is
+this increment's adoption requirement; the previous adoption of `eb70509` remains
+completed. Workspace stays at 61 commands; no wire/adapter/UI or Runtime checkout
+changes here. The manifest now also tracks the shared source declaration helper.
+Fresh initialization separately retains exact context ranges and archived authored
+metadata through its private analysis artifacts; those are not a database, grant,
+IPC change or real-library readiness signal. See [synthetic validation](../validation/Fresh-visible-text-view.md).
 
 2026-11-15 fresh native initialization driver (ADR-MEM-145): the Host exposes a
 trusted-native `registered_owner_root` lookup to reauthenticate the exact recorded
