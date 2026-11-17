@@ -23,7 +23,7 @@ fn parse(kind: &str, value: &Value) -> Result<Value, ContractError> {
         "policy" => {
             parse_document::<AutomationPolicy>(&bytes).map(|v| serde_json::to_value(v).unwrap())
         }
-        "input" => {
+        "input" | "input-grouped-origins" => {
             parse_document::<AdmissionInput>(&bytes).map(|v| serde_json::to_value(v).unwrap())
         }
         "decision" => {
@@ -393,6 +393,112 @@ fn repeated_sources_copies_and_upstream_messages_do_not_multiply_support() {
         w.sources.push(copy);
         rule(w.evaluate(), "next.duplicate_origin");
     }
+}
+
+#[test]
+fn explicit_origin_groups_retain_copies_without_changing_outcomes_or_source_gates() {
+    for same_content in [true, false] {
+        let mut w = World::new();
+        let baseline = w.evaluate().unwrap().outcome;
+        let mut copy = w.sources[0].clone();
+        copy.source_id = SourceId::from_random([7; 16]);
+        if !same_content {
+            copy.content_hash = sha256(b"rewrapped same upstream message");
+        } else {
+            copy.original_message_id = Some("distinct-original-occurrence".into());
+        }
+        let dependency = SourceRevisionRef {
+            source_id: copy.source_id.clone(),
+            source_revision: copy.revision,
+        };
+        let mut evidence = w.input.evidence[0].clone();
+        evidence.source_id = copy.source_id.clone();
+        w.input.evidence.push(evidence);
+        w.input.input_refs.push(dependency);
+        w.policy.source_ids.push(copy.source_id.clone());
+        w.rebind_policy();
+        w.sources.push(copy);
+        rule(w.evaluate(), "next.duplicate_origin");
+        w.input.support_origin_groups =
+            support_origin_groups(&[&w.sources[0], w.sources.last().unwrap()]);
+        assert_eq!(w.input.support_origin_groups[0].len(), 2);
+        assert_eq!(w.evaluate().unwrap().outcome, baseline);
+        let bytes = canonical_bytes(&w.input).unwrap();
+        assert_eq!(parse_document::<AdmissionInput>(&bytes).unwrap(), w.input);
+        let mut stale = w.clone();
+        stale.input.support_origin_groups[0][0].source_revision = rev(2);
+        rule(stale.evaluate(), "next.support_origin_groups");
+        let mut reversed = w.clone();
+        reversed.input.support_origin_groups[0].reverse();
+        rule(reversed.evaluate(), "next.support_origin_groups");
+        let mut unrelated = w.clone();
+        unrelated.sources.last_mut().unwrap().content_hash = sha256(b"unrelated");
+        unrelated.sources.last_mut().unwrap().original_message_id =
+            Some("unrelated-message".into());
+        rule(unrelated.evaluate(), "next.support_origin_groups");
+        let mut unavailable = w.clone();
+        unavailable.sources.last_mut().unwrap().completeness = Completeness::Partial;
+        rule(unavailable.evaluate(), "next.source_unavailable");
+        let mut role = w.clone();
+        role.sources.last_mut().unwrap().speaker_role = SpeakerRole::Assistant;
+        role.sources.last_mut().unwrap().evidence_class = EvidenceClass::ModelClaim;
+        role.input.evidence.last_mut().unwrap().evidence_class = EvidenceClass::ModelClaim;
+        rule(role.evaluate(), "next.self_report_support");
+    }
+}
+
+#[test]
+fn origin_components_are_transitive_and_cannot_be_split_or_merge_unrelated_sources() {
+    let mut w = World::new();
+    let original = w.sources[0].clone();
+    for (n, same_content) in [(7, true), (8, false)] {
+        let mut copy = original.clone();
+        copy.source_id = SourceId::from_random([n; 16]);
+        copy.original_message_id = Some("linked-upstream".into());
+        if !same_content {
+            copy.content_hash = sha256(b"different text same upstream");
+        }
+        w.input.input_refs.push(SourceRevisionRef {
+            source_id: copy.source_id.clone(),
+            source_revision: copy.revision,
+        });
+        let mut evidence = w.input.evidence[0].clone();
+        evidence.source_id = copy.source_id.clone();
+        w.input.evidence.push(evidence);
+        w.policy.source_ids.push(copy.source_id.clone());
+        w.sources.push(copy);
+    }
+    w.rebind_policy();
+    let records = [&w.sources[0], &w.sources[2], &w.sources[3]];
+    w.input.support_origin_groups = support_origin_groups(&records);
+    assert_eq!(w.input.support_origin_groups.len(), 1);
+    assert_eq!(w.input.support_origin_groups[0].len(), 3);
+    let reversed = [records[2], records[0], records[1]];
+    assert_eq!(
+        support_origin_groups(&reversed),
+        w.input.support_origin_groups
+    );
+    assert!(w.evaluate().is_ok());
+    let mut split = w.clone();
+    split.input.support_origin_groups[0].pop();
+    rule(split.evaluate(), "next.support_origin_groups");
+    let mut overlap = w.clone();
+    overlap
+        .input
+        .support_origin_groups
+        .push(overlap.input.support_origin_groups[0].clone());
+    rule(overlap.evaluate(), "next.support_origin_groups");
+    let mut extra = w.clone();
+    extra.input.support_origin_groups[0].push(extra.input.context_source_refs[0].clone());
+    rule(extra.evaluate(), "next.support_origin_groups");
+    // The pre-existing ungrouped shape keeps the exact legacy serialization.
+    let legacy = World::new().input;
+    assert!(
+        serde_json::to_value(legacy)
+            .unwrap()
+            .get("support_origin_groups")
+            .is_none()
+    );
 }
 
 #[test]

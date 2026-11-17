@@ -379,6 +379,19 @@
         },
         "record_fields": {
           "$ref": "ui-records-v2.schema.json#/$defs/memoryFields"
+        },
+        "support_origin_groups": {
+          "type": "array",
+          "maxItems": 64,
+          "items": {
+            "type": "array",
+            "minItems": 2,
+            "maxItems": 128,
+            "uniqueItems": true,
+            "items": {
+              "$ref": "../memory/common-v1.schema.json#/$defs/sourceRevisionRef"
+            }
+          }
         }
       }
     },

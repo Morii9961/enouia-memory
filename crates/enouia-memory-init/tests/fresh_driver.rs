@@ -191,6 +191,179 @@ fn load(dir: &std::path::Path) -> FreshInput {
 }
 
 #[test]
+fn identical_text_occurrences_retain_both_origins_in_one_support_group() {
+    let (dir, mut manifest) = input(2, 1);
+    manifest.analysis.statements[0].supporting_quotes[0].source_index = 1;
+    save(&dir, &manifest);
+    let input = load(&dir);
+    let env = owner();
+    let plans = input.plans(&env.descriptor, &OsIdSource).unwrap();
+    let capacity = fresh_journal_capacity(&plans, &env.descriptor, &input.run_hash).unwrap();
+    assert!(capacity.fits);
+    assert!(std::fs::read_dir(env.root.path()).unwrap().next().is_none());
+    let seed = &serde_json::to_value(&plans[0]).unwrap()["work"][0]["seed"];
+    assert_eq!(seed["support_origin_groups"].as_array().unwrap().len(), 1);
+    assert_eq!(
+        seed["support_origin_groups"][0].as_array().unwrap().len(),
+        2
+    );
+    assert_eq!(
+        seed["record_fields"]["evidence"].as_array().unwrap().len(),
+        2
+    );
+    let preparations: Vec<_> = input
+        .batches
+        .iter()
+        .map(|b| b.preparation.clone())
+        .collect();
+    let mut init = Initializer::create_synthetic(
+        &env.root,
+        env.descriptor.clone(),
+        env.clock.clone(),
+        Arc::new(OsIdSource),
+    )
+    .unwrap();
+    init.enqueue_fresh(input.run_hash.clone(), plans, &preparations)
+        .unwrap();
+    while init.step().unwrap() {
+        assert!(
+            std::fs::metadata(env.path.join("sync-state/initialization-owner-1.json"))
+                .unwrap()
+                .len()
+                <= capacity.lifecycle_bound_bytes as u64
+        );
+    }
+    let before = init.vault.snapshot().unwrap();
+    drop(init);
+    let mut init = Initializer::open_synthetic(
+        &env.root,
+        env.descriptor.host_id.clone(),
+        env.clock.clone(),
+        Arc::new(OsIdSource),
+    )
+    .unwrap();
+    init.vault
+        .read(&env.descriptor.system_actor, Sensitivity::Private, |data| {
+            assert_eq!(data.memories.len(), 1);
+            assert_eq!(data.sources.len(), 2);
+            let sources: Vec<_> = data.sources.values().map(|s| (*s).clone()).collect();
+            let decision = &data.memories[0].memory.decision;
+            assert_eq!(decision.input.support_origin_groups.len(), 1);
+            assert_eq!(
+                decision.outcome.knowledge,
+                KnowledgeState::AttributedStatement
+            );
+            let quotes = &decision.input.record_fields.as_ref().unwrap().evidence;
+            assert_eq!(quotes.len(), 2);
+            assert_eq!((quotes[0].start, quotes[0].end), (0, 3));
+            assert_eq!((quotes[1].start, quotes[1].end), (10, 13));
+            assert_ne!(quotes[0].reference.source_id, quotes[1].reference.source_id);
+            assert!(quotes.iter().all(|q| q.resolves(&sources)));
+            for (quote, expected) in quotes.iter().zip(&manifest.sources) {
+                let source = sources
+                    .iter()
+                    .find(|s| s.record.source_id == quote.reference.source_id)
+                    .unwrap();
+                assert_eq!(
+                    source.record.original_message_id.as_deref(),
+                    Some(expected.message_id.as_str())
+                );
+                assert_eq!(
+                    source.record.raw_object_hash.as_ref(),
+                    Some(&expected.raw_object_hash)
+                );
+            }
+        })
+        .unwrap();
+    let reader = SegmentedMemoryReader::from_authenticated_system(
+        init.vault.clone(),
+        env.descriptor.system_actor.clone(),
+    )
+    .unwrap();
+    let profile: AttentionProfile =
+        serde_json::from_value(value("attention/profile.json")).unwrap();
+    let filter = CatalogFilter::default();
+    let request = CatalogReadRequest {
+        profile: &profile,
+        filter: &filter,
+        options: CatalogReadOptions {
+            limit: 100,
+            max_bytes: MAX_DOCUMENT_BYTES,
+            max_sensitivity: Sensitivity::Private,
+            include_facets: false,
+        },
+    };
+    assert_eq!(
+        reader
+            .memory_page_native(&request, None)
+            .unwrap()
+            .items
+            .len(),
+        1
+    );
+    for (source, (start, end)) in init.plans()[0]
+        .sources
+        .iter()
+        .zip(&manifest.quote_ranges[0])
+    {
+        let excerpt = reader
+            .memory_source_excerpt_native(&request, &source.reference(), *start, end - start)
+            .unwrap();
+        assert_eq!(excerpt.excerpt.as_deref(), Some("同文。"));
+    }
+    drop(reader);
+    init.enqueue_fresh(
+        input.run_hash.clone(),
+        input.plans(&env.descriptor, &OsIdSource).unwrap(),
+        &preparations,
+    )
+    .unwrap();
+    assert!(!init.step().unwrap());
+    assert_eq!(init.vault.snapshot().unwrap(), before);
+}
+
+#[test]
+fn grouped_quotes_reach_the_existing_native_bound_without_expanding_it() {
+    let (dir, mut manifest) = input(64, 1);
+    manifest.analysis.statements[0].supporting_quotes.clear();
+    manifest.quote_ranges[0] = vec![(0, 3)];
+    for source_index in 0..64 {
+        for range in [(0, 3), (10, 13)] {
+            if source_index == 0 && range == (0, 3) {
+                continue;
+            }
+            manifest.analysis.statements[0]
+                .supporting_quotes
+                .push(StatementQuote {
+                    source_index,
+                    quote: "同文。".into(),
+                });
+            manifest.quote_ranges[0].push(range);
+        }
+    }
+    save(&dir, &manifest);
+    let input = load(&dir);
+    let env = owner();
+    let plans = input.plans(&env.descriptor, &OsIdSource).unwrap();
+    let capacity = fresh_journal_capacity(&plans, &env.descriptor, &input.run_hash).unwrap();
+    assert!(capacity.fits);
+    let mut seed: AdmissionInput =
+        serde_json::from_value(serde_json::to_value(&plans[0]).unwrap()["work"][0]["seed"].clone())
+            .unwrap();
+    assert_eq!(seed.evidence.len(), MAX_SOURCES);
+    assert_eq!(seed.support_origin_groups[0].len(), 64);
+    seed.evidence.push(seed.evidence[0].clone());
+    let fields = seed.record_fields.as_mut().unwrap();
+    fields.evidence.push(fields.evidence[0].clone());
+    assert!(
+        seed.validate()
+            .iter()
+            .any(|v| v.rule == "next.evidence_required")
+    );
+    assert!(std::fs::read_dir(env.root.path()).unwrap().next().is_none());
+}
+
+#[test]
 fn dry_run_maps_explicit_revisions_ranges_raw_and_attachment_closure_without_writes() {
     let (dir, mut manifest) = input(65, 65);
     // Deliberately reverse table order, adjusting analysis to the explicit table.

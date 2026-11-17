@@ -1,5 +1,23 @@
 # Runtime integration (ADR-MEM-45)
 
+2026-11-17 grouped support origins (ADR-MEM-149): `AdmissionInput` gains optional
+`support_origin_groups`. Exact supporting occurrences remain in evidence; equal
+content or upstream identity forms one explicitly recorded origin component.
+The native evaluator verifies the complete canonical grouping against trusted
+source metadata. Old inputs omit the field and retain their prior serialization
+and duplicate-origin refusal. Interpretation/adoption outcomes do not change.
+Aggregate: `df3248e725f92952d0be265092babd5dbdbe6fec642720a0c400c71cbd9e7e53`.
+
+Runtime must adopt a compatible exact pin before opening grouped decisions;
+older closed readers can reject them. Preserve groups in native adapters and
+treat a group as one support origin, never quote/occurrence counts as independent
+corroboration. All original source and quote identities remain available to the
+existing readers. Workspace remains 61 commands, with no added UI or IPC command.
+This repository changes no Runtime checkout, read grant or installation. Real
+initialization and whole-run capacity await the merged capability separately.
+See the [decision](../adr/149-grouped-support-origins.md) and
+[synthetic verification](../validation/Grouped-support-origins.md).
+
 2026-11-16 activated restored-run continuation (ADR-MEM-147): additive native
 Owner-home/restore-proof helpers support the explicit fresh initializer CLI.
 Runtime calls none of them and has no new UI, IPC or command to adopt; Workspace

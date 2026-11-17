@@ -140,9 +140,27 @@ pub fn evaluate(
         sensitivity_floor = sensitivity_floor.max(source.record.sensitivity);
     }
 
-    let mut supporting_sources = BTreeSet::new();
-    let mut content_hashes = BTreeSet::new();
-    let mut upstream_ids = BTreeSet::new();
+    let supporting_sources: Vec<_> = context
+        .sources
+        .iter()
+        .filter(|s| {
+            input
+                .evidence
+                .iter()
+                .any(|e| e.source_id == s.record.source_id)
+        })
+        .map(|s| s.record)
+        .collect();
+    let groups = support_origin_groups(&supporting_sources);
+    if input.support_origin_groups.is_empty() && !groups.is_empty() {
+        return Err(invalid("next.duplicate_origin", "/evidence"));
+    }
+    if input.support_origin_groups != groups {
+        return Err(invalid(
+            "next.support_origin_groups",
+            "/support_origin_groups",
+        ));
+    }
     for support in &input.evidence {
         // Closure above already proved existence and exact revisions.
         let source = context
@@ -156,22 +174,6 @@ pub fn evaluate(
             || support.evidence_class != source.evidence_class
         {
             return Err(invalid("next.evidence_anchor", "/evidence"));
-        }
-        let upstream = source.original_message_id.as_ref().map(|message| {
-            (
-                &source.provider,
-                &source.account_scope,
-                &source.original_conversation_id,
-                message,
-            )
-        });
-        // Multiple exact ranges remain one source origin. Distinct source IDs
-        // that copy content or the same upstream message are still refused.
-        if supporting_sources.insert(&source.source_id)
-            && (!content_hashes.insert(source.content_hash.clone())
-                || upstream.is_some_and(|id| !upstream_ids.insert(id)))
-        {
-            return Err(invalid("next.duplicate_origin", "/evidence"));
         }
         if input.interpretation == Interpretation::ClearSelfReport
             && (source.speaker_role != SpeakerRole::User

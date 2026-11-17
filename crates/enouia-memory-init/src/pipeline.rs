@@ -885,6 +885,18 @@ impl Plan {
                 seed.evidence.push(quote.reference.clone());
                 seed.record_fields.as_mut().unwrap().evidence.push(quote);
             }
+            seed.support_origin_groups = support_origin_groups(
+                &plan
+                    .sources
+                    .iter()
+                    .filter(|s| {
+                        seed.evidence
+                            .iter()
+                            .any(|e| e.source_id == s.record.source_id)
+                    })
+                    .map(|s| &s.record)
+                    .collect::<Vec<_>>(),
+            );
             if seed.interpretation == Interpretation::ClearSelfReport
                 && seed
                     .record_fields
