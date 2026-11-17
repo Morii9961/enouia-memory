@@ -286,8 +286,10 @@ fn restored_uncertain_fresh_run_keeps_original_packet_and_resolves_only_existing
             journal = serde_json::from_slice(&managed.read(JOURNAL).unwrap().unwrap()).unwrap();
         } else {
             journal = serde_json::from_slice(&managed.read(JOURNAL).unwrap().unwrap()).unwrap();
-            let seed =
-                serde_json::from_value(journal["plans"][0]["work"][0]["seed"].clone()).unwrap();
+            let seed = serde_json::from_value(
+                serde_json::to_value(&init.plans()[0]).unwrap()["work"][0]["seed"].clone(),
+            )
+            .unwrap();
             // Emulate an interruption after persisting the native prepared intent
             // but before apply_batch. No fake conflicting binding or new request.
             let prepared = init
@@ -468,7 +470,10 @@ fn native_cli_resumes_activated_restore_without_original_home_or_replacement_key
     resumable["plans"][0]["work"][0]["receipt"] = Value::Null;
     resumable["plans"][0]["work"][0]["state"] = json!("outcome_unknown");
     let mut uncertain = resumable.clone();
-    let seed = serde_json::from_value(uncertain["plans"][0]["work"][1]["seed"].clone()).unwrap();
+    let seed = serde_json::from_value(
+        serde_json::to_value(&init.plans()[0]).unwrap()["work"][1]["seed"].clone(),
+    )
+    .unwrap();
     let prepared = init
         .vault
         .prepare_formation(&descriptor.system_actor, seed)

@@ -1,8 +1,11 @@
 # Grouped support origins — synthetic validation
 
 2026-11-17. [ADR-MEM-149](../adr/149-grouped-support-origins.md), based on merged
-main `d0e7f9f0298e8b5c4c178dc2649a647c28e8596e`. All implementation checks use
-synthetic inputs. Real use awaits merge and a rebuilt formal CLI.
+main `d0e7f9f0298e8b5c4c178dc2649a647c28e8596e`. All implementation checks below
+use synthetic inputs. Subsequently merged in #117 at `17a369e`; its rebuilt
+formal CLI completed a real read-only whole-run preflight. Native admission
+passed, while journal capacity refused. There was no real formation. That
+separate capacity gate does not change the synthetic evidence reported here.
 
 ## Behavior
 

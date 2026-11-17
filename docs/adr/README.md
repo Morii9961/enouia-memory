@@ -867,8 +867,16 @@ a later owner-confirmed action after acceptance and independent backup/restore.
 
 ### ADR-MEM-149 — Group repeated support origins
 
-[Proposed decision](149-grouped-support-origins.md): retain every original source
+[Decision](149-grouped-support-origins.md), adopted in #117: retain every original source
 occurrence and exact quote while explicitly grouping equal content or upstream
 identity as one support origin. Native admission verifies the canonical bounded
-components; ungrouped legacy inputs keep their refusal. Real use waits for merge
-and compatible Runtime adoption remains a separate requirement.
+components; ungrouped legacy inputs keep their refusal. Compatible Runtime
+adoption and actual library acceptance remain separate requirements.
+
+### ADR-MEM-150 — Compact fresh initialization journals
+
+[Proposed decision](150-compact-fresh-initialization-journal.md): only new fresh
+runs retain immutable, hash-bound Plans in Raw and bounded mutable work state in
+initializer journal version 2. Old inline journals stay in their original format;
+original requests, responses, bindings and receipts survive reopen and restore.
+The mutable journal and each plan object keep their existing 16 MiB bounds.
