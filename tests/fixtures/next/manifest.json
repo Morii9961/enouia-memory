@@ -19,6 +19,11 @@
       "file": "commit.json",
       "type": "commit",
       "schema": "next/automation-v2.schema.json"
+    },
+    {
+      "file": "input-grouped-origins.json",
+      "type": "input",
+      "schema": "next/automation-v2.schema.json"
     }
   ],
   "invalid": [
@@ -238,6 +243,97 @@
       ],
       "schema": "reject",
       "rust_rule": "next.duplicate_support"
+    },
+    {
+      "id": "origin-groups-null",
+      "base": "input-grouped-origins.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/support_origin_groups",
+          "value": null
+        }
+      ],
+      "schema": "reject",
+      "rust_rule": "shape"
+    },
+    {
+      "id": "origin-group-singleton",
+      "base": "input-grouped-origins.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/support_origin_groups",
+          "value": [
+            [
+              {
+                "source_id": "src_00000003-0000-4000-8000-000000000001",
+                "source_revision": 1
+              }
+            ]
+          ]
+        }
+      ],
+      "schema": "reject",
+      "rust_rule": "next.support_origin_groups"
+    },
+    {
+      "id": "origin-group-overlap",
+      "base": "input-grouped-origins.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/support_origin_groups",
+          "value": [
+            [
+              {
+                "source_id": "src_00000001-0000-4000-8000-000000000001",
+                "source_revision": 1
+              },
+              {
+                "source_id": "src_00000003-0000-4000-8000-000000000001",
+                "source_revision": 1
+              }
+            ],
+            [
+              {
+                "source_id": "src_00000001-0000-4000-8000-000000000001",
+                "source_revision": 1
+              },
+              {
+                "source_id": "src_00000003-0000-4000-8000-000000000001",
+                "source_revision": 1
+              }
+            ]
+          ]
+        }
+      ],
+      "schema": "accept",
+      "rust_rule": "next.support_origin_groups"
+    },
+    {
+      "id": "origin-group-nonsupport",
+      "base": "input-grouped-origins.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/support_origin_groups",
+          "value": [
+            [
+              {
+                "source_id": "src_00000001-0000-4000-8000-000000000001",
+                "source_revision": 1
+              },
+              {
+                "source_id": "src_00000002-0000-4000-8000-000000000001",
+                "source_revision": 1
+              }
+            ]
+          ]
+        }
+      ],
+      "schema": "accept",
+      "rust_rule": "next.support_origin_groups"
     }
   ]
 }

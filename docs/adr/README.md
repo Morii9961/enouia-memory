@@ -864,3 +864,11 @@ without reading or archiving attachment originals. Preserve exact textual source
 and analysis Raw, distinguish intentionally unselected payloads from unavailable
 originals, and bind the choice to the complete native run. External deletion remains
 a later owner-confirmed action after acceptance and independent backup/restore.
+
+### ADR-MEM-149 — Group repeated support origins
+
+[Proposed decision](149-grouped-support-origins.md): retain every original source
+occurrence and exact quote while explicitly grouping equal content or upstream
+identity as one support origin. Native admission verifies the canonical bounded
+components; ungrouped legacy inputs keep their refusal. Real use waits for merge
+and compatible Runtime adoption remains a separate requirement.

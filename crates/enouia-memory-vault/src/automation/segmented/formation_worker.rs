@@ -337,6 +337,7 @@ pub fn formation_seed(seed: FormationSeed<'_>) -> Option<AdmissionInput> {
         interpretation: seed.interpretation,
         input_refs: vec![source.reference()],
         evidence: vec![seed.evidence.reference.clone()],
+        support_origin_groups: vec![],
         context_source_refs: vec![],
         target: None,
         result: seed.result,

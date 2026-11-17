@@ -28,6 +28,8 @@ pub use runtime_capture::*;
 mod rules;
 mod storage;
 mod storage_rules;
+mod support_origins;
+pub use support_origins::support_origin_groups;
 
 pub use admission::*;
 pub use attention::*;

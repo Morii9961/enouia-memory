@@ -151,6 +151,9 @@ pub struct AdmissionInput {
     pub dimensions: Option<super::FormationDimensions>,
     pub input_refs: Vec<SourceRevisionRef>,
     pub evidence: Vec<EvidenceRef>,
+    /// Canonical collision components; occurrences in a group share one origin.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub support_origin_groups: Vec<Vec<SourceRevisionRef>>,
     pub context_source_refs: Vec<SourceRevisionRef>,
     #[serde(deserialize_with = "crate::json::nullable")]
     pub target: Option<TargetRef>,
@@ -294,6 +297,22 @@ impl NextDocument for AdmissionInput {
         );
         if self.evidence.is_empty() || self.evidence.len() > MAX_SOURCES {
             out.push(Violation::new("next.evidence_required", "/evidence"));
+        }
+        let grouped: Vec<_> = self.support_origin_groups.iter().flatten().collect();
+        if grouped.len() > MAX_SOURCES
+            || grouped.iter().copied().collect::<BTreeSet<_>>().len() != grouped.len()
+            || self.support_origin_groups.iter().any(|g| g.len() < 2)
+            || grouped.iter().any(|r| {
+                !self
+                    .evidence
+                    .iter()
+                    .any(|e| e.source_id == r.source_id && e.source_revision == r.source_revision)
+            })
+        {
+            out.push(Violation::new(
+                "next.support_origin_groups",
+                "/support_origin_groups",
+            ));
         }
         let mut support_ids = BTreeSet::new();
         for (index, evidence) in self.evidence.iter().enumerate() {
