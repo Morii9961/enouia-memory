@@ -1145,3 +1145,119 @@ fn trusted_cli_bootstrap_forms_reopens_queries_and_reuses_original_run() {
     // Explicitly supplied target is a protected test home; never remove it.
     assert!(verify_data_root(&home, &RootPolicy::default()).is_ok());
 }
+
+#[test]
+fn conversation_title_projects_controls_without_changing_raw_or_expanding_limits() {
+    for (title, expected) in [
+        (
+            "Synthetic first\nsecond\tline".to_owned(),
+            Some("Synthetic first second line"),
+        ),
+        (" \r\n\t ".to_owned(), None),
+        (
+            "Synthetic Unicode 标题 😀".to_owned(),
+            Some("Synthetic Unicode 标题 😀"),
+        ),
+        ("x".repeat(257), None),
+    ] {
+        let (dir, mut manifest) = input(1, 1);
+        let mut shard: Value =
+            serde_json::from_slice(&std::fs::read(dir.join("shard.json")).unwrap()).unwrap();
+        shard[0]["title"] = json!(title);
+        let bytes = serde_json::to_vec(&shard).unwrap();
+        std::fs::write(dir.join("shard.json"), &bytes).unwrap();
+        manifest.shards[0].object.sha256 = sha256(&bytes);
+        let selected = prepare_chatgpt_selection(
+            &[Material {
+                alias: "shard".into(),
+                account_alias: manifest.shards[0].account_alias.clone(),
+                format: Format::Auto,
+                bytes,
+            }],
+            &[ChatGptSelection {
+                shard_alias: "shard".into(),
+                conversation_id: manifest.shards[0].conversation_ids[0].clone(),
+            }],
+        )
+        .unwrap();
+        let raw_hash = selected.messages[0].raw_hash.clone();
+        manifest.sources[0].raw_object_hash = raw_hash.clone();
+        save(&dir, &manifest);
+        let input = load(&dir);
+        let raw = &input.batches[0].preparation.objects[&raw_hash];
+        assert_eq!(
+            serde_json::from_slice::<Value>(raw).unwrap()[0]["title"],
+            title
+        );
+        let env = owner();
+        let plans = input.plans(&env.descriptor, &OsIdSource);
+        if title.chars().count() > 256 {
+            assert!(
+                plans.is_err(),
+                "The existing native title limit must still refuse oversized titles"
+            );
+            continue;
+        }
+        let plans = plans.unwrap();
+        assert_eq!(plans[0].catalog.conversations[0].title.as_deref(), expected);
+        let mut init = Initializer::create_synthetic(
+            &env.root,
+            env.descriptor.clone(),
+            env.clock.clone(),
+            Arc::new(OsIdSource),
+        )
+        .unwrap();
+        init.enqueue_fresh(
+            input.run_hash.clone(),
+            plans,
+            &input
+                .batches
+                .iter()
+                .map(|b| b.preparation.clone())
+                .collect::<Vec<_>>(),
+        )
+        .unwrap();
+        while init.step().unwrap() {}
+        let before = init.vault.snapshot().unwrap();
+        drop(init);
+        let reopened = Initializer::open_synthetic(
+            &env.root,
+            env.descriptor.host_id.clone(),
+            env.clock.clone(),
+            Arc::new(OsIdSource),
+        )
+        .unwrap();
+        assert_eq!(reopened.vault.snapshot().unwrap(), before);
+        reopened
+            .vault
+            .read(&env.descriptor.system_actor, Sensitivity::Private, |data| {
+                assert_eq!(data.memories.len(), 1);
+                assert_eq!(
+                    data.conversations.values().next().unwrap().title.as_deref(),
+                    expected
+                );
+                let sources: Vec<_> = data.sources.values().map(|s| (*s).clone()).collect();
+                assert!(
+                    data.memories[0]
+                        .memory
+                        .decision
+                        .input
+                        .record_fields
+                        .as_ref()
+                        .unwrap()
+                        .evidence
+                        .iter()
+                        .all(|q| q.resolves(&sources))
+                );
+            })
+            .unwrap();
+        assert_eq!(
+            std::fs::read(
+                env.path
+                    .join(enouia_memory_contract::layout::raw_object(&raw_hash))
+            )
+            .unwrap(),
+            *raw
+        );
+    }
+}

@@ -474,7 +474,13 @@ impl Plan {
                         platform: m.platform.clone(),
                         account_scope: m.account_alias.clone(),
                         original_conversation_id: m.conversation.clone(),
-                        title: m.conversation_title.clone(),
+                        title: m.conversation_title.as_ref().and_then(|title| {
+                            let title: String = title
+                                .chars()
+                                .map(|c| if c.is_control() { ' ' } else { c })
+                                .collect();
+                            (!title.trim().is_empty()).then_some(title)
+                        }),
                         participants: vec![],
                         started_at: unknown_time(),
                         ended_at: unknown_time(),
