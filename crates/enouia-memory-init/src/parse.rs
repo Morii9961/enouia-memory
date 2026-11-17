@@ -377,7 +377,9 @@ fn parse_auto(m: &Material, hash: &Sha256Hex, out: &mut Preparation) {
         out.unsupported += 1;
         return;
     };
-    let json: Value = serde_json::from_slice(&m.bytes).unwrap_or_else(|_| {
+    let parsed_json = serde_json::from_slice::<Value>(&m.bytes).ok();
+    let direct_json = parsed_json.is_some();
+    let json: Value = parsed_json.unwrap_or_else(|| {
         enouia_memory_import::zip::Archive::open(&m.bytes, ZipLimits::default())
             .ok()
             .and_then(|archive| {
@@ -391,7 +393,13 @@ fn parse_auto(m: &Material, hash: &Sha256Hex, out: &mut Preparation) {
     for (ui, unit) in parsed.units.into_iter().enumerate() {
         out.unparseable += unit.unparseable as usize;
         for p in unit.messages {
-            let Ok(bytes) = locate::resolve(&m.bytes, &p.locator) else {
+            let resolved = match &p.locator {
+                Locator::JsonPointer { pointer } if direct_json => {
+                    locate::resolve_json(&json, pointer)
+                }
+                _ => locate::resolve(&m.bytes, &p.locator),
+            };
+            let Ok(bytes) = resolved else {
                 out.unparseable += 1;
                 continue;
             };

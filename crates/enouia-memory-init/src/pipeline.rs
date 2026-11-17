@@ -1638,7 +1638,15 @@ mod lineage_tests {
     use crate::parse::{Format, Material, prepare};
     use enouia_memory_import::parsed::ParentLink;
 
-    fn fixture(rows: &[(Option<&str>, Option<&str>, &str, Option<&str>, &str)]) -> Preparation {
+    type LineageRow<'a> = (
+        Option<&'a str>,
+        Option<&'a str>,
+        &'a str,
+        Option<&'a str>,
+        &'a str,
+    );
+
+    fn fixture(rows: &[LineageRow<'_>]) -> Preparation {
         let mut prep = prepare(&[Material {
             alias: "synthetic-lineage".into(),
             account_alias: "synthetic".into(),
@@ -1776,7 +1784,7 @@ mod lineage_tests {
     #[test]
     fn indexed_lineage_walks_long_synthetic_chains_without_repeated_full_scans() {
         let ids: Vec<_> = (0..4000).map(|i| format!("synthetic-{i}")).collect();
-        let rows: Vec<_> = ids
+        let rows: Vec<LineageRow<'_>> = ids
             .iter()
             .enumerate()
             .map(|(i, id)| {

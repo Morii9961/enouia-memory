@@ -560,3 +560,62 @@ fn runtime_native_sessions_import_as_sources() {
         assert_eq!(s.provider.as_deref(), Some("enouia-runtime"));
     }
 }
+
+#[test]
+fn parsed_json_locators_keep_exact_unicode_parts_and_error_contracts() {
+    use enouia_memory_contract::common::Locator;
+    use enouia_memory_import::locate::resolve_json;
+    let value = json!({"text":"Synthetic 中文😀","content":{"parts":["First.",{"url":"https://example.invalid/unfetched"},"第二段。",7]},"empty":{},"number":9,"array":[],"slash/key":"Exact."});
+    assert_eq!(
+        resolve_json(&value, "/text").unwrap(),
+        "Synthetic 中文😀".as_bytes()
+    );
+    assert_eq!(
+        resolve_json(&value, "/content").unwrap(),
+        "First.\n第二段。".as_bytes()
+    );
+    assert_eq!(resolve_json(&value, "/empty").unwrap(), b"");
+    assert_eq!(resolve_json(&value, "/slash~1key").unwrap(), b"Exact.");
+    assert_eq!(
+        resolve_json(&value, "/missing").unwrap_err(),
+        "pointer_not_found"
+    );
+    assert_eq!(
+        resolve_json(&value, "/number").unwrap_err(),
+        "unsupported_target"
+    );
+    assert_eq!(
+        resolve_json(&value, "/array").unwrap_err(),
+        "unsupported_target"
+    );
+    let raw = serde_json::to_vec(&value).unwrap();
+    for pointer in [
+        "/text",
+        "/content",
+        "/empty",
+        "/slash~1key",
+        "/missing",
+        "/number",
+        "/array",
+    ] {
+        assert_eq!(
+            resolve(
+                &raw,
+                &Locator::JsonPointer {
+                    pointer: pointer.into()
+                }
+            ),
+            resolve_json(&value, pointer)
+        );
+    }
+    assert_eq!(
+        resolve(
+            b"{",
+            &Locator::JsonPointer {
+                pointer: "/text".into()
+            }
+        )
+        .unwrap_err(),
+        "invalid_json"
+    );
+}

@@ -197,3 +197,60 @@ fn selected_conversation_still_obeys_the_existing_material_limit() {
         Some("init.fresh_selected_shape")
     );
 }
+
+#[test]
+fn large_linear_json_preparation_keeps_raw_text_parent_and_metadata() {
+    let mut mapping = serde_json::Map::new();
+    for i in 0usize..512 {
+        mapping.insert(format!("node-{i}"),json!({"parent":i.checked_sub(1).map(|p|format!("node-{p}")),
+            "message":{"id":format!("message-{i}"),"author":{"role":if i%2==0{"user"}else{"assistant"}},
+                "create_time":1700000000+i,"content_lang":"zh","timezone":"Asia/Shanghai",
+                "metadata":{"model_slug":"synthetic-model","unrecognized_field":"preserve"},
+                "content":{"parts":[format!("Synthetic statement {i}. 中文😀")]}}}));
+    }
+    let original=json!([{"conversation_id":"synthetic-cached","title":"Synthetic JSON reuse","mapping":mapping}]).to_string().into_bytes();
+    let input = shard("cache", original.clone());
+    let started = std::time::Instant::now();
+    let prep =
+        prepare_chatgpt_selection(&[input], &[selection("cache", "synthetic-cached")]).unwrap();
+    println!(
+        "512-message synthetic JSON preparation: {:?}",
+        started.elapsed()
+    );
+    assert_eq!(
+        (prep.messages.len(), prep.unparseable, prep.unsupported),
+        (512, 0, 0)
+    );
+    assert_eq!(prep.objects.values().next().unwrap(), &original);
+    for (i, m) in prep.messages.iter().enumerate() {
+        assert_eq!(m.text, format!("Synthetic statement {i}. 中文😀"));
+        assert_eq!(
+            m.role,
+            if i % 2 == 0 {
+                SpeakerRole::User
+            } else {
+                SpeakerRole::Assistant
+            }
+        );
+        assert_eq!(m.language, "zh");
+        assert_eq!(m.original_timezone.as_deref(), Some("Asia/Shanghai"));
+        assert_eq!(
+            m.metadata["raw_message"]["metadata"]["unrecognized_field"],
+            "preserve"
+        );
+        assert_eq!(
+            m.parent,
+            if i == 0 {
+                ParentLink::Root
+            } else {
+                ParentLink::Upstream(format!("message-{}", i - 1))
+            }
+        );
+        if matches!(i, 0 | 255 | 511) {
+            assert_eq!(
+                locate::resolve(&original, &m.locator).unwrap(),
+                m.text.as_bytes()
+            );
+        }
+    }
+}
