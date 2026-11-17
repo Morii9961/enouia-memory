@@ -58,6 +58,21 @@ No dependency or schema changed. No changed path belongs to the declared Runtime
 surface, so no surface regeneration or checker run was needed. No full-workspace,
 Linux, schema cross-check or real-input preflight is claimed for this branch.
 
+## Combined native CLI comparison
+
+The title correction (PR115) and this branch merge without conflicts in review
+commit `43ea10683fc90c05d4bd8e40af53afb2ec8ea5c2`. Its focused native title/Raw/quote/
+reopen regression passed: **1 passed, 10 filtered**. This review branch is not a
+production baseline.
+
+Optimized CLIs then planned the same 512-message synthetic manifest (8 plans)
+sequentially: merged main `f57d84b` took **2.604 s**; the review combination took
+**0.873 s**. Both exited successfully, reported zero writes and agreed exactly on
+run hash, intake, every plan preflight, the complete queued/lifecycle journal
+budget and readiness. The fixture uses an ordinary title, so it adds no display
+normalization difference. This is a local synthetic observation, not a timing
+threshold, real-input test or real-corpus throughput claim.
+
 No real input, Vault, Provider, read grant, Runtime checkout, deployment, deletion
 or manual status snapshot is used or changed by this verification. The branch
 must merge before it is used in the real delivery run.
