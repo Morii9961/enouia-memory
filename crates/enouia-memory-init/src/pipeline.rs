@@ -63,30 +63,48 @@ pub(crate) fn branch_lineage(prep: &Preparation, index: usize, depth: usize) -> 
     if depth > prep.messages.len() {
         return None;
     }
-    let m = &prep.messages[index];
-    let same = |p: &crate::parse::Message| {
-        p.platform == m.platform
-            && p.account_alias == m.account_alias
-            && p.conversation == m.conversation
-    };
-    if let ParentLink::Upstream(parent) = &m.parent {
-        let siblings = prep
-            .messages
-            .iter()
-            .filter(|p| same(p) && matches!(&p.parent,ParentLink::Upstream(id) if id==parent))
-            .count();
-        if siblings > 1 {
-            return m.upstream_id.clone();
+    if !matches!(prep.messages[index].parent, ParentLink::Upstream(_)) {
+        return prep.messages[index].upstream_id.clone();
+    }
+    let mut parents = BTreeMap::new();
+    let mut children = BTreeMap::new();
+    for (i, message) in prep.messages.iter().enumerate() {
+        let scope = (
+            message.platform.as_str(),
+            message.account_alias.as_str(),
+            message.conversation.as_deref(),
+        );
+        if let Some(id) = message.upstream_id.as_deref() {
+            // Preserve the previous first matching parent when IDs repeat.
+            parents.entry((scope, id)).or_insert(i);
         }
-        if let Some(pi) = prep
-            .messages
-            .iter()
-            .position(|p| same(p) && p.upstream_id.as_ref() == Some(parent))
-        {
-            return branch_lineage(prep, pi, depth + 1);
+        if let ParentLink::Upstream(parent) = &message.parent {
+            *children.entry((scope, parent.as_str())).or_insert(0usize) += 1;
         }
     }
-    m.upstream_id.clone()
+    let mut current = index;
+    for _ in depth..=prep.messages.len() {
+        let message = &prep.messages[current];
+        if let ParentLink::Upstream(parent) = &message.parent {
+            let key = (
+                (
+                    message.platform.as_str(),
+                    message.account_alias.as_str(),
+                    message.conversation.as_deref(),
+                ),
+                parent.as_str(),
+            );
+            if children[&key] > 1 {
+                return message.upstream_id.clone();
+            }
+            if let Some(&parent) = parents.get(&key) {
+                current = parent;
+                continue;
+            }
+        }
+        return message.upstream_id.clone();
+    }
+    None
 }
 
 /// Untrusted analysis output, not approval.
@@ -1611,5 +1629,177 @@ impl Initializer {
             return Err(AutomationFault::OutcomeUnknown);
         }
         Ok(true)
+    }
+}
+
+#[cfg(test)]
+mod lineage_tests {
+    use super::*;
+    use crate::parse::{Format, Material, prepare};
+    use enouia_memory_import::parsed::ParentLink;
+
+    fn fixture(rows: &[(Option<&str>, Option<&str>, &str, Option<&str>, &str)]) -> Preparation {
+        let mut prep = prepare(&[Material {
+            alias: "synthetic-lineage".into(),
+            account_alias: "synthetic".into(),
+            format: Format::Auto,
+            bytes: br#"[{"conversation_id":"synthetic","mapping":{"n":{"parent":null,"message":{"id":"n","author":{"role":"user"},"content":{"parts":["Synthetic lineage only."]}}}}}]"#.to_vec(),
+        }]).unwrap();
+        let template = prep.messages[0].clone();
+        prep.messages = rows
+            .iter()
+            .map(|&(id, parent, account, conversation, platform)| {
+                let mut message = template.clone();
+                message.upstream_id = id.map(str::to_owned);
+                message.parent =
+                    parent.map_or(ParentLink::Root, |p| ParentLink::Upstream(p.into()));
+                message.account_alias = account.into();
+                message.conversation = conversation.map(str::to_owned);
+                message.platform = platform.into();
+                message
+            })
+            .collect();
+        prep
+    }
+
+    // The previous scan/recursion is an independent compatibility oracle on
+    // small synthetic inputs, including its existing depth cutoff.
+    fn previous(prep: &Preparation, index: usize, depth: usize) -> Option<String> {
+        if depth > prep.messages.len() {
+            return None;
+        }
+        let message = &prep.messages[index];
+        let same = |p: &crate::parse::Message| {
+            p.platform == message.platform
+                && p.account_alias == message.account_alias
+                && p.conversation == message.conversation
+        };
+        if let ParentLink::Upstream(parent) = &message.parent {
+            if prep
+                .messages
+                .iter()
+                .filter(|p| {
+                    same(p) && matches!(&p.parent, ParentLink::Upstream(id) if id == parent)
+                })
+                .count()
+                > 1
+            {
+                return message.upstream_id.clone();
+            }
+            if let Some(parent) = prep
+                .messages
+                .iter()
+                .position(|p| same(p) && p.upstream_id.as_ref() == Some(parent))
+            {
+                return previous(prep, parent, depth + 1);
+            }
+        }
+        message.upstream_id.clone()
+    }
+
+    #[test]
+    fn indexed_lineage_preserves_scopes_forks_first_parent_and_depth_cutoff() {
+        let prep = fixture(&[
+            (Some("root"), None, "a", Some("c"), "chatgpt"),
+            (Some("one"), Some("root"), "a", Some("c"), "chatgpt"),
+            (Some("two"), Some("one"), "a", Some("c"), "chatgpt"),
+            (Some("fork-a"), Some("two"), "a", Some("c"), "chatgpt"),
+            (Some("fork-b"), Some("two"), "a", Some("c"), "chatgpt"),
+            (Some("leaf"), Some("fork-a"), "a", Some("c"), "chatgpt"),
+            (Some("orphan"), Some("absent"), "a", Some("c"), "chatgpt"),
+            (
+                Some("other-account"),
+                Some("root"),
+                "b",
+                Some("c"),
+                "chatgpt",
+            ),
+            (
+                Some("other-conversation"),
+                Some("root"),
+                "a",
+                Some("other"),
+                "chatgpt",
+            ),
+            (Some("root"), None, "b", Some("c"), "chatgpt"),
+            (Some("fork-a"), Some("orphan"), "a", Some("c"), "chatgpt"),
+            (Some("cycle-a"), Some("cycle-b"), "a", Some("c"), "chatgpt"),
+            (Some("cycle-b"), Some("cycle-a"), "a", Some("c"), "chatgpt"),
+            (None, Some("two"), "a", Some("c"), "chatgpt"),
+            (
+                Some("other-platform"),
+                Some("two"),
+                "a",
+                Some("c"),
+                "runtime",
+            ),
+            (Some("no-conversation"), None, "a", None, "chatgpt"),
+            (
+                Some("no-conversation-child"),
+                Some("no-conversation"),
+                "a",
+                None,
+                "chatgpt",
+            ),
+        ]);
+        assert_eq!(branch_lineage(&prep, 2, 0).as_deref(), Some("root"));
+        assert_eq!(branch_lineage(&prep, 5, 0).as_deref(), Some("fork-a"));
+        assert_eq!(branch_lineage(&prep, 6, 0).as_deref(), Some("orphan"));
+        assert_eq!(branch_lineage(&prep, 7, 0).as_deref(), Some("root"));
+        assert_eq!(
+            branch_lineage(&prep, 8, 0).as_deref(),
+            Some("other-conversation")
+        );
+        assert_eq!(branch_lineage(&prep, 11, 0), None);
+        assert_eq!(branch_lineage(&prep, 13, 0), None);
+        assert_eq!(
+            branch_lineage(&prep, 14, 0).as_deref(),
+            Some("other-platform")
+        );
+        for index in 0..prep.messages.len() {
+            for depth in [
+                0,
+                1,
+                prep.messages.len() - 1,
+                prep.messages.len(),
+                prep.messages.len() + 1,
+            ] {
+                assert_eq!(
+                    branch_lineage(&prep, index, depth),
+                    previous(&prep, index, depth),
+                    "index={index}, depth={depth}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn indexed_lineage_walks_long_synthetic_chains_without_repeated_full_scans() {
+        let ids: Vec<_> = (0..4000).map(|i| format!("synthetic-{i}")).collect();
+        let rows: Vec<_> = ids
+            .iter()
+            .enumerate()
+            .map(|(i, id)| {
+                (
+                    Some(id.as_str()),
+                    i.checked_sub(1).map(|p| ids[p].as_str()),
+                    "synthetic",
+                    Some("long-chain"),
+                    "chatgpt",
+                )
+            })
+            .collect();
+        let prep = fixture(&rows);
+        let started = std::time::Instant::now();
+        for index in 3936..4000 {
+            assert_eq!(
+                branch_lineage(&prep, index, 0).as_deref(),
+                Some("synthetic-0")
+            );
+        }
+        println!(
+            "64 indexed lookups over a 4000-message synthetic chain: {:?}",
+            started.elapsed()
+        );
     }
 }
