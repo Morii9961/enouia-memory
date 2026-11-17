@@ -1008,6 +1008,122 @@ struct Journal {
     fresh_run: Option<Sha256Hex>,
 }
 
+#[derive(Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct FreshPlanObject {
+    format: String,
+    vault_id: VaultId,
+    descriptor_hash: Sha256Hex,
+    fresh_run: Sha256Hex,
+    plan_index: usize,
+    plan_count: usize,
+    plan: Plan,
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct FreshWorkState {
+    request: Option<AdmissionInput>,
+    response: Option<String>,
+    binding: Option<GenerationBinding>,
+    receipt: Option<MemoryReceipt>,
+    state: String,
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct FreshPlanState {
+    object_hash: Sha256Hex,
+    captured: bool,
+    work: Vec<FreshWorkState>,
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct CompactJournal {
+    version: u32,
+    vault_id: VaultId,
+    descriptor_hash: Sha256Hex,
+    fresh_run: Sha256Hex,
+    plans: Vec<FreshPlanState>,
+}
+
+#[derive(Deserialize)]
+#[serde(untagged)]
+enum StoredJournal {
+    Inline(Journal),
+    Compact(CompactJournal),
+}
+
+fn fresh_plan_objects(
+    plans: &[Plan],
+    descriptor: &AutomationDescriptor,
+    run: &Sha256Hex,
+) -> Result<Vec<(Sha256Hex, Vec<u8>)>> {
+    plans
+        .iter()
+        .enumerate()
+        .map(|(plan_index, plan)| {
+            if plan.captured
+                || plan.work.iter().any(|w| {
+                    w.target_analysis.is_some()
+                        || !w.derived_analysis.is_empty()
+                        || w.seed.target.is_some()
+                        || w.request.is_some()
+                        || w.response.is_some()
+                        || w.binding.is_some()
+                        || w.receipt.is_some()
+                        || w.state != "queued"
+                })
+            {
+                return Err(AutomationFault::Denied);
+            }
+            let bytes = canonical_bytes(&FreshPlanObject {
+                format: "enouia-fresh-plan/1".into(),
+                vault_id: descriptor.vault_id.clone(),
+                descriptor_hash: digest(descriptor),
+                fresh_run: run.clone(),
+                plan_index,
+                plan_count: plans.len(),
+                plan: plan.clone(),
+            })?;
+            Ok((sha256(&bytes), bytes))
+        })
+        .collect()
+}
+
+fn compact_journal(journal: &Journal, hashes: &[Sha256Hex]) -> Result<CompactJournal> {
+    if hashes.len() != journal.plans.len() || hashes.is_empty() {
+        return Err(AutomationFault::Denied);
+    }
+    Ok(CompactJournal {
+        version: 2,
+        vault_id: journal.vault_id.clone(),
+        descriptor_hash: journal.descriptor_hash.clone(),
+        fresh_run: journal.fresh_run.clone().ok_or(AutomationFault::Denied)?,
+        plans: journal
+            .plans
+            .iter()
+            .zip(hashes)
+            .map(|(p, hash)| FreshPlanState {
+                object_hash: hash.clone(),
+                captured: p.captured,
+                work: p
+                    .work
+                    .iter()
+                    .map(|w| FreshWorkState {
+                        request: w.request.clone(),
+                        response: w.response.clone(),
+                        binding: w.binding.clone(),
+                        receipt: w.receipt.clone(),
+                        state: w.state.clone(),
+                    })
+                    .collect(),
+            })
+            .collect(),
+    })
+}
+
 /// Complete fresh-run journal budget, including the largest persisted work
 /// states. This evaluates the supplied seeds without a Vault or authority write.
 #[derive(Serialize)]
@@ -1016,6 +1132,12 @@ pub struct JournalCapacity {
     pub lifecycle_bound_bytes: usize,
     pub limit_bytes: usize,
     pub fits: bool,
+    pub format_version: u32,
+    pub inline_queued_bytes: usize,
+    pub inline_lifecycle_bound_bytes: usize,
+    pub plan_objects_bytes: usize,
+    pub largest_plan_object_bytes: usize,
+    pub plan_object_limit_bytes: usize,
 }
 pub fn fresh_journal_capacity(
     plans: &[Plan],
@@ -1029,7 +1151,10 @@ pub fn fresh_journal_capacity(
         plans: plans.to_vec(),
         fresh_run: Some(run.clone()),
     };
-    let queued_bytes = canonical_bytes(&journal)?.len();
+    let objects = fresh_plan_objects(plans, descriptor, run)?;
+    let hashes: Vec<_> = objects.iter().map(|(hash, _)| hash.clone()).collect();
+    let inline_queued_bytes = canonical_bytes(&journal)?.len();
+    let queued_bytes = canonical_bytes(&compact_journal(&journal, &hashes)?)?.len();
     let maximum = Revision::new(enouia_memory_contract::json::MAX_SAFE_INTEGER).unwrap();
     for plan in &mut journal.plans {
         let sources: Vec<_> = plan
@@ -1091,12 +1216,21 @@ pub fn fresh_journal_capacity(
             work.state = "outcome_unknown".into();
         }
     }
-    let lifecycle_bound_bytes = canonical_bytes(&journal)?.len();
+    let inline_lifecycle_bound_bytes = canonical_bytes(&journal)?.len();
+    let lifecycle_bound_bytes = canonical_bytes(&compact_journal(&journal, &hashes)?)?.len();
+    let largest_plan_object_bytes = objects.iter().map(|(_, b)| b.len()).max().unwrap_or(0);
     Ok(JournalCapacity {
         queued_bytes,
         lifecycle_bound_bytes,
         limit_bytes: 16 * 1024 * 1024,
-        fits: lifecycle_bound_bytes <= 16 * 1024 * 1024,
+        fits: lifecycle_bound_bytes <= 16 * 1024 * 1024
+            && largest_plan_object_bytes <= 16 * 1024 * 1024,
+        format_version: 2,
+        inline_queued_bytes,
+        inline_lifecycle_bound_bytes,
+        plan_objects_bytes: objects.iter().map(|(_, b)| b.len()).sum(),
+        largest_plan_object_bytes,
+        plan_object_limit_bytes: 16 * 1024 * 1024,
     })
 }
 
@@ -1106,6 +1240,7 @@ pub struct Initializer {
     system: ActorRef,
     owner: ActorRef,
     journal: Journal,
+    compact_plan_objects: Option<Vec<Sha256Hex>>,
     _lease: File,
     poisoned: bool,
 }
@@ -1114,14 +1249,27 @@ impl Initializer {
     pub fn check_fresh_run(root: &VerifiedRoot, run: &Sha256Hex) -> Result<bool> {
         let managed = ManagedRoot::new(root.path(), Faults::none());
         if let Some(raw) = managed.read_bounded(JOURNAL, 16 * 1024 * 1024)? {
-            let journal: Journal =
+            let stored: StoredJournal =
                 serde_json::from_slice(&raw).map_err(|_| AutomationFault::Unavailable)?;
-            if journal.fresh_run.as_ref().is_some_and(|old| old != run)
-                || (journal.fresh_run.is_none() && !journal.plans.is_empty())
-            {
-                return Err(AutomationFault::Conflict);
-            }
-            return Ok(journal.fresh_run.is_some());
+            return match stored {
+                StoredJournal::Inline(journal) if journal.version == 1 => {
+                    if journal.fresh_run.as_ref().is_some_and(|old| old != run)
+                        || (journal.fresh_run.is_none() && !journal.plans.is_empty())
+                    {
+                        return Err(AutomationFault::Conflict);
+                    }
+                    Ok(journal.fresh_run.is_some())
+                }
+                StoredJournal::Compact(journal)
+                    if journal.version == 2 && !journal.plans.is_empty() =>
+                {
+                    if &journal.fresh_run != run {
+                        return Err(AutomationFault::Conflict);
+                    }
+                    Ok(true)
+                }
+                _ => Err(AutomationFault::Denied),
+            };
         }
         Ok(false)
     }
@@ -1159,6 +1307,7 @@ impl Initializer {
                 plans: vec![],
                 fresh_run: None,
             },
+            compact_plan_objects: None,
             _lease: lease,
             poisoned: false,
         };
@@ -1204,6 +1353,7 @@ impl Initializer {
                 plans: vec![],
                 fresh_run: None,
             },
+            compact_plan_objects: None,
             system: descriptor.system_actor,
             owner: descriptor.created_by,
             vault,
@@ -1226,8 +1376,74 @@ impl Initializer {
         let raw = managed
             .read_bounded(JOURNAL, 16 * 1024 * 1024)?
             .ok_or(AutomationFault::Unavailable)?;
-        let journal: Journal =
+        let stored: StoredJournal =
             serde_json::from_slice(&raw).map_err(|_| AutomationFault::Unavailable)?;
+        let (journal, compact_plan_objects) = match stored {
+            StoredJournal::Inline(journal) => (journal, None),
+            StoredJournal::Compact(compact) => {
+                if compact.version != 2 || compact.plans.is_empty() {
+                    return Err(AutomationFault::Denied);
+                }
+                let count = compact.plans.len();
+                let mut plans = Vec::with_capacity(count);
+                let mut hashes = Vec::with_capacity(count);
+                for (index, state) in compact.plans.into_iter().enumerate() {
+                    let bytes = managed
+                        .read_bounded(
+                            &enouia_memory_contract::layout::raw_object(&state.object_hash),
+                            16 * 1024 * 1024,
+                        )?
+                        .ok_or(AutomationFault::Unavailable)?;
+                    if sha256(&bytes) != state.object_hash {
+                        return Err(AutomationFault::Denied);
+                    }
+                    let object: FreshPlanObject =
+                        serde_json::from_slice(&bytes).map_err(|_| AutomationFault::Unavailable)?;
+                    if object.format != "enouia-fresh-plan/1"
+                        || object.vault_id != compact.vault_id
+                        || object.descriptor_hash != compact.descriptor_hash
+                        || object.fresh_run != compact.fresh_run
+                        || object.plan_index != index
+                        || object.plan_count != count
+                        || object.plan.captured
+                        || object.plan.work.len() != state.work.len()
+                        || object.plan.work.iter().any(|w| {
+                            w.target_analysis.is_some()
+                                || !w.derived_analysis.is_empty()
+                                || w.seed.target.is_some()
+                                || w.request.is_some()
+                                || w.response.is_some()
+                                || w.binding.is_some()
+                                || w.receipt.is_some()
+                                || w.state != "queued"
+                        })
+                    {
+                        return Err(AutomationFault::Denied);
+                    }
+                    let mut plan = object.plan;
+                    plan.captured = state.captured;
+                    for (work, saved) in plan.work.iter_mut().zip(state.work) {
+                        work.request = saved.request;
+                        work.response = saved.response;
+                        work.binding = saved.binding;
+                        work.receipt = saved.receipt;
+                        work.state = saved.state;
+                    }
+                    plans.push(plan);
+                    hashes.push(state.object_hash);
+                }
+                (
+                    Journal {
+                        version: 1,
+                        vault_id: compact.vault_id,
+                        descriptor_hash: compact.descriptor_hash,
+                        plans,
+                        fresh_run: Some(compact.fresh_run),
+                    },
+                    Some(hashes),
+                )
+            }
+        };
         let vault = Arc::new(SegmentedAutomationVault::open(
             root,
             host,
@@ -1252,12 +1468,17 @@ impl Initializer {
             vault,
             managed,
             journal,
+            compact_plan_objects,
             _lease: lease,
             poisoned: false,
         })
     }
     fn save(&self) -> Result<()> {
-        let bytes = canonical_bytes(&self.journal)?;
+        let bytes = if let Some(hashes) = &self.compact_plan_objects {
+            canonical_bytes(&compact_journal(&self.journal, hashes)?)?
+        } else {
+            canonical_bytes(&self.journal)?
+        };
         if bytes.len() > 16 * 1024 * 1024 {
             return Err(AutomationFault::Capacity);
         }
@@ -1377,8 +1598,13 @@ impl Initializer {
             }
             self.vault.archive_import_objects(&self.system, &objects)?;
         }
+        let objects = fresh_plan_objects(&plans, self.vault.descriptor(), &run)?;
+        let hashes = objects.iter().map(|(hash, _)| hash.clone()).collect();
+        self.vault
+            .archive_import_objects(&self.system, &objects.into_iter().collect())?;
         self.journal.fresh_run = Some(run);
         self.journal.plans = plans;
+        self.compact_plan_objects = Some(hashes);
         if self.save().is_err() {
             self.poisoned = true;
             return Err(AutomationFault::OutcomeUnknown);

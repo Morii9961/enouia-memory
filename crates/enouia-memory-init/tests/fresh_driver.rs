@@ -796,8 +796,277 @@ fn native_text_only_multibatch_reopen_query_sources_no_multiplication_and_change
 }
 
 #[test]
+fn compact_fresh_run_keeps_large_immutable_plans_out_of_the_mutable_journal() {
+    let (dir, mut manifest) = input(64, 1024);
+    let mut shard: Value =
+        serde_json::from_slice(&std::fs::read(dir.join("shard.json")).unwrap()).unwrap();
+    for conversation in shard.as_array_mut().unwrap() {
+        conversation["mapping"]["n"]["message"]["content"]["parts"][0] =
+            json!(format!("同文。quiet. 同文。{}", "x".repeat(16000)));
+    }
+    let bytes = serde_json::to_vec(&shard).unwrap();
+    std::fs::write(dir.join("shard.json"), &bytes).unwrap();
+    manifest.shards[0].object.sha256 = sha256(&bytes);
+    let prep = prepare_chatgpt_selection(
+        &[Material {
+            alias: "shard".into(),
+            account_alias: "synthetic".into(),
+            format: Format::Auto,
+            bytes,
+        }],
+        &manifest.shards[0]
+            .conversation_ids
+            .iter()
+            .map(|id| ChatGptSelection {
+                shard_alias: "shard".into(),
+                conversation_id: id.clone(),
+            })
+            .collect::<Vec<_>>(),
+    )
+    .unwrap();
+    for source in &mut manifest.sources {
+        let message = prep
+            .messages
+            .iter()
+            .find(|m| m.upstream_id.as_deref() == Some(source.message_id.as_str()))
+            .unwrap();
+        source.raw_object_hash = message.raw_hash.clone();
+        source.text_hash = sha256(message.text.as_bytes());
+    }
+    save(&dir, &manifest);
+    let input = load(&dir);
+    let env = owner();
+    let plans = input.plans(&env.descriptor, &OsIdSource).unwrap();
+    let bound = fresh_journal_capacity(&plans, &env.descriptor, &input.run_hash).unwrap();
+    assert!(
+        bound.fits,
+        "queued={} lifecycle={} limit={}",
+        bound.queued_bytes, bound.lifecycle_bound_bytes, bound.limit_bytes
+    );
+    assert!(bound.inline_queued_bytes > bound.limit_bytes);
+    assert!(bound.largest_plan_object_bytes <= bound.plan_object_limit_bytes);
+    let preparations: Vec<_> = input
+        .batches
+        .iter()
+        .map(|b| b.preparation.clone())
+        .collect();
+    let mut init = Initializer::create_synthetic(
+        &env.root,
+        env.descriptor.clone(),
+        env.clock.clone(),
+        Arc::new(OsIdSource),
+    )
+    .unwrap();
+    init.enqueue_fresh(input.run_hash.clone(), plans, &preparations)
+        .unwrap();
+    init.step().unwrap();
+    init.step().unwrap();
+    let before = init.vault.snapshot().unwrap();
+    let receipt = init.plans()[0].receipts()[0].clone();
+    drop(init);
+    let managed = ManagedRoot::new(&env.path, Faults::none());
+    let bytes = managed
+        .read("sync-state/initialization-owner-1.json")
+        .unwrap()
+        .unwrap();
+    assert!(bytes.len() <= bound.lifecycle_bound_bytes);
+    let stored: Value = serde_json::from_slice(&bytes).unwrap();
+    assert_eq!(stored["version"], 2);
+    assert!(stored["plans"][0].get("sources").is_none());
+    assert!(stored["plans"][0]["work"][0].get("seed").is_none());
+    let init = Initializer::open_synthetic(
+        &env.root,
+        env.descriptor.host_id.clone(),
+        env.clock.clone(),
+        Arc::new(OsIdSource),
+    )
+    .unwrap();
+    assert_eq!(init.vault.snapshot().unwrap(), before);
+    assert_eq!(init.plans()[0].receipts()[0], receipt);
+    assert_eq!(
+        init.plans()
+            .iter()
+            .map(|p| p.preflight.statements)
+            .sum::<usize>(),
+        1024
+    );
+    drop(init);
+    use enouia_memory_vault::automation::segmented::backup::*;
+    let export = owner();
+    let restored = owner();
+    let exported = export_owner(
+        &env.root,
+        &export.root,
+        env.clock.clone(),
+        Arc::new(OsIdSource),
+    )
+    .unwrap();
+    assert_eq!(verify_owner(&export.root).unwrap(), exported);
+    for plan in stored["plans"].as_array().unwrap() {
+        let hash = serde_json::from_value(plan["object_hash"].clone()).unwrap();
+        assert!(
+            exported
+                .files
+                .iter()
+                .any(|f| f.path == enouia_memory_contract::layout::raw_object(&hash))
+        );
+    }
+    restore_owner(&export.root, &restored.root, env.clock.as_ref()).unwrap();
+    activate_owner(&restored.root, &export.root, env.clock.as_ref()).unwrap();
+    let restored_init = Initializer::open_synthetic(
+        &restored.root,
+        env.descriptor.host_id.clone(),
+        env.clock.clone(),
+        Arc::new(OsIdSource),
+    )
+    .unwrap();
+    assert_eq!(restored_init.vault.snapshot().unwrap(), before);
+    assert_eq!(restored_init.plans()[0].receipts()[0], receipt);
+    assert!(Initializer::check_fresh_run(&restored.root, &input.run_hash).unwrap());
+    assert_eq!(
+        ManagedRoot::new(restored.root.path(), Faults::none())
+            .read("sync-state/initialization-owner-1.json")
+            .unwrap()
+            .unwrap(),
+        bytes
+    );
+    println!(
+        "synthetic compact journal: inline_queued={}, inline_bound={}, queued={}, bound={}, objects={}, max_object={}",
+        bound.inline_queued_bytes,
+        bound.inline_lifecycle_bound_bytes,
+        bound.queued_bytes,
+        bound.lifecycle_bound_bytes,
+        bound.plan_objects_bytes,
+        bound.largest_plan_object_bytes
+    );
+}
+
+#[test]
+fn compact_open_refuses_missing_corrupt_or_run_mismatched_plan_objects_without_repair() {
+    for failure in ["missing", "corrupt", "run", "index"] {
+        let (dir, _) = input(1, 1);
+        let input = load(&dir);
+        let env = owner();
+        let mut init = Initializer::create_synthetic(
+            &env.root,
+            env.descriptor.clone(),
+            env.clock.clone(),
+            Arc::new(OsIdSource),
+        )
+        .unwrap();
+        init.enqueue_fresh(
+            input.run_hash.clone(),
+            input.plans(&env.descriptor, &OsIdSource).unwrap(),
+            &input
+                .batches
+                .iter()
+                .map(|b| b.preparation.clone())
+                .collect::<Vec<_>>(),
+        )
+        .unwrap();
+        let snapshot = init.vault.snapshot().unwrap();
+        drop(init);
+        let managed = ManagedRoot::new(&env.path, Faults::none());
+        let path = "sync-state/initialization-owner-1.json";
+        let mut journal: Value =
+            serde_json::from_slice(&managed.read(path).unwrap().unwrap()).unwrap();
+        let hash = serde_json::from_value(journal["plans"][0]["object_hash"].clone()).unwrap();
+        let object_path = enouia_memory_contract::layout::raw_object(&hash);
+        match failure {
+            "missing" => std::fs::remove_file(env.path.join(&object_path)).unwrap(),
+            "corrupt" => managed
+                .write_atomic(&object_path, b"corrupt synthetic plan")
+                .unwrap(),
+            "run" => {
+                journal["fresh_run"] = json!(sha256(b"other synthetic run"));
+                managed
+                    .write_atomic(path, &canonical_bytes(&journal).unwrap())
+                    .unwrap();
+            }
+            _ => {
+                let mut object: Value =
+                    serde_json::from_slice(&managed.read(&object_path).unwrap().unwrap()).unwrap();
+                object["plan_index"] = json!(1);
+                let bytes = canonical_bytes(&object).unwrap();
+                let hash = sha256(&bytes);
+                managed
+                    .write_new(&enouia_memory_contract::layout::raw_object(&hash), &bytes)
+                    .unwrap();
+                journal["plans"][0]["object_hash"] = json!(hash);
+                managed
+                    .write_atomic(path, &canonical_bytes(&journal).unwrap())
+                    .unwrap();
+            }
+        }
+        let original = managed.read(path).unwrap().unwrap();
+        assert!(
+            Initializer::open_synthetic(
+                &env.root,
+                env.descriptor.host_id.clone(),
+                env.clock.clone(),
+                Arc::new(OsIdSource)
+            )
+            .is_err()
+        );
+        assert_eq!(managed.read(path).unwrap().unwrap(), original);
+        assert_eq!(env.open().snapshot().unwrap(), snapshot);
+    }
+}
+
+#[test]
+fn historical_inline_fresh_journal_reopens_and_saves_without_format_migration() {
+    let (dir, _) = input(1, 1);
+    let input = load(&dir);
+    let env = owner();
+    let mut init = Initializer::create_synthetic(
+        &env.root,
+        env.descriptor.clone(),
+        env.clock.clone(),
+        Arc::new(OsIdSource),
+    )
+    .unwrap();
+    init.enqueue_fresh(
+        input.run_hash.clone(),
+        input.plans(&env.descriptor, &OsIdSource).unwrap(),
+        &input
+            .batches
+            .iter()
+            .map(|b| b.preparation.clone())
+            .collect::<Vec<_>>(),
+    )
+    .unwrap();
+    init.step().unwrap();
+    // Exact historical v1 representation, retaining the original queued seed.
+    let inline = json!({"version":1,"vault_id":env.descriptor.vault_id,"descriptor_hash":digest(&env.descriptor),"fresh_run":input.run_hash,"plans":init.plans()});
+    let operation = inline["plans"][0]["work"][0]["seed"]["operation_id"].clone();
+    drop(init);
+    let managed = ManagedRoot::new(&env.path, Faults::none());
+    let path = "sync-state/initialization-owner-1.json";
+    managed
+        .write_atomic(path, &canonical_bytes(&inline).unwrap())
+        .unwrap();
+    assert!(Initializer::check_fresh_run(&env.root, &input.run_hash).unwrap());
+    let mut init = Initializer::open_synthetic(
+        &env.root,
+        env.descriptor.host_id.clone(),
+        env.clock.clone(),
+        Arc::new(OsIdSource),
+    )
+    .unwrap();
+    init.step().unwrap();
+    assert!(!init.step().unwrap());
+    let saved: Value = serde_json::from_slice(&managed.read(path).unwrap().unwrap()).unwrap();
+    assert_eq!(saved["version"], 1);
+    assert_eq!(
+        saved["plans"][0]["work"][0]["seed"]["operation_id"],
+        operation
+    );
+    assert!(saved["plans"][0].get("object_hash").is_none());
+}
+
+#[test]
 fn whole_lifecycle_overflow_refuses_before_archive_or_source_writes() {
-    let (dir, mut manifest) = input(1, 256);
+    let (dir, mut manifest) = input(1, 512);
     for s in &mut manifest.analysis.statements {
         s.content = "界".repeat(5000);
     }

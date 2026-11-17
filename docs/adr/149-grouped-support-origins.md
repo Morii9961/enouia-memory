@@ -1,6 +1,7 @@
 # ADR-MEM-149 — Retain repeated occurrences in one support origin group
 
-Date: 2026-11-17. Status: Proposed; synthetic implementation only until merged.
+Date: 2026-11-17. Status: Adopted (contract and synthetic native validation),
+merged in PR #117 at `17a369e010f670baacaeec98306854fd4d14afc5`.
 
 Morii authorized a bounded contract addition that keeps every selected quote and
 original occurrence while treating repeated content as one support origin group.

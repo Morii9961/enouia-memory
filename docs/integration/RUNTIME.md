@@ -1,5 +1,18 @@
 # Runtime integration (ADR-MEM-45)
 
+2026-11-17 compact fresh journal (ADR-MEM-150): the standalone initializer's new
+fresh runs store immutable, hash-bound Plans in existing Raw objects and mutable
+state in its private journal version 2. Old inline journals retain their format.
+Use the compatible fresh binary to resume version-2 journals; native Owner backup
+already retains the same journal path and all Raw objects. No backup format,
+native memory decision, reader, IPC or Workspace command changes in this slice.
+The surface aggregate stays
+`df3248e725f92952d0be265092babd5dbdbe6fec642720a0c400c71cbd9e7e53`, 61 commands.
+ADR149's grouped-decision reader requirement below remains the adoption gate;
+this private initializer representation adds no further Runtime reader gate.
+See [synthetic verification](../validation/Compact-fresh-journal.md). Real use of
+the new initializer still requires owner-approved merge and separate acceptance.
+
 2026-11-17 grouped support origins (ADR-MEM-149): `AdmissionInput` gains optional
 `support_origin_groups`. Exact supporting occurrences remain in evidence; equal
 content or upstream identity forms one explicitly recorded origin component.
@@ -14,7 +27,7 @@ treat a group as one support origin, never quote/occurrence counts as independen
 corroboration. All original source and quote identities remain available to the
 existing readers. Workspace remains 61 commands, with no added UI or IPC command.
 This repository changes no Runtime checkout, read grant or installation. Real
-initialization and whole-run capacity await the merged capability separately.
+initialization, whole-run capacity and recovery require separate acceptance.
 See the [decision](../adr/149-grouped-support-origins.md) and
 [synthetic verification](../validation/Grouped-support-origins.md).
 
