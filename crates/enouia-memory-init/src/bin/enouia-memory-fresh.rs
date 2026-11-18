@@ -2,6 +2,7 @@
 use enouia_memory_contract::{
     common::{ActorRef, ActorType},
     foundation::Clock,
+    hash::Sha256Hex,
     ids::*,
     next::*,
     ports::IdSource,
@@ -20,15 +21,20 @@ use serde_json::{Value, json};
 use std::{path::Path, sync::Arc};
 
 fn run(args: &[String]) -> Result<Value, String> {
-    let (command, manifest, owner) = match args {
-        [c, m] if c == "plan" => (c, m, None),
+    let (command, manifest, owner, reconcile) = match args {
+        [c, m] if c == "plan" => (c, m, None, None),
         [c, m, h, op, flag] if (c == "run" || c == "recover") && flag == "--bind-current-owner-self" =>
-            (c, m, Some((h, op, None))),
+            (c, m, Some((h, op, None)), None),
+        [c, m, h, op, head, journal, flag] if c == "reconcile-source-overlap" && flag == "--bind-current-owner-self" =>
+            (c, m, Some((h, op, None)), Some((
+                CommitId::parse(head).map_err(|_| "fresh.expected_head")?,
+                Sha256Hex::parse(journal).ok_or("fresh.expected_journal")?,
+            ))),
         [c, m, h, root, export, flag]
             if (c == "resume-restored" || c == "recover-restored")
                 && flag == "--bind-current-owner-self" =>
-            (c, m, Some((h, root, Some(export)))),
-        _ => return Err("usage: enouia-memory-fresh plan <manifest> | run|recover <manifest> <owner-home> <bootstrap-operation> --bind-current-owner-self | resume-restored|recover-restored <manifest> <owner-home> <restored-root> <activation-export> --bind-current-owner-self".into()),
+            (c, m, Some((h, root, Some(export))), None),
+        _ => return Err("usage: enouia-memory-fresh plan <manifest> | run|recover <manifest> <owner-home> <bootstrap-operation> --bind-current-owner-self | resume-restored|recover-restored <manifest> <owner-home> <restored-root> <activation-export> --bind-current-owner-self | reconcile-source-overlap <manifest> <owner-home> <bootstrap-operation> <expected-head> <expected-journal-sha256> --bind-current-owner-self".into()),
     };
     let input = load_fresh(Path::new(manifest))?;
     let ids = Arc::new(OsIdSource);
@@ -75,6 +81,18 @@ fn run(args: &[String]) -> Result<Value, String> {
     .map_err(|e| format!("fresh.bootstrap: {e:?}"))?;
     // Full preflight is complete before adoption, recovery or archive writes.
     let plans = input.plans(&descriptor, &*ids)?;
+    if let Some((head, journal)) = reconcile {
+        let mut init =
+            Initializer::open_synthetic(&root, descriptor.host_id, Arc::new(SystemClock), ids)
+                .map_err(|e| format!("fresh.initializer: {e:?}"))?;
+        let capacity = init
+            .reconcile_fresh_source_overlap(&input.run_hash, &plans, &head, &journal)
+            .map_err(|e| format!("fresh.reconcile_source_overlap: {e:?}"))?;
+        return Ok(
+            json!({"command":command,"run_hash":input.run_hash,"journal":capacity,
+            "published_memories":0,"retained_receipts":init.plans()[0].completed()}),
+        );
+    }
     let capacity = fresh_journal_capacity(&plans, &descriptor, &input.run_hash)
         .map_err(|e| format!("fresh.preflight: {e:?}"))?;
     if !capacity.fits {

@@ -1,5 +1,16 @@
 # Runtime integration (ADR-MEM-45)
 
+2026-11-18 fresh cross-batch sources (ADR-MEM-151): the standalone initializer
+reuses the first native source revision when multiple fresh plans cite the same
+import locator. Its registered Owner CLI also has a guarded operation for an
+already enrolled run stopped before the second capture. Runtime does not call
+the initializer or interpret its journal. Native reader, admission and backup
+formats remain the same, with 61 Workspace commands and surface aggregate
+`df3248e725f92952d0be265092babd5dbdbe6fec642720a0c400c71cbd9e7e53`.
+Runtime's ADR149-compatible reader can open the resulting Vault without a
+new reader adoption. Real initialization and Runtime product acceptance are
+tracked separately.
+
 2026-11-17 compact fresh journal (ADR-MEM-150): the standalone initializer's new
 fresh runs store immutable, hash-bound Plans in existing Raw objects and mutable
 state in its private journal version 2. Old inline journals retain their format.
