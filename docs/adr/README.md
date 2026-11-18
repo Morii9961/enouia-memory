@@ -880,3 +880,10 @@ runs retain immutable, hash-bound Plans in Raw and bounded mutable work state in
 initializer journal version 2. Old inline journals stay in their original format;
 original requests, responses, bindings and receipts survive reopen and restore.
 The mutable journal and each plan object keep their existing 16 MiB bounds.
+
+### ADR-MEM-151 — Shared source identity in fresh initialization
+
+[Proposed decision](151-fresh-cross-batch-source-identity.md): keep one native
+source identity for an original locator cited across plans. The separate
+trusted reconciliation command accepts only the stopped compact run shape
+with the first batch committed and the second policy already published.

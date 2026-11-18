@@ -29,6 +29,9 @@ use serde_json::{Value, json};
 use std::{collections::BTreeMap, fs::File, sync::Arc};
 
 type Result<T> = std::result::Result<T, AutomationFault>;
+mod fresh_source_reuse;
+pub(crate) use fresh_source_reuse::reuse_fresh_sources;
+mod fresh_reconcile;
 const JOURNAL: &str = "sync-state/initialization-owner-1.json";
 const LEASE: &str = "sync-state/initialization-owner-1.lock";
 fn revision() -> Revision {
@@ -997,7 +1000,7 @@ impl Plan {
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct Journal {
     version: u32,
@@ -1060,9 +1063,19 @@ fn fresh_plan_objects(
     descriptor: &AutomationDescriptor,
     run: &Sha256Hex,
 ) -> Result<Vec<(Sha256Hex, Vec<u8>)>> {
+    fresh_plan_suffix_objects(plans, descriptor, run, 0)
+}
+
+fn fresh_plan_suffix_objects(
+    plans: &[Plan],
+    descriptor: &AutomationDescriptor,
+    run: &Sha256Hex,
+    start: usize,
+) -> Result<Vec<(Sha256Hex, Vec<u8>)>> {
     plans
         .iter()
         .enumerate()
+        .skip(start)
         .map(|(plan_index, plan)| {
             if plan.captured
                 || plan.work.iter().any(|w| {
@@ -1144,7 +1157,7 @@ pub fn fresh_journal_capacity(
     descriptor: &AutomationDescriptor,
     run: &Sha256Hex,
 ) -> Result<JournalCapacity> {
-    let mut journal = Journal {
+    let journal = Journal {
         version: 1,
         vault_id: descriptor.vault_id.clone(),
         descriptor_hash: digest(descriptor),
@@ -1153,8 +1166,17 @@ pub fn fresh_journal_capacity(
     };
     let objects = fresh_plan_objects(plans, descriptor, run)?;
     let hashes: Vec<_> = objects.iter().map(|(hash, _)| hash.clone()).collect();
+    let sizes = objects.iter().map(|(_, bytes)| bytes.len());
+    journal_capacity(journal, &hashes, sizes)
+}
+
+fn journal_capacity(
+    mut journal: Journal,
+    hashes: &[Sha256Hex],
+    sizes: impl Iterator<Item = usize>,
+) -> Result<JournalCapacity> {
     let inline_queued_bytes = canonical_bytes(&journal)?.len();
-    let queued_bytes = canonical_bytes(&compact_journal(&journal, &hashes)?)?.len();
+    let queued_bytes = canonical_bytes(&compact_journal(&journal, hashes)?)?.len();
     let maximum = Revision::new(enouia_memory_contract::json::MAX_SAFE_INTEGER).unwrap();
     for plan in &mut journal.plans {
         let sources: Vec<_> = plan
@@ -1168,6 +1190,9 @@ pub fn fresh_journal_capacity(
             })
             .collect();
         for work in &mut plan.work {
+            if work.receipt.is_some() {
+                continue;
+            }
             if work.target_analysis.is_some() || !work.derived_analysis.is_empty() {
                 return Err(AutomationFault::Denied);
             }
@@ -1217,8 +1242,11 @@ pub fn fresh_journal_capacity(
         }
     }
     let inline_lifecycle_bound_bytes = canonical_bytes(&journal)?.len();
-    let lifecycle_bound_bytes = canonical_bytes(&compact_journal(&journal, &hashes)?)?.len();
-    let largest_plan_object_bytes = objects.iter().map(|(_, b)| b.len()).max().unwrap_or(0);
+    let lifecycle_bound_bytes = canonical_bytes(&compact_journal(&journal, hashes)?)?.len();
+    let (plan_objects_bytes, largest_plan_object_bytes) = sizes
+        .fold((0, 0), |(sum, largest), size| {
+            (sum + size, largest.max(size))
+        });
     Ok(JournalCapacity {
         queued_bytes,
         lifecycle_bound_bytes,
@@ -1228,7 +1256,7 @@ pub fn fresh_journal_capacity(
         format_version: 2,
         inline_queued_bytes,
         inline_lifecycle_bound_bytes,
-        plan_objects_bytes: objects.iter().map(|(_, b)| b.len()).sum(),
+        plan_objects_bytes,
         largest_plan_object_bytes,
         plan_object_limit_bytes: 16 * 1024 * 1024,
     })
@@ -1706,23 +1734,36 @@ impl Initializer {
                 })
                 .collect::<Result<BTreeMap<_, _>>>()?;
             self.vault.set_policy(&self.owner, plan.policy.clone())?;
-            if !plan.sources.is_empty() {
-                if plan
-                    .sources
+            let sources = plan
+                .sources
+                .iter()
+                .filter(|source| {
+                    self.journal.fresh_run.is_none()
+                        || !self.journal.plans[..pi].iter().any(|previous| {
+                            previous
+                                .sources
+                                .iter()
+                                .any(|s| s.record.source_id == source.record.source_id)
+                        })
+                })
+                .cloned()
+                .collect::<Vec<_>>();
+            if !sources.is_empty() {
+                if sources
                     .iter()
                     .any(|s| s.record.evidence_class == EvidenceClass::UserConfirmation)
                 {
                     self.vault.capture_legacy_import(
                         &self.owner,
                         &self.system,
-                        plan.sources.clone(),
+                        sources,
                         plan.catalog.clone(),
                         &objects,
                     )?;
                 } else {
                     self.vault.capture_import(
                         &self.system,
-                        plan.sources.clone(),
+                        sources,
                         plan.catalog.clone(),
                         &objects,
                     )?;

@@ -432,7 +432,8 @@ impl FreshInput {
         descriptor: &AutomationDescriptor,
         ids: &dyn IdSource,
     ) -> Result<Vec<Plan>, String> {
-        self.batches
+        let mut plans = self
+            .batches
             .iter()
             .map(|batch| {
                 let policy = AutomationPolicy {
@@ -517,6 +518,16 @@ impl FreshInput {
                 }
                 Ok(plan)
             })
-            .collect()
+            .collect::<Result<Vec<_>, String>>()?;
+        let mut seen = BTreeSet::new();
+        if self
+            .batches
+            .iter()
+            .flat_map(|b| &b.source_indices)
+            .any(|i| !seen.insert(i))
+        {
+            reuse_fresh_sources(&mut plans, 0).map_err(|e| format!("fresh.source_reuse: {e:?}"))?;
+        }
+        Ok(plans)
     }
 }

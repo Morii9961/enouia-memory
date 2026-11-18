@@ -191,6 +191,288 @@ fn load(dir: &std::path::Path) -> FreshInput {
 }
 
 #[test]
+fn overlapping_fresh_batches_form_against_one_native_source_identity() {
+    let (dir, mut manifest) = input(65, 2);
+    manifest.analysis.statements[0].statement.context_sources = (1..64).collect();
+    let second = &mut manifest.analysis.statements[1];
+    second.statement.source_index = 0;
+    second.statement.context_sources = vec![1];
+    second.statement.entities = vec![(
+        "Synthetic shared-source entity".into(),
+        EntityType::Person,
+        EntityReality::Fictional,
+        EntityRole::Mentioned,
+    )];
+    second.supporting_quotes[0].source_index = 64;
+    manifest.context_quotes = vec![
+        vec![],
+        vec![ContextQuote {
+            source_index: 1,
+            quote: "同文。".into(),
+            start: 10,
+            end: 13,
+        }],
+    ];
+    save(&dir, &manifest);
+    let input = load(&dir);
+    let env = owner();
+    let plans = input.plans(&env.descriptor, &OsIdSource).unwrap();
+    assert_eq!(plans.len(), 2);
+    assert!(
+        fresh_journal_capacity(&plans, &env.descriptor, &input.run_hash)
+            .unwrap()
+            .fits
+    );
+    let preparations = input
+        .batches
+        .iter()
+        .map(|b| b.preparation.clone())
+        .collect::<Vec<_>>();
+    let mut init = Initializer::create_synthetic(
+        &env.root,
+        env.descriptor.clone(),
+        env.clock.clone(),
+        Arc::new(OsIdSource),
+    )
+    .unwrap();
+    init.enqueue_fresh(input.run_hash, plans, &preparations)
+        .unwrap();
+    assert!(init.step().unwrap());
+    assert!(init.step().unwrap());
+    assert_eq!(init.plans()[0].completed(), 1);
+    assert_eq!(init.plans()[1].completed(), 0);
+    assert!(init.step().unwrap(), "second batch source capture");
+    assert!(init.step().unwrap());
+    assert!(!init.step().unwrap());
+    drop(init);
+    let init = Initializer::open_synthetic(
+        &env.root,
+        env.descriptor.host_id.clone(),
+        env.clock.clone(),
+        Arc::new(OsIdSource),
+    )
+    .unwrap();
+    let second_plan = serde_json::to_value(&init.plans()[1]).unwrap();
+    let context: QuotedEvidence = serde_json::from_value(
+        second_plan["analysis_artifact"]["context_evidence"][0]["quotes"][0].clone(),
+    )
+    .unwrap();
+    init.vault
+        .read(&env.descriptor.system_actor, Sensitivity::Private, |data| {
+            assert_eq!(data.sources.len(), 65);
+            assert_eq!(data.memories.len(), 2);
+            let first = &data
+                .memories
+                .iter()
+                .find(|m| m.memory.decision.input.content == "Synthetic distilled content 0.")
+                .unwrap()
+                .memory
+                .decision
+                .input;
+            let second = &data
+                .memories
+                .iter()
+                .find(|m| m.memory.decision.input.content == "Synthetic distilled content 1.")
+                .unwrap()
+                .memory
+                .decision
+                .input;
+            assert_eq!(first.evidence[0].source_id, second.evidence[0].source_id);
+            assert_eq!(second.context_source_refs.len(), 1);
+            assert_eq!(
+                context.reference.source_id,
+                second.context_source_refs[0].source_id
+            );
+            let source = data.sources[&context.reference.source_id];
+            assert!(context.resolves(std::slice::from_ref(source)));
+            let entity = second
+                .record_fields
+                .as_ref()
+                .unwrap()
+                .entities
+                .first()
+                .unwrap();
+            assert_eq!(
+                entity.evidence[0].reference.source_id,
+                first.evidence[0].source_id
+            );
+            assert_eq!(first.input_refs.len(), 64);
+            assert_eq!(second.input_refs.len(), 3);
+        })
+        .unwrap();
+}
+
+#[test]
+fn stopped_overlap_reconciles_only_unstarted_plans_and_retains_original_receipt() {
+    use enouia_memory_vault::automation::segmented::backup::*;
+    let (dir, mut manifest) = input(65, 2);
+    manifest.analysis.statements[0].statement.context_sources = (1..64).collect();
+    manifest.analysis.statements[1].statement.source_index = 64;
+    manifest.analysis.statements[1].supporting_quotes[0] = StatementQuote {
+        source_index: 0,
+        quote: "quiet.".into(),
+    };
+    manifest.quote_ranges[1][1] = (3, 9);
+    save(&dir, &manifest);
+    let input = load(&dir);
+    let env = owner();
+    let mut plans = input.plans(&env.descriptor, &OsIdSource).unwrap();
+    let mut old_policy = plans[1].policy.clone();
+    old_policy.access_policy_id =
+        enouia_memory_contract::ids::PolicyId::from_random(OsIdSource.random_16());
+    let original_policy_id = old_policy.policy_id.clone();
+    let batch = &input.batches[1];
+    let legacy = Plan::build_analyzed(
+        &batch.preparation,
+        &batch.analysis,
+        old_policy,
+        FormationMode::Backfill,
+        input.manifest.formed_at.clone(),
+        &OsIdSource,
+    )
+    .unwrap();
+    // Retain the original anchored-run hashes. This fixture recreates the old
+    // source allocation, while the exact quoted ranges resolve identically.
+    let correct = serde_json::to_value(&plans[1]).unwrap();
+    let mut old = serde_json::to_value(legacy).unwrap();
+    for f in ["analysis_hash", "analysis_artifact"] {
+        old[f] = correct[f].clone();
+    }
+    plans[1] = serde_json::from_value(old).unwrap();
+    let check = input.plans(&env.descriptor, &OsIdSource).unwrap();
+    let preparations = input
+        .batches
+        .iter()
+        .map(|b| b.preparation.clone())
+        .collect::<Vec<_>>();
+    let mut init = Initializer::create_synthetic(
+        &env.root,
+        env.descriptor.clone(),
+        env.clock.clone(),
+        Arc::new(OsIdSource),
+    )
+    .unwrap();
+    init.enqueue_fresh(input.run_hash.clone(), plans, &preparations)
+        .unwrap();
+    assert!(init.step().unwrap());
+    assert!(init.step().unwrap());
+    assert!(matches!(init.step(), Err(AutomationFault::Denied)));
+    let before = init.vault.snapshot().unwrap();
+    let receipt = init.plans()[0].receipts()[0].clone();
+    let managed = ManagedRoot::new(env.root.path(), Faults::none());
+    let journal_path = "sync-state/initialization-owner-1.json";
+    let original = managed.read(journal_path).unwrap().unwrap();
+    let original_hash = sha256(&original);
+    let original_value: Value = serde_json::from_slice(&original).unwrap();
+    drop(init);
+
+    let mut uncertain = original_value.clone();
+    uncertain["plans"][1]["work"][0]["state"] = json!("outcome_unknown");
+    let uncertain = canonical_bytes(&uncertain).unwrap();
+    managed.write_atomic(journal_path, &uncertain).unwrap();
+    let mut init = Initializer::open_synthetic(
+        &env.root,
+        env.descriptor.host_id.clone(),
+        env.clock.clone(),
+        Arc::new(OsIdSource),
+    )
+    .unwrap();
+    assert!(matches!(
+        init.reconcile_fresh_source_overlap(
+            &input.run_hash,
+            &check,
+            &before.base_commit_id,
+            &sha256(&uncertain),
+        ),
+        Err(AutomationFault::Conflict)
+    ));
+    assert_eq!(managed.read(journal_path).unwrap().unwrap(), uncertain);
+    assert_eq!(init.vault.snapshot().unwrap(), before);
+    drop(init);
+    managed.write_atomic(journal_path, &original).unwrap();
+
+    let mut init = Initializer::open_synthetic(
+        &env.root,
+        env.descriptor.host_id.clone(),
+        env.clock.clone(),
+        Arc::new(OsIdSource),
+    )
+    .unwrap();
+    assert!(matches!(
+        init.reconcile_fresh_source_overlap(
+            &input.run_hash,
+            &check,
+            &before.base_commit_id,
+            &sha256(b"stale journal")
+        ),
+        Err(AutomationFault::Stale)
+    ));
+    assert_eq!(managed.read(journal_path).unwrap().unwrap(), original);
+    let capacity = init
+        .reconcile_fresh_source_overlap(
+            &input.run_hash,
+            &check,
+            &before.base_commit_id,
+            &original_hash,
+        )
+        .unwrap();
+    assert!(capacity.fits);
+    assert_eq!(init.vault.snapshot().unwrap(), before);
+    let repaired = managed.read(journal_path).unwrap().unwrap();
+    let saved: Value = serde_json::from_slice(&repaired).unwrap();
+    assert_eq!(saved["plans"][0], original_value["plans"][0]);
+    assert_eq!(saved["fresh_run"], original_value["fresh_run"]);
+    assert_eq!(init.plans()[1].policy.policy_id, original_policy_id);
+    assert_eq!(init.plans()[1].policy.revision.get(), 2);
+    assert_eq!(
+        managed
+            .read(&enouia_memory_contract::layout::raw_object(&original_hash))
+            .unwrap()
+            .unwrap(),
+        original
+    );
+    assert!(
+        init.reconcile_fresh_source_overlap(
+            &input.run_hash,
+            &check,
+            &before.base_commit_id,
+            &original_hash
+        )
+        .is_err()
+    );
+    assert_eq!(managed.read(journal_path).unwrap().unwrap(), repaired);
+    drop(init);
+
+    let export = owner();
+    let restored = owner();
+    export_owner(
+        &env.root,
+        &export.root,
+        env.clock.clone(),
+        Arc::new(OsIdSource),
+    )
+    .unwrap();
+    restore_owner(&export.root, &restored.root, env.clock.as_ref()).unwrap();
+    activate_owner(&restored.root, &export.root, env.clock.as_ref()).unwrap();
+    let mut init = Initializer::open_synthetic(
+        &restored.root,
+        env.descriptor.host_id.clone(),
+        env.clock.clone(),
+        Arc::new(OsIdSource),
+    )
+    .unwrap();
+    assert_eq!(init.plans()[0].receipts(), vec![receipt]);
+    while init.step().unwrap() {}
+    assert_eq!(init.plans()[1].completed(), 1);
+    init.vault
+        .read(&env.descriptor.system_actor, Sensitivity::Private, |data| {
+            assert_eq!(data.sources.len(), 65);
+            assert_eq!(data.memories.len(), 2);
+        })
+        .unwrap();
+}
+
+#[test]
 fn identical_text_occurrences_retain_both_origins_in_one_support_group() {
     let (dir, mut manifest) = input(2, 1);
     manifest.analysis.statements[0].supporting_quotes[0].source_index = 1;
