@@ -1,5 +1,20 @@
 # Runtime integration (ADR-MEM-45)
 
+2026-11-19 Windows long-path durable rename (#120, merged as `368634b`): on
+Windows, a Workspace commit could fail with `StorageFailed / NotFound` before
+publishing `CURRENT` when a temporary sibling path reached 260 UTF-16 units.
+Rust created the file, but the direct `MoveFileExW` call could not address it.
+`replace_durable` now gives long absolute local-disk paths the extended `\\?\`
+form after normalizing them; shorter, relative, verbatim and UNC paths are
+passed unchanged, and write-through and bounded retry are as before. Nothing
+about persisted layout, commits, receipts, readers or the Workspace surface
+changes: 61 commands, aggregate
+`df3248e725f92952d0be265092babd5dbdbe6fec642720a0c400c71cbd9e7e53`.
+Runtime receives the fix by moving its pin to `368634b` or later; until then,
+keep Vault roots short enough that temporary siblings stay under 260 units.
+The ADR149 reader gate below is unchanged. No Runtime checkout or pin is
+changed here.
+
 2026-11-18 fresh cross-batch sources (ADR-MEM-151): the standalone initializer
 reuses the first native source revision when multiple fresh plans cite the same
 import locator. Its registered Owner CLI also has a guarded operation for an
