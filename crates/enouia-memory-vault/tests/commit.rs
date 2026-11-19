@@ -165,6 +165,47 @@ fn retry_after_success_replays_the_same_receipt() {
     assert_eq!(harness.vault.pin_current().unwrap().sequence, 4);
 }
 
+#[cfg(windows)]
+#[test]
+fn long_windows_idempotency_path_commits_and_replays_after_reopen() {
+    use enouia_memory_contract::foundation::FakeClock;
+    use enouia_memory_vault::{Vault, fault::Faults};
+    use std::{os::windows::ffi::OsStrExt, sync::Arc};
+    use support::{Lifecycle, TempRoot, ids, options, verified};
+
+    let parent = TempRoot::new("long-idempotency");
+    let parent_len = parent.path().as_os_str().encode_wide().count();
+    let lifecycle = Lifecycle::load();
+    // At 151 units, the idempotency temporary sibling hits MAX_PATH before
+    // its NUL terminator, even though the published name fits.
+    let root = verified(&parent.child(&"x".repeat(150usize.saturating_sub(parent_len).max(1))));
+    let clock = Arc::new(FakeClock::new(lifecycle.time(0)));
+    let vault = Vault::create(
+        &root,
+        lifecycle.genesis(),
+        clock.clone(),
+        ids(),
+        options(Faults::none()),
+    )
+    .unwrap();
+    clock.set(lifecycle.time(1));
+    let CommitOutcome::Committed { commit_id, receipt } =
+        vault.commit(lifecycle.request(1)).unwrap()
+    else {
+        panic!("initial request must commit");
+    };
+    drop(vault);
+
+    let vault = Vault::open(&root, None, clock, ids(), options(Faults::none())).unwrap();
+    assert_eq!(
+        vault.commit(lifecycle.request(1)).unwrap(),
+        CommitOutcome::Replayed { commit_id, receipt }
+    );
+    let pin = vault.pin_current().unwrap();
+    assert_eq!(pin.sequence, 2);
+    assert!(vault.verify(&pin).unwrap().is_clean());
+}
+
 #[test]
 fn clock_regression_pauses_writes() {
     let harness = Harness::with_commits("clock", 2);

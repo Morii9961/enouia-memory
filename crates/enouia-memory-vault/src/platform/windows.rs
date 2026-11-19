@@ -5,9 +5,9 @@ use super::{AclEntry, AclPrincipal, AclReport, DriveKind, VolumeInfo};
 use std::ffi::OsStr;
 use std::io;
 use std::os::windows::ffi::OsStrExt;
-use std::path::Path;
+use std::path::{Component, Path, Prefix};
 use std::ptr;
-use windows_sys::Win32::Foundation::{CloseHandle, ERROR_SUCCESS, HANDLE, LocalFree};
+use windows_sys::Win32::Foundation::{CloseHandle, ERROR_SUCCESS, HANDLE, LocalFree, MAX_PATH};
 use windows_sys::Win32::Security::Authorization::{
     EXPLICIT_ACCESS_W, GetNamedSecurityInfoW, NO_MULTIPLE_TRUSTEE, SE_FILE_OBJECT, SET_ACCESS,
     SetEntriesInAclW, SetNamedSecurityInfoW, TRUSTEE_IS_SID, TRUSTEE_IS_UNKNOWN, TRUSTEE_W,
@@ -77,8 +77,26 @@ pub fn fill_random(buffer: &mut [u8]) -> io::Result<()> {
 /// Same-volume atomic replacement with write-through: the rename is on disk
 /// before this returns (MOVEFILE_WRITE_THROUGH), not merely in the cache.
 pub fn replace_durable(from: &Path, to: &Path) -> io::Result<()> {
-    let from = wide(from.as_os_str());
-    let to = wide(to.as_os_str());
+    let rename_path = |path: &Path| -> io::Result<Vec<u16>> {
+        let units = wide(path.as_os_str());
+        if units.len() <= MAX_PATH as usize
+            || !path.is_absolute()
+            || !matches!(path.components().next(), Some(Component::Prefix(p)) if matches!(p.kind(), Prefix::Disk(_)))
+        {
+            return Ok(units);
+        }
+        // Rust's file creation supports long paths, but this direct Win32
+        // call needs the extended prefix. Normalize DOS separators first:
+        // Win32 no longer performs that translation after the prefix.
+        let absolute = std::path::absolute(path)?;
+        Ok(r"\\?\"
+            .encode_utf16()
+            .chain(absolute.as_os_str().encode_wide())
+            .chain(std::iter::once(0))
+            .collect())
+    };
+    let from = rename_path(from)?;
+    let to = rename_path(to)?;
     // A reader (or scanner) can briefly hold the destination in a state where
     // NTFS refuses replacement with ACCESS_DENIED or SHARING_VIOLATION. Retry
     // the same rename only; never unlink CURRENT or report a failed publication
