@@ -1,5 +1,19 @@
 # Runtime integration (ADR-MEM-45)
 
+2026-11-19 native System recall preview ([ADR-MEM-152](../adr/152-system-recall-preview.md)):
+`SegmentedMemoryReader::recall_preview_native(profile, query, max_sensitivity)`
+returns the same `trace`, `trace_coverage` (with `reason_counts`),
+`rendered_context`, `items` and `complete_in_scope` as
+`SegmentedAgentHost::recall` for the same authorized rows, plus
+`effect: native_read`. Both call one shared function. The preview needs no Agent
+enrollment, writes no Capsule and stores no context. It has no `request_id` or
+`scope_hash`. It follows the reader's lock and the current policy under the
+supplied sensitivity ceiling. Runtime's Context surface and recall lab can use
+it on the registered read-only entry after moving the pin to this merge and
+forwarding the call from its native adapter. No persisted format, IPC command,
+grant or Provider change; Workspace stays at 61 commands. Surface aggregate:
+`d3fc6a538a9dfaaf256ad32ad6941202886290eb7afb8fe3cd57f92494070478`.
+
 2026-11-19 Morii wording (docs and reference shell only): Morii does not want
 the word `owner` shown. Prose in the docs now says Morii, and 22 doc files were
 renamed with their links. Code identifiers, persisted field and file names, wire

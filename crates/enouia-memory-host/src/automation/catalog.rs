@@ -481,6 +481,38 @@ impl SegmentedMemoryReader {
         self.vault
             .read(&self.system, request.options.max_sensitivity, f)?
     }
+    /// ADR-MEM-152: the Agent recall selection, trace and rendering for the
+    /// native System reader. Read-only: no Capsule, stored context or Agent
+    /// enrollment; current policy and sensitivity ceiling still apply.
+    pub fn recall_preview_native(
+        &self,
+        profile: &AttentionProfile,
+        query: &RecallQuery,
+        max_sensitivity: Sensitivity,
+    ) -> ApplicationResult<serde_json::Value> {
+        let gate = self.unlocked.read().map_err(|_| ApplicationFault::Locked)?;
+        if !*gate {
+            return Err(ApplicationFault::Locked);
+        }
+        if !profile.validate().is_empty() || !query.valid(profile) {
+            return Err(invalid());
+        }
+        self.vault.read(&self.system, max_sensitivity, |data| {
+            let p = super::segmented_agent::recall_preview(&data, profile, query)?;
+            let value = serde_json::json!({
+                "effect": MemoryReadEffect::NativeRead,
+                "trace": p.trace,
+                "trace_coverage": p.trace_coverage,
+                "rendered_context": p.rendered_context,
+                "items": p.items,
+                "complete_in_scope": p.complete_in_scope,
+            });
+            if bytes(&value)? > MAX_DOCUMENT_BYTES {
+                return Err(invalid());
+            }
+            Ok(value)
+        })?
+    }
     pub fn memory_page_native(
         &self,
         request: &CatalogReadRequest<'_>,

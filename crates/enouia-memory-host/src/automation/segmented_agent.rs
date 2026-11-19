@@ -9,8 +9,8 @@ use enouia_memory_contract::{common::*, ids::*, json::Revision};
 use enouia_memory_vault::automation::{
     AutomationFault,
     segmented::{
-        AuthorizedSegmentedAgentRead, SegmentedAgentPermit, SegmentedAgentScope,
-        SegmentedAutomationVault, SegmentedMemory,
+        AuthorizedSegmentedAgentRead, AuthorizedSegmentedRead, SegmentedAgentPermit,
+        SegmentedAgentScope, SegmentedAutomationVault, SegmentedMemory,
     },
 };
 use serde::Serialize;
@@ -112,7 +112,7 @@ pub struct AgentCatalogItem {
     pub record: AgentRecordProjection,
 }
 fn item(
-    data: &AuthorizedSegmentedAgentRead<'_>,
+    data: &AuthorizedSegmentedRead<'_>,
     entry: &SegmentedMemory,
     profile: &AttentionProfile,
     at: &Timestamp,
@@ -129,8 +129,7 @@ fn item(
         .input_refs
         .iter()
         .filter_map(|r| {
-            data.current
-                .sources
+            data.sources
                 .get(&r.source_id)
                 .filter(|s| s.reference() == *r)
                 .map(|s| s.record.captured_at.clone())
@@ -143,8 +142,7 @@ fn item(
         .iter()
         .filter(|e| seen.insert(e.entity_id.clone()))
         .map(|e| {
-            data.current
-                .entities
+            data.entities
                 .get(&e.entity_id)
                 .map(|v| (*v).clone())
                 .ok_or_else(invalid)
@@ -400,7 +398,7 @@ impl SegmentedAgentReader<'_> {
             let matches:Vec<_>=rows.iter().filter(|r|r.matches(filter,profile,false)).collect();
             let remaining:Vec<_>=matches.iter().filter(|r|cursor.is_none_or(|c|r.entry.memory.memory.memory_id>c.after)).collect();
             let current=data.current.memories.iter().map(|m|(m.memory.memory.memory_id.clone(),m.memory.memory.revision)).collect();
-            let mut items:Vec<_>=remaining.iter().take(limit).map(|r|item(&data,r.entry,profile,&at,&current)).collect::<ApplicationResult<_>>()?;
+            let mut items:Vec<_>=remaining.iter().take(limit).map(|r|item(&data.current,r.entry,profile,&at,&current)).collect::<ApplicationResult<_>>()?;
             loop {
                 let complete=items.len()==remaining.len();
                 let next=if complete { None } else { Some(CatalogCursor { selection:selection.clone(),after:items.last().ok_or_else(invalid)?.base.memory.memory_id.clone() }) };
@@ -449,8 +447,8 @@ impl SegmentedAgentReader<'_> {
             if expected.is_some_and(|s|s!=&data.current.snapshot) { return Err(AutomationFault::Stale.into()); }
             let Some(entry)=data.current.memories.iter().find(|m|&m.memory.memory.memory_id==id) else { return Ok(None); };
             let current=data.current.memories.iter().map(|m|(m.memory.memory.memory_id.clone(),m.memory.memory.revision)).collect();
-            let selected=item(&data,entry,profile,&data.current.now,&current)?;
-            let mut history:Vec<_>=data.history.iter().map(|m|item(&data,m,profile,&data.current.now,&current)).collect::<ApplicationResult<_>>()?;
+            let selected=item(&data.current,entry,profile,&data.current.now,&current)?;
+            let mut history:Vec<_>=data.history.iter().map(|m|item(&data.current,m,profile,&data.current.now,&current)).collect::<ApplicationResult<_>>()?;
             let refs:BTreeSet<_>=data.history.iter().flat_map(|m|m.memory.decision.input.input_refs.iter().cloned()).collect();
             let mut sources:Vec<Value>=data.current.sources.values().filter(|s|self.source_read() && refs.contains(&s.reference())).map(|s|json!({"record":s.record,"record_fields":s.record_fields,"attributed_subject":s.attributed_subject,"text":include_source_text.then_some(&s.text)})).collect();
             let (neighbors, links_complete)=links(&data,id);
@@ -492,26 +490,8 @@ impl SegmentedAgentReader<'_> {
             return Err(invalid());
         }
         self.read(None,|data| {
-            let current=data.current.memories.iter().map(|m|(m.memory.memory.memory_id.clone(),m.memory.memory.revision)).collect();
-            let mut candidates=Vec::with_capacity(data.current.memories.len());
-            for m in &data.current.memories {
-                let projection=item(&data,m,profile,&data.current.now,&current)?;
-                let rendered=render(m,&projection.record)?;
-                candidates.push(RecallCandidate { memory:&m.memory,source_time:projection.base.source_captured_at,rendered_bytes:rendered.len() });
-            }
-            let mut trace=select_catalog_recall(profile,query,&data.current.snapshot,&data.current.now,&candidates).map_err(|_|invalid())?;
-            let mut reasons:BTreeMap<String,u64>=BTreeMap::new();
-            for (_,reason) in &trace.excluded { let name=serde_json::to_value(reason).map_err(|_|invalid())?.as_str().ok_or_else(invalid)?.to_owned(); *reasons.entry(name).or_default()+=1; }
-            let excluded=trace.excluded.len();
-            trace.excluded.truncate(128);
-            let by_id:BTreeMap<_,_>=data.current.memories.iter().map(|m|(&m.memory.memory.memory_id,*m)).collect();
-            let mut items=Vec::new();let mut texts=Vec::new();
-            for s in &trace.selected {
-                let entry=by_id.get(&s.memory.memory_id).ok_or_else(invalid)?;
-                let projection=item(&data,entry,profile,&data.current.now,&current)?;
-                texts.push(render(entry,&projection.record)?);items.push(projection);
-            }
-            let result=self.finish(json!({"request_id":request_id,"scope_hash":self.scope_hash(),"trace":trace,"trace_coverage":{"excluded_in_scope":excluded,"excluded_returned":excluded.min(128),"complete":excluded<=128,"reason_counts":reasons},"rendered_context":texts.join("\n"),"items":items,"complete_in_scope":!reasons.contains_key("budget")}),MAX_DOCUMENT_BYTES)?;
+            let p=recall_preview(&data.current,profile,query)?;
+            let result=self.finish(json!({"request_id":request_id,"scope_hash":self.scope_hash(),"trace":p.trace,"trace_coverage":p.trace_coverage,"rendered_context":p.rendered_context,"items":p.items,"complete_in_scope":p.complete_in_scope}),MAX_DOCUMENT_BYTES)?;
             *self.context.lock().map_err(|_|ApplicationFault::Locked)?=Some(result.clone());
             Ok(result)
         })
@@ -533,6 +513,69 @@ impl SegmentedAgentReader<'_> {
             Ok(Some(result))
         })
     }
+}
+pub(crate) struct RecallPreview {
+    pub trace: RecallTrace,
+    pub trace_coverage: Value,
+    pub rendered_context: String,
+    pub items: Vec<AgentCatalogItem>,
+    pub complete_in_scope: bool,
+}
+/// Agent recall and the System preview (ADR-MEM-152) share one selection and
+/// rendering over the already authorized current read; neither writes.
+pub(crate) fn recall_preview(
+    data: &AuthorizedSegmentedRead<'_>,
+    profile: &AttentionProfile,
+    query: &RecallQuery,
+) -> ApplicationResult<RecallPreview> {
+    let current = data
+        .memories
+        .iter()
+        .map(|m| (m.memory.memory.memory_id.clone(), m.memory.memory.revision))
+        .collect();
+    let mut candidates = Vec::with_capacity(data.memories.len());
+    for m in &data.memories {
+        let projection = item(data, m, profile, &data.now, &current)?;
+        let rendered = render(m, &projection.record)?;
+        candidates.push(RecallCandidate {
+            memory: &m.memory,
+            source_time: projection.base.source_captured_at,
+            rendered_bytes: rendered.len(),
+        });
+    }
+    let mut trace = select_catalog_recall(profile, query, &data.snapshot, &data.now, &candidates)
+        .map_err(|_| invalid())?;
+    let mut reasons: BTreeMap<String, u64> = BTreeMap::new();
+    for (_, reason) in &trace.excluded {
+        let name = serde_json::to_value(reason)
+            .map_err(|_| invalid())?
+            .as_str()
+            .ok_or_else(invalid)?
+            .to_owned();
+        *reasons.entry(name).or_default() += 1;
+    }
+    let excluded = trace.excluded.len();
+    trace.excluded.truncate(128);
+    let by_id: BTreeMap<_, _> = data
+        .memories
+        .iter()
+        .map(|m| (&m.memory.memory.memory_id, *m))
+        .collect();
+    let mut items = Vec::new();
+    let mut texts = Vec::new();
+    for s in &trace.selected {
+        let entry = by_id.get(&s.memory.memory_id).ok_or_else(invalid)?;
+        let projection = item(data, entry, profile, &data.now, &current)?;
+        texts.push(render(entry, &projection.record)?);
+        items.push(projection);
+    }
+    Ok(RecallPreview {
+        trace,
+        trace_coverage: json!({"excluded_in_scope":excluded,"excluded_returned":excluded.min(128),"complete":excluded<=128,"reason_counts":reasons}),
+        rendered_context: texts.join("\n"),
+        items,
+        complete_in_scope: !reasons.contains_key("budget"),
+    })
 }
 fn render(entry: &SegmentedMemory, record: &AgentRecordProjection) -> ApplicationResult<String> {
     Ok(format!(
