@@ -1,11 +1,11 @@
 # Runtime integration (ADR-MEM-45)
 
 2026-11-19 Morii wording (docs and reference shell only): Morii does not want
-the word owner shown. Prose in the docs now says Morii, and 22 doc files were
+the word `owner` shown. Prose in the docs now says Morii, and 22 doc files were
 renamed with their links. Code identifiers, persisted field and file names, wire
 values, contract schemas and fixtures are unchanged and quoted as-is, so stored
 Vaults, receipts and the registered read-only entry keep working with pin
-`368634b`. The reference shell maps owner to Morii only when it displays a raw
+`368634b`. The reference shell maps `owner` to Morii only when it displays a raw
 protocol value (error code and rule list, candidate origin kind, context
 decision reason) through `label` in `apps/workspace/src/api.ts`. Runtime's
 product UI should apply the same display-only mapping wherever it shows raw
