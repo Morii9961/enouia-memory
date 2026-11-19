@@ -8,7 +8,7 @@ defines the boundary.
 
 ## Delivered behavior
 
-The existing Host accepts SessionPropose without borrowing an owner window or
+The existing Host accepts SessionPropose without borrowing Morii window or
 Workspace identity. Current persisted policy authorizes the session, every
 selected event and each source's current/cited revision. A checkpoint uses only
 events on the requested branch within the explicit inclusive sequence range;
@@ -21,7 +21,7 @@ The native Agent entry binds the original logical range, summary and items to a
 separate durable key namespace. Generated item IDs are excluded from the key
 payload. Explicit replay returns the original checkpoint revision, commit and
 operation after unrelated appends; changed body/range/items conflict. The
-existing owner API retains its payload, receipt namespace and whole-branch
+existing Morii API retains its payload, receipt namespace and whole-branch
 coverage. Original session events and Canonical memory are unchanged.
 
 Admission/final auditing is content-free. Actual publication faults close the
@@ -40,7 +40,7 @@ also checked against tombstones before delivery.
 
 | Check | Result |
 | --- | --- |
-| Six new focused actual Host checkpoint tests | Passed: default deny/exact coverage/Agent provenance/owner compatibility; stable receipt after append and changed-payload conflicts; missing endpoints, foreign session and inherited/outside references refused; independent source permission and policy revocation on replay; stale receipt known conflict; actual AfterCurrent and HostWitnessPublished fault boundaries |
+| Six new focused actual Host checkpoint tests | Passed: default deny/exact coverage/Agent provenance/Morii compatibility; stable receipt after append and changed-payload conflicts; missing endpoints, foreign session and inherited/outside references refused; independent source permission and policy revocation on replay; stale receipt known conflict; actual AfterCurrent and HostWitnessPublished fault boundaries |
 | `cargo test -p enouia-memory-host -p enouia-memory-context --locked -- --test-threads=4` | Host **61** + Context **15** passed, zero failures; zero doctests. Reuses existing read/propose/Context, native lifecycle and owned pipe/process checks |
 | `cargo clippy -p enouia-memory-host -p enouia-memory-context --all-targets --locked -- -D warnings` | Passed |
 | `cargo fmt --all -- --check` | Passed |
@@ -56,7 +56,7 @@ No full-workspace test/build/Clippy or schema check was required.
 | Exit | Evidence / status |
 | --- | --- |
 | Native in-process six-tool binding | Delivered: search/read/source, pending propose, limited current-memory Context and this checkpoint binding; earlier reports retain their historical scope |
-| Current-policy checkpoint admission and exact provisional artifact | Delivered and synthetically tested; no owner identity or event fabrication |
+| Current-policy checkpoint admission and exact provisional artifact | Delivered and synthetically tested; no Morii identity or event fabrication |
 | Durable checkpoint receipt and unknown-outcome handling | Delivered and synthetically tested, including actual publication fault points |
 | Broader Context selections | Not satisfied: historical/session/branch/egress selections remain explicitly refused; not started by this item |
 | External native Agent authentication/enrollment and runnable transport | Not satisfied: Grant is a native trust boundary, not OS authentication; the protocol-only synthetic stdio example does not open a Vault |
@@ -73,7 +73,7 @@ storage, version, transport or product UI change. Current development surface
 aggregate is `afbbaa936a787f199cc5d94942e253d2c6d80e9d7b0ce980f8afba9e1626daa4`.
 
 Publish only the feature branch after public-content review; no merge,
-deployment, next item or next MV stage. Owner-modified AGENTS/status files and
+deployment, next item or next MV stage. Morii-modified AGENTS/status files and
 old experimental drafts remain untouched and unstaged. Reference-shell success
 and local synthetic MCP success do not imply Runtime product adoption or
 personal acceptance.

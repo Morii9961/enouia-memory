@@ -49,7 +49,7 @@ operation and result IDs. An identical resubmission returns the original job,
 original operations and result identities. Changed work reusing an operation,
 or an overlapping batch that would generate an existing logical item again,
 conflicts. There is no pruning of dedupe history in this slice. Capacity refusal
-does not create an owner review queue; future retention/budget policy must manage
+does not create a Morii review queue; future retention/budget policy must manage
 bounded journals without silently losing unknown-operation history.
 
 | State | Meaning / next behavior |
@@ -135,10 +135,10 @@ being required to echo a predetermined decision. Output carries the exact input
 hash and an original JSON response within reserved resources and byte limits.
 The coordinator computes the response hash and saves both hashes and original
 response bytes. Reopening verifies the binding and byte hash, not semantic truth.
-JSON validity is only a format check. A response claiming owner consent or a new
+JSON validity is only a format check. A response claiming Morii consent or a new
 schema/permission remains untrusted data. No response is automatically parsed
 as an admitted decision, passed to an existing writer or given approval power.
-No ReviewRecord, owner confirmation, applied flag, Canonical change or successful
+No ReviewRecord, Morii confirmation, applied flag, Canonical change or successful
 memory commit receipt exists here.
 
 Core-3 must obtain fresh live source/target/policy/deletion/authority state,
@@ -156,7 +156,7 @@ own the private worker lifetime and keep status/progress/cancel outside stop/joi
 waits. Job progress must remain distinct from memory adoption and saving:
 generated means saved untrusted generation response; running/unknown means no confirmed result;
 invalidated/cancelled means no further dispatch; budget_blocked means resource
-policy stopped it. Unknown or staged states must not become a mandatory owner
+policy stopped it. Unknown or staged states must not become a mandatory Morii
 review backlog. No UI, IPC endpoint, notification or MCP tool is added now.
 
 Evidence and remaining boundaries:

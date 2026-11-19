@@ -6,9 +6,9 @@ Implementation and focused checks are complete.
 
 Independent AgentForgetPermit/Requester records an untrusted request beside an
 authorized exact target and original Runtime UserStatement quote. The existing
-Owner chain gains only agent_forget_request. Its independent receipt says
+Morii chain gains only agent_forget_request. Its independent receipt says
 forget_request_saved. No source, memory revision, recall hiding/suppression,
-Owner action, model dispatch, worker change or human review queue is created.
+Morii action, model dispatch, worker change or human review queue is created.
 Scope, duration, restoration and revocation rules for forget-hide remain unchosen.
 No public draft/prepare feature was added; submission accepts original requests.
 
@@ -51,12 +51,12 @@ before the passing run; no compatibility wrapper or dependency was added.
 
 ## Coverage
 
-Saving leaves the exact target/hash, sources and Owner state unchanged, with no
+Saving leaves the exact target/hash, sources and Morii state unchanged, with no
 captured work or journal jobs. Explicitly stepping capture, correction and
 supersede consumers dispatches none of them. Request keys are separate from
 correction/supersede keys for the same Agent/request ID/target. Tests cover exact
 Runtime UserStatement and target/source closure, missing source-read authority,
-wrong Owner, blank/oversized input, stale target/source, lock/revoke/expiry/policy,
+wrong Morii, blank/oversized input, stale target/source, lock/revoke/expiry/policy,
 authorization before receipt replay, replay after System update/reopen, conflict,
 capacity and concurrent replay. Server tests reject foreign Agent/Vault and
 forged packets and advertise closed local-only schemas. Actual owned Agent/pipe
@@ -67,6 +67,6 @@ and the real launcher. There is no forget analyzer or effect executor.
 
 Only synthetic roots, scripted analyzers and owned processes. No private root,
 real model/Provider/embedding, client configuration, egress or Runtime adoption.
-Synthetic tests do not establish product use or Owner acceptance. The three
+Synthetic tests do not establish product use or Morii acceptance. The three
 authorized MCP-4 route items stop after request-only forget; MCP-5, hide/delete,
 new MV stages and merging remain separate instructions.

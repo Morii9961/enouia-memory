@@ -6,10 +6,10 @@ after Core-2. No Core-4, real Provider, private migration or Runtime adoption.
 ## Decision
 
 Add a separate automation storage namespace. Its descriptor and CURRENT use
-schema major 2; existing SchemaVersion, RecordKind/AnyRecord, OWNER_ONLY, old
+schema major 2; existing SchemaVersion, RecordKind/AnyRecord, `OWNER_ONLY`, old
 Host recovery and Workspace/MCP semantics remain unchanged. Never place machine
 records in a schema-1 root. Creating this format requires an explicitly chosen
-empty verified synthetic root and native owner setup; existing roots refuse
+empty verified synthetic root and native Morii setup; existing roots refuse
 adoption. Root setup is not per-memory review or a fabricated approval.
 
 One native automation Host owns the existing lifetime Host OS lease and takes
@@ -25,13 +25,13 @@ separate, including system-staged uncertainty with automatic reevaluation.
 Bind original generation requests and raw response hashes to decisions, result
 revisions, operation IDs and batch receipts. Construct actual evaluation context
 from current stored sources/policy/targets inside writer exclusion. Model JSON
-cannot supply owner authority, omit selected dependencies or invent a receipt.
+cannot supply Morii authority, omit selected dependencies or invent a receipt.
 
 Commit the whole selected batch atomically. Pure set/delta checks enforce
 append-only history, policy/deletion watermarks, exact target lineage, sensitivity
 inheritance and result/commit binding. Only validated System decisions create
 machine memories. Policy administration and optional deletion remain distinct
-native owner controls; no ReviewRecord or confirmation is generated. Return a
+native Morii controls; no ReviewRecord or confirmation is generated. Return a
 memory receipt only after CURRENT and its durable witness agree. Exact replays
 return original receipts under current source/policy/deletion checks; changed
 arguments conflict and stale generation never silently rebases.
@@ -40,17 +40,17 @@ Add optional `allow_revise_created` only under `admission-rules-2`: an exact
 policy may revise machine memories created under that same policy identity,
 subject to all current revision, subject/project, source and access checks.
 Native stored provenance supplies this scope; model JSON cannot assert it and
-legacy owner records remain forbidden. Default false is omitted so existing
+legacy Morii records remain forbidden. Default false is omitted so existing
 rule-1 policy bytes/hashes remain unchanged. Old strict next readers reject the
 new populated field/rule version before evaluation. This narrow delegation
-avoids requiring the owner to grant every freshly generated target ID.
+avoids requiring Morii to grant every freshly generated target ID.
 
 Write an exact before/after publication intent before CURRENT, then a witness.
 Normal open/read never repairs or guesses a commit. An explicitly authenticated
 native primary may finish only that already-authorized intent after validating
 both immutable states, the legal delta and observed before/after pointer/witness.
 This separate V2 recovery creates no new decision, operation or approval and
-never rewinds a watermark. This does not change ADR-MEM-73's old-root owner
+never rewinds a watermark. This does not change ADR-MEM-73's old-root Morii
 confirmation rules. Missing/corrupt/conflicting evidence stays unavailable.
 
 The minimum context reader uses current authorized eligible latest revisions,

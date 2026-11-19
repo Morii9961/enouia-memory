@@ -21,5 +21,5 @@ numbers into arrays or identifiers. Unknown metadata and mixed attachment
 parts remain data and are preserved by the existing source binding.
 
 No Rust, wire/storage schema, dependency, Runtime activation or stage boundary
-changes. Real samples, Provider calls, model quality and owner acceptance remain
+changes. Real samples, Provider calls, model quality and Morii acceptance remain
 outside this repair. Evidence: [validation](../validation/MV-7-quality-collections.md).

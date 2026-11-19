@@ -55,11 +55,11 @@ b9bc1c9 已推送共享元数据形状修正，草稿 #85 已更新。其后已�
 的修订生命周期证据：同一 memory_id 的 System 更新后，记忆链接读当前修订，
 旧 recall 链接 stale；显式新召回后读当前结果。新证据必须来自已保存的 Runtime
 UserStatement 原话，不使用 fixture.revise（该辅助函数另造来源），不调用
-NativeMemoryOwner。owned allowlist 仅 opening_tool_links.rs、本交接与 read-tool-links
+`NativeMemoryOwner`。owned allowlist 仅 opening_tool_links.rs、本交接与 read-tool-links
 验证报告；无实现/schema/surface 改动，不重复其独立检查，保持 -j 1。
 单项修订生命周期测试通过：使用实际 Runtime 捕获原话更新同一记忆到 revision 2，
 原 memory 链接读取当前修订；旧 recall 仍 stale，只有显式新召回替换旧缓存。
-scope_hash 保持，SourceRead=false，读取不改更新后快照、不增 capture/Owner 动作。
+scope_hash 保持，SourceRead=false，读取不改更新后快照、不增 capture/Morii 动作。
 定向 Clippy/fmt 通过，无全量；见 read-tool-links 报告的修订生命周期小节。
 
 f514016 已推送读取工具资源链接，草稿 #85 已更新。其后复现共享会话层的
@@ -67,7 +67,7 @@ f514016 已推送读取工具资源链接，草稿 #85 已更新。其后复现�
 ADR126/合同先补充。owned allowlist：read_session.rs、新 opening_metadata.rs、
 opening_pipe.rs 必要实际管道用例、ADR126/合同、本交接/验证报告、integration
 manifest/RUNTIME.md。只处理元数据容器形状，不解释其权限，不改 legacy MCP
-独立入口，不新增协议特性、模型、Owner 动作或队列。
+独立入口，不新增协议特性、模型、Morii 动作或队列。
 ReadSession 对元数据容器只检查一次；合法对象不改写、不授予权限。元数据/开场
 13 项、实际管道 10 项、原 note 保存回放 1 项及 surface 4 项通过；独立 Python
 既有 77 schemas/语料通过，不冒称其覆盖新元数据状态机。定向 Clippy/fmt/公开
@@ -98,7 +98,7 @@ c346838 已推送 initialized/v2 读取控制字段修正，草稿 #85 已更新
 并收束 catalog/qualified 的同两字段。owned allowlist：这两个 MCP mod.rs、
 segmented_agent.rs / qualified_mcp.rs 对应定向测试、agent-catalog/qualified-read
 合成 manifest、本交接/read-control 报告、integration manifest/RUNTIME.md。
-不改领域全局 enum，不调用 NativeMemoryOwner，不改变有效工具/权限/布局/指纹。
+不改领域全局 enum，不调用 `NativeMemoryOwner`，不改变有效工具/权限/布局/指纹。
 2026-11-06 接续：这两个入口各复现 8 个反例后复用 string_enum。直接入口 2 项、
 实际 stdio 2 项、surface 4 项通过；独立 Python 76 schemas、两个 manifest 各
 22 件通过。定向 Clippy/fmt/surface/公开检查通过，无全量。此前 Clippy/surface
@@ -146,7 +146,7 @@ base；不合并。origin/main 为 PR #83 的 2a6310e，包含 f42f3b1，已核�
 session_start 复用同一 QualifiedAgentReader 与 memory_start 的有界召回：
 min(4, profile.max_items) / min(16384, profile.max_bytes)，返回原 request_id 和
 同一 actual-context payload。它不创建持久 Session、不捕获、不 checkpoint、
-不形成记忆、不调用模型/Owner，不创建收据、作业或必须由主人处理的队列。
+不形成记忆、不调用模型`/Owner`，不创建收据、作业或必须由主人处理的队列。
 新 capability 标记合同，不产生授权；独立 MemoryRead 仍必要，SourceRead 可选。
 只有 pipe-10 context profile 为六个读工具；旧 pipe-5/6 和报告 profile 保持原义。
 
@@ -167,7 +167,7 @@ native recall 前拒绝；schema / capability / hello 指纹未因这次纠错�
 - session_start 首片当前三个 Host 目标共 21 passed；合同/表面 7 passed。
 - 资源链接片相关 Host 13 passed；合同/表面 8 passed；额外指纹断言单项通过。
 - 后续形成后双入口、实际 stdio 出口各一个定向测试通过；旧 profile 两项通过。
-  只运行所列旧用例，没有执行调用 NativeMemoryOwner 的旧测试。
+  只运行所列旧用例，没有执行调用 `NativeMemoryOwner` 的旧测试。
 - 最新 kind 修正后：session 测试 3 passed、实际管道成功路径 1 passed、
   合同/表面 8 passed，0 failed。修正前反例失败日志保留，未伪装为全程通过。
 - 独立 Python jsonschema 4.26.0：76 schemas、19 session cases、16 link cases、
@@ -190,7 +190,7 @@ runtime-surface.json 与 RUNTIME.md 已在同一实现提交登记；没有修�
 只用新建合成根和自有进程，不打开私人 Vault、导出、备份、恢复材料或凭据。
 Runtime-only capture；不开放 conversation_capture / 外部 Agent 宿主 hook。
 Agent 提示/报告仍是不可信解释，内容/证据必须追到真正 Runtime UserStatement；
-Agent 文字不能替代原话或 Owner 同意。不接真实模型/Provider/embedding，模型、
+Agent 文字不能替代原话或 Morii 同意。不接真实模型/Provider/embedding，模型、
 预算与外发仍需独立决定。forget-hide 尚未选择，不实现立即隐藏。不改 Runtime
 pin、真实配置或共享外壳，不读 Activity/Usage，不部署、迁主、双写或创建自动化。
 

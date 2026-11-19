@@ -57,7 +57,7 @@ expected revision，再持久化 authority。普通数据写入也必须在该�
 不实现普通数据写事务，也不自动保护租约结束后的旧 Core/CLI。
 基础的 WriterLock/AtomicFile 端口继续有效；
 Windows/云平台分别证明真实进程锁、同卷原子替换、目录持久化、受限数据根、
-只允许 owner 的 ACL/等效权限，以及 authority 与数据的一致发布。
+只允许 Morii 的 ACL/等效权限，以及 authority 与数据的一致发布。
 Provider 密钥继续通过既有 SecretStore/SecretBytes 原生端口处理，不进入
 authority、计划、Vault、MCP 或日志；本片不访问系统凭据。
 

@@ -18,7 +18,7 @@ therefore to its decision/response/commit hashes. Source record fields belong
 to the exact captured source revision. Entities and conversations form an
 append-only, revisioned catalog in the same witnessed commit as capture;
 they are neither extensions nor an alternate authority file. Names do not
-merge identities. Entity identity decisions require evidence or an owner
+merge identities. Entity identity decisions require evidence or Morii
 decision; model similarity remains a disposable suggestion.
 
 Keep existing occurrence/state/transition/lineage rules. The rich time's UTC
@@ -35,14 +35,14 @@ it needs a separate locator algorithm/version and must still store original
 text. A quote copied from an assistant cannot become user evidence. Structural
 checks do not prove title/content entailment or detect language/model errors.
 
-Owner plan/confirmation types are separate from machine inputs. Parsing an
-owner-labelled document grants no authority. The pure binding validator also
-requires native owner identity, current snapshot, exact plan digest, trusted
-surface and nonexpired confirmation. The v3 root includes an empty owner action
-ledger and withdrawal watermark now; all System deltas preserve it. The reserved owner_action transaction
-refuses until G08, avoiding a later schema-field addition. No new owner
+Morii plan/confirmation types are separate from machine inputs. Parsing an
+Morii-labelled document grants no authority. The pure binding validator also
+requires native Morii identity, current snapshot, exact plan digest, trusted
+surface and nonexpired confirmation. The v3 root includes an empty Morii action
+ledger and withdrawal watermark now; all System deltas preserve it. The reserved `owner_action` transaction
+refuses until G08, avoiding a later schema-field addition. No new Morii
 execution/publication port exists in this slice; G08 will supply its sole native entry and durable receipt.
-Machine formation cannot create owner action records or manual assertions.
+Machine formation cannot create Morii action records or manual assertions.
 
 Projection metadata binds algorithm/version, exact snapshot, authorization
 scope hash, withdrawal watermark, explicit coverage and original dependencies.
@@ -59,7 +59,7 @@ authority. Physical purge/independent recovery are separate work.
 
 This is a new synthetic-root capability, not a Workspace/MCP command, Runtime
 pin update, initialization run, Provider adapter or deployment. Legacy v1
-RecordKind/SchemaVersion/owner review bytes remain unchanged. Existing HostV1/2
+RecordKind/SchemaVersion/Morii review bytes remain unchanged. Existing HostV1/2
 serialization omits new absent fields and preserves existing fixture hashes.
 No old record is silently furnished with a title, inferred date or confirmation.
 

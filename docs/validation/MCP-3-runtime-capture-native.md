@@ -18,13 +18,13 @@ The new API accepts an existing leased segmented Vault and a retained OS
 Runtime process selected by trusted native setup. It does not open a second
 writer, forward Workspace, use System read permission as Agent permission or
 accept principal/scope/PID from a packet. Client is the registered producer role;
-Agent, Owner and System producer claims refuse. Old Agent tools and legacy
+Agent, Morii and System producer claims refuse. Old Agent tools and legacy
 proposal/checkpoint semantics are unchanged. No Runtime repository was modified.
 
 Exact policy revision, selected source pool, sensitivity, account alias, native
 configuration hash, instance identity, wall/monotonic expiry and rollback checks
 bound a sealed non-deserializable permit. Pool capacity is finite, not a wildcard
-or per-memory Owner approval queue. Later policy revisions require new native
+or per-memory Morii approval queue. Later policy revisions require new native
 admission. This is not automatic policy/source-pool provisioning.
 
 Capture preserves raw UTF-8 turns, original IDs/time/timezone, role, model,
@@ -32,7 +32,7 @@ language and bounded attachment descriptors. Backend source/conversation/branch
 identities bind them in one existing System delta with witness. User roles remain
 user statements; machine roles are model claims with no attributed subject and
 no manual confirmation. Missing event dates stay unknown. Missing original
-timezone stays null while runtime.capture records Asia/Shanghai, owner_default
+timezone stays null while runtime.capture records Asia/Shanghai, `owner_default`
 and native configuration hash. Attachment descriptors stay metadata only; no
 blob or managed attachment reference is fabricated.
 
@@ -106,7 +106,7 @@ no public MCP write advertisement, local Runtime wire, durable live queue,
 same-conversation job ordering, backfill priority, generation or formed memory
 is supplied here. No job ID or final field-coverage claim is fabricated.
 Normalized quote lookup and Agent hints are still pending. Runtime hook/UI/pin
-adoption and the parallel projection/owner-layout contracts remain separate.
+adoption and the parallel projection/Morii-layout contracts remain separate.
 
 Next: bind a versioned Runtime-only protected local transport, preserving the
 same native producer and unknown-outcome boundary; then connect durable live
@@ -120,6 +120,6 @@ Owned files: new runtime_capture contract/Vault/Host modules, schema/corpus/test
 ADR102/contract/report and minimal module registration; private commit dry-run
 extraction, schema cross-check registration, design/ADR references and regenerated
 Runtime manifest/log. No AGENTS, manual status snapshots or parallel state,
-catalog, projection, process or owner-action files were edited.
+catalog, projection, process or Morii-action files were edited.
 Four concurrent status observations in the diagnosed continuation test file
 are also owned for this fix.

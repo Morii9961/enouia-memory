@@ -11,7 +11,7 @@ Runtime's M0 agreement fixed the Memory record's minimum shape. Everything below
 | Required memory fields `schema_version`, `memory_id`, `type`, `content`, `source_id`, `created_at`, `updated_at`, `status (active\|superseded\|archived)` | Unchanged. New fields are required keys with an explicit `null` for unknown. Deletion is a tombstone, never a status |
 | ProjectState `project_id`, `state`, `decisions[]`, `open_loops[]` | Same top-level names. Items carry evidence and a `state_kind`; decisions must be `decided` |
 | Checkpoint with covered turns, `last_state`, `open_loops[]` | Adds checkpoint ID and revision, branch, `covered_events`, `coverage_hash`, `last_completed_turn_id`. The referenced artifact must be reviewed |
-| "Explicit remember/inspector saves may commit" | Only through an owner review on a trusted surface backed by a `manual_assertion` (ADR-MEM-22) |
+| "Explicit remember/inspector saves may commit" | Only through a Morii review on a trusted surface backed by a `manual_assertion` (ADR-MEM-22) |
 | "Stage, validate, flush, atomically replace, then update SQLite" | Commit = immutable revisions + a complete catalog + one `CURRENT` (ADR-MEM-21) |
 | v0.2 capsule fields | All kept. Adds version, `requested_by`, `as_of`, commit and epochs, versions, surface, destination, purpose, currency per item, `verification_needed`, `completeness` |
 | Future MCP `memory_update` | Alias of `memory_propose` (revise/supersede only); always returns a pending candidate |
@@ -28,7 +28,7 @@ Runtime's M0 agreement fixed the Memory record's minimum shape. Everything below
 - **Approvals** (ADR-MEM-30): egress, declassification and policy-grant approvals are bound to exactly what they approve. A memory review can never stand in for one of them.
 - **Policies** (ADR-MEM-31): versioned, default deny, project and Provider scoped, revocable. The genesis default never sends outside.
 - **Payload digest** (ADR-MEM-33): destination, messages, tools and output configuration are bound together. Any change needs new consent.
-- **Deletion**: an owner `delete` proposal, then a `confirm_delete` review with `delete_binding`, then a tombstone that must equal the binding.
+- **Deletion**: a Morii `delete` proposal, then a `confirm_delete` review with `delete_binding`, then a tombstone that must equal the binding.
 - **Mock budget**: `utf8_bytes_v1`, deterministic but not an upper bound for real tokenizers.
 
 ## 3. Ports and error semantics

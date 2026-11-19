@@ -6,15 +6,15 @@ The semantic task asks the model to distinguish corrections from divergent
 branches, but its original input exposes no direct parent edges. Add the opt-in
 history_semantic::create_with_lineage helper. Keep create, legacy task bytes,
 request derivation and reopening unchanged. Separate session/input keys and
-Request IDs for the new helper, even when the owner supplies the same operation
+Request IDs for the new helper, even when Morii supplies the same operation
 key. Output remains history-semantic-review-1; no wire/storage schema changes.
 
-The new Request ID hashes a domain longer than the maximum 256-byte owner key,
+The new Request ID hashes a domain longer than the maximum 256-byte Morii key,
 followed by its namespace and key hash. A legacy key can imitate a textual
 namespace, so the namespace alone cannot separate the two hash-input domains.
 Legacy derivation stays unchanged. This corrects the unmerged H2i helper;
 synthetic tasks created with its earlier derivation must be recreated with a
-fresh owner key, never silently rebound or resent.
+fresh Morii key, never silently rebound or resent.
 
 selected_lineage has one row per selected source span: source_index,
 parent_source_indices and nullable unselected_parent_count. Read only the selected
@@ -38,4 +38,4 @@ Quality bundles keep the native input hash; inspecting the complete analysis inp
 is still necessary to review the additional lineage supplied to the model.
 
 All validation is synthetic. Real model quality, Runtime product adoption and
-owner acceptance remain pending; MV-8 is not started.
+Morii acceptance remain pending; MV-8 is not started.

@@ -24,7 +24,7 @@ original was searched for or lost. Metadata-only slots are counted separately
 from unavailable originals in preflight. No detected type or verified original
 hash is invented. Embedded attachment payloads refuse this mode rather than being
 silently stripped from Raw. This extension is descriptive selection data, not
-owner authority or a visual evidence claim.
+Morii authority or a visual evidence claim.
 
 The native memory fields remain text. Complete selected conversation JSON and
 the authored analysis JSONL remain exact, bounded textual Raw objects in the
@@ -39,7 +39,7 @@ No Raw, plan or whole-journal capacity limit is raised. Existing native formatio
 close/reopen, source queries, idempotence and original-packet uncertainty barriers
 remain in force. Original external data is not deleted by initialization. Any
 later cleanup follows actual new-library acceptance, independently verified
-backup/restore, exact-path review and the owner's last deletion confirmation.
+backup/restore, exact-path review and Morii's last deletion confirmation.
 
 ## Delivery boundary
 

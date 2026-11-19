@@ -4,11 +4,11 @@
 
 ## Native recording
 
-QualifiedAgentHost::forget_requester(owner, Agent, scope) independently grants
-AgentForgetRequester/AgentForgetPermit on an initialized leased Owner Vault.
+QualifiedAgentHost::forget_requester(Morii, Agent, scope) independently grants
+AgentForgetRequester/AgentForgetPermit on an initialized leased Morii Vault.
 The original AgentForgetRequest is closed: request_id, exact target (TargetRef),
 exact source (SourceRevisionRef), quote_hint and forget (untrusted Agent text).
-No identity, scope, Owner approval or effect settings are accepted from packets.
+No identity, scope, Morii approval or effect settings are accepted from packets.
 Bounds match report intake: nonblank quote_hint at most 500 scalars/2000 bytes;
 nonblank forget at most 2000 scalars/8192 bytes; source at most 16384 bytes and
 actual current native Runtime User/UserStatement provenance. Native quote
@@ -22,13 +22,13 @@ Vault ID, Agent, request ID); request_hash covers the full original request.
 AgentForgetRecord stores request key, request ID/hash, principal/scope, exact
 target, current source policy, original QuotedEvidence and untrusted forget.
 The agent_forget_request delta is written by the native System on the existing
-Owner chain; there is no second authoritative journal.
+Morii chain; there is no second authoritative journal.
 
 AgentForgetReceipt contains request_key, request_id, request_hash, original
 target, committed_in and state=forget_request_saved only. It means recorded,
 not forgotten, hidden, deleted, approved, queued or promised for processing.
 No source body, Agent text, result memory, global sequence or native scope is
-echoed. Recall, process state, source/memory bytes, Owner marks, suppression and
+echoed. Recall, process state, source/memory bytes, Morii marks, suppression and
 worker dispatch remain unchanged by the request. The chain head records storage.
 
 Current authorization always precedes receipt lookup. Same key/hash replays
@@ -54,7 +54,7 @@ The server advertises five initialized reads plus memory_forget_request and
 requires independent live reader/requester, same native Agent/exact leased
 Vault. Native OS enrollment requires MemoryRead + SourceRead but does not grant
 request authority. Protocol memory-agent-pipe-9, recordSchema=2,
-layout=automation-segmented-owner-v1,
+layout=`automation-segmented-owner-v1`,
 profile=memory-agent-initialized-forget-requests-1. Exact Hello binds descriptor,
 Vault, initialized read fingerprint and bundled local-only wire schemas.
 Old profiles, changed hashes, extra authority fields and wrong peers refuse
@@ -68,7 +68,7 @@ error.data.originalRequest and output-failure retention preserve the full parsed
 MCP Value. Original formatting/bytes are not promised. It opens no Vault, grants
 no enrollment and changes no real configuration.
 
-There is no consumer, Owner task queue, model request or forget-hide behavior.
+There is no consumer, Morii task queue, model request or forget-hide behavior.
 Any future effect needs Morii's separate scope/duration/restore/revocation
 decision and an independent implementation/authorization. This contract is not
 that decision. New closed deltas must never be opened by older binaries.

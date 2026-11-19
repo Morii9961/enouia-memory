@@ -32,7 +32,7 @@ Fresh manifests additionally accept:
 
 The complete selected analysis file, including any unselected lines, is retained.
 Neither it nor selected Raw conversations are redacted by source-table filtering.
-All these inputs remain data, with no Owner confirmation, Provider invocation,
+All these inputs remain data, with no Morii confirmation, Provider invocation,
 attachment reading permission or long-term read grant inferred from them.
 
 Existing manifests without new selections retain default refusal and the prior
@@ -68,7 +68,7 @@ Final checks actually run (all test input, roots and metadata synthetic):
   Actual Windows-account bootstrap prepare/commit and the production fresh CLI
   form two synthetic records including the selected mixed text view, reopen,
   repeat without multiplication, explicitly recover and refuse changed analysis.
-  The uniquely allocated protected synthetic home is retained; no real owner
+  The uniquely allocated protected synthetic home is retained; no real Morii
   inputs/home/Vault are used. Its private local location is omitted here.
 - `cargo clippy --workspace --all-targets --locked -- -D warnings`: **passed**.
 - Existing repository virtual-environment Python schema cross-check:
@@ -101,7 +101,7 @@ previous adoption remains completed. Workspace remains at 61 commands with no
 UI/IPC change, and no Runtime checkout was modified.
 
 New code is used only with synthetic fixtures before merge. This PR does not
-create/write a real Owner Vault or complete corpus-wide native capacity,
+create/write a real Morii Vault or complete corpus-wide native capacity,
 formation, reopen/query/source acceptance, independent backup or product acceptance.
 It does not deploy, delete protected data, refresh manual status snapshots or
 start a new MV stage. Private actual-intake mapping findings remain outside Git.

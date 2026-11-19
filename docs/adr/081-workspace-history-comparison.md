@@ -1,6 +1,6 @@
 # ADR-MEM-81 — Workspace saved-history comparison
 
-Date: 2026-10-23. Scope: expose the existing ADR-MEM-51 local owner review helper.
+Date: 2026-10-23. Scope: expose the existing ADR-MEM-51 local Morii review helper.
 
 Add read-only `history_compare({batches:[{taskId,batchIndex}]})`, returning
 `history_comparison`, with null idempotencyKey. Accept 1–32 distinct selections;
@@ -22,7 +22,7 @@ and current `candidate.details` to the existing extraction inspection fields.
 This is a closed native-built view, not a way to submit review text.
 
 Require one unchanged pin from task resolution through helper reads and result
-serialization. Recheck native enabled state. Existing owner, import/source and
+serialization. Recheck native enabled state. Existing Morii, import/source and
 policy checks remain. Existing helper bounds (32 runs, 256 suggestions, 512
 sources, 4096 comparisons) apply; serialized result is capped at 512 KiB.
 Overflow rejects the entire result, never truncates. No durable state, cursor,

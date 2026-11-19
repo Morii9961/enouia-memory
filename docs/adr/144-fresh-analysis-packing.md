@@ -11,7 +11,7 @@ and an explicit `AnalyzedBatch`. Group statements in caller order, keeping every
 primary quote, supporting quote and context source in the same plan. Remap only
 source indexes. Preserve authored content, provenance, source values, exact
 locators, original parent references and attachment carriers. Use no analyzer,
-filesystem discovery, policy, Owner action or Vault write.
+filesystem discovery, policy, Morii action or Vault write.
 
 Each statement must fit the existing source bound on its own. Refuse the entire
 preparation when a dependency is missing, a source or Raw object is oversized,
@@ -42,7 +42,7 @@ and context preservation, exact Raw/locator checks, source-scope watermarks,
 capacity and linked-statement refusals, and native plan construction. No schema,
 wire, dependency or Runtime integration surface change is intended.
 
-Production use waits for Owner merge. Semantic corpus review, explicitly
+Production use waits for Morii merge. Semantic corpus review, explicitly
 selected attachment bytes, bounded journal execution, the production fresh-input
 driver, native bootstrap/reopen/read acceptance and independent backup remain
 separate. This is a lossless plan packer, not completed real initialization, a

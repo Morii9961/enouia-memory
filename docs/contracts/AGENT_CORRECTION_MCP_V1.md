@@ -5,7 +5,7 @@
 Explicit server: five initialized reads plus memory_correction_report. Native
 setup supplies independently live initialized reader and correction reporter
 for the same Agent and exact leased Vault. No packet selects a principal,
-permit, scope, PID or Owner. Existing notes/read profiles do not gain this tool.
+permit, scope, PID or Morii. Existing notes/read profiles do not gain this tool.
 
 Closed input: schema_version=2, kind=agent_correction_request,
 capability=memory-agent-correction-1, request=the original
@@ -33,4 +33,4 @@ Value and disconnect before Reply. Block further calls and revoke the paired
 delegations. Explicit recovery plus fresh enrollment may replay the original
 domain request/key. No automatic retry/reconnect/new key or mandatory human
 review queue. Successful storage and synthetic tests do not imply real System
-model quality, Runtime adoption or Owner acceptance.
+model quality, Runtime adoption or Morii acceptance.

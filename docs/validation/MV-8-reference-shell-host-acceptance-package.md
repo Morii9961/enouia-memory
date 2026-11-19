@@ -8,7 +8,7 @@
 
 - 分支：`codex/mv8-reference-host-closeout`。小修提交 `be044b4` 固定了 API → action catch 后的原 packet/key 保留及原五项 focused 检查记录。
 - 验收程序和 fixture preparer 的源码提交：`eaa002f84a9452257e18e8512d7fe99f73089bd1`，包含上述小修。交付报告之后的文档提交不改变这组程序的源码 pin。
-- 新增 [prepare_reference_host example](../../crates/enouia-memory-vault/examples/prepare_reference_host.rs)：只在操作系统临时位置创建随机全新目录、生成合成 genesis、限制 owner ACL、bootstrap Host v2 并验证租约重新取得。它没有输入根、导入、启动进程或删除功能，不能用于真实根迁主。
+- 新增 [prepare_reference_host example](../../crates/enouia-memory-vault/examples/prepare_reference_host.rs)：只在操作系统临时位置创建随机全新目录、生成合成 genesis、限制 Morii ACL、bootstrap Host v2 并验证租约重新取得。它没有输入根、导入、启动进程或删除功能，不能用于真实根迁主。
 - 本地验收包位于忽略的 `.local/mv8-reference-acceptance-20261023/`。包括 Host、启用现有 `custom-protocol` 的参考壳、对应 x64 WebView2 loader、preparer、固定合成 A/B 根的本地元数据、手动 launcher、构建/进程观察记录和 README。没有安装、注册自启动或启动图形壳。
 
 从仓库根目录，人工启动 A 的命令如下；B 和 embedded 入口详见包内 README：
@@ -42,7 +42,7 @@ launcher 只读取此次准备的合成元数据和包内程序，返回新 shel
 
 两轮进程结果保存于 `.local/mv8-reference-acceptance-20261023/owned-host-observation.json` 和对应 stdout/stderr。观察脚本只登记自己的 Broker PID，保留实际 Host 进程句柄，显式允许 Broker 正常退出，再等待该 Host 自退。没有扫描其他进程、调用应用命令、真实 Provider 或私人数据。
 
-准备过程中保留两类失败：受限进程应用 owner ACL 后写新 Vault 被拒绝，在正常权限下运行同一 preparer 成功，没有放宽 ACL 或产品检查；原生构建的两次 `windres` 失败在普通/正常权限下相同。后者通过独立资源编译定位：Rust bin 在前时 GCC `cc1` 返回入口点缺失码 `0xC0000139`；只把 MSYS2 bin 提前，`cc1` 和同一 resource.rc 的 windres 立即通过，随后原生构建通过。只调整该次进程 PATH，未修改系统 PATH、crate、依赖或编译器版本。初始格式检查差异已由 pinned rustfmt 修正。
+准备过程中保留两类失败：受限进程应用 Morii ACL 后写新 Vault 被拒绝，在正常权限下运行同一 preparer 成功，没有放宽 ACL 或产品检查；原生构建的两次 `windres` 失败在普通/正常权限下相同。后者通过独立资源编译定位：Rust bin 在前时 GCC `cc1` 返回入口点缺失码 `0xC0000139`；只把 MSYS2 bin 提前，`cc1` 和同一 resource.rc 的 windres 立即通过，随后原生构建通过。只调整该次进程 PATH，未修改系统 PATH、crate、依赖或编译器版本。初始格式检查差异已由 pinned rustfmt 修正。
 
 本轮没有重跑上一轮已通过且源码未变的五项 Node 检查，没有运行 full workspace tests/Clippy、schema cross-check、历史质量、真实 Provider、Runtime 或 Activity 检查。此次 build 用于产生明确获授权的现场验收程序，不把构建当作验收替代。
 

@@ -2,7 +2,7 @@
 
 2026-11-04. Morii explicitly authorized MCP-5 synthetic development after MCP-4.
 Other existing boundaries remain. This slice is read-only on the initialized
-Owner carrier; there is no capture hook, model call or Owner action.
+Morii carrier; there is no capture hook, model call or Morii action.
 
 ## Decision
 
@@ -11,7 +11,7 @@ Add an explicit server with the existing five initialized read tools, one
 authorized QualifiedAgentReader and its exact leased Vault/Agent, current
 policy, source closure, sensitivity, generation, expiry and deletion checks.
 Resources and prompts are projections of that read authority, never a new
-permit, System reader, Owner operation or substitute for source-read permission.
+permit, System reader, Morii operation or substitute for source-read permission.
 
 MCP remains 2025-11-25. Announce tools, resources and prompts in the new profile
 only. No subscription/list-change notifications, completions, session capture,
@@ -35,7 +35,7 @@ conditions, historical window or invented date. Bound selection to min(4,
 profile.max_items) and min(16384, profile.max_bytes), using the existing pure
 qualified recall/evaluator. The result includes actual trace, coverage and
 attributed records, wrapped as data in a standard MCP text prompt. MCP role=user
-does not authenticate a captured UserStatement, Owner consent or new evidence.
+does not authenticate a captured UserStatement, Morii consent or new evidence.
 It changes only the existing ephemeral reader context cache, not durable data.
 
 Use new memory-agent-pipe-10, profile memory-agent-initialized-context-1 and
@@ -133,7 +133,7 @@ a claim that every nested input already has full schema equivalence.
 ## Search cursor algorithm representation (2026-11-07)
 
 The search cursor echoes a frozen selection whose algorithm is a string
-(owner-qualified-catalog-4 for initialized/context/qualified; the catalog-v2
+(`owner-qualified-catalog-4` for initialized/context/qualified; the catalog-v2
 algorithm strings for the catalog adapter). Object tags must not normalize into
 that enum through serde. Check the cursor's selection.algorithm representation
 once at the MCP search boundary, then pass the existing typed CatalogCursor

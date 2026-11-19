@@ -32,7 +32,7 @@ Final repository-root checks passed on the pinned Rust 1.98.1 GNU toolchain with
 - `python tools/integration/runtime_surface.py`: aggregate `65d7ae8c115ad4d38c1702243df7f2ba4ff4f4593356dd0b486a74aa71dcbf36`, recorded and logged.
 - `git diff --check` and review of the wording-only reference UI diff.
 
-The initial sandboxed full run stopped at the existing CLI owner-only ACL check. That unchanged test passed outside the sandbox, then the complete workspace suite and Clippy passed outside the sandbox. No ACL or CLI behavior was patched. Local verification logs remain ignored.
+The initial sandboxed full run stopped at the existing CLI current-user-only ACL check. That unchanged test passed outside the sandbox, then the complete workspace suite and Clippy passed outside the sandbox. No ACL or CLI behavior was patched. Local verification logs remain ignored.
 
 ## Limits
 

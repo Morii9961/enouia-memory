@@ -1,6 +1,6 @@
-# Segmented Owner backup (ADR-MEM-136)
+# Segmented Morii backup (ADR-MEM-136)
 
-2026-11-11. Synthetic data only; no real Owner root, Provider, network service,
+2026-11-11. Synthetic data only; no real Morii root, Provider, network service,
 VPS deployment or legacy deletion.
 
 ## Windows evidence
@@ -39,4 +39,4 @@ Linux checkout's WIP and the synthetic bootstrap root were preserved.
 
 No encrypted restic media or separate failure domain was exercised. Native round trips are not a real
 independent-backup acceptance, a Windows-to-Linux data migration or ChatGPT
-interoperability evidence. Those remain separate owner-authorized drills.
+interoperability evidence. Those remain separate Morii-authorized drills.

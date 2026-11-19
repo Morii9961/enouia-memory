@@ -15,19 +15,19 @@ not supplied by that follow-up.
 
 `HostService::mcp_read_server(Grant)` now creates a distinct in-process Agent
 connection over the Host's existing bound Vault. The server borrows HostService;
-there is no second Vault open, writer, root picker or owner Workspace forwarding.
+there is no second Vault open, writer, root picker or Morii Workspace forwarding.
 It accepts only memory:read/source:read ceilings and advertises only the enabled
 search/read/source tools. Write/context grants are refused at construction.
 
 The embedding layer must authenticate/enroll the native Agent separately.
 This API and Grant's constructor do **not** establish OS authentication. Existing
-owner pipe framing/hello/native controls are unchanged and cannot enroll Agents.
+Morii pipe framing/hello/native controls are unchanged and cannot enroll Agents.
 Agent and window connections cannot be substituted for each other. They share
 the same lifecycle gate, five-minute TTL, capacity, clock checks and lock/unlock
 revocation; old Agent handles stay invalid after an unlock.
 
 The domain port uses current persisted PolicyRecords and server-resolved record
-metadata. Owner-only genesis gives Agents no access. memory:read grants no source
+metadata. Morii-only genesis gives Agents no access. memory:read grants no source
 text. Direct missing/unauthorized IDs share not_found. Both current and requested
 historical metadata must allow the read. Source records have no project field;
 a project-limited grant cannot infer a source project from its memory citation.
@@ -57,7 +57,7 @@ The first new-test invocation failed at synthetic Vault creation under the
 restricted token (AccessDenied); the identical checks passed with normal
 permissions. No ACL or product rule was weakened. All test roots are newly
 created under a dedicated temporary base; cleanup is restricted to the owned
-direct child. Test owner policy approvals and governance confirmations apply
+direct child. Test Morii policy approvals and governance confirmations apply
 only to invented fixture data, never to personal consent or records.
 
 The three direct path dependencies (govern, import, index) already belonged to

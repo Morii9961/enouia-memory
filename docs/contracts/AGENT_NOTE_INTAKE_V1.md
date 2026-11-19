@@ -2,7 +2,7 @@
 
 2026-11-03. [ADR116](../adr/116-durable-agent-note-intake.md).
 
-Native Owner-root API, using ADR115's independently granted AgentNotePermit.
+Native Morii-root API, using ADR115's independently granted AgentNotePermit.
 
 ```text
 AgentNoteWriter::submit(original_request) -> AgentNoteReceipt
@@ -16,7 +16,7 @@ current when publication starts. Agent provenance is set from the permit.
 AgentNoteRecord contains note_key, request_id, request_hash, principal,
 scope_hash, exact current PolicyRef, QuotedEvidence and note. The record is an
 untrusted Agent interpretation with original source evidence, not a new source,
-Owner assertion or machine admission decision. The existing System actor writes
+Morii assertion or machine admission decision. The existing System actor writes
 the `agent_note` delta. Chain replay validates the record and current source,
 policy, key uniqueness, layout and capacity before applying it.
 

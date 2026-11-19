@@ -24,7 +24,7 @@ Running on Linux found and fixed the following:
 - The new unit test expected one broad grant for a 0644 file. Group read and
   other read are two.
 - `backup.rs` asserted Windows ACL inheritance. Linux now asserts that a 0755
-  root is not owner-only, and that once restricted, the 0700 root protects
+  root is not Morii-only, and that once restricted, the 0700 root protects
   children whose modes follow the umask.
 - `root.rs` used `mklink /J`, NTFS/ReFS names and UNC paths. Linux now uses a
   symlink as the reparse point, local filesystem names, and no UNC cases. A

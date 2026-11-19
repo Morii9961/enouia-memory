@@ -1,10 +1,10 @@
-# ADR-MEM-110: Native empty Owner Vault bootstrap
+# ADR-MEM-110: Native empty Morii Vault bootstrap
 
 Date: 2026-10-30. Status: native implementation under synthetic validation and
-Owner-contract review. This extends native admission; ADR93/103 business record
-fields and the Owner layout do not change.
+Morii-contract review. This extends native admission; ADR93/103 business record
+fields and Morii layout do not change.
 
-The owner explicitly authorized creation of an empty formal Vault in the
+Morii explicitly authorized creation of an empty formal Vault in the
 selected durable data home. This does not authorize importing inputs, models,
 formation queues, Runtime adoption, old-root migration or Core-8 switching.
 
@@ -14,26 +14,26 @@ Provide a separate `enouia-memory-owner-bootstrap` native local command in the
 Host crate. It is an approved trusted native launcher/CLI path, never a callable
 MCP/page tool. The embedding caller must not route untrusted packets into it.
 The explicit `--bind-current-owner-self` scope registers the current authenticated
-OS subject as this root's logical Owner, with Subject meaning that owner themself.
+OS subject as this root's logical Morii, with Subject meaning Morii themself.
 It cannot name another ActorRef, SID, PID or Subject. It does not bind a character
 or infer identity from a person's name.
 
 The native adapter obtains current process token SID/session evidence and retains
 a live kernel process handle. These facts prove an OS account/session only;
-same-account Agent processes can have the same facts. Owner registration also
+same-account Agent processes can have the same facts. Morii registration also
 depends on the already-authorized trusted native command invocation and explicit
 self-binding scope. Neither flags, ACL, marker files nor a JSON fingerprint
-independently authenticate a human or grant Owner authority. No new G08 Consent,
+independently authenticate a human or grant Morii authority. No new G08 Consent,
 Windows Hello, password or external identity service is imposed by this ADR.
 
-Issue fresh logical Owner/System/host/vault/self-Subject IDs through OsIdSource.
+Issue fresh logical Morii/System/host/vault/self-Subject IDs through OsIdSource.
 Random IDs are valid provisioning, not credentials. A private versioned binding
 records the original operation, stable OS account reference, descriptor/hash,
 controlled relative root, original home metadata and registration state. PID,
 session ID and live handle are never serialized as recoverable capabilities.
 Each invocation reauthenticates the current OS account and checks the protected
 binding; missing, corrupt, foreign or synthetic bindings refuse. The descriptor
-alone never recreates a missing Owner registration.
+alone never recreates a missing Morii registration.
 
 The private registration also binds the original verified canonical data-home
 path. Compare the exact Unicode string returned by the existing Windows root
@@ -48,9 +48,9 @@ included in the native result's authority fields or public documentation example
 ## Persistence and failure
 
 The data home must be a verified durable local root, outside repositories and
-temporary directories, with existing protected owner-only ACL and preservation
+temporary directories, with existing protected current-user-only ACL and preservation
 markers. Existing ACLs are checked, not weakened to enable creation. New private
-bootstrap/root directories receive owner-only protection. Test enrollment exists
+bootstrap/root directories receive current-user-only protection. Test enrollment exists
 only under cfg(test); production rejects synthetic homes and test bindings.
 
 Use a separate `.enouia-owner-bootstrap` area in the data home, not inside the
@@ -71,7 +71,7 @@ stateDiagram-v2
 
 Reuse SegmentedAutomationVault::create and its witnessed descriptor genesis.
 After releasing that writer, reopen with the same host binding and verify the
-first genesis snapshot plus empty source/memory/policy/entity/conversation/Owner
+first genesis snapshot plus empty source/memory/policy/entity/conversation/Morii
 action/job state. No business policy or formation journal is created for health.
 Nonempty unknown directories are not overwritten or deleted. A healthy existing
 genesis resolves the original result; incomplete CURRENT/witness needs explicit
@@ -81,7 +81,7 @@ Failure preserves directories and journal; it never blind-creates new IDs/paths.
 Home metadata publication uses the home lease, original byte baseline rechecks
 and atomic replacement. All cooperating metadata writers must honor that lease;
 the operation does not claim an atomic transaction across journal, Vault and home
-files or protection from a non-cooperating owner manually editing during rename.
+files or protection from a non-cooperating Morii manually editing during rename.
 Unknown metadata keys/values are retained. Conflicts retain the original creation
 for reconciliation rather than overwriting another active root.
 
@@ -98,10 +98,10 @@ With the pinned Rust toolchain, the binary is built from package
 the original operation ID:
 
 ```text
-enouia-memory-owner-bootstrap prepare <OWNER_DATA_HOME> --bind-current-owner-self
-enouia-memory-owner-bootstrap commit <OWNER_DATA_HOME> <OPERATION_ID> --bind-current-owner-self
-enouia-memory-owner-bootstrap status <OWNER_DATA_HOME>
-enouia-memory-owner-bootstrap recover <OWNER_DATA_HOME> <OPERATION_ID> --bind-current-owner-self
+enouia-memory-owner-bootstrap prepare <MORII_DATA_HOME> --bind-current-owner-self
+enouia-memory-owner-bootstrap commit <MORII_DATA_HOME> <OPERATION_ID> --bind-current-owner-self
+enouia-memory-owner-bootstrap status <MORII_DATA_HOME>
+enouia-memory-owner-bootstrap recover <MORII_DATA_HOME> <OPERATION_ID> --bind-current-owner-self
 ```
 
 Prepare durably enrolls the original creation but creates no Vault. Native output

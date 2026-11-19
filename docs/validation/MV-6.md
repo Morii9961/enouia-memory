@@ -1,6 +1,6 @@
 # MV-6 — Windows Memory Workspace (synthetic)
 
-Date: 2026-10-02. Scope: MV-6 ([plan §10](../design/IMPLEMENTATION_PLAN.md)), authorized by the owner's "继续吧" after the MV-5 status report, and finished on the owner's request to complete MV-6 and open a pull request. Start: `ae6a6d0`. Every input is synthetic: a Vault created in a temporary directory, a generated Markdown file, and typed test sentences. No real data root, export, Provider key, model, network, MCP, or VPS was used. MV-7 has not started.
+Date: 2026-10-02. Scope: MV-6 ([plan §10](../design/IMPLEMENTATION_PLAN.md)), authorized by Morii's "继续吧" after the MV-5 status report, and finished on Morii's request to complete MV-6 and open a pull request. Start: `ae6a6d0`. Every input is synthetic: a Vault created in a temporary directory, a generated Markdown file, and typed test sentences. No real data root, export, Provider key, model, network, MCP, or VPS was used. MV-7 has not started.
 
 ## 1. What exists now
 
@@ -10,7 +10,7 @@ Date: 2026-10-02. Scope: MV-6 ([plan §10](../design/IMPLEMENTATION_PLAN.md)), a
 | Workspace IPC v1 | 36 commands with strict arguments, idempotency keys on every command that can commit, command/response pairing, error envelope `{code, retryable, rules}`. Fixtures are checked by the Rust subset validator and python-jsonschema. | `contracts/ipc/workspace-v1.schema.json`, `enouia-memory-contract::workspace`, `tests/fixtures/memory/workspace-manifest.json` |
 | MV-6.1 Core and pages | `enouia-memory-workspace`: explicit root only (`--vault` or folder picker; a new Vault needs the typed phrase), review plans confirmed by the shown diff hash, remember and correction as pending candidates, forget/purge through the same plan, imports with preview, progress, cancel and resume, paging bound to the snapshot. Pages: Memory Explorer, Import Center, Candidate Review, Sessions. | `crates/enouia-memory-workspace`, `apps/workspace/src` |
 | MV-6.2 Context Inspector | Compile preview vs. dispatched request (`preview_not_sent` / `dispatched` with prepared, sent, completed times), every inclusion/exclusion with its reason, the actual request re-rendered from the saved records and checked against the dispatch hash. | `context_inspect`, `dispatch_inspect` |
-| MV-6.3 Recovery / Status | Index rebuild (cancellable, `Index::rebuild_with`), Vault verification, backup export to an empty folder, restore preview of an export, lock/unlock, component health (`core`, `vault`, `memory_index`, `provider`, `sync`, `activity`), free space, owner-only ACL, delete-impact preview. | `workspace_status`, Vault & Recovery and Status pages |
+| MV-6.3 Recovery / Status | Index rebuild (cancellable, `Index::rebuild_with`), Vault verification, backup export to an empty folder, restore preview of an export, lock/unlock, component health (`core`, `vault`, `memory_index`, `provider`, `sync`, `activity`), free space, current-user-only ACL, delete-impact preview. | `workspace_status`, Vault & Recovery and Status pages |
 | MV-6.4 Companion shell | Close hides, tray (show, lock, exit), global hotkey `Ctrl+Alt+<letter>` (`M` by default, `--hotkey-key` to change) registered with `RegisterHotKey` and reported as `registered` or `conflict`, always-on-top quick-search overlay. | `apps/workspace/src-tauri` |
 | Fix found on the way | The CLI `purge` reused the plan nonce as the file-purge key under the scope the confirm commit had just used, so every CLI purge ended in `idempotency_conflict` after the tombstone. The file purge now has its own key; a CLI regression test covers it. | `enouia-memory-cli` |
 
@@ -47,7 +47,7 @@ The original acceptance results and pending items below describe the merged base
 
 Codex rechecked merged commit `3523ca8`; GitHub `main` and the local checkout matched. From the repository root, the pinned offline toolchain passed format checking, all 193 workspace tests, and Clippy with warnings denied. The independent Python 3.12 / python-jsonschema 4.26.0 check passed all 34 schemas, including 63 workspace IPC messages. The frontend typecheck and production build also passed. The 22/22 real-app result above remains the original acceptance run; it was not rerun in this takeover check. README stage and data-root descriptions were corrected to match the implementation. MV-7 was not started.
 
-- The owner boundary is still in-process: whoever runs the app on this Windows account is the owner. MV-8's Host must authenticate callers.
+- Morii boundary is still in-process: whoever runs the app on this Windows account is Morii. MV-8's Host must authenticate callers.
 - "Last successful backup" is known only for exports made by the running process; the Vault does not record backups, and "last verified restore" is not recorded. Actual restore stays in the CLI (`restore` into an empty folder); the UI only previews an export.
 - Search is MV-4's literal search: a natural question such as "MoriMeta 的设计决定是什么？" does not match, while "MoriMeta 设计决定" does. The Mock then answers `no_supported_evidence`, as designed.
 - Import progress counts cancellation checks between batches, not units; total is unknown.
@@ -56,4 +56,4 @@ Codex rechecked merged commit `3523ca8`; GitHub `main` and the local checkout ma
 
 ## 5. Next stage input
 
-MV-7 (real Provider and optional extraction) needs the owner's choice of Provider(s), an API key stored in the OS secret store, usage and cost limits, and explicit permission for each outgoing request class. It does not start without the owner's request.
+MV-7 (real Provider and optional extraction) needs Morii's choice of Provider(s), an API key stored in the OS secret store, usage and cost limits, and explicit permission for each outgoing request class. It does not start without Morii's request.

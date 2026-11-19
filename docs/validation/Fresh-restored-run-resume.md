@@ -1,8 +1,8 @@
-# Fresh-run continuation on activated Owner restores — synthetic validation
+# Fresh-run continuation on activated Morii restores — synthetic validation
 
 2026-11-16. Implements [ADR147](../adr/147-fresh-restored-run-resume.md), based on
 merged ADR145 main `442b22f` and the synthetic backup regression in PR110
-(`cc1d418`). No real Owner input, Vault or backup is used. The final combined
+(`cc1d418`). No real Morii input, Vault or backup is used. The final combined
 source also includes merged ADR146 main `a543c1e`.
 
 ## Native entry
@@ -10,16 +10,16 @@ source also includes merged ADR146 main `a543c1e`.
 The existing `enouia-memory-fresh` binary adds:
 
 ```text
-enouia-memory-fresh resume-restored <MANIFEST> <OWNER_DATA_HOME> <RESTORED_ROOT> <ACTIVATION_EXPORT> --bind-current-owner-self
-enouia-memory-fresh recover-restored <MANIFEST> <OWNER_DATA_HOME> <RESTORED_ROOT> <ACTIVATION_EXPORT> --bind-current-owner-self
+enouia-memory-fresh resume-restored <MANIFEST> <MORII_DATA_HOME> <RESTORED_ROOT> <ACTIVATION_EXPORT> --bind-current-owner-self
+enouia-memory-fresh recover-restored <MANIFEST> <MORII_DATA_HOME> <RESTORED_ROOT> <ACTIVATION_EXPORT> --bind-current-owner-self
 ```
 
 The exact export selected at activation remains the binding for this restored
 root, including after continuation produces newer commits. This command makes
 no new backup-currency assertion and cannot activate a root. Reuse the trusted
 native current-OS-account/authorized-command boundary, protected durable-home
-checks and owner-only restored root. Flags or JSON do not authenticate a human.
-Keep the original descriptor/Owner/Host IDs, exact fresh run and persisted plans.
+checks and current-user-only restored root. Flags or JSON do not authenticate a human.
+Keep the original descriptor/Morii/Host IDs, exact fresh run and persisted plans.
 Missing/legacy/non-fresh journals, changed manifests, another export, unactivated
 restores and roots outside the chosen home refuse. No original home registration
 is copied, recreated or changed; Runtime root selection is untouched.
@@ -76,7 +76,7 @@ new native continuation test includes the publication-interruption check below.
 
 ## Limits
 
-All durable native homes and fixtures are synthetic. No actual Owner corpus,
+All durable native homes and fixtures are synthetic. No actual Morii corpus,
 independent encrypted media, real restore activation, authority transfer, Provider,
 read grant, deployment, data deletion, Runtime checkout or project-status snapshot
 was used or changed. This is Windows evidence, not a Linux or full-workspace run.

@@ -4,11 +4,11 @@
 
 A prepared correction draft is data. Reports need a durable identity and an
 honest original-key receipt without becoming a corrected memory, a second truth
-journal or a queue the Owner must work through.
+journal or a queue Morii must work through.
 
 ## Decision
 
-Store an `agent_correction` delta in the existing Owner segmented commit chain.
+Store an `agent_correction` delta in the existing Morii segmented commit chain.
 The native System commits on behalf of the separately delegated Agent, reusing
 the single writer, CURRENT/witness publication, uncertainty gate and forward
 recovery. The record keeps report_key, request ID/hash, Agent, scope hash, exact
@@ -19,7 +19,7 @@ User/UserStatement quote inside that active policy at commit time.
 
 Submission takes the original request and AgentCorrectionPermit only. A draft,
 NotePermit, read permit or MemoryPropose grant is never write authority, and
-NativeMemoryOwner is not called. Authorization runs first on every call through
+`NativeMemoryOwner` is not called. Authorization runs first on every call through
 the Agent read gate: live permit, generation, current policies, fully qualified
 current target memory and currently authorized exact evidence source. Deletion,
 revocation, expiry and lock therefore refuse before any receipt is found.
@@ -40,7 +40,7 @@ that was never saved for a non-current target is Stale. report_key keeps
 ADR120's (capability, Vault, Agent, request ID) binding.
 
 The receipt states `report_saved`: saved, not consumed, accepted, corrected or
-queued for the Owner. Saving changes no source, memory, recall, queue or Owner
+queued for Morii. Saving changes no source, memory, recall, queue or Morii
 state. A later System consumer must evaluate the report through the existing
 evaluator and a lawful target-bound commit, preserving actual source evidence,
 conflicts and revision history; daily revisions stay automatic and manual
@@ -56,7 +56,7 @@ there is no automatic resend, reconnect or replacement key.
 
 ## Compatibility
 
-Additive closed delta in schema 2 for Owner roots only; earlier binaries refuse a
+Additive closed delta in schema 2 for Morii roots only; earlier binaries refuse a
 root containing it. Do not downgrade such a root or open a second writer. Read
 handshakes whose compatibility hash includes the catalog schema get a new
 fingerprint; reachable read tools and authority do not expand. No MCP tool,

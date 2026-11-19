@@ -2,7 +2,7 @@
 
 Date: 2026-10-21 (Asia/Shanghai). Baseline
 `9d68d3d8707749ad3b0e2a36cfc97d71a27e712f` (merged PR #40).
-Continues the previously owner-authorized MV-8.1a–c work, without real
+Continues the previously Morii-authorized MV-8.1a–c work, without real
 migration, credentials, Provider requests or cloud activation.
 
 ## Integration
@@ -20,7 +20,7 @@ materials or manual project snapshots are included.
 [ADR-MEM-66](../adr/066-host-authority-and-platform-contracts.md) freezes bounded
 authority/transfer documents and native transaction obligations.
 [ADR-MEM-67](../adr/067-authority-control-file-persistence.md) supplies the
-explicit authority-only Windows pilot with owner ACL and process locks.
+explicit authority-only Windows pilot with Morii ACL and process locks.
 [ADR-MEM-68](../adr/068-shared-current-authority-publication.md) supplies opt-in
 HostCoordinator publication: immutable authority and data become visible by
 the same CURRENT replacement, native identity/quiescence are rechecked before
@@ -41,7 +41,7 @@ neither is an authenticated listener or a Runtime transport switch.
 Focused current-branch tests passed 26/26: 10 pure contract tests, 8 native
 control-file/process tests and 8 data/authority transaction tests. They cover
 exact promotion replay, monotonicity/receipt budgets, unavailable/corrupt state,
-owner isolation and competing OS leases, cached-file corruption, persistent
+Morii isolation and competing OS leases, cached-file corruption, persistent
 legacy/export fencing, partial bootstrap refusal and actual child-process
 abort before/after publication. Process-abort fixtures terminate only their
 own synthetic child; they are not power-loss evidence.
@@ -76,7 +76,7 @@ or prove a fix for their default-parallel scheduling failures.
 Partial adoption or damaged CURRENT remains fenced; an explicit Host-aware
 repair/restore design is still required. The data checkpoint excludes mutable
 audit/journal, credentials and platform metadata and does not prove independent
-target restoration. Native caller identity and owner approval remain trusted
+target restoration. Native caller identity and Morii approval remain trusted
 control-plane duties. A copied local authority is not distributed consensus.
 
 Next remain Host-aware recovery, the unique user-level Host process,

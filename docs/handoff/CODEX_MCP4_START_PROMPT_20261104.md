@@ -29,7 +29,7 @@
 参照 ADR118/119：独立 AgentCorrectionPermit，与 read 身份配对在同一租约 Vault 和同一
 Agent；新 capability/profile，不改变 pipe-5（只读）和 pipe-6（notes）的含义；成功只回
 `report_saved`；未知发布不回工具结果、实际断开并保留完整原始 MCP Value。不要从
-NotePermit/read/MemoryPropose 推导纠正权，不调用 NativeMemoryOwner。
+NotePermit/read/MemoryPropose 推导纠正权，不调用 `NativeMemoryOwner`。
 
 后续路线：`memory_supersede_report`（以前为真、现在变化，区别于纠正），然后
 `memory_forget_request`（只记录请求）。以我的接续指令为准，不自动跨到 MCP-5 或新 MV 阶段。

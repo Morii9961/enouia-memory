@@ -1,7 +1,7 @@
-# ADR-MEM-134 — Linux Owner bootstrap
+# ADR-MEM-134 — Linux Morii bootstrap
 
 2026-11-09. Fifth slice of the ChatGPT connector route. The remote service
-(ADR-MEM-133) serves an initialized Owner Vault, but the native Owner
+(ADR-MEM-133) serves an initialized Morii Vault, but the native Morii
 bootstrap (ADR-MEM-110) that creates one was Windows-only. A Linux VPS could
 not create its Vault.
 
@@ -17,13 +17,13 @@ journal, recovery and metadata publication.
   is a different account. A missing or malformed machine id refuses. The
   effective uid is re-read before every write, where Windows re-checks its
   process session. The registration origin is the same native local CLI
-  owner-self origin.
-- **Owner-only files.** POSIX files follow the caller's umask, while Windows
-  files inherit the owner-only ACL. On Linux the journal is restricted to 0600
-  after every write, and the replacement owner-data metadata file is
+  Morii-self origin.
+- **Morii-only files.** POSIX files follow the caller's umask, while Windows
+  files inherit the current-user-only ACL. On Linux the journal is restricted to 0600
+  after every write, and the replacement Morii-data metadata file is
   restricted before it replaces the original. The existing checks stay
   unchanged: a journal with group or other access is refused, as is a metadata
-  file the owner left readable by others. The owner prepares the home with
+  file Morii left readable by others. Morii prepares the home with
   `chmod 700` on the directory and `chmod 600` on its marker files.
 - **Unchanged.** The native CLI still refuses homes under the temp directory
   and homes whose `storage_class` is not `owner_data`. The created Vault root
@@ -36,6 +36,6 @@ exposure scope, and write or capture tools.
 
 ## Consequences
 
-The owner bootstrap's unit suite now runs on Linux; the test of Windows
+The Morii bootstrap's unit suite now runs on Linux; the test of Windows
 process evidence stays Windows-only. Evidence:
 [validation](../validation/Linux-owner-bootstrap.md).

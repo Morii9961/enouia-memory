@@ -18,7 +18,7 @@
 
 本交接文档另有文档提交，其父提交包含上述实现。启动时重新核对 HEAD、origin、status 和
 worktree；不能从 main 直接开工而遗漏 #83。旧的 2026-11-01 交接是历史输入，里面
-“Owner wire/worker/memory_note 尚未实现”和旧 PR 链状态已经过时。
+“Morii wire/worker/memory_note 尚未实现”和旧 PR 链状态已经过时。
 
 ## 2. 已完成并逐项提交的工作
 
@@ -27,13 +27,13 @@ worktree；不能从 main 直接开工而遗漏 #83。旧的 2026-11-01 交接�
 | `310c206` | 删除来源后，已分析的形成作业能结算；保留实际回执，拒绝未发布语句，后续轮次可继续 | [删除结算](../validation/MCP-3-deleted-capture-jobs.md)，当时 13 项 |
 | `17e6df2` | 删除来源时在下次 poll 前取消并 drop 待分析句柄；含真实双线程删除/apply 检查 | 同报告 follow-up，当时 16 项 |
 | `237c60d` | ADR115：独立 AgentNotePermit、精确来源/原话准入、无写入草稿 | [提示准入](../validation/MCP-3-agent-note-native.md) |
-| `c6ff0cd` | ADR116：提示进入 Owner witnessed commit chain；原键 hint_saved 回执、容量、未知结果与恢复 | [提示持久化](../validation/MCP-3-agent-note-intake.md) |
+| `c6ff0cd` | ADR116：提示进入 Morii witnessed commit chain；原键 hint_saved 回执、容量、未知结果与恢复 | [提示持久化](../validation/MCP-3-agent-note-intake.md) |
 | `277165e` | ADR117：CaptureAnalyzer native v3；首次分析前持久固定提示键，最多 8 条 / 64 KiB | [提示消费](../validation/MCP-3-captured-agent-hints.md)，41 项定向检查 |
 | `06b0e3e` | ADR118：五个初始化只读工具加 memory_note 的独立服务；同 Agent、同已租约 Vault、独立提示授权 | [MCP 服务](../validation/MCP-3-agent-note-server.md)，19 项及 66 schemas |
 | `cb1a5e6` | ADR119：pipe-6、保留完整包的 stdio、automation-notes-v1 显式启动器 | [管道和启动器](../validation/MCP-3-agent-note-pipe.md)，24 项定向检查 |
 | `ccbf1b1` | ADR120：独立纠正报告授权；精确当前目标和独立授权的 Runtime 用户原话；只准备草稿 | [纠正准入](../validation/MCP-4-agent-correction-native.md)，12 项定向检查 |
 
-Owner Runtime pipe-2、专用可取消 worker 已在基线中，不必重新实现。
+Morii Runtime pipe-2、专用可取消 worker 已在基线中，不必重新实现。
 本轮还通过实际自有 Agent 进程、pipe-6 和原生捕获队列，把已保存提示交给假 System
 分析器，形成一条真正提交的合成记忆；原始 UserStatement 证据保留。这个结果证明本地
 合成通路，不能称真实模型、实际产品客户端或私人库已可日用。
@@ -51,7 +51,7 @@ Owner Runtime pipe-2、专用可取消 worker 已在基线中，不必重新实�
   静默忽略 notes 的兼容默认方法。真实适配器仍须满足有界、非阻塞、可取消。
 - `AgentCorrectionReporter::prepare` 只接受独立授权的当前目标修订和真正 Runtime 捕获的
   User/UserStatement 来源。Agent 的 correction 文本仍是不可信解释。它不持久化报告，
-  不回执“已保存/已纠正”，不执行 NativeMemoryOwner，也不在 MCP 上广告新工具。
+  不回执“已保存/已纠正”，不执行 `NativeMemoryOwner`，也不在 MCP 上广告新工具。
 - `OutcomeUnknown` 保留原包原键，停止该连接/授权；原生显式恢复后才能重新设置并查询/
   重放原请求。服务须实际 disconnect，不能只从借用管道的函数返回 Err。新 stdio 保留完整
   MCP Value，旧桥保留原来的 arguments-only 格式；不保证原始 JSON 空白排版。
@@ -86,9 +86,9 @@ ADR/合同，再编码、按风险验证、提交。后续顺序是 System 修�
   的问题，交接时尚未收到答案。不要从历史需求的措辞推定立即隐藏获批。若选择隐藏，还要
   冻结范围、期限、恢复和撤权规则。该问题不阻碍纠正报告持久化。
 - `memory_supersede_report` 表示以前正确但现在变化，与错误纠正不同；尚未实现。
-- `memory_forget_request` 尚未实现；实际原生 G08 Owner 动作已经存在，但 MCP 不持有
-  Owner factory/token/gesture/Consent。不能借它处理 Agent 报告。
-- 真实模型/Provider/embedding、Owner 根的持续模型策略与预算/外发、日常实体写入、多来源
+- `memory_forget_request` 尚未实现；实际原生 G08 Morii 动作已经存在，但 MCP 不持有
+  Morii factory/token/gesture/Consent。不能借它处理 Agent 报告。
+- 真实模型/Provider/embedding、Morii 根的持续模型策略与预算/外发、日常实体写入、多来源
   上下文、analysis_unknown 的可选补分析、作业日志容量及 MCP-5 均未交付。
 - 私人 Vault、真实客户端配置、生产部署、云端主权/迁主和 Runtime adoption 都未由本轮验证。
 
@@ -135,8 +135,8 @@ fmt、strict workspace/all-target Clippy、65-schema 检查也通过。第六片
 Runtime 的另一 session 已报告收尾：#116（`bbdea44`）采用 Memory `0d338f1` 的兼容性，
 #117（`73ca965`）提供新建 SegmentedV1 合成根/read-2，#118（`3a5dc33`）提供 page/stats
 前端与授权到期观察，原生 21/21；它也正在交接后停止。这是对方报告，Memory 未独立重验；
-以 Runtime 自己的交接和 Git 为准。它明确未采用 #83，也没有 Owner adoption、真实
-Provider 或持续 formation。不得把 read-2 采用说成已采用 pipe-6/分析器 v3/Owner worker。
+以 Runtime 自己的交接和 Git 为准。它明确未采用 #83，也没有 Morii adoption、真实
+Provider 或持续 formation。不得把 read-2 采用说成已采用 pipe-6/分析器 `v3/Owner` worker。
 两边本机 session ID 在私有本机说明中，勿写入 fixtures 或业务代码。
 
 Codex 在 `ccbf1b1` 后不再开展功能实现，只提交交接文档。主目录 main、AGENTS 和两个手动

@@ -1,7 +1,7 @@
 # MV-7 seed review context and episode recall
 
 2026-10-18. Follow-up to [private seed staging](MV-7-private-seed-staging.md),
-within the same owner-authorized migration and Runtime integration slice.
+within the same Morii-authorized migration and Runtime integration slice.
 
 ## Changes
 
@@ -26,7 +26,7 @@ The preparer test separately checks the inclusive Asia/Shanghai date conversion.
 Twenty-six affected pending episode candidates were revised through native
 proposer transactions, retaining IDs, provenance and old revisions. All 185
 candidate acceptance plans still built without confirmation; Canonical and
-owner-review counts remained zero. No real candidate was approved.
+Morii-review counts remained zero. No real candidate was approved.
 
 An inactive restored copy was read with the new Core: 185 candidates, 32 P0
 core candidates and 215 recorded context references were observed. A selected

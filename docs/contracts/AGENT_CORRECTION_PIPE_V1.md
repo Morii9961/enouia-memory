@@ -3,7 +3,7 @@
 2026-11-04. [ADR123](../adr/123-agent-correction-mcp-transport.md).
 
 Protocol memory-agent-pipe-7, recordSchema=2,
-layout=automation-segmented-owner-v1,
+layout=`automation-segmented-owner-v1`,
 profile=memory-agent-initialized-corrections-1. Five initialized reads plus
 memory_correction_report; wire capability memory-agent-correction-1 and native
 correction capability memory-agent-correction-native-1. Pipe-5/6 meanings stay

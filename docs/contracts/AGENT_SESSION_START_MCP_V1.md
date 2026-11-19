@@ -38,7 +38,7 @@ RecoveryRequired emits no result, retains the first complete MCP Value, closes,
 disconnects and revokes at the native boundary. No retry/reconnect/rekey.
 
 No capture or checkpoint, no source/Agent interpretation promotion, model call,
-receipt, job, Owner method or mandatory queue. Use only an independently enrolled
+receipt, job, Morii method or mandatory queue. Use only an independently enrolled
 MemoryRead reader (SourceRead remains optional) on the same leased Vault/Agent.
 No ContextRead, NotePermit, CorrectionPermit or MemoryPropose inference.
 

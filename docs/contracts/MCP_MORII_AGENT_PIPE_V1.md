@@ -1,4 +1,4 @@
-# Owner-root Agent MCP pipe v1
+# Morii-root Agent MCP pipe v1
 
 2026-10-29, ADR-MEM-105 checkpoint 4. This is a distinct opt-in read protocol,
 not an upgrade of the old six tools or existing Agent pipe profiles.
@@ -19,9 +19,9 @@ non-destructive, idempotent, closed-world annotations. Requests use
 `agent_qualified_read_request`; responses use `agent_qualified_read_response`.
 The wire capability differs from the data-only native projection capability.
 Unsupported version/capability/identity fields refuse before argument dispatch or
-read-call counters. No write, Owner/System port or Workspace forwarding exists.
+read-call counters. No write, Morii/System port or Workspace forwarding exists.
 
-Search returns full qualified fields, Owner marks and optional scoped facets.
+Search returns full qualified fields, Morii marks and optional scoped facets.
 Read exposes bounded original history with a delegation/profile/snapshot/memory
 bound cursor; each page assembles at most 32 history records and source metadata
 entries. Counts describe the full permitted history and partial coverage is
@@ -39,20 +39,20 @@ resend or reconnect. The stdio edge only attaches to a native enrolled Host via
 | Format / consumer | Support |
 | --- | --- |
 | Old schema-1, Host V2/V3 or segmented pipe profiles | Original semantics; cannot select this root |
-| Owner root + pipe-4 / qualified-read-1 | Explicit five-tool read profile |
-| Owner root + old Agent/Runtime capture profile | Existing early refusal |
+| Morii root + pipe-4 / qualified-read-1 | Explicit five-tool read profile |
+| Morii root + old Agent/Runtime capture profile | Existing early refusal |
 | Unknown layout/carrier/hash or forged principal/scope | No business admission |
 | Initializer import/attachment carrier | Not adopted; requires its published candidate and explicit compatibility update |
 
 This contract does not claim initialization-carrier adoption, daily formation,
 new write tools, Runtime UI/hook/pin, private initialization or real clients.
 Synthetic independent-process acceptance and final evidence are recorded in
-MCP-owner-agent-pipe.md after implementation and checks.
+`MCP-owner-agent-pipe.md` after implementation and checks.
 
 After ADR105 checkpoint 5, exact native carrier checks enforce this profile's
 original-only declaration even when Core adopts ADR104 import parsing. Every
 retained source revision must remain original RuntimeEvent or the already
-supported witnessed native Owner correction (manual_assertion), complete and without
+supported witnessed native Morii correction (manual_assertion), complete and without
 typed attachments or imported confirmation. The check runs before native Agent
 projection/count and connection dispatch, including after enrollment. Deleting
 or excluding a new carrier does not make the old profile compatible again.

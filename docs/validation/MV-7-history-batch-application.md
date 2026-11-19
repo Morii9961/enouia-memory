@@ -27,7 +27,7 @@ explicit original-key retry recovers after the blocker is resolved.
 Existing candidate/cursor receipts, suppression, deduplication, pending bounds,
 source permissions and pause/lifecycle controls remain authoritative. Empty
 responses can complete the local job with no candidate. Applied suggestions
-remain pending; Canonical memory requires the existing separate owner review.
+remain pending; Canonical memory requires the existing separate Morii review.
 Preview and application run without a configured native Provider. They neither
 read credentials nor send requests.
 
@@ -68,7 +68,7 @@ the admission-recovery scenario was added and covered by the complete run.
 
 Runtime must adopt the exact Core pin and write catalog, expose response
 inspection and explicit one-step application, and preserve response hash,
-cursor and request/key ownership across ambiguous replies. Refresh current
+cursor and request/key responsibility across ambiguous replies. Refresh current
 candidate/review state rather than treating original model text as accepted
 memory. Runtime UI/consumer/native acceptance, personal-history quality,
 independent recovery, real Provider acceptance, semantic/temporal product

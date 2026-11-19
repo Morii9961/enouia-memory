@@ -1,6 +1,6 @@
 # MV-7 private seed staging and Runtime handoff
 
-2026-10-18. This owner-authorized slice connects an existing privately curated
+2026-10-18. This Morii-authorized slice connects an existing privately curated
 portable bootstrap to the native Vault and Runtime review workflow. It remains
 within MV-7; it does not start MV-8, cloud hosting or automatic approval.
 
@@ -29,7 +29,7 @@ The selected real dataset produced 185 pending candidates, including 32 core
 records, associated with 532 selected messages and 21 reviewed supporting
 originals. The complete original archive and unreviewed attachments remain in
 the private bootstrap. These counts do not assert full native archive import,
-independent fact verification, complete attachment review or owner acceptance.
+independent fact verification, complete attachment review or Morii acceptance.
 
 The first local staging run exposed a converter error: native subject/item
 identifiers were generated as UUID v5, whereas the contract requires v4. All
@@ -37,11 +37,11 @@ identifiers were generated as UUID v5, whereas the contract requires v4. All
 retaining candidate IDs, sources and prior revisions. The preparer now emits
 v4 IDs, and CLI preflight rejects malformed typed IDs before import. After the
 repair, all 185 acceptance plans built successfully without confirmation;
-Canonical and owner-review record counts remained zero. The frozen first-run
+Canonical and Morii-review record counts remained zero. The frozen first-run
 package and repair receipts are private historical artifacts; its invalid IDs
 are deliberately rejected by the corrected preflight.
 
-The new Vault has owner-only permissions. A pinned local checkpoint was
+The new Vault has Morii-only permissions. A pinned local checkpoint was
 exported, independently verified as a package, restored to a separate inactive
 directory and verified clean at the same commit: 24 objects and 1,325 record
 revisions checked. The restored copy retains the native network-reconciliation
@@ -58,7 +58,7 @@ The existing Runtime executable was launched with the explicitly selected new
 Vault; a read-only exclusive-open probe confirmed its native host lock was
 held by another process after launch. Native window inspection was requested; application access approval
 timed out. Actual rendered inbox/source acceptance is therefore pending unless
-the owner subsequently authorizes and completes that inspection. A process
+Morii subsequently authorizes and completes that inspection. A process
 launch and a source pin record do not prove frontend acceptance.
 
 ## Verification
@@ -91,13 +91,13 @@ exposed an unclosed SQLite read connection during cleanup, which was corrected
 by explicitly closing it. These environmental and converter failures are
 recorded rather than counted as successful checks.
 
-## Remaining owner actions and limits
+## Remaining Morii actions and limits
 
 Review the exact candidates in Runtime before creating Canonical memories.
 Portable default-recall annotations do not silently become native compiler
 policy; sensitive/restricted entries can remain pending. A valid plan is not
 approval. Source notes, model context and copied summaries remain evidence
-bounded, and provider egress remains a separate owner decision.
+bounded, and provider egress remains a separate Morii decision.
 
 Complete real frontend acceptance and choose an independent encrypted recovery
 target before treating this as a daily-use or disaster-recovery acceptance.

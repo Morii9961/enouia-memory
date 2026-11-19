@@ -96,7 +96,7 @@ filesystem rollback/independent restore remain later migration work.
 
 ## Versions and remaining evidence
 
-Existing schema-1 records, OWNER_ONLY, rule-1/2/3 storage, Host/MCP/Workspace
+Existing schema-1 records, `OWNER_ONLY`, rule-1/2/3 storage, Host/MCP/Workspace
 semantics and Runtime pin remain unchanged. No new root layout or business
 record kind is needed for a rebuildable index. Older Core-5 HostV2 readers can
 continue their old read behavior and ignore this disposable file; they cannot

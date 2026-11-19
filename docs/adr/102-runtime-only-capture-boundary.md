@@ -4,18 +4,18 @@
 missing source timezone, with explicit default-source provenance.
 
 Use a separate sealed native Runtime producer delegation and retained OS peer.
-Its principal is Client, not an Agent/Owner/System supplied by a packet. Native
+Its principal is Client, not an Agent/Morii/System supplied by a packet. Native
 setup binds one existing leased segmented Vault, exact current policy, subject,
 project, selected source-ID pool, sensitivity, platform/account alias, default
 timezone and a maximum five-minute lifetime. No wildcard/source-scope expansion
-or Owner confirmation is added. No Workspace/System read port is forwarded.
+or Morii confirmation is added. No Workspace/System read port is forwarded.
 
 Capture raw turns with original IDs, parent/branch/sequence, role, text, source
 time, language/model and bounded attachment metadata. Source IDs are chosen by
 the backend from the delegated pool. User turns remain user statements;
 assistant/tool/system turns cannot become user confirmation. Preserve unknown
 event dates. Keep original_timezone null when absent and record resolved timezone
-and owner_default origin in the typed runtime.capture source extension. That
+and `owner_default` origin in the typed runtime.capture source extension. That
 extension grants no authority and never changes a claim's date basis.
 
 Preflight runs the same current gates and validation without publication,
@@ -46,9 +46,9 @@ evidence validator and native authorization/provenance gates remain mandatory.
 See [MCP_QUOTE_LOCATOR_V1](../contracts/MCP_QUOTE_LOCATOR_V1.md). No new MCP tool
 or formation/publication capability is granted by this helper.
 
-Owner-root native checkpoint: explicit memory-runtime-owner-capture-native-1,
-bound Owner subject and Client peer. Original native/pipe-1 remain limited.
+Morii-root native checkpoint: explicit `memory-runtime-owner-capture-native-1`,
+bound Morii subject and Client peer. Original native/pipe-1 remain limited.
 Typed missing attachment metadata preserves shape without claiming bytes; capture
-is not queued/formed yet. See OWNER_RUNTIME_CAPTURE_NATIVE_V1. Native synthetic
-acceptance is complete; the Owner Runtime wire remains open. Queue-only admission
+is not queued/formed yet. See `OWNER_RUNTIME_CAPTURE_NATIVE_V1`. Native synthetic
+acceptance is complete; Morii Runtime wire remains open. Queue-only admission
 of captured revisions is [ADR-MEM-111](111-captured-source-formation-queue.md).

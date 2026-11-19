@@ -15,7 +15,7 @@
 3. 本机说明 `.local/handoff/CLAUDE_MCP4_LOCAL_20261103.md`。若当前 checkout 无该文件，
    查看仓库主目录同一路径；仍缺失就说明缺失，不猜私人数据或工具路径。
 4. ADR102、111–120，特别是 ADR116、117、120；合同 AGENT_CORRECTION_NATIVE_V1、
-   AGENT_NOTE_INTAKE_V1、CAPTURE_ANALYSIS_V3、MCP_AGENT_READ_V2、UI_V2_OWNER_ACTIONS。
+   AGENT_NOTE_INTAKE_V1、CAPTURE_ANALYSIS_V3、MCP_AGENT_READ_V2、`UI_V2_OWNER_ACTIONS`。
 5. 对应验证报告和交接列出的实际源码，不要只读摘要。
 
 开工前核对 cwd、branch、HEAD、origin、status、worktrees 和并行工作。当前实现分支是
@@ -33,11 +33,11 @@
 会改变目标，因此原包重放不能无条件先调用只接受当前版本的 prepare。应在当前授权下
 验证原目标历史，再按原键/原 hash 返回真实回执；撤权/删除优先。改包必须冲突。沿用已有
 单写者 witnessed commit chain、CURRENT 和恢复规则，避免独立真相日志。不要把 Draft
-当写权限，不能从 NotePermit/read/MemoryPropose 暗增纠正权，也不能调用 NativeMemoryOwner。
+当写权限，不能从 NotePermit/read/MemoryPropose 暗增纠正权，也不能调用 `NativeMemoryOwner`。
 
 该片完成后报告提交、PR、实际检查和剩余工作。后续路线为 System 自动修订消费、显式
 MCP 服务/版本化传输、supersede 与 forget 请求；以我的接续指令为准，不自动跨到 MCP-5
-或新 MV 阶段。System 修订应走既有 evaluator/合法提交，区别于原生 Owner G08 动作。
+或新 MV 阶段。System 修订应走既有 evaluator/合法提交，区别于原生 Morii G08 动作。
 
 硬边界：
 

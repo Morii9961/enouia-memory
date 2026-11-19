@@ -55,13 +55,13 @@ because no worker exists. Nothing here measures formation quality.
 
 | Root | Enqueue | queued_captures |
 | --- | --- | --- |
-| automation-segmented-owner-v1 | Owner capture only | System only |
+| `automation-segmented-owner-v1` | Morii capture only | System only |
 | segmented-host-v1 | Refused | Empty; no entry can exist |
 | Other layouts | Not supported | Not supported |
 
 Next work is the shared formation worker: dequeue, completion state, generation
 and live priority over backfill, reusing this queue from the initializer. The
-Owner Runtime wire and the optional Agent `memory_note` hint follow. Capture stays
+Morii Runtime wire and the optional Agent `memory_note` hint follow. Capture stays
 Runtime-only under ADR-MEM-102.
 Runtime hook/config/pin/UI, real Provider/embedding, private data and daily
 formation acceptance remain undelivered.

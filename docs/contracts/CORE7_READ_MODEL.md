@@ -36,7 +36,7 @@ renamed into either simulation port.
 
 Pages contain latest currently authorized machine revisions, including staged
 results when not explicitly filtered. They are not a count of verified facts,
-owner approvals or the whole filesystem. `matched_in_scope` means the current
+Morii approvals or the whole filesystem. `matched_in_scope` means the current
 authorized latest set after form/adoption/event filtering, at most 128 items.
 `unknown_event_time_in_scope` separately counts unknown event dates within the
 authorized form/adoption set, before the optional event window. Unknown dates
@@ -67,8 +67,8 @@ These are structural consistency checks; they do not authenticate JSON.
 
 | Axis | Returned meaning / required display mapping |
 | --- | --- |
-| Formation | Exact System principal and rule/policy provenance; automatic machine formation, never Owner confirmation |
-| Knowledge/adoption | attributed_statement/adopted means “subject said X”; hypothesis/uncertain/disputed remain System staged, not mandatory owner tasks |
+| Formation | Exact System principal and rule/policy provenance; automatic machine formation, never Morii confirmation |
+| Knowledge/adoption | attributed_statement/adopted means “subject said X”; hypothesis/uncertain/disputed remain System staged, not mandatory Morii tasks |
 | Validity | unspecified, in_range, not_yet_valid, expired computed at native authorization time; adoption alone does not mean currently valid |
 | Attention | active/fading/archived/protected accessibility under the exact profile; not confidence, approval, completion or deletion |
 | Occurrence/event | intended/unknown/reported occurrence and optional event range; plan is not an episode, cancellation not completion |
@@ -111,14 +111,14 @@ were included. Required provenance is not replaced with invented defaults.
 | Mount owned by Runtime | This Memory capability supplies | Runtime responsibility |
 | --- | --- | --- |
 | Memory grid/list | Bounded page, exact ID/revision/snapshot, scope counts, state axes and cursor | Existing shell/navigation/token system; capability gate and explicit synthetic banner |
-| Memory detail/source drawer | Selected detail, authorized history/source body, scope coverage | Explicit selection, late-response snapshot check, no fake owner-confirmed label |
+| Memory detail/source drawer | Selected detail, authorized history/source body, scope coverage | Explicit selection, late-response snapshot check, no fake Morii-confirmed label |
 | Time window | Event range filter and separate unknown dates, plus capture/valid/learned axes | Choose a labelled axis/timezone; no full timeline or imported-date fallback |
 | Relationship neighborhood | Exact authorized local derivation/reversion edges | Label provenance rather than factual human relationship; no global graph claim |
 | Recall explanation/simulator | Explicit effect, profile/algorithm/snapshot, current authorization time and trace | Distinguish fixture vs native read vs unavailable saved experiment; cancellation/lifecycle |
 
 Capabilities explicitly unavailable: global timeline/graph, saved experiment,
-legacy-owner history projection and vectors. Existing legacy APIs retain their
-own owner history/current-only read semantics. No shared App/main/router/theme,
+legacy-Morii history projection and vectors. Existing legacy APIs retain their
+own Morii history/current-only read semantics. No shared App/main/router/theme,
 Runtime frontend file, dependency/pin, notification or default worker changes.
 
 Real Runtime adoption is Core-8: match pin/lock/manifest, native adapter and

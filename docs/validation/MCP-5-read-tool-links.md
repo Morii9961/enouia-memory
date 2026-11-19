@@ -17,7 +17,7 @@ current authorization, no source text, default first history page and 65536-byte
 budget. It does not reproduce a tool's source-text/page/expected-snapshot choice.
 Recall links return only the same reader's actual current cache, including a
 successful bounded empty selection. Failure does not create or overwrite cache.
-No link grants SourceRead, Owner consent, evidence status or write permission.
+No link grants SourceRead, Morii consent, evidence status or write permission.
 
 New mcp-context-tool-links-v1 / linked_result_schema(tool) freezes the complete
 memory_read and memory_recall JSON-RPC result envelopes, including missing/error
@@ -49,7 +49,7 @@ owned hidden processes:
   Optional older prompt/session transcript checks were not enabled in this run.
 - Scoped Host lib / four affected test targets and Contract two affected test
   targets passed Clippy with warnings denied. Formatting, Runtime surface and
-  public-content checks passed. No full-workspace or NativeMemoryOwner test ran.
+  public-content checks passed. No full-workspace or `NativeMemoryOwner` test ran.
 
 Current integration aggregate:
 20fcbe005023e0070acd996c5e72436809d806858ec815287d02e1f1793687f6.
@@ -57,10 +57,10 @@ The new schema, manifest and RUNTIME.md acknowledgment land with implementation.
 Raw actual transcripts/logs remain ignored; the committed corpus is synthetic.
 
 No session creation, capture hook, model dispatch, formation, reinforcement,
-Owner action, queue, forget-hide, Runtime edit/pin/config, deployment or merge.
+Morii action, queue, forget-hide, Runtime edit/pin/config, deployment or merge.
 All existing uncertainty/disconnection/original-key recovery rules remain.
 These are synthetic protocol/domain tests, not real model quality, private-data
-validation, Runtime product use or owner acceptance.
+validation, Runtime product use or Morii acceptance.
 
 ## Same-ID current revision versus stale recall (2026-11-06)
 
@@ -69,7 +69,7 @@ surface changes. The read-only context server first returns a memory link and
 an actual-recall link. A separate synthetic System operator updates the same
 memory ID using the already persisted Runtime UserStatement source from the
 capture fixture. Input content and quoted evidence are that captured raw text;
-no Agent hint or new synthetic source is substituted, and NativeMemoryOwner /
+no Agent hint or new synthetic source is substituted, and `NativeMemoryOwner` /
 fixture.revise is not called. No actual model or Runtime product is used.
 
 The old recall URI returns stale_scope. The original memory URI still resolves
@@ -77,7 +77,7 @@ through fresh qualified detail to revision 2 with the exact captured user text,
 source_read=false and a new snapshot. Reading that memory URI does not refresh
 the stale recall cache. Only an explicit new recall produces the current
 revision with the same scope hash and replaces the old recall entry. Reads keep
-the post-update snapshot unchanged and create no captures or Owner actions.
+the post-update snapshot unchanged and create no captures or Morii actions.
 
 The single lifecycle test passed, 0 failed
 (target/mcp5-current-memory-link-revision.log). Scoped opening_tool_links Clippy
@@ -109,4 +109,4 @@ failure/prompt/resource case passed: 2 tests, 0 failed
 target/mcp5-linked-output-before-reply-regression.log). Scoped opening_pipe
 Clippy and formatting passed. Implementation/schema/surface were unchanged;
 their previous evidence is reused without rerunning unrelated checks. No full
-workspace, real model, private root, Runtime change, Owner method or new feature.
+workspace, real model, private root, Runtime change, Morii method or new feature.

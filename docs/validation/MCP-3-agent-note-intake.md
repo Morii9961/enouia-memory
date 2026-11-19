@@ -4,14 +4,14 @@
 and [intake contract](../contracts/AGENT_NOTE_INTAKE_V1.md).
 
 Native submission now saves an optional Agent hint in the existing witnessed
-Owner chain. Its own `hint_saved` receipt is distinct from source capture, queue
+Morii chain. Its own `hint_saved` receipt is distinct from source capture, queue
 and formed-memory receipts. Exact original requests replay original receipts;
 changed content under the same principal/request key conflicts. Preparation is
 reused, then publication requires the same snapshot and a live delegation. No
 draft is accepted as authority, and replay still requires current source access.
 
 The new closed delta validates Agent provenance, exact original evidence,
-current policy/source, key uniqueness, Owner layout and capacity during both
+current policy/source, key uniqueness, Morii layout and capacity during both
 publication and chain replay. Notes are not source or memory changes in process
 projections. Existing Agent reads gain no write tool. Catalog schema fingerprints
 change, so matching native client/server revisions are required. Old-binary

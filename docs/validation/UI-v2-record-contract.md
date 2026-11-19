@@ -28,7 +28,7 @@
 | 证据 | 既有 EvidenceRef + 精确 quote/speaker/Unicode scalar [start,end)，解析至具体来源修订及其消息定位 | G14；02 §4.4 |
 | 形成来由与附注 | prompt_version/import_batch_id/mode；附注绑定记忆修订、模型和提示词版本，情绪/重要度不是事实 | G19 的记录部分；02 §4.5、§6 |
 | 对话与轮次 | 同提交内追加修订的 conversation、participants、branches、turn/source refs、起止时间、捕获轮次数与覆盖说明；来源保留 assistant_model | G14；02 §3 |
-| 主人动作 | 独立 plan/confirmation/record；v3 根现在就有空账本与撤回水位；System 事务不能改账本，owner_action 执行仍拒绝 | G08 的格式；02 §5 |
+| 主人动作 | 独立 plan/confirmation/record；v3 根现在就有空账本与撤回水位；System 事务不能改账本，`owner_action` 执行仍拒绝 | G08 的格式；02 §5 |
 | 投影共同规则 | algorithm/version/snapshot/scope hash/withdrawal watermark、覆盖及精确依赖；任何屏障变化使缓存失效 | G18；02 §7 |
 
 实体/对话目录随来源在同一见证提交中追加；不存在单独的权威 sidecar。
@@ -60,14 +60,14 @@
 - 未知时间、区间 precision/bound、语言子集、形成批次与附注版本绑定；
 - 三消息分支/轮次定位、缺失来源、同名实体不合并、计数与敏感度闭包；
 - 所有主人动作形状；System/Agent/Provider/Client 冒充主人、计划内容/快照变更、
-  过期确认均拒绝；有效 Owner 标签的记录也不能夹带进入 System capture；
+  过期确认均拒绝；有效 Morii 标签的记录也不能夹带进入 System capture；
 - 附注中的本机生成 result ID 不改变同一输入的逻辑任务键，实际请求/提交哈希仍保留完整绑定；
 - 新根原子保存字段/目录、拒绝缺字段与不精确引文、失败不推进 head、原键重放、
   关闭重开保持原见证回执；删除来源后回执复用与召回都拒绝；
 - 旧布局拒收新字段、旧布局枚举及 v1 descriptor parser 拒绝新布局/主版本，旧 fixtures 的哈希保持有效；
 - 投影快照/策略/删除/撤回/范围/算法/版本任一变化使 envelope 不可复用。
 
-首次文件测试在受限沙箱下因 Windows owner-only ACL 返回 StorageFailed；
+首次文件测试在受限沙箱下因 Windows current-user-only ACL 返回 StorageFailed；
 获准环境中同一临时合成根测试通过，没有放宽生产 ACL 校验。
 此前一次完整 workspace 检查通过后，补全了空主人账本门禁及字段反例；
 因此在最终代码上重新执行完整 workspace 检查。最终结果以上表为准。
@@ -86,7 +86,7 @@
    主人入口执行及操作查询尚未实现。空账本/投影 envelope 不是已执行的主人动作
    或已建好的投影。现有 Core-7 端口仍只接受 HostV2，不能冒称已读 v3 数据。
 5. 没有迁移旧主人审核历史、运行真实模型、接 MCP、升 Runtime pin 或进行 UI 验收。
-   本仓库既有 ADR 的 System/Owner、来源、删除与权限边界始终优先。
+   本仓库既有 ADR 的 System/Morii、来源、删除与权限边界始终优先。
 
 ## 停止点与后续
 

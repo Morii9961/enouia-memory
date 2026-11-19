@@ -1,12 +1,12 @@
 # MV-6 Core — late proposal receipt recovery
 
-Date: 2026-10-06. Base: `32f43d4`. End: the feature commit containing this report. Scope: MV-6 / ADR-MEM-46, owner proposal admission through Core. No wire, schema, dependency, storage-format or stage change.
+Date: 2026-10-06. Base: `32f43d4`. End: the feature commit containing this report. Scope: MV-6 / ADR-MEM-46, Morii proposal admission through Core. No wire, schema, dependency, storage-format or stage change.
 
 ## Reproduction and correction
 
 A synthetic manual source is saved first, representing a partial remember operation before proposal publication. Two identical page requests then pass the initial proposal receipt lookup. The ID port pauses both at candidate allocation; one is released to finish before the other resumes. The old Core refused the later identical request with `idempotency_conflict` / `fault.idempotency_conflict`: governance hashes generated candidate bytes, which differ across the two allocations.
 
-Core now shares owner proposal admission across remember, correction and forgetting. Only on this conflict does it inspect a published receipt's original candidate revision and compare logical proposal fields (kind, type, content, details, targets, expected revision and reason). A mismatch is refused with `workspace.key_reuse`. A matching proposal gets one bounded retry through the existing governance receipt lookup. Other failures pass through; route-specific pre/post checks remain. Persistent hashes and writer behavior are unchanged, and there is no general page retry loop.
+Core now shares Morii proposal admission across remember, correction and forgetting. Only on this conflict does it inspect a published receipt's original candidate revision and compare logical proposal fields (kind, type, content, details, targets, expected revision and reason). A mismatch is refused with `workspace.key_reuse`. A matching proposal gets one bounded retry through the existing governance receipt lookup. Other failures pass through; route-specific pre/post checks remain. Persistent hashes and writer behavior are unchanged, and there is no general page retry loop.
 
 ## Evidence
 

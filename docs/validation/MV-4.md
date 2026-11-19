@@ -1,6 +1,6 @@
 # MV-4 — Index and retrieval (synthetic)
 
-Date: 2026-09-30. Scope: MV-4 ([plan §8](../design/IMPLEMENTATION_PLAN.md)), authorized by the owner's "继续" to the MV-3 report that named MV-4. Start: `d3f2948`. Every input is synthetic; no real data root, model, embedding, network, MCP, or VPS was used. MV-5 has not started.
+Date: 2026-09-30. Scope: MV-4 ([plan §8](../design/IMPLEMENTATION_PLAN.md)), authorized by Morii's "继续" to the MV-3 report that named MV-4. Start: `d3f2948`. Every input is synthetic; no real data root, model, embedding, network, MCP, or VPS was used. MV-5 has not started.
 
 ## 1. What exists now
 
@@ -21,14 +21,14 @@ No embedding, cloud search, or automatic raw-text injection exists. Search cover
 | R01 delete, corrupt, rebuild | Passed | `r01_*`: a deleted index is empty and `index_not_ready` until it catches up; a corrupted file is refused (`index_not_ready`), the Vault verifies clean, and a rebuild answers the same; `golden_*`: the whole golden set is identical before and after a rebuild. Review state lives in the Vault only. |
 | R02 short Chinese words and mixed text | Passed | Golden set: 记忆 (two characters, scan), 茶 (one), 琉璃光院 (trigram), 函馆 and 函館 kept distinct (no variant conversion), MoriMeta, full-width ＭｏｒｉＭｅｔａ, English words, mixed "agent 预算". |
 | R03 aliases, same-name entities, ambiguity | Passed | "MoriMeta" and its alias "森元" recall the project's memories first; "mori" reports both MoriMeta and Moriium as ambiguous and chooses neither; nothing is merged, and colliding names are refused at review (`project.alias_collision`). |
-| R04 ACL and snippet/count/cursor | Passed (allow/deny principals) | `r04_*`: a principal without read permission gets no items, no project names, no cursor, and no `partial` flag for any query; a forgotten memory disappears from every query. Finer grants (per sensitivity or project) cannot be created yet (owner grant approvals come with MV-7), so they are not tested. |
+| R04 ACL and snippet/count/cursor | Passed (allow/deny principals) | `r04_*`: a principal without read permission gets no items, no project names, no cursor, and no `partial` flag for any query; a forgotten memory disappears from every query. Finer grants (per sensitivity or project) cannot be created yet (Morii grant approvals come with MV-7), so they are not tested. |
 | R05 lagging index | Passed | `r05_*`: after a new commit the search refuses with `index_not_ready`; a cancelled update stays behind and still refuses; after the update the new memory is found. Results are never mixed across versions. |
 | R06 input and pagination | Passed | Golden set: ASCII quotes, `*`, `') OR 1=1 --`, `NEAR(…)` are literal text; `r06_*`: pages continue their first snapshot after later commits and together equal the full result; a cursor used with another query or principal, or after a deletion, is refused; a tampered cursor is invalid; empty queries and limits over 100 are refused. |
 | History and purge | Passed | `known_at_*`: a search at an earlier commit does not see a later approval; `as_of_*`: a fact not yet in effect is hidden now and shown at its date; after a purge the text is gone from the index file (positive control first), also after a rebuild. |
 
 ## 3. Measurements
 
-`measure_search` (synthetic, release build, Windows 11, NTFS, SSD; each memory is an owner statement, a candidate, and a reviewed batch of 50). Two runs; the second ran while the test suite was compiling and running, so its times are high; both are given.
+`measure_search` (synthetic, release build, Windows 11, NTFS, SSD; each memory is a Morii statement, a candidate, and a reviewed batch of 50). Two runs; the second ran while the test suite was compiling and running, so its times are high; both are given.
 
 | Step | Run 1 (per-commit transactions) | Run 2 (256 commits per transaction, loaded machine) |
 |---|---|---|
@@ -53,7 +53,7 @@ Isolated build: `198f725` was cloned from GitHub into a temporary directory with
 
 ## 5. Defects found and fixed
 
-- Internal claim keys were indexed as full text, so "mori" or "memory" matched words the owner never wrote; only readable fields are indexed now.
+- Internal claim keys were indexed as full text, so "mori" or "memory" matched words Morii never wrote; only readable fields are indexed now.
 - The SQLite build failed because the Rust toolchain's older MinGW runtime DLLs came first in `PATH`; the requirement is documented in the README and ADR-MEM-42.
 - Governance read every candidate and memory from disk on each proposal; reads now use the Vault's verified-record cache.
 - A rebuild paid one synchronous flush per commit (25.1 s for 2,021 commits); commits are now applied in transactions of up to 256 (1.2 s).
@@ -61,7 +61,7 @@ Isolated build: `198f725` was cloned from GitHub into a temporary directory with
 ## 6. Not done, or pending
 
 - Raw-source search, searching candidates, and the source browser offered when the index is not ready (MV-5/MV-6 surfaces).
-- Finer-grained permission tests (R04) once owner grants exist (MV-7).
+- Finer-grained permission tests (R04) once Morii grants exist (MV-7).
 - NFKC folding (no tables available offline) and any variant conversion, deliberately.
 - Write cost: every commit still loads all small-kind records (ADR-MEM-39 trigger: about 20,000 revisions); at 1,000 memories writing one reviewed memory costs 87 to 111 ms (three commits). Query cost grows with the number of memories (23 to 74 ms at 1,000, depending on load). Both need per-group indexes before a library of tens of thousands of memories.
 - Everything still pending from MV-1 to MV-3.
@@ -75,5 +75,5 @@ Isolated build: `198f725` was cloned from GitHub into a temporary directory with
 
 ## 8. Before MV-5
 
-1. Owner authorization for MV-5 (context, session, and the Mock loop).
-2. Everything a real import still needs (I07, restic, backup media, off-device secret, real data root with the owner-only ACL).
+1. Morii authorization for MV-5 (context, session, and the Mock loop).
+2. Everything a real import still needs (I07, restic, backup media, off-device secret, real data root with the current-user-only ACL).

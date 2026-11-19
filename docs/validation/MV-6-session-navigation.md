@@ -16,7 +16,7 @@ Write attempts retain the existing original action, payload and idempotency key.
 
 - **15/15** synthetic session checks passed: latest matching detail; atomic selection; branch-specific drafts and restoration; branch/key binding; no cross-branch answer/error; no switch during write; same-branch refresh; original retry payload/key; retry switch guard; and preservation of newer question/checkpoint drafts. The shared fixture also reran the existing **9/9** Explorer checks, totaling **24/24**.
 - Frontend and separate read/retry fixture typechecks/builds passed. The actual rebuilt 0.1.0 application passed **43/43** checks on a new synthetic Vault, including actual Core session creation, Mock answering, saved transcript/context, original write-key reuse, and acknowledged-record recovery after an actual renderer crash.
-- The final rebuilt installer passed **8/8** fresh installation/uninstallation checks; its ownership template passed **14/14** checks. Current-day pinned offline format, **196 Rust tests**, Clippy and independent **34-schema** checks remain applicable to unchanged Core/Rust sources.
+- The final rebuilt installer passed **8/8** fresh installation/uninstallation checks; its responsibility template passed **14/14** checks. Current-day pinned offline format, **196 Rust tests**, Clippy and independent **34-schema** checks remain applicable to unchanged Core/Rust sources.
 
 The deferred session client simulates responses, including writes; it does not establish real persistence. Persistence evidence comes from the separate actual IPC/Core run. Fixture bundles and markers are absent from the production frontend; no fixture API or additional native permission is exposed. All test inputs are synthetic and local evidence remains ignored.
 

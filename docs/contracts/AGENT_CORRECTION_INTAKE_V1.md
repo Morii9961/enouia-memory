@@ -2,7 +2,7 @@
 
 2026-11-03. [ADR121](../adr/121-durable-agent-correction-reports.md).
 
-Native Owner-root API on ADR120's independently granted AgentCorrectionPermit.
+Native Morii-root API on ADR120's independently granted AgentCorrectionPermit.
 
 ```text
 AgentCorrectionReporter::submit(original_request) -> AgentCorrectionReceipt
@@ -17,7 +17,7 @@ AgentCorrectionRecord: report_key, request_id, request_hash, principal,
 scope_hash, target (exact TargetRef), policy (current PolicyRef covering the
 evidence source), evidence (QuotedEvidence, supports `content`) and correction.
 It is an untrusted Agent interpretation beside original user evidence, not a
-source, Owner assertion, admission decision or memory revision. The System actor
+source, Morii assertion, admission decision or memory revision. The System actor
 writes the `agent_correction` delta. Replay validates key derivation, Agent
 principal, shape bounds, key uniqueness, capacity, current exact target, current
 Runtime User/UserStatement source, policy reference/activity and quote resolution.

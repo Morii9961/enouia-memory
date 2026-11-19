@@ -1,9 +1,9 @@
 # ADR-MEM-69 — Read-only archived history planning in workspace IPC
 
 Date: 2026-10-19 (Asia/Shanghai).
-Status: Owner-authorized MV-7 integration slice; implemented with local verification and explicit suite-concurrency limits below.
+Status: Morii-authorized MV-7 integration slice; implemented with local verification and explicit suite-concurrency limits below.
 
-The H1 planner and later history helpers remain optional native libraries. Runtime cannot host the planner by reading Vault files or reaching around Workspace. The owner explicitly authorized a first cross-repository read-only planning slice, followed by Runtime pin adoption and UI. This does not activate MV-8, real history import, model calls or cloud services.
+The H1 planner and later history helpers remain optional native libraries. Runtime cannot host the planner by reading Vault files or reaching around Workspace. Morii explicitly authorized a first cross-repository read-only planning slice, followed by Runtime pin adoption and UI. This does not activate MV-8, real history import, model calls or cloud services.
 
 ## Decision
 

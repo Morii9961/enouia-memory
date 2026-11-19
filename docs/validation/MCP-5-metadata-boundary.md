@@ -27,7 +27,7 @@ owned hidden processes:
 - opening_metadata 1 + opening_mcp 9 + opening_session_start 3 = 13 passed,
   0 failed (target/mcp5-metadata-fixed-tests.log). Checks include invalid setup
   not poisoning explicit valid setup, invalid notification not advancing phase,
-  no read/cache changes, valid opaque metadata acceptance, and false Owner /
+  no read/cache changes, valid opaque metadata acceptance, and false Morii /
   SourceRead claims remaining permission_denied. Native snapshot is unchanged.
 - opening_pipe: 10 passed, 0 failed (target/mcp5-metadata-pipe-tests.log).
   Five malformed actual read calls return invalid_metadata without a result;
@@ -37,7 +37,7 @@ owned hidden processes:
   complete original Value retained, actual disconnect/revocation, no retry.
 - Existing real pipe-6 save/replay case: 1 passed, 0 failed
   (target/mcp5-metadata-note-regression.log). hint_saved and independent writer
-  authority retain their meanings. No NativeMemoryOwner test was executed.
+  authority retain their meanings. No `NativeMemoryOwner` test was executed.
 - Runtime surface tests: 4 passed, 0 failed after recording the new compatibility
   entry (target/mcp5-metadata-surface-tests.log). An earlier in-progress run
   correctly failed the missing-log check; it is not claimed as a pass.
@@ -61,6 +61,6 @@ failure or successful validation. Prefer -j 1 while local build space is tight.
 Current integration aggregate:
 4cb740a0f0daab6363df2c07734a796b2c7e0e1a26b85979c45a0fb14ec8d11a.
 The manifest and RUNTIME.md land with this correction. No Runtime pin/config,
-private data, actual model/Provider, capture hook, forget-hide, Owner action,
+private data, actual model/Provider, capture hook, forget-hide, Morii action,
 mandatory queue, deployment, new MV or merge. Synthetic evidence does not prove
-client/Runtime adoption, real model quality or owner acceptance.
+client/Runtime adoption, real model quality or Morii acceptance.

@@ -1,7 +1,7 @@
-# ADR-MEM-145 — Explicit fresh input to native Owner formation
+# ADR-MEM-145 — Explicit fresh input to native Morii formation
 
 2026-11-15. This completes the driver between ADR140/142/143/144 and ADR110's
-native Owner bootstrap. It introduces no analyzer, Provider, read grant or stage.
+native Morii bootstrap. It introduces no analyzer, Provider, read grant or stage.
 
 ## Decision
 
@@ -47,7 +47,7 @@ An uncertain application only looks up its original binding. Missing receipts
 remain blocked; no new generation or key is allocated. `recover` is an explicit
 forward-recovery invocation for this same registered root, followed by the same
 receipt-only barrier, never automatic resend. Formation policies have an explicit
-seven-day interval; they create no long-term reading permission or Owner action.
+seven-day interval; they create no long-term reading permission or Morii action.
 Existing receipt authorization is preserved: an expired formation policy may
 withhold the original receipt. That run remains blocked with unchanged bindings;
 it is not evidence of non-commit and must never trigger a replacement request.

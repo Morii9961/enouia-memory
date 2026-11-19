@@ -1,6 +1,6 @@
 # ADR-MEM-78 — Native client reconnect boundary
 
-Date: 2026-10-22. Status: accepted for the owner-authorized MV-8 continuation.
+Date: 2026-10-22. Status: accepted for the Morii-authorized MV-8 continuation.
 
 ADR-MEM-77 supplies a real native connection, but a shell also queues work
 across lock, disconnect and reconnect. A queued page request must not silently

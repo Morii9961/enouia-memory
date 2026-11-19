@@ -2,7 +2,7 @@
 
 Date: 2026-10-22 (Asia/Shanghai). Baseline
 `78014db93e9c8fd570fd86142c2d8aee51f49c84` (merged PR #43).
-Continues owner-authorized MV-8; this is a transport-independent library.
+Continues Morii-authorized MV-8; this is a transport-independent library.
 
 [ADR-MEM-75](../adr/075-native-host-session-gate.md) adds closed native
 hello/welcome contracts and a native connection gate with exact schema/version/
@@ -11,7 +11,7 @@ synchronous revocation and lock/clock failure behavior. No listener or real
 authentication is claimed. NativeAdmission deliberately carries a trusted
 adapter assertion, with no Deserialize implementation or page constructor.
 
-Seven synthetic session tests passed: native owner/version/hash/Vault checks;
+Seven synthetic session tests passed: native Morii/version/hash/Vault checks;
 scope and packet refusal before dispatch; lock/revoke/unlock/reconnect/restart
 isolation; capacity/drop/expiry; clock rollback/invalid time; barrier-controlled
 synchronous dispatch versus revocation; and backend-panic unavailability.
@@ -56,7 +56,7 @@ incremental compilation and dev/test debug information disabled. Independent
 Schema checks use pinned Python 3.12.10/python-jsonschema 4.26.0.
 
 The unique process, protected Windows listener/client authentication,
-authenticated owner enrollment and native unlock, actual Host-bound Workspace
+authenticated Morii enrollment and native unlock, actual Host-bound Workspace
 dispatch, asynchronous-work revocation, reference-shell reconnect and Runtime
 adoption remain unimplemented integration gates. The five-minute expiry and
 64-connection bound are this v1 gate's fixed policy, not measured client

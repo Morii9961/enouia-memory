@@ -18,13 +18,13 @@ A native domain entry accepts an Agent-only logical checkpoint input without
 generated item IDs. Its stable key/payload binds session, branch, range, summary
 and proposed items before IDs/time are allocated. Replays return the original
 checkpoint revision, commit and operation receipt even after unrelated branch
-events are appended. Changed range/items/body conflict. Existing owner
+events are appended. Changed range/items/body conflict. Existing Morii
 checkpoint API, receipt namespace and whole-branch behavior remain unchanged.
 
 Checkpoint artifacts stay provisional and generated_by names the Agent. No
 original user/session event, Canonical memory, review, approval or Provider
 dispatch is created or modified. A later reviewed/stale/deleted checkpoint
-cannot be returned as currently provisional. Requests cannot adopt owner
+cannot be returned as currently provisional. Requests cannot adopt Morii
 identity, grant themselves policies or select lifecycle controls.
 
 Admission/final audits are mandatory and content-free. Witness/storage or

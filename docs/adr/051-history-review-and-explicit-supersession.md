@@ -1,6 +1,6 @@
 # ADR-MEM-51 — History comparison and explicit supersession drafts
 
-Date: 2026-10-12. Scope: MV-7-H2b, native owner review, synthetic evidence.
+Date: 2026-10-12. Scope: MV-7-H2b, native Morii review, synthetic evidence.
 
 Compare saved completed extraction responses without calls or writes. Group
 original Fact/Preference suggestions only by exact type, subject set, project
@@ -13,12 +13,12 @@ effective_from. No latest-wins selection or automatic identity/entity merge.
 Use only selected jobs' source graph to prove ancestry. Shared ancestors across
 batches do not become competing branches. Different branches are reported only
 within the same archived conversation/provider/account and object; otherwise
-report separate/unknown contexts. Unknown time, model-only evidence, owner edits
+report separate/unknown contexts. Unknown time, model-only evidence, Morii edits
 and already reviewed/withdrawn candidates remain explicit. Preserve qualifiers
 and negation in full selected text, not just the quote.
 
 For an explicitly chosen pending candidate and active intact target revision,
-the owner may request a read-only Supersede draft. Require the same exact topic
+Morii may request a read-only Supersede draft. Require the same exact topic
 key, a different statement, current evidence and supplied BusinessTime (including
 explicit unknown). Preserve candidate edits and evidence classifications. Return
 base commit, Proposal and original Origin (including model actor); publication

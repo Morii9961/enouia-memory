@@ -3,13 +3,13 @@
 2026-11-03. MCP-4 continuation, after the explicit MCP-3 note transport.
 
 A correction report says a remembered statement was wrong. It is distinct from
-an update to a previously true fact, an Owner edit and a forget request. The
+an update to a previously true fact, a Morii edit and a forget request. The
 Agent's interpretation is untrusted; an actual captured user statement must
 support it. This slice establishes native preparation before durable intake,
 System evaluation or a new advertised MCP tool.
 
-Trusted native Owner setup grants a separate opaque AgentCorrectionPermit on
-the initialized Owner carrier. It requires source-read permission and existing
+Trusted native Morii setup grants a separate opaque AgentCorrectionPermit on
+the initialized Morii carrier. It requires source-read permission and existing
 source/policy/sensitivity/lifetime ceilings. Neither a read permit nor a note
 permit can be passed as correction authority. Host generation invalidation,
 expiry, revocation and current policy checks apply to each preparation.
@@ -28,10 +28,10 @@ strict original scalar spans, source revision, speaker and evidence class under
 the same current-state lock as target qualification. The draft binds original
 evidence, exact target, Agent/delegation/snapshot, request hash and deterministic
 report key. It grants no later write authority and means neither saved nor
-corrected. Agent interpretation never becomes user evidence or Owner consent.
+corrected. Agent interpretation never becomes user evidence or Morii consent.
 
 No chain delta, source, memory revision, queue entry, receipt, transport profile
 or forget-hide behavior changes. Durable intake must independently repeat live
 authorization and define original-key recovery after the target changes. System
-revision evaluation follows separately; NativeMemoryOwner is not an Agent route.
+revision evaluation follows separately; `NativeMemoryOwner` is not an Agent route.
 See [native contract](../contracts/AGENT_CORRECTION_NATIVE_V1.md).

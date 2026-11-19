@@ -15,7 +15,7 @@ main 经 fetch 核对仍为 `c9bf1be7819dba19915adf6031b1900c032b73d1`。
 
 返回修订绑定的标题、语言、知识／采用、精确时间及其未知／precision/bound/tz/basis、
 实体及已授权别名、证据原句／speaker／scalar 范围、实际 producer/model/prompt/import/live
-形成信息与可空附注。System 采用不等于 Owner 确认；记录原句不被提升为客观事实。
+形成信息与可空附注。System 采用不等于 Morii 确认；记录原句不被提升为客观事实。
 SourceRecordFields 独立受 SourceRead 控制。Source ID 与会话链接不是整段会话 Context。
 
 实体名称／别名的全部来源也必须属于该条策略和 Agent scope，并通过当前来源修订、
@@ -32,7 +32,7 @@ SourceRecordFields 独立受 SourceRead 控制。Source ID 与会话链接不是
 
 HostV3 仍有原 128 条／64 次提交等边界；本片不宣称 20,000 条规模或分段布局支持。
 相同 schema major、升级 pin 或 Agent 参数不能跨过 layout/capability/hash 及原生身份门禁。
-Core-7 System 端口没有直接转交 Agent，普通 Agent 也不能创建 Owner 动作。
+Core-7 System 端口没有直接转交 Agent，普通 Agent 也不能创建 Morii 动作。
 
 ## 实际证据
 
@@ -43,7 +43,7 @@ Core-7 System 端口没有直接转交 Agent，普通 Agent 也不能创建 Owne
 - 别名依赖另一来源时，窄 scope 整条隐藏且计数为零；更完整 scope 可读；删除别名来源后
   再次隐藏。SourceRead 缺失时来源及 source_record_fields 均为空，原文请求拒绝。
 - 真实独立 Agent 的五工具及完整字段筛选；正常召回与预算排除均提供真实 trace，原生
-  Context 逐值相等。错误的 Owner-confirmed 排除原因必须被 Schema 拒绝。
+  Context 逐值相等。错误的 Morii-confirmed 排除原因必须被 Schema 拒绝。
 - 附注关系的未授权目标 ID 在序列化／渲染前移除，annotations_scope 固定声明当前授权
   目标；不暴露隐藏数量或省略标记。扩大合法 scope 后可见原建议；原始附注和业务字节不变。
 - 两种旧客户端在握手阶段拒绝 HostV3，业务文件不变。

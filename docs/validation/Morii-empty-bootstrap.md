@@ -1,13 +1,13 @@
-# Native empty Owner bootstrap: validation
+# Native empty Morii bootstrap: validation
 
 Date: 2026-10-30. Branch: `codex/owner-vault-bootstrap`, based on published
 `3b6e974cc12182859d3645d64c03e5acc534896f`. Scope: the separate trusted native
-Host/CLI creation adapter in [ADR110](../adr/110-native-empty-owner-bootstrap.md),
+Host/CLI creation adapter in [ADR110](../adr/110-native-empty-morii-bootstrap.md),
 not import, formation, Provider, queue, Runtime UI/pin or Core-8 switching.
 
-The owner explicitly requested an empty formal Vault; the actual human message
+Morii explicitly requested an empty formal Vault; the actual human message
 was checked in the Runtime conversation. Creation authorization is established.
-Synthetic validation and the native OS/owner-self binding are distinct; no test
+Synthetic validation and the native OS/Morii-self binding are distinct; no test
 identity or copied fixture is accepted by the production command.
 
 ## Owned changes
@@ -17,9 +17,9 @@ identity or copied fixture is accepted by the production command.
 - `owner_bootstrap/{mod,json,tests}.rs` and the separate native command binary:
   protected home registration, original-operation recovery, canonical home/root
   binding, baseline publication and scope-limited native CLI arguments.
-- Vault segmented module: native System-only empty Owner genesis verification.
+- Vault segmented module: native System-only empty Morii genesis verification.
 - ADR110/index, this report and Runtime surface/log. No frozen record schema,
-  Owner action method, MCP route, dependency or other worktree is changed.
+  Morii action method, MCP route, dependency or other worktree is changed.
 
 ## Verified behavior
 
@@ -36,9 +36,9 @@ assertions are grouped in fourteen test functions.
 
 All roots are newly generated temporary synthetic homes. Production enrollment
 has no public Deserialize or test identity constructor. No test launches a real
-Owner registration or creation against the private durable data home.
+Morii registration or creation against the private durable data home.
 
-Owner-contract review found one P1 before publication: copied registration could
+Morii-contract review found one P1 before publication: copied registration could
 relocate the original root because the home was not bound. The fix persists the
 private verified canonical home and checks it before any Recorded short circuit
 or root work. Both pending and Recorded copy-to-another-home regressions pass.
@@ -64,7 +64,7 @@ Final logs are `bootstrap-workspace-tests-final.log` and
 predated the fix and is not final evidence. The previously documented default
 high-parallel Workspace contention limitation is not claimed fixed here.
 
-Owner-contract limited source review closed the cross-home P1 and found no
+Morii-contract limited source review closed the cross-home P1 and found no
 remaining definite blocker in the reviewed files. It did not execute tests or
 any real home operation; the test evidence above belongs to this implementation
 session. No claim of Runtime adoption or actual formal creation follows from it.

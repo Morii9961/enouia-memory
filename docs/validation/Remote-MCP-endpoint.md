@@ -47,4 +47,4 @@ DELETE ends the session.
 ## Not shown
 
 Real HTTPS, OAuth issuance, ChatGPT interoperability, write tools, capture,
-deployment, performance and owner acceptance.
+deployment, performance and Morii acceptance.

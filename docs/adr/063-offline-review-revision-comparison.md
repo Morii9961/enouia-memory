@@ -34,4 +34,4 @@ Vault access, memory approval, Runtime UI or wire/storage change.
 
 Implementation and synthetic validation are recorded in
 [the comparison report](../validation/MV-7-review-revision-comparison.md).
-Real review quality and owner acceptance remain separate.
+Real review quality and Morii acceptance remain separate.

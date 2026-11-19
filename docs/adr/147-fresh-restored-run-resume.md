@@ -8,16 +8,16 @@ CLI locator. Morii requested completion of this concrete continuation boundary.
 ## Decision
 
 Add separate trusted native `resume-restored` and `recover-restored` commands.
-The caller explicitly selects a protected durable Owner data home, its restored
+The caller explicitly selects a protected durable Morii data home, its restored
 child root and the exact verified export recorded by the restore receipt, with
 `--bind-current-owner-self`. Reuse ADR110's current OS identity and protected-home
 checks, and ADR136's restore receipt and export verification. Require the restore
 to be activated already; this command cannot activate it or assert backup currency.
-The selected root must be owner-only and its immutable descriptor must match the
+The selected root must be Morii-only and its immutable descriptor must match the
 activated receipt/export. Parsed paths, descriptors and flags alone grant no
-Owner authority; this entry is only for an already authorized trusted local CLI,
+Morii authority; this entry is only for an already authorized trusted local CLI,
 never MCP/page/Agent dispatch. The current native account owns the restored root,
-as in ADR136; it does not recreate the old account or change logical Owner IDs.
+as in ADR136; it does not recreate the old account or change logical Morii IDs.
 
 Require the exact existing `fresh_run` binding before any recovery or initializer
 open. Refuse missing journals, legacy/non-fresh runs and changed input. Never adopt
@@ -30,7 +30,7 @@ canonical chain and existing deletion/withdrawal gates.
 `recover-restored` alone requests normal native forward recovery; resume does not
 repair publication. Both keep receipt-only handling for an uncertain application.
 A missing/withheld receipt remains unknown, including after policy expiry. No
-replacement request, policy renewal, read grant or Owner action is manufactured.
+replacement request, policy renewal, read grant or Morii action is manufactured.
 Unstarted queued work still needs the original formation authority to be current.
 No new on-disk registration, descriptor, journal format or restore receipt format.
 The original bootstrap home/registration stays unchanged and cannot authorize a

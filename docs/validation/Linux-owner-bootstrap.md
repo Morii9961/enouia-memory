@@ -1,6 +1,6 @@
-# Linux Owner bootstrap — validation (2026-11-09)
+# Linux Morii bootstrap — validation (2026-11-09)
 
-Scope: [ADR-MEM-134](../adr/134-linux-owner-bootstrap.md), branch
+Scope: [ADR-MEM-134](../adr/134-linux-morii-bootstrap.md), branch
 `claude/linux-owner-bootstrap`, stacked on `claude/remote-mcp-service`
 (PR #92), which lets segmented Vaults open on Linux.
 
@@ -32,9 +32,9 @@ do-not-delete marker.
 
 The unit suite first failed on Linux for the same reason: its fixture wrote
 the marker 0644, which metadata publication refuses. The fixture now keeps the
-marker owner-only, as an owner would.
+marker Morii-only, as Morii would.
 
 ## Not shown
 
 A real VPS, a Vault created as a dedicated service account by systemd's user,
-migration of the existing Windows Vault, and owner acceptance.
+migration of the existing Windows Vault, and Morii acceptance.

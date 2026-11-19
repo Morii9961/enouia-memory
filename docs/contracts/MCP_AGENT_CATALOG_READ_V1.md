@@ -12,10 +12,10 @@ descriptor/schema compatibility hash. Old six-tool, HostV2 and HostV3 hello
 messages refuse before business decoding or counts. A pin cannot upgrade a
 client's capabilities or authority.
 
-One existing leased Vault is shared through an Arc. A separate native Owner
+One existing leased Vault is shared through an Arc. A separate native Morii
 registration creates the sealed Agent delegation, then retained OS process
 identity enrolls the one pipe peer. `clientInfo`, root flags, principal, PID or
-scope parameters grant no authority. Owner lock/unlock, disconnect, process
+scope parameters grant no authority. Morii lock/unlock, disconnect, process
 exit, expiry, rollback and withdrawal cannot revive an old connection. Native
 Context can inspect the exact cached recall response only while its current
 snapshot and delegation remain valid.
@@ -73,7 +73,7 @@ snapshot, deletion, policy change or lock refuses the cached response.
 
 Stored claims, quotes, occurrence, time precision/basis/timezone, adopted/staged
 status and language remain unchanged. Subject statements are not independently
-verified facts. Agent provenance and model hints cannot become Owner actions.
+verified facts. Agent provenance and model hints cannot become Morii actions.
 No read changes attention, source history, business commits or durable usage.
 
 Runtime hook capture, live formation, preflight writes, reports/forget requests

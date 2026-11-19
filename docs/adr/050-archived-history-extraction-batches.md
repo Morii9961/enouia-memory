@@ -13,7 +13,7 @@ context; all selected snippets pass the existing extraction access/size/secret
 checks before a coordinator is saved. An unsafe or oversized selection fails
 without silently skipping messages.
 
-The immutable coordinator is an ordinary owner Session input containing
+The immutable coordinator is an ordinary Morii Session input containing
 canonical `history-extraction-plan-1` metadata: import/raw hash, adapter/schema,
 H1 planner version/limits, exact ordered batch indices, source revision and
 snippet hashes, destination/subject and per-job bounds. Its source_refs contain
@@ -22,9 +22,9 @@ approval, external wire contract, or instruction to the model. No permissions
 are read from this metadata. Normal source deletion therefore also reaches the
 coordinator event and content.
 
-The owner key binds the coordinator Session/input through existing idempotency.
+The Morii key binds the coordinator Session/input through existing idempotency.
 Changed plan/selection/model/bounds under that key is a conflict. Each child
-uses a distinct deterministic key derived from owner key hash, coordinator
+uses a distinct deterministic key derived from Morii key hash, coordinator
 input hash and batch index, and is an existing ExtractionJob in its own Session.
 After partial publication or reopening, materialization replays these receipts;
 it never sends, refunds an attempt, or replaces a failed/unknown invocation.
@@ -43,7 +43,7 @@ At most 32 explicitly selected batches, 1–15 messages per H1 batch plus one
 preceding context message, existing 32 KiB per snippet / 64 KiB per extraction,
 and at most 128 KiB coordinator metadata. Reject duplicate or invalid indices,
 empty source text, oversized input, changed/missing sources, bad graph batches,
-unsupported adapter changes and non-owner callers. Cancel between child jobs;
+unsupported adapter changes and non-Morii callers. Cancel between child jobs;
 partial coordinator/child commits are recoverable, not a failed all-or-nothing
 transaction. No automatic retry of model requests follows recovery.
 

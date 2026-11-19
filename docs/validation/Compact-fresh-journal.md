@@ -2,7 +2,7 @@
 
 2026-11-17. [ADR-MEM-150](../adr/150-compact-fresh-initialization-journal.md), based
 on merged `17a369e010f670baacaeec98306854fd4d14afc5`. This is synthetic evidence;
-real use of this capability awaits owner-approved merge and rebuilt formal tools.
+real use of this capability awaits Morii-approved merge and rebuilt formal tools.
 
 ## Representation and retained bindings
 
@@ -19,7 +19,7 @@ Old inline version-1 journals reopen and save in their original representation;
 there is no automatic migration. Unknown results retain the original full packet
 and only resolve its existing receipt. Policy expiry can still withhold lookup.
 
-Owner backup already includes all Raw objects and the unchanged private journal
+Morii backup already includes all Raw objects and the unchanged private journal
 path. The initializer verifies those plan objects again on restored open. Native
 admission, memory decisions, Runtime readers and Workspace commands do not change.
 An old initializer cannot resume version-2 journals; use the compatible fresh
@@ -37,7 +37,7 @@ binary. ADR149's reader upgrade requirement for grouped decisions still applies.
 - Both opt-in production CLI tests were then explicitly run under the actual
   Windows account in a protected, marked synthetic-only durable parent:
   **1 bootstrap/formation/reopen + 1 activated-restore continuation passed**.
-  Tests retain their synthetic homes and use no existing Owner library.
+  Tests retain their synthetic homes and use no existing Morii library.
 - The remaining initializer library, binary and integration targets:
   **58 passed** across captured formation, parser/selection, initialization,
   legacy continuation and packing. Total for the changed crate: **77 passed**,

@@ -111,11 +111,11 @@ pending -> accepted
 
 编辑 pending 候选产生新 revision；accepted/rejected/merged/withdrawn 为终态，不原地重开。需要重议时创建新候选并引用原候选。merged 必须指向目标候选或正式记忆并有审核记录。
 
-ReviewRecord 必需：review_id、actor_id、actor_type=owner、trusted_surface、action、candidate_id/revision、final_content_hash、evidence_refs、target_expected_revisions、approval_nonce、created_at、commit_id。nonce 由可信客户端的审核流程产生，短时、一次性、绑定具体 diff；普通工具参数不能声称自己是 owner。
+ReviewRecord 必需：review_id、actor_id、actor_type=Morii、trusted_surface、action、candidate_id/revision、final_content_hash、evidence_refs、target_expected_revisions、approval_nonce、created_at、commit_id。nonce 由可信客户端的审核流程产生，短时、一次性、绑定具体 diff；普通工具参数不能声称自己是 Morii。
 
 批量审核必须逐条校验目标 revision，并展示每条变化。存在任何过期批准时整个批次拒绝，或由用户明确拆分成独立事务；不能只提交半份却显示全部完成。
 
-“记住……”可以走 trusted owner 的快捷保存：显示将保存的确切文本并确认，生成 manual_assertion 与 review。模型只能提出待确认内容；如果未来实现自然语言一键保存，也必须记录来源 user turn、精确内容及可信确认，不用一句被导入文档引用的“记住”触发写入。
+“记住……”可以走 trusted Morii 的快捷保存：显示将保存的确切文本并确认，生成 manual_assertion 与 review。模型只能提出待确认内容；如果未来实现自然语言一键保存，也必须记录来源 user turn、精确内容及可信确认，不用一句被导入文档引用的“记住”触发写入。
 
 ## 7. Session 与 checkpoint
 
@@ -148,8 +148,8 @@ Canonical → Review → Candidate/ManualAssertion → Source → 原始对象�
 [ADR-MEM-93](../adr/093-ui-v2-record-layout.md) and the
 [revision field table](../contracts/UI_V2_RECORDS.md) freeze `automation-host-v3`:
 required title/language/rich event and valid time, exact quote/speaker/range,
-entity/conversation revisions and formation/annotation provenance. Owner action
+entity/conversation revisions and formation/annotation provenance. Morii action
 plans/confirmations/committed shapes stay separate from machine admission;
 projection metadata binds live authorization, snapshot, coverage and deletion.
-This amends automatic roots only, not the legacy owner Canonical sections above.
-No old-root upgrade, automatic owner confirmation or real initialization occurs.
+This amends automatic roots only, not the legacy Morii Canonical sections above.
+No old-root upgrade, automatic Morii confirmation or real initialization occurs.

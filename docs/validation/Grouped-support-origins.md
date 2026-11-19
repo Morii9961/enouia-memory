@@ -56,5 +56,5 @@ Workspace stays at 61 commands. No Runtime checkout changes here.
   `-D warnings`, workspace formatting and `git diff --check`: **passed**.
 
 No full-workspace suite, Linux run, real input on the new implementation, Provider,
-OwnerReadGrant, production formation, deployment or data deletion was performed.
+`OwnerReadGrant`, production formation, deployment or data deletion was performed.
 Real whole-journal capacity and backup/restore acceptance remain separate gates.

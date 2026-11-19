@@ -11,7 +11,7 @@ Browse, min(4, profile.max_items) / min(16384, profile.max_bytes). Model clients
 can discover/invoke an ordinary read tool; no prompt/manual step is required.
 
 This is opening context preparation, not creation of a durable Session. No
-session ID, capture, checkpoint, Provider, reinforcement, job, receipt, Owner
+session ID, capture, checkpoint, Provider, reinforcement, job, receipt, Morii
 operation or user-review queue is produced. No SessionPropose/ContextRead scope
 or Note/Correction permit substitutes for the initialized read authority.
 

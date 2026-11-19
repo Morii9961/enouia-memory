@@ -7,7 +7,7 @@ existing quality bundle retains its hash but omits the input itself, requiring
 separate native inspection. Add history_quality::build_with_analysis_input as an
 opt-in private assessment helper; keep build and its suite bytes unchanged.
 
-After the existing saved-response/source/owner validation, read the saved input
+After the existing saved-response/source/Morii validation, read the saved input
 at the validated pin, retain the exact UTF-8 text in native_task_input_text, and
 verify its original native_task_input_sha256. Enforce the existing 64 KiB task
 and 256 KiB whole-bundle budgets, then recheck source freshness and lock state.
@@ -31,4 +31,4 @@ included_hash_and_scope_matched, which is structural evidence, not faithfulness.
 
 Runtime may opt in at a new pin and must treat the larger private payload as an
 explicit selection/save decision. Real model fidelity/omissions, product
-adoption, owner acceptance and later MV stages remain separate.
+adoption, Morii acceptance and later MV stages remain separate.

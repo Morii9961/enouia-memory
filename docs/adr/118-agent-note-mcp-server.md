@@ -17,7 +17,7 @@ memory_note accepts a bounded original native note request, wrapped in schema 2,
 kind agent_note_request and capability memory-agent-note-1. It submits through
 the existing native intake, retaining real Agent/source provenance and current
 authority. Its success means only hint_saved and returns the original independent
-receipt. It neither captures text nor claims formation or Owner approval.
+receipt. It neither captures text nor claims formation or Morii approval.
 
 Native OutcomeUnknown is not converted to unavailable or a fabricated MCP tool
 result. The server closes its session, retains the complete original MCP Value,

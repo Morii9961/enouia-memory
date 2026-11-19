@@ -2,7 +2,7 @@
 
 Date: 2026-10-22 (Asia/Shanghai). Baseline
 `450abcd4f181c898e60231fdbaa98c7a762de667` (merged PR #44).
-Continues owner-authorized MV-8 with synthetic local roots only.
+Continues Morii-authorized MV-8 with synthetic local roots only.
 
 [ADR-MEM-76](../adr/076-host-bound-workspace-service.md) connects the real
 Workspace to the native writer and session gate. The service binds an existing
@@ -13,12 +13,12 @@ clients still use their original constructor and lifecycle.
 
 Four native Windows integration tests passed:
 
-- Real Workspace remember creates a pending proposal; owner plan/confirm
+- Real Workspace remember creates a pending proposal; Morii plan/confirm
   creates Canonical memory; QuickSearch reads it but cannot write.
 - UI lock revokes old connections while competing coordinators/services remain
-  busy. Native owner unlock requires a new connection; the original remember
+  busy. Native Morii unlock requires a new connection; the original remember
   key replays the same candidate without another CURRENT publication, including
-  after service drop/reopen. QuickSearch cannot invoke native owner unlock.
+  after service drop/reopen. QuickSearch cannot invoke native Morii unlock.
 - Page root open/create/unlock is refused. A corrupted witness blocks Core
   replay and new admission before any content/receipt response or data write.
 - Ordinary roots and unbound Vault handles never acquire Host mode through
@@ -48,7 +48,7 @@ is reused, without rerunning that unrelated check.
 This proves a native library service over synthetic Windows storage, not a
 running user-level executable, protected listener, actual OS authentication,
 reference-shell/Runtime transport adoption or real-client acceptance. The
-native adapter still authenticates owner processes/windows before minting
+native adapter still authenticates Morii processes/windows before minting
 admission; same-user access or a JSON principal does not suffice. Native picker
 and Provider setup remain absent here. Existing Core async lifecycle/approval
 rules still apply; reconnect never sends or repeats an external invocation.

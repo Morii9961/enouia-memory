@@ -22,7 +22,7 @@ slice is independently normalized back to the complete hint.
 
 ICU4X icu_normalizer 2.3.0 already existed in Cargo.lock; this slice adds the
 explicit exact Host dependency with compiled data only. No new package versions
-are resolved. No System read port or Owner action is exposed.
+are resolved. No System read port or Morii action is exposed.
 
 ## Actual evidence
 
@@ -71,14 +71,14 @@ claimed for this checkpoint. Runtime surface is regenerated/logged at
 This supplies the normalization building block from section 3.1. The tool must
 still obtain already captured sources through independent current Agent gates,
 bind actual provenance and submit only optional Agent hints to the same ordered
-initialization/live formation entry. No Agent hint becomes Owner confirmation.
+initialization/live formation entry. No Agent hint becomes Morii confirmation.
 The published shared initialization entry has not been adopted here, and the
 normalizer is not advertised as a working memory_note tool. Real local MCP
 capture-to-formation/quote acceptance and UI field coverage remain pending.
 
 Owned files: Host Cargo/lock, new quote helper/tests and module export, minimal
 diagnostics in the existing owned native Agent test helper;
-ADR102/contract/report plus Runtime surface/log. Initialization, owner actions,
+ADR102/contract/report plus Runtime surface/log. Initialization, Morii actions,
 strict evidence validation, AGENTS and manual project state are untouched.
 No private Vault/export, real Provider/embedding/client configuration, Activity
 input, Runtime edit, remote listener, deployment or main merge.

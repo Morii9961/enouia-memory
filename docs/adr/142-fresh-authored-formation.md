@@ -21,7 +21,7 @@ silently dropped. The caller must explicitly supply one adequate exact range
 within the existing 500-character bound, or keep that record unprepared.
 Context-only dependencies remain context; a source explicitly quoted as support
 is promoted to support. Sensitivity covers all input dependencies. Assistant
-support cannot become a clear Owner self-report. Inference remains staged under
+support cannot become a clear Morii self-report. Inference remains staged under
 the existing evaluator, without a per-item confirmation action being invented.
 
 Use the supplied content/title and provenance in the ordinary AdmissionInput
@@ -40,7 +40,7 @@ preparation, not independent proof that a paraphrase follows from its quotes.
 
 Use synthetic multi-source content, a long untruncated distillation, exact quote
 refusals, role and sensitivity boundaries, changed-analysis resume conflicts,
-and native write/reopen checks. Production input waits for Owner merge approval.
+and native write/reopen checks. Production input waits for Morii merge approval.
 Bounded full-corpus packing, attachment review, the fresh production driver,
 corpus completion, actual Vault acceptance, backup and remote read scope remain
 separate work. Do not revive legacy candidate contents or call this completed

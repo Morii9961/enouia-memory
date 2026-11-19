@@ -2,7 +2,7 @@
 
 2026-10-31. [ADR-MEM-111](../adr/111-captured-source-formation-queue.md).
 
-Native Vault API on automation-segmented-owner-v1. No IPC, pipe or MCP route.
+Native Vault API on `automation-segmented-owner-v1`. No IPC, pipe or MCP route.
 
 ```text
 enqueue_captured(system, capture, policy) -> CapturedQueueReceipt
@@ -25,7 +25,7 @@ source. It holds no text, role, timezone, generation request or response.
 
 | Case | Result |
 | --- | --- |
-| Not an Owner root, or not the System actor | Denied |
+| Not a Morii root, or not the System actor | Denied |
 | Old capability, preflight, not captured, other Vault | Denied |
 | Revision, provenance, session, order, policy, pool, sensitivity or deletion mismatch | Denied, no commit |
 | Same key and same binding | Original receipt, no commit |

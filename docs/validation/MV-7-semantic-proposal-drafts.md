@@ -1,10 +1,10 @@
 # MV-7-H2f · 主人选定的语义提案草案
 
-日期：2026-10-13；实现基线 main `d0dd537`。范围为 [ADR-MEM-55](../adr/055-owner-selected-semantic-proposal-drafts.md)，仍在 MV-7。
+日期：2026-10-13；实现基线 main `d0dd537`。范围为 [ADR-MEM-55](../adr/055-morii-selected-semantic-proposal-drafts.md)，仍在 MV-7。
 
-新增可选原生 `history_semantic_proposal::draft`。主人明确选择保存响应的 dispatch/hash、变化序号、提案内容及创建/替代动作； helper 重读整个已完成响应并复核当前来源、权限和 head，只返回草案。提案保留模型原陈述、解释、task/input/response 绑定和精确引文；OwnerManual 表示主人提交提案，原始模型证据仍是 model_claim，没有伪造抽取 run 或用户确认来源。事实默认为 uncertain，冲突为 disputed，偏好为 tentative；仅模型证据不能创建偏好。
+新增可选原生 `history_semantic_proposal::draft`。主人明确选择保存响应的 dispatch/hash、变化序号、提案内容及创建/替代动作； helper 重读整个已完成响应并复核当前来源、权限和 head，只返回草案。提案保留模型原陈述、解释、task/input/response 绑定和精确引文；`OwnerManual` 表示主人提交提案，原始模型证据仍是 model_claim，没有伪造抽取 run 或用户确认来源。事实默认为 uncertain，冲突为 disputed，偏好为 tentative；仅模型证据不能创建偏好。
 
-替代只接受有已验证用户祖先链的纠正/取消；主人指定同主题的活跃、完整目标当前修订及 BusinessTime。消息日期不补业务生效日。既有 propose_at_head 只发布 pending，之后仍须现有可信主人 plan/confirm。宿主须为确切选择保留稳定 key，并在发布时检查 owner/lock；普通草案结构和 reason 文本本身不证明授权。
+替代只接受有已验证用户祖先链的纠正/取消；主人指定同主题的活跃、完整目标当前修订及 BusinessTime。消息日期不补业务生效日。既有 propose_at_head 只发布 pending，之后仍须现有可信主人 plan/confirm。宿主须为确切选择保留稳定 key，并在发布时检查 Morii/lock；普通草案结构和 reason 文本本身不证明授权。
 
 沿用现有提案去重语义：DuplicateOf 返回既有候选，不把新草案的模型解释追加到它。宿主应明确显示这个结果，不能宣称新响应来源已经持久化到既有候选；修改选择须使用绑定新选择的 key。
 

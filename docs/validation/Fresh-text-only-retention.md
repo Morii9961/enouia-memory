@@ -16,7 +16,7 @@ Omitting the field preserves previous `selected_originals` behavior.
 Textual Raw still contains complete selected conversations, including surrounding
 unselected messages, and the exact original authored analysis file. Quote checks,
 speaker/branch, contexts, temporal/subject/sensitivity metadata and visual-analysis
-provenance are unchanged. No attachment content assertion or new owner confirmation
+provenance are unchanged. No attachment content assertion or new Morii confirmation
 is created. No capacity limit, native admission, external deletion or read grant is
 changed. Retention changes conflict with an enrolled run.
 
@@ -31,7 +31,7 @@ changed. Retention changes conflict with an enrolled run.
   a unique protected test home, retained with its markers. The production CLI
   forms two text-view memories without attachment payloads, repeats the same run,
   closes/reopens, resolves exact source quotes and explicitly recovers. Changed
-  analysis conflicts; no Owner action or read grant is synthesized.
+  analysis conflicts; no Morii action or read grant is synthesized.
 - The 65-source/65-memory case spans two bounded plans, reopens during execution,
   checks every saved journal against the whole-lifecycle bound, pages all records,
   queries a precise Unicode excerpt, retains attachment non-selection metadata,

@@ -22,7 +22,7 @@ No adoption or knowledge state is upgraded merely by adding ranges.
 
 The authored initializer retains every supplied support range and lets native
 admission reject exact repeats. It does not concatenate quotes, demote support to
-context, add sources, call a Provider, grant reads or create Owner confirmation.
+context, add sources, call a Provider, grant reads or create Morii confirmation.
 Its hash-bound analysis and existing unknown-outcome barriers remain in force.
 
 ## Scope and verification
@@ -35,7 +35,7 @@ added. This amends ADR-MEM-142's one-range restriction only.
 Use synthetic separated passages, exact duplicate and unquoted-input refusals,
 Unicode offsets, mismatched reference pairs, forged-range resolution, duplicate
 origin regression checks and native write/reopen with one source dependency.
-Production native use waits for Owner merge. Corpus completion, production
+Production native use waits for Morii merge. Corpus completion, production
 adoption, backup, deployment, deletion and remote read scope remain separate.
 
 Validation: [same-source range checks](../validation/Same-source-quoted-ranges.md).

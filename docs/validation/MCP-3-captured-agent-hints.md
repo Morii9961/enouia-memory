@@ -7,7 +7,7 @@ The first captured analysis receives saved Agent hints for that exact source
 revision and current policy. Selection uses the same locked native lookup as
 source authorization, in stable note-key order, capped at eight and trimmed to
 64 KiB of canonical JSON. The journal saves those immutable keys before handoff.
-Notes do not become source evidence or Owner authority. Later notes neither
+Notes do not become source evidence or Morii authority. Later notes neither
 change a pending analysis nor dispatch a terminal job again.
 
 The native CaptureAnalyzer signature explicitly adds the note slice; all seven
@@ -17,7 +17,7 @@ journal. Nonempty keys occur only on roots whose ADR116 note deltas already
 exclude old binaries. Producer wire DTOs and states remain unchanged.
 
 Actual focused evidence: **19 initializer formation tests, 16 Host capture/worker
-tests and 6 real Owner pipe tests passed**, no failures. New cases exercise both
+tests and 6 real Morii pipe tests passed**, no failures. New cases exercise both
 immediate and pending fake analysis: its start callback reads the journal and
 confirms selected keys are already durable; exact source/Agent role/class are
 preserved; a later hint cannot replace that set; the original source forms one

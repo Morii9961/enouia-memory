@@ -6,10 +6,10 @@ Everything here is synthetic test data. None of it is Morii's memory, chat histo
 |---|---|
 | `records/*.json` | 51 valid records covering all 20 record kinds and all five memory types, in canonical bytes |
 | `records-manifest.json` | The valid records with their schema, plus 108 invalid single-rule mutations. `schema: accept` marks a constraint JSON Schema cannot express but Rust must reject |
-| `sets/morimeta-confirmed.json` | CONTEXT_MODEL §9 story. F-A: an unreviewed model suggestion. F-B: the user explicitly chooses Professional Darkroom and the owner reviews it. F-C: a provisional "prepare to implement" checkpoint. F-D: an unrelated Moriium decision and a highly sensitive record. A malicious imported document yields a rejected candidate |
+| `sets/morimeta-confirmed.json` | CONTEXT_MODEL §9 story. F-A: an unreviewed model suggestion. F-B: the user explicitly chooses Professional Darkroom and the Morii reviews it. F-C: a provisional "prepare to implement" checkpoint. F-D: an unrelated Moriium decision and a highly sensitive record. A malicious imported document yields a rejected candidate |
 | `sets/morimeta-insufficient-evidence.json` | Same story without F-B. No canonical record names a chosen design; the capsule abstains (`no_supported_memory`) |
-| `sets/morimeta-external-egress.json` | Confirmed story plus an owner grant (MoriMeta → example-cloud/example-model) and an external request carrying the private decision under an exact, single-use egress approval |
-| `sets/lifecycle.json` | Future-effective supersession, live and expired facts, a conflict group, preference, episode, a reviewed checkpoint memory, Identity, an owner declassification, and a bound logical delete |
+| `sets/morimeta-external-egress.json` | Confirmed story plus a Morii grant (MoriMeta → example-cloud/example-model) and an external request carrying the private decision under an exact, single-use egress approval |
+| `sets/lifecycle.json` | Future-effective supersession, live and expired facts, a conflict group, preference, episode, a reviewed checkpoint memory, Identity, Morii declassification, and a bound logical delete |
 | `sets-manifest.json` | The four consistent sets plus 67 cross-record mutations, each naming the violation it must produce (review findings F1–F6 included) |
 | `ipc-manifest.json` | Valid requests for all 12 operations, valid responses, invalid requests and responses |
 | `expectations/*.json` | Expected valid-time results, MoriMeta capsule outcomes, and the exact synthetic request text behind each Dispatch digest |

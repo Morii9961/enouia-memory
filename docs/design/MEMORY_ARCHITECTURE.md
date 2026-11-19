@@ -126,7 +126,7 @@ EnouiaMemory/
 
 一个 Vault 只允许一个写者进程。CLI、UI、未来 MCP 都经同一领域接口；每次写入持有 OS 级排他锁，并校验 expected_commit_id。内存 mutex 不足以防两个进程竞争。
 
-首次初始化是独立的 genesis 操作：本机交互用户在可信入口确认新建空 Vault，生成 vault_id、owner/device 身份、默认拒绝外发策略和初始 commit；没有 CURRENT 的既存非空目录不得自动重新初始化。genesis 不从导入正文推断 owner，不预装未经批准的私人身份资料。以后创建 Identity 同样走审核。
+首次初始化是独立的 genesis 操作：本机交互用户在可信入口确认新建空 Vault，生成 vault_id、Morii/device 身份、默认拒绝外发策略和初始 commit；没有 CURRENT 的既存非空目录不得自动重新初始化。genesis 不从导入正文推断 Morii，不预装未经批准的私人身份资料。以后创建 Identity 同样走审核。
 
 一次“接受候选并替代旧事实”可能同时修改候选、旧记忆、新记忆、review 与策略。必须作为一个事务：
 

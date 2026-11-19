@@ -33,6 +33,6 @@ lose old job/receipt identities to upgrade this field. Producer wire statuses
 do not expose note text, principals or keys.
 
 The evaluator continues to resolve every produced quote against the original
-source and actual speaker/class. Agent interpretations are not Owner evidence,
+source and actual speaker/class. Agent interpretations are not Morii evidence,
 automatic truth or permission to send data elsewhere. Runtime-only capture and
 independent foreground/cancellation/unknown-result behavior remain unchanged.

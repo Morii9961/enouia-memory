@@ -34,4 +34,4 @@ caller. It is an offline document, with no Runtime product UI or wire changes.
 
 Implementation and synthetic validation are recorded in
 [the worksheet report](../validation/MV-7-quality-review-worksheet.md). Actual
-human review, model fidelity, omission, and owner acceptance remain separate.
+human review, model fidelity, omission, and Morii acceptance remain separate.

@@ -17,4 +17,4 @@ refused. No new helper, dependency, wire field or policy is added.
 
 This shared native producer serves workers and initialization. Regenerate the
 Runtime surface and log the adoption requirement with the implementation. No
-Runtime checkout, real model, owner data, write/capture grant or MV stage change.
+Runtime checkout, real model, Morii data, write/capture grant or MV stage change.

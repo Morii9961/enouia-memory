@@ -37,7 +37,7 @@ artifact, not a database or substitute for native formation. Validate the select
 object's ID/revision/content/title boundary and bind object hash, line index and
 record digest into each plan's analysis artifact. This retains the original
 analysis provenance, layer, fine-grained time basis, context, cautions and reviewed
-attachment links without inventing owner confirmation or bloating every journal
+attachment links without inventing Morii confirmation or bloating every journal
 with copies of the entire authored record. The ordinary native writer still forms
 each record and issues its own receipt. Artifact changes conflict with the run.
 The complete selected analysis file is retained, including any unselected lines;
@@ -55,4 +55,4 @@ these new text-view records; old evaluators can refuse replay. This is a new
 requirement for this increment, not a redo of the already completed ADR143 adoption.
 No Runtime checkout, UI, IPC command or read grant changes here. A reviewable PR
 must be merged before using the new capability on real inputs. Actual full-plan
-capacity and real Owner formation/read/source acceptance remain pending.
+capacity and real Morii formation/read/source acceptance remain pending.

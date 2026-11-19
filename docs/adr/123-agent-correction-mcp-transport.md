@@ -9,7 +9,7 @@ Add an opt-in correction server with the five initialized read tools and
 an independently delegated AgentCorrectionReporter for the same authenticated
 Agent and the exact same leased Vault instance. Their scopes remain independent;
 neither read, note nor MemoryPropose authority grants correction permission.
-The server calls the existing ADR121 intake, never NativeMemoryOwner.
+The server calls the existing ADR121 intake, never `NativeMemoryOwner`.
 
 Use a distinct `memory-agent-pipe-7`, profile
 `memory-agent-initialized-corrections-1`, and wire capability
@@ -21,7 +21,7 @@ it pairs identity and never substitutes for the correction permit.
 
 Check both delegations before each frame and call. Known refusals are bounded,
 content-free errors with retryable=false. Success returns only the original
-`report_saved` receipt: not correction, acceptance, queueing or Owner approval.
+`report_saved` receipt: not correction, acceptance, queueing or Morii approval.
 Submission still owns current target/source/policy and receipt-replay checks.
 
 On native OutcomeUnknown emit no MCP tool result and no pipe Reply. Retain the

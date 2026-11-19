@@ -23,7 +23,7 @@ initialized actual-pipe tests passed**, no final failures. New cases include:
   explicitly queued by the native Runtime producer; a fake System analyzer sees
   that Agent hint exactly once and forms one real source-backed memory, retaining
   original UserStatement evidence. Note submission itself created no source/job.
-- Old pipe-5, wrong hash, forged Owner hello field, missing SourceRead, old
+- Old pipe-5, wrong hash, forged Morii hello field, missing SourceRead, old
   MemoryPropose scope and a different actual kernel peer refuse before writing.
 - Writer revoke, Host lock, fake-clock expiry, enrollment revoke and policy
   withdrawal close an active pipe before note submission without a new commit.

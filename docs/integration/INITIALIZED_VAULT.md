@@ -31,10 +31,10 @@
 逐条重新阅读和提炼；重点主会话不构成只读这些会话的白名单。旧候选内容、旧语义已读
 结论及旧确认不能继承。旧工具可以复用，原件不能因此删除。
 
-交付目标是本机可实际调用的新原生Owner库，而不是只生成便携SQLite、JSONL、Markdown
+交付目标是本机可实际调用的新原生Morii库，而不是只生成便携SQLite、JSONL、Markdown
 或规划文件。`enouia-memory-reinit`仍是旧候选迁入工具；新路径使用明确选入的原文、
 [新撰写分析](../adr/142-fresh-authored-formation.md)、精确证据和
-[有界分批](../adr/144-fresh-analysis-packing.md)，继续经过真实Owner bootstrap、
+[有界分批](../adr/144-fresh-analysis-packing.md)，继续经过真实Morii bootstrap、
 原生形成、关闭重开与读取/来源验收。能力增量先以合成实现和PR交付，等待主人合并后
 才可用于真实初始化；分批本身不代表生产驱动、容量验收或真实建库完成。
 
@@ -71,21 +71,21 @@ JSON 与原分析 JSONL 仍作为文字来源保留，包含周边上下文；�
 
 以下“旧候选直接形成”仅描述当日旧方案，不能用于现行全新初始化。
 
-真实数据不在已建好的空 Owner 根里，而在一个更早的旧版（v1）记忆库及其原件存档中：
+真实数据不在已建好的空 Morii 根里，而在一个更早的旧版（v1）记忆库及其原件存档中：
 一次 ChatGPT 导出形成的来源和附件、种子阶段模型提取的候选，以及原始导出原件。
 旧库没有正式记忆，候选从未审核。主人决定：
 
 - **重新初始化，不升级旧库。** 新 `SegmentedOwnerV1` 根在创世提交里用
   `descriptor_hash` 绑定主人主体，旧根没有这一步，事后补写会破坏提交链，
   所以只能新建根、把旧库内容作为初始化输入重新形成（见[ADR135](../adr/135-legacy-library-reinitialization.md)）。
-  已建好的空 Owner 根不承载这次迁移；新根由生产入口单独创建。
+  已建好的空 Morii 根不承载这次迁移；新根由生产入口单独创建。
 - **旧候选直接成为正式记忆。** 它们是初始化的产物，按"主人选入的条目直接形成、
   不建待审队列"处理：不调用模型，不逐条确认。证据类别保持旧候选/模型提取，
   不伪装成主人确认；来源跳转指向旧导出原文。
 - **时区统一 Asia/Shanghai**；来源只来自 ChatGPT 聊天。
 - **目标主机是 Linux VPS。** 2026-11-11 主人进一步决定：先在本机建立并测试验收，
-  然后迁移到 Linux。建库使用对应平台的原生 Owner bootstrap；迁移使用
-  [ADR136 的离线导出与恢复](../deploy/SEGMENTED_OWNER_BACKUP.md)，保留创世绑定，
+  然后迁移到 Linux。建库使用对应平台的原生 Morii bootstrap；迁移使用
+  [ADR136 的离线导出与恢复](../deploy/SEGMENTED_MORII_BACKUP.md)，保留创世绑定，
   停止旧 Host 后再启用恢复根。真实写入和部署仍须分别明确授权；ChatGPT 通过
   ADR133 远程服务只读访问，长期读取范围由主人另外决定。
 - **旧库在新根验收后删除。** 新根核对覆盖率、来源跳转和删除屏障通过，且有一份
@@ -105,7 +105,7 @@ Runtime 是产品客户端，通过采用的 Memory 原生接口使用同一个�
 实际目录由主人选择，只在本地配置/交接中保存；公开文档使用占位符：
 
 ```text
-<OWNER_DATA_HOME>/
+<MORII_DATA_HOME>/
   DO_NOT_DELETE.USER_DATA
   .enouia-owner-data.json
   initialization-inputs/manifest.json
@@ -136,15 +136,15 @@ Runtime 是产品客户端，通过采用的 Memory 原生接口使用同一个�
 
 [PR68](https://github.com/Morii9961/enouia-memory/pull/68)、提交
 `34709b9d2abcb60188c0e3488b15f40c33d6ee16` 已提供 G08 原生合成实现；
-[ADR103](https://github.com/Morii9961/enouia-memory/blob/34709b9d2abcb60188c0e3488b15f40c33d6ee16/docs/adr/103-owner-correction-subject-binding-proposal.md)
+[ADR103](https://github.com/Morii9961/enouia-memory/blob/34709b9d2abcb60188c0e3488b15f40c33d6ee16/docs/adr/103-morii-correction-subject-binding-proposal.md)
 要求新建空 `automation-segmented-owner-v1` 根，显式提供 `owner_subject_id`，
 创世提交见证 `descriptor_hash`。不能改头升级旧根，也不能重新绑定主体。
 记录业务字段仍沿用 ADR93；读取 selection 为 v4，process headers 为 v2。
 
 初始化 PR67 已整合 MCP 的 `14125f5cae8df2277d16c167a165b7eae3c1974c`
-（包含上述 Owner 依赖），只接受新建 Owner 根。导入/附件入口保留，初始化日志
+（包含上述 Morii 依赖），只接受新建 Morii 根。导入/附件入口保留，初始化日志
 绑定描述符哈希，拒绝不匹配的主体；初始化、重开、原键回执恢复和七投影删除均在
-Owner 合成根验证。不能把现有合成根改名交付为正式根。
+Morii 合成根验证。不能把现有合成根改名交付为正式根。
 
 G08 的 correction 需要已存在的目标，并限于绑定的主人主体；它不是初始化时
 新建独立条目的入口。主人明确提供的初始化条目应经正常初始化的原生来源入口
@@ -154,19 +154,19 @@ G08 的 correction 需要已存在的目标，并限于绑定的主人主体；�
 ### 实施步骤
 
 1. **核对已合并生产入口与待合并恢复增量。** ADR145 的 `enouia-memory-fresh`
-   已连接明确输入、原生 Owner bootstrap、整轮绑定及恢复；底层仍复用
+   已连接明确输入、原生 Morii bootstrap、整轮绑定及恢复；底层仍复用
    `open_synthetic` 等原有方法，名称本身不决定授权。ADR146 已补齐完整文字视图。
-   [ADR136](../adr/136-segmented-owner-backup.md) 的分段导出/验证/恢复已有实现；
+   [ADR136](../adr/136-segmented-morii-backup.md) 的分段导出/验证/恢复已有实现；
    #110 补 fresh 回归，#112 补已激活恢复根的原运行接续，两者已于 11-16 后合并。
    这些合成证据不等于真实独立备份或 Runtime 产品验收。
 2. **沿用已确认处理范围。** 使用已确认的完整原始聊天范围、当前新分析、
    Asia/Shanghai 和纯文本方向，不重做分析、不调用额外真实 Provider。
-   未知分析元数据如实保留，原说话人不改署为 Owner；长期读取和外发另按实际授权。
+   未知分析元数据如实保留，原说话人不改署为 Morii；长期读取和外发另按实际授权。
 3. **Memory 创建单独正式新根并初始化。** 不升级旧根；先预检，再按来源时间形成，
    保存原件、输入水位、批次与原键回执。已明确选入的独立记忆也在这一步直接写入。
    未知结果只查原操作，不能换键重发。核对实际覆盖率、来源/字符引文与删除屏障。
 4. **Runtime 采用确定版本。** 匹配 Memory pin、锁文件、surface manifest、布局与
-   native read capability。正式 Owner 根采用对应 segmented 原生入口、v4 selection
+   native read capability。正式 Morii 根采用对应 segmented 原生入口、v4 selection
    和 v2 process headers，并重启旧游标；旧 AutomationVault/旧 Workspace 路径
    不能替代该入口，不能绕过版本门槛。
    [目录读取契约](../contracts/UI_V2_CATALOG.md)、
@@ -190,7 +190,7 @@ G08 的 correction 需要已存在的目标，并限于绑定的主人主体；�
 `enqueue_captured`，绑定原采集键与精确修订；[ADR112](../adr/112-captured-formation-worker.md)
 提供共享形成 worker，initializer 的 `step_with_captures` 让实时任务优先。
 这不是重新包装为导入来源，也不意味着 Runtime 日常采集、真实分析器或持续写入已验收。
-MCP 的 Owner 根读取仍须采用它自己发布的兼容接口和版本门槛，System 入口不直接授权 Agent。
+MCP 的 Morii 根读取仍须采用它自己发布的兼容接口和版本门槛，System 入口不直接授权 Agent。
 
 参见[初始化实际覆盖报告](../validation/Memory-init-pipeline.md)与
 [Runtime 接入职责](RUNTIME.md)。

@@ -8,7 +8,7 @@ Existing implementation: 9286cd8f89669d9ec3b92f943fd74072457536e7.
 The existing six-tool in-process Agent binding stays bounded by native grants,
 persisted current record/source policies, deletion/provenance checks, distinct
 receipt namespaces and original-packet retention after uncertain publication.
-Owner Workspace permissions are not borrowed. No external authentication,
+Morii Workspace permissions are not borrowed. No external authentication,
 enrollment, real-client transport or new stage is activated by this merge.
 
 Two generated/log merge conflicts were reconciled while retaining both histories.
@@ -39,7 +39,7 @@ Checks actually run on this combined source:
   rerun is claimed. No new tests were added.
 
 Real Agent authentication/enrollment, broader Context choices, actual Runtime
-Host adoption, physical shell/tray exit, personal quality and owner acceptance
+Host adoption, physical shell/tray exit, personal quality and Morii acceptance
 remain open. Concurrent Core/MCP original worktrees, all Runtime redesign
 branches/worktrees and manual status snapshots are preserved.
 

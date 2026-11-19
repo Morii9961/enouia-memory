@@ -32,7 +32,7 @@ Approval copies dependencies to the canonical memory; merges/revisions preserve
 the union. Context compilation includes them in provenance/resource freshness,
 without adding them to a memory item's supporting evidence. Purge considers
 every candidate revision's recorded dependencies. Other canonical memories
-follow the existing owner-visible losing-provenance policy, including context
+follow the existing Morii-visible losing-provenance policy, including context
 dependencies; saved capsules/derived session text follow normal purge closure.
 
 The field is security-relevant and must be an explicit schema property, never an
@@ -41,7 +41,7 @@ reader, but older strict readers cannot open records containing the new field.
 Record the Runtime surface change and required pin adoption in the same commit.
 Do not modify real Vaults, activate Runtime, migrate data, send requests or
 approve real memories. Real acceptance and legacy dependency recovery remain
-separate owner-controlled work.
+separate Morii-controlled work.
 
 ## Evidence
 

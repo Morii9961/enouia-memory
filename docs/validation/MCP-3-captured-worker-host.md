@@ -8,7 +8,7 @@ client configuration. No semantic quality or daily-use acceptance is claimed.
 ## Delivered behavior
 
 A native RuntimeCaptureHost starts and owns a dedicated Memory formation thread
-on the same leased Owner Vault. The existing worker lease prevents a second
+on the same leased Morii Vault. The existing worker lease prevents a second
 worker/writer. Native foreground calls announce priority before taking the short
 control gate; explicit foreground mode pauses background steps. Productive steps
 yield, and false/Busy/pending waits back off with a condition variable.
@@ -33,7 +33,7 @@ Vault recovery and fresh native setup. Original packets/keys are preserved.
 
 | Surface | Behavior |
 | --- | --- |
-| Owner layout + explicit Owner Runtime enrollment | Native automatic worker and existing pipe-2 |
+| Morii layout + explicit Morii Runtime enrollment | Native automatic worker and existing pipe-2 |
 | Old root/capability, wrong actor, second worker | Refused / Busy, existing lease retained |
 | Synchronous CaptureAnalyzer implementation | Must explicitly adopt start/poll; compile-time break |
 | Foreground active, empty/Busy/pending work | Yield/backoff, no empty loop |
@@ -45,7 +45,7 @@ Vault recovery and fresh native setup. Original packets/keys are preserved.
 
 ## Actual focused evidence
 
-Final offline/locked run: **16 Host capture/worker tests, 6 Owner wire tests and
+Final offline/locked run: **16 Host capture/worker tests, 6 Morii wire tests and
 12 captured formation/initializer tests passed**, with no failures. Final fmt,
 strict workspace/all-target Clippy and Runtime surface check passed before the
 final workspace run. The same source is used by that run.
@@ -104,7 +104,7 @@ fix and is not counted as a test pass. The final full run starts after that fix.
 
 ## Not delivered or proven
 
-Real analyzer/model selection, continuous Owner model policy, budgets and egress
+Real analyzer/model selection, continuous Morii model policy, budgets and egress
 remain Morii decisions. This slice does not activate them. Adapters must honor
 bounded nonblocking start/poll/drop; arbitrary blocking native adapters are not
 supported. Real semantic quality, private data, Runtime adoption/pin/hook/UI,

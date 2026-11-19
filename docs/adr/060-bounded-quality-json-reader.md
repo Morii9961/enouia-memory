@@ -26,6 +26,6 @@ mixed text/attachment metadata in valid parts arrays and bind its original scope
 hash; shape validation does not download, normalize or interpret attachments.
 
 This is syntax/resource validation, not native authentication, model judgment,
-parent-chain verification or owner acceptance. Real data/model calls, Runtime
+parent-chain verification or Morii acceptance. Real data/model calls, Runtime
 product adoption and later stages remain outside this slice. There is no Rust,
 wire/storage contract or dependency change.

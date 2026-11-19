@@ -1,4 +1,4 @@
-# Installer ownership boundary
+# Installer responsibility boundary
 
 `installer.nsi` is derived from the MIT-licensed [Tauri CLI 2.12.0 template](https://github.com/tauri-apps/tauri/blob/tauri-cli-v2.12.0/crates/tauri-bundler/src/bundle/windows/nsis/installer.nsi). The unmodified downloaded source has SHA-256 `DABED59013B1D78B879A1A85BC7F2EED2993B33A9A90CDABE5946DE3D3950597`. Its license is retained in `installer-LICENSE-MIT.txt`.
 

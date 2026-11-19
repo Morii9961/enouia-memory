@@ -62,15 +62,15 @@ while preserving the exact intentionally unreadable held lease filename.
 
 ## Differences and remaining work
 
-- Counts are exact **current authorized machine revisions**, not legacy owner
-  history, all captured material, or the owner's entire life.
+- Counts are exact **current authorized machine revisions**, not legacy Morii
+  history, all captured material, or Morii's entire life.
 - Search is literal plus explicit aliases; no embedding/model call or linguistic
   inference. Entity/alias dependencies conservatively withhold a row if hidden.
 - Theme filtering currently means `recorded_derivation_only`; G05 must add
   scalable rebuildable families. No inferred theme membership is claimed here.
 - Source/history detail, Context delivery, time buckets, graph, activity/change
-  feed, conflict groups, owner actions and Runtime UI mounting are not supplied
-  by these three ports. Owner ledger execution remains denied until G08.
+  feed, conflict groups, Morii actions and Runtime UI mounting are not supplied
+  by these three ports. Morii ledger execution remains denied until G08.
 - Immutable history retains bytes; whole-filesystem rollback, physical purge,
   real initialization, real Provider quality, Runtime UI acceptance and deployment
   are not proven or performed.

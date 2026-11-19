@@ -19,7 +19,7 @@ Keep native_validation=not_rerun and overall_model_quality=null.
 
 This narrows malformed offline input acceptance only. It does not change Rust
 producers, wire/storage contracts, scoring of valid suites, Runtime adoption or
-owner authority. All consumers of the evaluator reject the entire invalid suite
+Morii authority. All consumers of the evaluator reject the entire invalid suite
 before emitting output. No writes, Provider calls, new stage or activation.
 
 ## Evidence

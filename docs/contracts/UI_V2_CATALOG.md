@@ -16,8 +16,8 @@ The immutable `SegmentedCommit` contains a bounded delta and exact parent,
 sequence, native actor/time, monotonic policy/deletion watermarks and existing
 Host authority. Its authority checkpoint binds the parent hash plus delta;
 the pointer hashes the complete canonical commit. The complete linked chain is
-verified/replayed on open. Deltas are genesis, owner policy revision, System
-source/catalog capture, System machine batch, and owner deletion. Owner action
+verified/replayed on open. Deltas are genesis, Morii policy revision, System
+source/catalog capture, System machine batch, and Morii deletion. Morii action
 publication remains reserved/unavailable until G08.
 
 | Bound | Value |
@@ -64,18 +64,18 @@ is added. The new reader owns a lock/unlock gate and retains the root's lease.
 
 All are `memory-native-read-2`, schema 2, effect `native_read`. They do not claim
 selected history/source detail, Context delivery, saved experiments, global
-timeline/graph or legacy owner history. Existing read-1 ports remain unchanged.
+timeline/graph or legacy Morii history. Existing read-1 ports remain unchanged.
 Runtime must explicitly adopt read-2; it cannot feed these roots to an old pin.
 
 Current selections carry algorithm `literal-family-catalog-2`, version 2,
 profile hash, exact snapshot, withdrawal watermark, authorized-set hash,
-query hash and evaluation time. The owner ledger is currently empty, so its
+query hash and evaluation time. The Morii ledger is currently empty, so its
 withdrawal watermark is exactly 1. G08 will implement native changes.
 
 Rows retain Core-7's System principal, policy/rule, qualified knowledge and
 adoption, formation dimensions, valid/learned/source-captured times, original
 support/context refs and witnessed receipt. They add title/language, rich time
-and entity identity/role. Machine adoption is never owner confirmation or
+and entity identity/role. Machine adoption is never Morii confirmation or
 independent verification. Title/entailment and model quality remain separate
 from these structural checks.
 
@@ -141,7 +141,7 @@ qualified non-subject shared-entity suggestions from the authorized set. See
 [projection contract](UI_V2_PROJECTIONS.md) for stable IDs, bounds and typed
 membership/graph/time semantics. Old v1 DTOs retain their original meaning;
 their cursors cannot continue in v2. Activity/change feed, conflict groups and
-owner actions remain subsequent work.
+Morii actions remain subsequent work.
 
 ## Synthetic acceptance
 
@@ -156,10 +156,10 @@ external Provider quality, Runtime UI acceptance or deployment.
 
 ## ADR103 native read qualification
 
-The later Owner slice emits selection `owner-qualified-catalog-4` version 4.
+The later Morii slice emits selection `owner-qualified-catalog-4` version 4.
 Process headers use algorithm/version 2. Restart older cursors. Current scoped
 receipts omit global commit sequence; current conversation metadata omits raw
 turn arrays/totals/branch lists and ranks authorized captured turns densely per
-branch. Actual Owner marks, family/identity overlays and provenance require the
+branch. Actual Morii marks, family/identity overlays and provenance require the
 same fresh authorization and native action records. Stored records and legacy
-v3 fixture parsing remain unchanged. See [Owner contract](UI_V2_OWNER_ACTIONS.md).
+v3 fixture parsing remain unchanged. See [Morii contract](UI_V2_MORII_ACTIONS.md).

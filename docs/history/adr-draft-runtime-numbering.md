@@ -12,11 +12,11 @@ The design package numbers its decisions ADR-MEM-01…18 locally. They map as fo
 
 | Design ID | Repository ADR | Relation | Status here |
 |---|---|---|---|
-| ADR-MEM-01 Local Primary, single owner / many principals | ADR-001 + ADR-020 | Reaffirms ADR-001. ADR-020 adds principal kinds and scopes | Adopted |
+| ADR-MEM-01 Local Primary, single user (Morii) / many principals | ADR-001 + ADR-020 | Reaffirms ADR-001. ADR-020 adds principal kinds and scopes | Adopted |
 | ADR-MEM-02 Raw / Canonical / Candidates / Session / Index layers | ADR-002, ADR-003 + ADR-020 | Reaffirmed. Review, deletion and idempotency must live in files | Adopted |
 | ADR-MEM-03 Canonical JSON, Identity Markdown, rebuildable index | ADR-002, ADR-003 | Unchanged. Identity gains a sidecar metadata revision | Adopted |
 | ADR-MEM-04 Immutable revisions + commit catalog + single CURRENT | **ADR-021** | Refines Architecture v0.3 §6 "stage, validate, flush, atomically replace" | Adopted (contract), MV-1 behavior |
-| ADR-MEM-05 Trusted owner approval | **ADR-022** | Tightens ADR-006's "explicit saves may commit" | Adopted |
+| ADR-MEM-05 Trusted Morii approval | **ADR-022** | Tightens ADR-006's "explicit saves may commit" | Adopted |
 | ADR-MEM-06 priority / sensitivity / volatility independent | **ADR-023** | New | Adopted |
 | ADR-MEM-07 Valid time + known time + evidence status | **ADR-023** | New | Adopted |
 | ADR-MEM-08 Automatic checkpoint is a Session artifact | **ADR-024** | Refines ADR-006 (fifth type) | Adopted |
@@ -25,7 +25,7 @@ The design package numbers its decisions ADR-MEM-01…18 locally. They map as fo
 | ADR-MEM-11 Embedded Core → single Memory Host | **ADR-027** | Refines ADR-011 for Core only | Direction recorded; activation at MV-8 |
 | ADR-MEM-12 Activity independent | ADR-012 | Inherited unchanged | Adopted (existing) |
 | ADR-MEM-13 ACL + verified volume protection + restic backup | **ADR-028** | Narrows ADR-010. App-level encryption stays deferred | Direction recorded; gated before real data |
-| ADR-MEM-14 Raw immutable by default, owner deletion | **ADR-026** | New | Adopted (contract), MV-3 purge |
+| ADR-MEM-14 Raw immutable by default, Morii deletion | **ADR-026** | New | Adopted (contract), MV-3 purge |
 | ADR-MEM-15 Gateway at-least-once + local idempotency | **ADR-029** | Refines ADR-009 | Deferred (MV-9) |
 | ADR-MEM-16 Encrypted device replica ≠ server-computable subset | **ADR-029** | Refines ADR-008 | Deferred (MV-10) |
 | ADR-MEM-17 Single primary; offline edits become candidates | **ADR-029** | Refines ADR-008 | Deferred (MV-10) |
@@ -49,15 +49,15 @@ Supersedes: the Architecture v0.3 §6 sentence "stage, validate, flush, atomical
 
 Evidence limit: MV-0 validates manifest shape, the chain, epochs, idempotency and catalog closure over synthetic sets. Atomic visibility, crash recovery and flush durability are unproven until the MV-1 fault-injection tests pass. Power-loss durability needs separate evidence (V09).
 
-## ADR-022 — Trusted owner approval boundary (Adopted)
+## ADR-022 — Trusted Morii approval boundary (Adopted)
 
-Decision: models, agents, extraction and imported text can only create `CandidateRecord`s. A canonical write needs a `ReviewRecord` with `actor_type: owner` on a `trusted_windows_app` or `trusted_local_cli` surface. The review is bound to one exact candidate revision, a final content hash, a diff hash and a single-use nonce. The "remember …" quick path creates an owner candidate and its review in one commit, backed by a `manual_assertion` source. An `agent_submission` source can never carry user evidence, whatever it claims about consent. Model `confidence` is advisory only. Deletion is owner-only: the `delete` proposal kind plus a `confirm_delete` review. It is not exposed through IPC propose, so agents cannot use it.
+Decision: models, agents, extraction and imported text can only create `CandidateRecord`s. A canonical write needs a `ReviewRecord` with `actor_type: owner` on a `trusted_windows_app` or `trusted_local_cli` surface. The review is bound to one exact candidate revision, a final content hash, a diff hash and a single-use nonce. The "remember …" quick path creates Morii candidate and its review in one commit, backed by a `manual_assertion` source. An `agent_submission` source can never carry user evidence, whatever it claims about consent. Model `confidence` is advisory only. Deletion is Morii-only: the `delete` proposal kind plus a `confirm_delete` review. It is not exposed through IPC propose, so agents cannot use it.
 
-Supersedes: ADR-006's "explicit inspector saves/remember requests may commit validated records" now reads "may commit through the owner quick path with a manual assertion and review record".
+Supersedes: ADR-006's "explicit inspector saves/remember requests may commit validated records" now reads "may commit through Morii quick path with a manual assertion and review record".
 
 ## ADR-023 — Independent axes and two time axes (Adopted)
 
-Decision: `priority` (P0–P2), `sensitivity` (public/normal/private/highly_sensitive) and `volatility` (stable/changing/live) are separate fields. The source material's P3 (sensitive) maps to sensitivity and P4 (volatile) to volatility. Valid time is a half-open `[valid_from, valid_until)` interval. Supersession edges carry `effective_from` (a timestamp or `"unknown"`). Known time is the pinned commit. A replacement that takes effect in the future never hides a fact that is still in effect. An unknown effective time applies the replacement only from the replacement's `valid_from`, or else from the owner's approval time, and flags earlier queries as `supersession_time_unknown`. ProjectState records decisions, plans, implementation, tests and releases as separate items with `state_kind`.
+Decision: `priority` (P0–P2), `sensitivity` (public/normal/private/highly_sensitive) and `volatility` (stable/changing/live) are separate fields. The source material's P3 (sensitive) maps to sensitivity and P4 (volatile) to volatility. Valid time is a half-open `[valid_from, valid_until)` interval. Supersession edges carry `effective_from` (a timestamp or `"unknown"`). Known time is the pinned commit. A replacement that takes effect in the future never hides a fact that is still in effect. An unknown effective time applies the replacement only from the replacement's `valid_from`, or else from Morii's approval time, and flags earlier queries as `supersession_time_unknown`. ProjectState records decisions, plans, implementation, tests and releases as separate items with `state_kind`.
 
 ## ADR-024 — Checkpoints: provisional artifact vs reviewed memory (Adopted)
 
@@ -65,7 +65,7 @@ Decision: an automatic `SessionCheckpoint` is a Session artifact with status `pr
 
 ## ADR-025 — Capsule, Inspection, Dispatch and egress (Adopted)
 
-Decision: every context request yields a Capsule (the logical context), an Inspection (the local explanation, never sent) and, when something is sent, a Dispatch (roles, byte hashes, the capsule memories carried, tools and the egress barrier used). A Dispatch may only carry memories that the Capsule includes. Default egress: `highly_sensitive` is never sent automatically. Local destinations may receive public, normal and private content. External destinations need a standing egress policy, and `private` content also needs a per-request owner confirmation. Tombstones and policy epochs are rechecked before sending. The capsule keeps the Architecture v0.3 fields and adds versioning, epochs, destination, purpose, currency labels, verification needs and completeness. The Mock estimator is `utf8_bytes_v1`. It is deterministic but is not an upper bound for any real tokenizer.
+Decision: every context request yields a Capsule (the logical context), an Inspection (the local explanation, never sent) and, when something is sent, a Dispatch (roles, byte hashes, the capsule memories carried, tools and the egress barrier used). A Dispatch may only carry memories that the Capsule includes. Default egress: `highly_sensitive` is never sent automatically. Local destinations may receive public, normal and private content. External destinations need a standing egress policy, and `private` content also needs a per-request Morii confirmation. Tombstones and policy epochs are rechecked before sending. The capsule keeps the Architecture v0.3 fields and adds versioning, epochs, destination, purpose, currency labels, verification needs and completeness. The Mock estimator is `utf8_bytes_v1`. It is deterministic but is not an upper bound for any real tokenizer.
 
 ## ADR-026 — Deletion lifecycle (Adopted as contract; purge MV-3)
 

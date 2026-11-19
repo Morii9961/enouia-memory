@@ -14,7 +14,7 @@ of ADR140/142/143. All inputs and roots below are synthetic.
   **1 passed, 22 filtered out**. Packed multi-source analysis goes through native
   capture/admission/witnessed write, closes and reopens; the original batch
   identity is reused, changed wording refuses, the two quotes still resolve,
-  no duplicate memory or Owner action is created, and initializer model calls
+  no duplicate memory or Morii action is created, and initializer model calls
   remain zero.
 - `cargo clippy -p enouia-memory-init --lib --test packing --locked -- -D warnings`:
   **passed**. The added native initialization test also **passed** separately with
@@ -37,4 +37,4 @@ quotes, source text or content. It does not split semantic claims, resolve
 attachment files, redact surrounding Raw conversation bytes, size or execute a
 production journal, grant reads or implement the fresh production CLI. Source
 selection and privacy review remain the caller's responsibility. Real native
-use waits for Owner merge; no real data or Provider was used in these checks.
+use waits for Morii merge; no real data or Provider was used in these checks.

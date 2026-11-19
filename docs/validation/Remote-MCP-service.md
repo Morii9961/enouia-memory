@@ -1,7 +1,7 @@
 # Remote MCP service entry — synthetic validation (2026-11-09)
 
 Scope: [ADR-MEM-133](../adr/133-remote-mcp-service-entry.md), branch
-`claude/remote-mcp-service` from main `05a123d`. A synthetic initialized Owner
+`claude/remote-mcp-service` from main `05a123d`. A synthetic initialized Morii
 Vault, a controllable clock and real loopback sockets. No VPS, proxy, TLS, real
 Vault or ChatGPT client.
 
@@ -38,6 +38,6 @@ Vault or ChatGPT client.
 
 ## Not shown
 
-A real Linux Owner bootstrap or migrated Vault, the VPS with Caddy and
+A real Linux Morii bootstrap or migrated Vault, the VPS with Caddy and
 systemd, ChatGPT interoperability, concurrency beyond one request at a time,
-and owner acceptance.
+and Morii acceptance.

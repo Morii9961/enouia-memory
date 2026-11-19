@@ -4,7 +4,7 @@
 
 日期：2026-10-24（Asia/Shanghai）。源码基线：`9286cd8f89669d9ec3b92f943fd74072457536e7`。状态：**待 Morii 选择切片的设计问题，不是已冻结 API、JSON Schema、枚举、发布格式或新 MV 阶段授权。** 本轮只写文档，没有新领域实现、测试、构建、真实资料或 Provider 调用。
 
-**产品目标已修正为全自动，先读 [06](06-automation-and-ombre-migration.md)。** 本页现有接口限制仍是代码事实；旧目标中机器只能提议、Morii 必须逐条批准已被替代。后续首先需要冻结真实系统 actor 的自动准入与持续提炼策略，不是让脚本模拟 owner 点击。
+**产品目标已修正为全自动，先读 [06](06-automation-and-ombre-migration.md)。** 本页现有接口限制仍是代码事实；旧目标中机器只能提议、Morii 必须逐条批准已被替代。后续首先需要冻结真实系统 actor 的自动准入与持续提炼策略，不是让脚本模拟 Morii 点击。
 
 本页把 [生命周期提案](02-lifecycle-design.md)、[开发路线](03-development-route.md)、[补全评估](04-evaluation-and-backfill.md) 和 [前端数据需要](../../handoff/memory-ui-2026-10-24/CONTRACT_READINESS.md) 落到目前可复用的代码与明确缺口。以下推荐用于下一次获准设计，不供前端直接拼请求。
 
@@ -88,7 +88,7 @@
 
 待冻结的最小授权矩阵应列出“调用主体 × 输出内容 × 现有 scope 是否足够 × 当前策略资源集合”，至少区分：正式记忆、Source 片段、候选/Review、生成依赖元数据、完整 Inspection、图簇/计数、反馈写入和通知投递。
 
-建议第一轮新投影先留在 owner 的受信 Runtime/本地领域路径，不扩大 MCP 工具目录。将来若向 Agent 开放，逐输出做授权；不把新能力暗塞进 memory_read/context_get 返回。ContextRead 的 grant 不开放 memory/source 读工具；当前 compiler 的 index 路径仍会执行其既有 MemoryRead 策略，二者也不能被合并成“有 context 权限就全能读”。候选/Review 更不能借 MemoryRead 暴露 owner 审核。
+建议第一轮新投影先留在 Morii 的受信 Runtime/本地领域路径，不扩大 MCP 工具目录。将来若向 Agent 开放，逐输出做授权；不把新能力暗塞进 memory_read/context_get 返回。ContextRead 的 grant 不开放 memory/source 读工具；当前 compiler 的 index 路径仍会执行其既有 MemoryRead 策略，二者也不能被合并成“有 context 权限就全能读”。候选/Review 更不能借 MemoryRead 暴露 Morii 审核。
 
 当前 [`mcp::context`](../../../crates/enouia-memory-host/src/mcp/context.rs#L101) 只允许 current commit、无 session/branch、LocalMock、有限 purpose，且保存 capsule/inspection。`asOf` 业务时间允许，不等于 `knownAt` 历史提交或会话选择已开放。新增投影和通知不应绕过 native grant、撤回、最终新鲜度检查及内容无关的 audit。
 
@@ -127,7 +127,7 @@
 
 待冻结的问题必须落到一个具体合成规则：“主人选择在某时区、某个日期范围内、最多一次回看一条选定经历”，至少回答：
 
-1. **主体与目的**：谁提出规则、谁精确启用、针对哪位 owner/哪个 client？读记忆/提候选 scope 不包含通知投递许可。
+1. **主体与目的**：谁提出规则、谁精确启用、针对哪位 `owner/`哪个 client？读记忆/提候选 scope 不包含通知投递许可。
 2. **条件与时间**：确切时间、时区、夏令时、Clock 回退/前进、quiet hours、有效截止、单次/重复、冷却和重复事件键是什么？未知发生日不得由 captured_at 补齐周年。
 3. **触发与交付**：生成一张私有建议卡、排队、Runtime 通知、移动端推送分别何时发生、哪个组件负责？建议首片只做主人主动打开的回顾或合成规则，不创建真实后台 worker。
 4. **取消/撤回竞态**：取消先于队列读取、晚于计算、正好发生在投递前、重启与重放各怎样处理？发送前重新验证当前权限/删除/规则状态，不凭旧 capsule 或待投递正文继续。

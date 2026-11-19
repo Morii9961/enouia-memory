@@ -14,8 +14,8 @@ Runtime 交接包 02 是前端数据需求；本仓库以 Morii 已明确确认�
 PR #56、提交 `24a03e0`，尚未合并；Morii 已在本会话明确确认实施。
 共享来源入口的最小文件交集亦已明确授权；没有修改其他会话工作树。
 
-2026-10-29 在同一分支整合 MCP Owner-boundary 精确提交
-`14125f5cae8df2277d16c167a165b7eae3c1974c`，包含 Owner
+2026-10-29 在同一分支整合 MCP Morii-boundary 精确提交
+`14125f5cae8df2277d16c167a165b7eae3c1974c`，包含 Morii
 `34709b9d2abcb60188c0e3488b15f40c33d6ee16`。初始化仅创建
 `automation-segmented-owner-v1` 新根，明确绑定主人主体、创世描述符哈希和
 初始化日志；不转换旧合成根。后续 MCP 原生 Agent 读取片未在本片采用。
@@ -26,7 +26,7 @@ vault 的 `automation/mod.rs`、`automation/segmented/{mod,state,intake}.rs`，
 以及 Host 测试构造器补字段、故障注入夹具的目录唯一性和失败诊断。合成夹具位于
 `tests/fixtures/initialization/`、`tests/fixtures/ui-records/`；文档增量为
 ADR104/索引、实施计划、Runtime 面清单与采用日志、本报告及 crate README。
-Owner 兼容增量还为依赖新增的 `segmented/{owner,runtime_capture}.rs` 构造器
+Morii 兼容增量还为依赖新增的 `segmented/{owner,runtime_capture}.rs` 构造器
 补齐空 attachments 字段，保留依赖原有身份、创世、提交和 Agent/Runtime 拒绝逻辑。
 
 没有扫描私人目录、打开私人聊天/Vault、读取 Activity、调用真实 Provider、
@@ -61,7 +61,7 @@ flowchart LR
 语言，并绑定输入水位，不从宿主机推断默认时区。
 
 完整旧 v1 快照先过 `validate_set`，仅精确原 Review 内容哈希/actor 关联
-可作为历史主人确认来源，还须由原生 owner 选择入口提交。继承审核字段但
+可作为历史主人确认来源，还须由原生 Morii 选择入口提交。继承审核字段但
 正文不匹配的修订、候选、桶全部保留为模型/Agent 来源；删除的目标和
 支持/上下文依赖排除。初始化本身没有生成新的确认、纠正、保护或撤回收据。
 显式 `OwnerProvided` 来源作为普通主人陈述正常形成；原聊天引文单独保留原说话人。
@@ -139,7 +139,7 @@ S01–S32 都有输入、期待、证据不足答案、诱人错误答案，并�
 Runtime/Claude/文档/桶保全、旧Review见证与伪造拒绝、附件、三种时间、
 账号隔离去重、标题保守回退、显式文档元数据与算法附注。
 
-Owner 兼容另增3项，共16项：旧/未绑定描述符在写根前拒绝，外来主体入队和
+Morii 兼容另增3项，共16项：旧/未绑定描述符在写根前拒绝，外来主体入队和
 日志描述符哈希篡改拒绝，显式主人来源正常采用为一条独立记忆且初始化动作数为0。
 最后一项随后通过独立模拟的原生手势计划/确认/提交保护动作，验证同一初始化根
 可由 G08 使用，动作数实际变为1，v4 selection 和保护投影生效；该动作不是解析器制造。
@@ -170,7 +170,7 @@ Owner 兼容另增3项，共16项：旧/未绑定描述符在写根前拒绝，�
 
 1. 选择哪些平台/账号/会话/时间段、旧 v1 快照、桶、文档和附件；排除哪些内容，
    是否接受保留完整原件与中间分析，保留多久。应提供选择清单/别名，不自动扫盘。
-2. 各类敏感度和主体/项目/访问范围；旧审核记录应由哪个原生 owner 选择并见证，
+2. 各类敏感度和主体/项目/访问范围；旧审核记录应由哪个原生 Morii 选择并见证，
    候选/派生桶如何标识，已删除资料如何排除。
 3. 使用哪个确切模型/版本、处理哪些材料、是否本地、是否允许外发到哪个目的地，
    提供方留存/日志策略、额度与失败/结果未知如何人工处置。
@@ -207,7 +207,7 @@ UUID 新根命名。没有删旧目录、放宽断言、延长超时或修改产
 另一次额外重定向 TEMP/TMP 的检查出现旧 Context 用例 `NotFound`；已撤回该环境
 改动，没有修改 Context 产品或测试。最终验证使用原先通过的原生环境。
 
-2026-10-29 Owner 兼容检查先被未更新的集成清单拒绝；重生成清单并登记后，
+2026-10-29 Morii 兼容检查先被未更新的集成清单拒绝；重生成清单并登记后，
 该检查通过。默认任务并行的全量运行随后在既有 Workspace 用例
 `full_session_ask_replays_a_concurrent_input_commit` 的固定200次竞争重试耗尽处
 失败：另一调用约4.9秒才返回。同一个全量测试二进制单独运行该用例约0.54秒通过；
@@ -217,21 +217,21 @@ UUID 新根命名。没有删旧目录、放宽断言、延长超时或修改产
 保留用例内部的真实并发。默认并行失败日志保存在本地
 `owner-workspace-tests-default-contention.log`，不以专项通过替代全量结果。
 
-### 2026-10-29 Owner 兼容
+### 2026-10-29 Morii 兼容
 
 Rust 1.98.1 / Windows GNU；Cargo 离线且 locked；TEMP/TMP 沿用原生环境。
 最终全量日志为 `owner-workspace-tests-final.log`，严格 clippy 日志为
 `owner-workspace-clippy-final.log`。未运行4个显式忽略用例：20,000条遍历、
-5,000节点遍历、Owner 夹具生成和过程夹具生成。
+5,000节点遍历、Morii 夹具生成和过程夹具生成。
 
 | 检查 | 本次实际结果 |
 | --- | --- |
-| Owner 根初始化专项 | 16 passed，包括正常主人输入采用与独立 G08 合成手势 |
+| Morii 根初始化专项 | 16 passed，包括正常主人输入采用与独立 G08 合成手势 |
 | 合成主示例 | 37/37形成，关闭/重开后完成；删除后36可见，7/7组重建 |
 | `cargo fmt --all -- --check` | passed |
 | `cargo test --workspace --locked`，`RUST_TEST_THREADS=4` | 791 passed、0 failed、4 ignored；95个测试二进制/文档测试组 |
 | `cargo clippy --workspace --all-targets --locked -- -D warnings` | passed |
-| 独立 Python 3.12 / jsonschema 4.26.0 | passed；60 schemas，UI corpus 53、process 102、owner 44 documents |
+| 独立 Python 3.12 / jsonschema 4.26.0 | passed；60 schemas，UI corpus 53、process 102、Morii 44 documents |
 | Runtime surface | passed；aggregate `94b039be8c17cfcb50a85853fbd3a72894aa69650d81757aa71515505e357e06` 已重生成并登记 |
 
 当前全量通过证据限于上述受控任务并行条件，不宣称默认高并行的不稳定性已修复。
@@ -239,13 +239,13 @@ Rust 1.98.1 / Windows GNU；Cargo 离线且 locked；TEMP/TMP 沿用原生环境
 
 ### 2026-10-29 原生导入入口布局门槛
 
-MCP 接口复核指出：仅限制 initializer 创建 Owner 根，没有限制分别导出的
+MCP 接口复核指出：仅限制 initializer 创建 Morii 根，没有限制分别导出的
 native import API。用原件和附件均完整闭合的有效合成输入，在修复前复现了
 旧 `SegmentedV1` 上的导入成功和直接 Raw 归档；缺少附件对象造成的拒绝不算版本证明。
-现在4个导入专用入口在身份检查、归档、锁和记录读取之前要求 Owner 布局，
+现在4个导入专用入口在身份检查、归档、锁和记录读取之前要求 Morii 布局，
 旧 runtime-only capture 也拒绝 typed 附件载体。新增回归同时验证5条拒绝路径、
-快照不变且未产生任何输入/附件 Raw 对象；不迁移旧原型根，不修改 Agent/Owner 方法。
-专项17项通过，原有 Owner 正向初始化、附件与恢复均保留；主示例的 §9 数字不变。
+快照不变且未产生任何输入/附件 Raw 对象；不迁移旧原型根，不修改 Agent/Morii 方法。
+专项17项通过，原有 Morii 正向初始化、附件与恢复均保留；主示例的 §9 数字不变。
 
 修复后独立重跑主示例：37条形成（29采用、8暂存），36来源；删除后36条可见，
 七组全部重建，事件时间仍为35 unknown / 2 month。没有真实模型或真实来源。

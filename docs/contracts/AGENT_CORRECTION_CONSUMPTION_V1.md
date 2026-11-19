@@ -2,7 +2,7 @@
 
 2026-11-03. [ADR122](../adr/122-system-correction-consumption.md).
 
-Native System port on initialized Owner roots, beside
+Native System port on initialized Morii roots, beside
 [captured analysis v3](CAPTURE_ANALYSIS_V3.md).
 
 ```text
@@ -38,4 +38,4 @@ target moved or vanished; the worker refuses that work instead of retrying.
 Private journal version 1, same path: optional `report_key`, omitted if absent;
 job_key = digest("agent-correction-job-1", report_key). Each report is
 dispatched at most once. Capture and correction dispatch never overlap.
-No MCP tool, Owner action, recall hiding, real analyzer or egress is part of v1.
+No MCP tool, Morii action, recall hiding, real analyzer or egress is part of v1.

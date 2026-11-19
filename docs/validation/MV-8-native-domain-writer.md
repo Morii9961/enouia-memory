@@ -2,7 +2,7 @@
 
 Date: 2026-10-22 (Asia/Shanghai). Baseline
 `54b017c011ce869045ca3af68d2d0493fdeb2242` (merged PR #42).
-Continues owner-authorized MV-8 using synthetic local roots only.
+Continues Morii-authorized MV-8 using synthetic local roots only.
 
 [ADR-MEM-74](../adr/074-native-host-domain-writer.md) gives existing `&Vault`
 domain services an explicit native writer. Binding verifies an active v2
@@ -19,7 +19,7 @@ deliberately replaces synthetic control files despite a live lease to exercise
 freshness; it is not distributed fencing or whole-filesystem rollback proof.
 
 One governance integration test passed with the real domain APIs: Agent
-proposals remain pending, Agent review is refused, owner plan/confirm creates
+proposals remain pending, Agent review is refused, Morii plan/confirm creates
 Canonical memory, and exactly two authority publications accompany propose/
 confirm. The unbound legacy handle still cannot publish. Initial compilation
 used incomplete existing view arguments; supplying the actual pin and

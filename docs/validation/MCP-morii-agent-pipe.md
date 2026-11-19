@@ -1,20 +1,20 @@
-# Owner-root MCP pipe and five read tools: checkpoint 4
+# Morii-root MCP pipe and five read tools: checkpoint 4
 
 2026-10-29. Branch `codex/mcp-owner-agent-pipe`, base
 `ec3fdc46707354bfe87b7f02f6330f4fbd2ad7f2`. ADR-MEM-105 checkpoint 4.
 
 ## Delivered boundary
 
-The explicit pipe-4 / memory-agent-qualified-read-1 profile binds Owner layout,
+The explicit pipe-4 / memory-agent-qualified-read-1 profile binds Morii layout,
 original CapturedSource carrier, native qualified delegation and a normalized
 closed schema fingerprint before accepting business calls. Actual retained OS
 peer enrollment supplies identity and source-read ceiling. No clientInfo,
 principal/scope/PID parameter or selected protocol grants authority. The stdio
 binary attaches with automation-qualified-v1 to the one existing native Host;
-it opens no Vault, writes no configuration and exposes no Owner/System port.
+it opens no Vault, writes no configuration and exposes no Morii/System port.
 
 Five read tools declare closed input/output schemas and all four annotations.
-Native data preserves full fields, genuine Owner proofs and scoped counts, while
+Native data preserves full fields, genuine Morii proofs and scoped counts, while
 the outer envelope declares the separate wire capability and Agent principal.
 Safe receipt schemas reject global sequence fields. Relations keep recorded
 lineage/entity mentions separate from algorithm theme suggestions. Same-conversation
@@ -29,8 +29,8 @@ duplication. This removes unbounded full-history assembly and repeated trimming.
 
 | Consumer / format | Result |
 | --- | --- |
-| Owner root + pipe-4 / qualified-read-1 / original carrier | Five scoped read tools and same Context response |
-| Old six tools, Host V2/V3 or segmented pipe profiles | Original behavior; new Owner layout/hash refused |
+| Morii root + pipe-4 / qualified-read-1 / original carrier | Five scoped read tools and same Context response |
+| Old six tools, Host V2/V3 or segmented pipe profiles | Original behavior; new Morii layout/hash refused |
 | Forged principal/scope/PID or unsupported packet version | Reject before argument dispatch/read counters |
 | Wrong kernel peer, compatibility hash or source carrier | Refuse handshake; no business response |
 | Missing source-read | Known tool refusal; still-live reads remain available |
@@ -42,7 +42,7 @@ duplication. This removes unbounded full-history assembly and repeated trimming.
 Eight MCP tests and six native read tests pass. They exercise a separate owned
 Agent process, protected pipe and executable stdio edge; all five tools have
 valid genuine responses, local-only schema references and correct annotations.
-ClientInfo Owner/System claims do not change the Agent principal. Hidden targets
+ClientInfo Morii/System claims do not change the Agent principal. Hidden targets
 do not appear in counts or payloads. Current source deletion removes rows and
 policy replacement revokes the connection. A denied source excerpt does not
 revoke other reads. Wrong OS process, four old profiles, bad hash and unadopted
@@ -76,7 +76,7 @@ cases and six actual new-profile exchanges; two forged outputs (global receipt
 sequence and wrong catalog selection version) were rejected. Workspace strict
 all-target clippy passed. The final complete pinned offline/locked workspace run
 exited 0 with its full doctest tail: 794 passed, zero failed, four existing ignored
-scale/example cases. It includes the native Owner-consent compile-fail case.
+scale/example cases. It includes the native Morii-consent compile-fail case.
 Final fmt, strict all-target clippy, matching generated surface/log and the exact
 17-file public allowlist scan passed. During this final run, independent checking
 also accepted six actual old Agent exchanges and two Runtime exchanges, rejecting
@@ -99,7 +99,7 @@ No private root, real MCP app configuration, Provider/embedding, remote opening,
 Runtime checkout/pin/UI, deployment or main merge is involved. The initialized
 carrier is the next separate adoption slice. Candidate 9e6b50e exposed an import
 layout boundary gap; its owning session published replacement 3b6e974 with early
-Owner-layout refusal and typed-attachment refusal on ordinary capture. Neither
+Morii-layout refusal and typed-attachment refusal on ordinary capture. Neither
 candidate is consumed here. Already captured Runtime revisions must not
 be recaptured as imports. Live formation, note/correction/supersede/forget writes,
 session_start and resources remain later work.

@@ -11,17 +11,17 @@ layout at the descriptor gate. No in-place root migration is performed.
 ## Native entry and authority
 
 `vault::automation::AutomationVault` creates only an explicitly selected empty
-verified Windows NTFS root. Reuse owner-only ACL checks, managed bounded files,
+verified Windows NTFS root. Reuse current-user-only ACL checks, managed bounded files,
 the lifetime `indexes/host.lock` lease and short `vault/LOCK` transactions.
 Descriptor `vault/vault.json` and `vault/CURRENT` use schema **2**, layout
 `automation-host-v1`. This is a new synthetic authority, not a production
 side database or a second writer for an existing Vault. It has no default path.
 
-The descriptor fixes distinct native Owner and System principals and one Host.
+The descriptor fixes distinct native Morii and System principals and one Host.
 The embedding native caller authenticates these identities independently;
-`actor_type: system` in JSON is insufficient. Owner setup chooses the versioned
+`actor_type: system` in JSON is insufficient. Morii setup chooses the versioned
 policy once. Capture requires trusted runtime event attribution; subsequent
-memory formation/correction is System work with no owner ReviewRecord,
+memory formation/correction is System work with no Morii ReviewRecord,
 confirmation, candidate promotion or per-memory approval.
 
 `host::automation::application::AutomationHost` owns this Vault and one
@@ -44,7 +44,7 @@ foreground scheduling and cancellation controls remain available.
 This slice does not automatically subscribe to Runtime events, discover all
 conflicts/targets, periodically sweep staged work, or start a worker by default.
 Native orchestration submits new evidence/reassessment under the same path;
-synthetic tests supply those events. Refusal or uncertainty creates no owner
+synthetic tests supply those events. Refusal or uncertainty creates no Morii
 inbox obligation. Production scheduling and semantic quality are separate work.
 
 ## Data, rules and limits
@@ -73,11 +73,11 @@ and external work never occur under Vault writer exclusion.
 
 Rule 1 retains explicit target IDs. Rule 2 adds optional
 `allow_revise_created`: native stored machine creation under the same policy ID
-can authorize a future target without an owner granting every random memory ID.
+can authorize a future target without Morii granting every random memory ID.
 It defaults false and is omitted when false; true with rule 1 refuses. Scope,
 current policy revision/hash, expiry, subject/project, source/access/sensitivity
 and exact target revision/hash still apply. Native provenance is an in-memory
-observation, not a writable model field. Legacy owner targets always refuse.
+observation, not a writable model field. Legacy Morii targets always refuse.
 
 Bounds: 128 source revisions, memories and receipts per state; 64 commits;
 1 MiB per commit and 32 MiB cumulative chain. Source text is at most 16 KiB;
@@ -98,7 +98,7 @@ publication; no pruning, compaction or background database is introduced.
 before or after and whose witness is before (or already fully after). It
 validates both states and legal transition, creates no operation/decision,
 and never rewinds policy/deletion epochs. Conflicting or corrupt evidence
-stays unavailable. Existing ADR-MEM-73 recovery/owner rules are untouched.
+stays unavailable. Existing ADR-MEM-73 recovery/Morii rules are untouched.
 
 The Core-2 journal still owns original generation bindings. After reopen,
 metadata-only bindings may locate an already committed batch even if the job
@@ -125,20 +125,20 @@ verified-truth claims, full timeline, graph, vectors or public read endpoint.
 | Consumer | V1 root | New synthetic root / rule 2 |
 | --- | --- | --- |
 | Existing embedded Runtime pin | Existing behavior | Reject descriptor/session capability before record decode/query; do not pass this root to the pin |
-| Existing Host/MCP/Workspace | Existing semantics, including Owner-only writes | No new dispatch/tool/IPC fields; strict descriptor major gate refuses before business records/queries |
+| Existing Host/MCP/Workspace | Existing semantics, including Morii-only writes | No new dispatch/tool/IPC fields; strict descriptor major gate refuses before business records/queries |
 | Core-1/2 next-only reader | Original policy/draft/journal support | No business Vault support; old strict reader rejects populated flag/rule 2 before evaluation |
 | This native AutomationVault/Host | Refuses V1 root without adoption or rewrite | Explicit synthetic constructor only; matched schema/layout/rule capability and native identity required |
 
-Global SchemaVersion=1, RecordKind/AnyRecord, OWNER_ONLY and all 55 Workspace
+Global SchemaVersion=1, RecordKind/AnyRecord, `OWNER_ONLY` and all 55 Workspace
 commands remain unchanged. Raw unknown-major diagnostics confer no business
 read/write capability. Runtime may later add a versioned native read adapter
-that exposes machine vs owner formation, knowledge/adoption, current snapshot,
+that exposes machine vs Morii formation, knowledge/adoption, current snapshot,
 sources/context, policy/rules and witnessed receipt. UI filtering at the final
 page is insufficient. Existing MCP grants cannot authorize automation writes.
 
 ## Migration, rollback and next boundary
 
-No old records are migrated; exact legacy owner/review bytes remain untouched.
+No old records are migrated; exact legacy Morii/review bytes remain untouched.
 Disabling this opt-in path leaves its provenance intact and old clients on V1.
 Never downgrade this root by changing headers or overwriting CURRENT. After V2
 writes, use only validated forward recovery, or separately designed conversion

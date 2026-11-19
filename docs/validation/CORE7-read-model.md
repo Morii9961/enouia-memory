@@ -44,12 +44,12 @@ Core-8 已在接续过程中由 Morii 另行明确授权，并在独立 Runtime 
 知识、采用、有效性、attention、计划/发生、条件、支持/上下文、策略/规则、
 实际提交时间和原始来源 captured 时间分别保留。learned_at 从当前已验证
 不可变链的实际包含 commit 取得；歧义或 native 时钟回退时拒绝，不用来源日
-冒充获知日。列表/详情只返回已存 witnessed receipt，不创建回执或 owner 确认。
+冒充获知日。列表/详情只返回已存 witnessed receipt，不创建回执或 Morii 确认。
 
 `simulate_synthetic_recall` 是无根、无 IO 的 fixture 计算；
 `simulate_native_recall` 是实际当前根只读计算。明确 effect 标签区分两者；
 均不调用旧 `context_preview`、不保存产物、不开 Provider。保存实验不可用。
-全局时间轴/图谱、旧 owner 历史投影、向量也在 capabilities 中明确为 false。
+全局时间轴/图谱、旧 Morii 历史投影、向量也在 capabilities 中明确为 false。
 
 ## 实际检查
 
@@ -100,7 +100,7 @@ Runtime surface 为 `4369ee7d336402945117f0e571c08c6a70c7d43e96efbff43a815a1cd3a
 这是 Memory-native 的正式有界数据接口和模拟端口，不是 Runtime 原生产品
 已经采用，也不证明真实模型质量/私人历史覆盖/真实 Provider 或大规模性能。
 当前状态仍是匹配版本下的合成证据；旧 Runtime pin、旧 embedded Core、
-MCP/Host 交付和旧 owner 历史保持原语义。
+MCP/Host 交付和旧 Morii 历史保持原语义。
 
 Core-8 前置：Runtime 单独采用匹配 pin/lock/manifest、schema/layout/rule/read
 capability/effect、native adapter 和生命周期；逐一验证 Memory、Context、

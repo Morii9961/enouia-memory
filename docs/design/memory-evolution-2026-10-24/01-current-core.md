@@ -92,7 +92,7 @@ Context Compiler 的 `context-rank-1` 再对已经召回的记录按 `(没有直
 - **到期或被替代**：`valid_until` 到期和已经生效的 `supersedes` 使记录成为历史；默认当前检索不包含历史项，但显式历史查询仍可取回。未来才生效的替代不提前遮掉现在仍有效的旧事实。
 - **未知替代时间**：保留未知，不拿审核日、导入日或消息日期补作业务生效时间；两侧保持需复核。`review_after` 到期或 `volatility=live` 使当前问题标需复核，不自动删除。
 - **归档**：退出默认可用集合。
-- **逻辑删除**：owner 精确确认后建立 tombstone，阻断检索与外发，当前删除屏障也约束历史快照。
+- **逻辑删除**：Morii 精确确认后建立 tombstone，阻断检索与外发，当前删除屏障也约束历史快照。
 - **彻底删除**：先看依赖影响，再确认 purge、清理被命名字节并保存删除回执。上下文/candidate/checkpoint 等依赖和备份/外部系统的未完成范围须如实保留。
 
 依据：[`temporal::effect/currency`](../../../crates/enouia-memory-contract/src/temporal.rs#L32)、[`delete` 的两种模式](../../../crates/enouia-memory-govern/src/delete.rs#L1)、[`purge_preview`](../../../crates/enouia-memory-govern/src/delete.rs#L431)、[`complete_purge`](../../../crates/enouia-memory-govern/src/delete.rs#L534)。
@@ -110,7 +110,7 @@ Context Compiler 的 `context-rank-1` 再对已经召回的记录按 `(没有直
 | 跨时间历史审核 | 主题、直接父链、纠正/取消/冲突建议、引用/草案/待审发布 | 真实模型忠实性与漏提未完成 | richer episode/project/relationship 提炼和重要单元覆盖 |
 | 搜索/Context | 确定性 FTS、当前性、权限、整组冲突和预算 | 不等于真实对话效用 | 语义召回、查询改写、质量反馈与可复现比较 |
 | Session/Checkpoint | 原始事件、分支、覆盖 hash、provisional 及来源身份 | MCP 真实客户端未完成 | 临时上下文到长期结构的明确巩固路线 |
-| 受限 MCP | 协议+六工具同 Host 的合成领域绑定 | 外部认证/运行接线、真实客户端、安装、owner 接受待做 | 真正日常闭环与更广 Context |
+| 受限 MCP | 协议+六工具同 Host 的合成领域绑定 | 外部认证/运行接线、真实客户端、安装、Morii 接受待做 | 真正日常闭环与更广 Context |
 | 主动唤起 | 未见专门实现 | 无 | 上下文/时间/目标触发与抑制、反馈 |
 | 自然淡出 | 有到期/归档/需复核；无认知衰减 | 无 | 可恢复注意力与复习机制 |
 | 星图/事件平行轴/记忆格 | 基础元数据可供投影 | 无该类产品验收 | 通用关联模型、聚合读取契约、Runtime UI |

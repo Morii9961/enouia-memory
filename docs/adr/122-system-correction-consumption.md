@@ -2,7 +2,7 @@
 
 2026-11-03. MCP-4 continuation of [ADR121](121-durable-agent-correction-reports.md).
 
-A saved report must reach memory automatically, without an Owner review queue
+A saved report must reach memory automatically, without a Morii review queue
 and without letting the Agent's interpretation become truth or permission.
 
 ## Decision
@@ -49,7 +49,7 @@ producer status and pipe-2 meanings are unchanged.
 
 Journal version 1 at the same path gains optional `report_key`, omitted when
 absent. A journal containing it belongs to a root with ADR121 deltas, which old
-binaries already refuse. No chain format, MCP tool, Owner action, forget-hide,
+binaries already refuse. No chain format, MCP tool, Morii action, forget-hide,
 real analyzer, model, egress or Runtime pin is added.
 
 See [consumption contract](../contracts/AGENT_CORRECTION_CONSUMPTION_V1.md).

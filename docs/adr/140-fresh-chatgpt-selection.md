@@ -24,7 +24,7 @@ message's metadata. Retain original message metadata separately, unchanged.
 The parser keeps roles, evidence, times, parent links and unknown values under
 its existing rules. Selection does not create confirmation, analysis or memories.
 
-Full original shards remain immutable in the owner's separately retained input
+Full original shards remain immutable in Morii's separately retained input
 archive. Their hashes and spans establish provenance; they do not reconstruct
 that archive from the Vault or claim independent backup. Unselected conversation
 bytes never become prepared Raw objects. Backup of external originals remains a
@@ -38,7 +38,7 @@ after successful object deserialization, with explicit array delimiters.
 
 Use synthetic large shards, Unicode/escapes/whitespace, exact span/locator checks,
 selection refusals and watermark changes. No real input is passed through new
-code before owner merge approval. No Runtime surface, schema, model/Provider,
+code before Morii merge approval. No Runtime surface, schema, model/Provider,
 real Vault, deployment, deletion or new MV stage is part of this slice.
 
 This is the selected-material intake prerequisite. Attachment byte lookup,

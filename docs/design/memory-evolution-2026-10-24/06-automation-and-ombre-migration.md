@@ -37,7 +37,7 @@ Python MCP + HTTP 服务（server.py）
 
 ### 记忆形成与组织
 
-`hold` 明确要求调用方 AI 主动保存值得跨会话保留的内容，执行自动打标和合并/创建；它没有 Enouia 式逐条 owner review。`grow` 把长输入拆成多个条目，各自写入，失败时还可能退回整段保存。`_merge_or_create` 会检索近似桶，达到配置阈值后让模型合并正文；也可以关闭自动合并。[hold/grow][hold]、[合并入口][merge]
+`hold` 明确要求调用方 AI 主动保存值得跨会话保留的内容，执行自动打标和合并/创建；它没有 Enouia 式逐条 Morii review。`grow` 把长输入拆成多个条目，各自写入，失败时还可能退回整段保存。`_merge_or_create` 会检索近似桶，达到配置阈值后让模型合并正文；也可以关闭自动合并。[hold/grow][hold]、[合并入口][merge]
 
 每个桶是带 YAML frontmatter 的 Markdown 文件，分目录保存；模型负责抽取主题和情绪等属性，系统负责文件和索引。embedding 实际存于 SQLite，并记录所用模型，换 embedding 模型后不直接混算旧向量。[桶管理][buckets]、[向量存储][embedding]
 
@@ -61,7 +61,7 @@ folio 有 SessionStart hook 调用 breath-hook/dream-hook，将返回文字注�
 | 方面 | OmbreBrain-folio | 当前 Enouia | 全自动 Enouia 的目标 |
 |---|---|---|---|
 | 设计中心 | AI 主动记忆、情绪与活跃度 | 来源保真、人工准入、版本与恢复 | 自动认知流程 + 可追溯持久化 |
-| 写入权 | AI 工具直接新建/合并/修改桶 | 模型提议，owner review 才正式化 | 受限系统 actor 自动准入、纠正与巩固 |
+| 写入权 | AI 工具直接新建/合并/修改桶 | 模型提议，Morii review 才正式化 | 受限系统 actor 自动准入、纠正与巩固 |
 | 原始单位 | 记忆桶 Markdown + 元数据 | Source / Candidate / Canonical / Session 分层 | 保留原件；自动生成经历、命题、状态与主观理解 |
 | 长期化 | permanent/保护、feel 与 dream 引导 | 主要是人工批准后进入 Canonical | 系统按证据/时效/来源归属自动维护稳定视图 |
 | 召回 | 多信号评分与可选语义检索，支持自动浮现 | FTS 和确定性排序，调用驱动 | 情境自动触发，融合召回并保留解释 |
@@ -76,9 +76,9 @@ folio 有 SessionStart hook 调用 breath-hook/dream-hook，将返回文字注�
 
 目前并非一个配置开关：
 
-- `CanonicalMemory` 的批准字段和校验要求 Owner；`ReviewRecord` 的可信入口、nonce 与校验也要求 Owner。[memory](../../../crates/enouia-memory-contract/src/memory.rs#L189)、[review record](../../../crates/enouia-memory-contract/src/candidate.rs#L260)
-- 跨记录校验把 Canonical 修订、review 和候选终态关联；Vault 的 owner-only 记录种类及 actor 检查阻止普通 System 写入这些记录。[set validator](../../../crates/enouia-memory-contract/src/set.rs#L666)、[Vault](../../../crates/enouia-memory-vault/src/store.rs#L170)
-- 治理 plan/confirm 检查 owner。现有 System actor 可以作为新机制起点，但它目前没有自动准入能力。[治理入口](../../../crates/enouia-memory-govern/src/review.rs#L1058)、[actor](../../../crates/enouia-memory-contract/src/common.rs#L82)
+- `CanonicalMemory` 的批准字段和校验要求 Morii；`ReviewRecord` 的可信入口、nonce 与校验也要求 Morii。[memory](../../../crates/enouia-memory-contract/src/memory.rs#L189)、[review record](../../../crates/enouia-memory-contract/src/candidate.rs#L260)
+- 跨记录校验把 Canonical 修订、review 和候选终态关联；Vault 的 Morii-only 记录种类及 actor 检查阻止普通 System 写入这些记录。[set validator](../../../crates/enouia-memory-contract/src/set.rs#L666)、[Vault](../../../crates/enouia-memory-vault/src/store.rs#L170)
+- 治理 plan/confirm 检查 Morii。现有 System actor 可以作为新机制起点，但它目前没有自动准入能力。[治理入口](../../../crates/enouia-memory-govern/src/review.rs#L1058)、[actor](../../../crates/enouia-memory-contract/src/common.rs#L82)
 - 云 Provider 的私人内容外发仍要求逐请求确认；若长期后台提炼采用云模型，这一域也要改成有范围、目的地、预算和期限的持续策略，不能只修改 Canonical admission。[实际外发规则](../../../crates/enouia-memory-contract/src/policy.rs#L28)
 
 建议新增真实的**机器准入决定**，记录系统 actor、证据/反证、输入与目标修订、算法/模型/策略版本、决定理由和提交回执。不要让系统伪造“Morii 手动批准过”，不要把旧人工 ReviewRecord 的历史改成机器生成。

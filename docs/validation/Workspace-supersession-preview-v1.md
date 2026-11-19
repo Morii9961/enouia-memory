@@ -25,7 +25,7 @@ No new test file or suite was added. The catalog gains one request/response
 example; independent schema execution and wrapper behavior tests were not run.
 
 Still unverified: executing this new wrapper against synthetic or real records,
-actual Runtime consumption, physical UI, owner acceptance and personal-history
+actual Runtime consumption, physical UI, Morii acceptance and personal-history
 quality/coverage. Runtime remains on its existing pin. Native/Provider or
 Host/MCP/cloud activation, app installation, packaging, full workspace/frontend,
 smoke and performance reruns are outside this slice. No private sources or

@@ -51,5 +51,5 @@ interim both-hosts choice. External Agent-host hooks are outside this route;
 Agent MCP reads remain authorized and Agent hints keep Agent provenance.
 Missing timezone uses Asia/Shanghai with explicit default-source provenance;
 unknown event time remains unknown. These decisions constrain MCP-3, without
-activating capture, granting Owner authority or changing the record schema.
+activating capture, granting Morii authority or changing the record schema.
 See the [confirmed capture decisions](../contracts/MCP_AGENT_READ_V2.md#capture-decisions-confirmed-by-morii-2026-10-26).

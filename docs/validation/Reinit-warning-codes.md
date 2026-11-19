@@ -8,7 +8,7 @@ unchanged. No source text, title, locator or private path is added to the output
 
 `cargo test -p enouia-memory-init --bin enouia-memory-reinit --locked` passed
 (1 test). A synthetic export contains an assistant parent omitted by the legacy
-selection and a selected owner turn with no language tag. The full CLI plan
+selection and a selected Morii turn with no language tag. The full CLI plan
 reports both categories, their sum matches the total, source text is absent from
 the output, `writes` is zero and no Vault is created. The initial fixture used a
 parent absent from the export, which is a different parser state; it was corrected
@@ -32,4 +32,4 @@ No full workspace suite or Linux-specific check was run for this reporting chang
 The categories mean an unknown language label and a parent outside the batch's
 selection. They do not mean the source matcher lost 732 records. Unknown metadata
 stays unknown, and no missing conversation context is invented. No real `run`,
-Owner enrollment, Provider or deployment was executed by this slice.
+Morii enrollment, Provider or deployment was executed by this slice.

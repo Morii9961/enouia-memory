@@ -7,7 +7,7 @@ information coverage. Add a standard-library-only offline harness that calculate
 metrics from explicit human judgments, never infers those judgments from wording.
 Bind judgments to canonical JSON hashes of the selected source scope and response
 value; these are not native task/wire hashes. Keep native task hash separately
-nullable for synthetic cases, required for owner-selected samples.
+nullable for synthetic cases, required for Morii-selected samples.
 
 Review change statements, explanations and summary points independently as
 supported, contradicted, unsupported or uncertain. Missing item judgments remain

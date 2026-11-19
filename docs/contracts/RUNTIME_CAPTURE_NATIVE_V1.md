@@ -7,13 +7,13 @@ Only schema 2 / automation-segmented-host-v1. Keep the frozen UI record fields.
 No in-place upgrade or private default root. Missing initialization is a known
 native setup condition, never a fabricated captured/queued receipt.
 
-Native Owner setup selects a Client Runtime principal, exact active policy ref,
+Native Morii setup selects a Client Runtime principal, exact active policy ref,
 subject/project, at most 128 source IDs already in that policy, sensitivity,
 opaque account alias, default timezone and at most five minutes. The Host must
 independently enroll/verify the retained Runtime OS peer. Ordinary Agent grants,
 clientInfo, caller source IDs, policy fields or principal/PID parameters cannot
 register a producer. Source-ID capacity exhaustion refuses; it does not broaden
-the policy or create a per-memory Owner review queue.
+the policy or create a per-memory Morii review queue.
 
 Closed capture packets contain schema_version 2, runtime_capture_request kind,
 memory-runtime-capture-native-1 capability, request_id, original conversation ID,
@@ -35,7 +35,7 @@ UserConfirmation. A message identity cannot silently acquire changed content.
 extension `runtime.capture` records the native producer, request/message hashes,
 resolved_timezone and timezone_origin (`source` or `owner_default`). Missing
 timezone resolves to the registered Asia/Shanghai default with its native
-configuration hash. This is provenance, never an authorization or Owner action.
+configuration hash. This is provenance, never an authorization or Morii action.
 Missing occurred_at remains null/time_precision unknown; capture time is not
 substituted as event time. Date basis in MemoryRecordFields remains independent.
 

@@ -35,15 +35,15 @@ Workspace IPC v1 retains 58 commands.
 
 | Root / carrier | New native profile | Existing pipe profiles |
 | --- | --- | --- |
-| Owner root / original or witnessed native correction | Explicit native opt-in | Existing original-only contracts |
-| Owner root / ADR104 imported, partial or typed attachments | Scoped native reads and authorized metadata projection | Refuse; new wire adoption pending |
-| Older layout or forged Owner/System wire identity | Refuse / no authority | Existing exact contracts only |
+| Morii root / original or witnessed native correction | Explicit native opt-in | Existing original-only contracts |
+| Morii root / ADR104 imported, partial or typed attachments | Scoped native reads and authorized metadata projection | Refuse; new wire adoption pending |
+| Older layout or forged Morii/System wire identity | Refuse / no authority | Existing exact contracts only |
 
-Native constructors require independent Owner authentication; they do not perform
+Native constructors require independent Morii authentication; they do not perform
 OS enrollment. Source projections intentionally omit arbitrary extensions and do
 not represent byte-identical original records. Native timezone/default origin is
 projected separately from attachment copies. No attachment bytes are exposed.
-No System/Owner forwarding, shared live queue, Runtime hook/UI/pin, private root,
+No System/Morii forwarding, shared live queue, Runtime hook/UI/pin, private root,
 real Provider/embedding or actual initialized-carrier MCP pipe is claimed. 03's
 full daily-formation/Runtime acceptance and the new closed wire schema remain
 later work. The next slice binds this capability to actual native enrollment and

@@ -5,7 +5,7 @@ Morii explicitly authorized Core-4/5 after Core-3; real accounts, private data,
 Runtime adoption and deployment retain separate resource boundaries.
 
 Add a closed next-version continuous-generation policy, distinct from memory
-admission and V1 Provider approval. Native owner setup grants exact System,
+admission and V1 Provider approval. Native Morii setup grants exact System,
 Vault, admission policy revision/hash, subject/project, source IDs, producer,
 destination API/model/adapter, sensitivity ceiling, validity and per-call/total
 token/cost budgets. No per-request confirmation is fabricated. Highly sensitive

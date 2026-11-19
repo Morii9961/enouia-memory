@@ -24,7 +24,7 @@ Historical 2026-10-24 research and execution handoff: [lifecycle package](design
 The [MV-7 private seed staging report](validation/MV-7-private-seed-staging.md)
 and [operator runbook](../tools/seed-stage/README.md) cover the offline portable
 bootstrap bridge into native pending candidates, local recovery evidence and
-the existing Runtime owner-review workflow. Staging does not approve memories.
+the existing Runtime Morii-review workflow. Staging does not approve memories.
 
 Current route (2026-10-11): [cloud primary, historical initialization and MCP cycle](design/CLOUD_PRIMARY_AND_HISTORY.md), [ADR-MEM-49](adr/049-cloud-primary-and-history-initialization.md), and the [MV-7-H1 offline planning report](validation/MV-7-history-planning.md). The local implementation remains; no cloud activation follows from this direction update.
 
@@ -32,11 +32,11 @@ The [MV-7-H2a archived-source binding report](validation/MV-7-history-binding.md
 
 | Folder | Content | Status |
 |---|---|---|
-| [design/](design/README.md) | Memory design package v1.2 (Chinese): vision, architecture, data model, import/review, context, interfaces, privacy/recovery, plan, acceptance, decisions, handoff | Target specification. v1.1 corrects repository ownership, the data root and the MV-0R entry; v1.2 records that Runtime hosts the local frontend (ADR-MEM-45); v1.0 is in Git history (`da0d1e3`) |
+| [design/](design/README.md) | Memory design package v1.2 (Chinese): vision, architecture, data model, import/review, context, interfaces, privacy/recovery, plan, acceptance, decisions, handoff | Target specification. v1.1 corrects repository responsibility, the data root and the MV-0R entry; v1.2 records that Runtime hosts the local frontend (ADR-MEM-45); v1.0 is in Git history (`da0d1e3`) |
 | [reviews/](reviews/MV0_REVIEW_AND_REPO_CORRECTION.md) | Independent MV-0 review: findings F1–F6 and the migration plan R0–R5 | Authoritative for MV-0R |
 | [handoff/](handoff/) | Startup prompts: the original MV-0 prompt (superseded) and the MV-0R correction prompt | Historical or current task inputs, not standing authorization |
 | [adr/](adr/README.md) | Decision register: design ADR-MEM-01…18 and implementation ADR-MEM-19…46 | Current |
-| [integration/](integration/RUNTIME.md) | Runtime hosting handoff (ADR-MEM-45): ownership, host duties, change routing, the [surface manifest](integration/runtime-surface.json) and the compatibility log | Current |
+| [integration/](integration/RUNTIME.md) | Runtime hosting handoff (ADR-MEM-45): responsibility, host duties, change routing, the [surface manifest](integration/runtime-surface.json) and the compatibility log | Current |
 | [contracts/](contracts/CONTRACT_NOTES.md) | Contract notes and the [constraint enforcement map](contracts/CONSTRAINT_MAP.md) | Current (MV-0R) |
 | [validation/](validation/MV-6.md) | Stage evidence: the [MV-0R](validation/MV-0R.md), [MV-1](validation/MV-1.md), [MV-2](validation/MV-2.md), [MV-3](validation/MV-3.md), [MV-4](validation/MV-4.md), [MV-5](validation/MV-5.md), [MV-6](validation/MV-6.md), and [MV-6 follow-up](validation/MV-6-followup.md) reports | Current |
 | [history/](history/) | The MV-0 draft report and ADR draft written in the Runtime working tree, kept as history | Historical |
@@ -56,7 +56,7 @@ The [correction and forgetting request-binding report](validation/MV-6-proposal-
 
 The [full session ask replay report](validation/MV-6-full-session-replay.md) extends acceptance to two same-key page schedules starting before input creation, through saved compilation, Mock dispatch and reply.
 
-The [late proposal admission report](validation/MV-6-proposal-admission.md) records recovery of identical owner proposals when a receipt appears after initial lookup, with a forced changed-claim refusal.
+The [late proposal admission report](validation/MV-6-proposal-admission.md) records recovery of identical Morii proposals when a receipt appears after initial lookup, with a forced changed-claim refusal.
 
 The [different-key proposal deduplication report](validation/MV-6-proposal-dedupe.md) binds new candidate publication to the dedupe snapshot, with one Core re-evaluation on head movement and a direct governance conflict regression.
 

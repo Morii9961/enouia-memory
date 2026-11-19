@@ -84,7 +84,7 @@ cancellation first. Analysis sees one source with no conversation context.
 Statements cannot revise a memory or link entities, because catalog publication
 for daily sources does not exist yet. A job whose source is deleted after
 analysis forms nothing and stays `forming`. The optional Agent `memory_note`
-hint, the Owner Runtime wire, Runtime adoption and quality evaluation remain
+hint, Morii Runtime wire, Runtime adoption and quality evaluation remain
 separate. See
 [contract](../contracts/CAPTURED_FORMATION_QUEUE_V1.md) and
 [validation](../validation/MCP-3-captured-formation-worker.md).

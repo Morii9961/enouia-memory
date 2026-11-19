@@ -55,12 +55,12 @@ recorded interpretation, rule/prompt/model versions, mode, import batch and note
 and written-at time. Memory events include their real `MemoryReceipt`; material
 captures cite their real capture commit. No raw source/memory body is returned.
 Knowledge/adoption/change are independent, so adopted/staged/disputed labels need
-not be inferred from event titles. The Owner event discriminator is prospective:
-this slice has no publishing owner-action path and emits no Owner event.
+not be inferred from event titles. Morii event discriminator is prospective:
+this slice has no publishing Morii-action path and emits no Morii event.
 
 Time-derived fading/archive events have no witnessed job in this layout and are
 explicitly unavailable. Current deletion removes affected prior titles/events;
-this feed is not a permanent owner audit. Clock changes never create fake jobs.
+this feed is not a permanent Morii audit. Clock changes never create fake jobs.
 
 Changes query an indexed ancestor snapshot, not a guessed global sequence.
 Append-only visible source/memory additions return at most 100 combined IDs.
@@ -75,7 +75,7 @@ anchor and reloads the affected read models instead of polling complete pages.
 Conflict basis is `recorded_counter_source_overlap_not_independent_verification`.
 Counter-source refs must currently authorize; selected/counterpart rows preserve
 their own knowledge/adoption, evidence and sensitivity. No semantic contradiction
-detector, automatic truth choice or inferred owner confirmation is introduced.
+detector, automatic truth choice or inferred Morii confirmation is introduced.
 Diff fields include title/content/axes/entities/sensitivity/origin/annotations/
 evidence/dependencies where changed; values are structural data, not new facts.
 
@@ -118,10 +118,10 @@ selected row/header that cannot fit refuses instead of silently dropping data.
 
 ## ADR103 native read qualification
 
-The later Owner slice emits selection `owner-qualified-catalog-4` version 4.
+The later Morii slice emits selection `owner-qualified-catalog-4` version 4.
 Process headers use algorithm/version 2. Restart older cursors. Current scoped
 receipts omit global commit sequence; current conversation metadata omits raw
 turn arrays/totals/branch lists and ranks authorized captured turns densely per
-branch. Actual Owner marks, family/identity overlays and provenance require the
+branch. Actual Morii marks, family/identity overlays and provenance require the
 same fresh authorization and native action records. Stored records and legacy
-v3 fixture parsing remain unchanged. See [Owner contract](UI_V2_OWNER_ACTIONS.md).
+v3 fixture parsing remain unchanged. See [Morii contract](UI_V2_MORII_ACTIONS.md).

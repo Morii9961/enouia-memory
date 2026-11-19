@@ -25,8 +25,8 @@ MV-1 update: rows whose "Later behavior" names MV-1 now have store evidence (com
 | Sensitivity never downgraded without an exact declassification approval (F2) | ✗ | approval direction and sources | ✔ `sensitivity.downgrade`, `sensitivity.declassification_invalid` | – |
 | Secrets and local paths out of text | ✗ | ✔ heuristic | – | MV-2 quarantine; B04 log scan |
 | Candidate lifecycle | ✔ | ✔ | ✔ | MV-3 engine |
-| Canonical write needs an owner review of the exact pending revision | ✔ | ✔ | ✔ review/nonce/commit binding | **MV-3** nonce issuance and expiry, batch all-or-nothing |
-| Deletion is owner-confirmed and bound (F2) | ✔ `delete_binding` required | ✔ `review.delete_binding` | ✔ `tombstone.review_action/binding/result/candidate_mismatch` | **MV-3** purge propagation |
+| Canonical write needs a Morii review of the exact pending revision | ✔ | ✔ | ✔ review/nonce/commit binding | **MV-3** nonce issuance and expiry, batch all-or-nothing |
+| Deletion is Morii-confirmed and bound (F2) | ✔ `delete_binding` required | ✔ `review.delete_binding` | ✔ `tombstone.review_action/binding/result/candidate_mismatch` | **MV-3** purge propagation |
 | Supersession graph | ✗ | self/duplicate edge | ✔ `supersession.*`, including `effective_mismatch` | – |
 | Unknown supersession start stays unknown (F5) | ✗ | – | ✔ `temporal::effect`/`currency` | MV-4 queries |
 | Conflicts shown on both sides | ✗ | flag | ✔ | MV-5 |
@@ -36,7 +36,7 @@ MV-1 update: rows whose "Later behavior" names MV-1 now have store evidence (com
 | Idempotency | ✗ | `classify_retry` | ✔ | **MV-1** lost response → same receipt |
 | Policies: persistent, versioned, revocable, default deny (F4) | ✔ | ✔ `policy.*` | ✔ `policy.unresolved`, `policy.grant_invalid` | MV-6/7 real gate wiring |
 | Project- and Provider-scoped authorization (F4) | ✗ | `policy::evaluate` | ✔ capsule and dispatch use it | MV-7 real Provider |
-| Egress: highly sensitive never; external needs a grant; private needs an exact approval (F1) | ✗ | approval TTL, owner, destination | ✔ `dispatch.policy_*`, `egress.approval_*` | MV-7 |
+| Egress: highly sensitive never; external needs a grant; private needs an exact approval (F1) | ✗ | approval TTL, Morii, destination | ✔ `dispatch.policy_*`, `egress.approval_*` | MV-7 |
 | Dispatch covers every carried resource (F1) | ✔ `resource_refs` | ✔ `dispatch.resource_kind` | ✔ `dispatch.hidden_resource` | MV-5 real render |
 | Dispatch digest bound to the actual request (F3) | ✗ | ✔ `dispatch.request_hash`; `ProviderRequest::verify_against` | ✔ approval payload binding | MV-5/7 send path |
 | Deletion/policy barrier rechecked before send | ✗ | – | ✔ | MV-5/7 live recheck |
@@ -92,7 +92,7 @@ Core-3 (ADR-MEM-87) adds closed descriptor/current/commit/publication documents
 in `next/storage-v2.schema.json`. The automation-vault fixture manifest checks
 17 schema/native cases; `tests/automation_storage.rs` additionally checks full
 set/delta, authority, exact batches and immutable history. `next_admission.rs`
-checks rule-2 same-policy native creation provenance and legacy-owner refusal.
+checks rule-2 same-policy native creation provenance and legacy-Morii refusal.
 Native `host/tests/automatic_loop.rs` exercises real files/leases, short writer
 exclusion, automatic completion, exact replay, current authorization, legacy
 byte preservation and actual child-process termination at three publication
@@ -124,7 +124,7 @@ MV-7 adds Provider invocation and optional extraction-job schemas. Invocation te
 
 The pre-MV-7 coverage inventory counted 265 stable rule identifiers, with 156 asserted by a named negative fixture or test. The new Provider/extraction families above are additional; that inventory has not yet been recounted. The rest are implemented, and several of them fire as side effects of other cases, but no fixture targets them individually yet; they are mostly field-consistency checks within the families above. Adding dedicated cases for them is cheap MV-1 hardening. `tests/fixtures/memory/*-manifest.json` lists every case with the rule it proves.
 
-ADR-MEM-70 adds optional typed local history admission on Session headers. Both Schema and typed validation enforce a closed bounded selection/model/quota object; explicit null is rejected rather than silently rewritten to absence. Set rules bind the completed original import/Raw hash, preview commit and owner subject, and prohibit adding/changing/removing admission on later Session revisions. Delta needs include the referenced import revision and preview commit; record/set fixtures and scoped/whole equivalence cover these constraints. Atomic Session creation binds the admission to its submission key and current preview head; this is local request persistence, never egress approval or extraction completion.
+ADR-MEM-70 adds optional typed local history admission on Session headers. Both Schema and typed validation enforce a closed bounded selection/model/quota object; explicit null is rejected rather than silently rewritten to absence. Set rules bind the completed original import/Raw hash, preview commit and Morii subject, and prohibit adding/changing/removing admission on later Session revisions. Delta needs include the referenced import revision and preview commit; record/set fixtures and scoped/whole equivalence cover these constraints. Atomic Session creation binds the admission to its submission key and current preview head; this is local request persistence, never egress approval or extraction completion.
 
 ## MV-8.1a authority contract
 

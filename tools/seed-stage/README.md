@@ -42,7 +42,7 @@ direct testimony. Assistant context and agent provenance notes use
 
 Use a native-policy-approved Vault outside repositories and synchronization
 folders. Preserve an existing Vault and its current backup. New Vault creation
-uses the CLI's existing explicit `init` confirmation and owner-only `protect`.
+uses the CLI's existing explicit `init` confirmation and Morii-only `protect`.
 
 ```powershell
 cargo run -p enouia-memory-cli --locked -- seed-stage <vault-directory> <package-directory>/package.json --sha256 <preview-hash> --confirm-stage
@@ -52,8 +52,8 @@ cargo run -p enouia-memory-cli --locked -- seed-review-check <vault-directory>
 Staging reuses the ordinary import pipeline and bound proposal publication.
 The native source bytes, locator, content hash, role and evidence class must
 match the inspected selector. Imports are audited before proposal publication.
-The stable agent principal never impersonates the Vault owner. Exact-package
-retries recover candidate receipts, including after ordinary owner review;
+The stable agent principal never impersonates the Vault principal (Morii). Exact-package
+retries recover candidate receipts, including after ordinary Morii review;
 changed package bytes cannot reuse committed seed ID/revision keys. A rejected
 or unknown result is not permission to change keys and duplicate submissions.
 
@@ -64,14 +64,14 @@ not an incremental synchronization protocol or an approval mechanism.
 
 `seed-review-check` builds acceptance plans in memory and returns only counts,
 IDs and fault categories. Check that `failed` is empty. It never confirms a plan
-and does not prove owner acceptance or source truth.
+and does not prove Morii acceptance or source truth.
 
 ## Review in Runtime
 
 Launch a compatible Runtime with `--memory-vault <vault-directory>`, or select
 the Vault in its native dialog, then open Memory Vault → Candidate inbox.
 Inspect content, saved reason, original source revisions, sensitivity and the
-exact acceptance plan. The existing plan dialog alone performs owner review.
+exact acceptance plan. The existing plan dialog alone performs Morii review.
 Prioritize the 32 core records by the `seed.core` tag in the proposed details
 when using this initialization dataset; the bridge does not claim a dedicated
 UI filter exists. Do not promote sensitive or disputed records by default.

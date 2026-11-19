@@ -1,11 +1,11 @@
 # ADR-MEM-67 — Durable authority control file, without data writes
 
-Date: 2026-10-18. Scope: MV-8.1b, continuing owner-authorized MV-8.
+Date: 2026-10-18. Scope: MV-8.1b, continuing Morii-authorized MV-8.
 
 ## Decision
 
 Implement a native, opt-in `host_authority::ControlStore` in the Vault crate for
-authority-only transitions. Reuse verified roots, protected owner ACLs, managed
+authority-only transitions. Reuse verified roots, protected Morii ACLs, managed
 path checks, bounded reads and flushed atomic replacement. Hold both the existing
 `indexes/host.lock` lease and Vault writer lock for the entire store lifetime.
 Opening another Core or committing through the old CLI while these locks are
@@ -20,7 +20,7 @@ Retained promotion receipts recover an exact operation after a lost response.
 An ambiguous write failure returns outcome_unknown and requires rereading.
 
 The native checkpoint reader remains a port: a fixture reader is not a complete
-snapshot verifier. Owner authorization, target restoration/recovery evidence and
+snapshot verifier. Morii authorization, target restoration/recovery evidence and
 authenticated target identity remain the calling native control plane's duties.
 No page, IPC or CLI entry point is added in this slice.
 

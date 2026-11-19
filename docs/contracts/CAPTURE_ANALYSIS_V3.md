@@ -24,7 +24,7 @@ They bind the saved hint inputs for audit. A later saved note does not change an
 in-flight analysis, restart terminal work or cause another model request. Paused
 still proves no handoff; a later attempt may select fresh current hints. Unknown,
 panic and restart after dispatch remain terminal without resend. Notes never
-become independent source evidence or Owner confirmation.
+become independent source evidence or Morii confirmation.
 
 Journal version 1 stays at its original path. note_keys defaults to empty and is
 omitted when empty, preserving old jobs and receipts. Nonempty keys require a
