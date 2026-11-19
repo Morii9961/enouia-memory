@@ -1,5 +1,17 @@
 # Runtime integration (ADR-MEM-45)
 
+2026-11-19 Morii wording (docs and reference shell only): Morii does not want
+the word owner shown. Prose in the docs now says Morii, and 22 doc files were
+renamed with their links. Code identifiers, persisted field and file names, wire
+values, contract schemas and fixtures are unchanged and quoted as-is, so stored
+Vaults, receipts and the registered read-only entry keep working with pin
+`368634b`. The reference shell maps owner to Morii only when it displays a raw
+protocol value (error code and rule list, candidate origin kind, context
+decision reason) through `label` in `apps/workspace/src/api.ts`. Runtime's
+product UI should apply the same display-only mapping wherever it shows raw
+protocol values; it needs no new command, reader or pin. 61 commands, aggregate
+`2455bc9aba7a155d405103895c12ae0442648a663a25a2db02ca07cf390233c0`.
+
 2026-11-19 storage change (Morii decision): the real Vault's only same-disk
 export and restored copy, the old v1 library and its original archive were
 permanently deleted, so the Vault currently has no backup. The Vault stays in

@@ -125,12 +125,15 @@ const RULES: Record<string, string> = {
   "root.unreadable": "无法读取该文件夹的属性",
 };
 
+/** Protocol values shown as-is say "Morii" where the wire value says owner. */
+export const label = (value: string) => value.replace(/owner/gi, "Morii");
+
 export function describe(error: unknown): string {
   if (error instanceof CallError) {
     const specific = error.error.rules.map((r) => RULES[r]).find(Boolean);
     if (specific) return specific;
-    const text = CODES[error.error.code] ?? error.error.code;
-    const rules = error.error.rules.length ? `（${error.error.rules.join(", ")}）` : "";
+    const text = CODES[error.error.code] ?? label(error.error.code);
+    const rules = error.error.rules.length ? `（${error.error.rules.map(label).join(", ")}）` : "";
     return `${text}${rules}`;
   }
   return "后台调用失败";

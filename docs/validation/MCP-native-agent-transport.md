@@ -28,7 +28,7 @@ Reconnection requires a new explicit native registration. No automatic renewal,
 replay, resend or replacement key is implemented.
 
 `enouia-memory-host` now has explicit `--agent-id` / `--agent-scopes` mode,
-mutually exclusive with Morii `--surface`. `enouia-memory-mcp` is a runnable
+mutually exclusive with the Morii `--surface`. `enouia-memory-mcp` is a runnable
 native stdio launcher in the same crate: it starts one explicitly selected Host,
 verifies that owned process, bridges bounded JSON-RPC and reaps only that child.
 It has no Vault IO. On EOF it drops the pipe and gives the Host a bounded graceful

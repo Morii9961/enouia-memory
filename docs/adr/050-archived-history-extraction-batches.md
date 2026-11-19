@@ -24,7 +24,7 @@ coordinator event and content.
 
 The Morii key binds the coordinator Session/input through existing idempotency.
 Changed plan/selection/model/bounds under that key is a conflict. Each child
-uses a distinct deterministic key derived from Morii key hash, coordinator
+uses a distinct deterministic key derived from the Morii key hash, coordinator
 input hash and batch index, and is an existing ExtractionJob in its own Session.
 After partial publication or reopening, materialization replays these receipts;
 it never sends, refunds an attempt, or replaces a failed/unknown invocation.
