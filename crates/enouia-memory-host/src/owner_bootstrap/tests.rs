@@ -359,3 +359,58 @@ fn restored_selection_checks_home_scope_and_preserves_original_bootstrap_registr
     );
     assert_eq!(source.registered_root(&op).unwrap().1, descriptor);
 }
+
+#[test]
+fn relocated_home_reopens_only_after_exact_moved_registration_is_rebound() {
+    let a = fixture();
+    let p = a.prepare().unwrap();
+    let op = operation(&p);
+    a.commit(&op, false).unwrap();
+    let old = a.home.path().to_path_buf();
+    let old_key = old.to_str().unwrap().to_owned();
+    let (_, descriptor) = a.registered_root(&op).unwrap();
+    let new = old.with_file_name(format!(
+        "enouia-bootstrap-synthetic-moved-{}",
+        format_uuid_v4(OsIdSource.random_16())
+    ));
+    drop(a);
+    fs::rename(&old, &new).unwrap();
+    let identity = || Identity::Test(sha256(b"synthetic-owner-a"));
+    let clock = Arc::new(FakeClock::new(1_792_843_200_000));
+    let b = Bootstrap::home(&new, identity(), clock.clone()).unwrap();
+    let journal = || fs::read(new.join(AREA).join(JOURNAL)).unwrap();
+    let before = journal();
+    assert!(matches!(
+        b.registered_root(&op),
+        Err(BootstrapFault::Unauthenticated)
+    ));
+    // A directory left at the old path means the home may have been copied.
+    fs::create_dir(&old).unwrap();
+    assert!(matches!(
+        b.relocate(&op, &old_key),
+        Err(BootstrapFault::Conflict)
+    ));
+    fs::remove_dir(&old).unwrap();
+    assert!(b.relocate(&op, &format!("{old_key}-other")).is_err());
+    assert!(matches!(
+        b.relocate(&OperationId::from_random(OsIdSource.random_16()), &old_key),
+        Err(BootstrapFault::Conflict)
+    ));
+    let foreign = Bootstrap::home(
+        &new,
+        Identity::Test(sha256(b"different synthetic account")),
+        clock.clone(),
+    )
+    .unwrap();
+    assert!(foreign.relocate(&op, &old_key).is_err());
+    assert_eq!(journal(), before);
+    let moved = b.relocate(&op, &old_key).unwrap();
+    assert_eq!(moved["operation_id"], p["operation_id"]);
+    let (root, observed) = b.registered_root(&op).unwrap();
+    assert_eq!(observed, descriptor);
+    assert!(root.path().starts_with(&new));
+    let after = journal();
+    assert_ne!(after, before);
+    assert_eq!(b.relocate(&op, &old_key).unwrap(), moved);
+    assert_eq!(journal(), after);
+}

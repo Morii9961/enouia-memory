@@ -96,13 +96,12 @@ impl State {
         targets: &BTreeMap<MemoryId, &TargetRef>,
     ) -> bool {
         let i = &entry.memory.decision.input;
-        let Some(p) = self.policy(i) else {
+        let Some(p) = self.read_policy(i, scope.independent_read) else {
             return false;
         };
         targets.contains_key(&entry.memory.memory.memory_id)
-            && p.active
-            && scope.now >= p.valid_from
-            && scope.now < p.valid_until
+            && (scope.independent_read
+                || (p.active && scope.now >= p.valid_from && scope.now < p.valid_until))
             && i.subject_id == p.subject_id
             && i.project_id == p.project_id
             && i.access_policy_id == p.access_policy_id
@@ -131,12 +130,20 @@ impl State {
         after: Option<&SnapshotBinding>,
         include_history: bool,
     ) -> AuthorizedProcessRead<'a> {
-        let grants: Vec<_> = self
-            .policies
-            .values()
-            .filter(|p| p.active && scope.now >= p.valid_from && scope.now < p.valid_until)
-            .map(AutomationPolicy::reference)
-            .collect();
+        // ADR-MEM-153: a full-history read binds its cursors to every committed
+        // policy revision rather than to the formation windows still open.
+        let grants: Vec<_> = if scope.independent_read {
+            self.policy_history
+                .values()
+                .map(AutomationPolicy::reference)
+                .collect()
+        } else {
+            self.policies
+                .values()
+                .filter(|p| p.active && scope.now >= p.valid_from && scope.now < p.valid_until)
+                .map(AutomationPolicy::reference)
+                .collect()
+        };
         let permission_hash = digest(&(
             &scope.snapshot.vault_id,
             scope.snapshot.primary_epoch,
@@ -279,6 +286,24 @@ impl SegmentedAutomationVault {
         include_history: bool,
         f: impl FnOnce(AuthorizedProcessRead<'_>) -> T,
     ) -> Result<T> {
+        self.read_process_scoped(
+            system,
+            max,
+            SystemReadScope::CurrentPolicy,
+            after,
+            include_history,
+            f,
+        )
+    }
+    pub fn read_process_scoped<T>(
+        &self,
+        system: &ActorRef,
+        max: Sensitivity,
+        scope: SystemReadScope,
+        after: Option<&SnapshotBinding>,
+        include_history: bool,
+        f: impl FnOnce(AuthorizedProcessRead<'_>) -> T,
+    ) -> Result<T> {
         self.native.system(system)?;
         let _writer = lock::acquire(&self.native.root, Duration::ZERO)?;
         let state = self
@@ -286,7 +311,12 @@ impl SegmentedAutomationVault {
             .lock()
             .map_err(|_| AutomationFault::Unavailable)?;
         self.current(&state)?;
-        let scope = state.authorized(&self.native.descriptor, max, self.native.now()?)?;
-        Ok(f(state.process(scope, max, after, include_history)))
+        let data = state.authorized_for(
+            &self.native.descriptor,
+            max,
+            self.native.now()?,
+            scope.into(),
+        )?;
+        Ok(f(state.process(data, max, after, include_history)))
     }
 }

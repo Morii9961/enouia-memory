@@ -1,5 +1,28 @@
 # Runtime integration (ADR-MEM-45)
 
+2026-11-19 Morii full-history reads and home relocation
+([ADR-MEM-153](../adr/153-morii-full-history-native-read.md),
+[ADR-MEM-154](../adr/154-relocate-registered-home.md)):
+
+- **Full-history reader.** Construct the registered read-only entry's reader with
+  `SegmentedMemoryReader::from_authenticated_system_full_history` instead of
+  `from_authenticated_system`. Formation policies end after their window, and
+  until now that removed nearly every memory from the native System view. The
+  full-history reader authorizes against every committed policy revision.
+  Deletion, withdrawal and forget barriers and the sensitivity ceiling Runtime
+  passes still apply. Catalog, facets, stats, detail, source, process (activity,
+  changes, conversations) and recall preview all follow it. Agent, MCP and remote
+  readers are unchanged. Adopting it requires moving the pin to this merge.
+- **Home relocation.** After Morii moves the home on the same machine and runs
+  the native `relocate` command, only the registration's `canonical_home`
+  changes. Runtime keeps the same operation and passes the new home path to
+  `--memory-owner-home`. The registration format is unchanged, so this part
+  needs no pin change.
+
+No persisted format, IPC command, grant or wire change; Workspace stays at 61
+commands. Surface aggregate:
+`b38765569c5d5a77e79ec951b8bc65a86c226cebbc4f3df40b32a5e0cd5151a6`.
+
 2026-11-19 native System recall preview ([ADR-MEM-152](../adr/152-system-recall-preview.md)):
 `SegmentedMemoryReader::recall_preview_native(profile, query, max_sensitivity)`
 returns the same `trace`, `trace_coverage` (with `reason_counts`),

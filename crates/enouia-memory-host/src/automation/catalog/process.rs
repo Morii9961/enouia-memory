@@ -109,9 +109,10 @@ impl SegmentedMemoryReader {
         {
             return Err(invalid());
         }
-        self.vault.read_process(
+        self.vault.read_process_scoped(
             &self.system,
             request.options.max_sensitivity,
+            self.scope,
             after,
             history,
             f,

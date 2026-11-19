@@ -258,6 +258,9 @@ impl Bootstrap {
         Ok((store, lock))
     }
     fn load(&self, store: &ManagedRoot) -> Result<Registration> {
+        self.load_bound(store, self.home_key()?)
+    }
+    fn load_bound(&self, store: &ManagedRoot, home: &str) -> Result<Registration> {
         if io(platform::inspect_acl(&store.root().join(JOURNAL)))?.broad_grants() != 0 {
             return Err(BootstrapFault::Unauthenticated);
         }
@@ -268,7 +271,7 @@ impl Bootstrap {
         let value = json::parse(&b).map_err(|_| BootstrapFault::Invalid)?;
         let r: Registration = serde_json::from_value(value).map_err(|_| BootstrapFault::Invalid)?;
         if r.version != 1
-            || r.canonical_home != self.home_key()?
+            || r.canonical_home != home
             || r.origin != self.identity.origin()
             || &r.account != self.identity.account()
             || !r.descriptor.validate().is_empty()
@@ -323,6 +326,49 @@ impl Bootstrap {
         }
         self.identity.verify()?;
         Ok((root, descriptor))
+    }
+    /// ADR-MEM-154: after Morii moved this whole home on the same machine,
+    /// rebind the recorded registration to the new canonical path. Only the
+    /// path changes; the old location must be gone so no copy stays live.
+    fn relocate(&self, operation: &OperationId, recorded_home: &str) -> Result<Value> {
+        let (store, _lock) = self.store(false)?;
+        let mut r = match self.load(&store) {
+            Ok(r) => r,
+            Err(BootstrapFault::Unauthenticated) => {
+                if recorded_home == self.home_key()? {
+                    return Err(BootstrapFault::Unauthenticated);
+                }
+                match fs::symlink_metadata(recorded_home) {
+                    Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
+                    _ => return Err(BootstrapFault::Conflict),
+                }
+                self.load_bound(&store, recorded_home)?
+            }
+            Err(e) => return Err(e),
+        };
+        if &r.operation != operation || r.phase != Phase::Recorded {
+            return Err(BootstrapFault::Conflict);
+        }
+        let root = verify_data_root(
+            &self.home.path().join(&r.root_relative),
+            &RootPolicy::default(),
+        )
+        .map_err(|_| BootstrapFault::UnsafeHome)?;
+        let descriptor: AutomationDescriptor = serde_json::from_slice(&bounded(
+            &root
+                .path()
+                .join(enouia_memory_contract::layout::vault_descriptor()),
+        )?)
+        .map_err(|_| BootstrapFault::Invalid)?;
+        if descriptor != r.descriptor {
+            return Err(BootstrapFault::Conflict);
+        }
+        if r.canonical_home != self.home_key()? {
+            r.canonical_home = self.home_key()?.to_owned();
+            self.save(&store, &r)?;
+        }
+        self.identity.verify()?;
+        Ok(self.result(&r))
     }
     fn restored_root(
         &self,
@@ -553,6 +599,7 @@ pub fn run_cli(args: &[String]) -> Result<Value> {
     let valid = match command {
         "prepare" => args.len() == 3 && args[2] == "--bind-current-owner-self",
         "commit" | "recover" => args.len() == 4 && args[3] == "--bind-current-owner-self",
+        "relocate" => args.len() == 5 && args[4] == "--bind-current-owner-self",
         "status" => args.len() == 2,
         _ => false,
     };
@@ -566,6 +613,10 @@ pub fn run_cli(args: &[String]) -> Result<Value> {
             let (store, _lock) = boot.store(false)?;
             Ok(boot.result(&boot.load(&store)?))
         }
+        "relocate" => boot.relocate(
+            &OperationId::parse(&args[2]).map_err(|_| BootstrapFault::Invalid)?,
+            &args[3],
+        ),
         _ => boot.commit(
             &OperationId::parse(&args[2]).map_err(|_| BootstrapFault::Invalid)?,
             command == "recover",

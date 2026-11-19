@@ -937,7 +937,10 @@ impl SegmentedAutomationVault {
             &self.native.descriptor,
             permit.scope.max_sensitivity,
             now,
-            permit.grant.as_ref(),
+            permit
+                .grant
+                .as_ref()
+                .map_or(ReadBasis::Current, ReadBasis::Grant),
         )?;
         let mut memo = BTreeMap::new();
         data.memories

@@ -4,7 +4,9 @@ use super::*;
 use enouia_memory_contract::{common::Sensitivity, ids::*, next::*};
 use enouia_memory_vault::automation::{
     AutomationFault,
-    segmented::{AuthorizedSegmentedRead, SegmentedAutomationVault, SegmentedMemory},
+    segmented::{
+        AuthorizedSegmentedRead, SegmentedAutomationVault, SegmentedMemory, SystemReadScope,
+    },
 };
 use std::{
     collections::{BTreeMap, BTreeSet},
@@ -25,6 +27,7 @@ pub struct CatalogReadRequest<'a> {
 pub struct SegmentedMemoryReader {
     vault: Arc<SegmentedAutomationVault>,
     system: ActorRef,
+    scope: SystemReadScope,
     unlocked: RwLock<bool>,
 }
 const AXES: [CatalogFacetAxis; 9] = [
@@ -441,7 +444,21 @@ impl SegmentedMemoryReader {
         Ok(Self {
             vault,
             system,
+            scope: SystemReadScope::CurrentPolicy,
             unlocked: RwLock::new(true),
+        })
+    }
+    /// ADR-MEM-153: Morii's own native reader. Same System identity check, but
+    /// reads are not limited to formation policies that are still in their
+    /// window. Deletion, withdrawal, forget barriers and the caller's
+    /// sensitivity ceiling still apply. Never for Agent, MCP or remote use.
+    pub fn from_authenticated_system_full_history(
+        vault: Arc<SegmentedAutomationVault>,
+        system: ActorRef,
+    ) -> ApplicationResult<Self> {
+        Ok(Self {
+            scope: SystemReadScope::MoriiFullHistory,
+            ..Self::from_authenticated_system(vault, system)?
         })
     }
     pub fn lock(&self) -> ApplicationResult<()> {
@@ -479,7 +496,7 @@ impl SegmentedMemoryReader {
             return Err(invalid());
         }
         self.vault
-            .read(&self.system, request.options.max_sensitivity, f)?
+            .read_scoped(&self.system, request.options.max_sensitivity, self.scope, f)?
     }
     /// ADR-MEM-152: the Agent recall selection, trace and rendering for the
     /// native System reader. Read-only: no Capsule, stored context or Agent
@@ -497,21 +514,22 @@ impl SegmentedMemoryReader {
         if !profile.validate().is_empty() || !query.valid(profile) {
             return Err(invalid());
         }
-        self.vault.read(&self.system, max_sensitivity, |data| {
-            let p = super::segmented_agent::recall_preview(&data, profile, query)?;
-            let value = serde_json::json!({
-                "effect": MemoryReadEffect::NativeRead,
-                "trace": p.trace,
-                "trace_coverage": p.trace_coverage,
-                "rendered_context": p.rendered_context,
-                "items": p.items,
-                "complete_in_scope": p.complete_in_scope,
-            });
-            if bytes(&value)? > MAX_DOCUMENT_BYTES {
-                return Err(invalid());
-            }
-            Ok(value)
-        })?
+        self.vault
+            .read_scoped(&self.system, max_sensitivity, self.scope, |data| {
+                let p = super::segmented_agent::recall_preview(&data, profile, query)?;
+                let value = serde_json::json!({
+                    "effect": MemoryReadEffect::NativeRead,
+                    "trace": p.trace,
+                    "trace_coverage": p.trace_coverage,
+                    "rendered_context": p.rendered_context,
+                    "items": p.items,
+                    "complete_in_scope": p.complete_in_scope,
+                });
+                if bytes(&value)? > MAX_DOCUMENT_BYTES {
+                    return Err(invalid());
+                }
+                Ok(value)
+            })?
     }
     pub fn memory_page_native(
         &self,
