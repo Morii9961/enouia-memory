@@ -202,28 +202,33 @@ impl State {
         max: Sensitivity,
         now: Timestamp,
     ) -> Result<AuthorizedSegmentedRead<'a>> {
-        self.authorized_for(descriptor, max, now, None)
+        self.authorized_for(descriptor, max, now, ReadBasis::Current)
     }
     pub(super) fn authorized_for<'a>(
         &'a self,
         descriptor: &'a AutomationDescriptor,
         max: Sensitivity,
         now: Timestamp,
-        grant: Option<&OwnerReadGrant>,
+        basis: ReadBasis<'_>,
     ) -> Result<AuthorizedSegmentedRead<'a>> {
         if self.head.as_ref().is_none_or(|h| now < h.created_at) {
             return Err(AutomationFault::Denied);
         }
-        let policy_list: Vec<_> = if let Some(g) = grant {
-            g.policies
+        let policy_list: Vec<_> = match basis {
+            ReadBasis::Grant(g) => g
+                .policies
                 .iter()
                 .filter_map(|r| self.policy_history.get(&r.hash))
-                .collect()
-        } else {
-            self.policies
+                .collect(),
+            // ADR-MEM-153: Morii's own native read is not bounded by formation
+            // windows; every policy revision ever committed still bounds which
+            // sources, subjects and sensitivities a memory may show.
+            ReadBasis::FullHistory => self.policy_history.values().collect(),
+            ReadBasis::Current => self
+                .policies
                 .values()
                 .filter(|p| p.active && now >= p.valid_from && now < p.valid_until)
-                .collect()
+                .collect(),
         };
         let policies: BTreeMap<_, _> = policy_list
             .into_iter()
@@ -449,7 +454,7 @@ impl State {
             }
         }
         let mut data = AuthorizedSegmentedRead {
-            independent_read: grant.is_some(),
+            independent_read: !matches!(basis, ReadBasis::Current),
             owner_actions: Vec::new(),
             entity_redirects: BTreeMap::new(),
             entity_proofs: BTreeMap::new(),

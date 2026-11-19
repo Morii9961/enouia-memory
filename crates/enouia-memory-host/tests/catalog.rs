@@ -125,6 +125,76 @@ fn paging_counts_byte_pressure_lock_and_all_cursor_bindings_are_native() {
     v.set_policy(&e.descriptor.created_by, revoked).unwrap();
     assert_eq!(all(&r, &req).1, 116);
 }
+#[test]
+fn morii_full_history_reader_keeps_reading_after_formation_windows_end() {
+    let e = Env::new();
+    let v = Arc::new(e.create(Faults::none()));
+    let receipts = e.populate(&v, 12);
+    let p = profile();
+    let filter = CatalogFilter::default();
+    let current = reader(&e, v.clone());
+    let full = SegmentedMemoryReader::from_authenticated_system_full_history(
+        v.clone(),
+        e.descriptor.system_actor.clone(),
+    )
+    .unwrap();
+    let private = request(&p, &filter, Sensitivity::Private);
+    assert_eq!(all(&current, &private).1, 12);
+    assert_eq!(all(&full, &private).1, 12);
+    v.delete(
+        &e.descriptor.created_by,
+        vec![],
+        vec![receipts[0].result.memory_id.clone()],
+    )
+    .unwrap();
+    // Every fixture formation policy ends at 2026-10-25T00:00Z.
+    e.clock.set(NOW + 86_400_000);
+    assert_eq!(all(&current, &private).1, 0);
+    let (ids, total, _) = all(&full, &private);
+    assert_eq!(total, 11);
+    assert!(!ids.contains(&receipts[0].result.memory_id));
+    let public = request(&p, &filter, Sensitivity::Public);
+    assert_eq!(
+        all(&full, &public).1,
+        (2..=12).filter(|n| n % 7 != 0).count() as u64
+    );
+    assert_eq!(
+        full.memory_stats_native(&private, None)
+            .unwrap()
+            .matched_in_scope,
+        11
+    );
+    let activity = full
+        .memory_activity_feed_native(
+            &private,
+            &ActivityQuery {
+                memory: None,
+                event_kind: None,
+                include_sources: false,
+            },
+            None,
+        )
+        .unwrap();
+    assert!(activity.matched_in_scope > 0);
+    let query = RecallQuery {
+        text: "moonlight".into(),
+        conditions: vec![],
+        event_window: None,
+        at: Timestamp::from_unix_ms(NOW + 86_400_000).unwrap(),
+        intent: RecallIntent::Current,
+        limit: 8,
+        max_bytes: 16_384,
+    };
+    let recall = full
+        .recall_preview_native(&p, &query, Sensitivity::Private)
+        .unwrap();
+    assert_eq!(recall["trace"]["considered"], 11);
+    full.lock().unwrap();
+    assert!(matches!(
+        full.memory_page_native(&private, None),
+        Err(ApplicationFault::Locked)
+    ));
+}
 fn commit(e: &Env, v: &SegmentedAutomationVault, input: AdmissionInput) -> MemoryReceipt {
     let request = v.prepare(&e.descriptor.system_actor, input).unwrap();
     let response =

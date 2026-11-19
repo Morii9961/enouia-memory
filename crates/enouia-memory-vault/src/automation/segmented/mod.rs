@@ -51,6 +51,29 @@ pub struct AuthorizedOwnerAction<'a> {
     pub record: &'a OwnerActionRecord,
     pub effects: &'a OwnerActionEffects,
 }
+/// Which policies authorize a native System read (ADR-MEM-153).
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum SystemReadScope {
+    /// Only currently active formation policies inside their window.
+    CurrentPolicy,
+    /// Morii's own native read: every committed policy revision, regardless of
+    /// formation windows. Deletion, withdrawal and sensitivity still apply.
+    MoriiFullHistory,
+}
+#[derive(Clone, Copy)]
+pub(super) enum ReadBasis<'a> {
+    Current,
+    Grant(&'a OwnerReadGrant),
+    FullHistory,
+}
+impl From<SystemReadScope> for ReadBasis<'_> {
+    fn from(scope: SystemReadScope) -> Self {
+        match scope {
+            SystemReadScope::CurrentPolicy => ReadBasis::Current,
+            SystemReadScope::MoriiFullHistory => ReadBasis::FullHistory,
+        }
+    }
+}
 pub struct AuthorizedSegmentedRead<'a> {
     pub(super) independent_read: bool,
     pub owner_actions: Vec<AuthorizedOwnerAction<'a>>,
@@ -700,6 +723,15 @@ impl SegmentedAutomationVault {
         max: Sensitivity,
         f: impl FnOnce(AuthorizedSegmentedRead<'_>) -> T,
     ) -> Result<T> {
+        self.read_scoped(system, max, SystemReadScope::CurrentPolicy, f)
+    }
+    pub fn read_scoped<T>(
+        &self,
+        system: &ActorRef,
+        max: Sensitivity,
+        scope: SystemReadScope,
+        f: impl FnOnce(AuthorizedSegmentedRead<'_>) -> T,
+    ) -> Result<T> {
         self.native.system(system)?;
         let _writer = lock::acquire(&self.native.root, Duration::ZERO)?;
         let state = self
@@ -707,10 +739,11 @@ impl SegmentedAutomationVault {
             .lock()
             .map_err(|_| AutomationFault::Unavailable)?;
         self.current(&state)?;
-        Ok(f(state.authorized(
+        Ok(f(state.authorized_for(
             &self.native.descriptor,
             max,
             self.native.now()?,
+            scope.into(),
         )?))
     }
 }
