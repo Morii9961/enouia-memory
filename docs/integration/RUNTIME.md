@@ -1,5 +1,17 @@
 # Runtime integration (ADR-MEM-45)
 
+2026-11-19 storage change (owner decision): the real Vault's only same-disk
+export and restored copy, the old v1 library and its original archive were
+permanently deleted, so the Vault currently has no backup. The Vault stays in
+its original Owner data home. The owner wants one data home in future, but the
+native bootstrap registration binds the home's canonical path, account,
+operation and descriptor hash. `registered_owner_root` therefore refuses a moved
+or renamed home, and there is no relocation or re-registration route for
+Runtime's registered read-only entry yet. That needs a separate, authorized
+Memory slice. Runtime should keep opening the original home and must not move it
+or edit its registration. A new native export requires stopping every instance
+that has the Vault open. No surface or pin change.
+
 2026-11-19 Windows long-path durable rename (#120, merged as `368634b`): on
 Windows, a Workspace commit could fail with `StorageFailed / NotFound` before
 publishing `CURRENT` when a temporary sibling path reached 260 UTF-16 units.
