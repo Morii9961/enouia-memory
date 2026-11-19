@@ -894,3 +894,19 @@ with the first batch committed and the second policy already published.
 segmented recall with the same selection, trace, coverage and rendering as Agent
 recall, through one shared function. It writes no Capsule or stored context and
 needs no Agent enrollment. Runtime adopts it by moving the pin.
+
+### ADR-MEM-153 — Morii's own native reads are not limited by formation windows
+
+[Decision](153-morii-full-history-native-read.md): Morii decided he must always be
+able to read his whole Vault. A new `MoriiFullHistory` System read scope, chosen by
+`SegmentedMemoryReader::from_authenticated_system_full_history`, authorizes against
+every committed policy revision. Deletion, withdrawal, forget barriers and the
+sensitivity ceiling still apply. Agent, MCP, remote and grant reads are unchanged.
+
+### ADR-MEM-154 — Relocate a registered data home on the same machine
+
+[Decision](154-relocate-registered-home.md): after Morii moves the whole data home,
+the trusted native `relocate` command rebinds only the registration's recorded
+path. It checks the account, operation, recorded old path and Vault descriptor,
+and requires that nothing remains at the old path. The registration format is
+unchanged, so earlier readers can open the relocated home.
