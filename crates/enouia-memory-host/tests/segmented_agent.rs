@@ -533,6 +533,85 @@ fn native_catalog_scope_pagination_fields_trace_lifecycle_and_business_bytes() {
 }
 
 #[test]
+fn system_recall_preview_matches_agent_recall_without_context_or_writes() {
+    use enouia_memory_host::automation::catalog::SegmentedMemoryReader;
+    let e = Env::new();
+    let vault = Arc::new(e.create(Faults::none()));
+    e.populate(&vault, 40);
+    let system = SegmentedMemoryReader::from_authenticated_system(
+        vault.clone(),
+        e.descriptor.system_actor.clone(),
+    )
+    .unwrap();
+    let host = SegmentedAgentHost::from_authenticated_owner(vault, e.descriptor.created_by.clone())
+        .unwrap();
+    let reader = host
+        .reader(&e.descriptor.created_by, agent(), scope(&e, 40, true))
+        .unwrap();
+    let p = profile();
+    let before = bytes(e.root.path());
+    for (text, intent, limit, max_bytes) in [
+        ("moonlight", RecallIntent::Current, 8, 16_384),
+        ("合成", RecallIntent::Current, 3, 4096),
+        ("", RecallIntent::Browse, 8, 16_384),
+    ] {
+        let query = RecallQuery {
+            text: text.into(),
+            conditions: vec![],
+            event_window: None,
+            at: Timestamp::from_unix_ms(NOW).unwrap(),
+            intent,
+            limit,
+            max_bytes,
+        };
+        let request = RequestId::parse(&id("req", 31)).unwrap();
+        let agent = reader.recall(&p, &query, request).unwrap();
+        let preview = system
+            .recall_preview_native(&p, &query, Sensitivity::Private)
+            .unwrap();
+        for key in [
+            "trace",
+            "trace_coverage",
+            "rendered_context",
+            "items",
+            "complete_in_scope",
+        ] {
+            assert_eq!(preview[key], agent[key], "{text}: {key}");
+        }
+        assert_eq!(preview["effect"], "native_read");
+        assert!(preview.get("request_id").is_none() && preview.get("scope_hash").is_none());
+        assert_eq!(preview["trace"]["considered"], 40);
+    }
+    assert_eq!(bytes(e.root.path()), before);
+    let bad = RecallQuery {
+        text: "moonlight".into(),
+        conditions: vec![],
+        event_window: None,
+        at: Timestamp::from_unix_ms(NOW).unwrap(),
+        intent: RecallIntent::Current,
+        limit: 0,
+        max_bytes: 16_384,
+    };
+    assert!(
+        system
+            .recall_preview_native(&p, &bad, Sensitivity::Private)
+            .is_err()
+    );
+    let good = RecallQuery { limit: 8, ..bad };
+    system.lock().unwrap();
+    assert!(
+        system
+            .recall_preview_native(&p, &good, Sensitivity::Private)
+            .is_err()
+    );
+    system.unlock(&e.descriptor.system_actor).unwrap();
+    assert!(
+        system
+            .recall_preview_native(&p, &good, Sensitivity::Private)
+            .is_ok()
+    );
+}
+#[test]
 fn all_five_catalog_tools_use_real_pipe_and_independent_agent_with_valid_schemas() {
     let e = Env::new();
     let vault = Arc::new(e.create(Faults::none()));

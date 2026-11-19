@@ -887,3 +887,10 @@ The mutable journal and each plan object keep their existing 16 MiB bounds.
 source identity for an original locator cited across plans. The separate
 trusted reconciliation command accepts only the stopped compact run shape
 with the first batch committed and the second policy already published.
+
+### ADR-MEM-152 — Native System recall preview
+
+[Decision](152-system-recall-preview.md): the native System reader can preview
+segmented recall with the same selection, trace, coverage and rendering as Agent
+recall, through one shared function. It writes no Capsule or stored context and
+needs no Agent enrollment. Runtime adopts it by moving the pin.
