@@ -35,7 +35,7 @@ synthetic roots/owned processes only:
   permission refusal (target/mcp-read-enum-v2-pipe-tests.log).
 - Actual v2 all-five-tools success/trace/no-reinforcement case: 1 passed,
   0 failed (target/mcp-read-enum-v2-success-tests.log). Only the two named
-  automatic_loop cases ran; no NativeMemoryOwner test or real model was invoked.
+  automatic_loop cases ran; no `NativeMemoryOwner` test or real model was invoked.
 - Runtime surface tests: 4 passed, 0 failed
   (target/mcp-read-enum-surface-tests.log).
 - Python jsonschema 4.26.0: 76 schemas OK, including agent_read_documents=18 and
@@ -53,7 +53,7 @@ Continue checking the same control fields in the adjacent catalog/qualified
 adapters before treating this class as closed. No domain-wide enum rewrite,
 new runtime validator or speculative authority mechanism is supplied. All
 existing capture/evidence/unknown-result/private-data/Runtime boundaries remain;
-targeted synthetic evidence does not prove real adoption or owner acceptance.
+targeted synthetic evidence does not prove real adoption or Morii acceptance.
 
 ## Catalog / qualified follow-up (2026-11-06)
 
@@ -82,7 +82,7 @@ Checks actually completed:
   denied. Runtime surface tests: 4 passed, 0 failed
   (target/mcp-read-enum-adjacent-clippy.log,
   target/mcp-read-enum-adjacent-surface.log). Formatting/surface/public checks
-  passed. No full workspace or NativeMemoryOwner test was run.
+  passed. No full workspace or `NativeMemoryOwner` test was run.
 
 The initial attempt to run Clippy/surface tests was not executed because the
 automatic approval review hit the usage limit; it was not judged unsafe. After
@@ -94,7 +94,7 @@ Current integration aggregate:
 2c856f8deb96d9dd8bafc68ee4a8f97bd6e66f2e28808aa11cb56af768a38520.
 This closes the adapter-owned operation/intent representation gap in the four
 read adapters. It does not claim domain-wide enum/schema equivalence, real
-client use, Runtime adoption, private-root validation or owner acceptance.
+client use, Runtime adoption, private-root validation or Morii acceptance.
 
 ## Catalog filter string enums (2026-11-06)
 
@@ -135,7 +135,7 @@ Checks actually run on this correction:
 
 Current integration aggregate:
 ecc8332a5025d9b87b776d2bdb2e85400efdd49e5fe8bb3032509c9a2452a455.
-No full workspace, NativeMemoryOwner, actual model/Provider, private root or
+No full workspace, `NativeMemoryOwner`, actual model/Provider, private root or
 Runtime product/config/pin was used. No new stage, capture or mandatory queue.
 
 ## Search cursor algorithm (2026-11-07)
@@ -168,7 +168,7 @@ Checks actually run on this correction:
   mcp-cursor-enum-surface.log).
 
 Current integration aggregate: 807719f48e232d5b758296562ada3c010deac4635a84856695d88905b1233f1e.
-No full workspace, NativeMemoryOwner, model/Provider, private root or Runtime
+No full workspace, `NativeMemoryOwner`, model/Provider, private root or Runtime
 product/config/pin was used. Domain-wide enum rewriting is still not claimed.
 
 ## MCP-2 search filter enums (2026-11-07)

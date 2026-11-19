@@ -2,7 +2,7 @@
 
 2026-11-03. [ADR-MEM-115](../adr/115-native-agent-note-drafts.md).
 
-Native capability `memory-agent-note-native-1`, Owner segmented roots only.
+Native capability `memory-agent-note-native-1`, Morii segmented roots only.
 QualifiedAgentHost must explicitly adopt the initialized carrier profile.
 
 ```text
@@ -23,7 +23,7 @@ note. note_key is digest of (capability, vault ID, Agent principal, request ID).
 request_hash covers the entire request. The locator handles normalization, and
 QuotedEvidence::resolves still verifies the original quote/scalar span and actual
 speaker/class. Drafts are untrusted Agent hints, not independent evidence or
-Owner confirmations. They grant no right to commit a prepared draft later.
+Morii confirmations. They grant no right to commit a prepared draft later.
 
 Every prepare checks the current source/policy/deletion state and live native
 delegation. Revoke, lock, unlock generation replacement, policy revision change,

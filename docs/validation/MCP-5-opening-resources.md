@@ -13,7 +13,7 @@ tools, one bounded memory_start prompt, static guide and memory/recall templates
 Every projection uses the same qualified native reader. No write permit, source
 text resource, model call, capture or durable context publication. Same-reader
 actual last recall only; stale context refuses instead of reranking. Prompt
-role=user explicitly does not authenticate Runtime evidence or Owner consent.
+role=user explicitly does not authenticate Runtime evidence or Morii consent.
 
 Native read metadata polling now checks the instance's recovery latch. The new
 context poll additionally checks current delegated policy versions; pipe-5 keeps
@@ -64,7 +64,7 @@ restores that behavior. All final targeted runs above passed.
 No full workspace rerun was warranted for this localized read/profile change;
 neither 913 at f42f3b1 nor the earlier 948 run is evidence for this source tree.
 No real model/Provider/embedding, private Vault, external capture hook, Runtime
-repository/pin/Activity, real client configuration or Owner acceptance was used.
+repository/pin/Activity, real client configuration or Morii acceptance was used.
 No forget-hide, manual status snapshot, deployment, migration or main merge.
 No promise of automatic Agent prompt use, real recall quality or product adoption.
 The draft depends on unmerged MCP-4 PR #84; merge requires Morii's separate order.
@@ -79,7 +79,7 @@ successful real MemoryRead-only pipe, and rejection of ContextRead as an alias
 for this profile's native enrollment. A seven-memory synthetic set proves the
 four-item bound, a one-item attention ceiling, and an empty/incomplete result
 when the rendered budget is one byte. All leave snapshot, capture jobs and
-Owner actions unchanged; budget exclusion creates no mandatory work queue.
+Morii actions unchanged; budget exclusion creates no mandatory work queue.
 
 opening_mcp **7 passed**, opening_pipe **6 passed**, **13 total / 0 failed**;
 target/mcp5-opening-acceptance-tests.log. The two added tests and strengthened
@@ -93,12 +93,12 @@ passed. The follow-up public-content scan is checked before push.
 On a new synthetic root, use the actual Runtime-captured UserStatement to form
 an ordinary System memory with the existing evaluator. Separately save an
 optional AgentNote, correction report, supersede report and request-only forget,
-all carrying an explicit untrusted Agent marker claiming Owner consent/hiding.
+all carrying an explicit untrusted Agent marker claiming Morii consent/hiding.
 No worker/analyzer/Provider is started. The opening still returns exactly the
 two canonical memories including the actual captured user words, with no Agent
 marker in prompt content/evidence or memory resource. The requested target is
 still present and unchanged. Reading publishes nothing, queues no capture job
-and creates no Owner action. This proves optional reports do not block opening
+and creates no Morii action. This proves optional reports do not block opening
 or get promoted to evidence; it does not test model interpretation quality.
 The same Agent/Host's four independently authorized valid write packets, both
 under their real tool names and disguised as memory_read, all refuse on the

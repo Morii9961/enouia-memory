@@ -14,7 +14,7 @@ authorized bounded pages/details, exact snapshot/cursor binding, machine identit
 knowledge/adoption, conditions, occurrence/event/valid/learned/source time,
 attention, original support/context, actual witnessed receipts and exact local
 lineage. Filter before counts, source text, history or edges. Do not infer global
-timeline/graph completeness or expose hidden endpoints. Legacy Owner records
+timeline/graph completeness or expose hidden endpoints. Legacy Morii records
 remain on their existing APIs and are not reinterpreted as machine formation.
 
 Separate pure synthetic recall simulation from native read-only computation by
@@ -23,6 +23,6 @@ Only actual native reads carry witnessed memory receipts; synthetic data confers
 no authority. No new IPC/MCP tool, Runtime pin, shared shell or default route.
 
 Provide Memory-region mount/data semantics, not a replacement Runtime App/router.
-Saved experiment, full timeline/graph, vectors and legacy owner-history projection
+Saved experiment, full timeline/graph, vectors and legacy Morii-history projection
 are unavailable capabilities. See [contract](../contracts/CORE7_READ_MODEL.md)
 and [evidence](../validation/CORE7-read-model.md).

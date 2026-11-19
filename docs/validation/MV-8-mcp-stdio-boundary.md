@@ -2,7 +2,7 @@
 
 Date: 2026-10-23 (Asia/Shanghai). Source baseline
 `6c2b9999a7d978e8eba7fb06149eb8a202a60e20`; branch
-`codex/mv8-mcp-boundary`. The owner continued the explicit MV-8.2 local synthetic
+`codex/mv8-mcp-boundary`. Morii continued the explicit MV-8.2 local synthetic
 proposal. [ADR-MEM-80](../adr/080-restricted-mcp-stdio-boundary.md) freezes this
 slice before implementation. No Computer Use or product UI work is performed.
 
@@ -27,7 +27,7 @@ schemas bundle common definitions and need no external schema fetch. The legacy
 memory_update alias is callable but not advertised; its existing revise/
 supersede-only validation still applies. Success is constrained to existing
 response kinds: memory proposals stay pending/duplicate and checkpoints remain
-provisional. No owner review, identity, delete, import, Provider send, native
+provisional. No Morii review, identity, delete, import, Provider send, native
 unlock or arbitrary Workspace operation is exposed.
 
 Native embedding code supplies a non-serialized Agent principal and a ceiling
@@ -46,13 +46,13 @@ adapter never chooses new keys, reconnects, replays or logs payloads.
 The explicit `mcp_synthetic_stdio --synthetic` example has **no Vault or Host
 binding**. Its tools report backend_unavailable instead of fabricating durable
 success. It is a protocol fixture, not a deployable Memory MCP server. This
-slice does not map the current owner/window Host session to an Agent identity.
+slice does not map the current Morii/window Host session to an Agent identity.
 
 ## Actual verification
 
 | Check | Result |
 | --- | --- |
-| Eight new MCP boundary tests | Passed; fake-port contract calls, native principal/keys, scope isolation, owner/operation refusal, unknown reply, revocation, raw framing, stdout failure and request limits |
+| Eight new MCP boundary tests | Passed; fake-port contract calls, native principal/keys, scope isolation, Morii/operation refusal, unknown reply, revocation, raw framing, stdout failure and request limits |
 | `cargo test -p enouia-memory-host --locked -- --test-threads=4` | 35 passed, zero failures; existing native service/session/kernel/process transport cases retained; doctests zero |
 | `cargo clippy -p enouia-memory-host --all-targets --locked -- -D warnings` | Passed with dependency closure |
 | `cargo fmt --all -- --check` | Passed |
@@ -80,9 +80,9 @@ commits, policy grants, quality, private-data access or a registered MCP client.
 
 The transport boundary and synthetic port are implemented. **Authenticated
 scoped Host/domain binding is not implemented**, and neither are real-client
-enrollment/compatibility or owner daily use. The next MV-8.2 slice must provide
+enrollment/compatibility or Morii daily use. The next MV-8.2 slice must provide
 an actual per-record-policy-enforcing AgentPort over the unique Host; it cannot
-obtain access by relabeling the owner Workspace. Current owner native pipe
+obtain access by relabeling Morii Workspace. Current Morii native pipe
 framing/compatibility and Runtime's embedded path remain unchanged.
 
 The Runtime integration surface now also records the existing Agent IPC schema,

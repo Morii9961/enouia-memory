@@ -23,7 +23,7 @@ Provider/Runtime 树、借阅设计/研究文档、AGENTS 或手动项目状态�
 
 [ADR-MEM-88](../adr/088-continuous-generation-policy.md)与
 [正式契约](../contracts/CORE4_CONTINUOUS_POLICY.md)冻结独立持续外发策略。
-Owner 只做有范围的 native 策略设置，之后 System 分析不需要逐请求点击。
+Morii 只做有范围的 native 策略设置，之后 System 分析不需要逐请求点击。
 目的固定为 AdmissionInput 记忆分析；目的地 API/model/adapter、Vault、
 准入策略 revision/hash、主体/项目、来源、producer、敏感上限、时限、
 token/cost 单次与总额均须匹配。高度敏感拒绝，无凭据字段。

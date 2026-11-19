@@ -1,6 +1,6 @@
 # MV-2 — History import and rescue (synthetic)
 
-Date: 2026-09-29. Scope: MV-2 ([plan §6](../design/IMPLEMENTATION_PLAN.md), [IMPORT_REVIEW](../design/IMPORT_REVIEW.md)), authorized by the owner after MV-1. Start: `317e9da`. No real export was designated, so every input is synthetic; no real chat, account, sync folder, or data root was read or created, and nothing was downloaded. MV-3 has not started.
+Date: 2026-09-29. Scope: MV-2 ([plan §6](../design/IMPLEMENTATION_PLAN.md), [IMPORT_REVIEW](../design/IMPORT_REVIEW.md)), authorized by Morii after MV-1. Start: `317e9da`. No real export was designated, so every input is synthetic; no real chat, account, sync folder, or data root was read or created, and nothing was downloaded. MV-3 has not started.
 
 ## 1. What exists now
 
@@ -24,7 +24,7 @@ Imports produce sources only. Nothing extracts, summarizes, proposes memories, c
 | I04 attachments | Passed | `import.rs::i04_*`: a file in the ZIP is stored as an asset with verified hash and sniffed type; a missing file is `missing`; a URL is kept as text (`external_reference`), never requested; an executable member is quarantined and not stored |
 | I05 unknown / huge / malformed | Passed | `import.rs::i05_*`: garbage, truncated ZIP, ZIP64, and overlapping members are archived and reported `partial`; unsafe (`../`) names, symlinks, encrypted members, CRC mismatches, and a 64 MiB compression-ratio bomb (under 1 MiB compressed) are quarantined member by member while the rest imports; nothing is written outside the Vault; existing data verifies clean |
 | I06 cancel / crash, then resume | Passed | `import.rs::i06_*`: cancel after one batch leaves `parsing` with cursor 1/3; a second import of the same bytes is refused while one is unfinished; a failure injected into the next batch commit leaves it invisible; resume (with the original file deleted) reads the archived bytes and completes without duplicates; resuming a completed import does nothing |
-| I07 real export drill | **Pending** | Needs an export chosen by the owner, and first the backup gate (restic, media, off-device secret) |
+| I07 real export drill | **Pending** | Needs an export chosen by Morii, and first the backup gate (restic, media, off-device secret) |
 | MV-2.4 reconciliation and restore | Passed | `reconcile.rs`: counts close for created, revised, duplicate, and unsupported imports; after a pinned export, deletion of the original root, and restore elsewhere, every imported source still resolves and the received ZIP returns byte for byte |
 
 The adapters were written without a real ChatGPT export. They rely only on the widely documented `mapping` shape and ignore everything else (the raw bytes keep it). Compatibility with real exports is **not** claimed until I07.
@@ -80,6 +80,6 @@ Not activated: no default data root, scheduled task, model, network access, MCP,
 
 ## 8. Before MV-3, and before any real import
 
-1. Owner authorization for MV-3 (Canonical memories, candidates, review).
-2. For a real import (I07): choose the export, install a pinned restic, choose backup media, keep the secret off this device, run the restore drill, choose the real data root and apply the owner-only ACL.
+1. Morii authorization for MV-3 (Canonical memories, candidates, review).
+2. For a real import (I07): choose the export, install a pinned restic, choose backup media, keep the secret off this device, run the restore drill, choose the real data root and apply the current-user-only ACL.
 3. Decide whether the segmented catalog (ADR-MEM-37 trigger, now crossed) is done before MV-3 or as its first work package.

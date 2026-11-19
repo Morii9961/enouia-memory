@@ -7,7 +7,7 @@ The existing provider helper and its comparison algorithm are unchanged.
 The new page command resolves explicit task/batch selections natively and
 preserves source coverage plus separate original and current candidate details.
 No mutation, Provider configuration, request or automatic current-truth selection
-is needed for comparison. A changed pin or disabled native owner state refuses
+is needed for comparison. A changed pin or disabled native Morii state refuses
 the read; errors retain safe codes/rule identifiers. Output is bounded and never
 silently truncated.
 
@@ -19,7 +19,7 @@ Focused evidence:
   batches are produced only through fake ports, then the native Provider is
   removed. Reads preserve head and empty Canonical; each entry matches its
   saved batch's source text, quote, time, evidence and response hash. An explicit
-  local application followed by a synthetic owner revision keeps the original
+  local application followed by a synthetic Morii revision keeps the original
   statement/topic separate from edited candidate content/details and pending
   status. Reopen returns the same view. Unselected batch, revoked source-read
   policy and locked Vault are refused. Fake port counters stay at one secret
@@ -33,7 +33,7 @@ Focused evidence:
 Existing ADR-MEM-51 synthetic evidence remains evidence for unchanged topic,
 branch, unknown-time, non-user-evidence, reviewed/withdrawn and limit semantics.
 It is not represented as freshly rerun. The new native scenario does not prove
-real model quality, owner acceptance, broad scale or physical UI behavior.
+real model quality, Morii acceptance, broad scale or physical UI behavior.
 No full Rust workspace, frontend, package, smoke or performance rerun is required
 for this local wire adapter. Host/MCP/cloud activation, personal sources,
 credentials and manual project-status snapshots are outside this delivery.

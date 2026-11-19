@@ -69,7 +69,7 @@ Node 新回归只替换最小 hook 状态端口和 invoke，运行生产 hook/AP
 
 首次收口时未核实可用的原生控制接口，将其表述为“工具没有原生 Windows 窗口/托盘控制能力”不准确。之后确认了 Computer Use 接口并仅观察了无参数 embedded 窗口，随即被 Morii 停止；以后不再使用它。首次产物盘点只有 Host exe、CLI exe、参考壳测试程序和单独的前端 dist，尚无可运行参考壳；匹配程序后来已按准备记录产出。这些历史状态不构成 Runtime 产品接入缺口。
 
-开始人工验收前，准备同一固定工程版本的 Host 和 reference shell（连同本轮小修），并记录构建来源。兼容摘要或文件时间不能证明程序相同。使用独立本机固定磁盘临时目录的**已初始化合成 Host v2 根 A**，另备独立根 B；从对应合成 fixture 记录取得 `dev_...` / `vlt_...`，禁止猜 ID、复制私人 Vault 或读取私人日志。已有 reference-backend 测试会自动清理根，不能把它运行结束后的临时路径当可用 fixture。若没有合成 v2 fixture，先停在此前置，不让页面或普通 CLI init 冒充 Host bootstrap；可信准备步骤可参照 `native_host.rs` 的 `explicit_reference_backend_runs_its_own_synthetic_host_child`：`Vault::create` → owner ACL → `HostCoordinator::bootstrap` → 记录 IDs → 释放准备者句柄。此准备不能用于真实根迁主。
+开始人工验收前，准备同一固定工程版本的 Host 和 reference shell（连同本轮小修），并记录构建来源。兼容摘要或文件时间不能证明程序相同。使用独立本机固定磁盘临时目录的**已初始化合成 Host v2 根 A**，另备独立根 B；从对应合成 fixture 记录取得 `dev_...` / `vlt_...`，禁止猜 ID、复制私人 Vault 或读取私人日志。已有 reference-backend 测试会自动清理根，不能把它运行结束后的临时路径当可用 fixture。若没有合成 v2 fixture，先停在此前置，不让页面或普通 CLI init 冒充 Host bootstrap；可信准备步骤可参照 `native_host.rs` 的 `explicit_reference_backend_runs_its_own_synthetic_host_child`：`Vault::create` → Morii ACL → `HostCoordinator::bootstrap` → 记录 IDs → 释放准备者句柄。此准备不能用于真实根迁主。
 
 设置四个变量为上述已确认的绝对路径/合成 ID，再从交互式 PowerShell 显式启动（值不写入公共报告）：
 

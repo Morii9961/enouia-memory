@@ -6,7 +6,7 @@ the initialization chat, then allowed the minimal shared-source integration.
 
 ## Decision
 
-Use ADR-MEM-93 record fields and ADR-MEM-103's new Owner segmented synthetic root
+Use ADR-MEM-93 record fields and ADR-MEM-103's new Morii segmented synthetic root
 (updated 2026-10-29 from the original ADR-MEM-94 pilot).
 Reuse native policy, evaluation, revisions, witnessed application, deletion and
 the ADR-MEM-100/101 readers. No existing root is upgraded. The initializer is a
@@ -18,15 +18,15 @@ Preserve selected original bytes under the existing content-addressed Raw
 layout. Parsing and preflight are pure. Parse warnings and unknown language,
 time, author and parent remain explicit. Preserve conversation/message identity,
 parent branches, assistant model, source timezone, Runtime event metadata and
-bucket annotations. Bucket text is agent material, never owner evidence.
+bucket annotations. Bucket text is agent material, never Morii evidence.
 
 The ordinary runtime capture entry still accepts only complete runtime events
 and cannot create UserConfirmation. A separate native `capture_import` accepts
 imports and agent submissions from the trusted native parser, verifies object
-hash closure, and rechecks legacy owner evidence against the complete selected
+hash closure, and rechecks legacy Morii evidence against the complete selected
 v1 RecordSet, exact content hash and Review association. Tombstoned memories and
 their supporting/context dependencies are excluded. Original Review bytes are
-retained; no new owner action, manual assertion or confirmation receipt is made.
+retained; no new Morii action, manual assertion or confirmation receipt is made.
 Inherited review metadata without an exact text witness remains a model claim.
 Deduplication retains metadata changes: a repeated text with newly supplied
 model/timezone/attachments is a preflight reconciliation conflict, not a silent
@@ -55,10 +55,10 @@ the actual outcome at publication.
 Only a new empty `automation-segmented-owner-v1` root with explicit
 `owner_subject_id` is accepted. Native genesis witnesses `digest(descriptor)`;
 the initializer's separate `initialization-owner-1` journal binds that digest
-and refuses a changed attributed owner. There is no old-root header upgrade or
-subject rebinding. Owner catalog selection uses v4 and process headers use v2.
+and refuses a changed attributed Morii. There is no old-root header upgrade or
+subject rebinding. Morii catalog selection uses v4 and process headers use v2.
 
-All import-specific native entries independently require the Owner layout:
+All import-specific native entries independently require Morii layout:
 `capture_import`, `capture_legacy_import`, `archive_import_objects` and
 `lookup_import_receipt`. They refuse old descriptors before authentication,
 object archiving, locking or record access; the initializer guard alone is not
@@ -69,7 +69,7 @@ Explicit native-selected `OwnerProvided` input is an ordinary user-statement
 source in normal formation, not a pending-review queue or a G08 correction.
 An optional original quote is preserved separately with its original speaker
 and evidence class. JSON consent claims cannot choose this parser mode or
-create Owner confirmation. The production caller must authenticate source
+create Morii confirmation. The production caller must authenticate source
 selection independently; the synthetic parser supplies no authentication.
 
 The initialization journal is bounded, root-bound and exclusively locked. Save
@@ -99,9 +99,9 @@ binary document extraction/OCR, real legacy snapshot acquisition, semantic
 models and a production scheduler are unavailable. These are reported gaps,
 not silently inferred metadata or permission to process private files.
 
-G08 execution is supplied by the Owner dependency. One integration test applies
-an explicitly simulated native Owner protect gesture after initialization;
-ordinary initialization creates no OwnerAction or consent receipt. Already
+G08 execution is supplied by Morii dependency. One integration test applies
+an explicitly simulated native Morii protect gesture after initialization;
+ordinary initialization creates no `OwnerAction` or consent receipt. Already
 captured Runtime source revisions still need a separate queue-only API; they
 must not be recaptured as imports. Runtime screenshots
 and six-view adoption require its separate adopting slice and are unrun.

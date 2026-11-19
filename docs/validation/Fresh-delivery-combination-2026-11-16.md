@@ -16,7 +16,7 @@ real input. No product implementation was changed during this combination.
 GitHub confirmed all three open, non-draft and individually mergeable against
 their current targets. No review submissions or discussion comments existed at
 capture. PR110's tip is an ancestor of PR112's tip. Both PR112 and PR113 include
-the merged ADR146 baseline. These observations are not owner approval.
+the merged ADR146 baseline. These observations are not Morii approval.
 
 Local review branch `codex/fresh-delivery-review-20261116` combines PR112 (including
 PR110) with PR113. Tested commit:
@@ -74,7 +74,7 @@ PR113's initializer-wide tests and Clippy retain the scope of
 They were not rerun here. No full-workspace suite, schema cross-check, Linux,
 real corpus preflight, real formation or independent-media recovery ran.
 
-## Concrete owner merge sequence
+## Concrete Morii merge sequence
 
 1. Review and merge PR110 at the recorded tip.
 2. Retarget PR112 to main after PR110 merges, recheck its diff and merge at the

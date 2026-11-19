@@ -1,13 +1,13 @@
-# MCP-3 Owner Runtime wire — slice A
+# MCP-3 Morii Runtime wire — slice A
 
-2026-11-01. Base 7b6c424. ADR-MEM-113 and OWNER_RUNTIME_CAPTURE_PIPE_V2.
+2026-11-01. Base 7b6c424. ADR-MEM-113 and `OWNER_RUNTIME_CAPTURE_PIPE_V2`.
 New synthetic temporary roots and owned child processes only. No private Vault,
 real analyzer, Provider, embedding, Runtime edit or client configuration.
 
 ## Behavior and versions
 
-memory-runtime-capture-pipe-2 accepts only automation-segmented-owner-v1 and
-memory-runtime-owner-capture-native-1. Pipe-1 and all Agent profiles are unchanged.
+memory-runtime-capture-pipe-2 accepts only `automation-segmented-owner-v1` and
+`memory-runtime-owner-capture-native-1`. Pipe-1 and all Agent profiles are unchanged.
 Preflight publishes nothing and queues nothing. Write returns separate genuine
 capture and queue receipts from separate transactions. Queue success is never
 reported as memory formation. A capture/enqueue crash gap is repaired only by
@@ -22,8 +22,8 @@ Vault. The new queued projection is never persisted as a new journal state.
 
 | Input | Result |
 | --- | --- |
-| Owner native + Owner root + pipe-2 | Explicit capture/queue/own status |
-| Owner native + pipe-1 | Refused before bind/body, unchanged |
+| Morii native + Morii root + pipe-2 | Explicit capture/queue/own status |
+| Morii native + pipe-1 | Refused before bind/body, unchanged |
 | Old native or Agent capability + pipe-2 | Refused before bind/body |
 | Wrong retained kernel peer, old hello/profile | Refused before transaction |
 | Revoked/expired/dead peer | Closed; no new publication |
@@ -33,13 +33,13 @@ Vault. The new queued projection is never persisted as a new journal state.
 
 ## Actual checks
 
-Focused evidence: 10 Owner capture/status cases, 5 actual pipe-process cases and
+Focused evidence: 10 Morii capture/status cases, 5 actual pipe-process cases and
 3 pipe-2 unit cases passed after fixing the test child entry point. Tests cover
 capture/enqueue crash-gap replay, stable sources, no duplicate commit, queued
 status, worker-terminal status without a second lease, foreign/hash/policy denial,
 closed packets, wrong kernel peer, native revoke/expiry and lost response.
 
-Independent Python 3.12/jsonschema 4.26.0: 64 schemas pass, 4 new Owner wire
+Independent Python 3.12/jsonschema 4.26.0: 64 schemas pass, 4 new Morii wire
 cases plus 2 actual preflight/write exchanges and a forged receipt refusal.
 The actual status reply also passes the Rust subset schema validator.
 
@@ -52,13 +52,13 @@ Schema/validator files are unchanged since the successful independent cross-chec
 so that evidence is reused. The workspace was not repeated after these equivalent
 condition/test-import edits. Runtime surface was regenerated and checked; aggregate
 `301adcb5968ac2bbfca70d3e6952b1b921a1dd10ce194416c938eda27b0d5e0a`, Workspace IPC remains 58 commands.
-Local logs: target/mcp-segmented-validation/owner-wire-a-*.log (ignored).
+Local logs: `target/mcp-segmented-validation/owner-wire-a-`*.log (ignored).
 
 ## Failed attempts
 
 The first test run had 51 Host unit passes and one failure: the new loss test
 started pipe-1's test child, whose hello correctly failed against pipe-2. Corrected
-only the test entry point; the rerun passed. Both Owner integration targets in
+only the test entry point; the rerun passed. Both Morii integration targets in
 that first run passed. A fixture-generation command stopped on the local Python
 default encoding, then was completed in UTF-8. The first independent transcript
 check stopped on an unqualified Path name; corrected to pathlib.Path and reran
@@ -73,7 +73,7 @@ and strict Clippy passed without lint suppression.
 ## Not delivered or proven
 
 Background hosting is slice B. Real analyzer/model choice, budget and egress scope
-need the owner's separate decision. No Runtime adoption/pin/hook, private data,
+need Morii's separate decision. No Runtime adoption/pin/hook, private data,
 external Agent capture, memory_note, MCP-4/5, merge or deployment. Existing worker
 limitations (single-source context, no entity/revision publication, deleted jobs
 remaining forming, journal capacity and no old-binary rollback execution) remain.
@@ -94,8 +94,8 @@ Checks actually run on this correction:
 
 - Host lib capture transport tests: 8 passed, 0 failed, including the two new
   cases and string-mode positives (target/capture-enum-fixed.log).
-- Real pipe tests owner_runtime_capture_wire, runtime_capture_wire and
-  owner_runtime_capture: 18 + 6 + 5 passed, 0 failed (target/capture-enum-wire.log).
+- Real pipe tests `owner_runtime_capture_wire`, runtime_capture_wire and
+  `owner_runtime_capture`: 18 + 6 + 5 passed, 0 failed (target/capture-enum-wire.log).
 - Contract runtime_capture: 3 passed; independent Python jsonschema 4.26.0:
   77 schemas OK, with three new object-* rejection cases per wire corpus
   (12 and 7 wire cases; target/capture-enum-contract.log, capture-enum-schema.log).

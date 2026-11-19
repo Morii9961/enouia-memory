@@ -25,11 +25,11 @@ does not imply source text or memory read. Identity/checkpoint types, identity
 changes and deletion are refused. Proposed text is stored as AgentProposal,
 with the authenticated native Agent and actual source-derived evidence class
 and sensitivity. No source/manual assertion is invented, and Canonical records
-cannot change without a separate owner review.
+cannot change without a separate Morii review.
 
 The governance Agent entry point isolates pending dedupe by native principal;
-existing owner/Workspace global dedupe is unchanged. The regression exercises
-the old global result against an owner's pending candidate, then verifies that
+existing Morii/Workspace global dedupe is unchanged. The regression exercises
+the old global result against Morii's pending candidate, then verifies that
 the Agent path publishes its own candidate without revealing that private ID.
 Same-principal duplicates have no receipt for a new key, so this adapter returns
 nonretryable revision_conflict with no candidate ID/operation ID. It does not
@@ -57,15 +57,15 @@ the next packet; explicit original-key replay is verified separately.
 | Six new Host proposal cases in the main run | Passed: persisted permission/pending provenance; session-independent receipt/payload conflict/unreceipted duplicate refusal; canonical alias; current revocation/terminal state; real commit then lost output with no second publication; cross-principal dedupe isolation |
 | `cargo test -p enouia-memory-host --locked -- --test-threads=4` | **49 passed**, zero failures; includes the prior read cases and native service/session/pipe/fault cases; doctests zero |
 | Added actual-publication-fault test, run separately with `--lib scoped_agent_proposal_actual_publication_fault` | **1 passed**, exercising both existing AfterCurrent and HostWitnessPublished fault points. Both retain the exact packet/key and close the old session. Incomplete witness refuses new admission; complete witness permits explicit original-key receipt recovery without another commit. No automatic recovery is invoked. |
-| `cargo test -p enouia-memory-govern --test review --locked -- --test-threads=4` | **9 passed**, including existing global dedupe, bound publication race, native Host writing and exact owner review |
+| `cargo test -p enouia-memory-govern --test review --locked -- --test-threads=4` | **9 passed**, including existing global dedupe, bound publication race, native Host writing and exact Morii review |
 | `cargo clippy -p enouia-memory-host -p enouia-memory-govern --all-targets --locked -- -D warnings` | Passed |
 | `cargo fmt --all -- --check` | Passed |
 | Runtime surface regeneration/check and four Rust surface guards | Passed; same 55 Workspace commands; aggregate `927ee5344e6cb1bbf0a43ee60fd73fc2b780d4b6b82ccc6ce36a6d1d3c17af6a` |
 
 Normal-permission tests use only freshly owned synthetic temporary roots and
-processes; owner ACLs remain intact. The tests create no personal consent or
+processes; Morii ACLs remain intact. The tests create no personal consent or
 real-data approval. No external dependency, lockfile, schema, storage version or
-owner pipe change occurs in this slice. Checks are scoped to the modified Host/
+Morii pipe change occurs in this slice. Checks are scoped to the modified Host/
 governance behavior and integration surface; no full workspace suite, graphical
 shell, real Provider, history quality, Runtime or Activity check is run.
 

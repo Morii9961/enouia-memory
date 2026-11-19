@@ -1,4 +1,4 @@
-# MV-6 uninstall ownership boundary
+# MV-6 uninstall responsibility boundary
 
 Date: 2026-10-04. Base: `518364e`. Scope: current-user installer behavior. No real Vault or real startup value was used.
 
@@ -8,7 +8,7 @@ The configured `windows/installer.nsi` is a local, MIT-licensed copy of the [pin
 
 ## Verified
 
-- The static ownership check passed **10/10** checks on the configured source and **14/14** when also checking the generated installer script. It checks that both unwanted deletion branches and the checkbox are absent, the fixed CLI version matches the template, the license is present, and application removal and the scoped hooks remain.
+- The static responsibility check passed **10/10** checks on the configured source and **14/14** when also checking the generated installer script. It checks that both unwanted deletion branches and the checkbox are absent, the fixed CLI version matches the template, the license is present, and application removal and the scoped hooks remain.
 - The same check rejected the original upstream template's checkbox, recursive AppData deletion, and unconditional Run-value deletion. This establishes that the check detects the original paths.
 - The production 0.1.0 and test-only 0.1.1 packages compiled successfully with the local template. The rebuilt packages passed the **19/19** upgrade/Vault preservation checks again, and the production package passed the **8/8** fresh installation/uninstallation checks.
 - The actual startup cleanup macro passed **3/3** exact-match, foreign-value and case-sensitive checks in an isolated non-startup key, which was removed afterward.
@@ -17,4 +17,4 @@ The current-day 196 offline Rust tests, format check, Clippy and independent 34-
 
 ## Limits
 
-The AppData deletion issue was established from the pinned source and by the negative ownership check; no real AppData folder was deleted to reproduce it. Silent real-package drills verify application cleanup and synthetic data preservation, while removal of the interactive checkbox/deletion branch is established by source and generated-script checks. This is not Narrator or interactive installer accessibility acceptance. Previously distributed uninstallers retain their old behavior. Actual login, manual accessibility/upgrade, signing, earlier data-format migration and other stage gaps remain pending. MV-7 has not started.
+The AppData deletion issue was established from the pinned source and by the negative responsibility check; no real AppData folder was deleted to reproduce it. Silent real-package drills verify application cleanup and synthetic data preservation, while removal of the interactive checkbox/deletion branch is established by source and generated-script checks. This is not Narrator or interactive installer accessibility acceptance. Previously distributed uninstallers retain their old behavior. Actual login, manual accessibility/upgrade, signing, earlier data-format migration and other stage gaps remain pending. MV-7 has not started.

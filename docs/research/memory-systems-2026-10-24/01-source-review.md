@@ -65,7 +65,7 @@ Latent 把长期交互拆成四层：常驻的人格/原则与里程碑索引、
 - 可以采纳“会话续接、未解决事项、稳定事实、事件正文分层”的思想，并保持它们不同的失效规则。
 - 可以采纳“系统自动带回不等于 Morii 重新确认重要”的原则；自动召回不应自己制造强化信号。
 - 不直接照搬“永不时间衰减”的产品结论。Morii 明确想要自然遗忘；Enouia 可让可见性/活跃性衰减，同时保留证据与所有权。稳定偏好、承诺、事实真值和临时状态不应共用一条衰减曲线。
-- Latent README 中“记忆由 AI 自己决定如何修改、人的页面只能留言”的产品价值与 Enouia 的 owner review 不是同一种权力模型。Enouia 的人工修正、Canonical 晋升与审批不能让给模型判断。
+- Latent README 中“记忆由 AI 自己决定如何修改、人的页面只能留言”的产品价值与 Enouia 的 Morii review 不是同一种权力模型。Enouia 的人工修正、Canonical 晋升与审批不能让给模型判断。
 - Latent 的 README 自己记录了 absent-query 判断与跨多窗口串联的弱项。不能因为返回 top-k 非空就宣称找到了答案；应允许“没有足够依据”。没有在本轮复测这些检索质量结论。
 - `hut/` 有真实 HTML/JS 与资产，但文件名中有多份 `*-mock.html`/prototype。它适合探索情感化入口的隐喻，本轮没有验证所有页面的读写和宿主联动，不能把山屋静态画面当成端到端产品验收。
 
@@ -88,7 +88,7 @@ Latent 把长期交互拆成四层：常驻的人格/原则与里程碑索引、
 Enouia 应更进一步把事件类型分开：
 
 - 看过：访问/观测统计，可清除，不能证明事实成立。
-- 用上了：最终上下文实际包含并被当前任务引用的信号，仍不等于 owner 确认。
+- 用上了：最终上下文实际包含并被当前任务引用的信号，仍不等于 Morii 确认。
 - 明确重要：用户标注或经批准的强化事件，可以影响活跃性。
 - 再次得到独立支持：新的原始来源支持同一 claim，才是巩固证据。
 
@@ -100,13 +100,13 @@ Enouia 应更进一步把事件类型分开：
 
 [`relation_store.py`][O-relations] 有真实的关系元数据规范、自动关联提示和人工移除/改型逻辑；自动关系仍是 hint，不等于已经证明实体之间存在事实关系。
 
-You/them 是可选的长期认识层。服务里有支持桶、跨日期确认与晋升条件，来源被移除后会降级或失效；这比一次对话就生成永久人格标签更完整。[You service][O-you]、[them service][O-them]。但“模型确认过数天”仍不是 Enouia 的 owner approval，关于第三人的认识也必须继承其原始数据政策。不能用重复自我见证替代独立证据。
+You/them 是可选的长期认识层。服务里有支持桶、跨日期确认与晋升条件，来源被移除后会降级或失效；这比一次对话就生成永久人格标签更完整。[You service][O-you]、[them service][O-them]。但“模型确认过数天”仍不是 Enouia 的 Morii approval，关于第三人的认识也必须继承其原始数据政策。不能用重复自我见证替代独立证据。
 
 ### 需要拒绝的当前上游行为
 
 当前固定版本的 `run_decay_cycle` 对某些普通桶执行 **importance≤4、超过 30 天未激活便自动 resolved**；坏时间在这一分支按 999 天处理。它特意排除了 plan、letter 等类型，但普通事件仍可能被自动宣布结案。[源码 L323–L335][O-auto-resolve]
 
-Enouia 不应复制这条语义：**旧了、未访问、没查到，不代表已经完成或不再真实。** 无法解析时间应进入 unknown/需检查，不应加速“结案”。衰减只能改变当前唤起策略，完成、取消、事实替代必须有来源或 owner 决定。
+Enouia 不应复制这条语义：**旧了、未访问、没查到，不代表已经完成或不再真实。** 无法解析时间应进入 unknown/需检查，不应加速“结案”。衰减只能改变当前唤起策略，完成、取消、事实替代必须有来源或 Morii 决定。
 
 ## 5. OmbreBrain-folio：保留它的 UI 优点，避开其机制债务
 
@@ -182,7 +182,7 @@ folio 的 [`buildLinks`][F-graph] 以共享主题 tag 连边，同日、双方�
 
 Episode 候选必须来自合格 claim；缺少稳定实体或计划/进行中事件可进入 transient，而不是伪装成已完成往事。[episode candidates][C-episodes]。Saga 是对已经发布事件的叙事组织，不是第二份可自证的事实库。[saga projection][C-saga]
 
-[`memoryProfileFields.js`][C-profile] 将 Facts、Status、Judgment 分别发布、版本化并保留历史；非空 Judgment 限定 persona writer 与 persona hash，客观字段的生产者不同。对 Enouia 的启示是 **事实、当前状态和 AI 的主观看法不应由一段混合总结来回覆盖**。但它的宿主审查者类型仍不等于 Enouia owner approval；迁移时提案与批准必须映射回 Enouia 自己的权限。
+[`memoryProfileFields.js`][C-profile] 将 Facts、Status、Judgment 分别发布、版本化并保留历史；非空 Judgment 限定 persona writer 与 persona hash，客观字段的生产者不同。对 Enouia 的启示是 **事实、当前状态和 AI 的主观看法不应由一段混合总结来回覆盖**。但它的宿主审查者类型仍不等于 Enouia Morii approval；迁移时提案与批准必须映射回 Enouia 自己的权限。
 
 ### 检索和部署边界同样需要如实看待
 
@@ -209,7 +209,7 @@ Enouia 可以从中学习“临时碎片不永久占据活跃池”，但不采�
 | 时间线、日历密度、并行事件轨道 | folio 与用户图 | 改造 | 先补 event/source/recorded/valid 时间和区间不确定性；热度是记录密度，不是生活价值 |
 | universe/galaxy/constellation/star 逐级探索 | Constellations | 采纳交互 | 稳定实体投影+可缩放图；键盘与列表替代；布局位置不作语义事实 |
 | 共现/语义提示边 | folio | 实验 | 派生缓存，注明算法；不越过 PolicyGate，不自动成为 Canonical 关系 |
-| 有来源的实体、别名、关系准入 | Constellations | 改造 | Candidate/事实关系提案，带来源、版本、owner review 和撤销链 |
+| 有来源的实体、别名、关系准入 | Constellations | 改造 | Candidate/事实关系提案，带来源、版本、Morii review 和撤销链 |
 | 四层续接、未解决事项、当前状态 | Latent | 改造概念 | 不复制受限源码；分别管理时效、来源和作用域；不把昨日状态当今日事实 |
 | Claim→Episode→Saga/Profile 分层 | Constellations | 改造 | 可以共享 Source，但不能让派生叙事互相冒充独立证据 |
 | Facts/Status/Judgment 分开发布 | Constellations | 采纳原则 | 事实真值、时效、主观作者分离；AI 判断保留为带标记的提案/注释 |

@@ -24,4 +24,4 @@ Required root checks passed with the pinned offline toolchain: formatting, all 2
 
 ## Runtime adoption and limits
 
-Runtime must bump the pin, explain the three preview import rules as invalid or changed input, and let the owner retry or re-pick after restoring/reselecting it. These refusals retain the token until normal expiry; a preview success remains reusable. Continue to serialize token submissions. All inputs and Vaults are synthetic. Actual Runtime behavior, all filesystem races, real-data recovery and OS/power-loss durability remain unverified. MV-7 remains unopened.
+Runtime must bump the pin, explain the three preview import rules as invalid or changed input, and let Morii retry or re-pick after restoring/reselecting it. These refusals retain the token until normal expiry; a preview success remains reusable. Continue to serialize token submissions. All inputs and Vaults are synthetic. Actual Runtime behavior, all filesystem races, real-data recovery and OS/power-loss durability remain unverified. MV-7 remains unopened.

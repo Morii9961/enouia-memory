@@ -25,10 +25,10 @@ is neither the caller's ceiling nor the policy's maximum.
 Derive activity only from witnessed linked capture/admission commits and their
 actual receipts. Bind each event to commit ID/hash, actual actor and publication
 clock, keeping formation/change/knowledge/adoption separate. Reads never invent
-jobs, owner confirmation, clock-triggered fading or archival. Deleted records
+jobs, Morii confirmation, clock-triggered fading or archival. Deleted records
 have no visible historical title or deletion event disclosing that title.
 The activity scope is current eligible dependencies, not an immutable audit of
-everything the owner once saw. Time-derived events are explicitly unavailable.
+everything Morii once saw. Time-derived events are explicitly unavailable.
 
 Derive a private commit-position index during publication/replay. Change queries
 bind an ancestor snapshot, exact grants/ceiling and query hash; they return
@@ -44,11 +44,11 @@ records whose evidence cites a declared counter-source. Structural revision
 diffs compare only adjacent eligible revisions. Selected neighbors distinguish
 recorded derivation/reversion/revision/correction/entity/conversation relations
 from qualified theme suggestions. Machine correction never means corrected by
-the owner. No semantic-neighbor model or embedding is introduced.
+Morii. No semantic-neighbor model or embedding is introduced.
 
 Formation explanations copy interpretation, rule/prompt/model versions,
 mode/batch and actual recorded note. Missing notes stay null; notes remain
-machine annotations even if their text claims owner confirmation.
+machine annotations even if their text claims Morii confirmation.
 
 Session ports return current authorized conversation metadata, bounded captured
 turn fragments and selected Unicode-scalar source excerpts with exact hashes.
@@ -68,7 +68,7 @@ Pagination freezes evaluation time, never current permissions. Row/byte bounds
 refuse a nonprogressing page. Read results are disposable and publish no record.
 Runtime must adopt the exact manifest and ports, restart earlier cursors, render
 unavailable time-derived events and preserve qualified relation/reason labels.
-Actual owner ledger execution remains the separately authorized G08 slice.
+Actual Morii ledger execution remains the separately authorized G08 slice.
 
 See [contract](../contracts/UI_V2_PROCESS.md) and
 [validation](../validation/UI-v2-process.md).

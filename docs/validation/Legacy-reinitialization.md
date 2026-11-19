@@ -19,7 +19,7 @@
   - Both memories are adopted in a root the bootstrap created, with no model
     invocations.
   - Adopting the used root again is refused.
-- `a_long_user_only_conversation_splits_across_batches`: 40 owner turns of one
+- `a_long_user_only_conversation_splits_across_batches`: 40 Morii turns of one
   conversation, whose assistant replies were not kept, split 32 + 8 into two
   batches. The Vault accepts the split conversation.
 
@@ -29,7 +29,7 @@ check. The Runtime surface is unchanged (aggregate `31fc7e44`).
 
 ## Real dry run (no writes)
 
-Run on a working copy of the owner's v1 library: `legacy-snapshot`, then
+Run on a working copy of Morii's v1 library: `legacy-snapshot`, then
 `enouia-memory-reinit plan`. No Vault was written. Counts only:
 
 | | |
@@ -42,5 +42,5 @@ Run on a working copy of the owner's v1 library: `legacy-snapshot`, then
 | other citations kept / dropped | 262 / 107 |
 | unparseable / unsupported inputs | 0 / 0 |
 
-The real run (`enouia-memory-reinit run`) needs a freshly bootstrapped Owner
+The real run (`enouia-memory-reinit run`) needs a freshly bootstrapped Morii
 root. Where it runs is Morii's decision.

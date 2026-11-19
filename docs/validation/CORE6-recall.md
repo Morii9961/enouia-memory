@@ -30,7 +30,7 @@ current System/policy/source/deletion/lineage/敏感门槛先于候选、计数�
 attention profile 是检索参数，不授予访问权限。active/fading/archived/protected
 与知识、采用及计划状态分离。原始来源 captured 时间决定 age；反复生成摘要
 或搜索不刷新它。历史相关查询可以找回合法 archived 项；受保护旧经历不因
-年龄被压掉。记录、truth、owner 历史和 open loop 状态均不改写。
+年龄被压掉。记录、truth、Morii 历史和 open loop 状态均不改写。
 
 一个显式 Memory 原生线程周期重建 `indexes/core6-attention.json`，最多一例、
 可取消/join，锁定暂停，Weak Host 避免永久占住根。投影只有元数据、snapshot/

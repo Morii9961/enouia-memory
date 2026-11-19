@@ -14,7 +14,7 @@ Old Core-3/4 strict descriptor parsers reject the new layout before records or
 queries. V1 readers reject schema 2 earlier still. Optional fields are omitted
 when absent/empty, preserving old input/policy bytes and hashes.
 
-Global SchemaVersion=1, RecordKind/AnyRecord, OWNER_ONLY, default Host/MCP/Workspace
+Global SchemaVersion=1, RecordKind/AnyRecord, `OWNER_ONLY`, default Host/MCP/Workspace
 routes and Runtime pins stay unchanged. Unknown major/raw diagnostics still do
 not confer business read support. Capability selection must include layout and
 rule version, not just the integer schema major.
@@ -66,7 +66,7 @@ Subjective understanding and themes cannot be clear self-report. Derived
 results cannot relabel themselves as the subject's direct statement. Inference
 remains hypothesis/staged, conflict disputed/staged; neither is independently
 verified or promoted because the model repeated itself. The system can retain,
-reevaluate or abstain without an owner review queue. Relationship experience
+reevaluate or abstain without a Morii review queue. Relationship experience
 still needs actual evidence/subject attribution; this code does not infer a
 relationship from nicknames or diagnose an emotion.
 

@@ -4,8 +4,8 @@
 
 ## Native intake
 
-QualifiedAgentHost::supersede_reporter(owner, Agent, scope) independently creates
-AgentSupersedeReporter/AgentSupersedePermit. SourceRead and the initialized Owner
+QualifiedAgentHost::supersede_reporter(Morii, Agent, scope) independently creates
+AgentSupersedeReporter/AgentSupersedePermit. SourceRead and the initialized Morii
 carrier are mandatory. No existing permit or serialized draft is accepted as
 authority. The principal, exact Vault instance, generation, current policy,
 five-minute expiry and fully qualified target/source closure are native gates.
@@ -15,7 +15,7 @@ AgentSupersedeRequest is closed: request_id, target (exact TargetRef), source
 scalars / at most 2000 UTF-8 bytes; interpretation 1..2000 scalars / at most
 8192 bytes, both nonblank; captured Runtime User/UserStatement source at most
 16384 bytes. Host locator and strict Vault quote resolution preserve original
-spans. Agent text cannot become evidence, content or Owner confirmation.
+spans. Agent text cannot become evidence, content or Morii confirmation.
 
 prepare returns a data-only draft. submit takes the original request, repeats
 authorization and uses the same snapshot under the publication lock. The
@@ -70,7 +70,7 @@ source body, native principal/scope and result memory are never echoed.
 Five initialized reads plus memory_supersede_report; no other writes. The server
 requires independent initialized reader and supersede reporter with the same
 Agent and exact leased Vault. Protocol memory-agent-pipe-8, recordSchema=2,
-layout=automation-segmented-owner-v1,
+layout=`automation-segmented-owner-v1`,
 profile=memory-agent-initialized-supersedes-1. OS MemoryRead + SourceRead enrollment
 pairs identity, never grants report authority. Hello exactly binds descriptor,
 Vault, initialized fingerprint and bundled local-only input/output schemas.

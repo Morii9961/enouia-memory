@@ -31,13 +31,13 @@ Return one exact original quote and Unicode scalar [start,end), carrying the
 algorithm name. Distinct matching source spans return Ambiguous; no matches
 return NotFound; invalid inputs and failed normalization consistency are
 separate content-free failures. Never choose the first repeated occurrence or
-invent offsets. These outcomes do not create a mandatory owner review queue.
+invent offsets. These outcomes do not create a mandatory Morii review queue.
 
 Before using this helper, the caller must independently resolve the exact source
 revision/hash under the current native Agent read/write/source policy. It must
 bind the returned original quote to the actual speaker/evidence class and run
 the unchanged strict evidence validator. A match grants no authorization,
-user_statement classification or Owner confirmation. Agent-provided hints stay
+user_statement classification or Morii confirmation. Agent-provided hints stay
 Agent provenance. Source deletion/revocation requires fresh authorization;
 the helper stores no text/cache and has no publication side effect.
 

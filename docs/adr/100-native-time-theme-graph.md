@@ -37,12 +37,12 @@ records sharing a non-subject entity are **algorithm suggestions** (750).
 These scores are a deterministic rubric, not a probability or verified topic.
 A person's presence solely as subject does not create a universal family.
 Membership is disposable and is computed lazily from the fresh authorized set;
-it is never appended to `derived_from` or a machine/owner record. One family
+it is never appended to `derived_from` or a machine/Morii record. One family
 can have more than 128 members. Whole-theme aggregations have a declared
 16,777,216 input-by-theme work bound; ordinary pages and a selected family's
-membership do not materialize that cross product. Owner name/pin/dissolution
+membership do not materialize that cross product. Morii name/pin/dissolution
 application and its authenticated inheritance checks belong to G08; this slice
-never sets `owner_named` or fabricates an owner record.
+never sets `owner_named` or fabricates a Morii record.
 
 The graph selects up to 5,000 stable-ID current nodes, pages up to 100 nodes/
 edges under caller bytes, and emits typed recorded derivation, current reversion
@@ -56,7 +56,7 @@ At most 20,000 edges per kind and 262,144 grouped memberships are materialized;
 excess membership work refuses rather than inventing a partial exact count.
 Clipped edges/selected nodes make coverage incomplete. No layout coordinates,
 semantic-neighbor model, hidden endpoint or cluster name is produced.
-Revision/owner correction relations requiring history or actual owner actions
+Revision/Morii correction relations requiring history or actual Morii actions
 remain attached to the later G15/G08 work, not manufactured from text similarity.
 
 ## Adoption and evidence

@@ -1,14 +1,14 @@
 # MV-1 — Vault and recovery foundation
 
-Date: 2026-09-28. Scope: MV-1 only ([plan §5](../design/IMPLEMENTATION_PLAN.md)), authorized by the owner after MV-0R. Start: `729edc9` (MV-0R report). MV-2 has not started. Everything below uses synthetic data in temporary directories; no real memory, chat, export, or data root was read or created.
+Date: 2026-09-28. Scope: MV-1 only ([plan §5](../design/IMPLEMENTATION_PLAN.md)), authorized by Morii after MV-0R. Start: `729edc9` (MV-0R report). MV-2 has not started. Everything below uses synthetic data in temporary directories; no real memory, chat, export, or data root was read or created.
 
 ## 1. What exists now
 
 | Work package | Delivered | Code |
 |---|---|---|
-| MV-1.0 store contracts | Vault descriptor, `CURRENT` pointer (pins the manifest SHA-256), publish journal line, idempotency entry, owner recovery receipt, pinned-commit export manifest, restore state. JSON Schemas, Rust types, 7 valid and 23 invalid fixtures, independent Python cross-check (ADR-MEM-36) | `contracts/store/`, `src/store.rs` (contract crate), `tests/fixtures/store/` |
-| MV-1.1 storage safety | Data root verification, managed paths with reparse checks, OS single-writer lock, write-through atomic replace, CSPRNG IDs, owner-only protected DACL entry point and inspection, free-space floor | `enouia-memory-vault`: `root.rs`, `fs.rs`, `lock.rs`, `platform/` |
-| MV-1.2 commit and recovery | Immutable revisions, complete manifest, one `CURRENT` publication, expected head/revisions, idempotent receipts (replay/conflict), pinned verified reads, full-history cross-record validation before publication, integrity report, freshness check before content leaves, owner-driven recovery with evidence, owner-invoked quarantine of unreferenced leftovers, failure injection at every boundary | `store.rs`, `sweep.rs`, `fault.rs` |
+| MV-1.0 store contracts | Vault descriptor, `CURRENT` pointer (pins the manifest SHA-256), publish journal line, idempotency entry, Morii recovery receipt, pinned-commit export manifest, restore state. JSON Schemas, Rust types, 7 valid and 23 invalid fixtures, independent Python cross-check (ADR-MEM-36) | `contracts/store/`, `src/store.rs` (contract crate), `tests/fixtures/store/` |
+| MV-1.1 storage safety | Data root verification, managed paths with reparse checks, OS single-writer lock, write-through atomic replace, CSPRNG IDs, current-user-only protected DACL entry point and inspection, free-space floor | `enouia-memory-vault`: `root.rs`, `fs.rs`, `lock.rs`, `platform/` |
+| MV-1.2 commit and recovery | Immutable revisions, complete manifest, one `CURRENT` publication, expected head/revisions, idempotent receipts (replay/conflict), pinned verified reads, full-history cross-record validation before publication, integrity report, freshness check before content leaves, Morii-driven recovery with evidence, Morii-invoked quarantine of unreferenced leftovers, failure injection at every boundary | `store.rs`, `sweep.rs`, `fault.rs` |
 | MV-1.3 minimal objects | Manual assertion sources; sessions with user messages saved together with their exact text; health (`Healthy/Degraded/Unavailable/Recovering`); restricted, size-rotated audit | `service.rs`, `health.rs`, `audit.rs` |
 | MV-1.4 backup exit | Pinned-commit export, independent export verification, restore into an empty verified root with a network gate, restic command adapter | `backup.rs`, `restic.rs` |
 | Local entry point | `enouia-memory` CLI: check-root, init, status, verify, recovery, adopt, assert, export, verify-export, restore, sweep, acl, protect | `enouia-memory-cli` |
@@ -27,7 +27,7 @@ Design decisions are recorded in ADR-MEM-36 (file contracts, port refinements) a
 | V03 lost response | Passed | `crash.rs`: after `CURRENT` the retry replays the same receipt; a different payload under the same key is `idempotency_conflict`; `failures.rs`: an error reported after publication also replays |
 | V04 accept + supersede atomically | Passed | `crash.rs` uses the lifecycle commit that writes a candidate revision, a review, a new memory, and the superseded memory together; `commit.rs` replays all 19 lifecycle commits with full cross-record validation at each step |
 | V05 disk full / access denied / sharing | Passed (injected) | `failures.rs`: errors 112, 5, and 32 injected at seven points keep the old head, name the fault (`storage_full`, `storage_failed`/access denied, `busy`/sharing violation), and the retry applies once. The volume was not actually filled or locked |
-| V06 damaged `CURRENT` / object | Passed | `failures.rs`: torn `CURRENT` and a damaged head manifest give `vault_recovering`; the report lists journal evidence first and marks the damaged commit incomplete; only the owner can adopt a complete point, with a receipt; an unpublished complete commit is listed but never adopted by itself; a damaged record or object is reported by exact reference and refused (non-retryable) while other records stay readable |
+| V06 damaged `CURRENT` / object | Passed | `failures.rs`: torn `CURRENT` and a damaged head manifest give `vault_recovering`; the report lists journal evidence first and marks the damaged commit incomplete; only Morii can adopt a complete point, with a receipt; an unpublished complete commit is listed but never adopted by itself; a damaged record or object is reported by exact reference and refused (non-retryable) while other records stay readable |
 | V07 escape and unverified roots | Passed | `root.rs`: relative, UNC, device, verbatim-UNC, missing, file, non-canonical, junction (root or ancestor), sync-folder names, policy sync roots, Git trees (including this repository), Program Files, low space, and unsupported filesystem are refused; a junction planted inside the Vault cannot redirect a commit and nothing is written through it |
 | V08 reads during commits | Passed | `snapshot.rs`: a reader verifying its pinned commit in a loop while 17 commits land always sees a whole commit; a deletion committed after the pin is refused (non-disclosing `not_found`) before content leaves, while the old pin stays a consistent snapshot; a policy change after the pin is reported for re-decision |
 | V09 reliability level | Partial | Only process termination is evidenced (V01/V02/V03). No OS crash, forced reboot, or power-loss experiment was run. **No power-loss or OS-crash durability is claimed.** Write-through flags and flushes are used, but their effect on real hardware is unverified |
@@ -36,7 +36,7 @@ Design decisions are recorded in ADR-MEM-36 (file contracts, port refinements) a
 | D04 Activity isolation | Passed | `backup.rs`: an Activity-like tree beside the data root is byte-identical after genesis, 19 commits, export, restore, recovery report, and health; managed paths reject `activity/…`. Memory has no Activity dependency (`boundaries.rs`) |
 | B01 independent encrypted backup | Partial | The plaintext half passes (`backup.rs`): after the original root is deleted, a pinned export restores elsewhere with identical manifests and record bytes, rebuilt idempotency (the last request replays, the next commits and matches the fixture), and network disabled until reconciliation. **Pending:** restic is not installed, so no encrypted repository, `check`, or restore from it has run; no second machine or account; DPAPI independence of the backup secret is untested |
 | B03 bad snapshot / key loss | Partial | Passed: flipped, missing, unlisted, and edited exports are refused before the target is touched; a restore never overwrites a healthy Vault. **Pending:** key rotation and key loss need restic |
-| B04 local protection and logs | Partial | Passed: the owner-only protected DACL entry point (user, SYSTEM, Administrators; children inherit; no broad grants), from code and from the CLI; a sentinel written as record text appears only in the source record and the session-content object, never in manifests, `CURRENT`, journal, idempotency entries, audit lines, health, errors, or CLI output. **Pending:** volume encryption (BitLocker) status is not detected (it needs elevated tools); the ACL was applied only to temporary directories |
+| B04 local protection and logs | Partial | Passed: the current-user-only protected DACL entry point (user, SYSTEM, Administrators; children inherit; no broad grants), from code and from the CLI; a sentinel written as record text appears only in the source record and the session-content object, never in manifests, `CURRENT`, journal, idempotency entries, audit lines, health, errors, or CLI output. **Pending:** volume encryption (BitLocker) status is not detected (it needs elevated tools); the ACL was applied only to temporary directories |
 
 ## 3. Measurements
 
@@ -74,9 +74,9 @@ Isolated build: `5da02eb` (109 tests at that point) was cloned from GitHub into 
 ## 6. Not done, or pending
 
 - Power-loss and OS-crash evidence (V09); real disk-full and real sharing-violation reproduction (V05 used injection).
-- restic: installing a pinned, verified version, the owner's choice of backup media and repository, the password kept outside this device, encrypted backup/check/restore, key rotation and loss, and restore on another machine or account (B01, B03). No download was made.
+- restic: installing a pinned, verified version, Morii's choice of backup media and repository, the password kept outside this device, encrypted backup/check/restore, key rotation and loss, and restore on another machine or account (B01, B03). No download was made.
 - Volume encryption detection; applying the ACL to a real data root (B04).
-- Backup leases and GC arrive with purge (MV-3). Leftovers of crashed attempts are never read; the owner-invoked sweep moves them to `vault/orphans/` (never deletes) and is refused while `CURRENT` cannot be verified (`sweep.rs`).
+- Backup leases and GC arrive with purge (MV-3). Leftovers of crashed attempts are never read; the Morii-invoked sweep moves them to `vault/orphans/` (never deletes) and is refused while `CURRENT` cannot be verified (`sweep.rs`).
 - The segmented catalog and incremental validation (§3 trigger).
 - `AuditSink` exists and is tested, but reads are not yet audited because there are no read APIs for other principals yet (MV-4/5). `BackupPort` is not wired to restic yet.
 - Cloud-sync detection is attribute- and name-based; a sync client configured on an arbitrarily named folder without cloud-file attributes would not be recognized. Real OneDrive folders were not touched.
@@ -95,16 +95,16 @@ Not activated: no default data root, scheduled task, backup job, model, MCP, VPS
 | `6e21edd` | CLI; D02 and D03 |
 | `5da02eb` | Measurement example |
 | `8e08789` | ADR-MEM-37, documentation, this report |
-| (this commit) | Owner-invoked sweep of unreferenced leftovers; Identity Markdown lookup across the chain; report update |
+| (this commit) | Morii-invoked sweep of unreferenced leftovers; Identity Markdown lookup across the chain; report update |
 
 Every push was preceded by a public-content scan of the staged files. Rollback: each step is a separate commit on `main`; `729edc9` is the MV-0R state.
 
 ## 8. MV-2 entry and inputs needed
 
-MV-2 (history import and rescue) builds the importer on this store. Before it starts, the owner decides:
+MV-2 (history import and rescue) builds the importer on this store. Before it starts, Morii decides:
 
 1. Explicit authorization for MV-2.
 2. Whether real exports may be used at all in MV-2 and which ones; until then MV-2 runs on synthetic exports only.
 3. Before any real import: install a pinned restic version, choose backup media, keep the restore secret off this device, and run the B01/B03 restore drill on the synthetic Vault.
-4. Where the real data root will live (the default `%LOCALAPPDATA%\EnouiaMemory` or another verified local path), and approval to apply the owner-only ACL there.
+4. Where the real data root will live (the default `%LOCALAPPDATA%\EnouiaMemory` or another verified local path), and approval to apply the current-user-only ACL there.
 5. The segmented catalog should land early in MV-2 if imports produce thousands of records (ADR-MEM-37 trigger).

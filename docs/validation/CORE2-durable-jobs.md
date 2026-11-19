@@ -94,14 +94,14 @@ unknown、预留与原身份且不重发。没有把假端口结果等同于真�
 Runtime surface 新增 Host automation 源、job schema 和已有 bounded-read
 实现；兼容记录同提交交付，aggregate：
 `304a1537d09729c88d527198a5f57cbd3138f6155e90ed7104326aeed94ddb91`。
-现有 HostService、MCP、Workspace IPC、默认 owner writer 与 Runtime pin
+现有 HostService、MCP、Workspace IPC、默认 Morii writer 与 Runtime pin
 没有接入本模块。后来 native 采用必须提供真实生命周期/foreground 事件
 及新鲜 permit，不能从页面或 MCP 请求伪造。
 
 生成响应允许与输入中的初始分析不同；以精确 input hash、response hash
-和原始 JSON 保存，不把响应中的 owner/权限/知识声明当作授权或已准入。
+和原始 JSON 保存，不把响应中的 `owner/`权限/知识声明当作授权或已准入。
 Generated 仅表示不可信生成响应保存，不是记忆已应用。没有 Canonical 写入、
-ReviewRecord、owner confirmation、applied 标记或成功提交回执。
+ReviewRecord、Morii confirmation、applied 标记或成功提交回执。
 没有真实 Provider/embedding、持续外发策略、私人 Vault/聊天导出/凭据、
 Activity/Usage、通知、产品 UI 或生产迁移。
 

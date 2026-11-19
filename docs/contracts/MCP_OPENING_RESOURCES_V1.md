@@ -98,7 +98,7 @@ clock still owns validity and authorization even when ranking at another time.
 Call native recall once with the original typed request ID; return one standard
 user/text message containing the explicit data/attribution preamble and the
 same recall resource payload. MCP prompt role does not create a Runtime user
-turn or authenticate UserStatement/Owner consent. The actual result is available
+turn or authenticate UserStatement/Morii consent. The actual result is available
 through recall/{request_id} only while the existing ephemeral cache remains
 current; a later recall replaces it. No file, receipt, job, reinforcement,
 checkpoint, model call or mandatory human work is produced. There is no automatic
@@ -120,7 +120,7 @@ OutcomeUnknown or a revoked grant. A later recall replaces the old cache entry.
 ## Lifecycle and transport
 
 Protocol memory-agent-pipe-10, recordSchema=2,
-layout=automation-segmented-owner-v1,
+layout=`automation-segmented-owner-v1`,
 profile=memory-agent-initialized-context-1. Exact hello binds initialized read
 compatibility, context schemas and static guide/catalog/prompt descriptors.
 Native OS enrollment requires MemoryRead, plus SourceRead when the native reader

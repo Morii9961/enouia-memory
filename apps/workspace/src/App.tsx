@@ -1,7 +1,7 @@
 // Windows Memory Workspace (MV-6). Every value shown comes from the Core;
 // text from memories and sources is rendered as plain text, never as HTML.
 import { useCallback, useEffect, useRef, useState } from "react";
-import { CallError, call, describe, newKey, pick, retryable, shell, type J } from "./api";
+import { CallError, call, describe, label, newKey, pick, retryable, shell, type J } from "./api";
 
 const PAGES = [
   ["status", "运行状态"],
@@ -479,7 +479,7 @@ export function Review({ readPage = call }: { readPage?: typeof call } = {}) {
       <h3>待审核（{total}）</h3>
       {items.map((c) => (
         <article key={c.candidateId} className="card" aria-label={`候选 ${c.candidateId}`}>
-          <p className="tags"><span className="tag">{c.proposalKind}</span><span className="tag">{c.proposedType}</span><span className="tag">{c.sensitivity}</span><span className="muted">{c.originKind} · {c.createdAt}</span></p>
+          <p className="tags"><span className="tag">{c.proposalKind}</span><span className="tag">{c.proposedType}</span><span className="tag">{c.sensitivity}</span><span className="muted">{label(c.originKind)} · {c.createdAt}</span></p>
           {c.target && <p className="old">旧事实（r{c.target.revision}）：{c.target.content}</p>}
           <label htmlFor={`e-${c.candidateId}`} className="sr-only">候选内容</label>
           <textarea id={`e-${c.candidateId}`} value={edits[c.candidateId] ?? c.content} onChange={(e) => setEdits({ ...edits, [c.candidateId]: e.target.value })} />
@@ -660,7 +660,7 @@ export function Context({ capsuleId, readPage = call }: { capsuleId: string | nu
                 <tr key={i} className={d.decision}>
                   <td><code>{d.record_kind}:{d.record_id.slice(0, 13)}</code> r{d.revision}</td>
                   <td>{d.decision === "included" ? "包含" : "排除"}</td>
-                  <td>{d.reason}</td>
+                  <td>{label(d.reason)}</td>
                   <td>{d.rank ?? ""}</td>
                   <td>{d.source_reachable ? "是" : "否"}</td>
                 </tr>

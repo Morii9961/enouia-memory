@@ -23,7 +23,7 @@ failed at plan construction with `fresh.plan: Denied`.
 
 The regression covers a newline/tab title, an all-whitespace title, an ordinary
 Unicode title and the existing oversized-title refusal. For accepted cases it
-forms through the native initializer, closes and reopens the synthetic Owner
+forms through the native initializer, closes and reopens the synthetic Morii
 root, checks the stored catalog title, resolves the original exact quotation,
 and compares archived Raw bytes with the unchanged input object.
 

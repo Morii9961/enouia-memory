@@ -8,11 +8,11 @@ These come from [design/DECISIONS_AND_SOURCES](../design/DECISIONS_AND_SOURCES.m
 
 | ID | Decision | Status |
 |---|---|---|
-| ADR-MEM-01 | Local Primary; single owner, several principals | Local-primary target superseded by ADR-MEM-49; current local implementation retained |
+| ADR-MEM-01 | Local Primary; single user (Morii), several principals | Local-primary target superseded by ADR-MEM-49; current local implementation retained |
 | ADR-MEM-02 | Raw / Canonical / Candidates / Session / Index layers | Adopted |
 | ADR-MEM-03 | Canonical JSON, Identity Markdown, rebuildable index | Adopted |
 | ADR-MEM-04 | Immutable revisions + commit catalog + single `CURRENT` | Adopted (contract); behavior in MV-1 |
-| ADR-MEM-05 | Trusted owner approval | Adopted; sharpened by ADR-MEM-22 and ADR-MEM-30 |
+| ADR-MEM-05 | Trusted Morii approval | Adopted; sharpened by ADR-MEM-22 and ADR-MEM-30 |
 | ADR-MEM-06 | priority / sensitivity / volatility are independent | Adopted |
 | ADR-MEM-07 | Valid time + known time + evidence status | Adopted; amended by ADR-MEM-32 |
 | ADR-MEM-08 | Automatic checkpoint is a Session artifact | Adopted |
@@ -21,7 +21,7 @@ These come from [design/DECISIONS_AND_SOURCES](../design/DECISIONS_AND_SOURCES.m
 | ADR-MEM-11 | Embedded Core → single Memory Host | Direction recorded; authority contract frozen by ADR-MEM-66 (MV-8.1a), process switch pending |
 | ADR-MEM-12 | Activity is independent | Adopted (Activity stays in Runtime) |
 | ADR-MEM-13 | ACL / verified volume protection + restic backup | Direction recorded; gated before real data |
-| ADR-MEM-14 | Raw immutable by default; owner deletion is the exception | Adopted (contract); purge in MV-3 |
+| ADR-MEM-14 | Raw immutable by default; Morii deletion is the exception | Adopted (contract); purge in MV-3 |
 | ADR-MEM-15 | Gateway at-least-once + local idempotency | Gateway-only target superseded by ADR-MEM-49; event reliability retained |
 | ADR-MEM-16 | Encrypted device replica ≠ server-computable subset | Deferred (MV-10) |
 | ADR-MEM-17 | Single primary; offline edits become candidates | Deferred (MV-10) |
@@ -45,7 +45,7 @@ This refines ADR-MEM-04. The manifest carries the parent commit, sequence, full 
 
 ### ADR-MEM-22 — Only candidates from models and agents (Adopted)
 
-Models, agents, extraction, and imported text create candidates only. A canonical write needs an owner `ReviewRecord` on a trusted surface, bound to one pending candidate revision and one nonce. Deletion is owner-only: a `delete` proposal plus a `confirm_delete` review. IPC propose cannot request it.
+Models, agents, extraction, and imported text create candidates only. A canonical write needs a Morii `ReviewRecord` on a trusted surface, bound to one pending candidate revision and one nonce. Deletion is Morii-only: a `delete` proposal plus a `confirm_delete` review. IPC propose cannot request it.
 
 ### ADR-MEM-23 — Axes and valid/known time (Adopted; amended by 32)
 
@@ -69,7 +69,7 @@ These keep the directions of ADR-MEM-11, 13, and 15–17. Nothing is activated b
 
 ### ADR-MEM-30 — Approvals are bound to what they approve (Adopted, MV-0R, fixes F1 and F2)
 
-Consent to send content outside, consent to lower a sensitivity level, and a policy grant are separate owner decisions. None of them may be inferred from a memory review. `ApprovalRecord` (`apv_…`) is issued by the owner on a trusted surface with a single-use nonce. Its explicit `binding` is one of:
+Consent to send content outside, consent to lower a sensitivity level, and a policy grant are separate Morii decisions. None of them may be inferred from a memory review. `ApprovalRecord` (`apv_…`) is issued by Morii on a trusted surface with a single-use nonce. Its explicit `binding` is one of:
 
 - **egress**: request, capsule, payload digest, full destination (kind + provider + model + adapter), the exact resource revisions, policy, and policy epoch. It expires within 15 minutes and is used by at most one Dispatch. It is required for private content sent to an external destination.
 - **declassification**: exact target revision, `from` (strictest source) and `to` levels, the source set, and the content digest.
@@ -79,11 +79,11 @@ Consent to send content outside, consent to lower a sensitivity level, and a pol
 
 ### ADR-MEM-31 — Persistent policies and default-deny evaluation (Adopted, MV-0R, fixes F4)
 
-`PolicyRecord` (`pol_…`, versioned, with status and revocation) selects by principal, scope, project (or all projects), record kind, maximum sensitivity, purpose, and destination (kind, optionally exact provider and model). The Vault begins with a `genesis_default` policy that is owner-only, uses local destinations, and never grants `provider:send`. Every other policy is an `owner_grant` bound to a `policy_grant` approval. `policy::evaluate` is default-deny: it uses the latest revision of each policy, and among the allowing policies it picks the lowest policy ID, so the decision is deterministic. The frozen egress table still applies on top, so highly sensitive content is never sent automatically. `PolicyGate` receives server-resolved targets (record revision, project, sensitivity) and the full destination. Capsule inclusion checks `context:read` access, and for external destinations also `provider:send` through the record's egress policy. Dispatch rechecks against the latest policies at send time, so a revocation takes effect.
+`PolicyRecord` (`pol_…`, versioned, with status and revocation) selects by principal, scope, project (or all projects), record kind, maximum sensitivity, purpose, and destination (kind, optionally exact provider and model). The Vault begins with a `genesis_default` policy that is Morii-only, uses local destinations, and never grants `provider:send`. Every other policy is an `owner_grant` bound to a `policy_grant` approval. `policy::evaluate` is default-deny: it uses the latest revision of each policy, and among the allowing policies it picks the lowest policy ID, so the decision is deterministic. The frozen egress table still applies on top, so highly sensitive content is never sent automatically. `PolicyGate` receives server-resolved targets (record revision, project, sensitivity) and the full destination. Capsule inclusion checks `context:read` access, and for external destinations also `provider:send` through the record's egress policy. Dispatch rechecks against the latest policies at send time, so a revocation takes effect.
 
 ### ADR-MEM-32 — Unknown supersession start stays unknown (Adopted, MV-0R, fixes F5)
 
-Only an explicit, owner-confirmed `effective_from` establishes when a replacement starts. Unknown never falls back to `valid_from` or to the approval time. Both the old and the new fact stay in effect, marked `needs_reverification`, for any `as_of`. Each edge's `effective_from` must equal the value recorded in its supersede review. This supersedes the MV-0 draft rule.
+Only an explicit, Morii-confirmed `effective_from` establishes when a replacement starts. Unknown never falls back to `valid_from` or to the approval time. Both the old and the new fact stay in effect, marked `needs_reverification`, for any `as_of`. Each edge's `effective_from` must equal the value recorded in its supersede review. This supersedes the MV-0 draft rule.
 
 ### ADR-MEM-33 — Request payload digest (Adopted, MV-0R, fixes F3)
 
@@ -99,7 +99,7 @@ Every schema has a unique absolute `$id` under the reserved host `contracts.enou
 
 ### ADR-MEM-36 — Vault store file contracts (Adopted, MV-1)
 
-The store's own files are versioned contracts under `contracts/store/` with Rust types in `store.rs`: `vault/vault.json` (descriptor, written once by genesis), `vault/CURRENT` (names one commit and pins the SHA-256 of its manifest bytes), `vault/journal/published.jsonl` (one line appended after each publication, used as recovery evidence), `vault/idempotency/<scope>.json` (trusted only when the named commit is on the published chain), `vault/recovery/<id>.json` (the owner's explicit recovery choice; evidence is `publish_journal`, `verified_unpublished`, or `restored_export`, never "newest manifest"), `export-manifest.json` (a pinned-commit export: safe `vault/` paths only, sorted and unique, bookkeeping excluded), and `config/restore-state.json` (network stays disabled until reconciliation).
+The store's own files are versioned contracts under `contracts/store/` with Rust types in `store.rs`: `vault/vault.json` (descriptor, written once by genesis), `vault/CURRENT` (names one commit and pins the SHA-256 of its manifest bytes), `vault/journal/published.jsonl` (one line appended after each publication, used as recovery evidence), `vault/idempotency/<scope>.json` (trusted only when the named commit is on the published chain), `vault/recovery/<id>.json` (Morii's explicit recovery choice; evidence is `publish_journal`, `verified_unpublished`, or `restored_export`, never "newest manifest"), `export-manifest.json` (a pinned-commit export: safe `vault/` paths only, sorted and unique, bookkeeping excluded), and `config/restore-state.json` (network stays disabled until reconciliation).
 
 Port refinements: a `CommitRequest` always carries an idempotency scope, and scopes are keyed by commit `OperationKind` (imports have no IPC operation). A `StagedObject` carries its `ObjectKind`. A manifest's `objects` list, like its catalog, is complete: every object reachable at that commit. Content-addressed objects live under `raw/objects`, `assets/objects`, and `session-content/objects`; Identity Markdown is stored beside its revision.
 
@@ -115,8 +115,8 @@ The caller pre-assigns `commit_id` (from its `IdSource`), because a review names
 - **Durability primitives.** Files are flushed (`FlushFileBuffers`) before use; replacements go through `MoveFileExW(REPLACE_EXISTING | WRITE_THROUGH)` in the same directory. `CURRENT` is the only publication step. The claim is limited to process crashes (V09).
 - **Transaction.** An intent marker in `staging/`, then each record and object written once and flushed at its final (still unreferenced) name, then the manifest, then the idempotency entry, then `CURRENT`, then the journal. (MV-1 wrote to staging and renamed; MV-2 removed the rename, which halved the flushes without changing what a crash can expose.) Anything written before `CURRENT` is unreferenced; a file found at a name the transaction must write is moved to `vault/orphans/`, never deleted. A manifest left under the caller's commit ID by a crashed attempt is quarantined the same way; only a manifest on the published chain counts as a reused ID.
 - **Validation on commit.** Every staged record is strictly parsed, must be in canonical bytes, and must be the next revision; then `set::validate_set` runs over the complete history plus the new commit before anything is written.
-- **Leftovers.** An owner-invoked sweep, under the writer lock and only while `CURRENT` verifies, moves every file the published chain does not reference (revisions, objects, manifests, idempotency entries, replace temporaries) to `vault/orphans/<sweep_id>/`. Nothing is deleted.
-- **Recovery.** A damaged `CURRENT` makes reads and writes return `vault_recovering`. `recovery_report` lists publish-journal evidence first, then complete but never-published manifests; nothing is chosen automatically. `adopt_recovery_point` needs the owner and a complete candidate and writes a receipt before replacing `CURRENT`.
+- **Leftovers.** A Morii-invoked sweep, under the writer lock and only while `CURRENT` verifies, moves every file the published chain does not reference (revisions, objects, manifests, idempotency entries, replace temporaries) to `vault/orphans/<sweep_id>/`. Nothing is deleted.
+- **Recovery.** A damaged `CURRENT` makes reads and writes return `vault_recovering`. `recovery_report` lists publish-journal evidence first, then complete but never-published manifests; nothing is chosen automatically. `adopt_recovery_point` needs Morii and a complete candidate and writes a receipt before replacing `CURRENT`.
 - **Backup exit.** A pinned-commit export (descriptor, whole chain, every cataloged revision, head objects, sealed audit segments) is verified independently and restored only into an empty verified root, with network use gated until reconciliation. Encryption is restic's job; the adapter passes the password only through a cleared child environment.
 - **Audit and health.** Audit lines are validated `AuditEvent`s in size-rotated JSONL segments; health reads never write.
 - **Measured cost and trigger.** A complete catalog costs about 241 bytes per record in every manifest, so cumulative manifest bytes grow quadratically with single-record commits, and full-history validation grows with the Vault. MV-1 keeps this for simplicity and verifiability. The segmented or incremental catalog (and incremental validation) is required before a head manifest exceeds 1 MiB (about 4,000 records) or commit latency exceeds 1 s on the reference machine, whichever comes first; real history import (MV-2) must be measured against this trigger.
@@ -143,24 +143,24 @@ Measured (`measure_import`, synthetic, release build, same machine as MV-2): 4,0
 
 Cost and trigger: small kinds are still loaded completely per commit (cached in a long-lived process), and a group rule loads its whole group (an import's completion commit reads that import's sources; a session append reads that session's events). If memories, candidates, and reviews together exceed about 20,000 revisions, or a group load exceeds 1 s, the next step is per-group indexes for those kinds.
 
-### ADR-MEM-40 — Governance: candidates and plan-bound owner review (Adopted, MV-3.1–3.3)
+### ADR-MEM-40 — Governance: candidates and plan-bound Morii review (Adopted, MV-3.1–3.3)
 
 `enouia-memory-govern` composes the contract and the Vault; it writes only through `Vault::commit`.
 
-- **Candidates.** Any principal with the propose right stores a pending candidate. Evidence is resolved from the cited source revision: the evidence class, anchor object, and default locator come from the source, so a proposer cannot present a model claim as the owner's statement. Sensitivity defaults to, and may not drop below, the strictest cited source. A proposal against a stale target revision is refused. The fingerprint (proposal kind, type, content without whitespace, details, target) finds a pending duplicate instead of storing it twice. Active memories that make a different claim in the same scope (fact: claim key; preference: scope; with shared subjects) are listed as conflicts. Only the proposer or the owner may edit (new pending revision) or withdraw a candidate. Proposed fields are limited to a whitelist; IDs, status, evidence, approval, and policy are decided by the review.
-- **Plan and confirm.** `plan` turns the owner's decisions into every record the commit would write, generates the review, memory, conflict-group and commit IDs and a nonce, and hashes the records without their volatile timestamps (and without the hash field itself). The trusted surface shows that plan. `confirm` requires the Vault's genesis owner on the same trusted surface before `expires_at` (10 minutes), rebuilds the plan on the current head with the same IDs, and commits only if the rebuild hashes the same; the commit also carries every candidate and target revision as an expected revision. A batch is one commit: any stale decision refuses all of it. The idempotency key is the nonce, so a repeated confirmation replays the receipt; each review's `approval_nonce` is the plan nonce plus its index, and `approved_diff_hash` is the plan hash.
-- **Decisions.** Accept or edit-accept by proposal kind (create; revise with evidence union and the stricter sensitivity; archive; supersede with the confirmed effective time and the old record's next revision superseded), reject (optional reason code), merge into a memory (new revision with the union of evidence) or into a pending candidate (new pending revision). Accepting a create that lists live conflicts puts the new memory and those memories in one conflict group; none wins by time or confidence. Undoing a wrong acceptance is an owner archive or revise proposal and its own review; nothing is rewritten in place.
-- **Identity (MV-3.3).** An identity change is a candidate like any other; accepting it writes the next identity revision and its Markdown object, and the plan's diff carries the Markdown text itself, so the owner approves the words. Earlier revisions and their Markdown stay readable (`read_revision`, `read_object`); going back is another reviewed revision.
-- **Store guard (MV-3.3).** `Vault::commit` refuses memory, review, identity, project, tombstone, purge receipt, approval, and policy records unless the commit's principal is the Vault's genesis owner (`store.owner_only_kind`), beneath the review rules.
-- **Boundary.** The in-process check is the Vault owner principal and the trusted-surface enum. Which process may speak for the owner is transport authentication (MV-8); the MCP host will not expose raw commits. Session-checkpoint memories come from reviewed checkpoints in MV-5.
+- **Candidates.** Any principal with the propose right stores a pending candidate. Evidence is resolved from the cited source revision: the evidence class, anchor object, and default locator come from the source, so a proposer cannot present a model claim as Morii's statement. Sensitivity defaults to, and may not drop below, the strictest cited source. A proposal against a stale target revision is refused. The fingerprint (proposal kind, type, content without whitespace, details, target) finds a pending duplicate instead of storing it twice. Active memories that make a different claim in the same scope (fact: claim key; preference: scope; with shared subjects) are listed as conflicts. Only the proposer or Morii may edit (new pending revision) or withdraw a candidate. Proposed fields are limited to a whitelist; IDs, status, evidence, approval, and policy are decided by the review.
+- **Plan and confirm.** `plan` turns Morii's decisions into every record the commit would write, generates the review, memory, conflict-group and commit IDs and a nonce, and hashes the records without their volatile timestamps (and without the hash field itself). The trusted surface shows that plan. `confirm` requires the Vault's genesis principal (Morii) on the same trusted surface before `expires_at` (10 minutes), rebuilds the plan on the current head with the same IDs, and commits only if the rebuild hashes the same; the commit also carries every candidate and target revision as an expected revision. A batch is one commit: any stale decision refuses all of it. The idempotency key is the nonce, so a repeated confirmation replays the receipt; each review's `approval_nonce` is the plan nonce plus its index, and `approved_diff_hash` is the plan hash.
+- **Decisions.** Accept or edit-accept by proposal kind (create; revise with evidence union and the stricter sensitivity; archive; supersede with the confirmed effective time and the old record's next revision superseded), reject (optional reason code), merge into a memory (new revision with the union of evidence) or into a pending candidate (new pending revision). Accepting a create that lists live conflicts puts the new memory and those memories in one conflict group; none wins by time or confidence. Undoing a wrong acceptance is a Morii archive or revise proposal and its own review; nothing is rewritten in place.
+- **Identity (MV-3.3).** An identity change is a candidate like any other; accepting it writes the next identity revision and its Markdown object, and the plan's diff carries the Markdown text itself, so Morii approves the words. Earlier revisions and their Markdown stay readable (`read_revision`, `read_object`); going back is another reviewed revision.
+- **Store guard (MV-3.3).** `Vault::commit` refuses memory, review, identity, project, tombstone, purge receipt, approval, and policy records unless the commit's principal is the Vault's genesis principal (Morii) (`store.owner_only_kind`), beneath the review rules.
+- **Boundary.** The in-process check is the Vault principal (Morii) and the trusted-surface enum. Which process may speak for Morii is transport authentication (MV-8); the MCP host will not expose raw commits. Session-checkpoint memories come from reviewed checkpoints in MV-5.
 
 ### ADR-MEM-41 — Forget, purge, and deletion reconciliation (Adopted, MV-3.4)
 
-- **One path in.** Deleting starts as an owner-only delete candidate (details: `mode`, `scope`) and an owner review whose plan shows the tombstone with every target. A delete confirmation is committed alone (`review.delete_alone`), as a `logical_delete` or `purge` operation, and moves the deletion epoch: from that commit the canonical view excludes the targets and pinned reads are refused by `check_fresh`.
+- **One path in.** Deleting starts as a Morii-only delete candidate (details: `mode`, `scope`) and a Morii review whose plan shows the tombstone with every target. A delete confirmation is committed alone (`review.delete_alone`), as a `logical_delete` or `purge` operation, and moves the deletion epoch: from that commit the canonical view excludes the targets and pinned reads are refused by `check_fresh`.
 - **Forget** (`logical_delete`) targets the memory (one revision or all) and keeps its text, restricted.
 - **Purge** targets are computed, never typed: the memory's revisions, the candidates that proposed or targeted it (not the delete request itself), and with `with_dependents` the cited sources and the raw objects holding them. `purge_preview` lists the same, plus other memories that would lose evidence and how many other sources each raw object holds: a message inside an imported export cannot be removed alone, so the whole object is destroyed or kept. Sanitized replacement objects are not implemented.
 - **After the tombstone.** The Vault treats what purge tombstones name as intentionally purged: reads return `intentionally_purged`, `verify` counts it as purged (not missing), exports and `verify_export` leave it out, sweeps never quarantine it, and commit validation treats it as absent (rules reading it cancel out; a new record citing it fails). `purge_files` deletes the bytes and any quarantined copy under the writer lock and is idempotent. `complete_purge` then commits a purge receipt: local stores purged or not present, exports `not_manageable` (outside the Vault), backups `pending` with a deadline (30 days), overall `backup_purge_pending`. Nothing claims global erasure. Catalog hashes of purged revisions remain, as the design allows.
-- **Deletion ledger (B02).** The ledger is the head's tombstones (IDs, hashes, modes; no text), kept apart from backups. `reconcile_deletions` re-applies each entry to a restored Vault through an owner-confirmed plan (and `complete_purge` for purges), reports what was applied, already covered, or not present, and only then marks the restore reconciled, which opens its network gate.
+- **Deletion ledger (B02).** The ledger is the head's tombstones (IDs, hashes, modes; no text), kept apart from backups. `reconcile_deletions` re-applies each entry to a restored Vault through a Morii-confirmed plan (and `complete_purge` for purges), reports what was applied, already covered, or not present, and only then marks the restore reconciled, which opens its network gate.
 - **Not yet.** Other memories that lose evidence are listed, not marked `broken`; capsules, indexes, and replicas do not exist yet and are reported `not_present`.
 
 ### ADR-MEM-42 — Local index and literal search (Adopted, MV-4)
@@ -169,7 +169,7 @@ Cost and trigger: small kinds are still loaded completely per commit (cached in 
 
 - **Dependency.** `rusqlite =0.40.2` without default features, with `bundled` (SQLite 3.53.2 compiled from source). Building now needs a MinGW C compiler; with MSYS2 the compiler's own `bin` directory must come before the Rust toolchain's in `PATH`, otherwise `cc1` loads the toolchain's older `libgcc_s_seh-1.dll`. The installed binary needs no extra DLL (tested with only System32 on `PATH`).
 - **Projection.** One row per memory revision with the commit sequences between which it was the record's latest revision, plus projects (folded names) and tombstones. The watermark advances with the commits of each transaction (up to 256, cancellation checked between), so a crash or cancellation leaves an older, consistent index; an index of another Vault, format, or folding version, one ahead of the Vault or on another chain, or one that fails `quick_check` is refused and rebuilt. Journal mode `DELETE`, `secure_delete` on; a purge removes the rows and their FTS entries, merges the FTS segments, and vacuums, and a rebuild never reads purged content.
-- **Folding `fold-1`.** Full-width ASCII to ASCII, ideographic space to space, lowercase. No NFKC (no tables offline) and no simplified/traditional or Japanese variant conversion: 函馆 and 函館 stay distinct. Indexed text is what the owner reads (title, content, tags, category, descriptive fields); internal keys such as claim keys are not full text.
+- **Folding `fold-1`.** Full-width ASCII to ASCII, ideographic space to space, lowercase. No NFKC (no tables offline) and no simplified/traditional or Japanese variant conversion: 函馆 and 函館 stay distinct. Indexed text is what Morii reads (title, content, tags, category, descriptive fields); internal keys such as claim keys are not full text.
 - **Recall.** The query is literal: folded, split on whitespace, at most 16 terms. Terms of three or more characters go to an FTS5 `trigram` table, each as a quoted phrase with quotes doubled; shorter terms are a bounded `instr` scan (projects first); all terms must match. ASCII words are also looked up in a `unicode61` table. A term equal to a project's name or alias recalls that project's memories; projects that only contain a term are reported as ambiguous and nothing is merged. Each path takes at most 500 candidates; beyond that the page is `partial`.
 - **Filters, before anything is returned.** Requested types and projects, every current tombstone (for any snapshot), broken provenance, the principal's `memory:read` decision against the current policies (projects the principal cannot read are not even named), and time: `currency` at `as_of`, historical-only facts only on request, archived and not-yet-effective ones never.
 - **Ranking `rank-1`.** Ascending key: named-project hit first, then currency (current, needs reverification, conflicted, historical), whole-word hit, text-path position (bm25 or scan order), priority, business date (valid from, observed, created; newest first), memory ID, revision. No raw scores are added. The golden set in `tests/fixtures/memory/search-golden.json` freezes it; any change needs a new version and new expectations.
@@ -190,10 +190,10 @@ The Windows workspace is two layers: `enouia-memory-workspace` (the embedded Cor
 
 - **One typed channel.** The frontend calls one Tauri command, `workspace_call`, with a [workspace IPC v1](../../contracts/ipc/workspace-v1.schema.json) envelope (`schemaVersion: 1`, `requestId`, `command`, `idempotencyKey`, `arguments`) and gets `{schemaVersion, requestId, kind, vaultCommitId, operationId, result, error}`. Errors are `{code, retryable, rules}`: contract codes and rule identifiers only, never paths, OS messages, or record text. Write commands need an idempotency key; a cancelled or failed operation never reports `succeeded`.
 - **No paths from the page.** Files and folders are chosen in native dialogs opened by the shell (`rfd`); the Core turns the choice into a single-use token (`tok_` + 32 hex, bound to its picker kind, 10 minutes) that names only the file's base name and size to the page. The frontend has no `fs`, `shell`, `http`, or dialog plugin, a strict CSP (`default-src 'self'`, no remote images, no inline script), and only the app's own commands in its capability.
-- **Owner on a trusted surface.** As with the CLI, the owner is the principal that created the Vault and the surface is `trusted_windows_app`; MV-8's Host will authenticate it. A review is `review_plan` (the exact records the commit writes and their diff hash, kept by the Core for `PLAN_TTL`) then `review_confirm` with the plan ID and the shown diff hash; any other hash, an expired plan, or a moved head writes nothing. Forget is the same plan path with a delete candidate. Remember and correction create a manual-assertion source and a pending candidate, never a memory.
+- **Morii on a trusted surface.** As with the CLI, Morii is the principal that created the Vault and the surface is `trusted_windows_app`; MV-8's Host will authenticate it. A review is `review_plan` (the exact records the commit writes and their diff hash, kept by the Core for `PLAN_TTL`) then `review_confirm` with the plan ID and the shown diff hash; any other hash, an expired plan, or a moved head writes nothing. Forget is the same plan path with a delete candidate. Remember and correction create a manual-assertion source and a pending candidate, never a memory.
 - **Long work off the UI thread.** Import, resume, index rebuild, Vault verification, and backup export run on worker threads and return an `operationId`; `operation_get` reports `queued/running/succeeded/failed/cancelled` and progress (commits applied or batches committed; `total` is null when unknown). Cancellation is checked between commits or batches, so a cancelled import is resumable and a cancelled rebuild leaves a consistent, older index. While the index is busy, searches return `index_not_ready` immediately instead of waiting, and the status shows `memory_index: recovering` with the Vault still healthy. Index rebuild gained a cancellable variant (`Index::rebuild_with`).
 - **Four different stops.** Closing the window hides it (operations continue, tray stays). Lock Vault cancels and joins operations, then drops the Vault and index handles; every Vault command answers `vault_locked` until unlocked. Exit does the same and ends the process. Sync does not exist before MV-9, so "pause sync" is shown as not available. Activity is shown as independent and is never started, stopped, or read.
-- **Data root.** Only an explicitly chosen root (`--vault <dir>` or the folder picker) is opened; a new Vault needs the owner to type the confirmation phrase. There is no default location. The pinned installer template omits AppData deletion and unscoped Run-value removal: the uninstaller owns application files, never inferred Vault locations. See [uninstall evidence](../validation/MV-6-uninstall.md).
+- **Data root.** Only an explicitly chosen root (`--vault <dir>` or the folder picker) is opened; a new Vault needs Morii to type the confirmation phrase. There is no default location. The pinned installer template omits AppData deletion and unscoped Run-value removal: the uninstaller owns application files, never inferred Vault locations. See [uninstall evidence](../validation/MV-6-uninstall.md).
 - **Companion shell.** A tray icon (show, lock, exit), a global hotkey (Ctrl+Alt+M by default, another letter with `--hotkey-key`) registered with `RegisterHotKey` on its own thread, reported as `registered` or `conflict` instead of silently failing, and a small always-on-top quick-search window. Its native, injected window identity restricts `workspace_call` to `memory_search`; its separate capability permits only that channel and show/hide, with no file picker, exit or startup command. Page-supplied window/principal fields cannot widen the channel. Lock hides the overlay; focus/blur clear its transient query/results and invalidate old reads. See [overlay evidence](../validation/MV-6-overlay.md).
 - **Rendering.** Source and memory text are rendered as plain text nodes. No Markdown/HTML rendering, no `dangerouslySetInnerHTML`, no link navigation out of the app.
 - **Real-app check.** `apps/workspace/e2e/smoke.mjs` drives the release binary over WebView2 remote debugging on loopback (enabled only by that test's environment) and fills the native dialog of that process only; see the [MV-6 report](../validation/MV-6.md).
@@ -232,7 +232,7 @@ These were found while handing the local client to Runtime (ADR-MEM-45). They ch
   - MV-8's Host will replace this with its own exclusive lock.
 - **Contained failures.** A panicking operation ends `failed` with `storage_failed` / `operation.panicked` (not retryable), even after a cancel request, instead of staying `running`. A poisoned index is dropped and reopened from the Vault, since the index is disposable.
 
-Evidence: the workspace Core tests `rejected_roots_name_their_reason_and_keep_the_token`, `a_busy_confirm_keeps_its_plan_for_the_retry`, `an_import_retry_answers_the_started_operation`, `a_second_core_cannot_open_an_open_vault`, `a_held_handle_does_not_block_this_cores_reopen`, `unlock_of_an_open_vault_answers_at_once`, `a_panicking_operation_ends_failed`, `a_panic_after_cancel_still_ends_failed` and `an_import_cancelled_before_its_first_batch_is_resumable`. The reference shell names `workspace.vault_in_use` and the `root.*` reasons in owner-readable text.
+Evidence: the workspace Core tests `rejected_roots_name_their_reason_and_keep_the_token`, `a_busy_confirm_keeps_its_plan_for_the_retry`, `an_import_retry_answers_the_started_operation`, `a_second_core_cannot_open_an_open_vault`, `a_held_handle_does_not_block_this_cores_reopen`, `unlock_of_an_open_vault_answers_at_once`, `a_panicking_operation_ends_failed`, `a_panic_after_cancel_still_ends_failed` and `an_import_cancelled_before_its_first_batch_is_resumable`. The reference shell names `workspace.vault_in_use` and the `root.*` reasons in Morii-readable text.
 
 - **Vault-scoped page state (2026-10-05 follow-up).** Lock, root switch, a failed open after close, and shutdown cancel/join workers before forgetting operation history, pending/confirmed plans, import retry entries, `lastBackup`, and import/backup/export picker tokens. Root picker tokens retain their existing expiry and success-only consumption, so a rejected open/create can still be retried. Progress remains readable during the join; old operation IDs become `workspace.operation_unknown` afterwards. A confirmed-plan replay first requires an open Vault and the original diff hash. Same-diff retries within one open Vault still return the original receipt. Stored records and backups are unaffected. See [lifecycle evidence](../validation/MV-6-vault-lifecycle.md).
 
@@ -258,7 +258,7 @@ Evidence: the workspace Core tests `rejected_roots_name_their_reason_and_keep_th
 
 - **Full session ask replay acceptance (2026-10-06 follow-up).** Two synthetic page schedules start before input/capsule creation, with identical keyed arguments and distinct transport request IDs. They verify one completed turn, a published/verified dispatch and saved reply, subsequent replay without head movement, and changed-text refusal. Bounded contention retries are test-only. This extends the earlier service/saved-state evidence without changing production code or establishing every concurrency schedule. See [full session replay evidence](../validation/MV-6-full-session-replay.md).
 
-- **Late owner proposal receipt recovery (2026-10-06 follow-up).** Core handles a candidate-byte idempotency conflict by checking the original published logical proposal, then making one bounded receipt lookup retry. Remember/correction/forget share this helper; route-specific guards remain. Generated IDs no longer prevent the tested identical late remember replay, while changed claims are refused. Existing persistent hashes and writer behavior stay intact. See [admission evidence](../validation/MV-6-proposal-admission.md).
+- **Late Morii proposal receipt recovery (2026-10-06 follow-up).** Core handles a candidate-byte idempotency conflict by checking the original published logical proposal, then making one bounded receipt lookup retry. Remember/correction/forget share this helper; route-specific guards remain. Generated IDs no longer prevent the tested identical late remember replay, while changed claims are refused. Existing persistent hashes and writer behavior stay intact. See [admission evidence](../validation/MV-6-proposal-admission.md).
 
 - **Different-key pending proposal deduplication (2026-10-06 follow-up).** New governance candidate publication carries the head used for its pending-fingerprint lookup. A stale head is refused by the existing writer precondition; Core re-evaluates once on that exact fault. Identical proposals deduplicate and distinct ones remain eligible. Direct governance callers now receive an optimistic head conflict; edit/withdraw preconditions and persistent hashes are unchanged. See [dedupe evidence](../validation/MV-6-proposal-dedupe.md).
 
@@ -272,11 +272,11 @@ The [full remember replay and target freshness acceptance](../validation/MV-6-fu
 
 ### ADR-MEM-47 — Explicit text Provider dispatch (Adopted implementation; real activation pending)
 
-[Decision](047-explicit-provider-dispatch.md): native OpenAI Responses/Anthropic Messages adapters, owner-inspected egress policies and exact body approvals, bounded calls and no automatic resend, durable Session invocation ledger, derived sensitivity, and payload deletion. Existing Mock/page IPC remains unchanged. Runtime adoption and real-account smoke are separate gates; optional extraction is unimplemented.
+[Decision](047-explicit-provider-dispatch.md): native OpenAI Responses/Anthropic Messages adapters, Morii-inspected egress policies and exact body approvals, bounded calls and no automatic resend, durable Session invocation ledger, derived sensitivity, and payload deletion. Existing Mock/page IPC remains unchanged. Runtime adoption and real-account smoke are separate gates; optional extraction is unimplemented.
 
 ### ADR-MEM-48 — Hosting native Provider dispatch in the workspace Core (Adopted implementation; real activation pending)
 
-[Decision](048-workspace-native-provider-hosting.md): the host injects a native transport, secret store and owner-verified destinations with `Workspace::set_native_provider`; seven workspace IPC commands cover grant/revocation plans, exact-body preparation, one-attempt sending as an operation and local interruption. Without the injection the Core stays Mock-only. Close/lock disable native access before joining workers. Amends ADR-MEM-47's "workspace stays on Mock" for hosts that opt in.
+[Decision](048-workspace-native-provider-hosting.md): the host injects a native transport, secret store and Morii-verified destinations with `Workspace::set_native_provider`; seven workspace IPC commands cover grant/revocation plans, exact-body preparation, one-attempt sending as an operation and local interruption. Without the injection the Core stays Mock-only. Close/lock disable native access before joining workers. Amends ADR-MEM-47's "workspace stays on Mock" for hosts that opt in.
 
 ### ADR-MEM-49 — Cloud primary and historical initialization (Adopted direction; H1 implemented)
 
@@ -284,11 +284,11 @@ The [full remember replay and target freshness acceptance](../validation/MV-6-fu
 
 ### ADR-MEM-50 — Archived history extraction batches (Adopted, MV-7-H2a)
 
-[Decision](050-archived-history-extraction-batches.md): bind explicitly selected H1 batches to archived bytes, adapter and current source revisions; save a source-linked coordinator input, then create existing extraction jobs with distinct replay keys. Reopening/cancellation/publication failure reuse those jobs without a transport call. A changed plan under the same owner key conflicts. Child invocation failures and unknown outcomes remain visible and never authorize resending. No new Session fields, record kinds, wire commands or automatic acceptance. [Evidence](../validation/MV-7-history-binding.md).
+[Decision](050-archived-history-extraction-batches.md): bind explicitly selected H1 batches to archived bytes, adapter and current source revisions; save a source-linked coordinator input, then create existing extraction jobs with distinct replay keys. Reopening/cancellation/publication failure reuse those jobs without a transport call. A changed plan under the same Morii key conflicts. Child invocation failures and unknown outcomes remain visible and never authorize resending. No new Session fields, record kinds, wire commands or automatic acceptance. [Evidence](../validation/MV-7-history-binding.md).
 
 ### ADR-MEM-51 — History review and explicit supersession (Adopted, MV-7-H2b)
 
-[Decision](051-history-review-and-explicit-supersession.md): compare completed saved Fact/Preference suggestions by exact topic keys while retaining dates, source context, branch relationships, original suggestions and current owner edits/status. Repeat/difference hints do not select a current truth. The owner chooses a pending candidate, active target revision and business time to obtain a read-only Supersede draft; publication uses a head-bound proposal and ordinary trusted plan/confirmation. No new persistence, wire command, automatic acceptance or topic summary. [Evidence](../validation/MV-7-history-review.md).
+[Decision](051-history-review-and-explicit-supersession.md): compare completed saved Fact/Preference suggestions by exact topic keys while retaining dates, source context, branch relationships, original suggestions and current Morii edits/status. Repeat/difference hints do not select a current truth. Morii chooses a pending candidate, active target revision and business time to obtain a read-only Supersede draft; publication uses a head-bound proposal and ordinary trusted plan/confirmation. No new persistence, wire command, automatic acceptance or topic summary. [Evidence](../validation/MV-7-history-review.md).
 
 ### ADR-MEM-52 — Source-linked topic briefs (Adopted, MV-7-H2c)
 
@@ -302,13 +302,13 @@ The [full remember replay and target freshness acceptance](../validation/MV-6-fu
 
 [Decision](054-history-quality-assessment-harness.md): calculate item faithfulness and required-unit coverage from explicit human judgments bound to selected source/response JSON hashes. Keep contradicted/unsupported, missing and unknown/unreviewed separate; native validation and overall model quality remain unclaimed. Synthetic positive/negative/pending cases calibrate the evaluator. No Core, wire, persistence or Runtime adoption change. [Evidence](../validation/MV-7-quality-assessment.md).
 
-### ADR-MEM-55 — Owner-selected semantic proposal drafts (Adopted, MV-7-H2f)
+### ADR-MEM-55 — Morii-selected semantic proposal drafts (Adopted, MV-7-H2f)
 
-[Decision](055-owner-selected-semantic-proposal-drafts.md): bind explicit owner choices to saved semantic responses, retain model attribution and original evidence classes in ordinary pending proposals, and require current exact-topic targets and explicit business time for correction/cancellation drafts. Drafting never writes/sends/confirms. Source purge also removes dependent candidate text. [Evidence](../validation/MV-7-semantic-proposal-drafts.md).
+[Decision](055-morii-selected-semantic-proposal-drafts.md): bind explicit Morii choices to saved semantic responses, retain model attribution and original evidence classes in ordinary pending proposals, and require current exact-topic targets and explicit business time for correction/cancellation drafts. Drafting never writes/sends/confirms. Source purge also removes dependent candidate text. [Evidence](../validation/MV-7-semantic-proposal-drafts.md).
 
 ### ADR-MEM-56 — Bound semantic proposal publication (Adopted, MV-7-H2g)
 
-[Decision](056-bound-semantic-proposal-publication.md): native publication binds the complete owner choice to existing durable receipts; changed committed keys conflict, replay returns the winning candidate ID, and recovery revalidates sources/current candidate after owner review or reopening. DuplicateOf stays a non-write result. Trusted confirmation remains separate. [Evidence](../validation/MV-7-semantic-publication.md).
+[Decision](056-bound-semantic-proposal-publication.md): native publication binds the complete Morii choice to existing durable receipts; changed committed keys conflict, replay returns the winning candidate ID, and recovery revalidates sources/current candidate after Morii review or reopening. DuplicateOf stays a non-write result. Trusted confirmation remains separate. [Evidence](../validation/MV-7-semantic-publication.md).
 
 ### ADR-MEM-57 — Native quality review bundles (Adopted, MV-7-H2h)
 
@@ -352,17 +352,17 @@ The [full remember replay and target freshness acceptance](../validation/MV-6-fu
 
 ### ADR-MEM-67 — Authority-only control persistence (Adopted, MV-8.1b pilot)
 
-[Decision](067-authority-control-file-persistence.md): explicit native Windows control-file persistence with protected owner ACLs, bounded reads, flushed atomic replacement and lifetime host/writer OS leases. Only same-checkpoint quiesce/promote/abort are available; missing/corrupt state never bootstraps on open. This is not the full AuthorityStore data transaction adapter, does not activate existing Core/CLI fencing after the lease ends and is not exposed to Runtime or MCP. [Evidence](../validation/MV-8-authority-control-file.md).
+[Decision](067-authority-control-file-persistence.md): explicit native Windows control-file persistence with protected Morii ACLs, bounded reads, flushed atomic replacement and lifetime host/writer OS leases. Only same-checkpoint quiesce/promote/abort are available; missing/corrupt state never bootstraps on open. This is not the full AuthorityStore data transaction adapter, does not activate existing Core/CLI fencing after the lease ends and is not exposed to Runtime or MCP. [Evidence](../validation/MV-8-authority-control-file.md).
 
 ### ADR-MEM-68 — Shared CURRENT publication (Adopted, MV-8.1c library)
 
 [Decision](068-shared-current-authority-publication.md): one CURRENT selects data and immutable authority; fresh data verification and a persistent legacy mutation/export gate. No transport or production activation. [Evidence](../validation/MV-8-shared-current-publication.md).
 
-### ADR-MEM-69 — Workspace history planning (Owner-authorized implementation, MV-7)
+### ADR-MEM-69 — Workspace history planning (Morii-authorized implementation, MV-7)
 
 [Decision](069-workspace-history-planning.md): expose H1 through one read-only, source-bound workspace command with bounded metadata/pages, opening/head-bound cursors and current SourceRead/deletion checks. No extraction, task or memory write. [Evidence](../validation/MV-7-workspace-history-planning.md).
 
-### ADR-MEM-70 — Workspace local history materialization (Owner-authorized implementation, MV-7)
+### ADR-MEM-70 — Workspace local history materialization (Morii-authorized implementation, MV-7)
 
 [Decision](070-workspace-history-materialization.md): persist typed local request admission atomically before offline child creation; add bounded Workspace create/read/resume and Runtime adoption after verification. No sending, credential port, automatic approval, MV-8 or cloud activation. Implementation is in progress.
 
@@ -376,7 +376,7 @@ The [full remember replay and target freshness acceptance](../validation/MV-6-fu
 
 ### ADR-MEM-73 — Witnessed Host publication and forward recovery (MV-8.1d)
 
-[Decision](073-host-publication-recovery.md): opt-in native Host v2 binds a publication intent and acknowledgement witness to CURRENT; normal operations refuse incomplete publication. Explicit owner-confirmed recovery verifies the latest exact intent and target bytes, preserves watermarks/receipts and never selects an older commit. Missing ordinary witnesses and prototype v1 roots remain fenced. [Evidence](../validation/MV-8-host-recovery.md).
+[Decision](073-host-publication-recovery.md): opt-in native Host v2 binds a publication intent and acknowledgement witness to CURRENT; normal operations refuse incomplete publication. Explicit Morii-confirmed recovery verifies the latest exact intent and target bytes, preserves watermarks/receipts and never selects an older commit. Missing ordinary witnesses and prototype v1 roots remain fenced. [Evidence](../validation/MV-8-host-recovery.md).
 
 ### ADR-MEM-74 — Native Host domain-writer binding (MV-8.1e)
 
@@ -388,7 +388,7 @@ The [full remember replay and target freshness acceptance](../validation/MV-6-fu
 
 ### ADR-MEM-76 — Host-bound Workspace service (MV-8.1g)
 
-[Decision](076-host-bound-workspace-service.md): native Host sessions dispatch the unchanged envelope to Workspace over the same bound Vault handle. UI lock retains the lease, revokes connections and requires native owner reopen; actual OS authentication/listener/adoption remain separate. [Evidence](../validation/MV-8-host-workspace-service.md).
+[Decision](076-host-bound-workspace-service.md): native Host sessions dispatch the unchanged envelope to Workspace over the same bound Vault handle. UI lock retains the lease, revokes connections and requires native Morii reopen; actual OS authentication/listener/adoption remain separate. [Evidence](../validation/MV-8-host-workspace-service.md).
 
 ### ADR-MEM-77 — Explicit Windows Host process and pipe prototype (MV-8.1h)
 
@@ -404,11 +404,11 @@ The [full remember replay and target freshness acceptance](../validation/MV-6-fu
 
 ### ADR-MEM-80 — Restricted MCP stdio boundary (MV-8.2a)
 
-[Decision](080-restricted-mcp-stdio-boundary.md): owner-authorized local synthetic MCP 2025-11-25 adapter; existing six-tool Memory IPC envelopes, native Agent scope ceilings, revocation, bounded stdio and original-packet retention after uncertain outcomes. No owner Workspace bridge, actual Host/domain binding, real client, Provider, private data or cloud activation.
+[Decision](080-restricted-mcp-stdio-boundary.md): Morii-authorized local synthetic MCP 2025-11-25 adapter; existing six-tool Memory IPC envelopes, native Agent scope ceilings, revocation, bounded stdio and original-packet retention after uncertain outcomes. No Morii Workspace bridge, actual Host/domain binding, real client, Provider, private data or cloud activation.
 
 ### ADR-MEM-87 — Host-scoped Agent reads (MV-8.2b)
 
-[Decision](087-host-scoped-agent-reads.md): in-process MCP read binding over the existing Host Vault, separate expiring Agent connections, current persisted policy checks, deletion/provenance barriers and fail-closed content-free auditing. No owner Workspace bridge or external Agent transport enrollment.
+[Decision](087-host-scoped-agent-reads.md): in-process MCP read binding over the existing Host Vault, separate expiring Agent connections, current persisted policy checks, deletion/provenance barriers and fail-closed content-free auditing. No Morii Workspace bridge or external Agent transport enrollment.
 
 ### ADR-MEM-88 — Host Agent proposals and keyed receipts (MV-8.2c)
 
@@ -420,14 +420,14 @@ The [full remember replay and target freshness acceptance](../validation/MV-6-fu
 
 ### ADR-MEM-84 — Agent provisional checkpoints (MV-8.2e)
 
-[Decision](084-host-agent-checkpoints.md): same-Host SessionPropose over authorized existing events and exact branch/range coverage, generated Agent provenance, stable keys excluding generated item IDs and provisional-only receipts. Existing owner whole-branch behavior stays unchanged.
+[Decision](084-host-agent-checkpoints.md): same-Host SessionPropose over authorized existing events and exact branch/range coverage, generated Agent provenance, stable keys excluding generated item IDs and provisional-only receipts. Existing Morii whole-branch behavior stays unchanged.
 
 ### ADR-MEM-85 — Isolated machine admission drafts (Core-1)
 
 [Decision](085-machine-admission-drafts.md): separate schema-2 policy/input/decision
 and planned-commit documents with System identity, exact revisions, evidence and
 context dependencies, deterministic attribution/staging and pure binding checks.
-No default writer, legacy owner-history change, IPC or Runtime activation.
+No default writer, legacy Morii-history change, IPC or Runtime activation.
 
 ### ADR-MEM-86 — Durable isolated automation jobs (Core-2)
 
@@ -442,7 +442,7 @@ private foreground-aware worker. No default Host wiring or memory application.
 root, native System formation/correction and witnessed atomic batch receipts,
 append-only data/authority closure, exact forward publication recovery and
 attributed current recall. Rule-2 optionally delegates revision of same-policy
-machine results; legacy owner history and all default routes remain unchanged.
+machine results; legacy Morii history and all default routes remain unchanged.
 
 ### ADR-MEM-88 — Continuous generation policy (Core-4)
 
@@ -456,7 +456,7 @@ barrier. Fake transport only; V1 private approvals and Runtime pins are unchange
 [Decision](089-dimensional-formation.md): opt-in layout `automation-host-v2`
 and rule 3, explicit formation/state/condition/time dimensions, exact original
 source derivation, staged System interpretation and new-revision historical
-reversion. No old-root upgrade, fabricated experience or owner approval.
+reversion. No old-root upgrade, fabricated experience or Morii approval.
 
 ### ADR-MEM-90 — Contextual recall and attention maintenance (Core-6)
 
@@ -478,9 +478,9 @@ saved experiment, new IPC/MCP, Runtime pin or shell adoption.
 
 [Decision](093-ui-v2-record-layout.md): opt-in `automation-host-v3`, required
 revision-bound title/language/rich-time/quoted evidence/formation metadata,
-append-only entity and conversation catalog, separate owner action shapes,
+append-only entity and conversation catalog, separate Morii action shapes,
 and authorization/snapshot/deletion rules for later projections. Synthetic
-validation only; stop for owner field acceptance before initialization/adoption.
+validation only; stop for Morii field acceptance before initialization/adoption.
 Number 92 is left for the separately owned MCP transport work.
 
 ### ADR-MEM-94 — Segmented automatic roots and scalable native catalog
@@ -496,22 +496,22 @@ filters, scoped facets and exact statistics. Old layouts/ports stay unchanged.
 [Decision](100-native-time-theme-graph.md): explicit bundled-IANA buckets,
 lazy recorded/shared-entity theme memberships and bounded typed graph chunks.
 Catalog algorithm version 2, current authorization before every projection;
-no stored record/layout change or Runtime/MCP activation. Owner application
+no stored record/layout change or Runtime/MCP activation. Morii application
 and history correction relations remain in their later slices.
 
 ### ADR-MEM-101 — Native process, history and conversation reads (Implemented, synthetic)
 
 [Decision](101-native-process-detail-reads.md): witnessed activity, scoped change
 anchors, authorized conflict/diff/history/neighbor/source/session ports and v3
-sensitivity/reason qualifications. No stored record/layout change, owner
+sensitivity/reason qualifications. No stored record/layout change, Morii
 execution, Runtime adoption or MCP activation.
 
-### ADR-MEM-103 — Native Owner actions and subject binding (Accepted A; synthetic implementation)
+### ADR-MEM-103 — Native Morii actions and subject binding (Accepted A; synthetic implementation)
 
-[Decision](103-owner-correction-subject-binding-proposal.md): explicit Owner-to-Subject
+[Decision](103-morii-correction-subject-binding-proposal.md): explicit Morii-to-Subject
 binding in a new empty `automation-segmented-owner-v1` root, native snapshot-bound
 plan/gesture/one-use commit and witnessed recovery, literal correction admission,
-withdrawal/forget barriers and qualified Owner overlays. Read selection v4 removes
+withdrawal/forget barriers and qualified Morii overlays. Read selection v4 removes
 global receipt/turn ordinal leaks. No Runtime/MCP adoption or private initialization.
 ADR102 remains reserved for the concurrent Runtime capture session.
 
@@ -520,16 +520,16 @@ ADR102 remains reserved for the concurrent Runtime capture session.
 [Decision](104-synthetic-initialization-intake.md): explicit selected originals,
 source/attachment preservation, native legacy-review evidence, durable bounded
 backfill/live batches and seven rebuildable projection groups. No real model,
-owner action or Runtime adoption. [Evidence](../validation/Memory-init-pipeline.md).
+Morii action or Runtime adoption. [Evidence](../validation/Memory-init-pipeline.md).
 
 ## Relation to Enouia Runtime's register
 
 
-Runtime [ADR-025](https://github.com/Morii9961/enouia-runtime/blob/main/docs/adr/025-enouia-memory-integration.md) is the counterpart of ADR-MEM-45: Runtime records this repository as the Memory domain authority and its pinned-revision dependency. Runtime's own register is authoritative for the status of Runtime ADRs. As amended by ADR-025: Runtime ADR-001 (local canonical ownership), 004 (shell/domain separation), 010 (encryption), 011 (embedded Core), 016 (two-track delivery) and 017 (health) are amended; 002 (Memory format), 006 (schema and candidate lifecycle), 007 (Mock Provider first), 008 (replica) and 009 (bridge and gateway) are superseded by this register; 003 (disposable index) is superseded for its Memory part and keeps its Activity clause; 012 (independent Activity) is unchanged. Runtime's own Core designs, Runtime ADR-020 to 024 (Vault generations, index and retrieval, invocation ledger, command receipts and jobs, operator export), are superseded for the Memory domain; their numbers are unrelated to ADR-MEM-20 to 24. Always write "Runtime ADR-0NN" or "ADR-MEM-NN".
+Runtime [ADR-025](https://github.com/Morii9961/enouia-runtime/blob/main/docs/adr/025-enouia-memory-integration.md) is the counterpart of ADR-MEM-45: Runtime records this repository as the Memory domain authority and its pinned-revision dependency. Runtime's own register is authoritative for the status of Runtime ADRs. As amended by ADR-025: Runtime ADR-001 (local canonical responsibility), 004 (shell/domain separation), 010 (encryption), 011 (embedded Core), 016 (two-track delivery) and 017 (health) are amended; 002 (Memory format), 006 (schema and candidate lifecycle), 007 (Mock Provider first), 008 (replica) and 009 (bridge and gateway) are superseded by this register; 003 (disposable index) is superseded for its Memory part and keeps its Activity clause; 012 (independent Activity) is unchanged. Runtime's own Core designs, Runtime ADR-020 to 024 (Vault generations, index and retrieval, invocation ledger, command receipts and jobs, operator export), are superseded for the Memory domain; their numbers are unrelated to ADR-MEM-20 to 24. Always write "Runtime ADR-0NN" or "ADR-MEM-NN".
 
 ### ADR-MEM-81 — Workspace saved-history comparison (Adopted, local integration)
 
-[Decision](081-workspace-history-comparison.md): expose the existing read-only owner comparison through explicit native-resolved task/batch selections. Preserve original/source/current-candidate separation, reject stale or oversized results, and keep Provider, approval and Host activation outside this command. [Evidence](../validation/Workspace-history-comparison-v1.md).
+[Decision](081-workspace-history-comparison.md): expose the existing read-only Morii comparison through explicit native-resolved task/batch selections. Preserve original/source/current-candidate separation, reject stale or oversized results, and keep Provider, approval and Host activation outside this command. [Evidence](../validation/Workspace-history-comparison-v1.md).
 
 ### ADR-MEM-82 — Workspace local history navigation brief (Adopted, local integration)
 
@@ -566,10 +566,10 @@ Runtime [ADR-025](https://github.com/Morii9961/enouia-runtime/blob/main/docs/adr
 
 ### ADR-MEM-105 — Explicit initialized-root Agent adoption
 
-[Decision](105-initialized-agent-reader-boundary.md): integrate published Owner
+[Decision](105-initialized-agent-reader-boundary.md): integrate published Morii
 and exact initializer dependencies without widening existing Agent/Runtime
 capture capabilities. The explicit qualified native/pipe-4 profile supports the
-original Owner carrier, including witnessed native corrections. Original profiles
+original Morii carrier, including witnessed native corrections. Original profiles
 refuse imported/partial/typed-attachment carriers before projection/counts and
 dispatch. The separate initialized native capability adopts those sources with
 scoped metadata projections; pipe-5 explicitly binds it to OS enrollment and
@@ -577,7 +577,7 @@ closed MCP outputs. Shared live formation remains unadvertised.
 
 ### ADR-MEM-111 — Queue-only admission of captured Runtime sources
 
-[Decision](111-captured-source-formation-queue.md): Owner-root Vault queue for
+[Decision](111-captured-source-formation-queue.md): Morii-root Vault queue for
 exact captured revisions. The capture value is data; every binding is re-read
 from state, identity is the original capture key alone, and sessions follow
 native turn order. No worker, generation, wire or formation result.
@@ -590,9 +590,9 @@ first. Lost analysis is recorded and never resent. Seeds and prepare are shared
 with the initializer, and captured work runs before backfill. Scripted analyzer
 only: no model, background thread or Host wiring.
 
-### ADR-MEM-113 — Owner Runtime capture pipe
+### ADR-MEM-113 — Morii Runtime capture pipe
 
-[Decision](113-owner-runtime-capture-pipe.md): explicit Owner-only pipe-2 with
+[Decision](113-morii-runtime-capture-pipe.md): explicit Morii-only pipe-2 with
 separate capture and queue receipts, original-key recovery and content-free
 producer job status. Existing pipe-1 and Agent profiles remain unchanged.
 
@@ -612,7 +612,7 @@ read-only; storage and explicit MCP write negotiation follow separately.
 ### ADR-MEM-116 — Durable Agent hint intake
 
 [Decision](116-durable-agent-note-intake.md): save optional scoped Agent hints
-through the existing witnessed Owner commit chain with independent original-key
+through the existing witnessed Morii commit chain with independent original-key
 receipts. No source, job or memory is created and no MCP write is advertised.
 
 ### ADR-MEM-117 — Optional Agent hints in captured analysis
@@ -641,12 +641,12 @@ older arguments-only stdio behavior remain unchanged; no real setup is activated
 [Decision](120-native-agent-correction-drafts.md): separate native correction
 delegation binds a fully Agent-qualified current target and independently
 authorized captured user quote. Draft preparation publishes nothing and cannot
-perform an Owner edit; durable reports and System revision evaluation follow.
+perform a Morii edit; durable reports and System revision evaluation follow.
 
 ### ADR-MEM-121 — Durable Agent correction reports
 
 [Decision](121-durable-agent-correction-reports.md): save correction reports
-through the existing witnessed Owner chain with `report_saved` original-key
+through the existing witnessed Morii chain with `report_saved` original-key
 receipts. Authorization precedes replay; a saved key replays from the target's
 currently authorized history after a System revision. Nothing is corrected yet.
 
@@ -655,7 +655,7 @@ currently authorized history after a System revision. Nothing is corrected yet.
 [Decision](122-system-correction-consumption.md): the captured worker analyzes
 each saved report once through a separate CorrectionAnalyzer port and turns an
 accepted user quote into an ordinary target-bound `correction` revision decided
-by the existing evaluator. No Owner queue; a moved target is refused.
+by the existing evaluator. No Morii queue; a moved target is refused.
 
 ### ADR-MEM-123 — Explicit Agent correction MCP and local transport
 
@@ -668,19 +668,19 @@ retaining the complete original MCP Value. Pipe-5/6 are unchanged.
 
 [Decision](124-agent-supersede-reports.md): independent permit, saved report,
 System update analyzer and pipe-8 for previously true facts that changed.
-Original user quotes remain the only evidence; no correction alias or Owner queue.
+Original user quotes remain the only evidence; no correction alias or Morii queue.
 
 ### ADR-MEM-125 — Record Agent forget requests without forgetting
 
 [Decision](125-agent-forget-request-recording.md): independently authorized
 request-only storage and pipe-9 return forget_request_saved, with no hiding,
-deletion, Owner action, model dispatch or mandatory review queue.
+deletion, Morii action, model dispatch or mandatory review queue.
 
 ### ADR-MEM-126 — Scoped MCP opening prompt and resources
 
 [Decision](126-mcp-opening-resources.md): explicit read-only pipe-10 supplies
 memory_start and logical-ID memory/actual-recall resources on the same current
-initialized Agent reader. No capture, model call, Owner action or old-profile change.
+initialized Agent reader. No capture, model call, Morii action or old-profile change.
 
 ### ADR-MEM-127 — Read-only Agent session_start tool
 
@@ -688,19 +688,19 @@ initialized Agent reader. No capture, model call, Owner action or old-profile ch
 Agent-invocable bounded opening recipe on the same qualified reader. It returns
 actual recall context, never creates/captures a Session or calls a model.
 
-### ADR-MEM-110 — Native empty Owner bootstrap
+### ADR-MEM-110 — Native empty Morii bootstrap
 
-[Decision](110-native-empty-owner-bootstrap.md): an explicit trusted native local
-creation command, persistent owner-self registration, original-operation recovery
+[Decision](110-native-empty-morii-bootstrap.md): an explicit trusted native local
+creation command, persistent Morii-self registration, original-operation recovery
 and empty genesis verification. Creation metadata is not Runtime root selection;
-no import, model, formation queue or MCP Owner route is activated.
+no import, model, formation queue or MCP Morii route is activated.
 
-### ADR-MEM-128 — Owner-exported public persona projection
+### ADR-MEM-128 — Morii-exported public persona projection
 
 [Decision](128-public-persona-projection-export.md): a closed, generic
 `public-persona-projection-1` contract built only from one current Identity
-revision's `enouia-public-persona-1` block and owner-selected `public` records;
-owner options/preview/export with digest-bound writes into a new file outside
+revision's `enouia-public-persona-1` block and Morii-selected `public` records;
+Morii options/preview/export with digest-bound writes into a new file outside
 repositories and Vaults. No Agent grant, cloud read, automatic export or Runtime change.
 
 ### ADR-MEM-129 — Remote Streamable HTTP endpoint for a ChatGPT connector
@@ -722,52 +722,52 @@ or VPS configuration.
 ### ADR-MEM-131 — Linux platform layer for the Vault
 
 [Decision](131-linux-vault-platform.md): on Linux, `statfs` reports free space and
-filesystem kind (network and FUSE mounts count as remote). Owner-only means
+filesystem kind (network and FUSE mounts count as remote). Morii-only means
 POSIX mode with no group or other access, owned by the effective user, with no
 ACL extension. Restriction sets 0700/0600 after removing ACL attributes. Windows
 code is unchanged; `libc` is added for Linux only. There is no Linux real-Vault
 entry yet.
 
-### ADR-MEM-132 — Single-owner OAuth authority for the remote endpoint
+### ADR-MEM-132 — Single-Morii OAuth authority for the remote endpoint
 
-[Decision](132-remote-mcp-owner-oauth.md): RFC 8414 metadata, RFC 7591
+[Decision](132-remote-mcp-morii-oauth.md): RFC 8414 metadata, RFC 7591
 registration for public clients on allowed HTTPS redirect prefixes, and the
-authorization code grant with S256 PKCE. The owner approves by typing a
+authorization code grant with S256 PKCE. Morii approves by typing a
 one-time approval code obtained on the server. Codes and tokens are stored as
 digests only; refresh tokens rotate, and any replay revokes the family. No
 password, runnable entry, write tools or deployment.
 
-### ADR-MEM-133 — Runnable remote MCP service for one Owner Vault
+### ADR-MEM-133 — Runnable remote MCP service for one Morii Vault
 
 [Decision](133-remote-mcp-service-entry.md): the `enouia-memory-remote` binary
-(`serve`, `approve`). The Owner is authenticated as the OS account owning the
+(`serve`, `approve`). Morii is authenticated as the OS account owning the
 0700 Vault root. The service file sets the exposure scope. Vault permits last
 five minutes and renew every four. The OAuth state lives in a locked, atomically
 written, digest-only file beside the Vault. Segmented Vaults now open on durable
-Linux filesystems. No Linux Owner bootstrap, deployment, write tools or real
+Linux filesystems. No Linux Morii bootstrap, deployment, write tools or real
 scope.
 
-### ADR-MEM-134 — Linux Owner bootstrap
+### ADR-MEM-134 — Linux Morii bootstrap
 
-[Decision](134-linux-owner-bootstrap.md): the native Owner bootstrap also runs
+[Decision](134-linux-morii-bootstrap.md): the native Morii bootstrap also runs
 on Linux. The account is the effective uid bound to `/etc/machine-id` and is
 re-read before every write. Journal and metadata files are kept 0600 on Linux,
 while the existing broad-grant refusals stay. No migration, deployment or real
 data.
 
-### ADR-MEM-135 — Re-initialize the legacy library into a new Owner Vault
+### ADR-MEM-135 — Re-initialize the legacy library into a new Morii Vault
 
 [Proposed](135-legacy-library-reinitialization.md): the real data sits in a v1
-library that cannot be upgraded, because a segmented Owner root binds the
-Owner in its genesis commit. The plan is a read-only export from a working
+library that cannot be upgraded, because a segmented Morii root binds the
+Morii in its genesis commit. The plan is a read-only export from a working
 copy, then a production initializer that turns every legacy candidate into a
 formal memory with no model call and no review queue. The run is verified and
 backed up, then uploaded to the Linux VPS. The old library is deleted only
 after acceptance and Morii's renewed confirmation. No code yet.
 
-### ADR-MEM-136 — Offline segmented Owner backup
+### ADR-MEM-136 — Offline segmented Morii backup
 
-[Decision](136-segmented-owner-backup.md): offline, complete Owner-root export,
+[Decision](136-segmented-morii-backup.md): offline, complete Morii-root export,
 independent chain/object verification and isolated restore into an empty root.
 Journals preserve recovery and unknown outcomes; restored roots require explicit
 activation against the current backup before ordinary opening. Real encrypted
@@ -781,9 +781,9 @@ limited to 60 characters. Original content/evidence and supplied-title validatio
 are unchanged. Synthetic verification and Runtime surface registration accompany
 the worker fix.
 
-### ADR-MEM-138 — Synthetic cross-platform Owner restore rehearsal
+### ADR-MEM-138 — Synthetic cross-platform Morii restore rehearsal
 
-[Decision](138-owner-cross-platform-rehearsal.md): a built-in synthetic producer
+[Decision](138-morii-cross-platform-rehearsal.md): a built-in synthetic producer
 and native restore harness compare snapshots, receipts, source evidence and
 deletion barriers across Windows export and Linux restore. Only newly allocated
 temporary targets are written; production APIs and Runtime surface stay unchanged.
@@ -802,11 +802,11 @@ metadata and selection watermarks bind shard hashes and byte locations; the
 complete original archive stays separately retained. This pure intake prerequisite
 provides no semantic analyzer, fresh production driver or real initialization.
 
-### ADR-MEM-141 — Independent Owner read grants for the connector
+### ADR-MEM-141 — Independent Morii read grants for the connector
 
-[Decision](141-connector-owner-read-grants.md): Morii explicitly approved separating
+[Decision](141-connector-morii-read-grants.md): Morii explicitly approved separating
 long-term reads from formation expiry/revision/disable. Exact historical policy
-references remain immutable evidence; a native Owner grant controls the Agent,
+references remain immutable evidence; a native Morii grant controls the Agent,
 source scope, sensitivity, source text and expiry. Explicit opt-in only; short
 permits, deletion barriers and restore quarantine remain. Native management and
 OAuth client revocation reuse the existing service and locked state file.
@@ -833,7 +833,7 @@ quote and context dependency. Source values and scope bind each watermark;
 oversized individual statements and cross-statement links refuse. Production
 execution, journal sizing and native acceptance remain separate.
 
-### ADR-MEM-145 — Explicit fresh input to native Owner formation
+### ADR-MEM-145 — Explicit fresh input to native Morii formation
 
 [Decision](145-fresh-native-driver.md): hash-bound explicit shards, source
 revisions, scalar quote anchors, attachment originals and supplied analysis feed
@@ -852,9 +852,9 @@ without promoting them to support or replacing witnessed native formation.
 ### ADR-MEM-147 — Resume a fresh run on an activated restore
 
 [Decision](147-fresh-restored-run-resume.md): a separate trusted native CLI path
-reauthenticates the selected durable Owner home, verifies an already activated
+reauthenticates the selected durable Morii home, verifies an already activated
 restore and its exact export, and resumes only its existing identical fresh run.
-The original plans/keys/unknown barriers and logical Owner IDs remain; no new
+The original plans/keys/unknown barriers and logical Morii IDs remain; no new
 registration, activation, authority transfer or persisted format is introduced.
 
 ### ADR-MEM-148 — Explicit text-only fresh initialization
@@ -863,7 +863,7 @@ registration, activation, authority transfer or persisted format is introduced.
 without reading or archiving attachment originals. Preserve exact textual source
 and analysis Raw, distinguish intentionally unselected payloads from unavailable
 originals, and bind the choice to the complete native run. External deletion remains
-a later owner-confirmed action after acceptance and independent backup/restore.
+a later Morii-confirmed action after acceptance and independent backup/restore.
 
 ### ADR-MEM-149 — Group repeated support origins
 

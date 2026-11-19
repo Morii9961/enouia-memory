@@ -1,6 +1,6 @@
 # ADR-MEM-74 — Native Host binding for domain writes
 
-Date: 2026-10-22. Scope: owner-authorized MV-8.1e native library.
+Date: 2026-10-22. Scope: Morii-authorized MV-8.1e native library.
 
 Domain services accept `&Vault` and call `Vault::commit`; some replay receipts
 or read duplicate candidates without another commit. Host roots persistently

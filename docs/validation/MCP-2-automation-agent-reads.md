@@ -13,9 +13,9 @@ MCP-Resume-1 `16592dd0019370c3697756811447aa73dfcaa719`。
 [Schema](../../contracts/next/agent-read-v2.schema.json) 是本仓库的实现边界；
 Runtime UI v2 的 03-MCP_REQUIREMENTS.md 是需求输入。
 
-原生 Owner 注册精确 subject/project/source 集合、敏感度上限、独立 SourceRead 和短期有效期；
+原生 Morii 注册精确 subject/project/source 集合、敏感度上限、独立 SourceRead 和短期有效期；
 密封 permit 绑定当前策略及 Vault 实例。OS 登记绑定实际活进程与管道对端，客户端自报
-principal/scope/PID/clientInfo 不授予权限。读端既不转发 System 读口，也不借用 Owner
+principal/scope/PID/clientInfo 不授予权限。读端既不转发 System 读口，也不借用 Morii
 Workspace。管道断开、撤回、到期或锁定后旧 reader 永不复活。
 
 五工具 memory_search/read/source/related/recall 通过真实保护管道工作；标准 stdio bridge
@@ -38,7 +38,7 @@ Context 原生接口返回同一个 AgentReader 最后一次计算出的真实�
 
 新握手同时校验 schema、布局、capability、MCP 版本和九份 Schema 的兼容哈希。
 仅升级 source pin 或相同 schema major 不会授予新版读取。Memory 当前限定的知识、采用、
-有效性和时间轴原样保留；「主体说过」不被提升为事实，System 采用不等于 Owner 确认。
+有效性和时间轴原样保留；「主体说过」不被提升为事实，System 采用不等于 Morii 确认。
 
 ## 实际合成证据
 
@@ -47,7 +47,7 @@ Context 原生接口返回同一个 AgentReader 最后一次计算出的真实�
 真实 MCP 应用配置、Activity/Usage 输入或远程服务。
 
 - 原生读取七组回归：当前策略/来源/敏感度和先授权计数；独立来源权限；绑定 grant、
-  snapshot、profile 的游标；锁定/解锁/撤回/到期/时钟回退；Owner/System 冒充和跨 Vault
+  snapshot、profile 的游标；锁定/解锁/撤回/到期/时钟回退；Morii/System 冒充和跨 Vault
   permit；隐藏祖先/删除与历史边；历史、预算、旧布局、四种时间轴及当前授权优先于旧排名。
 - 真实独立测试 Agent：五工具均经过 Windows 管道；隐藏条目的 ID 不出现在结果，计数只含
   委托范围。UTF-8 来源片段保留截断说明；related 显式声明没有事实边/建议边能力。

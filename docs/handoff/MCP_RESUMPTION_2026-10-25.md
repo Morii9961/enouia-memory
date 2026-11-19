@@ -27,7 +27,7 @@ Morii 已澄清下一段回到 MV-8／MCP。此前“暂停 MCP”是核心重�
 | 协议 | 固定支持 MCP `2025-11-25` 的受限 stdio／JSON-RPC；这不是“最新版本”声明 |
 | 工具 | 仅 `memory_search`、`memory_read`、`memory_source`、`context_get`、`memory_propose`、`session_checkpoint`；`memory_update` 只是未广告的旧别名 |
 | Host 内领域绑定 | 六工具已有进程内合成绑定；受当前记录策略、独立 scopes、来源／删除约束和原生生命周期控制 |
-| 写入语义 | 旧提议和 provisional checkpoint 保留原语义、主体隔离回执与未知结果处理，不借用 Owner Workspace，也不变成机器批准 |
+| 写入语义 | 旧提议和 provisional checkpoint 保留原语义、主体隔离回执与未知结果处理，不借用 Morii Workspace，也不变成机器批准 |
 | 原生准入 | `Grant::from_authenticated_agent` 是“已完成外部认证后的可信嵌入边界”，本身不做 OS 认证或客户端登记 |
 | 可运行接入 | `examples/mcp_synthetic_stdio.rs` 仅协议示例，不打开 Vault，工具返回 backend unavailable；不是可用的外部 Agent→Host 服务器 |
 | 未交付 | 外部 Agent 原生认证／登记、真正可运行的本地接入传输、真实 MCP 应用安装／配置与个人验收 |
@@ -44,8 +44,8 @@ Morii 已澄清下一段回到 MV-8／MCP。此前“暂停 MCP”是核心重�
 交付边界：
 
 1. 原生可信登记／launcher 路径核验本地对端身份，建立受限 Agent 会话；允许使用必要的 OS 进程／账户／登录会话元数据，不读取 API 凭据。身份和授权不能取自 `clientInfo`、工具参数、自报 PID 或聊天中的“同意”。用户可控制客户端授权，不要求逐条批准每条机器记忆。
-2. 用独立合成客户端进程走真正本地 stdio／原生传输，接到同一个已绑定 Host。MCP 桥不能另开 Vault writer 或把请求转给 Owner Workspace。优先复用现有 Windows 受保护管道、对端核验、deadline 和回收机制。
-3. 保持现有六工具和旧工具含义，验证当前策略、独立 `source:read`、敏感度和项目／来源约束。不得开放 Owner review、任意 Workspace 转发、原生生命周期控制或 System 身份。
+2. 用独立合成客户端进程走真正本地 stdio／原生传输，接到同一个已绑定 Host。MCP 桥不能另开 Vault writer 或把请求转给 Morii Workspace。优先复用现有 Windows 受保护管道、对端核验、deadline 和回收机制。
+3. 保持现有六工具和旧工具含义，验证当前策略、独立 `source:read`、敏感度和项目／来源约束。不得开放 Morii review、任意 Workspace 转发、原生生命周期控制或 System 身份。
 4. 锁定、撤回、退出、重启和连接代次变化使旧准入失效；同一请求与原键绑定不变。已知拒绝与结果未知分开，未知结果保留原包／原键，不自动重发、重连或生成替代键；真实成功回执只能来自合法提交。
 5. 明确支持与拒绝的格式／能力矩阵，给出可重复的合成启动方法和结果报告。真实 Codex／Claude 等应用配置、个人数据、真实 Provider 和远程开放不在首片中。
 
@@ -53,11 +53,11 @@ Morii 已澄清下一段回到 MV-8／MCP。此前“暂停 MCP”是核心重�
 
 必须分别检查源码 pin、Record schema、存储 layout、Host publication、Workspace IPC、Memory IPC／MCP 与新原生能力，不能用一个“V2”代替全部。
 
-- 旧记录 schema 1、闭合 `RecordKind`／`AnyRecord`、原 Owner 批准字节与历史保持。历史 Host `host-current-v2` 仍可承载 schema-1 记录，不等于自动记忆 schema 2。
+- 旧记录 schema 1、闭合 `RecordKind`／`AnyRecord`、原 Morii 批准字节与历史保持。历史 Host `host-current-v2` 仍可承载 schema-1 记录，不等于自动记忆 schema 2。
 - Core 自动化根 `automation-host-v2`、规则 3 和 `memory-native-read-1` 是显式独立能力。现有原生读模型经过 System gate，不能直接当作对外 Agent 读取端口。
 - 旧 Memory IPC 六工具不会因为 pin 升级就自动成为机器格式 reader。格式／能力不支持时，必须在业务解码、查询、计数和正文返回之前拒绝；unknown-major 原字节诊断不是业务支持。
 - 首片如仅接通旧格式的真实本地传输，应明确记录“自动化 V2 根的 Agent reader 未交付”，列作后续独立适配，不能宣称新版 MCP 全部采用完成。若本片确需补新版读取，先冻结版本化、策略过滤的 Agent 契约并限于必要范围；不能转发 System native read 来省略权限。
-- Agent 话语不是 Morii 自述；提议／checkpoint 不等于 Owner 确认或客观独立证实。旧候选不能批量晋升，旧工具也不能暗中改变为自动 Canonical 写入。新机器准入仍走合法 System 管线，含糊／冲突走自动暂存与重评，不新建必须由 Morii 清理的队列。
+- Agent 话语不是 Morii 自述；提议／checkpoint 不等于 Morii 确认或客观独立证实。旧候选不能批量晋升，旧工具也不能暗中改变为自动 Canonical 写入。新机器准入仍走合法 System 管线，含糊／冲突走自动暂存与重评，不新建必须由 Morii 清理的队列。
 
 参阅 [Core-1 格式／消费者矩阵](../contracts/CORE1_AUTOMATIC_ADMISSION.md)、[当前自动提交契约](../contracts/CORE3_AUTOMATIC_LOOP.md)、[Core-7 读模型](../contracts/CORE7_READ_MODEL.md)。
 

@@ -1,7 +1,7 @@
-# ADR-MEM-135 — Re-initialize the legacy library into a new Owner Vault
+# ADR-MEM-135 — Re-initialize the legacy library into a new Morii Vault
 
 2026-11-10. Proposed by Morii's migration decision. The data the ChatGPT
-connector should serve is not in the empty Owner root created on 2026-10-30.
+connector should serve is not in the empty Morii root created on 2026-10-30.
 It is in an older v1 library:
 
 - sources and attachments from one ChatGPT export import;
@@ -12,7 +12,7 @@ The library has no approved memories. Paths stay in local configuration only.
 
 ## Why not upgrade the old root
 
-A `SegmentedOwnerV1` root binds the Owner subject in its genesis commit
+A `SegmentedOwnerV1` root binds the Morii subject in its genesis commit
 through `descriptor_hash` (ADR-MEM-103). Every later commit chains from that
 genesis. The v1 root has no such binding. Adding it after the fact would mean
 rewriting the genesis and every commit after it. The design therefore never
@@ -22,12 +22,12 @@ supported path, not a workaround.
 
 ## Decision
 
-1. **Owner decisions.** Morii decided the following:
+1. **Morii decisions.** Morii decided the following:
    - Every candidate becomes a formal memory directly. They are
      initialization output: there is no review queue, no per-item
      confirmation and no model call.
    - Evidence stays what it was, a legacy model claim. It is never recast as
-     Owner confirmation.
+     Morii confirmation.
    - The timezone is Asia/Shanghai.
    - The target is a Linux VPS.
    - After the new root passes acceptance and has a verified independent
@@ -44,8 +44,8 @@ supported path, not a workaround.
 3. **Production initializer.** Today the initializer only offers
    `create_synthetic` and `open_synthetic`. Add a production entry with these
    properties:
-   - It creates the root through the native Owner bootstrap (ADR-MEM-110 and
-     134) and runs as the authenticated Owner.
+   - It creates the root through the native Morii bootstrap (ADR-MEM-110 and
+     134) and runs as the authenticated Morii.
    - It binds the selected source scope, Asia/Shanghai and a "no provider"
      analysis mode.
    - It builds statements deterministically from the legacy candidates, one
@@ -67,7 +67,7 @@ supported path, not a workaround.
 
    The new root is backed up and the backup restored in a scratch location
    before the old library is offered for deletion.
-5. **Upload.** The verified root, with its owner-data home, moves to the VPS
+5. **Upload.** The verified root, with its Morii-data home, moves to the VPS
    under the service account (ADR-MEM-133) and is opened with its own host id.
    The policy and source scope exposed to ChatGPT is still Morii's decision.
 
@@ -81,7 +81,7 @@ supported path, not a workaround.
   evidence is synthetic; see the `legacy_snapshot_*` CLI test.
 - 2026-11-10: step 3 landed.
   - **Production entry.** `Initializer::adopt_bootstrapped` takes over a root
-    that the Owner bootstrap has just created. It refuses a root that already
+    that the Morii bootstrap has just created. It refuses a root that already
     holds sources, memories or a journal.
   - **Batching.** `legacy::legacy_batches` matches old sources to re-parsed
     export messages, by message id or by content hash for documents. It turns
@@ -90,7 +90,7 @@ supported path, not a workaround.
   - **Driver.** `enouia-memory-reinit plan|run`.
 
   Details that differ from the plan above:
-  - **Quote.** The quote is the cited owner message. A message longer than the
+  - **Quote.** The quote is the cited Morii message. A message longer than the
     500-character quote limit is excerpted to the sentence sharing the most
     character pairs with the candidate's wording, widened by its neighbours.
   - **Title.** The title is the candidate's wording when the quote contains
@@ -103,7 +103,7 @@ supported path, not a workaround.
     dependencies only when they share its batch. The rest are counted as
     dropped. Batching never merges conversations for them, because that
     chained most of the library into one oversized batch.
-  - **Long conversations.** The old library kept only the owner's turns, so
+  - **Long conversations.** The old library kept only Morii's turns, so
     each turn is its own branch (a plan allows 32 per conversation). A
     conversation therefore contributes at most one 32-turn chunk per batch.
 
@@ -119,5 +119,5 @@ with synthetic evidence first and the real run only on Morii's go-ahead.
 
 The migrated memories carry legacy-model-claim evidence and point back to the
 original export text. Any later re-check with a real provider is a separate
-step (MV-7). The empty Owner root from 2026-10-30 is not used for this
+step (MV-7). The empty Morii root from 2026-10-30 is not used for this
 migration.

@@ -7,7 +7,7 @@ operator/launcher. Its PID is configuration, never a wire claim. The retained
 OS process object, account/session match and kernel peer verification authenticate
 the enrolled process. Principal and ceilings are never accepted from MCP input.
 Accepted ceilings: memory:read, source:read, memory:propose, context:read,
-session:propose; nonempty, unique, no Owner/System scopes. Persisted current
+session:propose; nonempty, unique, no Morii/System scopes. Persisted current
 record/project/source/sensitivity/deletion policies remain independently required.
 
 An Agent pipe uses existing u8-tag/u32le-length framing on a separately selected
@@ -41,12 +41,12 @@ also closes. No automatic reconnection, resend or replacement key is permitted.
 | --- | --- | --- |
 | Existing Memory IPC v1 / six MCP tools | Read/search/source under current Agent policy; pending proposal, limited offline Context and provisional checkpoint | Refuse root before record decode/query/count; no V2 Agent reader/writer |
 | This native Agent pipe / stdio bridge | Same six tools, exact capability/hash, native process enrollment | Refuse; upgrading source pin alone grants nothing |
-| Legacy Workspace / Owner writer | Existing Owner-only meanings, schemaVersion 1 / 58 commands | Refuse; no implicit migration, conversion or fallback |
+| Legacy Workspace / Morii writer | Existing Morii-only meanings, schemaVersion 1 / 58 commands | Refuse; no implicit migration, conversion or fallback |
 | AutomationVault / AutomationHost | Refuse as an automation root; no legacy rewriting | Existing native System gate, witnessed transactions, automatic staging/reassessment |
-| Core-7 memory-native-read-1 | No legacy Owner-history projection | System-gated native read only; not exposed to Agents by this pipe |
+| Core-7 memory-native-read-1 | No legacy Morii-history projection | System-gated native read only; not exposed to Agents by this pipe |
 | Unknown-major raw-byte diagnostics | No additional authority | Diagnostic preservation only; no business reader/writer/count support |
 
 Source Git pin, record schema, segmented storage format 2, Host publication,
 Workspace IPC, Memory IPC/MCP and native capability are independent axes.
-Agent speech remains Agent provenance, never inferred Owner/user confirmation.
-No machine-format MCP adoption or mandatory per-memory owner review is claimed.
+Agent speech remains Agent provenance, never inferred Morii/user confirmation.
+No machine-format MCP adoption or mandatory per-memory Morii review is claimed.

@@ -11,7 +11,7 @@ expose initialized sources over MCP. See the version/capability matrix in
 ## Owned scope
 
 Initializer dependency paths are inherited from its published commit, including
-its added durable-owner-data protection rule in AGENTS; no existing guidance or
+its added durable-Morii-data protection rule in AGENTS; no existing guidance or
 manual project status is replaced. Conflict resolution keeps intake registration
 and qualified Agent exports, retains both integration logs, and regenerates the
 manifest. MCP changes only the native original-carrier gate, qualified factory,
@@ -21,14 +21,14 @@ No initializer worker/queue code is edited and no other checkout is modified.
 ## Actual evidence
 
 Focused native verification: 21 passed, 0 failed (2 carrier-boundary,
-5 qualified-page/Owner-correction, 6 native tools and 8 actual-pipe/process tests).
+5 qualified-page/Morii-correction, 6 native tools and 8 actual-pipe/process tests).
 The pipe invalidation test includes a legal native import after enrollment;
 unknown retains its exact original packet/key, followed by Closed, never resend.
 The native test uses complete, partial and typed-attachment imports under an
 independent current policy outside the Agent source selection. All old factories,
 permits and callback projections refuse; deleting the imported source does not
 restore compatibility. Invalid MCP arguments are not decoded or counted after
-carrier invalidation. Existing native Owner correction and original capture pass.
+carrier invalidation. Existing native Morii correction and original capture pass.
 
 Rust fmt and strict workspace/all-target clippy passed. Independent pinned
 Python 3.12 / jsonschema 4.26.0 passed 61 schemas, including the actual six

@@ -7,12 +7,12 @@ Schema: [agent-read-v2](../../contracts/next/agent-read-v2.schema.json).
 ## Native authority
 
 `AutomationHost::agent_reader` is trusted native registration, not an RPC. The
-native Owner must already be authenticated independently. It supplies an Agent
+native Morii must already be authenticated independently. It supplies an Agent
 principal and `AgentReadScope`: exact subject/project, 1..128 unique source IDs
 within current automation policy, a sensitivity ceiling, independent source-read
 permission, and exclusive valid_until within five minutes/current policy validity.
 These values never come from clientInfo, tool arguments or a model. Registration
-is collection-scoped; it does not create a per-memory owner review queue.
+is collection-scoped; it does not create a per-memory Morii review queue.
 
 The sealed non-Clone/nonserializable permit binds a random scope hash, exact
 current policy reference and live Vault instance. The borrowed reader binds the
@@ -30,7 +30,7 @@ references and derivation/reversion ancestors must fit the delegated scope.
 Otherwise withhold the entire item, including its history and edges. Missing and
 inaccessible selected identities are indistinguishable. Source metadata/text
 requires independent source-read permission; evidence references remain provenance.
-No System reader, Owner Workspace operation or second writer is exposed.
+No System reader, Morii Workspace operation or second writer is exposed.
 
 ## Explicit compatibility and capabilities
 
@@ -94,7 +94,7 @@ Reads allocate no operation, receipt or durable experiment and perform no busine
 writes. Per-connection search/read/source/related/recall call counters are separate
 ephemeral metadata, not attention, billing or Activity/Usage input. Stored receipt
 meaning remains unchanged. Attributed statements are subject statements, not
-verified facts; machine adoption is not Owner approval, and staged uncertainty
+verified facts; machine adoption is not Morii approval, and staged uncertainty
 continues automatic reassessment. Time, validity, knowledge and adoption remain
 separate axes.
 
@@ -137,7 +137,7 @@ capture times are preserved.
 
 MCP-3 must use the frozen record fields and the same System/live formation pipeline
 as initialization. Agent hints remain hints and Agent speech never becomes native
-Owner confirmation. Morii's capture/timezone decisions below govern the next
+Morii confirmation. Morii's capture/timezone decisions below govern the next
 capture slice; forget-hide policy still requires a decision before MCP-4.
 No migration, real Provider or embedding, private Vault, Activity/Usage, Runtime
 edit, remote opening or deployment is part of this delivery.
@@ -149,7 +149,7 @@ Daily raw-conversation collection is **Runtime-host-only**. This supersedes the
 earlier choice of both Runtime and Agent-host hooks. Do not implement Codex,
 Claude or other external Agent-host collection hooks in this route. Agent MCP
 reads remain in scope; optional Agent notes stay Agent hints/provenance and do
-not become authenticated Runtime conversation capture or Owner confirmation.
+not become authenticated Runtime conversation capture or Morii confirmation.
 
 The future capture ingress must authenticate native Runtime registration;
 clientInfo, speaker labels, tool arguments or an Agent claim cannot establish
@@ -159,7 +159,7 @@ Retries retain the original packet/key and conflict on changed work; removing
 the second hook does not authorize duplicate formation or automatic resend.
 The concrete versioned capture API/permission is still an MCP-3 deliverable.
 
-For missing source timezone use the owner-selected default **Asia/Shanghai**,
+For missing source timezone use the Morii-selected default **Asia/Shanghai**,
 and preserve explicit provenance that the timezone came from that default.
 Keep an explicitly supplied timezone. This default supplies no unknown event
 instant/date and must not replace RecordTime.basis with an unfrozen enum value.

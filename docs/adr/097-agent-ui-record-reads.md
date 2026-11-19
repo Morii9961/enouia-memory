@@ -12,7 +12,7 @@ Preserve the sealed current-policy/source/subject/project/sensitivity delegation
 OS process enrollment and lifecycle barriers. Entity names and every alias must
 also fit the same policy, source revision/deletion and Agent source scope before
 an item can contribute to any result/count. Reuse only authorized pure projection,
-never a System native port. No Owner action, writer or broader Context is added.
+never a System native port. No Morii action, writer or broader Context is added.
 
 Return stored claim/time/formation fields plus authorized current EntityRecord
 metadata, keyed by the same memory revision as each page/detail/recall item.

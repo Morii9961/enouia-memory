@@ -24,8 +24,8 @@ reopen the synthetic root, resolve both original quotes, retain content longer
 than 500 characters and a distinct title, preserve unknown model identity, and
 prove idempotent enqueue and changed-content/provenance conflicts. They also
 check missing/unresolvable/duplicate-source quotes, Assistant support rejected
-as an Owner self-report, sensitive support propagation, staged inference,
-content limits, closed JSON decoding and zero fabricated Owner actions.
+as Morii self-report, sensitive support propagation, staged inference,
+content limits, closed JSON decoding and zero fabricated Morii actions.
 
 Two initial test iterations found a fixture collection-type mismatch and a
 missing serde default for omitted empty context sources; both were fixed before
@@ -36,11 +36,11 @@ in the test run; tests still passed. Clippy used incremental compilation disable
 
 This does not measure semantic entailment or corpus quality. No real conversation,
 attachment, Provider, production Vault, remote deployment, independent backup,
-Runtime integration, deletion or Owner acceptance was exercised. Full workspace
+Runtime integration, deletion or Morii acceptance was exercised. Full workspace
 checks and schema/Runtime surface regeneration were not run: no contract,
 validator schema, dependency or registered Runtime surface changed.
 
-Production use awaits Owner merge approval. Complete source packing, attachment
+Production use awaits Morii merge approval. Complete source packing, attachment
 handling and a fresh production driver remain required before native full-corpus
 initialization; the legacy candidate route is not reused as semantic input.
 

@@ -37,16 +37,16 @@ Runtime 现场复核；没有访问或修改 Claude 的 Runtime 树。
 [ADR-MEM-85](../adr/085-machine-admission-drafts.md)先冻结最小契约，再实现
 现有 contract crate 的独立 next 模块。四种 closed 文档分别表示版本化
 策略、精确准入输入、机器决定草案和未来提交关联。原全局 schema 1、
-RecordKind/AnyRecord、OWNER_ONLY、CURRENT、默认写入口及 v1 IPC 未修改。
+RecordKind/AnyRecord、`OWNER_ONLY`、CURRENT、默认写入口及 v1 IPC 未修改。
 
 纯规则绑定真实上下文提供的 System 身份、完整策略 revision/hash、Vault/
 base commit/primary epoch/policy/deletion 屏障；区分精确支持证据与全部
 分析依赖；继承最严格敏感度并保守要求相同访问策略。目标必须是可写、
-未删除的机器记录精确修订/hash，结果必须是合法下一修订；旧 owner
+未删除的机器记录精确修订/hash，结果必须是合法下一修订；旧 Morii
 记录不作为机器改写目标。重复 source、相同内容或同一上游消息不增加支持。
 
 清楚自述自动采用为 attributed_statement，含义是“本人说过 X”，没有
-独立客观证实或伪造 owner 审核。推断/含糊/冲突分别保持 hypothesis/
+独立客观证实或伪造 Morii 审核。推断/含糊/冲突分别保持 hypothesis/
 uncertain/disputed 与 staged，带新证据/策略变化触发自动重评的状态。
 缺少/过期/越权依赖拒绝准入，不产生必须由 Morii 清空的审核队列。
 规则只消费分析分类，不宣称模型已经理解否定、身份、语境或全部语义。
@@ -64,7 +64,7 @@ Core-1 的 V2 parser 只读草案，不是 V2 Vault 业务 reader/writer。
 schema major 和会话能力上、记录解码与查询之前拒绝旧消费者，不能把新
 kind 塞进 V1 库后让旧程序跳过。unknown-major 仅能保留原字节诊断。
 
-迁移设计要求源精确快照、独立恢复、原 owner 字节/批准历史保留、完整依赖
+迁移设计要求源精确快照、独立恢复、原 Morii 字节/批准历史保留、完整依赖
 和删除闭合、单主栅栏与明确采用。新写发生后不能以降级二进制或旧备份
 冒充回滚，不能降低策略/删除/主权水位。均未执行真实迁移。
 
@@ -82,7 +82,7 @@ Runtime pin 或迁 Host。未来最小读模型须保留形成方式、知识/�
 | 检查 | 本轮结果 |
 | --- | --- |
 | Core-1 聚焦规则测试与旧格式 header 拒绝回归 | 通过：新增 15 组测试；包含 4 个有效文档、14 个结构/语义负例及额外纯规则反例 |
-| `cargo test -p enouia-memory-contract --locked`（包括 v1 record/set、owner 审核与 Runtime surface guards） | 通过：共 118 项，零失败，含 4 项 Runtime surface guards；0 doctests |
+| `cargo test -p enouia-memory-contract --locked`（包括 v1 record/set、Morii 审核与 Runtime surface guards） | 通过：共 118 项，零失败，含 4 项 Runtime surface guards；0 doctests |
 | `cargo fmt --all -- --check` | 已通过 |
 | `cargo clippy -p enouia-memory-contract --all-targets --locked -- -D warnings` | 通过 |
 | 独立 Python schema cross-check | 通过：python-jsonschema 4.26.0，44 schemas、18 next 文档正反例；同时复查原有 fixtures |
@@ -109,5 +109,5 @@ test/clippy/build、smoke、外部研究脚本或真实模型质量评估；本�
 Core-2 可基于本契约继续设计并实现持久作业绑定，但仍须另获领取：精确
 输入/策略/屏障绑定，生成与应用分离，重启/游标/逻辑去重，取消、锁定/
 换库/退出失效，未知结果不盲发，以及独立资源预算和前台优先。它不能把
-纯 binding 成功当作提交成功，也不能借旧 MCP/owner confirm 完成发布。
+纯 binding 成功当作提交成功，也不能借旧 MCP/Morii confirm 完成发布。
 本片 commit/push 后停止；不自动开始 Core-2 或 Runtime 采用。

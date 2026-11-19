@@ -6,7 +6,7 @@ and [consumption contract](../contracts/AGENT_CORRECTION_CONSUMPTION_V1.md).
 The captured formation worker now consumes each saved correction report once
 through a separate native CorrectionAnalyzer port. An accepted statement becomes
 an ordinary target-bound `correction` revision decided by the existing evaluator
-and `apply_batch`; no Owner queue or action is involved. The Host gains opt-in
+and `apply_batch`; no Morii queue or action is involved. The Host gains opt-in
 `start_worker_with_corrections`; `start_worker` and CaptureAnalyzer v3 are unchanged.
 
 Owned files: Vault `formation_worker.rs` and `mod.rs`; Host
@@ -49,7 +49,7 @@ configuration or Runtime checkout.
 A saved report is analyzed once with its key, interpretation and current target;
 the result is revision + 1 of the same memory whose content is the exact user
 quote (not the Agent text), with UserStatement evidence from the report source,
-change `correction`, the old revision kept in history and no Owner action. More
+change `correction`, the old revision kept in history and no Morii action. More
 steps and a reopened worker never re-analyze; the report still replays its
 original ADR121 receipt after consumption. NoMemory, Unknown, Paused-then-retry,
 an `update` change, two statements, an unresolvable quote and restart with
@@ -66,5 +66,5 @@ worker completes bookkeeping without another analysis.
 No real correction model/adapter, prompt, budget or egress. Report-to-revision
 linkage lives only in the private journal (chain records the revision and user
 evidence). Journal loss before admission could re-analyze a report, as for
-captured jobs. Supersede, forget, forget-hide (owner decision pending), MCP
-transport and Runtime adoption remain. Synthetic tests are not owner acceptance.
+captured jobs. Supersede, forget, forget-hide (Morii decision pending), MCP
+transport and Runtime adoption remain. Synthetic tests are not Morii acceptance.

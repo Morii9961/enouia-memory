@@ -6,17 +6,17 @@
 
 `memory_supersede_report` reports a fact that was true but has now changed.
 It is distinct from an erroneous statement's correction and from forgetting.
-Native Owner setup grants an independent AgentSupersedePermit; note, correction,
+Native Morii setup grants an independent AgentSupersedePermit; note, correction,
 read and MemoryPropose grants cannot supply it. Use the initialized Agent gate
-on the same leased Owner Vault and current policy/source/target closure as
+on the same leased Morii Vault and current policy/source/target closure as
 ADR120/121. The exact captured Runtime User/UserStatement quote is evidence;
 the Agent's bounded `supersede` interpretation is untrusted, never content.
 
 Use independent capability memory-agent-supersede-native-1 and request/key
-space. Persist a closed agent_supersede delta on the existing witnessed Owner
+space. Persist a closed agent_supersede delta on the existing witnessed Morii
 chain. The receipt state is supersede_report_saved, with original target,
 report key, request ID/hash and commit only. Saving changes no memory or recall,
-creates no Owner action and holds no human review queue. New work requires the
+creates no Morii action and holds no human review queue. New work requires the
 exact current target; an authorized original-key receipt may replay after a
 System revision. Revocation/deletion/policy/scope checks precede receipt lookup.
 Capacity and unknown-publication recovery follow ADR121, independently.
@@ -47,5 +47,5 @@ recovery only. Stdio keeps the full Value, including on output failure.
 Closed schema-2 delta and optional supersede_key on the same journal v1 path;
 older binaries must not open roots containing new deltas. Read fingerprints
 including catalog-v2 change; use matching revisions. No real model/Provider,
-egress, Runtime pin/configuration, Owner method, forget/hide or MCP-5 is added.
+egress, Runtime pin/configuration, Morii method, forget/hide or MCP-5 is added.
 See [contract](../contracts/AGENT_SUPERSEDE_V1.md).

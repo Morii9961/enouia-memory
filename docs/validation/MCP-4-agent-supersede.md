@@ -17,7 +17,7 @@ Owned files: new supersede contract types, native/MCP schemas and corpora/tests;
 contract module/delta/catalog schema; Vault agent gate, supersede intake,
 state/replay/process/export and formation worker; Host reporter, captured worker,
 supersede MCP/pipe/export/launcher, native/server/pipe tests/shared fixture and
-Owner worker test; ADR124/register, contract, this report, continuation handoff,
+Morii worker test; ADR124/register, contract, this report, continuation handoff,
 Python cross-check and Runtime log/surface. No AGENTS or manual status edits.
 
 ## Checks on the final source
@@ -28,7 +28,7 @@ Python cross-check and Runtime log/surface. No AGENTS or manual status edits.
   Log: `target/mcp4-supersede-workspace-tests.log`. No Rust source changed after
   the run started. This is new evidence after ADR123/124, not the old 913 result.
 - First focused Host run: **59 passed** (13 correction, 7 correction pipe,
-  14 supersede, 7 supersede pipe, 18 Owner capture/worker). The final full run
+  14 supersede, 7 supersede pipe, 18 Morii capture/worker). The final full run
   includes 15 supersede tests after adding pending dispatch exclusion.
   Log: `target/mcp4-supersede-host-tests.log`.
 - Python jsonschema 4.26.0: **70 schemas OK**, including 22 stored supersede
@@ -61,6 +61,6 @@ The previously noted old continuation revocation timing test passed in this
 full run. Its source is unchanged; this does not prove that race is fixed.
 
 Only synthetic roots, scripted analyzers and owned child processes. No real
-model, private root, client configuration, Runtime edit/pin, egress or Owner
+model, private root, client configuration, Runtime edit/pin, egress or Morii
 acceptance. Next authorized route remains request-only memory_forget_request;
 forget-hide, MCP-5, deployment and merging remain separate authorization.

@@ -40,4 +40,4 @@ non-Windows target (only the Windows toolchain target is installed).
 ## Not shown
 
 Behaviour behind a real proxy, TLS, ChatGPT interoperability, concurrency and
-throughput, non-Windows builds, a real Vault and owner acceptance.
+throughput, non-Windows builds, a real Vault and Morii acceptance.

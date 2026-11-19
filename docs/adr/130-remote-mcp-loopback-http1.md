@@ -28,7 +28,7 @@ the same machine (for example Caddy). The driver never faces the internet.
 
 ## Not in this slice
 
-A runnable remote entry that opens a real Vault, owner authentication on the
+A runnable remote entry that opens a real Vault, Morii authentication on the
 server, the OAuth authorization server, write tools and capture, and proxy or
 VPS configuration. The Vault's supported production platform is Windows/NTFS;
 on other systems the platform layer is a test fallback (no ACL inspection or

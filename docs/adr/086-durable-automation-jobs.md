@@ -3,7 +3,7 @@
 Date: 2026-10-24. Status: Adopted, Core-2 synthetic implementation only.
 Morii's instruction to continue the next step authorizes Core-2 after Core-1.
 It does not authorize Core-3, real Provider sending, production side databases,
-Runtime adoption or changing existing Host/MCP/owner paths.
+Runtime adoption or changing existing Host/MCP/Morii paths.
 
 ## Decision
 

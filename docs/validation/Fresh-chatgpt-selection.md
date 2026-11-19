@@ -30,7 +30,7 @@ or silently imported with unselected conversations.
 
 No new dependency, feature or schema. Runtime surface files are unchanged, so the
 surface checker was not run. No full workspace suite, Linux run, real-input
-execution, semantic analysis, Provider, Owner initialization, deployment, deletion
+execution, semantic analysis, Provider, Morii initialization, deployment, deletion
 or manual project status refresh was performed by this slice.
 
 ## Remaining capability gates
@@ -39,7 +39,7 @@ This pure library entry is not the fresh production initializer. Attachment byte
 resolution, oversized source handling, explicit semantic analysis/provenance,
 bounded formation/journal execution and the fresh-input CLI remain to be delivered.
 Long-term reading scope, independent encrypted backup acceptance and ChatGPT/VPS
-acceptance retain their own owner decisions and evidence. The old legacy-candidate
+acceptance retain their own Morii decisions and evidence. The old legacy-candidate
 CLI is not used as a substitute.
 
 ## Mainline refresh (2026-11-12)

@@ -21,7 +21,7 @@ preserves these record fields and does not upgrade an existing root.
 | Memory fields | `AdmissionInput.record_fields`, mandatory in both stored request and result on v3 |
 | Source fields | `CapturedSource.record_fields`, mandatory on v3 |
 | Entity/conversation catalog | `AutomationData.record_catalog`, mandatory on v3, empty at genesis |
-| Owner ledger | `AutomationData.owner_actions`: required empty ledger/watermark on v3; machine deltas preserve it; reserved owner_action transaction refuses until G08 |
+| Morii ledger | `AutomationData.owner_actions`: required empty ledger/watermark on v3; machine deltas preserve it; reserved `owner_action` transaction refuses until G08 |
 | Atomic capture | `AutomationVault::capture_with_records`: one source plus complete append-only catalog, same witnessed commit |
 | Old roots | HostV1/2 forbid new fields/catalog; absent fields serialize identically to old fixtures |
 | Old readers | Strict old layout enum rejects v3 descriptor before business interpretation; v1 rejects schema 2 |
@@ -54,7 +54,7 @@ original evidence behind names, aliases, participants and conversation titles.
 | `formation.import_batch_id` | Nullable typed ImportId; required for backfill, optional for live | 02 §4.5 |
 | `formation.mode` | `backfill` or `live`; native seed fixes origin, model cannot alter it | 02 §4.5 |
 | Existing formation provenance | System actor, rule, policy, producer_version, nullable model_version remain in exact request/decision; no duplicated approval field | 02 §4.5 |
-| `annotations` | Nullable closed object bound to result ID/revision, model_version and prompt_version; never facts or owner feelings | 02 §6; 01 G19 |
+| `annotations` | Nullable closed object bound to result ID/revision, model_version and prompt_version; never facts or Morii feelings | 02 §6; 01 G19 |
 | `formation_note`, `current_state_note` | Nullable <=500 scalars each | 02 §6 |
 | `suggested_tags`, `tone`, `importance_guess_milli` | <=16 tags <=64; nullable valence [-1000,1000]/arousal [0,1000]; nullable importance [0,1000] fixed-point values | 02 §6 |
 | `suggested_relations` | <=32 exact memory revisions; only related_to/same_event/continuation_of; no suggested causal truth | 02 §6 |
@@ -82,7 +82,7 @@ Unknown requires both endpoints null and basis unknown. It never falls back to
 message/capture/import/commit time. Known basis is stated/inferred/source_time.
 An explicitly selected source_time start must match a supporting source's
 occurred_at. No implicit local timezone is chosen; missing `tz` is null. A later
-initializer must record any owner-selected default in explicit provenance.
+initializer must record any Morii-selected default in explicit provenance.
 Timezone spelling is checked as a conservative IANA-style identifier, not as
 registry membership or a guarantee about historical daylight-saving offsets.
 Language accepts language[-Script][-REGION][-variant...] (unique variants);
@@ -101,11 +101,11 @@ as well as Core-5's original claim and dependencies. It creates a new revision,
 never rewinds CURRENT or deletion/policy watermarks. Annotations/origin describe
 the new formation and stay distinct from the restored claim.
 
-## Owner action shapes, without an execution port
+## Morii action shapes, without an execution port
 
-`OwnerActionPlan` binds operation_id, exact SnapshotBinding, native owner,
+`OwnerActionPlan` binds operation_id, exact SnapshotBinding, native Morii,
 planned_at/expires_at and one closed action. `OwnerActionConfirmation` binds
-operation, canonical plan hash, owner, trusted local surface and confirmation
+operation, canonical plan hash, Morii, trusted local surface and confirmation
 time. `OwnerActionRecord` freezes plan + confirmation + containing commit and
 sequence; decoded JSON is not a witnessed receipt. The canonical hash uses the
 repository's sorted pretty JSON plus newline, not an external compact-JSON hash.
@@ -118,19 +118,19 @@ repository's sorted pretty JSON plus newline, not an external compact-JSON hash.
 | attention | Exact target, protect/pin, nullable expiry; changes attention only | 02 §5 |
 | theme_rename / theme_pin / theme_dissolve | Exact theme revision/hash and exact member refs, plus name for rename; overlap inheritance uses Jaccard >=0.5 only after current authorization | 02 §5 |
 | entity_merge / entity_split | Distinct stable IDs, nullable reason; split has exact sourced evidence | 02 §5 |
-| tag | Owner tag name and exact target refs, separate from suggestions | 02 §5 |
+| tag | Morii tag name and exact target refs, separate from suggestions | 02 §5 |
 
 Plans and confirmations are structurally checkable but cannot grant authority.
 `validate_owner_action_binding` takes native identity/current snapshot/time,
-checks exact owner/digest/operation/window, and produces no success receipt.
-System/Agent/Provider/Client cannot pass as owner even when all JSON fields
-claim consent. Machine AdmissionInput has no owner-action field; AutomationData reserves
-an owner ledger that machine transactions cannot modify; CapturedSource still refuses manual_assertion. G08 owns authenticated
+checks exact Morii/digest/operation/window, and produces no success receipt.
+System/Agent/Provider/Client cannot pass as Morii even when all JSON fields
+claim consent. Machine AdmissionInput has no Morii-action field; AutomationData reserves
+a Morii ledger that machine transactions cannot modify; CapturedSource still refuses manual_assertion. G08 owns authenticated
 planning, one-use confirmation, commit, operation lookup and unknown outcomes;
 none is automatically retried or implemented by these pure types.
 The root already stores the empty ledger and withdrawal watermark (initially 1,
 then 1 plus the count of withdraw records), avoiding a later field addition.
-The reserved owner_action change always refuses here; System capture/admission
+The reserved `owner_action` change always refuses here; System capture/admission
 cannot append or modify the ledger. G08 must adopt execution capability
 separately; older builds refuse that transaction rather than silently skip it.
 
@@ -161,14 +161,14 @@ delivered by a metadata envelope. The empty withdrawal ledger is frozen now; G08
 
 - Exact quote matching is stricter than the suggested normalization fallback.
 - BCP 47/IANA syntax is bounded and explicit; registry resolution/timezone
-  conversion and owner-selected default timezone remain initializer/projection work.
+  conversion and Morii-selected default timezone remain initializer/projection work.
 - Tone/importance use fixed-point thousandths; they are optional suggestions.
 - The catalog is an immutable bounded ledger, not an already scalable Sessions
   endpoint. Existing Core-3 runtime_event capture remains; export ingestion,
   agent-submission ingress and one-statement extraction are separately owned.
-- Owner action records and projection rules are frozen shapes. G08 and the
+- Morii action records and projection rules are frozen shapes. G08 and the
   later projection slices must implement the native effects; no simulated
-  owner click, approval or completed projection is claimed.
+  Morii click, approval or completed projection is claimed.
 
 S2/S3 may use these field definitions after Morii confirms them. They must adopt
 this exact revision and layout, retain source fidelity and preserve authority

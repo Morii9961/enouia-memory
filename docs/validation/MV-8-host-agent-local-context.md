@@ -25,7 +25,7 @@ payloads. Capsule/inspection artifacts may be committed by context_get; this
 does not produce Canonical memory or an approved user/source message.
 
 Current compiler/index policies still filter resources. ContextRead does not
-expose memory_read or memory_source. Default owner-only policies return an
+expose memory_read or memory_source. Default Morii-only policies return an
 empty capsule with incomplete/no-supported-memory metadata, never invented
 evidence. A permitted result returns the validated capsule and opaque inspection
 ID, without restricted inspection decisions. Current and cited metadata,
@@ -60,7 +60,7 @@ existing owned child-process checks run; no window or Computer Use is used.
 Actual Host binding now covers search/read/source/propose and this limited
 current-memory Context selection. Historical/session Context and
 session_checkpoint binding remain unfinished. Native external Agent
-authentication/enrollment, real-client interoperability, installation and owner
+authentication/enrollment, real-client interoperability, installation and Morii
 acceptance remain pending; no runnable external MCP server is activated.
 
 Runtime's existing embedded product integration and independent history-result

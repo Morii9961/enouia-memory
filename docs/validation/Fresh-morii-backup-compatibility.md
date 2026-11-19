@@ -1,4 +1,4 @@
-# Fresh-run Owner backup compatibility — focused synthetic validation
+# Fresh-run Morii backup compatibility — focused synthetic validation
 
 2026-11-16. Based on merged fresh driver `442b22fa16881aae70f6f17c37b0c41464777ad6`
 (PR109, ADR145), using the existing ADR136 export/restore APIs. This adds
@@ -11,7 +11,7 @@ surface or dependency changes. All input and roots are synthetic.
 through `load_fresh`, packs two plans and enrolls the whole run through
 `enqueue_fresh`. It supplies original shard bytes, exact source revisions and
 quote ranges, authored content/provenance with unknown model identity, and an
-explicit local attachment original. It never loads the owner's input archive.
+explicit local attachment original. It never loads Morii's input archive.
 
 - Completed run: form 65 records in two batches, logically delete one, release
   the writer and export. Make the original fixture root unavailable at its old
@@ -20,7 +20,7 @@ explicit local attachment original. It never loads the owner's input archive.
   file hash, byte-identical journal, complete persisted plans and ledger, exact
   original receipts, Raw/attachment closure and native source-quote resolution.
   The restored native read returns 64 visible memories and 65 sources; the deleted
-  record remains hidden, no Owner action exists, and initializer model calls stay
+  record remains hidden, no Morii action exists, and initializer model calls stay
   zero. The same run is accepted without work or a new commit; another run hash
   conflicts.
 - Unknown result with an existing receipt: emulate interruption after the witnessed
@@ -49,7 +49,7 @@ explicit local attachment original. It never loads the owner's input archive.
 This is a Windows local synthetic round trip, not a copy on independent encrypted
 media or a real-data disaster-recovery result. It does not authorize deletion,
 activation of a real restored root, migration, deployment, Runtime adoption or
-long-term reads. The real source/archive and native Owner data are untouched.
+long-term reads. The real source/archive and native Morii data are untouched.
 
 The test uses existing native library APIs and a synthetic descriptor. It does
 not prove that the fresh production CLI can enroll a relocated/restored root:
@@ -57,7 +57,7 @@ ADR110's OS-account/canonical-home bootstrap registration remains outside the
 ADR136 export and is not replaced by a descriptor or restore receipt. Native
 root-opening authority for an actual restored installation must be verified in
 its own authorized acceptance, preserving the original operation and unknown
-barriers. Existing Owner restore quarantine and stop-old-Host requirements remain.
+barriers. Existing Morii restore quarantine and stop-old-Host requirements remain.
 
 After ADR146 merged as main `a543c1e`, this branch integrated that exact main
 without changing the regression fixture. The same focused `fresh_backup` target

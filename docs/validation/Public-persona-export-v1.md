@@ -27,7 +27,7 @@ was opened.
 | Unchanged content keeps version and digest | `persona_export_writes_once_replays_and_keeps_version_for_unchanged_content`: after export v1, the same selection previews version 1 with the same `projectionSha256` and an empty diff; a second folder receives version 1 with the same digest. |
 | Diff and withdrawal | `persona_diff_reports_changes_and_withdrawals_as_removals`: reclassified-to-private and forgotten records show as `removed` without text, a public revision shows as `changed` with the same `item_id`, a new Identity revision changes `/source`, `/display_name`, `/examples`; the old revision is refused as stale; version becomes 2. |
 | Refused destinations, no overwrite | `persona_export_refuses_changed_previews_and_unsafe_destinations`: a Git repository, a worktree (`.git` file), this repository's own crate directory and a folder inside the open Vault are refused before anything is reserved or written; a changed digest is `revision_conflict`. The export test shows an existing file is not replaced. |
-| Idempotency and unknown outcome | Same key replays (`replayed: true`) without using the token; same key with other arguments is `idempotency_conflict`. `persona_owner_resend_completes_an_interrupted_export_with_the_reserved_bytes` recreates “reserved, file unknown”: nothing happens until the owner resends, which writes the reserved bytes exactly; a reserved version is not reused for other content. |
+| Idempotency and unknown outcome | Same key replays (`replayed: true`) without using the token; same key with other arguments is `idempotency_conflict`. `persona_owner_resend_completes_an_interrupted_export_with_the_reserved_bytes` recreates “reserved, file unknown”: nothing happens until Morii resends, which writes the reserved bytes exactly; a reserved version is not reused for other content. |
 | Identity block rules | `persona_identity_block_must_be_single_closed_and_bounded`: missing, repeated, unknown-field, two-example and control-character blocks are refused; unknown audience is refused at parsing. |
 | Closed contract and sample | Contract tests `persona_corpus_agrees_with_schema_and_native_rules` (5 valid documents, 16 negative cases with the expected rule), `persona_sample_is_canonical_and_its_digests_recompute`, `persona_block_is_found_once_inside_identity_markdown`. The Python cross-check recomputes the canonical bytes and both digests independently and agrees. |
 
@@ -71,5 +71,5 @@ constant should also be renamed is left to Morii; nothing depends on it here.
 - No Runtime pin, adapter or product page; no downstream import of the sample.
 - A real crash between ledger reservation and file write was simulated by
   editing the ledger, not by process termination.
-- No private Identity or owner acceptance. Owner decisions open in the
+- No private Identity or Morii acceptance. Morii decisions open in the
   [contract](../contracts/PUBLIC_PERSONA_PROJECTION_V1.md) §5 remain 待 Morii 决定.

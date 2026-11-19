@@ -3,7 +3,7 @@
 2026-10-23. Adopted for the local Workspace contract; Runtime adoption is deferred.
 
 Expose the existing ADR-MEM-51 supersession_draft helper as the read-only
-supersession_preview command. The owner explicitly selects candidateId,
+supersession_preview command. Morii explicitly selects candidateId,
 candidateRevision, targetMemoryId, targetRevision and effectiveFrom. All five
 fields are required. effectiveFrom is an exact business timestamp or the literal
 unknown; source occurrence/capture time never supplies an implicit effective date.

@@ -53,7 +53,7 @@ Before/after-CURRENT faults retain the complete original Value without a tool
 result. Owned Agent processes exercise actual disconnect, old pipe-5/6 and
 forged/hash/scope/peer refusal, revoke/lock/expiry/policy/enrollment invalidation,
 original-key recovery, stdio output failure and the real launcher. A saved
-report then forms one user-quote-backed System correction with no Owner queue.
+report then forms one user-quote-backed System correction with no Morii queue.
 
 Next authorized route: independently scoped memory_supersede_report (previously
 true, now changed; System update rather than correction), then request-only
@@ -63,5 +63,5 @@ commit/push separately, and update the draft PR. Do not merge without Morii.
 Only new synthetic roots and owned child processes are used. No real Vault,
 model/Provider/embedding, private data, client configuration, Activity/Usage or
 Runtime repository is opened. Synthetic evidence is not Runtime adoption or
-Owner acceptance. Supersede and request-only forget follow in separate slices;
+Morii acceptance. Supersede and request-only forget follow in separate slices;
 forget-hide, MCP-5 and new MV stages remain outside scope.

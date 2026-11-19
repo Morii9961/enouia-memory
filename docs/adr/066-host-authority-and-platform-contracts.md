@@ -28,7 +28,7 @@ authority under the same exclusive transaction. A cached permit, local mutex or
 standalone successful comparison is not a write capability. An unreachable
 authority is unavailable, never permission to use a local second primary.
 
-Storage adapters must supply durable atomic publication, owner isolation,
+Storage adapters must supply durable atomic publication, Morii isolation,
 process exclusion and exact checkpoint verification. Reuse Memory's native
 `SecretStore` port for Provider secrets; do not introduce serialized secrets or
 move Windows credential storage into the transport-neutral model. Windows and

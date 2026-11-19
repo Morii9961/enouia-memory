@@ -19,7 +19,7 @@ Focused evidence:
   consumer check; Memory has no Runtime dependency.
 
 This is local deterministic navigation evidence. It does not prove model quality,
-personal-history coverage, physical UI, owner acceptance, exported-file handling
+personal-history coverage, physical UI, Morii acceptance, exported-file handling
 or production readiness. No full Rust workspace/frontend/package/smoke/performance
 rerun, real sources/credentials/Provider activity, manual status update or new
 Host/MCP/cloud stage is included.

@@ -20,7 +20,7 @@ supplied by that trusted operator, never copied from an Agent request.
 `mcp::native::serve_connection` borrows the already bound HostService and its
 single writer. An opaque gate connection binds instance/generation and TTL;
 Enrollment adds a five-minute monotonic maximum and shared native revocation.
-The Agent endpoint cannot dispatch Workspace, Owner lifecycle or System calls.
+The Agent endpoint cannot dispatch Workspace, Morii lifecycle or System calls.
 Native checks also precede ping/list, not only business tools. Every Enrollment
 is consumed once. The executable uses a ten-second frame/idle deadline; EOF,
 invalid framing, expiry, lock/unlock, revocation and peer death terminate it.
@@ -28,21 +28,21 @@ Reconnection requires a new explicit native registration. No automatic renewal,
 replay, resend or replacement key is implemented.
 
 `enouia-memory-host` now has explicit `--agent-id` / `--agent-scopes` mode,
-mutually exclusive with Owner `--surface`. `enouia-memory-mcp` is a runnable
+mutually exclusive with the Morii `--surface`. `enouia-memory-mcp` is a runnable
 native stdio launcher in the same crate: it starts one explicitly selected Host,
 verifies that owned process, bridges bounded JSON-RPC and reaps only that child.
 It has no Vault IO. On EOF it drops the pipe and gives the Host a bounded graceful
 exit interval before forced owned-child cleanup. Starting against a root already
 leased by another Host refuses; it never bypasses that Host or becomes a second
-writer. Existing owner endpoint and default cargo run target stay unchanged.
-Concurrent owner/Agent executable listeners and durable enrollment UI are not
+writer. Existing Morii endpoint and default cargo run target stay unchanged.
+Concurrent Morii/Agent executable listeners and durable enrollment UI are not
 implemented; native embedders can attach the borrowed-service entry point.
 
 Five independent scope ceilings advertise exactly the existing six tools:
 search/read/source, pending Agent proposal, limited current/offline Context and
 provisional checkpoint. Current persisted resource/project/source/sensitivity/
 delete policies are still enforced by the original HostPort. Agent speech does
-not become Morii self-report or Owner confirmation. The old proposal/checkpoint
+not become Morii self-report or Morii confirmation. The old proposal/checkpoint
 semantics do not add a mandatory review queue to automated V2 memory.
 
 Client errors distinguish known closed/not-sent from ambiguous exchange. The
@@ -58,9 +58,9 @@ unknown results never fabricate success or trigger automatic recovery.
 | --- | --- | --- |
 | Six MCP / Memory IPC v1 tools | Existing policy-filtered reader and pending/provisional writer semantics | Refused before business record decode/query/count; Agent reader/writer not delivered |
 | Native Agent pipe / stdio | Exact memory-agent-pipe-1, memory-agent-six-tools-1, MCP 2025-11-25 and compatibility hash | Root, schema, layout, capability or hash mismatch refused, with no downgrade or empty-success fallback |
-| Workspace / legacy Owner | Existing schemaVersion 1, 58 commands and original Owner history | No implicit new-format adoption or migration |
+| Workspace / legacy Morii | Existing schemaVersion 1, 58 commands and original Morii history | No implicit new-format adoption or migration |
 | AutomationHost native pipeline | No legacy rewriting | Existing native System-gated transactions and automatic staging/reassessment; not reachable by this Agent endpoint |
-| Core-7 memory-native-read-1 | No legacy-owner projection | Existing System-only native read; never forwarded to Agent |
+| Core-7 memory-native-read-1 | No legacy-Morii projection | Existing System-only native read; never forwarded to Agent |
 
 Git pin, record schema, segmented format 2, Host publication layout, Workspace
 IPC, Memory IPC/MCP and native capabilities remain separate axes. The automated
@@ -131,7 +131,7 @@ in the executable test. Per-record policy remains independently required; scope
 ceiling alone grants no records. This is a startup recipe, not real-client config
 or evidence that a personal library is ready.
 
-## Ownership and stop
+## Responsibility and stop
 
 Exact owned-file allowlist (all other files, AGENTS and manual status snapshots
 are excluded):
@@ -158,6 +158,6 @@ are excluded):
 
 Only this feature branch is committed/pushed. No merge/deployment/automation or
 next slice starts. Remaining exits: V2 versioned Agent reader with its own Agent
-policy contract; real application registration/configuration and owner acceptance;
+policy contract; real application registration/configuration and Morii acceptance;
 broader Context and Runtime native Host adoption. Daily memory remains fully
 automatic, with optional human correction rather than obligatory per-item review.

@@ -5,7 +5,7 @@ Schema: [`contracts/persona/public-persona-projection-1.schema.json`](../../cont
 Rust: `enouia_memory_contract::persona` (`parse_document`, `extract_block`).
 Synthetic samples: [`tests/fixtures/persona/`](../../tests/fixtures/persona/).
 
-A generic, closed document that an owner exports for a public audience. It is
+A generic, closed document that a Morii exports for a public audience. It is
 written for a consumer that must never receive non-public content, never
 connects to Memory, and whose readers may extract everything it contains and
 send it to a model provider. Every object rejects unknown fields; an unknown
@@ -16,7 +16,7 @@ send it to a model provider. Every object rejects unknown fields; an unknown
 Only two kinds of content:
 
 1. **Identity part.** The JSON body of exactly one fenced block in one exact,
-   current, owner-approved Identity revision:
+   current, Morii-approved Identity revision:
 
    ````markdown
    ```enouia-public-persona-1
@@ -30,7 +30,7 @@ Only two kinds of content:
    several blocks, an unclosed block, non-JSON, unknown fields, or a value
    outside the bounds below refuse the preview.
 
-2. **Public knowledge.** A Memory record that the owner listed for this
+2. **Public knowledge.** A Memory record that Morii listed for this
    audience **and** whose `sensitivity` is `public` **and** that is active,
    intact, not tombstoned and inside its valid time. Either condition alone is
    not enough. A listed record that fails any condition is excluded and counted;
@@ -73,16 +73,16 @@ other than LF. Rust also refuses credential-shaped and local-path-shaped text
 Approval records and per-group settings are not part of this contract; the
 consumer keeps them.
 
-## 3. Owner operations (Workspace IPC v1)
+## 3. Morii operations (Workspace IPC v1)
 
-All three run on the trusted owner surface and are additive.
+All three run on the trusted Morii surface and are additive.
 
 **`persona_options {audience}`** (read, null key) → `persona_options`:
 `projectionId`, Identity records (`identityId`, `revision`, `slug`, `title`,
 `sensitivity`, `publicBlock: valid|missing|invalid`), eligible public records
 (`memoryId`, `revision`, `title`, `type`, `tags`, `namesPeople`; at most 500,
 with `publicMemoriesTotal` and `truncated`), and `lastExport` (version, digest,
-Identity revision, the owner's last selection, file name and SHA-256) or null.
+Identity revision, Morii's last selection, file name and SHA-256) or null.
 Non-public records are not listed.
 
 **`persona_preview {audience, identityId, identityRevision, memoryIds}`** (read,
@@ -100,14 +100,14 @@ written), `projectionSha256`, `version`, `previewDigest`, `memoryVersion`,
   provenance or unknown).
 - `warnings`: `relationship_identity` when the Identity slug is `relationship`;
   `names_people` with the item IDs whose records name subjects or participants.
-  Memory cannot judge meaning; these are reminders for the owner.
+  Memory cannot judge meaning; these are reminders for Morii.
 
 The Identity revision must be the current head of a non-tombstoned record
 (`persona.identity_stale`, `persona.identity_missing`). At most 64 unique
 `memoryIds`. A block that breaks §1–§2 refuses with `persona.identity_block`
 plus the specific rule; an eligible record whose text breaks §2 (for example a
 local path) refuses with `persona.projection_invalid` plus the rule, so the
-owner fixes or unchecks it rather than having it silently dropped.
+Morii fixes or unchecks it rather than having it silently dropped.
 
 **`persona_export {…selection, previewDigest, destinationToken}`** (write,
 idempotency key required) → `persona_exported` receipt: `audience`,
@@ -127,7 +127,7 @@ bytes), `bytes`, `exportedAt`, `memoryVersion`, `replayed`.
 - The same key with the same request replays the receipt (`replayed: true`)
   without touching any folder. The same key with a different request is
   `idempotency_conflict`. If an earlier attempt reserved the version but its
-  outcome is unknown, only the owner's resend of that same request completes it:
+  outcome is unknown, only Morii's resend of that same request completes it:
   the reserved bytes are written, or an identical existing file is accepted.
   Memory never retries by itself, never schedules or syncs, and never uses the
   network.
@@ -136,7 +136,7 @@ bytes), `bytes`, `exportedAt`, `memoryVersion`, `replayed`.
 
 1. `parse_document` semantics: closed shape, `contract` equals this name, all
    bounds, item order, digest recomputes from the bytes.
-2. Compare `fileSha256` from the receipt with the file the owner copied.
+2. Compare `fileSha256` from the receipt with the file Morii copied.
 3. Refuse a known `projection_id` + `version` whose `projection_sha256`
    differs from what was seen before.
 

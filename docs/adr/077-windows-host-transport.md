@@ -1,13 +1,13 @@
 # ADR-MEM-77 — Explicit Windows Host process and protected pipe prototype
 
-Date: 2026-10-22. Scope: owner-authorized MV-8.1h, synthetic Windows prototype.
+Date: 2026-10-22. Scope: Morii-authorized MV-8.1h, synthetic Windows prototype.
 
 ## Native enrollment and endpoint
 
 The executable requires an explicit existing v2 root, native Host identity,
 opaque pipe identifier, enrolled client PID and maximum HostSurface. It never
 installs, autostarts, picks/creates/adopts a root, configures a Provider or falls
-back to embedded writing. Native launch is the owner enrollment point; none
+back to embedded writing. Native launch is the Morii enrollment point; none
 of these values comes from a page, imported document or handshake.
 
 Enrollment retains a real process object with query/synchronize rights,
@@ -17,8 +17,8 @@ that live object before reading metadata and before dispatch. The native
 client independently verifies the pipe server against its enrolled live Host
 object. PID reuse, an executable name, same-user access and JSON claims alone
 do not supply a grant. This does not attest executable code, authenticate a
-human or defend against compromise of the trusted native owner process.
-Do not enroll an Agent/MCP process on the owner Workspace endpoint; it needs
+human or defend against compromise of the trusted native Morii process.
+Do not enroll an Agent/MCP process on Morii Workspace endpoint; it needs
 a separately designed principal/scope protocol.
 
 The pipe uses an explicit current-account DACL, rejects remote clients and
@@ -53,7 +53,7 @@ the native frame tag, enrolled identity or scope.
 
 Ordinary hello creates a private connection handle. Native lock/unlock uses
 the same closed ClientHello metadata and validates versions/hash/Vault even
-without an ordinary session, allowing a freshly authenticated owner channel
+without an ordinary session, allowing a freshly authenticated Morii channel
 to unlock a locked Host. Only the enrolled Workspace broker can invoke these
 controls. Unlock then performs a fresh ordinary handshake; old handles never
 revive. Actual Core calls and native controls retain ADR-MEM-76's fresh Host

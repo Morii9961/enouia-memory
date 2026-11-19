@@ -1,6 +1,6 @@
 # MV-5 — Context, session, and the Mock loop (synthetic)
 
-Date: 2026-09-30. Scope: MV-5 ([plan §9](../design/IMPLEMENTATION_PLAN.md)), authorized by the owner's "继续" to the MV-4 report that named MV-5, and finished on the owner's request to complete MV-5 and merge it through a pull request. Start: `e8bbf4e`. Every input is synthetic; no real data root, Provider key, model, network, MCP, or VPS was used. MV-6 has not started.
+Date: 2026-09-30. Scope: MV-5 ([plan §9](../design/IMPLEMENTATION_PLAN.md)), authorized by Morii's "继续" to the MV-4 report that named MV-5, and finished on Morii's request to complete MV-5 and merge it through a pull request. Start: `e8bbf4e`. Every input is synthetic; no real data root, Provider key, model, network, MCP, or VPS was used. MV-6 has not started.
 
 ## 1. What exists now
 
@@ -13,7 +13,7 @@ Date: 2026-09-30. Scope: MV-5 ([plan §9](../design/IMPLEMENTATION_PLAN.md)), au
 | Contract and Vault | Capsule, inspection, and dispatch are now stored, cataloged single-revision records (`records/capsule|inspection|dispatch/`); the fixture generator commits them (`session_append`) and the MoriMeta and lifecycle sets were regenerated. A purge deletes saved capsules, inspections, dispatches and derived replies that name purged records. Local-path detection no longer flags URLs. | `contract/record.rs`, `layout.rs`, `set.rs`, `govern/delete.rs`, `tools/fixture-gen` |
 | CLI | `session-new`, `session-status`, `session-input`, `session-output`, `session-fork`, `session-checkpoint`, `context`, `context-inspect`, `mock`, `mock-inspect`. | `enouia-memory-cli` |
 
-The owner boundary is in-process: the principal is whoever calls the library or the CLI. A future Host (MV-8) must authenticate it.
+Morii boundary is in-process: the principal is whoever calls the library or the CLI. A future Host (MV-8) must authenticate it.
 
 ## 2. Acceptance items
 
@@ -52,7 +52,7 @@ The owner boundary is in-process: the principal is whoever calls the library or 
 ## 5. Not done, or pending
 
 - Real Provider calls, external dispatch states (prepared, sent, outcome unknown), payload confirmation, and tokenizers: MV-7. The budget counts UTF-8 bytes only.
-- Authenticated principals and finer grants (MV-7/MV-8); only owner and denied principals are exercised.
+- Authenticated principals and finer grants (MV-7/MV-8); only Morii and denied principals are exercised.
 - Checkpoint summaries are provisional and written by the caller; no model summarizer.
 - Raw-source search in the compiler, and the source browser when the index is behind (MV-6).
 - Everything still pending from MV-1 to MV-4 (I07, restic, OS-crash and power-loss evidence, per-group indexes at scale).
@@ -67,5 +67,5 @@ The owner boundary is in-process: the principal is whoever calls the library or 
 
 ## 7. Before MV-6
 
-1. Owner authorization for MV-6 (Windows memory workspace).
-2. Everything a real import still needs (I07, restic, backup media, off-device secret, real data root with the owner-only ACL).
+1. Morii authorization for MV-6 (Windows memory workspace).
+2. Everything a real import still needs (I07, restic, backup media, off-device secret, real data root with the current-user-only ACL).

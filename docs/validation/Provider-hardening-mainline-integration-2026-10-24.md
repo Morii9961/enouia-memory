@@ -1,6 +1,6 @@
 # Previously local Provider hardening: current-main integration
 
-2026-10-24. Owner-authorized merge review, synthetic/local scope.
+2026-10-24. Morii-authorized merge review, synthetic/local scope.
 Base main: 162c189a5f5934ae7162fd7be48c44d33175de61.
 Historical branch: f4dad99285e30eb2f52edf01fa86baee39d2ec86.
 
@@ -40,7 +40,7 @@ frontend, GUI build/package, smoke or performance rerun is claimed.
 
 Runtime still pins 08892702 / 57 commands; this merge does not adopt the new
 combined security revision in Runtime. Native/real HTTP/account, credential-store,
-physical UI and owner acceptance remain separate. No app install/run, personal
+physical UI and Morii acceptance remain separate. No app install/run, personal
 data/credential access, actual Provider request or Host/MCP/collector activation
 occurred. Concurrent MCP/Core worktrees, all frontend redesign refs/worktrees
 and manual project-status snapshots were not changed.

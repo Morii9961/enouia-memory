@@ -24,14 +24,14 @@ v1.2 注：上述响应头属于面向 Agent 的 Memory IPC v1（`contracts/ipc/
 | memory_read | memory_id、可选 revision | 记录、来源摘要、版本/替代链 | memory:read |
 | memory_source | source_id、限定 locator/range | 有界原始片段、来源元数据、附件可用性 | source:read，不能从 memory:read 推导 |
 | memory_propose | proposal、来源、idempotency key | candidate_id、revision、pending/duplicate 状态 | memory:propose |
-| candidate_list | 状态/项目/页码 | 可审核条目与差异 | owner:review |
-| candidate_review | action、expected revision、精确 diff approval | commit、正式记忆 IDs 或拒绝结果 | owner:review；不向普通 Agent 暴露 |
-| identity_review | 精确 Identity diff、approval | 新身份修订和 commit | owner:identity |
+| candidate_list | 状态/项目/页码 | 可审核条目与差异 | Morii:review |
+| candidate_review | action、expected revision、精确 diff approval | commit、正式记忆 IDs 或拒绝结果 | Morii:review；不向普通 Agent 暴露 |
+| identity_review | 精确 Identity diff、approval | 新身份修订和 commit | Morii:identity |
 | context_get | 编译输入与目的地 | capsule、允许的说明、版本与期限 | context:read + 对应记忆范围 |
 | session_checkpoint | session/branch、covered events、摘要、来源 | provisional checkpoint_id | session:propose |
-| import_preview / import_start | 系统选取的文件句柄/受控 import token | 报告/operationId | owner:import |
-| backup / restore_preview | 已配置目标、snapshot_id | 固定清单、恢复计划 | owner:backup / owner:restore |
-| delete_preview / delete_commit | IDs、模式、范围、expected versions、approval | 影响范围、tombstone/purge receipt | owner:delete |
+| import_preview / import_start | 系统选取的文件句柄/受控 import token | 报告/operationId | Morii:import |
+| backup / restore_preview | 已配置目标、snapshot_id | 固定清单、恢复计划 | Morii:backup / Morii:restore |
+| delete_preview / delete_commit | IDs、模式、范围、expected versions、approval | 影响范围、tombstone/purge receipt | Morii:delete |
 
 `memory_update` 为旧稿兼容名称，若实现，只是 memory_propose 的 revise/supersede 别名，必须返回 pending；不得保留一个能直接写 Canonical 的后门。早期 MCP 最小集为 context_get、memory_search、memory_read、memory_source、memory_propose、session_checkpoint。
 
@@ -55,7 +55,7 @@ Windows 采用已有 Tauri + React 方向，UI 只接 typed DTO，文件选择�
 
 先做上述最小记忆操作路径，之后补托盘、全局快捷键、overlay、图片拖放和 Provider mode。快捷键与剪贴板均显式操作；不后台持续读剪贴板。拖放会说明是仅本轮附件、归档来源还是提议长期记忆，不默认三者全做。
 
-前端不能凭“本机页面”自称 owner；可信窗口只加载本地应用资产，严格配置 IPC capabilities、CSP、导航和附件渲染。来源 Markdown/HTML 当不可信内容，不启用脚本和远程图片自动加载。
+前端不能凭“本机页面”自称 Morii；可信窗口只加载本地应用资产，严格配置 IPC capabilities、CSP、导航和附件渲染。来源 Markdown/HTML 当不可信内容，不启用脚本和远程图片自动加载。
 
 “关闭窗口”“退出 Runtime”“锁定 Vault”“暂停同步”是四个不同操作；界面分别说明。MV-8 Host 上线前关闭 UI 可停止 Core，MV-8 后退出 UI 不一定退出 Host。Activity 调度行为始终按原域规则处理。
 
@@ -132,7 +132,7 @@ G4 在源电脑关机期间运行时沿用相同编译规则与发布版本，�
 
 ### MCP native Agent continuation (2026-10-25)
 
-The [native Agent v1 contract](../contracts/MCP_NATIVE_AGENT_V1.md) adds a separately enrolled local pipe/stdio bridge over the existing six tools and sole Host. It supports schema-1 host-current-v2 only; automation-host-v2 is refused before business decode/query/count. It never forwards Owner Workspace or System native reads.
+The [native Agent v1 contract](../contracts/MCP_NATIVE_AGENT_V1.md) adds a separately enrolled local pipe/stdio bridge over the existing six tools and sole Host. It supports schema-1 host-current-v2 only; automation-host-v2 is refused before business decode/query/count. It never forwards Morii Workspace or System native reads.
 
 ### MCP automation Agent reads (2026-10-26)
 

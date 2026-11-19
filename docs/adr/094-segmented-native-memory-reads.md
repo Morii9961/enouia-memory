@@ -15,7 +15,7 @@ the old 128-entry/64-commit/32-MiB full-snapshot limits.
 Store bounded immutable delta commits addressed by their canonical SHA-256,
 linked by exact parent pointers. Each delta contains only its new source batch,
 machine request/raw response bindings, catalog revisions, policy revision or
-deletion. Reuse the Host lease, short writer lock, owner ACL/reparse checks,
+deletion. Reuse the Host lease, short writer lock, Morii ACL/reparse checks,
 flushed immutable files and intent -> CURRENT -> witness publication. A failed
 publication fences that instance; explicit recovery can finish only its exact
 validated before/after intent, never manufacture an operation or rewind barriers.
@@ -35,9 +35,9 @@ before publication; no silent pruning/truncation. A source delta has at most
 64 sources and a machine delta at most eight decisions. Per-record/dependency
 bounds from Core-1/5 and ADR-MEM-93 remain unchanged. Multiple independently
 scoped policies preserve their original exact subject/project/source grants;
-there is no wildcard or broadened System/Agent/owner scope.
+there is no wildcard or broadened System/Agent/Morii scope.
 
-The owner ledger is empty and reserved as in ADR-MEM-93; no owner action entry
+The Morii ledger is empty and reserved as in ADR-MEM-93; no Morii action entry
 is activated by this storage work. Existing v1 IPC, MCP tools, Runtime pin,
 Provider/embedding adapters, real initialization and deployment are unchanged.
 

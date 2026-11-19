@@ -9,10 +9,10 @@ Package `enouia-memory-init` adds `enouia-memory-fresh`:
 
 ```text
 enouia-memory-fresh plan <manifest.json>
-enouia-memory-owner-bootstrap prepare <OWNER_DATA_HOME> --bind-current-owner-self
-enouia-memory-owner-bootstrap commit <OWNER_DATA_HOME> <OPERATION_ID> --bind-current-owner-self
-enouia-memory-fresh run <manifest.json> <OWNER_DATA_HOME> <OPERATION_ID> --bind-current-owner-self
-enouia-memory-fresh recover <manifest.json> <OWNER_DATA_HOME> <OPERATION_ID> --bind-current-owner-self
+enouia-memory-owner-bootstrap prepare <MORII_DATA_HOME> --bind-current-owner-self
+enouia-memory-owner-bootstrap commit <MORII_DATA_HOME> <OPERATION_ID> --bind-current-owner-self
+enouia-memory-fresh run <manifest.json> <MORII_DATA_HOME> <OPERATION_ID> --bind-current-owner-self
+enouia-memory-fresh recover <manifest.json> <MORII_DATA_HOME> <OPERATION_ID> --bind-current-owner-self
 ```
 
 The bootstrap binary belongs to `enouia-memory-host`. These are trusted local
@@ -75,7 +75,7 @@ completeness or confirmation is invented to make an input pass.
   prepare/commit, registered-root lookup, production fresh CLI formation, repeated
   invocation with three unchanged records, close/reopen/exact sources, explicit
   recovery, and changed-analysis recovery refusal without another commit. The
-  uniquely allocated protected synthetic home is retained; no existing owner
+  uniquely allocated protected synthetic home is retained; no existing Morii
   home or real Vault was used. Public reports omit its private local location.
 - `cargo test -p enouia-memory-host --lib owner_bootstrap --locked`:
   **15 passed, 54 filtered out**. Includes the added recorded-operation/root

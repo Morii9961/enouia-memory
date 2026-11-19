@@ -10,7 +10,7 @@ Core-1 scope statements below describe that original slice. Rule 1 remains
 supported unchanged. Optional `allow_revise_created` defaults to false and is
 omitted when false, preserving existing policy bytes/hashes. True requires
 rule 2 and native `TargetView.created_under_policy` matching the active policy
-identity; it never authorizes legacy owner records or bypasses other scope and
+identity; it never authorizes legacy Morii records or bypasses other scope and
 revision checks. Older next readers must reject this field/rule rather than
 silently apply rule 1. See [current storage contract](CORE3_AUTOMATIC_LOOP.md).
 
@@ -50,7 +50,7 @@ from the single legal Host and current authorization/deletion resolution, never
 from page, model, MCP arguments or source instructions. Caller-supplied policy
 bytes and `actor_type: system` alone do not create System authority.
 
-The policy and input actor must equal the actual System identity. Owner, Agent,
+The policy and input actor must equal the actual System identity. Morii, Agent,
 Provider, Client and Device cannot substitute. Scope is exact, including null
 project, and expiration is exclusive. Policy hashes cover the complete canonical
 document; changing any policy field/revision requires a fresh binding. Output
@@ -101,7 +101,7 @@ conflict discovery, completeness or model quality.
 
 New results require revision 1 and a currently absent memory identity. Revisions
 require an exact current V2 target revision/hash, scope, write permission and
-result identity at revision + 1. Legacy owner records, deleted/unwritable targets,
+result identity at revision + 1. Legacy Morii records, deleted/unwritable targets,
 stale hashes/revisions and foreign subject/project/policy are refused. Staging
 a revision is only a prospective result; it does not supersede the adopted
 target or imply that a stored current view has changed.
@@ -128,14 +128,14 @@ These are separate axes, not a global upgrade:
 | Workspace IPC | schemaVersion 1, 55 commands here | unchanged | new versioned read capability, never relabel old fields |
 | Memory IPC / MCP | existing six-tool meaning | unchanged | separately authorized future adoption |
 
-| Reader/writer or consumer | V1 records/owner history | Core-1 V2 documents | Future V2 storage root |
+| Reader/writer or consumer | V1 records/Morii history | Core-1 V2 documents | Future V2 storage root |
 | --- | --- | --- | --- |
 | Existing embedded Runtime at its old pin | matching V1 roots only | refuse typed business decoding/writing | refuse root admission before record decode/query |
-| Existing Memory IPC/MCP/Host | existing V1 rules and scopes | no dispatch, no RecordKind or write path | refuse before dispatch/queries; no owner bridge |
-| This build's legacy reader/writer | unchanged V1 parser and OWNER_ONLY restrictions | unknown major diagnostic bytes only; no rewrite | not supported in this slice |
-| Core-1 `next` parser/evaluator | consumes validated current V1 source metadata; does not rewrite owner history | parse, validate, evaluate, bind drafts only | no reader/writer implementation |
-| Future explicitly adopted V2 reader | preserve legacy source/owner bytes and approval provenance | separately versioned machine meaning | must validate complete manifest and legal authority first |
-| Future V2 writer | no implicit bulk owner conversion | only legal System transactions after Core-3 | sole writer; no v1 fallback or dual write |
+| Existing Memory IPC/MCP/Host | existing V1 rules and scopes | no dispatch, no RecordKind or write path | refuse before dispatch/queries; no Morii bridge |
+| This build's legacy reader/writer | unchanged V1 parser and `OWNER_ONLY` restrictions | unknown major diagnostic bytes only; no rewrite | not supported in this slice |
+| Core-1 `next` parser/evaluator | consumes validated current V1 source metadata; does not rewrite Morii history | parse, validate, evaluate, bind drafts only | no reader/writer implementation |
+| Future explicitly adopted V2 reader | preserve legacy source/Morii bytes and approval provenance | separately versioned machine meaning | must validate complete manifest and legal authority first |
+| Future V2 writer | no implicit bulk Morii conversion | only legal System transactions after Core-3 | sole writer; no v1 fallback or dual write |
 
 No V2 business Vault reader or writer is delivered by this slice. The V2 parser
 is explicitly a document parser, not `parse_any` or support for a new RecordSet.
@@ -163,14 +163,14 @@ capability/hash; existing MCP grants cannot become machine-admission scopes.
 ## Migration and rollback design (not executed)
 
 1. Quiesce the single source writer and capture the exact commit, complete
-   manifests/raw bytes, owner approvals/reviews, authority epoch and policy/
+   manifests/raw bytes, Morii approvals/reviews, authority epoch and policy/
    deletion watermarks. Verify an independent restore and deletion closure.
    Never use a historical snapshot that resurrects deleted data.
 2. Build an explicitly selected new-format **synthetic** root first. Retain
    legacy records, review/approval history and provenance as original immutable
    byte objects with an index/mapping, not deserialize/reserialize copies.
    Legacy absence of context is unknown, never a reason to fabricate evidence.
-   New machine results use their own namespace/semantics; no fabricated owner,
+   New machine results use their own namespace/semantics; no fabricated Morii,
    ReviewRecord, confirmation or bulk candidate promotion.
 3. Validate complete migrated closure and rejection by all old consumers at the
    descriptor/session gate. Adopt matched Runtime/native reader capabilities
@@ -185,7 +185,7 @@ capability/hash; existing MCP grants cannot become machine-admission scopes.
    stop writers and require a separately verified forward recovery or explicit
    compatible conversion. Never lower policy/deletion/primary watermarks or
    open an old backup as a second primary. Disabling automation leaves machine
-   provenance intact; it does not turn it into an owner-approved record.
+   provenance intact; it does not turn it into a Morii-approved record.
 
 Real migration, restore/cutover tooling and a concrete new storage set validator
 are later work, not a hidden Core-1 dependency or a claim of migration safety.
@@ -198,14 +198,14 @@ job identity/state, input watermarks, cursor, dedupe, cancellation, lock/root/
 epoch invalidation, unknown outcomes, budgets and resource isolation. Model and
 embedding work must occur outside the writer exclusion interval. Staged entries
 need automatic reevaluation triggers and bounded retention/abstention, not an
-owner obligation. No job runtime or continuous Provider policy is implemented.
+Morii obligation. No job runtime or continuous Provider policy is implemented.
 
 The future minimum read capability must expose authorized bounded list/detail,
-machine vs legacy-owner formation, exact ID/revision/snapshot, knowledge,
+machine vs legacy-Morii formation, exact ID/revision/snapshot, knowledge,
 adoption, evidence/context separately, policy/rule provenance and completeness.
 Machine adopted maps to “automatically adopted; subject said X”, staged to its
-knowledge state and automatic reevaluation, legacy approved to original owner
-history. Never map machine adoption to “owner confirmed”. A draft or binding
+knowledge state and automatic reevaluation, legacy approved to original Morii
+history. Never map machine adoption to “Morii confirmed”. A draft or binding
 success maps to “not committed”; only a witnessed transaction receipt can say
 “saved”. Job progress and attention/currentness remain separate unavailable
 capabilities until implemented. Permission filtering must precede counts/edges.

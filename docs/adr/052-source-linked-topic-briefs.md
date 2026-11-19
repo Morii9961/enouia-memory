@@ -15,9 +15,9 @@ spans; do not claim all received history was processed. Metadata for source time
 capture time, speaker, evidence class and branch remains distinct.
 
 Produce an optional bounded Chinese Markdown brief in memory, retaining coverage
-even when the owner filters by an exact TopicKey or no topic matches. Each topic
+even when Morii filters by an exact TopicKey or no topic matches. Each topic
 contains original suggestions/citations, separate current candidate edits/status
-and H2b comparison hints. All imported/model/owner text is serialized as JSON in
+and H2b comparison hints. All imported/model/Morii text is serialized as JSON in
 code blocks; none becomes a report heading, HTML or an instruction. This is a
 navigation dossier, not a generated summary or a Canonical source.
 

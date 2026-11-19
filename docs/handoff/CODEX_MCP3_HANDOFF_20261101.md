@@ -10,9 +10,9 @@
 | --- | --- |
 | Memory `main` | `c9bf1be`，含 Core-1～7 与受限 MCP；比接续分支少 31 个提交 |
 | 接续分支 | `claude/mcp-captured-formation-queue`，头部含本交接提交，实现端点 `795c08a` |
-| 分支链 | `87fd505`（PR #77 顶端）→ `68ca1cc`（Owner 捕获）→ `8a1c13d`（入队）→ `795c08a`（worker） |
+| 分支链 | `87fd505`（PR #77 顶端）→ `68ca1cc`（Morii 捕获）→ `8a1c13d`（入队）→ `795c08a`（worker） |
 | PR | #56～#77 共 22 个草稿开启；`68ca1cc` 之后三个提交尚无 PR |
-| 不在链上 | `codex/owner-vault-bootstrap`（#76），Owner 空库创建，基于 `3b6e974` |
+| 不在链上 | `codex/owner-vault-bootstrap`（#76），Morii 空库创建，基于 `3b6e974` |
 | Runtime | 主线 `d0208eb`，pin `bf6bfd1`，58 条命令；未采用上述任何草稿 |
 | 集成面 | aggregate `c3b9a6d1745cf7a733bc2dc28d4294249728918e984dea32271c66a1064f24e7` |
 
@@ -36,13 +36,13 @@ UI v2 记录字段（#56、#59、#61、#63、#68）、初始化（#67）。
 
 | 能力 | 状态 |
 | --- | --- |
-| 捕获写入 Owner 根 | 已完成，原生接口，`RuntimeCaptureHost::enroll_owner` |
+| 捕获写入 Morii 根 | 已完成，原生接口，`RuntimeCaptureHost::enroll_owner` |
 | 入队 | 已完成，ADR-111，`enqueue_captured`、`queued_captures`、`RuntimeCaptureHost::enqueue` |
 | 形成 worker | 已完成，ADR-112，`CapturedFormation::step`，单步驱动 |
 | 初始化共用 | 已完成，种子、引文、prepare 共用，`step_with_captures` 让 live 优先 |
 | 真实分析器 | **没有**。`CaptureAnalyzer` 只有脚本实现 |
 | worker 托管 | **没有**。无线程、前台让路、取消或 Host 接线，没有东西调用 `step` |
-| Owner 根的持续模型策略 | **没有**。`ContinuousPolicyHost` 只绑定 `AutomationHost`，未绑定分段 Vault |
+| Morii 根的持续模型策略 | **没有**。`ContinuousPolicyHost` 只绑定 `AutomationHost`，未绑定分段 Vault |
 | 实体与修订 | **没有**。日常分析不能发布实体，也不能修订旧记忆 |
 | 对话上下文 | **没有**。分析每次只看一条来源 |
 
@@ -52,7 +52,7 @@ UI v2 记录字段（#56、#59、#61、#63、#68）、初始化（#67）。
 | --- | --- |
 | MCP-Resume-1 原生准入与本地传输 | 草稿完成（#57） |
 | MCP-2 新格式只读 | 草稿完成，初始化库五工具走 pipe-5（#58、#60、#62、#64、#70～#75、#77） |
-| MCP-3 Runtime 捕获 | 旧布局 pipe-1 草稿完成（#65、#66）；Owner 根只有原生接口，**缺 wire** |
+| MCP-3 Runtime 捕获 | 旧布局 pipe-1 草稿完成（#65、#66）；Morii 根只有原生接口，**缺 wire** |
 | MCP-3 引文定位 | 草稿完成（#69），`memory_note` 待用 |
 | MCP-3 `memory_note` | 未开始 |
 | MCP-4 纠正与请求 | 未开始 |
@@ -60,10 +60,10 @@ UI v2 记录字段（#56、#59、#61、#63、#68）、初始化（#67）。
 
 ## 4. 建议顺序
 
-**片 A：Owner Runtime wire。** 新的版本化协议，例如 `memory-runtime-capture-pipe-2`，只接受
+**片 A：Morii Runtime wire。** 新的版本化协议，例如 `memory-runtime-capture-pipe-2`，只接受
 `automation-segmented-owner-v1` 和 `memory-runtime-owner-capture-native-1`。
 
-- pipe-1 保持旧布局，现有 `serve_connection` 对 Owner 能力的拒绝不变。
+- pipe-1 保持旧布局，现有 `serve_connection` 对 Morii 能力的拒绝不变。
 - 复用现有受保护管道、对端核验、帧限制和单次绑定。
 - 捕获和入队是两个事务。崩溃后用同键重放即可恢复，wire 的回执要分别表达，不能把入队说成形成。
 - 增加该 producer 自身作业的状态读取，给 Runtime 的 Formation 用，不返回他人作业或正文。
@@ -94,7 +94,7 @@ UI v2 记录字段（#56、#59、#61、#63、#68）、初始化（#67）。
 
 - `analysis_unknown` 是终态，不重发，会放行同会话后续轮次。该来源暂不形成记忆，补分析需要单独设计。
 - 分析后被删除来源的任务永远停在 `forming`，没有副作用，但状态不会收尾。
-- 含入队记录的 Owner 库，旧版本应在解码时拒绝。这是按闭合枚举推断的，未用旧构建实测。
+- 含入队记录的 Morii 库，旧版本应在解码时拒绝。这是按闭合枚举推断的，未用旧构建实测。
 - 并发过期路径只在步与步之间确定性验证过，没有多线程竞态测试。片 B 引入线程后需要补。
 - 日志接近 16 MiB 上限的情况未验证，长期运行时需要关注终态任务累积。
 - `formation_worker.rs` 修复后未重跑工作区全量，只重跑了 `enouia-memory-init` 全部测试、fmt、

@@ -1,6 +1,6 @@
 # ADR-MEM-80 — Restricted MCP stdio boundary
 
-Date: 2026-10-23. Status: accepted for the owner-authorized MV-8.2 local synthetic continuation.
+Date: 2026-10-23. Status: accepted for the Morii-authorized MV-8.2 local synthetic continuation.
 
 Implement MV-8.2a as a transport-neutral library in the Host crate. Pin MCP
 2025-11-25, UTF-8 newline-delimited JSON-RPC, explicit initialize/initialized,
@@ -14,7 +14,7 @@ are the existing full Memory IPC v1 request envelopes, including caller-retained
 requestId and write idempotencyKey. The operation must match the selected tool.
 Advertised schemas are derived from memory-v1 and bundled common definitions,
 with no external references. memory_update is an unadvertised legacy alias and
-retains the existing revise/supersede-only validation. Owner review, identity,
+retains the existing revise/supersede-only validation. Morii review, identity,
 delete, import, arbitrary Workspace calls and native lifecycle controls are absent.
 
 A trusted embedding adapter supplies a non-serializable Agent grant and a typed
@@ -25,11 +25,11 @@ the grant. The port receives the native principal, parsed request and typed
 arguments, and must independently enforce current record/project/sensitivity/
 destination policy, Vault authority, provenance and durable keyed receipts.
 
-The library's grant constructor is not OS authentication. Current owner/window
+The library's grant constructor is not OS authentication. Current Morii/window
 Host sessions MUST NOT be used as an AgentPort by relabeling requests. This slice
 provides only fake-port and synthetic stdio evidence; an authenticated scoped
 Host/domain adapter remains a separate MV-8.2 implementation slice. No executable
-in this change opens a Vault or exposes the current owner Workspace to MCP.
+in this change opens a Vault or exposes the current Morii Workspace to MCP.
 
 Validate backend response kind, requestId and existing Memory IPC response rules.
 An uncertain call or malformed backend response disconnects, revokes admission,

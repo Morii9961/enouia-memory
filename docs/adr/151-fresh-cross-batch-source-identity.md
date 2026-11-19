@@ -30,7 +30,7 @@ is refused before enrollment under the existing native Capture contract.
 
 ## Continue an already enrolled run
 
-Use `reconcile-source-overlap` through the trusted registered Owner CLI. It
+Use `reconcile-source-overlap` through the trusted registered Morii CLI. It
 requires the original manifest, the recorded bootstrap operation, the exact
 current commit ID and the exact compact journal SHA-256. It applies to one
 specific stop shape. The first batch must have captured its sources and
@@ -56,4 +56,4 @@ any prepared or unresolved work refuse. A failed publication with unknown
 outcome requires inspection of the same journal before another action.
 
 The operation lives in the standalone fresh initializer and keeps compact
-journal version 2. Owner backup and Runtime readers use their existing formats.
+journal version 2. Morii backup and Runtime readers use their existing formats.

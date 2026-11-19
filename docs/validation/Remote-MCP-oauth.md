@@ -1,6 +1,6 @@
 # Remote MCP OAuth authority — synthetic validation (2026-11-09)
 
-Scope: [ADR-MEM-132](../adr/132-remote-mcp-owner-oauth.md), branch
+Scope: [ADR-MEM-132](../adr/132-remote-mcp-morii-oauth.md), branch
 `claude/remote-mcp-oauth`, stacked on `claude/remote-mcp-http1` (PR #89).
 Synthetic clients, a controllable clock and deterministic IDs. No network,
 real ChatGPT client, real Vault or VPS.
@@ -44,5 +44,5 @@ real ChatGPT client, real Vault or VPS.
 ## Not shown
 
 Interoperability with ChatGPT's current connector client, real HTTPS, the
-approval-code command, persistence on disk and concurrent processes, and owner
+approval-code command, persistence on disk and concurrent processes, and Morii
 acceptance.

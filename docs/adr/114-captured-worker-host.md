@@ -2,7 +2,7 @@
 
 2026-11-01. MCP-3 slice B, based on ADR-MEM-112/113.
 
-Native Owner setup explicitly starts one Memory-owned background thread on the
+Native Morii setup explicitly starts one Memory-owned background thread on the
 same leased Vault. It uses the existing worker lease; no second writer, root or
 Runtime worker-pool task. Foreground native calls announce priority before the
 control gate. A productive step yields; false/Busy and pending polls back off
@@ -14,7 +14,7 @@ token, following Core-2 without a Vault-to-Host dependency. Default deadline is
 30 seconds, configurable up to 300 seconds. Results are bounded to 32 statements
 and 256 KiB. Start/poll never perform synchronous model/network/embedding waits.
 Only fake native adapters are delivered; real model/policy/budget/egress choices
-remain the owner's decision. There is no compatibility bridge to synchronous
+remain Morii's decision. There is no compatibility bridge to synchronous
 analyzers: native implementations must update explicitly.
 
 Dispatch intent is durable before handoff. Pending analysis is polled outside

@@ -6,20 +6,20 @@
 
 memory_forget_request records an untrusted request against one exact memory
 target and an independently authorized captured Runtime User/UserStatement quote.
-It performs no forgetting, hiding, deletion, suppression, Owner action or model
-analysis. There is no mandatory Owner queue. Scope, duration, restoration and
+It performs no forgetting, hiding, deletion, suppression, Morii action or model
+analysis. There is no mandatory Morii queue. Scope, duration, restoration and
 revocation rules for forget-hide remain unchosen by Morii; this slice supplies
 none of them and cannot be used as an approval for later effects.
 
-Native Owner setup independently grants AgentForgetPermit on the initialized
-Owner carrier, with the same current target/source closure, policy, sensitivity,
+Native Morii setup independently grants AgentForgetPermit on the initialized
+Morii carrier, with the same current target/source closure, policy, sensitivity,
 source-read and bounded lifetime gates as ADR120/121. Existing read, note,
 correction, supersede and MemoryPropose permissions do not grant this authority.
-AgentForgetRequester::submit takes the original request only, never an Owner
+AgentForgetRequester::submit takes the original request only, never Morii
 method, serialized draft or packet-supplied identity. The Agent's bounded forget
 interpretation is data, not user evidence or authorization to forget.
 
-Save a closed agent_forget_request delta on the witnessed Owner chain, using
+Save a closed agent_forget_request delta on the witnessed Morii chain, using
 memory-agent-forget-native-1 and its independent (Vault, Agent, request ID) key
 space. The independent receipt has state=forget_request_saved only. Current
 authorization precedes receipt replay. New requests need the exact current

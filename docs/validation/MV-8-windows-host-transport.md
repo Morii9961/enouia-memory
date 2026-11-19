@@ -2,7 +2,7 @@
 
 Date: 2026-10-22 (Asia/Shanghai). Baseline
 `0cb00a8a8e98eb1bbf5f6cefd8f0569c3314ce9e` (merged PR #45).
-Continues owner-authorized MV-8 with isolated synthetic roots/processes only.
+Continues Morii-authorized MV-8 with isolated synthetic roots/processes only.
 
 [ADR-MEM-77](../adr/077-windows-host-transport.md) adds the explicit prototype
 executable, current-account/local-only reserved pipe, retained live-process
@@ -18,7 +18,7 @@ The Host crate's 25 tests passed (including fixture child entry points):
 - Four kernel pipe/process cases: first-instance exclusion and the pre-accept
   client race; timeout cancellation followed by successful next I/O; actual
   cross-process client identity and dead enrollment refusal; fixture entry.
-- Nine process-transport cases: independent Host proposal/owner review/native
+- Nine process-transport cases: independent Host proposal/Morii review/native
   lock/unlock/replay and competing Host refusal; oversized/truncated/claimed
   identity metadata; native control compatibility before ordinary session;
   raw overlay write/control refusal; a different live same-account process
@@ -37,7 +37,7 @@ all uncertain/invalid client exchanges now poison the channel, and native
 lock/unlock checks a closed versioned hello even when the ordinary gate is
 locked. Synchronous I/O completion is handled without waiting for an event
 that need not signal. The kernel cancellation test verifies the next read is
-usable after draining an expired operation. No validator or owner scope was
+usable after draining an expired operation. No validator or Morii scope was
 weakened to pass a fixture.
 
 Final checks:
@@ -62,7 +62,7 @@ ordered-barrier failures retained in earlier reports.
 
 These are actual synthetic Windows process/IPC results. They do not establish
 real Runtime/reference-shell transport adoption, executable/human attestation,
-multi-client/MCP compatibility or production daily use. The explicit owner
+multi-client/MCP compatibility or production daily use. The explicit Morii
 launcher must choose the actual allowed process/window, not trust a JSON PID
 or executable name; native brokers wrap page requests only as Call frames.
 The prototype's caps may refuse otherwise-valid large Core payloads and its
@@ -70,4 +70,4 @@ full-data checks have no throughput acceptance. No private Vault, credentials,
 real Provider call, Runtime checkout, deployment or manual status snapshot was
 used or changed. Remaining gates include native reference-shell/client
 adoption, enrollment UX/policy, multiple scoped clients, restricted MCP,
-physical maintenance/independent encrypted restore and real owner acceptance.
+physical maintenance/independent encrypted restore and real Morii acceptance.

@@ -2,7 +2,7 @@
 
 Date: 2026-10-22 (Asia/Shanghai). Baseline
 `905411ef1b0c8dd1932a411b8390670c08bdad76` (merged PR #46).
-Continues owner-authorized MV-8; all data and processes are synthetic.
+Continues Morii-authorized MV-8; all data and processes are synthetic.
 
 [ADR-MEM-78](../adr/078-native-client-reconnect-boundary.md) adds the opt-in
 Windows `Broker`. It owns one enrolled native transport and no request queue.

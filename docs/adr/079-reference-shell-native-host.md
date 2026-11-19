@@ -1,9 +1,9 @@
 # ADR-MEM-79 — Opt-in reference shell native Host
 
-Date: 2026-10-22. Status: accepted for the owner-authorized MV-8 continuation.
+Date: 2026-10-22. Status: accepted for the Morii-authorized MV-8 continuation.
 
 The reference Tauri shell can explicitly select a native Host backend using an
-owner-provided Host executable, existing v2 root, Host device ID and expected
+Morii-provided Host executable, existing v2 root, Host device ID and expected
 Vault ID. All four are native launch arguments. The shell creates a fresh pipe
 name, launches only that executable hidden and enrolls its own live process as
 Workspace broker. It checks the child's ready PID, retains that process and

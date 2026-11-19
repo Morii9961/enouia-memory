@@ -7,7 +7,7 @@ codex/mcp-runtime-capture-pipe. ADR-MEM-102 / RUNTIME_CAPTURE_PIPE_V1.
 
 Native RuntimeCaptureHost now binds once to a protected local pipe, borrowing
 the same existing Vault and retaining native lifecycle control. No second
-writer, Workspace forwarding, owner-control packet or public Agent write tool.
+writer, Workspace forwarding, Morii-control packet or public Agent write tool.
 Native lock/revoke remains reachable through a retained Host Arc. Every service
 exit revokes admission; repeated binding cannot reconnect. The existing strict
 duplicate-key parser is shared internally, without changing old MCP behavior.
@@ -17,7 +17,7 @@ duplicate-key parser is shared internally, without changing old MCP behavior.
 | schema 1 / host-current-v2 | Refuse | Existing six tools unchanged |
 | schema 2 / automation-host-v2/v3 | Refuse | Existing versioned five-tool reads |
 | schema 2 / automation-segmented-host-v1 | Explicit memory-runtime-capture-pipe-1 | Existing catalog reads, no capture grant |
-| newer/unknown layout or claimed Agent/Owner/System producer | Refuse | No automatic upgrade |
+| newer/unknown layout or claimed Agent/Morii/System producer | Refuse | No automatic upgrade |
 
 The actual kernel process/SID/session, current exact policy/source pool,
 expiry/revocation and instance gates precede source capture. The closed wire
@@ -69,7 +69,7 @@ its shared intake/formation entry; this slice does not modify that worktree or
 create a second formation pipeline. Adopt its published exact contract before
 connecting durable ordered live jobs. Agent memory_note, normalized quotation,
 checkpoint-on-new-format, reports/forget, session_start and resource links remain
-pending. Newer owner layouts/projections still require separate reader adoption.
+pending. Newer Morii layouts/projections still require separate reader adoption.
 
 No real Provider/embedding, private Vault/export/credentials, real client config,
 Activity/Usage input, remote listener, Runtime edit/pin, deployment or main merge.
@@ -78,5 +78,5 @@ Only new synthetic roots, bounded native metadata and owned test processes.
 Owned files: Runtime capture transport/unit tests and real-process integration
 test; its schema/corpus/checker and contract test; minimal producer single-use
 binding/getter and internal JSON visibility; ADR102/contract/report and Runtime
-manifest/log. No AGENTS, manual state or parallel initialization/owner/projection
+manifest/log. No AGENTS, manual state or parallel initialization/Morii/projection
 source files were changed.

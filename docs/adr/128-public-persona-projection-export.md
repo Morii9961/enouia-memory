@@ -1,4 +1,4 @@
-# ADR-MEM-128: Owner-exported public persona projection
+# ADR-MEM-128: Morii-exported public persona projection
 
 2026-11-08. Adopted for the local Workspace contract (first slice); Runtime
 adoption is deferred to Runtime's own authorized change.
@@ -8,7 +8,7 @@ adoption is deferred to Runtime's own authorized change.
 A downstream consumer (Enouia WeChat) lets Enouia take part in group chats
 with a public persona. It currently uses a hand-maintained persona pack and
 wants Memory to produce it. Three constraints are fixed by that consumer and
-by Morii's decisions D16a (owner export, not an Agent exporter) and D16b
+by Morii's decisions D16a (Morii export, not an Agent exporter) and D16b
 (public sensitivity **and** an explicit per-audience selection):
 
 - the bot process never receives non-public content;
@@ -16,9 +16,9 @@ by Morii's decisions D16a (owner export, not an Agent exporter) and D16b
 - everything exported can be extracted by chat participants and is sent to a
   model provider.
 
-Identity revisions are owner-approved Markdown (ADR-MEM-40/41). Memory
+Identity revisions are Morii-approved Markdown (ADR-MEM-40/41). Memory
 records carry an independent `sensitivity` (ADR-MEM-06). Nothing in Memory
-yet marks part of an Identity revision as public, and no owner operation
+yet marks part of an Identity revision as public, and no Morii operation
 writes a file for another program to consume.
 
 ## Decision
@@ -30,10 +30,10 @@ writes a file for another program to consume.
    Every object is closed. No consumer-specific field is defined; approval
    records and per-group settings stay with the consumer.
 
-2. **Public Identity part.** The owner marks the public part of an Identity
+2. **Public Identity part.** The Morii marks the public part of an Identity
    revision by writing exactly one fenced block with the info string
    `enouia-public-persona-1` whose body is a closed JSON object
-   (`identity_block`). Because the block is part of the Markdown, the owner
+   (`identity_block`). Because the block is part of the Markdown, Morii
    approves its exact words through the existing Identity review. Text outside
    the block is never read into the projection; the preview counts its
    non-blank lines without showing them. The selected revision must be the
@@ -41,7 +41,7 @@ writes a file for another program to consume.
    deleted revision is refused, so a later approved edit cannot be bypassed.
 
 3. **Public knowledge.** A Memory record enters only when it is (a) listed by
-   the owner in the request for this audience, (b) `sensitivity: public`,
+   Morii in the request for this audience, (b) `sensitivity: public`,
    (c) active, not tombstoned and currently valid. Anything else is excluded
    and counted by reason. Selected-but-ineligible records are excluded, not
    refused, so withdrawal (archive, supersession, forgetting, deletion,
@@ -49,8 +49,8 @@ writes a file for another program to consume.
    Each item carries a projection-scoped stable ID, the record's `content`,
    the exact `{memory_id, memory_revision}` and the record's tags.
 
-4. **Operations.** Three owner commands on Workspace IPC v1, all on the
-   trusted owner surface:
+4. **Operations.** Three Morii commands on Workspace IPC v1, all on the
+   trusted Morii surface:
    - `persona_options` (read): Identity records with whether they carry a
      valid block, eligible public records, and the last export summary.
      Titles of non-public records are not listed.
@@ -59,7 +59,7 @@ writes a file for another program to consume.
      exclusion counts, reminders, and a `previewDigest`.
    - `persona_export` (write, idempotency key required): recomputes the
      preview and writes only when `previewDigest` still matches. It writes a
-     new file named by Memory into an owner-picked folder (native picker
+     new file named by Memory into a Morii-picked folder (native picker
      token `persona_destination`), never overwrites, and refuses folders
      inside a Git repository or worktree, inside the open Vault or any Vault
      root, on network/cloud-sync/system locations, or behind reparse points.
@@ -77,7 +77,7 @@ writes a file for another program to consume.
 
 6. **Unknown outcomes.** A completed key replays its receipt without touching
    the destination. A reserved-but-unconfirmed key is completed only by the
-   owner resending the same request: Memory re-checks the digest, writes the
+   Morii resending the same request: Memory re-checks the digest, writes the
    reserved bytes if the file is absent, accepts an identical existing file and
    refuses a different one. Memory never retries, schedules, syncs, notifies or
    uses the network.
@@ -94,7 +94,7 @@ writes a file for another program to consume.
 - The ledger is local state outside the commit chain: a backup restore does
   not restore it. After a lost ledger the version restarts at 1 under the same
   `projection_id`; the consumer's "same version, different content" rule makes
-  that fail closed. Owner decision recorded as open (see contract §Open).
+  that fail closed. Morii decision recorded as open (see contract §Open).
 - A synthetic sample document ships with the contract for downstream tests.
 
 Evidence: [public persona export v1](../validation/Public-persona-export-v1.md).

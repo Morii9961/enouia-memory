@@ -18,7 +18,7 @@
 
 新 helper 的 hash 输入现在先置入超过旧键最大长度的域，再包含 namespace 与键 hash；旧 create 的任务字节、键和 Request ID 推导保持不变。两家 Provider 下，旧任务、新任务与构造键任务分别发送、重启恢复及直接父链/分支检查已通过。未合并的早期 H2i helper 只有合成证据；其旧推导创建的合成谱系任务须使用新主人键重建，不静默重绑、复用批准或重发。
 
-本轮首次全量在沙箱内的 CLI owner-only ACL 检查失败。独立临时空目录复现了 protect 的 AccessDenied；获准沙箱外验证后 CLI 五项通过，未放宽代码或测试。修复发现后停止仍在运行的旧代码检查，对最终代码重新完整验证；这两次未完成运行均不计为全量通过。原始日志分别保存在忽略的本地 mv7-h2i-workspace-tests-resumed.log、mv7-h2i-workspace-tests-unsandboxed.log 与 mv7-h2i-request-alias-before.log。
+本轮首次全量在沙箱内的 CLI current-user-only ACL 检查失败。独立临时空目录复现了 protect 的 AccessDenied；获准沙箱外验证后 CLI 五项通过，未放宽代码或测试。修复发现后停止仍在运行的旧代码检查，对最终代码重新完整验证；这两次未完成运行均不计为全量通过。原始日志分别保存在忽略的本地 mv7-h2i-workspace-tests-resumed.log、mv7-h2i-workspace-tests-unsandboxed.log 与 mv7-h2i-request-alias-before.log。
 
 最终验证：仓库根目录，Rust 1.98.1，CARGO_NET_OFFLINE=true、RUST_TEST_THREADS=1 的 cargo test --workspace --locked 共 381 项通过、0 失败、退出码 0，含 77 项 Provider、64 项 Workspace 检查。两种 helper 的来源修订后发送前拒绝检查通过；fmt --check、Clippy -D warnings、Python 3.12 / 12 项质量工具测试、独立 python-jsonschema 4.26.0（36 schemas）和 Runtime checker 均 exit 0。公开内容及 93 个本地链接检查通过，状态快照 hash 未变。最终全量日志为 mv7-h2i-workspace-tests-final.log，结果登记为 mv7-h2i-resume-check-results.json，均在忽略的本地验证区。
 

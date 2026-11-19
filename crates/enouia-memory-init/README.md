@@ -1,8 +1,8 @@
 # Synthetic initialization
 
-Native, opt-in initialization for a **new synthetic Owner segmented root**. There is
+Native, opt-in initialization for a **new synthetic Morii segmented root**. There is
 no directory discovery, real-data CLI, model adapter or Runtime activation.
-The ADR-MEM-93 fields were confirmed by the owner before this implementation.
+The ADR-MEM-93 fields were confirmed by Morii before this implementation.
 See [ADR104](../../docs/adr/104-synthetic-initialization-intake.md) and the
 [measured report](../../docs/validation/Memory-init-pipeline.md).
 
@@ -38,7 +38,7 @@ compare their snapshot, policy, deletion and withdrawal bindings.
    `automation-segmented-owner-v1` root with explicit `owner_subject_id`, or
    reopen its saved journal. Genesis witnesses the descriptor digest; the
    `sync-state/initialization-owner-1.json` journal binds the same digest.
-   Old/unbound descriptors and a different attributed owner are refused.
+   Old/unbound descriptors and a different attributed Morii are refused.
    `enqueue` archives immutable selected bytes and saves the exact plan,
    analysis and IDs. Repeating a watermark/mode with different analysis refuses.
    Different source sets need distinct supplied policy identities; the
@@ -56,19 +56,19 @@ compare their snapshot, policy, deletion and withdrawal bindings.
    profile-alias and supported entity-alias matching.
 
 All notes, tags, tone, importance, current-state notes and suggested relations
-remain revision-bound advisory annotations. No owner decision is generated.
+remain revision-bound advisory annotations. No Morii decision is generated.
 Complete legacy v1 RecordSets require exact original Review text witnesses and
-the separate native owner-selected capture boundary. Unreviewed candidates and
+the separate native Morii-selected capture boundary. Unreviewed candidates and
 derived buckets remain model/agent claims. Original records are never rewritten.
 
 `Format::OwnerProvided` accepts an explicitly selected JSON packet with `content`
 and optional `content_lang`, `intake_key`, `original_quote` and
-`original_quote_speaker`. The owner's statement is an ordinary user-statement
+`original_quote_speaker`. Morii's statement is an ordinary user-statement
 source formed in the same batch, without an extra review queue. The quote is a
 separate source retaining its speaker/evidence class; a quoted assistant is not
-the owner. An unbound quoted user identity stays unknown. The parser never
+Morii. An unbound quoted user identity stays unknown. The parser never
 selects this mode from consent-looking JSON or creates UserConfirmation or an
-OwnerAction. Real intake must authenticate the native owner's selection; this
+`OwnerAction`. Real intake must authenticate the native Morii's selection; this
 pure parser is not that authentication boundary.
 
 ## Consuming the synthetic root
@@ -79,17 +79,17 @@ and its native writer closes, open that exact root through `verify_data_root` an
 the fixture clock is explicitly fixed at `2026-10-24T12:00:00Z`; a test reader
 must use that clock to keep the synthetic policy valid. Use an independently
 authenticated native reader, not `Initializer::open_synthetic` as Agent
-authority. The Owner catalog selection is `owner-qualified-catalog-4`/v4;
+authority. The Morii catalog selection is `owner-qualified-catalog-4`/v4;
 process headers use v2. The final root has 36 visible records after one test
 deletion; its saved before bundle is stale. Keep the root and its Raw objects
 local, and compare current snapshot/barriers through native reads.
 
 Import carriers use `CapturedSource` with typed `attachments`, SourceRecord
 attachment refs, original locators/clocks and revision-bound evidence. Native
-`capture_import` verifies Raw closure and refuses owner confirmation; legacy
-confirmation has a separate native-owner-selected boundary. These are not MCP
+`capture_import` verifies Raw closure and refuses Morii confirmation; legacy
+confirmation has a separate native-Morii-selected boundary. These are not MCP
 or Runtime capture routes. All four import-specific native entries (capture,
-legacy capture, Raw archive and receipt lookup) require an Owner descriptor
+legacy capture, Raw archive and receipt lookup) require Morii descriptor
 before authentication, object work, locking or record access; the old
 `SegmentedV1` layout cannot opt in through parser/model parameters. The ordinary
 runtime-only capture entry refuses typed attachment carriers. Old prototype
@@ -117,8 +117,8 @@ conversation identity; changed content under the same message identity refuses
 at plan validation rather than silently overwriting history.
 
 The script is **not** a semantic extractor or independent model evaluation.
-One integration test exercises a separate native Owner gesture after ordinary
-formation; initialization itself generates no Owner action. Runtime six-view previews/screenshots, real data,
+One integration test exercises a separate native Morii gesture after ordinary
+formation; initialization itself generates no Morii action. Runtime six-view previews/screenshots, real data,
 egress/default-timezone authorization and Core-8 switching are separate work.
 
 ## Fresh ChatGPT selection (ADR140)
@@ -173,7 +173,7 @@ Keep the original intake counts separately instead of summing them per plan.
 
 This pure entry does not resolve attachment files, execute the bounded journal,
 bootstrap a production root, authorize reads or supply a fresh production CLI.
-Production use waits for Owner merge. See [decision](../../docs/adr/144-fresh-analysis-packing.md)
+Production use waits for Morii merge. See [decision](../../docs/adr/144-fresh-analysis-packing.md)
 and [focused validation](../../docs/validation/Fresh-analysis-packing.md).
 
 ## Explicit text-only fresh retention (ADR-MEM-148)

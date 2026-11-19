@@ -18,7 +18,7 @@ This preserves the store's writer protocol, existing receipt/payload hashes and 
 
 - `session_ask_replay_reads_a_receipt_published_after_its_initial_pin`: one caller completes before the other resumes at the earlier allocation boundary.
 - `concurrent_session_ask_replay_uses_the_published_dispatch_and_reply`: both callers pass initial lookup and meet at commit allocation.
-- `session_ask_replay_refuses_evidence_deleted_while_the_call_is_paused`: after the first answer is published, the owner logically deletes a synthetic cited memory before the second caller resumes. The second response is refused with no result.
+- `session_ask_replay_refuses_evidence_deleted_while_the_call_is_paused`: after the first answer is published, Morii logically deletes a synthetic cited memory before the second caller resumes. The second response is refused with no result.
 
 The two positive tests validate full workspace envelopes, identical successful results, an inspectable/verified dispatch, one completed turn, exactly two transcript events, and a saved reply naming the actual dispatch. A subsequent retry with a fresh transport request ID returns the same result without moving the head, using Core's existing key-derived logical request ID.
 

@@ -8,7 +8,7 @@ and formed memories.
 
 ## Decision
 
-Store an `agent_note` delta in the existing Owner segmented commit chain. This
+Store an `agent_note` delta in the existing Morii segmented commit chain. This
 uses the existing single writer, CURRENT/witness publication, uncertainty gate
 and forward recovery. It creates no second authoritative journal or writer.
 The native System commits on behalf of the explicitly delegated Agent; the
@@ -27,7 +27,7 @@ at most 32 hints; the root has the existing segmented revision ceiling.
 
 The receipt says `hint_saved`, never queued, consumed, approved or formed. Saving
 does not create a source, schedule or repeat analysis, create memory, grant an
-Owner action or hold a conversation for human review. System consumers may use
+Morii action or hold a conversation for human review. System consumers may use
 or ignore still-current hints separately. Hints arriving after dispatch do not
 authorize another model request.
 
@@ -38,7 +38,7 @@ publication. Recovery preserves original note and commit identities.
 
 ## Compatibility
 
-This is an additive closed delta variant in schema 2 for Owner roots only.
+This is an additive closed delta variant in schema 2 for Morii roots only.
 Earlier binaries refuse a root containing it during chain decoding; do not
 downgrade that root to an older binary or open a second writer. Existing old
 root writers, pipe-1/2, Agent read profiles and Workspace IPC58 retain their

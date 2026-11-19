@@ -71,7 +71,7 @@ Copy-Item .local/mv7-quality-native-matrix/anthropic-lineage-complete.json .loca
 python tools/history-quality/review.py --suite .local/mv7-quality-review-practice.json
 ```
 
-在 JSON 套件的首个 case 中填写判断；Markdown 只是只读对照稿，不会回写或导入判断。合成练习将 reviewer 设为 synthetic_fixture；不要写 owner。保持来源、回答、任务输入、原生绑定和相应 hash 不变。例如只评完偏好纠正的陈述，可填写以下三个字段：
+在 JSON 套件的首个 case 中填写判断；Markdown 只是只读对照稿，不会回写或导入判断。合成练习将 reviewer 设为 synthetic_fixture；不要写 Morii。保持来源、回答、任务输入、原生绑定和相应 hash 不变。例如只评完偏好纠正的陈述，可填写以下三个字段：
 
 ```json
 {
@@ -134,8 +134,8 @@ UTF-8 JSON 报告给出新增/修改/撤回的回答路径、关键单元序号�
 
 原生宿主可调用 history_quality::build，从明确选择的已完成语义任务返回一份内存中的套件。它使用 native_selected_spans_v1 内联作用域，保留选定原文、Source 修订/片段 hash、角色、时间/分支上下文和未引用覆盖；不伪造原始会话/消息 ID，不自行写文件。宿主对任何保存/导出单独处理。单 case 上限 256 KiB，关键单元由主人预先提供，最多 32 个。
 
-生成的 reviewer 固定为 pending，item_judgments/unit_judgments 都为空；空模型回答也保留全部选定来源及未审的重要单元。pending 不允许附带判断；填写后须将 reviewer 改为 owner 或 synthetic_fixture。scope_value_sha256/response_value_sha256 用紧凑 UTF-8 JSON 值 hash，原生任务与响应原文 hash 另列，不混作同一种绑定。CLI 检查内联片段的范围与 hash，但不会访问 Vault 或认证 native_builder_validation 声明；native_validation 仍为 not_rerun。
+生成的 reviewer 固定为 pending，item_judgments/unit_judgments 都为空；空模型回答也保留全部选定来源及未审的重要单元。pending 不允许附带判断；填写后须将 reviewer 改为 Morii 或 synthetic_fixture。scope_value_sha256/response_value_sha256 用紧凑 UTF-8 JSON 值 hash，原生任务与响应原文 hash 另列，不混作同一种绑定。CLI 检查内联片段的范围与 hash，但不会访问 Vault 或认证 native_builder_validation 声明；native_validation 仍为 not_rerun。
 
-有人工判定的合成 case 的 reviewer 必须是 synthetic_fixture；待审为 pending。未来 owner_selected 样本须登记 `native_task_input_sha256`，待审保留 pending，实际填写判断后标 owner；这些是提交者声明的元数据，本工具不会认证主人、查验 Vault 或重跑原生响应验证。`native_validation: not_rerun` 保持明确。格式允许这种后续样本，不表示真实资料、模型或预算已获授权。
+有人工判定的合成 case 的 reviewer 必须是 synthetic_fixture；待审为 pending。未来 `owner_selected` 样本须登记 `native_task_input_sha256`，待审保留 pending，实际填写判断后标 Morii；这些是提交者声明的元数据，本工具不会认证主人、查验 Vault 或重跑原生响应验证。`native_validation: not_rerun` 保持明确。格式允许这种后续样本，不表示真实资料、模型或预算已获授权。
 
 真实样本先由 Morii 选择并另行启用，原件、响应、评审套件和报告放在私有位置，不提交到仓库。最终主人验收、真实模型的忠实性/漏提、运行费用和恢复门槛仍独立记录；不能拿合成校准结果代替。工具不批准或写入记忆。

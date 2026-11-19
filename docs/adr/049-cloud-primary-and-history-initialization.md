@@ -4,16 +4,16 @@ Date: 2026-10-11. Status: **Adopted direction; H1 offline planning implemented.*
 
 ## Context
 
-The owner requested complete memory access while the PC is off, initialization from the received ChatGPT history, and a recall/proposal cycle through MCP. The owner then asked to continue along that direction. The earlier local-primary/gateway-only target cannot satisfy the availability requirement.
+Morii requested complete memory access while the PC is off, initialization from the received ChatGPT history, and a recall/proposal cycle through MCP. Morii then asked to continue along that direction. The earlier local-primary/gateway-only target cannot satisfy the availability requirement.
 
 ## Decision
 
 - Target one cloud Memory primary; local initialization, offline copies and independent encrypted recovery remain. Runtime owns the local product frontend. Memory owns domain, cloud service, adapters and contracts.
 - Preserve raw evidence, reviewed Canonical, candidates, sessions, rebuildable indexes, valid/known time and deletion barriers. Full service-side computation places the service in the trust boundary; each client still has limited access.
-- Initialize history in stages: archive and reconcile, plan bounded branch-preserving work, extract candidates, reconcile changes over time, owner review, derived topic navigation. Source coverage is distinct from semantic completeness.
-- H1 adds a pure read-only planner over existing parsed adapter output and a built-in synthetic example. No new persistence, wire contract, credentials, model calls or automatic owner approval.
-- Automatic acceptance remains deferred. Archive/expiry is distinct from owner-authorized permanent deletion. MCP receives only explicitly delivered data, not an assumed full third-party conversation.
-- MV-8 freezes the single-host/platform/primary-fencing contracts; MV-9 implements and validates the cloud primary; MV-10 implements local copies/offline proposals. A stage still starts only on explicit owner instruction.
+- Initialize history in stages: archive and reconcile, plan bounded branch-preserving work, extract candidates, reconcile changes over time, Morii review, derived topic navigation. Source coverage is distinct from semantic completeness.
+- H1 adds a pure read-only planner over existing parsed adapter output and a built-in synthetic example. No new persistence, wire contract, credentials, model calls or automatic Morii approval.
+- Automatic acceptance remains deferred. Archive/expiry is distinct from Morii-authorized permanent deletion. MCP receives only explicitly delivered data, not an assumed full third-party conversation.
+- MV-8 freezes the single-host/platform/primary-fencing contracts; MV-9 implements and validates the cloud primary; MV-10 implements local copies/offline proposals. A stage still starts only on explicit Morii instruction.
 
 ## Relationship to prior decisions
 
@@ -21,7 +21,7 @@ ADR-MEM-01's local-primary **target** is superseded; the existing local store re
 
 ## Consequences and gates
 
-There is no claim of Linux support from Windows root/ACL tests. Cloud port selection and authentication require independent evidence. Switching primary requires a verified snapshot, deletion/policy reconciliation, independent encrypted recovery, owner confirmation and fencing of the old writer. No file synchronization of a live Vault and no dual-primary fallback.
+There is no claim of Linux support from Windows root/ACL tests. Cloud port selection and authentication require independent evidence. Switching primary requires a verified snapshot, deletion/policy reconciliation, independent encrypted recovery, Morii confirmation and fencing of the old writer. No file synchronization of a live Vault and no dual-primary fallback.
 
 Real materials, calls, hosting resources, trust scope, backup/recovery secrets, client selection and automatic-acceptance policy remain explicit activation decisions. Existing manual project status snapshots are not updated during development.
 

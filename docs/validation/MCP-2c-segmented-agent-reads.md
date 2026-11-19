@@ -6,7 +6,7 @@ on the exact published segmented dependency `b2c5c1a`. No main merge.
 ## Delivered surface
 
 `SegmentedAgentHost` shares the existing leased Vault through Arc; it opens no
-writer. Native Owner registration and retained OS peer enrollment are separate
+writer. Native Morii registration and retained OS peer enrollment are separate
 prerequisites. Its own lock/unlock generation, revocation, injected/monotonic
 expiry and current policy/source/lineage gate precede all result construction.
 Native embedding must connect its Agent lifecycle to this object; an existing
@@ -114,7 +114,7 @@ the upstream 20,000-row System benchmark is not claimed as Agent acceptance.
 
 Runtime-only conversation capture, live formation, memory_note and preflight,
 reports/forget requests, session_start and resources are not delivered here.
-Agent statements remain Agent provenance; no Owner action goes through MCP.
+Agent statements remain Agent provenance; no Morii action goes through MCP.
 Missing timezone will default to Asia/Shanghai with a recorded default source
 at capture, without inventing unknown event dates. No private root initialization
 is needed to continue that backend work. No real Provider/embedding, private

@@ -153,7 +153,7 @@
     {
       "path": "apps/workspace/src-tauri/windows/README.md",
       "role": "reference-installer",
-      "sha256": "6eb3c631148ba8d7ca8375275801fe2e75139f83878856ebd1f5e71b4322431b"
+      "sha256": "1ee430c294cae2846e5d1672a59e44a424f5333a921be16367844488109af4df"
     },
     {
       "path": "apps/workspace/src-tauri/windows/hooks.nsh",
@@ -173,7 +173,7 @@
     {
       "path": "apps/workspace/src/App.tsx",
       "role": "reference-ui",
-      "sha256": "870c96438e81ebae3110df8226f190a4f1ab8d58f91a118dfc9b186ae3de93f8"
+      "sha256": "a340406ecaeba4eed35a82d23f37f044baff7d5169b797a0d13f06d97d4f48e0"
     },
     {
       "path": "apps/workspace/src/Overlay.tsx",
@@ -183,7 +183,7 @@
     {
       "path": "apps/workspace/src/api.ts",
       "role": "reference-ui",
-      "sha256": "4ff54dd7b0bcc1362aa51ba07340bca2a12def9cb869211ac4c1f423163d88bd"
+      "sha256": "6eaec0ef781b75786e5f075acc7114b9b6482bfa60cc1cd7687db7caf66f6f90"
     },
     {
       "path": "apps/workspace/src/env.d.ts",
@@ -1376,5 +1376,5 @@
       "sha256": "3603c1855d9f9ec9b3585143a0191508980b260b1ffd26c82b3e6f9b7223a75d"
     }
   ],
-  "aggregate": "df3248e725f92952d0be265092babd5dbdbe6fec642720a0c400c71cbd9e7e53"
+  "aggregate": "2455bc9aba7a155d405103895c12ae0442648a663a25a2db02ca07cf390233c0"
 }

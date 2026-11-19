@@ -21,12 +21,12 @@ ordinary Windows permissions. Coverage includes:
 
 - Normalized full-width/quoted/whitespace hints map to exact original scalar
   offsets. Both user statements and assistant model claims retain their original
-  role/class; Agent notes never become Owner confirmation.
+  role/class; Agent notes never become Morii confirmation.
 - Repeated preparation retains its key/hash; changed content changes only its
   request hash, and another authenticated Agent has a different key. Preparation
   changes no chain head, creates no hint journal or queue entry, and forms no
   memory. These are drafts, so no durable idempotency result is claimed.
-- Explicit native Owner setup, initialized profile and source-read permission
+- Explicit native Morii setup, initialized profile and source-read permission
   are required. Revoke, lock/unlock generation replacement, policy revision,
   expiry, deletion and another instance refuse. The uninitialized original
   read-only Host profile cannot create note delegations.

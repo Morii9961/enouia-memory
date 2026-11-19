@@ -4,10 +4,10 @@
 and [intake contract](../contracts/AGENT_CORRECTION_INTAKE_V1.md).
 
 The independent correction delegation now saves reports through the existing
-witnessed Owner chain as a closed `agent_correction` delta and returns
+witnessed Morii chain as a closed `agent_correction` delta and returns
 `report_saved` original-key receipts. Preparation and submission share one
 authorization gate; a saved key replays from the target's currently authorized
-history after a System revision. Nothing is corrected, queued or Owner-reviewed.
+history after a System revision. Nothing is corrected, queued or Morii-reviewed.
 
 Owned files: contract `next/agent_correction.rs`, `mod.rs`, `segmented.rs` and
 its test; `agent-correction-v1` schema, catalog-v2 delta variant, synthetic
@@ -45,7 +45,7 @@ full run. It looks like an existing timing race, not proven fixed.
 ## Coverage
 
 Report saved with draft key/hash and exact target; same packet replays without a
-commit; changed packet conflicts; no memory revision, Owner action or queue entry.
+commit; changed packet conflicts; no memory revision, Morii action or queue entry.
 After a lawful System revision of the target: preparation is Stale, the saved
 key returns its original receipt, the changed packet still conflicts, an unsaved
 key on the old target and an unknown revision are Stale, and a new report on the
@@ -58,7 +58,7 @@ while the original still replays. Publication failure before staging and after
 CURRENT returns OutcomeUnknown, latches the exact original request and blocks a
 changed one; after explicit recovery (with a System revision in the persisted
 case) the original yields exactly one receipt. Two threads on one reporter get
-one receipt and one commit. Schema/native record cases reject Owner principals,
+one receipt and one commit. Schema/native record cases reject Morii principals,
 unknown fields, wrong/note keys, Assistant speaker, fabricated confirmation,
 empty/oversized/whitespace interpretation, and receipts claiming correction,
 queueing, memory results or sequences.
@@ -66,7 +66,7 @@ queueing, memory results or sequences.
 ## Not covered
 
 No System consumer evaluates reports; reports do not change recall. Supersede,
-forget, forget-hide (owner decision pending), MCP tool/transport, real models,
+forget, forget-hide (Morii decision pending), MCP tool/transport, real models,
 private roots and Runtime adoption are outside this slice. Two independent
 reporters racing on separate permits can see Busy/Stale (no cross-writer
-serialization), as with notes. Synthetic tests are not owner acceptance.
+serialization), as with notes. Synthetic tests are not Morii acceptance.

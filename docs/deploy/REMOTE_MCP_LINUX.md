@@ -6,7 +6,7 @@ Vault and scope to expose are Morii's decisions and are not made here. All
 values below are placeholders.
 
 For explicit long-term read authority, historical policy revisions, renewal and
-revocation, follow the [Owner read-grant workflow](CONNECTOR_READ_GRANTS.md)
+revocation, follow the [Morii read-grant workflow](CONNECTOR_READ_GRANTS.md)
 (ADR-MEM-141). OAuth approval and token expiry do not replace Vault authority.
 
 ## Layout
@@ -19,16 +19,16 @@ ChatGPT ──HTTPS──▶ Caddy (TLS, :443) ──HTTP──▶ enouia-memory
 ```
 
 - One dedicated system account (for example `enouia`) owns the Vault root and
-  the state directory and runs the service. That ownership is how the server
-  authenticates the Owner. Nothing else runs as this account.
-- The Vault must be an initialized Owner Vault (`SegmentedOwnerV1`) on a
+  the state directory and runs the service. That responsibility is how the server
+  authenticates Morii. Nothing else runs as this account.
+- The Vault must be an initialized Morii Vault (`SegmentedOwnerV1`) on a
   durable local filesystem, with a host id equal to `host_id`.
 - The state directory lives outside the Vault root. The service refuses
   otherwise.
 
-## Creating the Owner Vault (ADR-MEM-134)
+## Creating Morii Vault (ADR-MEM-134)
 
-As the service account, prepare an owner-data home outside any repository and
+As the service account, prepare a Morii-data home outside any repository and
 outside `/tmp`, then run the native bootstrap:
 
 ```sh
@@ -45,7 +45,7 @@ sudo -u enouia sh -c '
 
 The new Vault is `$home/vaults/<vault_id>`. Use its descriptor's `host_id` in
 the service file. The Vault starts empty; filling it (policies, sources,
-memories) is a separate, owner-authorized step.
+memories) is a separate, Morii-authorized step.
 
 ## Service file (`/etc/enouia-memory/remote.json`, mode 0600)
 
@@ -124,6 +124,6 @@ memory.example.org {
 
 - Vault permits last five minutes and renew every four. Open MCP sessions end
   at renewal, and ChatGPT starts a new session with the same token.
-- Requests are served one at a time; this is a single-owner service.
+- Requests are served one at a time; this is a single-Morii service.
 - Interoperability with ChatGPT's current connector client has not been
   tested yet.

@@ -29,7 +29,7 @@ S256、refresh 轮换、只存摘要），ADR133 可运行服务 `enouia-memory-
 
 **旧库重新初始化（ADR135）**：
 
-- 背景：真实数据不在 2026-10-30 建的空 Owner 根里，而在一个 v1 旧库（一次 ChatGPT 导出的
+- 背景：真实数据不在 2026-10-30 建的空 Morii 根里，而在一个 v1 旧库（一次 ChatGPT 导出的
   来源与附件 + 种子阶段模型提取的候选 + 原件存档），旧库没有正式记忆。新 `SegmentedOwnerV1`
   根在创世提交里绑定主人主体，旧根不能升级，只能重新初始化。
 - Morii 的决定（2026-11-10）：候选直接成为正式记忆（不调模型、不建待审队列）；时区
@@ -68,7 +68,7 @@ S256、refresh 轮换、只存摘要），ADR133 可运行服务 `enouia-memory-
    独立备份和恢复；旧布局的 CLI `export/restore` 不算。仓库里目前**没有** segmented 根的
    export/restore。这是删除旧库前的硬条件，也是搬上 VPS 的手段。先写 ADR 再实现，合成证据。
 3. **真实写入**（第 1 项决定后，并得到 Morii 开跑的确认）：
-   1. 用 `enouia-memory-owner-bootstrap prepare|commit`（ADR110/134）在主人数据目录建空 Owner 根；
+   1. 用 `enouia-memory-owner-bootstrap prepare|commit`（ADR110/134）在主人数据目录建空 Morii 根；
    2. 对旧库**工作副本**跑 `legacy-snapshot`（已有一份快照，见本机附录），再跑
       `enouia-memory-reinit plan` 复核，然后 `run <snapshot> <新根>`；
    3. 核对 ledger：来源/语句/提交数、`model_invocations` 为 0、`outcome_unknown` 为 0；抽查来源跳转；

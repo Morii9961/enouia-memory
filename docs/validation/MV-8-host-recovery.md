@@ -2,7 +2,7 @@
 
 Date: 2026-10-22 (Asia/Shanghai). Baseline
 `13aeb3871e9353df6a74c5674dbc7d26fcb6ce7f` (merged PR #41).
-Continues owner-authorized MV-8 with synthetic local Vaults only.
+Continues Morii-authorized MV-8 with synthetic local Vaults only.
 
 ## Result
 
@@ -15,7 +15,7 @@ writes, including the original key's replay, until explicitly recovered.
 Initial intent presence fences legacy APIs before a mode marker exists.
 
 Native `HostRecovery` holds the same OS lease, verifies the actual target data
-closure and legal authority transition, then produces a read-only plan. Owner
+closure and legal authority transition, then produces a read-only plan. Morii
 confirmation binds its exact hash, native after-primary identity, intent and
 observed CURRENT/mode/witness/after-authority bytes. Only the latest verified
 target may be finished. It never chooses an older commit, changes content,
@@ -90,7 +90,7 @@ follow that foundation. Runtime adoption remains a separate pinned integration.
 
 Independent encrypted restore, actual target restoration, external rollback
 of the entire filesystem, distributed authority, real Provider P02–P06,
-personal-history quality, owner acceptance, real migration and cloud activation
+personal-history quality, Morii acceptance, real migration and cloud activation
 are not established by these local library checks. No private memories,
 credentials, Provider sends, Runtime checkout or manual status snapshots were
 used or changed.

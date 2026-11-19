@@ -23,9 +23,9 @@ work bounds are explicit; exceeding them refuses without partial exact counts.
 Only non-subject shared entity IDs make suggested family links. This is a
 published deterministic heuristic, not semantic clustering/model quality.
 
-Owner names/pins/dissolution and their inheritance are not claimed tested here:
-owner ledger execution is still denied, and G08 must supply actual native
-confirmation plus overlay checks. Historical revision/owner correction edges
+Morii names/pins/dissolution and their inheritance are not claimed tested here:
+Morii ledger execution is still denied, and G08 must supply actual native
+confirmation plus overlay checks. Historical revision/Morii correction edges
 belong to G15/G08, not invented self-edges between identical current node IDs.
 Semantic neighbors remain explicitly unavailable. No Runtime mounting or visual
 acceptance is implied.

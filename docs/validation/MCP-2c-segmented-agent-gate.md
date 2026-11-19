@@ -3,7 +3,7 @@
 2026-10-26. Base MCP UI-record reads: `a93d972`; exact published segmented
 dependency: `b2c5c1a7e806fa5aeda9b74e35241dfbefd26acb`. Main is not changed.
 
-## Scope and ownership
+## Scope and responsibility
 
 Adds `vault/automation/segmented/agent.rs` and its two module registration
 lines. Existing System storage, read and projection functions remain the
@@ -13,7 +13,7 @@ existing HostV2/3 initialization, unique request IDs, closure and 256-request
 limit; it grants no authority. AGENTS and manual status files remain untouched.
 
 The sealed permit has no deserialize/clone/serialize constructor. Trusted native
-code must independently authenticate Owner registration and Agent process
+code must independently authenticate Morii registration and Agent process
 enrollment. This gate binds the live Vault instance, Agent principal, subject,
 project, exact current policy refs, selected source IDs, sensitivity/source-read
 ceilings and at most five minutes on both injected and monotonic clocks.

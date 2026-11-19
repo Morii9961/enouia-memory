@@ -3,7 +3,7 @@
 2026-11-03. Continuation of [ADR118](118-agent-note-mcp-server.md).
 
 memory-agent-pipe-6 explicitly negotiates the initialized read + independently
-delegated note profile on one leased Owner Vault. It reuses protected pipes,
+delegated note profile on one leased Morii Vault. It reuses protected pipes,
 kernel peer verification, native Enrollment lifetime/revocation, frame limits
 and strict JSON parsing. MemoryRead + SourceRead enrollment pairs the native
 Agent identity; it never substitutes for the independent NotePermit. Old

@@ -2,7 +2,7 @@
 
 2026-11-03. [ADR119](../adr/119-agent-note-local-transport.md).
 
-Protocol memory-agent-pipe-6, recordSchema 2, automation-segmented-owner-v1,
+Protocol memory-agent-pipe-6, recordSchema 2, `automation-segmented-owner-v1`,
 profile memory-agent-initialized-notes-1; five initialized read tools plus
 memory_note. The note wire capability stays memory-agent-note-1. Native setup
 must provide the same leased Vault instance/Agent for reader and independent
@@ -26,5 +26,5 @@ read-only bridges' arguments-only output. Stdout failure also retains the full
 packet locally and closes the channel. Original JSON formatting/bytes are not
 claimed; the complete parsed MCP Value is retained.
 
-No real MCP configuration, Owner root selection, model, provider, private data,
+No real MCP configuration, Morii root selection, model, provider, private data,
 Runtime pin or production activation is supplied by this transport.

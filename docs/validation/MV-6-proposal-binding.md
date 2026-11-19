@@ -4,7 +4,7 @@ Date: 2026-10-06. Base: `213e284`. End: the feature commit containing this repor
 
 ## Reproduction and change
 
-Governance's existing proposal replay lookup uses the owner/key scope. A Core correction retry with the same key and text but another memory returned the original candidate successfully. A forgetting retry could similarly switch the target, logical-delete/purge mode or dependent scope while receiving a plan for the original candidate. In particular, the old host-facing `purge` flag could describe the new request while the tombstone still described the old proposal.
+Governance's existing proposal replay lookup uses Morii/key scope. A Core correction retry with the same key and text but another memory returned the original candidate successfully. A forgetting retry could similarly switch the target, logical-delete/purge mode or dependent scope while receiving a plan for the original candidate. In particular, the old host-facing `purge` flag could describe the new request while the tombstone still described the old proposal.
 
 Core now checks the original candidate revision named by a published receipt before and after proposal admission. Corrections bind target memory, expected revision and exact text. Forgetting binds target memory, mode and dependent scope. Mismatches return existing `idempotency_conflict` / `workspace.key_reuse` without a result. The shared receipt reader also preserves the earlier remember text/claim guard. Historical reads retain Vault purge barriers.
 

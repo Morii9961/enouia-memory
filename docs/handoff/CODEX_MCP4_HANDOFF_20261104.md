@@ -24,7 +24,7 @@ PR #83，再交给 Codex。本文件交接工程事实和后续顺序，不替�
 
 | 提交 | 内容 | 证据 |
 | --- | --- | --- |
-| `5f6c147` | ADR121：`agent_correction` closed delta 进入既有 witnessed Owner chain；`report_saved` 原键回执；先授权后查回执；目标被 System 修订后，按当前授权的目标历史返回原回执；改包冲突；每目标 32 条；OutcomeUnknown 锁存原包 | [报告](../validation/MCP-4-agent-correction-intake.md)：全量 909 passed / 0 failed / 4 ignored，strict Clippy，67 schemas |
+| `5f6c147` | ADR121：`agent_correction` closed delta 进入既有 witnessed Morii chain；`report_saved` 原键回执；先授权后查回执；目标被 System 修订后，按当前授权的目标历史返回原回执；改包冲突；每目标 32 条；OutcomeUnknown 锁存原包 | [报告](../validation/MCP-4-agent-correction-intake.md)：全量 909 passed / 0 failed / 4 ignored，strict Clippy，67 schemas |
 | `f42f3b1` | ADR122：captured worker 通过独立 `CorrectionAnalyzer` 端口把每条已保存报告分析一次；接受的用户原话成为普通 target-bound `correction` 修订，由既有 evaluator/`apply_batch` 决定；Host 新增可选 `start_worker_with_corrections`；修复 target-bound 工作遇 Stale 时的无限重试 | [报告](../validation/MCP-4-correction-consumption.md)：全量 913 passed / 0 failed / 4 ignored（分三段跑完，原因见报告），strict Clippy |
 
 ## 3. 当前能力的准确含义
@@ -55,7 +55,7 @@ PR #83，再交给 Codex。本文件交接工程事实和后续顺序，不替�
    可复用 ADR121/122 的结构，但键空间、capability、回执状态和 analyzer 判定要独立。
 3. **`memory_forget_request`**：只记录请求。forget-hide（立即可逆隐藏）仍待 Morii 决定，
    不要实现隐藏；如需推进，只就范围/期限/恢复/撤权规则向 Morii 提具体问题。原生 G08
-   Owner 动作不能被 Agent 报告借用。
+   Morii 动作不能被 Agent 报告借用。
 
 ## 5. 未完成和待决定
 

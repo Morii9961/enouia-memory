@@ -1,6 +1,6 @@
 # ADR-MEM-68 — Shared CURRENT publication for opt-in Host roots
 
-Date: 2026-10-18. Scope: owner-authorized MV-8.1c, native Windows library.
+Date: 2026-10-18. Scope: Morii-authorized MV-8.1c, native Windows library.
 
 ## Decision
 
@@ -20,7 +20,7 @@ corrupt marker/CURRENT/authority never initializes or selects a fallback. Partia
 bootstrap stays fenced pending a future explicit repair route. Ordinary commit,
 recovery adoption, purge, sweep, old-format export and restore reconciliation
 refuse Host mode. Older binaries are unsupported: strict CURRENT readers reject
-the added field, but owner filesystem access or manually restoring an old backup
+the added field, but Morii filesystem access or manually restoring an old backup
 is not prevented. The authority-only pilot and this mode cannot silently mix.
 
 The digest covers the descriptor and actual verified bytes of each manifest,
@@ -30,7 +30,7 @@ excluded to avoid a cycle. Audit, journals, indexes, secrets and platform metada
 are outside this data digest. It is NOT a complete export or independent target
 restore proof. Purged content follows committed tombstones.
 
-Native owner approval/identity remain caller duties. No Host executable,
+Native Morii approval/identity remain caller duties. No Host executable,
 authenticated IPC, Runtime activation, MCP transport, production migration,
 cloud/cross-host consensus or power-loss proof is added. Legacy unmanaged roots
 retain their existing path.

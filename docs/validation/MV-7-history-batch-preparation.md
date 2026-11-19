@@ -33,15 +33,15 @@ updated revision/time of the same child header. Replay after reopen creates no
 new task/job or receipt and rechecks live state; changed arguments under the
 same key conflict. A fresh handle is reconstructed and must be inspected again.
 The existing input-bound compiler can refuse changed output parameters even
-under another key; a new local task must be a separate owner choice.
+under another key; a new local task must be a separate Morii choice.
 
 `external_send` remains a separate explicit action with the exact callId/hash,
-current policy and owner confirmation. Handles expire, disappear on lock or
+current policy and Morii confirmation. Handles expire, disappear on lock or
 reconfiguration, and never authorize an automatic resend. The existing job
 quotas, invocation admission and response publication remain authoritative.
 Preparation is a local write, not read-only status. Its head changes must not
 cause Runtime to lose the original request/key or misattribute a late reply.
-Use stable request ownership, withhold old body/handles on identity changes,
+Use stable request responsibility, withhold old body/handles on identity changes,
 and follow existing single-send receipt recovery. Runtime must update its pin,
 write catalog, request/reply handling and UI independently.
 
@@ -80,5 +80,5 @@ new tests is synthetic; the counted exchange is an in-process fake.
 Runtime must adopt the new preparation/inspection flow and preserve its existing
 explicit send boundary. Batch response application/review and temporal/semantic
 features still require their own product slices. This work provides no real
-history/model quality, personal initialization, owner acceptance, independent
+history/model quality, personal initialization, Morii acceptance, independent
 backup recovery, MV-8, MCP or cloud activation.

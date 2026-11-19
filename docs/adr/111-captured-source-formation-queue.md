@@ -10,12 +10,12 @@ on the same leased Vault instance and writer.
 
 ## Decision
 
-Add `SegmentedDelta::Enqueue`, accepted only on automation-segmented-owner-v1
+Add `SegmentedDelta::Enqueue`, accepted only on `automation-segmented-owner-v1`
 and only with the System actor. `SegmentedAutomationVault::enqueue_captured`
 takes the System actor, a NativeRuntimeCapture and a PolicyRef. It returns a
 CapturedQueueReceipt with a stable queue_key, job_keys and state `queued`.
 
-The capture value is data. Admission requires the Owner capability, a real
+The capture value is data. Admission requires Morii capability, a real
 non-preflight capture and this Vault, then re-reads every binding from state:
 exact current source revision, RuntimeEvent kind, runtime.capture provenance
 (request id, request hash, producer), session, current active policy, source
@@ -45,8 +45,8 @@ authorized process views do not reset.
 | Consumer | Behavior |
 | --- | --- |
 | segmented-host-v1 | Refuses Enqueue before identity checks. Layout unchanged |
-| Owner root with no Enqueue commit | Unchanged, including for older binaries |
-| Owner root with an Enqueue commit | Older binaries refuse the unknown delta when loading the chain, before business reads; the root stays on versions with this ADR |
+| Morii root with no Enqueue commit | Unchanged, including for older binaries |
+| Morii root with an Enqueue commit | Older binaries refuse the unknown delta when loading the chain, before business reads; the root stays on versions with this ADR |
 | Workspace IPC, Memory IPC, MCP pipes | Unchanged; no new command, tool or wire |
 | Rollback | Only to a version with this ADR once an Enqueue commit exists |
 
@@ -54,7 +54,7 @@ authorized process views do not reset.
 
 No formation worker or job result in this slice; [ADR-MEM-112](112-captured-formation-worker.md)
 adds them. A queued entry is never reported as formed, and no Provider is called.
-The Owner Runtime wire, the optional Agent `memory_note` hint, Runtime
+Morii Runtime wire, the optional Agent `memory_note` hint, Runtime
 hook/config/pin/UI, private roots and real models remain separate. Morii selected
 Runtime hooks only (ADR-MEM-102), so no Agent host capture is planned. See [contract](../contracts/CAPTURED_FORMATION_QUEUE_V1.md) and
 [validation](../validation/MCP-3-captured-formation-queue.md).

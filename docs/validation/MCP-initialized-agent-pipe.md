@@ -1,14 +1,14 @@
 # Initialized Agent MCP pipe
 
 2026-10-30. Base aa195e9. Explicit pipe-5 / memory-agent-initialized-read-1,
-backed by memory-agent-initialized-native-read-1 on one existing leased Owner
+backed by memory-agent-initialized-native-read-1 on one existing leased Morii
 Vault. See [contract](../contracts/MCP_INITIALIZED_AGENT_PIPE_V1.md).
 
 ## Actual focused evidence
 
 18 focused cases passed: eight actual-process initialized-pipe cases, eight
 original pipe-4 regressions and two initialized-native cases. All new-pipe roots
-are freshly created synthetic Owner roots with actual native imported sources,
+are freshly created synthetic Morii roots with actual native imported sources,
 prepare/evaluate/apply transactions and original legal receipts. The first source
 contains private and highly-sensitive attachments plus duplicated extension
 metadata. No private root, real Provider/embedding or external client config.
@@ -47,11 +47,11 @@ Workspace IPC v1 remains 58 commands.
 | schema 1 / host-current-v2 | Existing legacy six tools | Existing proposal/checkpoint semantics only |
 | schema 2 / automation-host-v2/v3 | Existing explicit V2/V3 profiles | None added |
 | schema 2 / segmented-host-v1 original | Existing catalog profile | Existing Runtime native source capture is separate |
-| schema 2 / Owner original carrier | Existing qualified pipe-4 | None |
-| schema 2 / Owner ADR104 import, partial, typed attachments | Explicit initialized pipe-5 / native initialized read | None |
-| Unsupported layout/major/hash/profile or claimed Owner/System identity | Refuse before business dispatch/counts | No authority |
+| schema 2 / Morii original carrier | Existing qualified pipe-4 | None |
+| schema 2 / Morii ADR104 import, partial, typed attachments | Explicit initialized pipe-5 / native initialized read | None |
+| Unsupported layout/major/hash/profile or claimed Morii/System identity | Refuse before business dispatch/counts | No authority |
 
-Core native System import/formation and Owner gestures are not Agent writer or
+Core native System import/formation and Morii gestures are not Agent writer or
 reader authority. Upgrading a source pin does not select a new profile. CLI
 protocol automation-initialized-v1 accepts only existing pipe/Host PID/Vault ID
 metadata; it opens no Vault and configures no real application.
@@ -64,7 +64,7 @@ surface, Runtime hook/UI/pin or private initialization. Same-conversation/semant
 relations remain explicitly unavailable; supported relation coverage is scoped.
 The data is an authorized metadata projection, not a byte-identical original;
 arbitrary source/attachment extensions and binary attachments are not exported.
-The next slice connects Runtime-only captures, under an explicit Owner-root
+The next slice connects Runtime-only captures, under an explicit Morii-root
 profile, to queue-only admission of original SourceRevisionRefs and original keys.
 It must reuse the existing System formation rules, not recapture Runtime sources
 as imports or create a manual uncertainty queue. No main merge/deployment occurs.

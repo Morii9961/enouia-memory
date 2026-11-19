@@ -1,6 +1,6 @@
 # ADR-MEM-73 — Witnessed Host publication and explicit forward recovery
 
-Date: 2026-10-21; verified 2026-10-22. Scope: owner-authorized MV-8.1d native library.
+Date: 2026-10-21; verified 2026-10-22. Scope: Morii-authorized MV-8.1d native library.
 
 CURRENT alone cannot identify the last acknowledged authority/data state after
 it is damaged. Searching for an older valid manifest could roll back deletion
@@ -35,7 +35,7 @@ bootstrap. A valid unrelated CURRENT, missing ordinary witness, invalid intent,
 missing before-authority or damaged data refuses recovery. Do not guess another
 checkpoint, rewrite content or lower policy/deletion/primary watermarks.
 
-Owner confirmation binds that plan's exact hash, including the observed mode
+Morii confirmation binds that plan's exact hash, including the observed mode
 and selected after-authority file hashes. Missing/torn mode or after-authority
 metadata may be atomically restored to the exact verified intent bytes;
 explicitly different mode versions, missing/corrupt before-authority, corrupt

@@ -1,7 +1,7 @@
 # MCP-4 unknown live-gate packet retention
 
 2026-11-04. Base `93a6deb`. Implements the existing ADR123–125 full-Value
-retention contract; no new capability/schema or Owner authority.
+retention contract; no new capability/schema or Morii authority.
 
 If a native report writer became OutcomeUnknown before the next MCP handle call,
 all three servers closed and returned no tool result, but original_unknown()
@@ -32,4 +32,4 @@ Owned files: three MCP report service modules, three Host test files, this
 report, continuation handoff and Runtime log/generated surface. No private
 data, real Provider, model, Runtime repository, client configuration, AGENTS,
 manual project status, deployment or merge. This synthetic regression is not
-real-client adoption or Owner acceptance.
+real-client adoption or Morii acceptance.

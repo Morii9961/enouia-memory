@@ -2,15 +2,15 @@
 >
 > **2026-11-19 存放变化：** 主库目前没有任何备份。旧 v1 库及其原件存档（含附件原件）已由 Morii 确认永久删除，附件原件无法取回；合成验证目录也已删除。主库仍在原数据区；Morii 指定今后只用一个数据区，但原生登记绑定数据区完整路径，迁移需单独的 Memory 切片并经授权，见[初始化接入](../integration/INITIALIZED_VAULT.md)。待办：新的原生导出备份（需先停止打开该库的实例，并由 Morii 指定目标、授权）；数据区迁移切片；独立物理介质的加密备份和恢复验收（Morii 11-19 决定暂缓）；主人亲自验收和真实安装由 Runtime 另行交付。不启动新 MV 阶段，不扩大真实读取授权，不手动移动数据区或修改登记。
 
-> **2026-11-16 接续（已完成，保留为历史）：** 旧候选迁入已被完整原始聊天的新分析取代，已有新分析不重做；正式新库保留文字来源和附件说明。原生 fresh 驱动 [ADR145](../adr/145-fresh-native-driver.md) 与完整文字视图 [ADR146](../adr/146-explicit-visible-text-view.md) 已合并，分段备份/恢复已有 [ADR136](../adr/136-segmented-owner-backup.md) 实现。备份回归 #110、依赖它的恢复接续 #112、纯文本保留 #113 仍待 Morii 合并。下一步先准备组合源码和聚焦合成证据，合并后才做全量纯文本 Plan/journal 容量预检、真实形成、重开来源与独立恢复；Runtime 兼容采用和产品验收另行交付。见[接续路线](../handoff/MEMORY_DELIVERY_ROUTE_2026-11-16.md)。不启动新 MV 阶段，不扩大真实权限或删除授权。
+> **2026-11-16 接续（已完成，保留为历史）：** 旧候选迁入已被完整原始聊天的新分析取代，已有新分析不重做；正式新库保留文字来源和附件说明。原生 fresh 驱动 [ADR145](../adr/145-fresh-native-driver.md) 与完整文字视图 [ADR146](../adr/146-explicit-visible-text-view.md) 已合并，分段备份/恢复已有 [ADR136](../adr/136-segmented-morii-backup.md) 实现。备份回归 #110、依赖它的恢复接续 #112、纯文本保留 #113 仍待 Morii 合并。下一步先准备组合源码和聚焦合成证据，合并后才做全量纯文本 Plan/journal 容量预检、真实形成、重开来源与独立恢复；Runtime 兼容采用和产品验收另行交付。见[接续路线](../handoff/MEMORY_DELIVERY_ROUTE_2026-11-16.md)。不启动新 MV 阶段，不扩大真实权限或删除授权。
 
 > **历史决定（2026-11-10，已被取代）：** 当日选择旧候选直接迁入、不调模型、不建待审队列，目标 Linux VPS，见 [ADR135](../adr/135-legacy-library-reinitialization.md)。这不再是当前输入方案；先本机新库与独立恢复验收、再按独立授权迁移 Linux 的顺序及删除前确认仍保留。下列按日期排列的记录只描述各自当时的实现与缺口。
 
-> 2026-11-09 同日接续：[ADR-MEM-134](../adr/134-linux-owner-bootstrap.md) 让原生主人初始化在 Linux 上可用（有效 uid 绑定 machine-id，写入前复核；日志与元数据保持 0600），Linux 上用真实 CLI 合成冒烟建出空的初始化 Vault，见[验证](../validation/Linux-owner-bootstrap.md)。迁移现有 Vault、部署与真实数据仍待 Morii 决定。
+> 2026-11-09 同日接续：[ADR-MEM-134](../adr/134-linux-morii-bootstrap.md) 让原生主人初始化在 Linux 上可用（有效 uid 绑定 machine-id，写入前复核；日志与元数据保持 0600），Linux 上用真实 CLI 合成冒烟建出空的初始化 Vault，见[验证](../validation/Linux-owner-bootstrap.md)。迁移现有 Vault、部署与真实数据仍待 Morii 决定。
 
 > 2026-11-09 同日接续：[ADR-MEM-133](../adr/133-remote-mcp-service-entry.md) 组装可运行的 `enouia-memory-remote`（serve/approve）：服务账户拥有 0700 Vault 根即主人认证，服务文件写明暴露范围，Agent 许可每 4 分钟轮换，OAuth 状态加锁原子写在 Vault 旁；分段 Vault 可在 Linux 持久文件系统上打开。见[合成验证](../validation/Remote-MCP-service.md)与[部署参考](../deploy/REMOTE_MCP_LINUX.md)。Linux 主人初始化/迁移、真实暴露范围、写入与 VPS 部署待 Morii 决定。
 
-> 2026-11-09 同日接续：Morii 授权按路线连续开发。[ADR-MEM-132](../adr/132-remote-mcp-owner-oauth.md) 为远程端点加单主人 OAuth 授权服务（动态注册、S256 PKCE、服务器上一次性批准码、令牌只存摘要并轮换），见[合成验证](../validation/Remote-MCP-oauth.md)。可运行入口、写入和部署仍未做。
+> 2026-11-09 同日接续：Morii 授权按路线连续开发。[ADR-MEM-132](../adr/132-remote-mcp-morii-oauth.md) 为远程端点加单主人 OAuth 授权服务（动态注册、S256 PKCE、服务器上一次性批准码、令牌只存摘要并轮换），见[合成验证](../validation/Remote-MCP-oauth.md)。可运行入口、写入和部署仍未做。
 
 > 2026-11-09：Morii 选择 Linux VPS。[ADR-MEM-131](../adr/131-linux-vault-platform.md) 为 Vault 加 Linux 平台层（statfs 空间/文件系统、POSIX 仅属主检查与收紧、ACL 扩展视为宽授权），Windows 代码不变，见[验证](../validation/Linux-vault-platform.md)。本机无 Linux 环境，Linux 单测已写但未运行；Linux 真实 Vault 入口、OAuth、写入和部署仍未做。
 
@@ -18,7 +18,7 @@
 
 > 2026-11-08：Morii 确认真实对话来自 ChatGPT，选择 ChatGPT 开发者模式连接器并部署在 VPS（Plus 套餐），不逐条确认，默认时区 Asia/Shanghai。首片按 [ADR-MEM-129](../adr/129-chatgpt-remote-mcp-endpoint.md) 实现与传输无关的 Streamable HTTP 端点，只开放只读开场配置，见[合成验证](../validation/Remote-MCP-endpoint.md)。HTTPS 监听、授权服务器、写入工具、ChatGPT 捕获、VPS 部署和真实 Vault 迁移仍是后续切片或待 Morii 决定。
 
-> 2026-11-08：Morii 授权“公开人设投影导出”的设计与第一片：[ADR-MEM-128](../adr/128-public-persona-projection-export.md)、[契约](../contracts/PUBLIC_PERSONA_PROJECTION_V1.md) 与 owner 原生预览/导出，只用合成数据。不给 Bot 授权，不做云端读取、自动导出或群聊回写；Runtime 界面与 pin 由 Runtime 另行实现。不因此开始其他阶段。
+> 2026-11-08：Morii 授权“公开人设投影导出”的设计与第一片：[ADR-MEM-128](../adr/128-public-persona-projection-export.md)、[契约](../contracts/PUBLIC_PERSONA_PROJECTION_V1.md) 与 Morii 原生预览/导出，只用合成数据。不给 Bot 授权，不做云端读取、自动导出或群聊回写；Runtime 界面与 pin 由 Runtime 另行实现。不因此开始其他阶段。
 
 > 2026-11-02：Morii 授权收束、验证和合并现有 PR #56～#81，完成后清理已合并分支和可确认无用的开发产物。本轮不开始 #81 之外的新阶段；真实分析器、Runtime 采用及私人数据/部署仍是独立门槛。此前未提交的 [Core 路线](memory-evolution-2026-10-24/07-core-refactor-and-runtime-route.md) 与 UI 交接按历史文档保留，不将旧“暂停 MCP”覆盖后来的授权。
 
@@ -27,7 +27,7 @@
 > 原件保全、预检、分层账本、可恢复批次、共享形成与投影的实际覆盖见
 > [验证报告](../validation/Memory-init-pipeline.md)。真实数据/模型/外发/默认时区、
 > G08 主人动作、Runtime 采用和 Core-8 切换继续由各自授权与切片负责。
-> 2026-10-29 同片承接 `14125f5` 的 Owner 新根/创世绑定，保留导入和附件载体；
+> 2026-10-29 同片承接 `14125f5` 的 Morii 新根/创世绑定，保留导入和附件载体；
 > 显式主人输入正常形成，无额外待审队列。合成初始化本身不制造主人动作；
 > 已采集来源精确修订的仅入队 API、正式入口及 Runtime 采用仍未交付。
 
@@ -43,10 +43,10 @@
 > 后续采集只接 Runtime 宿主，缺时区使用 Asia/Shanghai 并记录默认来源。
 > 无私人初始化也继续使用临时合成根开发；不隐式激活 Runtime 或真实客户端。
 
-> 2026-10-27 UI v2 第五片：Morii 已明确选择 A；[ADR103](../adr/103-owner-correction-subject-binding-proposal.md)
+> 2026-10-27 UI v2 第五片：Morii 已明确选择 A；[ADR103](../adr/103-morii-correction-subject-binding-proposal.md)
 > 采用新建空根 `automation-segmented-owner-v1` 与显式 `owner_subject_id`，实现 G08 原生
 > 主人计划 → 手势确认 → 单次提交及恢复查询。记录字段继续沿用 ADR93；读取投影采用 v4，
-> 旧游标需重启。见[主人契约](../contracts/UI_V2_OWNER_ACTIONS.md)与[合成验证](../validation/UI-v2-owner-actions.md)。
+> 旧游标需重启。见[主人契约](../contracts/UI_V2_MORII_ACTIONS.md)与[合成验证](../validation/UI-v2-morii-actions.md)。
 > Runtime 原生手势接线、Memory pin、MCP 采用及私人初始化均另行进行；本会话到 G08 停止。
 
 > 2026-10-27 UI v2 第四片：[ADR101](../adr/101-native-process-detail-reads.md)
@@ -57,7 +57,7 @@
 
 > UI v2 third slice: [ADR100](../adr/100-native-time-theme-graph.md) adds
 > G03/G05/G04 native projections; see [contract](../contracts/UI_V2_PROJECTIONS.md)
-> and [synthetic validation](../validation/UI-v2-projections.md). Owner overlay
+> and [synthetic validation](../validation/UI-v2-projections.md). Morii overlay
 > execution/name inheritance waits for the already authorized G08 slice.
 
 > 2026-10-26 接续：Morii 在第一片字段报告后确认继续。第二片按
@@ -80,11 +80,11 @@
 
 > **同日接续，MV-8.2d：** [ADR-MEM-89](../adr/089-host-agent-local-context.md)接入当前版本、无会话、固定离线目的地的 Agent context_get，保留原生 McpClient 来源和 requestId 回执；拒绝未支持的历史/会话/外发选择，不静默降级。Context 更多选择、checkpoint 及外部 Agent 认证接线仍未完成，继续限定本地合成资料。
 
-> **同日接续，MV-8.2c：** [ADR-MEM-88](../adr/088-host-agent-proposals.md)接入同一 Host 上的受限 Agent 候选提议和稳定回执，按主体隔离去重；不借用 owner 权限、不改 Canonical。Context/checkpoint 与外部 Agent 认证接线仍待后续切片，沿用 MV-8.2 明确授权的本地合成边界。
+> **同日接续，MV-8.2c：** [ADR-MEM-88](../adr/088-host-agent-proposals.md)接入同一 Host 上的受限 Agent 候选提议和稳定回执，按主体隔离去重；不借用 Morii 权限、不改 Canonical。Context/checkpoint 与外部 Agent 认证接线仍待后续切片，沿用 MV-8.2 明确授权的本地合成边界。
 
-> **2026-10-23，MV-8.2b 明确获授权：** Morii 已选择“授权 MV-8.2 本地合成开发”。[ADR-MEM-87](../adr/087-host-scoped-agent-reads.md)先将受策略约束的 Agent 读取绑定到同一 Host，不借用 owner 会话；先开放已有 search/read/source 读工具，其余工具绑定仍为后续切片。继续禁止 Computer Use、私人 Vault、真实客户端、云端、迁主、Runtime UI、合并与部署。
+> **2026-10-23，MV-8.2b 明确获授权：** Morii 已选择“授权 MV-8.2 本地合成开发”。[ADR-MEM-87](../adr/087-host-scoped-agent-reads.md)先将受策略约束的 Agent 读取绑定到同一 Host，不借用 Morii 会话；先开放已有 search/read/source 读工具，其余工具绑定仍为后续切片。继续禁止 Computer Use、私人 Vault、真实客户端、云端、迁主、Runtime UI、合并与部署。
 
-> **2026-10-23，MV-8.2a 已获主人接续授权：** [ADR-MEM-80](../adr/080-restricted-mcp-stdio-boundary.md) 冻结受限 stdio MCP 的本地合成边界，复用既有六工具 Memory IPC v1，显式 Agent principal/scopes，不借用 owner Workspace。先实现协议、撤回与未知回执的合成端口验证；原生 Host/domain 绑定和真实客户端仍为独立后续切片。不用 Computer Use，不改 Runtime 产品 UI，也不激活私人资料、云端或迁主。
+> **2026-10-23，MV-8.2a 已获主人接续授权：** [ADR-MEM-80](../adr/080-restricted-mcp-stdio-boundary.md) 冻结受限 stdio MCP 的本地合成边界，复用既有六工具 Memory IPC v1，显式 Agent principal/scopes，不借用 Morii Workspace。先实现协议、撤回与未知回执的合成端口验证；原生 Host/domain 绑定和真实客户端仍为独立后续切片。不用 Computer Use，不改 Runtime 产品 UI，也不激活私人资料、云端或迁主。
 
 > **2026-10-22，MV-8.1j：** [ADR-MEM-79](../adr/079-reference-shell-native-host.md) 与[参考外壳报告](../validation/MV-8-reference-shell-host.md)将原生 Broker 接入 Tauri 参考后端：显式选择现有 v2 根及匹配 Host，独立子进程持租约，托盘重连/解锁，丢响应保留原键且不自动重试。文件选择、原生模式自启动、实际窗口/托盘验收、Runtime 采用与多客户端仍单独待做，不据此开始 MCP 或新阶段。
 
@@ -112,7 +112,7 @@
 
 > **2026-10-12 接续：** H1～H2d 已通过 PR #8～#11 合并，main 基线为 `00afd8a`。H2e 增加离线人工质量评估工具及正/负/待审合成校准，见 [ADR-MEM-54](../adr/054-history-quality-assessment-harness.md) 和 [报告](../validation/MV-7-quality-assessment.md)。结构与证据门槛、评估流程已经合成验证；真实语义质量、漏提和全量尺度仍未验收，MV-8 未启动。
 
-> **2026-10-13 接续：** H2e 与续做交接已合并，main 基线 `d0dd537`。H2f 增加主人显式选定的语义提案草案及来源删除时的候选历史清理，见 [ADR-MEM-55](../adr/055-owner-selected-semantic-proposal-drafts.md) 和 [报告](../validation/MV-7-semantic-proposal-drafts.md)。沿用待审提案与可信审核；helper 不发送、不写入、不批准。真实质量、Runtime 产品采用与主人验收仍未完成，MV-8 未启动。
+> **2026-10-13 接续：** H2e 与续做交接已合并，main 基线 `d0dd537`。H2f 增加主人显式选定的语义提案草案及来源删除时的候选历史清理，见 [ADR-MEM-55](../adr/055-morii-selected-semantic-proposal-drafts.md) 和 [报告](../validation/MV-7-semantic-proposal-drafts.md)。沿用待审提案与可信审核；helper 不发送、不写入、不批准。真实质量、Runtime 产品采用与主人验收仍未完成，MV-8 未启动。
 
 ## 1. 实施纪律与版本关系
 
@@ -216,7 +216,7 @@ flowchart LR
 > **v1.1：** MV-3 已用合成数据实现，见 [MV-3 报告](../validation/MV-3.md)。先落地了分段清单与差分校验（ADR-MEM-39），再实现候选、计划绑定的主人审核、替代与冲突、Identity 修订、忘记与彻底删除、删除台账对账（ADR-MEM-40、41）。M01～M08、B02（逻辑删除）通过；P01 部分通过（capsule、索引、副本尚不存在，失去证据的记忆只列出未标记，原始包清洗替换未实现）。
 
 1. **MV-3.1 五类记录**：验证类型字段、来源闭合、双时间、命题粒度、Identity 修订。
-2. **MV-3.2 审核**：人工 propose/review/edit/reject/merge、trusted owner 确认、批次 expected revision、禁止 Agent 伪造批准。
+2. **MV-3.2 审核**：人工 propose/review/edit/reject/merge、trusted Morii 确认、批次 expected revision、禁止 Agent 伪造批准。
 3. **MV-3.3 变更与冲突**：supersedes 无环、范围替代、保留历史、冲突组、撤销错误审核（生成新审计记录）。
 4. **MV-3.4 数据生命周期**：logical delete 立即屏障、purge 预览与传播、raw ZIP 内含数据处理、备份删除状态。未具备 purge 能力前不得把 UI 的删除标成“彻底删除”。
 

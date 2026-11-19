@@ -33,7 +33,7 @@ new synthetic roots and owned Windows processes only. No private data/model.
   adding response-ID/request-URI/inner-URI correlations, its affected actual-pipe
   test reran: **1 passed**, 5 filtered, target/mcp5-wire-correlation-tests.log.
 - Contract mcp_opening: **2 passed / 0 failed**, existing payload corpus plus
-  **31 wire cases**. Refuse owner/extra fields, simultaneous error+result,
+  **31 wire cases**. Refuse Morii/extra fields, simultaneous error+result,
   invalid success IDs, role/content changes, binary or multiple contents,
   unsupported URI/templates, cursors and altered required prompt arguments.
 - Python jsonschema 4.26.0 independently validates **74 schemas**, all existing
@@ -58,7 +58,7 @@ fadc0afc1991275de9972277e7ab98d16a0c4a789c31c9a424e82e773dd5222d.
 No full workspace rerun: localized contract/handshake changes, no dependency or
 storage change. Previous 913/948 totals do not describe this HEAD. Synthetic
 contract/own-process evidence is not real model quality, Runtime adoption or
-Owner acceptance. No real client configuration, Runtime repository/pin/Activity,
+Morii acceptance. No real client configuration, Runtime repository/pin/Activity,
 forget-hide, external Agent capture hook, deployment, automation, manual project
 status snapshot, main merge or new MV stage is included.
 
@@ -68,7 +68,7 @@ Based on pushed f731161. Test/documentation-only clarification; production code,
 schemas, validator and integration surface unchanged. The pipe matrix now covers
 **15 refused combinations**, including all adjacent pipe-5 through pipe-9,
 wrong Vault ID, wrong native Agent, SourceRead-only / ContextRead-only without
-MemoryRead, wrong hash/claimed Owner, missing SourceRead for a source-enabled
+MemoryRead, wrong hash/claimed Morii, missing SourceRead for a source-enabled
 reader, extra write/context scopes and wrong kernel peer. Each refusal revokes
 the native reader and leaves the synthetic snapshot unchanged. These are
 current binary protocol-profile checks, not executions of old binaries.
@@ -99,7 +99,7 @@ on that still-authorized connection. It returns two current memories with the
 same scope hash/new snapshot, no Agent note marker, and exactly the response
 later returned through the new recall URI. The old URI is not an alias for the
 new context. Read-only steps leave the post-formation snapshot unchanged; EOF
-revokes the reader, no capture jobs or Owner actions are created. This is a
+revokes the reader, no capture jobs or Morii actions are created. This is a
 known stale read, not OutcomeUnknown recovery, replay or automatic reconnect.
 
 The affected test **1 passed / 0 failed**, six filtered;
@@ -191,7 +191,7 @@ native reader remains source-disabled: memory_source returns the unchanged
 known permission_denied tool error with data=null and no captured original.
 It does not close or poison the still-valid MemoryRead connection. A later
 memory_recall succeeds and its actual recall resource matches exactly; every
-step leaves the synthetic snapshot unchanged. No Owner escalation, retry queue,
+step leaves the synthetic snapshot unchanged. No Morii escalation, retry queue,
 new source permission or data formation is produced.
 
 Affected test **1 passed / 0 failed**, eight filtered, with two native enrollment

@@ -43,7 +43,7 @@ Morii 本轮已明确：**Enouia Memory 应在自己的文件夹和独立 GitHub
 
 **影响**：用户同意长期保存某条信息，会被错误当成同意把它发送给外部模型；也无法阻止批准被换内容、换 Provider 或跨请求复用。
 
-**最小修改**：设计单独的 EgressApproval/Grant 契约，绑定 owner、request、完整 payload hash、资源集合/revisions、完整目的地、policy epoch、有效期和一次性 nonce。不要把记忆审核与外发确认混用。持久化/发送的实际实现可后置，批准对象的语义与纯校验必须先补齐。
+**最小修改**：设计单独的 EgressApproval/Grant 契约，绑定 Morii、request、完整 payload hash、资源集合/revisions、完整目的地、policy epoch、有效期和一次性 nonce。不要把记忆审核与外发确认混用。持久化/发送的实际实现可后置，批准对象的语义与纯校验必须先补齐。
 
 **回归验收**：普通 accept、错请求、错 Provider、同长度不同正文、过期批准、重放批准均拒绝；Identity、checkpoint、最近会话、附件/工具输入等载荷也须纳入覆盖，不能只检查 `memory_refs`。
 
@@ -59,7 +59,7 @@ Morii 本轮已明确：**Enouia Memory 应在自己的文件夹和独立 GitHub
 
 **最小修改**：分别绑定 action、操作者、目标 IDs/revisions、前后敏感级别、删除范围/mode、最终 diff hash 与提交关系。敏感度降级采用明确的 declassification action 或独立批准类型；tombstone 必须追溯到同一次删除的确认结果，不能接受任意 review。补上正确批准与错目标、错动作、错 revision 的反例。
 
-Claude 增加 owner-only delete / confirm_delete 入口的方向合理；问题在于跨记录验证尚未真正建立这些绑定。
+Claude 增加 Morii-only delete / confirm_delete 入口的方向合理；问题在于跨记录验证尚未真正建立这些绑定。
 
 ### F3 · P1：发送一致性函数会接受完全不同的同长度文本
 

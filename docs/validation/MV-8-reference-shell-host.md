@@ -2,7 +2,7 @@
 
 Date: 2026-10-22 (Asia/Shanghai). Baseline
 `a8285115f2b14e0b8480769936a3abf6ab235008` (merged PR #47).
-Continues owner-authorized MV-8 using synthetic data/processes only.
+Continues Morii-authorized MV-8 using synthetic data/processes only.
 
 [ADR-MEM-79](../adr/079-reference-shell-native-host.md) adds a reference backend
 selected only through these explicit native arguments:
@@ -74,7 +74,7 @@ Node tests exercise the production API module with only native invoke replaced:
 unknown outcomes/original packet preservation, other nonretryable Host failures,
 unchanged valid Core result/retry flags, and unavailable native picker.
 Frontend typecheck and production Vite build pass. These are not rendered
-Tauri/WebView, tray, native dialog or owner daily-use acceptance.
+Tauri/WebView, tray, native dialog or Morii daily-use acceptance.
 
 Saved logs/exit records use ignored `.local/mv8-reference-*` files. Earlier
 failures are preserved: wrong synthetic Vault ID prefix, Clippy enum size,
@@ -87,7 +87,7 @@ no install; the explicit retry ran after the account window reset.
 
 Remaining gates: rendered/native-window acceptance, picker/Provider adapters,
 enrollment UX/multiple clients and MCP, physical maintenance/independent restore,
-Runtime exact-pin adoption and real owner acceptance. No private Vault, real
+Runtime exact-pin adoption and real Morii acceptance. No private Vault, real
 Provider, Runtime checkout, migration, cloud deployment or manual project-status
 snapshot was used or changed. Concurrent user instructions/status edits remain
 outside this change.

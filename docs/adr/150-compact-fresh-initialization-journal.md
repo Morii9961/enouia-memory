@@ -38,12 +38,12 @@ its immutable seed cannot acquire later target or derivation dependencies.
 
 ## Backup and compatibility
 
-Owner export already retains all content-addressed Raw objects and the private
+Morii export already retains all content-addressed Raw objects and the private
 initializer journal. Export/restore must include the plan objects and unchanged
 mutable packet state. Synthetic acceptance covers close/reopen, exact object
 identity, missing/corrupt-object refusal, uncertainty and isolated backup/restore
 with the same run binding. Restored resumption never copies bootstrap enrollment
-or creates another logical Owner.
+or creates another logical Morii.
 
 The format belongs to the standalone initializer. Native admission, stored
 memory decisions, Workspace commands and Runtime readers do not gain another

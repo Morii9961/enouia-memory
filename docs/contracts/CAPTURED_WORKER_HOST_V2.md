@@ -25,7 +25,7 @@ calls and one local Vault step. No arbitrary blocking adapter is supported.
 
 | Case | Result |
 | --- | --- |
-| Owner native + Owner root + live retained Runtime peer | Dedicated automatic System worker |
+| Morii native + Morii root + live retained Runtime peer | Dedicated automatic System worker |
 | Old layout/profile, second worker on the root | Refuse / Busy |
 | Foreground active | No new background step; queued/pending work waits |
 | False/Busy/pending | Bounded sleep/backoff, no spin |

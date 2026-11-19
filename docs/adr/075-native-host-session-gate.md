@@ -1,6 +1,6 @@
 # ADR-MEM-75 — Versioned native Host session gate
 
-Date: 2026-10-22. Scope: owner-authorized MV-8.1f, library before transport.
+Date: 2026-10-22. Scope: Morii-authorized MV-8.1f, library before transport.
 
 Host clients need connection-bound authority rather than a page-supplied
 principal, surface or reusable session token. The new `enouia-memory-host`
@@ -24,9 +24,9 @@ pure types/versions and has no repository-file inclusion dependency.
 
 `NativeAdmission::from_authenticated_owner` is a trusted native assertion,
 not an authenticator: the adapter must first authenticate and authorize the
-owner process/window and derive its allowed surface. Never construct it from
+Morii process/window and derive its allowed surface. Never construct it from
 JSON claims, imported text, an executable name or same-user access alone.
-MCP Agent admission requires separate scoped design, not this owner path.
+MCP Agent admission requires separate scoped design, not this Morii path.
 
 Each connection owns a private, nonserializable/noncloneable handle bound to
 one gate instance. At most 64 live connections last five minutes without
@@ -45,6 +45,6 @@ The dispatch closure must recheck actual Host authority and serialize the
 complete Core/lifecycle action without calling back into the gate. Async
 workers still need existing Core cancellation/lock checks; synchronous
 admission grants no authority for later work. Listener framing, bounded raw
-reads, OS peer identity, owner enrollment, native unlock, full disconnect/
+reads, OS peer identity, Morii enrollment, native unlock, full disconnect/
 reconnect and actual process exclusion remain transport integration gates.
 See [synthetic evidence](../validation/MV-8-native-session-gate.md).

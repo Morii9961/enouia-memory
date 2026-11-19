@@ -6,7 +6,7 @@
 
 合成校准有三种结果：保留“取消地图、未采纳导航”的正确回答为 supported_in_review；引用仍精确但把“不采纳”反转成“采纳”的回答得到一项 contradicted、两项 missing；空回答未评审时保留两个 unknown，已判支持比例为 null。它们校准计算流程，不证明实际模型通过。退出码 0 只表示报告已生成。
 
-九项标准库测试通过：三种校准状态、变更回答/来源拒绝旧 hash、反证路径不能算正覆盖、坏/重复路径规则、坏审核引用、未判单元保留 unknown、来源路径越界/无绑定 owner 样本拒绝、JSON 重复键拒绝。生成的合成报告保存于忽略的本地验证区域，没有公开私人样本。使用步骤见 [README](../../tools/history-quality/README.md)。
+九项标准库测试通过：三种校准状态、变更回答/来源拒绝旧 hash、反证路径不能算正覆盖、坏/重复路径规则、坏审核引用、未判单元保留 unknown、来源路径越界/无绑定 Morii 样本拒绝、JSON 重复键拒绝。生成的合成报告保存于忽略的本地验证区域，没有公开私人样本。使用步骤见 [README](../../tools/history-quality/README.md)。
 
 Python 3.12.10 标准库九项测试退出码 0，合成报告生成成功。Rust 1.98.1、GNU Windows、离线格式检查与严格 Clippy 退出码 0。完整 `cargo test --workspace --locked` 在本次进程设置 `RUST_TEST_THREADS=1` 后为 371 项通过、0 失败；这隔离不同测试用例的负载，用例内部自己的并发线程仍保留。
 

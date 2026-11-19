@@ -2,7 +2,7 @@
 
 2026-11-08. Morii's real conversations happen in ChatGPT, not in Runtime. Asked
 how they should reach Memory, Morii chose a ChatGPT developer-mode MCP connector
-hosted on a VPS (Plus plan), no per-turn owner confirmation, Asia/Shanghai as
+hosted on a VPS (Plus plan), no per-turn Morii confirmation, Asia/Shanghai as
 the default timezone. ChatGPT only connects to public HTTPS MCP servers
 (Streamable HTTP, OAuth or no auth); it cannot reach local stdio or named pipes.
 
@@ -44,7 +44,7 @@ opening profile (ADR-MEM-126/127: six read tools, resources, prompts) only.
 ## Not in this slice
 
 The HTTPS listener and TLS, the authorization server (client registration,
-owner sign-in, token issuance), write tools, conversation capture from
+Morii sign-in, token issuance), write tools, conversation capture from
 ChatGPT, VPS deployment, moving any real Vault off this PC and ChatGPT
 acceptance. Capture is still Runtime-only under ADR-MEM-102; letting a remote
 Agent write conversations needs its own decision. Whether Plus can call write

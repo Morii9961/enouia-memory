@@ -13,7 +13,7 @@ memory-runtime-capture-pipe-1, independent of memory-agent-pipe-1/2/3, MCP
 plus the frozen SourceRecordFields; that does not make old roots capture-capable.
 Unsupported root/layout/capability refuses before business decoding/counts.
 
-Trusted native setup supplies one already leased Vault Arc, authenticated Owner,
+Trusted native setup supplies one already leased Vault Arc, authenticated Morii,
 selected Client producer and actual Runtime process ID. The Host retains the
 kernel process object and checks same SID/logon session. Each accepted pipe
 must have that actual kernel peer, checked before handshake/body dispatch and
@@ -34,7 +34,7 @@ the Vault. Existing Agent readers and their native lifecycle remain independent.
 Reuse protected local Windows pipes, same-user ACLs, bounded deadlines and
 u8-tag/u32le-length framing. Hello/welcome are at most 4096 bytes, calls at most
 256 KiB and replies at most 1 MiB. Only hello then call frames are accepted;
-Owner control tags refuse. Each connection accepts at most 256 calls and remains
+Morii control tags refuse. Each connection accepts at most 256 calls and remains
 bounded by its native producer lifetime. All IO/EOF ends the connection.
 
 Hello exactly matches protocol, recordSchema 2, layout, native capability,
@@ -70,7 +70,7 @@ no automatic retry, replacement key, reconnection or recovery.
 | schema 1 / host-current-v2 | Refuse | Existing six tools retain original meaning |
 | schema 2 / automation-host-v2/v3 | Refuse | Existing explicitly negotiated read capabilities |
 | schema 2 / automation-segmented-host-v1 | Explicit new Runtime pipe only | Existing catalog reads; no Agent capture grant |
-| Newer/unknown layout or Agent/Owner/System producer claim | Refuse | No implicit adoption |
+| Newer/unknown layout or Agent/Morii/System producer claim | Refuse | No implicit adoption |
 
 Memory-only synthetic tests run the actual pipe with an independent owned
 Runtime process and existing sole Vault. Runtime must later adopt the exact

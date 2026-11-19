@@ -25,7 +25,7 @@ AgentNote/Correction/Supersede/Forget 解释。开场和 memory 资源只读出�
 本片 ADR126 / MCP_OPENING_RESOURCES_V1 先冻结，再实现只读开场提示与资源。
 新 pipe-10/profile 使用同一个 initialized QualifiedAgentReader，沿用五个读取工具，
 新增 memory_start prompt、静态指南、当前 memory detail 和同连接实际 recall 资源。
-没有写 permit、Runtime 捕获、真实模型调用、Owner 操作或必须逐项处理的队列。
+没有写 permit、Runtime 捕获、真实模型调用、Morii 操作或必须逐项处理的队列。
 prompt 的 MCP user 角色不成为 Runtime UserStatement 或主人授权。
 
 Owned files：mcp/opening、共享 ReadSession 能力声明、initialized schema 内部可见性、

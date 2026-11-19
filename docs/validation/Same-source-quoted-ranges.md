@@ -18,7 +18,7 @@ Before implementation, the new initialization case with two short passages
 separated by more than 500 scalars failed preparation with `Denied`. After the
 fix, `cargo test -p enouia-memory-init --test initialization fresh_authored
 --locked` passed all **5** selected cases. Native write and reopen retain both
-quotes, one source dependency, the authored content and no Owner actions. A
+quotes, one source dependency, the authored content and no Morii actions. A
 changed support quote conflicts with the original enqueued artifact, and model
 invocations remain zero.
 
@@ -53,4 +53,4 @@ evaluators can refuse these records; Runtime must pin the matching revision and
 surface before writing them. It does not prove semantic entailment of a
 paraphrase or completion of corpus analysis. No real conversation, attachment,
 Provider, production Vault, independent backup, deployment, deletion, read grant
-or Owner acceptance was exercised. Production use awaits Owner merge.
+or Morii acceptance was exercised. Production use awaits Morii merge.

@@ -1,4 +1,4 @@
-# Synthetic Owner portability rehearsal (ADR-MEM-138)
+# Synthetic Morii portability rehearsal (ADR-MEM-138)
 
 2026-11-11. Based on main `2ed930f` after PR98 and PR99 merged. The harness is
 `crates/enouia-memory-init/examples/portable_owner_backup.rs`.

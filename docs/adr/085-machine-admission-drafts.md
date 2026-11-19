@@ -4,9 +4,9 @@ Date: 2026-10-24. Status: Adopted (contract and pure rules), Core-1 only.
 
 Morii authorized automatic memory formation without mandatory human review.
 This decision adds a separate next-version contract; it does not activate a
-writer, migrate a root, or change existing owner approval semantics.
+writer, migrate a root, or change existing Morii approval semantics.
 It amends ADR-MEM-05/22 only for the explicitly selected future automation
-format: their schema-1 owner-review rules and ADR-MEM-30 approval/egress rules
+format: their schema-1 Morii-review rules and ADR-MEM-30 approval/egress rules
 remain in force on all existing paths.
 
 ## Decision
@@ -37,7 +37,7 @@ The rule engine maps a clear self-report with direct user support to
 `attributed_statement` / `adopted`: this means the person said X, not that X was
 independently verified. Inference, ambiguity and conflict become respectively
 `hypothesis`, `uncertain`, or `disputed`, all `staged` with automatic reevaluation
-on new evidence or policy. No required owner queue and no independent-truth or
+on new evidence or policy. No required Morii queue and no independent-truth or
 corroboration output exist in this slice. Semantic classifications are supplied
 analysis, not proof that a model understood negation, identity or context.
 
@@ -46,7 +46,7 @@ A separate planned commit binds its digest, exact base/authority watermarks,
 operation and intended result. Binding validation returns only unit success;
 it is not a durable commit receipt. Future legal transactions must revalidate
 all freshness/security barriers, commit result and decision atomically and only
-then issue a receipt. No fake ReviewRecord, owner confirmation or approval.
+then issue a receipt. No fake ReviewRecord, Morii confirmation or approval.
 
 ## Compatibility and activation
 
@@ -54,14 +54,14 @@ The [Core-1 contract](../contracts/CORE1_AUTOMATIC_ADMISSION.md) freezes the
 reader/writer and consumer matrix, predecode refusal, migration/rollback plan
 and future job/read-model mapping. Old record bytes and approvals are immutable
 inputs to a future migration, never reserialized or batch-promoted here.
-Legacy-owner records are not legal automatic revision targets in this slice.
+Legacy-Morii records are not legal automatic revision targets in this slice.
 Unsupported document versions refuse parsing/evaluation; unsupported root
 formats must refuse before record decoding or querying. Raw-byte diagnostic
 retention is not a business reader or a downgrade path.
 
 ## Scope and evidence
 
-No default entry point, CURRENT, OWNER_ONLY set, IPC, Host/MCP behavior, Runtime
+No default entry point, CURRENT, `OWNER_ONLY` set, IPC, Host/MCP behavior, Runtime
 pin, Provider call, worker, index, private data or production root changes.
 Existing module exports and the new isolated source/schema files are recorded
 in the Runtime surface; adoption remains separate. Evidence and limitations:

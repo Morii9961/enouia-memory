@@ -22,11 +22,11 @@ pageable under Private and only 86 under Public because the middle fragment is
 Private. No hidden fragment metadata is declassified by public source bodies.
 Selected Unicode excerpts match exact scalar ranges and anchor hashes.
 Activity title/event counts exclude hidden publications; scoped no-change and
-snapshot invalidation are distinct. A machine note containing “Owner confirmed”
-remains an annotation, with a System actor and no owner-action record.
+snapshot invalidation are distinct. A machine note containing “Morii confirmed”
+remains an annotation, with a System actor and no Morii-action record.
 
 The contract corpus has nine native-emitted positive documents and 69 negative
-mutations, including forged owner actor, missing qualifications, false counts,
+mutations, including forged Morii actor, missing qualifications, false counts,
 stale header/anchor claims, nonadjacent diff, unqualified suggestions and invalid
 source/turn bindings. Native construction, Rust subset schema validation and
 independent Python JSON Schema validation are separate checks.
@@ -64,7 +64,7 @@ not initialization or real data/provider quality.
 ## Limits and differences from the request
 
 Activity contains actual witnessed events for currently eligible dependencies;
-no real fading/archive job exists to supply those suggested events. Owner events
+no real fading/archive job exists to supply those suggested events. Morii events
 wait for G08. Current deletion removes historical titles instead of returning a
 title-bearing tombstone. Change anchors use exact snapshots with scoped IDs and
 reload, without an observable global sequence or hidden change count.
@@ -73,4 +73,4 @@ History can disappear when original dependencies become stale or unauthorized.
 Unavailable/deleted/ungranted sources share one empty response, so Runtime should
 show source unavailable without asserting the private reason.
 These are native backend results, not Runtime mounting, visual acceptance,
-initialization, real provider evidence, owner acceptance or deployment.
+initialization, real provider evidence, Morii acceptance or deployment.

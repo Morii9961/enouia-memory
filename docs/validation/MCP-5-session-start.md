@@ -9,7 +9,7 @@ pipe-10 six-tool catalog now exposes an Agent-invocable opening recipe instead
 of requiring a prompt/manual step. session_start uses the same qualified reader
 and bounded native recall as memory_start, returns original request_id and the
 exact recall resource payload, and creates no durable Session or capture. No
-model, Provider, Owner operation, checkpoint, job or mandatory queue is added.
+model, Provider, Morii operation, checkpoint, job or mandatory queue is added.
 Guide discovery and exact hello fingerprint bind the tool descriptor/schemas;
 pipe-5/6 and report profiles retain their meanings.
 
@@ -44,15 +44,15 @@ The committed corpus is synthetic and includes no local paths or credentials.
 Evidence covers closed inputs, independent MemoryRead with optional SourceRead,
 advertised schemas/annotations, actual context/resource equality, bounded
 output, invalid input preserving the previous cache, unchanged native snapshot,
-no queued captures/Owner actions, and old initialized profile rejecting this
+no queued captures/Morii actions, and old initialized profile rejecting this
 tool. OutcomeUnknown at the native live gate produces no result, retains the
 complete first Value including original RPC ID/_meta, disconnects and revokes;
 there is no automatic retry, reconnection or replacement key.
 
 No full workspace run was needed for this localized service/schema change;
 earlier 913/948 baselines are not evidence for this HEAD. No real model/private
-Vault/Runtime adoption, product use, deployment or owner acceptance is claimed.
-Merging remains a separate owner instruction. Manual project snapshots remain
+Vault/Runtime adoption, product use, deployment or Morii acceptance is claimed.
+Merging remains a separate Morii instruction. Manual project snapshots remain
 untouched. Continue only MCP-5 synthetic opening/resources work; no new MV,
 forget-hide, external Agent capture hook or real client configuration.
 
@@ -102,7 +102,7 @@ without a result or recomputation. An explicit new read on the same still-live
 connection returns the current two-item context with the same scope hash and a
 new snapshot. Its resource equals that context, the old link is then absent,
 and the untrusted note text never appears in the opening content. Reads do not
-change the post-formation snapshot or create captures/Owner actions.
+change the post-formation snapshot or create captures/Morii actions.
 
 The one focused test passed for both entry scenarios, 0 failed
 (target/mcp5-session-stale-link-tests.log). Scoped opening_pipe Clippy and fmt
@@ -125,7 +125,7 @@ The one focused launcher test passed, 0 failed
 (target/mcp5-session-stdio-tests.log). Scoped opening_pipe Clippy and fmt passed.
 Implementation/schema/fingerprint are unchanged, so schema/surface checks were
 not rerun for this test-only extension. This is an owned executable/pipe test,
-not an installed external MCP client, Runtime product use or owner acceptance.
+not an installed external MCP client, Runtime product use or Morii acceptance.
 
 ## Old profile meanings on actual transports
 
@@ -137,11 +137,11 @@ session_start, refuses it as unknown_tool, then saves/replays hint_saved through
 its independently permitted note writer. This does not create a Session or
 infer correction permission from read/note authority.
 
-Only the specified stdio_executable_attaches_to_owner_host_and_reaps_on_eof and
+Only the specified `stdio_executable_attaches_to_owner_host_and_reaps_on_eof` and
 real_note_pipe_saves_replays_and_keeps_five_reads_with_the_explicit_write_tool
 were executed: 2 passed, 0 failed (target/mcp5-old-read-profile-tests.log and
 target/mcp5-old-note-profile-tests.log). The separate old test that invokes
-NativeMemoryOwner was filtered out and not run. All roots/processes were new
+`NativeMemoryOwner` was filtered out and not run. All roots/processes were new
 synthetic fixtures. Scoped two-target Clippy and formatting passed; source,
 schema and integration surface were unchanged, so those checks were not rerun.
 

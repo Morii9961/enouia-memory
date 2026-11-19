@@ -6,7 +6,7 @@
 
 你接手 Enouia Memory 的后续工作。Claude 已完成 ChatGPT 连接器服务端（#88–#93，已在 main）和
 旧库重新初始化的工具（ADR135；#94–#96 已全部合并，main 为 `5c967c0`）。目标是把我的
-旧记忆库重新初始化成新的 Owner Vault，放到 Linux VPS 上，让 ChatGPT 通过连接器读取。
+旧记忆库重新初始化成新的 Morii Vault，放到 Linux VPS 上，让 ChatGPT 通过连接器读取。
 回复我请用中文。
 
 先读：
@@ -21,12 +21,12 @@
 开工前核对 cwd、branch、HEAD、origin、status、worktrees 和并行工作；确认 `5c967c0` 已在
 origin/main，从最新 main 新建分支。保留他人修改，不 reset/clean，不 force-push。
 
-我还没回答的问题：**新库建在本机还是直接建在 VPS**。在我回答前，不要建真实 Owner 根、
+我还没回答的问题：**新库建在本机还是直接建在 VPS**。在我回答前，不要建真实 Morii 根、
 不要对真实数据跑 `enouia-memory-reinit run`。
 
 不需要等决定、可以先做的（每片先写最小 ADR，再实现、按风险验证、提交、开 PR，等我合并）：
 
-1. segmented Owner 根的独立备份/恢复（目前缺失，是删除旧库前和搬上 VPS 的硬条件），合成证据。
+1. segmented Morii 根的独立备份/恢复（目前缺失，是删除旧库前和搬上 VPS 的硬条件），合成证据。
 2. 修工作器兜底标题对多行引文的缺陷（会改集成面，同提交更新 runtime-surface.json 并登记 RUNTIME.md）。
 
 硬边界：

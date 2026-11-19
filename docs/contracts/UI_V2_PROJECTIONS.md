@@ -33,7 +33,7 @@ A partial output always progresses, with explicit `next`; an item/minimum
 header that cannot fit refuses. `complete_in_scope` on graph headers is false
 if the node window or edge retention discards candidates. Page continuation
 separately describes whether the selected retained result has been delivered.
-Counts never describe inaccessible inputs or the owner's whole life.
+Counts never describe inaccessible inputs or Morii's whole life.
 
 ## Time
 
@@ -82,9 +82,9 @@ remain available without expanding the theme cross product. No partial count
 is represented as exact when a resource bound is exceeded.
 
 Until G08, `owner_named` and `pinned` are false. G08 will apply actual confirmed
-owner records and preserve names/pins/dissolution across disposable recomputation,
+Morii records and preserve names/pins/dissolution across disposable recomputation,
 with recorded-member overlap checks. This phase does not accept caller/model
-owner annotations or claim owner-name inheritance has been executed.
+Morii annotations or claim Morii-name inheritance has been executed.
 
 ## Graph
 
@@ -98,8 +98,8 @@ Edge kinds: derived_from/reversion when the exact selected endpoint is current;
 same_conversation and same_entity from recorded metadata; theme_cooccurrence
 as an `algorithm_suggestion`. Each carries an explicit witness. Relation facts
 are provenance facts, not corroboration of memory contents. Historical revision
-and owner correction relations are not invented as self edges between identical
-current IDs; G15/G08 provide those later detail/owner surfaces. Semantic neighbors
+and Morii correction relations are not invented as self edges between identical
+current IDs; G15/G08 provide those later detail/Morii surfaces. Semantic neighbors
 remain explicitly unavailable; there is no embedding or model call.
 
 Candidates are counted only after both endpoints are authorized and selected.
@@ -115,10 +115,10 @@ old continuation. Frontend layout and visual acceptance belong to Runtime.
 
 ## ADR103 native read qualification
 
-The later Owner slice emits selection `owner-qualified-catalog-4` version 4.
+The later Morii slice emits selection `owner-qualified-catalog-4` version 4.
 Process headers use algorithm/version 2. Restart older cursors. Current scoped
 receipts omit global commit sequence; current conversation metadata omits raw
 turn arrays/totals/branch lists and ranks authorized captured turns densely per
-branch. Actual Owner marks, family/identity overlays and provenance require the
+branch. Actual Morii marks, family/identity overlays and provenance require the
 same fresh authorization and native action records. Stored records and legacy
-v3 fixture parsing remain unchanged. See [Owner contract](UI_V2_OWNER_ACTIONS.md).
+v3 fixture parsing remain unchanged. See [Morii contract](UI_V2_MORII_ACTIONS.md).

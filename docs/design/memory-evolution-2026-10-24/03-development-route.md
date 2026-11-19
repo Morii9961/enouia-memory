@@ -4,7 +4,7 @@
 
 日期：2026-10-24。状态：供 Morii 选择实施顺序，**不是新 MV 阶段的启动授权**。当前正式阶段、历史授权和出口仍以 [IMPLEMENTATION_PLAN](../IMPLEMENTATION_PLAN.md)、ADRs 与对应 validation 为准。这里的 A～H 是讨论用工作包，不替代 MV 编号，也不声明已经领取。
 
-**最新目标与优先级以 [06 全自动路线](06-automation-and-ombre-migration.md) 为准。** Morii 已确认不承担日常逐条审核；本页先建设人工审阅闭环、让 Morii 消化候选等旧产品建议不再适用。新首要闭环是可靠捕获、自动提炼/准入和下次自动使用，UI 以观察与可选纠正为主。当前代码仍依赖 owner 的事实不变，实施时需正式修改契约，不能伪造人工确认。
+**最新目标与优先级以 [06 全自动路线](06-automation-and-ombre-migration.md) 为准。** Morii 已确认不承担日常逐条审核；本页先建设人工审阅闭环、让 Morii 消化候选等旧产品建议不再适用。新首要闭环是可靠捕获、自动提炼/准入和下次自动使用，UI 以观察与可选纠正为主。当前代码仍依赖 Morii 的事实不变，实施时需正式修改契约，不能伪造人工确认。
 
 具体执行顺序现以 [07 核心重构与 Runtime 路线](07-core-refactor-and-runtime-route.md) 为准，MCP 新增工作暂缓；本页 A～H 保留作较早的范围讨论，不是下一轮 Session 的领取清单。
 
@@ -50,7 +50,7 @@ flowchart TD
 
 目的：让一个明确选择的客户端，在自己的主体/权限内完成“查找 → 阅读 → 使用上下文 → 提议 → 主人审核 → 下一轮使用”，并保留 checkpoint 的 provisional 身份。
 
-后端：继续当前 MV-8 的既有契约，设计/验证外部 Agent 原生登记与撤回、stdio 启动与信任边界、范围和目的地、请求键与未知结果处理。不向 MCP 开放 owner 审核、导入、Identity、删除或任意 Workspace 调用。
+后端：继续当前 MV-8 的既有契约，设计/验证外部 Agent 原生登记与撤回、stdio 启动与信任边界、范围和目的地、请求键与未知结果处理。不向 MCP 开放 Morii 审核、导入、Identity、删除或任意 Workspace 调用。
 
 前端：Runtime 显示连接对象、主体、范围、连接/撤回状态与结果未知，不能把 page claims 当授权。Claude 先在正在重构的实际 checkout 核实 pin；本次可读旧 Runtime 副本不能代表那边最新工作。
 

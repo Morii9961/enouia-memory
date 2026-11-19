@@ -8,7 +8,7 @@
 
 [ADR-MEM-67](../adr/067-authority-control-file-persistence.md)先明确：原子写一个主权文件不能冒充 authority 与 CURRENT 的共同事务。本片只增加可显式调用的 Windows `host_authority::ControlStore`，不实现完整 AuthorityStore，不暴露普通数据进度入口，不接入当前 Workspace/CLI/Runtime。
 
-控制文件为 `config/host-authority.json`。打开时重新验证根、NTFS 和受保护 owner ACL，再持有已有 host.lock 与 Vault writer lock，直到 drop/进程退出。根权限不合格时拒绝，不自动修 ACL。受控路径、重解析点检查、有界读取和刷新后同目录原子替换复用既有 Vault 原语。bootstrap 只接受相同 Vault、独立 checkpoint 和新 epoch-1 状态；任何已存在文件都拒绝覆盖。open 不初始化缺失/损坏文件。
+控制文件为 `config/host-authority.json`。打开时重新验证根、NTFS 和受保护 Morii ACL，再持有已有 host.lock 与 Vault writer lock，直到 drop/进程退出。根权限不合格时拒绝，不自动修 ACL。受控路径、重解析点检查、有界读取和刷新后同目录原子替换复用既有 Vault 原语。bootstrap 只接受相同 Vault、独立 checkpoint 和新 epoch-1 状态；任何已存在文件都拒绝覆盖。open 不初始化缺失/损坏文件。
 
 每次 inspect/apply 重新读盘、严格验证并调用原生 checkpoint 端口。只发布相同 checkpoint 的 quiesce/promote/abort。写入错误保守返回 outcome_unknown，调用方重新检查；准确 promotion 重放不再写盘。checkpoint reader 和目标恢复证明仍是原生端口，测试 reader 是固定合成材料，不能当完整快照验证。
 
@@ -16,7 +16,7 @@
 
 新增 8 项 Windows 定向测试全部通过，exit 0：重开与 promotion 收据、真实 Vault head 不变、缺失/损坏/不可达无缓存降级、外来 Vault 与错误 checkpoint、权限不合格拒绝且不修改 ACL、发布前错误与发布后丢响应、跨进程双锁排他，以及两个受控子进程中断边界。中断测试确认子进程到达 apply；重开只看到完整旧状态或完整 quiesced 状态，进程退出已释放租约。
 
-首次定向 1 通过、6 失败，错误均在新的 owner ACL 前置检查：旧 synthetic lifecycle 不设置受保护根 ACL。只在新测试的临时根显式设置保护，并新增拒绝反例；没有放宽产品校验或触碰用户目录权限。失败和修正日志分别保存在忽略目录 `.local/mv8-authority-control-targeted.log`、`-targeted-fixed.log` 及对应 exit JSON。
+首次定向 1 通过、6 失败，错误均在新的 Morii ACL 前置检查：旧 synthetic lifecycle 不设置受保护根 ACL。只在新测试的临时根显式设置保护，并新增拒绝反例；没有放宽产品校验或触碰用户目录权限。失败和修正日志分别保存在忽略目录 `.local/mv8-authority-control-targeted.log`、`-targeted-fixed.log` 及对应 exit JSON。
 
 接续实现后按 Rust 1.98.1、MinGW UCRT64、CARGO_NET_OFFLINE=true，在可执行 Windows ACL 操作的非沙箱环境运行一次默认并行全套。没有设置全局串行化或改动源码/测试期限。
 

@@ -14,7 +14,7 @@ Owned files are the original Core change set plus this integration report and
 regenerated integration records. Borrowed untracked design/research/handoff
 packages, AGENTS, manual status snapshots, private material and parallel trees
 are excluded. No private Vault, account, credential, Provider or embedding is
-opened. Old v1 roots and original owner approval history remain intact.
+opened. Old v1 roots and original Morii approval history remain intact.
 
 ## Validation
 
@@ -36,7 +36,7 @@ owned-file bounds, conflict markers and whitespace were checked before push.
 Merging source does not initialize or change any existing library. Existing v1
 roots remain supported by their v1 entry points. Using the isolated automation
 format requires a separately selected new-format root and a migration scope;
-never reset the original root or reinterpret old owner records as System
+never reset the original root or reinterpret old Morii records as System
 approvals. Production capture/authentication, real-model quality, fixed source
 snapshot, independent recovery, source/history/deletion consistency and old
 primary fencing remain separate activation gates. Core-8 currently creates

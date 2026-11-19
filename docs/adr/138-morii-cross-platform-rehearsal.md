@@ -1,4 +1,4 @@
-# ADR-MEM-138 — Synthetic Windows-to-Linux Owner restore rehearsal
+# ADR-MEM-138 — Synthetic Windows-to-Linux Morii restore rehearsal
 
 2026-11-11. Morii approved merging ADR136/137 and continuing the existing route:
 build and accept locally, then migrate to Linux. Native round trips on each OS do
@@ -26,8 +26,8 @@ surface, schemas and dependencies do not change.
 
 ## Limits
 
-This is synthetic migration evidence, not real Owner enrollment, independent
+This is synthetic migration evidence, not real Morii enrollment, independent
 encrypted-media recovery, primary-authority transfer, VPS deployment or ChatGPT
 acceptance. Real initialization still needs Morii's explicit start authorization
 and chosen durable directory. Long-term read policies and deployment remain
-separate owner decisions. No new MV stage starts.
+separate Morii decisions. No new MV stage starts.

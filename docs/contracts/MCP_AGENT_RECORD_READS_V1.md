@@ -9,7 +9,7 @@ Depends on frozen UI record commit `24a03e02bdf18094d60bc4d3268d380bd1b669a1`.
 `AutomationHost::agent_record_reader` issues a separate sealed native delegation
 for **automation-host-v3** / document schema 2 / **memory-agent-record-read-1**.
 The existing HostV2 factory still refuses this root, and Core-7's System reader
-remains HostV2-only. No System port or Owner Workspace forwarding is used.
+remains HostV2-only. No System port or Morii Workspace forwarding is used.
 Native registration and OS enrollment, fixed subject/project/source/sensitivity,
 independent source-read, current policy/primary/witness, source revisions/deletion,
 expiry/revocation/lock generations and ancestor closure remain as in
@@ -29,7 +29,7 @@ capability. `record_fields` on page/detail/recall is a revision-keyed array:
 `fields` preserves stored claim/time/formation values; `entities` contains authorized current
 EntityRecord revisions. Base items retain separate knowledge/adoption, dimensions,
 actual learned/capture times, System provenance, policy and witnessed receipts.
-Nothing upgrades a subject statement or Agent claim into Owner confirmation.
+Nothing upgrades a subject statement or Agent claim into Morii confirmation.
 
 Detail includes exact selected history metadata and `source_record_fields`
 keyed by exact source revision. Without source-read, source metadata/body and

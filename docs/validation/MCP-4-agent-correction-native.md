@@ -22,11 +22,11 @@ sandbox. No real Vault, Provider, credentials or client configuration was opened
 Coverage: normalized full-width original quote and exact scalar offsets; real
 UserStatement provenance and authenticated Agent identity; exact current target
 and snapshot; deterministic request keys versus changed request hashes; other
-Agent key separation; unchanged chain/memory and no Owner action/queue effect.
+Agent key separation; unchanged chain/memory and no Morii action/queue effect.
 Independent source and target-source exclusions refuse. Wrong target hash or
 revision, unknown target, wrong source revision, missing/oversized/empty quote or
 interpretation, non-Runtime evidence, Assistant text, fabricated confirmation and
-foreign-instance permits refuse. Native Owner/initialized/source-read setup is
+foreign-instance permits refuse. Native Morii/initialized/source-read setup is
 required. Revoke, lock/unlock generation, policy change, expiry, source deletion
 and target deletion invalidate preparation.
 

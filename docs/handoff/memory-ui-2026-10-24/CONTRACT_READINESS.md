@@ -4,7 +4,7 @@
 
 本页是设计接线清单，不定义新 wire 字段、接口名、Schema 或版本号。现有能力必须按 Runtime **实际 pin** 的源文件核实；Memory 新分支上存在某能力，不等于产品已采用。未来字段、状态机、兼容策略与测试必须先在 Memory 的授权设计切片中确定，不能由前端 mock 倒推成正式契约。
 
-**最新产品方向已改为全自动，见 [06](../../design/memory-evolution-2026-10-24/06-automation-and-ombre-migration.md)。** 下文描述的 owner plan/confirm 是现有接口事实，不是未来必须保留的日常交互。需要真正的系统自动准入/巩固契约；Morii 不应被要求清空待审队列，前端也不能自行替系统伪造 owner 确认。
+**最新产品方向已改为全自动，见 [06](../../design/memory-evolution-2026-10-24/06-automation-and-ombre-migration.md)。** 下文描述的 Morii plan/confirm 是现有接口事实，不是未来必须保留的日常交互。需要真正的系统自动准入/巩固契约；Morii 不应被要求清空待审队列，前端也不能自行替系统伪造 Morii 确认。
 
 当前真实Runtime前端接续点为`redesign/explore` / `98cd21261e510013c845b722f40ec50d861e0f72`，已只读确认其Memory pin仍是`56bc5eb8b08fb80cd6df892bf53d200ff23afc4c` / 47-command Workspace。正式后端路线转入 [07](../../design/memory-evolution-2026-10-24/07-core-refactor-and-runtime-route.md)，本次仅Core-1新契约与纯规则，未开启真实V2写库。MCP新接线暂停、已有实现保留；旧Workspace仍可用，Host切换不是前端重构前提。
 

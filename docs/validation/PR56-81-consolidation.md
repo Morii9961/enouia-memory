@@ -1,7 +1,7 @@
 # PR #56–#81 consolidation
 
 2026-11-02. Morii authorized finishing and integrating the existing draft chain,
-then cleaning merged branches and disposable development artifacts. The owner
+then cleaning merged branches and disposable development artifacts. Morii
 confirmed that new work beyond #81 is outside this consolidation.
 
 ## What accumulated
@@ -10,10 +10,10 @@ The 26 draft PRs are dependency slices, not 26 unrelated abandoned tasks:
 
 | PRs | Published scope |
 | --- | --- |
-| #56, #59, #61, #63, #68 | UI record layout, segmented catalog, projections, process/detail and Owner actions |
+| #56, #59, #61, #63, #68 | UI record layout, segmented catalog, projections, process/detail and Morii actions |
 | #57, #58, #60, #62, #64–#66, #69–#75, #77 | Native Agent enrollment, versioned scoped reads, Runtime source capture and initialized-carrier adoption |
-| #67, #76 | Synthetic initialization and the independent native empty Owner bootstrap |
-| #78–#81 | Owner Runtime capture, durable queue, pipe-2 and cancelable background formation |
+| #67, #76 | Synthetic initialization and the independent native empty Morii bootstrap |
+| #78–#81 | Morii Runtime capture, durable queue, pipe-2 and cancelable background formation |
 
 Each earlier slice stopped at its publication boundary without merging main.
 The #81 head `b4f5213fd89652fd9cda64f2a59486fc9c550a48` already contains
@@ -26,7 +26,7 @@ The 21 pre-existing uncommitted files were six modified documentation/rule
 files and 15 new public research, design and handoff files, with no unfinished
 Rust source among them. Their originals were preserved before checkout.
 The public package is now tracked and marked historical, a stale ADR link is
-corrected, and current engineering rules retain the later owner-data protection.
+corrected, and current engineering rules retain the later Morii-data protection.
 The previously authored project-status pair is retained at its original capture
 time, without generating or refreshing a project status snapshot.
 
@@ -54,7 +54,7 @@ Workspace IPC remains 58 commands. Public historical-document links pass.
 
 ## Remaining work, outside this consolidation
 
-- Runtime must independently adopt the exact Memory revision, Owner root/native
+- Runtime must independently adopt the exact Memory revision, Morii root/native
   adapters, read profiles, pipe-2, cancellation and foreground scheduling. A
   merged backend does not establish native UI or daily-use acceptance.
 - Real model/analyzer/embedding, continuous policy, model choice, budgets and
@@ -69,7 +69,7 @@ Workspace IPC remains 58 commands. Public historical-document links pass.
   activation, are later slices. No new stage is started here.
 
 See the [#81 report](MCP-3-captured-worker-host.md),
-[bootstrap report](Owner-empty-bootstrap.md),
+[bootstrap report](Morii-empty-bootstrap.md),
 [Runtime integration duties](../integration/RUNTIME.md) and
 [initialized-root adoption boundary](../integration/INITIALIZED_VAULT.md).
 
@@ -77,7 +77,7 @@ See the [#81 report](MCP-3-captured-worker-host.md),
 
 Only merged refs and explicitly identified build/test artifacts are disposable.
 Tracked regression tests and synthetic fixtures remain in the repository.
-Private intake, originals, owner-data markers, recovery bundles and uncertain
+Private intake, originals, Morii-data markers, recovery bundles and uncertain
 local material are preserved. A worktree containing private intake is retained;
 it is not treated as disposable because its branch merged. Local preservation
 and cleanup receipts stay ignored rather than entering public Git history.

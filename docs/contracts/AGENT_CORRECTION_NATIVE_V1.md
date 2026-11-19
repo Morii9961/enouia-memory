@@ -2,8 +2,8 @@
 
 2026-11-03. [ADR-MEM-120](../adr/120-native-agent-correction-drafts.md).
 
-Capability `memory-agent-correction-native-1`, initialized segmented Owner roots.
-Trusted native setup authenticates the Owner and independently delegates an
+Capability `memory-agent-correction-native-1`, initialized segmented Morii roots.
+Trusted native setup authenticates Morii and independently delegates an
 AgentCorrectionPermit; packet fields never select authority, principal or scope.
 
 ```text
@@ -38,9 +38,9 @@ lock/unlock, stale policy, revocation, expiry, foreign native instances and dele
 sources/targets refuse. Existing note/read permits cannot satisfy this API.
 
 Drafts contain untrusted Agent interpretation alongside actual user evidence;
-they are not Owner confirmation, saved-report receipts or corrected memories.
+they are not Morii confirmation, saved-report receipts or corrected memories.
 This API writes no state, schedules no work and advertises no MCP tool. Durable
 intake, including receipt replay after a System revision changes the current
 target, is [intake v1](AGENT_CORRECTION_INTAKE_V1.md); preparation still maps
 a non-current target to Stale. Forget-hide remains a separate
-owner decision under MCP_AGENT_READ_V2, with no hide effect in this slice.
+Morii decision under MCP_AGENT_READ_V2, with no hide effect in this slice.

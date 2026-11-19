@@ -1,6 +1,6 @@
 # 连接器长期只读授权：合成验证（2026-11-12）
 
-对应 [ADR141](../adr/141-connector-owner-read-grants.md)。独立分支
+对应 [ADR141](../adr/141-connector-morii-read-grants.md)。独立分支
 `codex/connector-read-policy`，基线 main `45de3c0`；交付前远程 main 仍为该提交。
 Morii 已明确同意独立只读授权与历史修订边界，并授权本片登记 ADR141、清单和采用说明。
 并行初始化分支及 PR #102、ADR140 未被修改或合入本片。
@@ -18,7 +18,7 @@ Morii 已明确同意独立只读授权与历史修订边界，并授权本片�
 
 ## 实际执行的检查
 
-Windows、Rust 1.98.1、离线且 `--locked`，仅使用虚构临时 Owner 根、本片独立 target。
+Windows、Rust 1.98.1、离线且 `--locked`，仅使用虚构临时 Morii 根、本片独立 target。
 下表为各目标最终通过的测试数，跨次执行不重复累计：
 
 | 检查 | 结果 |
@@ -48,7 +48,7 @@ Windows、Rust 1.98.1、离线且 `--locked`，仅使用虚构临时 Owner 根�
 `0e2c57a3ce85e42d37707ff53364d506b42b1aa7723cd51cd828055d9936b16a`。
 
 使用既有 WSL2 Ubuntu-24.04、Linux 6.6.114.1、Rust 1.98.1，离线、`--locked`。
-构建输出为新建的独立临时目录；Owner 根和恢复目标均由合成 fixture 新建，未复制真实库。
+构建输出为新建的独立临时目录；Morii 根和恢复目标均由合成 fixture 新建，未复制真实库。
 
 ```text
 cargo +1.98.1 test -p enouia-memory-host --test connector_policy_semantics --test owner_read_grant --test remote_read_admin_cli --test remote_service --test remote_oauth --locked
@@ -96,7 +96,7 @@ diff 检查及 Runtime surface checker 通过；Schema/validator 未改，未重
 
 六个 `owner_read_grant` 测试覆盖：
 
-- 只有原生 Owner 可计划/确认，伪造历史引用被拒绝；计划不写库，相同已提交计划不再写。
+- 只有原生 Morii 可计划/确认，伪造历史引用被拒绝；计划不写库，相同已提交计划不再写。
   形成策略停用、修订、到期后，显式授权仍能读取原精确记忆和历史；旧入口仍拒绝。
   不因此恢复创建/修订权限；重开保持授权且拒绝旧实例许可。
 - 续期和撤回使旧 permit、真实召回 context 缓存、已有 opening 会话失效；重新授权和重开

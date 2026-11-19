@@ -8,27 +8,27 @@ initialized-root Agent reader remains unadvertised.
 | schema 1 / host-current-v2 | Original six-tool contract | Refuse |
 | schema 2 / automation-host-v2/v3 | Existing explicit read capabilities | Refuse |
 | schema 2 / segmented-host-v1, original RuntimeEvent carrier | memory-agent-catalog-read-1 | memory-runtime-capture-native-1 / pipe-1 |
-| schema 2 / automation-segmented-owner-v1 | Refuse before Agent snapshot/query/count | Refuse before source/policy transaction planning |
+| schema 2 / `automation-segmented-owner-v1` | Refuse before Agent snapshot/query/count | Refuse before source/policy transaction planning |
 | Initializer import/attachment extension | Not adopted by this checkpoint | Not adopted |
-| Unknown layout, forged Owner/System/Client identity or scope | No authority | No authority |
+| Unknown layout, forged Morii/System/Client identity or scope | No authority | No authority |
 
 The trusted native embedding already holds the sole leased Vault. Existing
-SegmentedAgentHost::from_authenticated_owner checks the exact old layout before
+`SegmentedAgentHost::from_authenticated_owner` checks the exact old layout before
 snapshot inspection; its separate sealed Agent permit keeps all current policy,
 subject/project/source/sensitivity/instance/lifecycle checks. Runtime capture
 checks the exact old layout before issuing a Client permit. Nothing received
 over a pipe can call these factories or choose a principal. No old tool forwards
-native Owner gesture/consent methods. Ordinary Agent text remains Agent material.
+native Morii gesture/consent methods. Ordinary Agent text remains Agent material.
 
-The Core now supports the published Owner root and qualified native catalog-4 /
+The Core now supports the published Morii root and qualified native catalog-4 /
 process-v2 DTOs. Parsing those DTOs is not MCP compatibility. The existing Agent
 v1 projection keeps its old root and wire meaning; do not silently replace its
-selection with Owner v4 or emit hidden global receipt/turn sequence fields from
+selection with Morii v4 or emit hidden global receipt/turn sequence fields from
 a new root. Later adaptation needs a distinct negotiated capability and output
 schema, current Agent authorization before every projection and count, matching
 native Context trace and synthetic actual-pipe acceptance.
 
-Tests use newly created Owner roots, real legal genesis and current policies.
+Tests use newly created Morii roots, real legal genesis and current policies.
 Where payload corruption is used to prove early format refusal, only an owned
 temporary synthetic root is changed; no successful receipt is fabricated. Root
 format refusal must not create a writer lease or change business files. Existing
@@ -41,22 +41,22 @@ claimed by this checkpoint.
 ## Checkpoint 2 native qualified page
 
 memory-agent-qualified-native-read-1 explicitly supports only
-automation-segmented-owner-v1. Old factories still reject this root, and this
+`automation-segmented-owner-v1`. Old factories still reject this root, and this
 new factory rejects older layouts. Native setup supplies the authenticated
-Owner, Agent principal, exact active policies, subject/project/source ceiling,
+Morii, Agent principal, exact active policies, subject/project/source ceiling,
 sensitivity, source-read bit and lifetime. The sealed permit binds the instance,
 profile and current exact policy references; no packet supplies identity or
 scope. This native constructor itself does not enroll an OS process.
 
 The native page has the Agent capability/principal/scope, catalog-4 selection,
-exact scoped counts, complete revision fields/Owner marks and bounded paging.
-It emits no System-capability envelope, raw Owner record or global receipt
+exact scoped counts, complete revision fields/Morii marks and bounded paging.
+It emits no System-capability envelope, raw Morii record or global receipt
 sequence. Its data is produced by the same pure page projector used by native
 catalog reads, after independent Agent qualification. Current visible targets
 and this delegation's scope hash bind selection/cursors; passing another
 delegation's cursor refuses even if its current visible rows happen to match.
 
-Owner overlays are recomputed from the currently permitted memory/source/entity
+Morii overlays are recomputed from the currently permitted memory/source/entity
 view. Merge destinations require their own complete delegated evidence and
 each memory's own policy. Unselected names, aliases and action targets must not
 lend labels or counts. Page reads do not update attention, create jobs or write
@@ -77,7 +77,7 @@ All outputs are bounded data; arguments never select a principal or widen scope.
 Detail includes the qualified current item, original full-field history and
 source metadata/text only when source-read permits it. Truncated history/sources
 declare their counts and coverage. Historical records are not current assertions
-and do not acquire current Owner marks. Receipts omit global sequence.
+and do not acquire current Morii marks. Receipts omit global sequence.
 
 Source byte ranges are UTF-8 bounded; unknown and inaccessible identifiers both
 return absence. Related edges include only permitted current endpoints, with
@@ -87,7 +87,7 @@ semantic neighbors remain explicitly unavailable; no broad conversation view is
 borrowed from native System reads.
 
 Recall uses catalog-4's qualified attention states as native selector inputs.
-The existing age-only selectors retain their meaning. Owner protection changes
+The existing age-only selectors retain their meaning. Morii protection changes
 selection participation without changing truth/adoption, conditions, deletion or
 source authorization. A complete scoped candidate set is ranked, then rendered
 UTF-8 and item budgets apply; exclusions have exact reason counts and bounded
@@ -99,7 +99,7 @@ carrier adoption, Runtime hook or write capability.
 
 ## Checkpoint 4 explicit MCP profile
 
-The separate [Owner Agent pipe contract](MCP_OWNER_AGENT_PIPE_V1.md) freezes
+The separate [Morii Agent pipe contract](MCP_MORII_AGENT_PIPE_V1.md) freezes
 pipe-4 / memory-agent-qualified-read-1 over that native delegation. It advertises
 only the five read tools with closed output schemas and read-only annotations.
 Old pipe profiles refuse this layout/hash before business dispatch. Native data
@@ -120,25 +120,25 @@ still explicitly unavailable in this original-carrier profile.
 
 Exact adopted source: 3b6e974cc12182859d3645d64c03e5acc534896f (ADR104).
 The initialized Root layout alone does not distinguish its wider import and
-attachment carrier from original RuntimeEvent-only Owner roots. Existing
+attachment carrier from original RuntimeEvent-only Morii roots. Existing
 qualified-native-read-1 / pipe-4 therefore requires the original carrier across
 all retained source revisions before native qualification, projection/counts
 and connection dispatch. Unselected/deleted imports still require the later
 explicit profile. Imports arriving after enrollment revoke old access. This is
 a native loaded-Vault format check, not external business decoding or a second
-open/writer. New empty/original-only Owner roots retain their original profile. The existing
-witnessed native Owner correction source (manual_assertion) also remains
-supported; this does not authorize Agent-created Owner assertions.
+open/writer. New empty/original-only Morii roots retain their original profile. The existing
+witnessed native Morii correction source (manual_assertion) also remains
+supported; this does not authorize Agent-created Morii assertions.
 
 | Layout / carrier | Native Core writer/reader | Existing Agent profile | Runtime capture |
 | --- | --- | --- | --- |
 | host-current-v2 / schema 1 | Existing old contract | Original six tools only | Refuse |
 | automation-host-v2/v3 / original | Existing Core contract | Existing explicit Agent profiles | Refuse |
 | segmented-host-v1 / original | Original native capture/formation | catalog-read-1 | Runtime capture pipe-1 |
-| automation-segmented-owner-v1 / original | Owner native Core | qualified-native-read-1 / pipe-4 five reads | Old capture refuses |
-| automation-segmented-owner-v1 / imported, partial or typed-attachment source | Exact ADR104 native import/formation/System readers | Refuse original profiles before Agent projection/count; no new profile yet | Old capture refuses |
+| `automation-segmented-owner-v1` / original | Morii native Core | qualified-native-read-1 / pipe-4 five reads | Old capture refuses |
+| `automation-segmented-owner-v1` / imported, partial or typed-attachment source | Exact ADR104 native import/formation/System readers | Refuse original profiles before Agent projection/count; no new profile yet | Old capture refuses |
 | segmented-host-v1 / import or typed attachment | Native import entry refuses before Raw/record work | Unsupported | Original-only |
-| Unknown profile/hash/layout or claimed Owner/System identity | No authority from packet | Refuse | Refuse |
+| Unknown profile/hash/layout or claimed Morii/System identity | No authority from packet | Refuse | Refuse |
 
 Neither source pin upgrades nor System-read support imply initialized Agent
 support. The next reader must explicitly project authorized attachment metadata;
@@ -148,8 +148,8 @@ Current policy/source/deletion/lifecycle and exact trace rules remain unchanged.
 
 ## Checkpoint 6 native initialized carrier
 
-The opt-in native factory from_authenticated_initialized_owner delegates
-memory-agent-initialized-native-read-1 on Owner roots only. Its sealed permit
+The opt-in native factory `from_authenticated_initialized_owner` delegates
+memory-agent-initialized-native-read-1 on Morii roots only. Its sealed permit
 retains exact current policy/subject/project/source/sensitivity/instance/lifetime
 checks. No wire parameter selects it, and pipe-4 refuses this reader type's
 capability. No new MCP advertisement is implied.
