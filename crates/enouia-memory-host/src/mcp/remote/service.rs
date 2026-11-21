@@ -3,8 +3,10 @@
 //! profile behind the loopback HTTP/1.1 driver. The process runs as the OS
 //! account that owns the Vault root; that ownership is the Owner's
 //! authentication on the server.
+use super::connector::ConnectorSession;
 use super::oauth::{Authority, OAuthConfig, State};
 use super::{Config, Endpoint, Handler, Request, Response, Router, http1};
+use crate::automation::connector_formation::{ConnectorConfig, ConnectorWriter};
 use crate::automation::qualified_agent::{QualifiedAgentHost, QualifiedAgentReader};
 use crate::mcp::opening;
 use enouia_memory_contract::{
@@ -57,6 +59,18 @@ pub struct ServiceConfig {
     #[serde(default)]
     pub read_grant_id: Option<PolicyId>,
     pub profile: AttentionProfile,
+    /// ADR-MEM-158 opt-in: enables `memory.write` and the
+    /// `memory_submit_conversation` tool. Absent keeps the service read-only.
+    #[serde(default)]
+    pub connector: Option<ConnectorService>,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ConnectorService {
+    /// The connector's own Client principal for capture provenance.
+    pub producer_id: PrincipalId,
+    pub config: ConnectorConfig,
 }
 
 impl ServiceConfig {
@@ -77,11 +91,21 @@ impl ServiceConfig {
     }
     pub fn oauth(&self) -> Option<OAuthConfig> {
         let prefixes: Vec<&str> = self.redirect_prefixes.iter().map(String::as_str).collect();
-        OAuthConfig::new(&self.issuer, &self.resource, &prefixes)
+        let oauth = OAuthConfig::new(&self.issuer, &self.resource, &prefixes)?;
+        Some(if self.connector.is_some() {
+            oauth.with_write()
+        } else {
+            oauth
+        })
     }
     pub fn endpoint(&self) -> Option<Config> {
         let origins: Vec<&str> = self.origins.iter().map(String::as_str).collect();
-        Config::new(&self.resource, &[self.issuer.as_str()], &origins)
+        let config = Config::new(&self.resource, &[self.issuer.as_str()], &origins)?;
+        Some(if self.connector.is_some() {
+            config.with_write()
+        } else {
+            config
+        })
     }
     fn scope(&self, valid_until: Timestamp) -> SegmentedAgentScope {
         SegmentedAgentScope {
@@ -271,14 +295,31 @@ pub fn serve(
     let oauth = config.checked_oauth()?;
     let file = StateFile::open(&config.state_dir).map_err(|e| format!("state directory: {e}"))?;
     let owner = vault.descriptor().created_by.clone();
+    let writer = config
+        .connector
+        .as_ref()
+        .map(|c| {
+            ConnectorWriter::new(
+                vault.clone(),
+                owner.clone(),
+                ActorRef {
+                    actor_type: ActorType::Client,
+                    actor_id: c.producer_id.clone(),
+                },
+                c.config.clone(),
+            )
+        })
+        .transpose()
+        .map_err(|e| format!("connector writer: {e:?}"))?;
     let host = QualifiedAgentHost::from_authenticated_initialized_owner(vault, owner.clone())
         .map_err(|e| format!("owner host: {e:?}"))?;
     let authority = Authority::new(oauth, ids, clock, State::default());
     while !stop() {
         let now = clock.now_unix_ms();
         let (reader, permit_until) = config.reader(&host, &owner, now)?;
-        let endpoint = Endpoint::new(config.endpoint().expect("checked"), &authority, ids, |_| {
+        let endpoint = Endpoint::new(config.endpoint().expect("checked"), &authority, ids, |b| {
             opening::Server::new(&reader, &config.profile)
+                .map(|s| ConnectorSession::new(s, writer.as_ref(), &b.scopes, clock))
         });
         let mut handler = Persisted {
             inner: Router {

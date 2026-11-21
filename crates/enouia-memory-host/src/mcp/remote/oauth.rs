@@ -5,7 +5,7 @@
 //! server over SSH), so no password is stored. Only SHA-256 digests of codes
 //! and tokens are kept; refresh tokens rotate, and replaying a used code or
 //! refresh token revokes its whole grant family.
-use super::{Bearer, READ_SCOPE, Request, Response, Tokens};
+use super::{Bearer, READ_SCOPE, Request, Response, Tokens, WRITE_SCOPE};
 use enouia_memory_contract::{foundation::Clock, hash::sha256, ports::IdSource};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
@@ -29,9 +29,20 @@ pub struct OAuthConfig {
     issuer: String,
     resource: String,
     redirect_prefixes: Vec<String>,
+    scopes: Vec<String>,
 }
 
 impl OAuthConfig {
+    /// Approved clients also receive `memory.write` (ADR-MEM-158).
+    pub fn with_write(mut self) -> Self {
+        self.scopes.push(WRITE_SCOPE.into());
+        self
+    }
+    fn scope_ok(&self, requested: &str) -> bool {
+        requested
+            .split(' ')
+            .all(|x| self.scopes.iter().any(|s| s == x))
+    }
     /// `issuer` is the server origin (`https://host`), `resource` the MCP URL
     /// on that origin, and every redirect prefix an `https://host/` prefix
     /// (for ChatGPT, `https://chatgpt.com/`).
@@ -59,6 +70,7 @@ impl OAuthConfig {
             issuer: issuer.to_owned(),
             resource: resource.to_owned(),
             redirect_prefixes: redirect_prefixes.iter().map(|p| p.to_string()).collect(),
+            scopes: vec![READ_SCOPE.into()],
         })
     }
 }
@@ -333,7 +345,7 @@ impl<'a> Authority<'a> {
                     "grant_types_supported": ["authorization_code", "refresh_token"],
                     "code_challenge_methods_supported": ["S256"],
                     "token_endpoint_auth_methods_supported": ["none"],
-                    "scopes_supported": [READ_SCOPE],
+                    "scopes_supported": self.config.scopes,
                 }),
             ),
             ("POST", REGISTER) if query.is_empty() => self.register(request),
@@ -462,7 +474,7 @@ impl<'a> Authority<'a> {
             && challenge
                 .bytes()
                 .all(|b| b.is_ascii_alphanumeric() || b == b'-' || b == b'_');
-        let scope_ok = get("scope").is_none_or(|s| s.split(' ').all(|x| x == READ_SCOPE));
+        let scope_ok = get("scope").is_none_or(|s| self.config.scope_ok(s));
         let resource_ok = get("resource").is_none_or(|r| r == self.config.resource);
         if get("response_type") != Some("code") {
             return redirect(&[("error", "unsupported_response_type")]);
@@ -550,7 +562,7 @@ impl<'a> Authority<'a> {
         if get("resource").is_some_and(|r| r != self.config.resource) {
             return oauth_error(400, "invalid_target");
         }
-        if get("scope").is_some_and(|s| !s.split(' ').all(|x| x == READ_SCOPE)) {
+        if get("scope").is_some_and(|s| !self.config.scope_ok(s)) {
             return oauth_error(400, "invalid_scope");
         }
         let Some(client_id) =
@@ -648,7 +660,7 @@ impl<'a> Authority<'a> {
                 "token_type": "Bearer",
                 "expires_in": ACCESS_TTL_MS / 1000,
                 "refresh_token": refresh,
-                "scope": READ_SCOPE,
+                "scope": self.config.scopes.join(" "),
             }),
         )
         .header("Pragma", "no-cache".into())
@@ -665,7 +677,7 @@ impl Tokens for Authority<'_> {
             .filter(|t| t.expires_ms > now && state.clients.contains_key(&t.client_id))
             .map(|_| Bearer {
                 subject: "owner".into(),
-                scopes: vec![READ_SCOPE.into()],
+                scopes: self.config.scopes.clone(),
             })
     }
 }

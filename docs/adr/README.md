@@ -936,3 +936,12 @@ turns through the owner capture path, and the captured worker forms exactly the
 submitted statements under its existing checks, attributed to ChatGPT and its model.
 This replaces server-side analysis (R4.3 B/C) and amends ADR-MEM-102's Runtime-only
 capture producer.
+
+### ADR-MEM-158 — Remote MCP write tool for ChatGPT-distilled memories
+
+[Decision](158-remote-connector-write-tool.md): the remote service gains an opt-in
+`connector` section. It enables the `memory.write` scope and the
+`memory_submit_conversation` tool. A platform-neutral `ConnectorWriter` picks or
+opens a capture window, replays resubmissions under their original window, captures,
+and forms the submitted statements synchronously. Runtime reads the connector's scope
+from `capture_windows()`.

@@ -4,6 +4,7 @@
 //! No listener, TLS, authorization server or deployment lives here.
 use super::{MAX_INPUT_BYTES, PROTOCOL_VERSION, json as unique};
 
+pub mod connector;
 pub mod http1;
 pub mod oauth;
 pub mod service;
@@ -12,6 +13,8 @@ use serde_json::{Value, json};
 use std::collections::BTreeMap;
 
 pub const READ_SCOPE: &str = "memory.read";
+/// ADR-MEM-158: granted only when the service enables the connector writer.
+pub const WRITE_SCOPE: &str = "memory.write";
 pub const MAX_SESSIONS: usize = 4;
 const METADATA_PATH: &str = "/.well-known/oauth-protected-resource";
 
@@ -53,6 +56,7 @@ pub struct Config {
     metadata: String,
     authorization_servers: Vec<String>,
     origins: Vec<String>,
+    scopes: Vec<String>,
 }
 
 impl Config {
@@ -81,7 +85,13 @@ impl Config {
                 .map(|s| s.to_string())
                 .collect(),
             origins: origins.iter().map(|s| s.to_string()).collect(),
+            scopes: vec![READ_SCOPE.into()],
         })
+    }
+    /// Advertise `memory.write` as well (ADR-MEM-158).
+    pub fn with_write(mut self) -> Self {
+        self.scopes.push(WRITE_SCOPE.into());
+        self
     }
 }
 
@@ -214,7 +224,7 @@ impl<'f, S: Session> Endpoint<'f, S> {
                 &json!({
                     "resource": self.config.resource,
                     "authorization_servers": self.config.authorization_servers,
-                    "scopes_supported": [READ_SCOPE],
+                    "scopes_supported": self.config.scopes,
                     "bearer_methods_supported": ["header"],
                 }),
             );

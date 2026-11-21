@@ -106,4 +106,32 @@ impl SegmentedAutomationVault {
             })
             .collect())
     }
+    /// Morii-only (ADR-MEM-158). The current policy that holds the sources a
+    /// producer already captured for `request_id`, so a resubmission replays
+    /// under the same window even after that window has no unused IDs left.
+    pub fn capture_policy_for_request(
+        &self,
+        owner: &ActorRef,
+        producer: &ActorRef,
+        request_id: &RequestId,
+    ) -> Result<Option<AutomationPolicy>> {
+        self.native.owner(owner)?;
+        let _writer = lock::acquire(&self.native.root, Duration::ZERO)?;
+        let state = self
+            .state
+            .lock()
+            .map_err(|_| AutomationFault::Unavailable)?;
+        self.current(&state)?;
+        let Some(source) = state.sources.values().filter_map(|v| v.last()).find(|s| {
+            super::runtime_capture::provenance(s)
+                .is_some_and(|m| &m.producer == producer && &m.request_id == request_id)
+        }) else {
+            return Ok(None);
+        };
+        Ok(state
+            .policies
+            .values()
+            .find(|p| p.source_ids.contains(&source.record.source_id))
+            .cloned())
+    }
 }
