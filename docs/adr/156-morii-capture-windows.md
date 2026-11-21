@@ -50,8 +50,9 @@ The local Mock analyzer may use a higher ceiling only on a synthetic root.
 - Each window adds one policy. The Vault allows 1024 policies, which leaves room
   for several years of daily windows at 128 turns each. Consolidation is a later
   slice if needed.
-- Real-root formation still needs a `CaptureAnalyzer`: Runtime's Mock for item C,
-  and a real model later, once Morii picks one and enters the key himself.
+- Real-root formation needs a `CaptureAnalyzer`. Under ADR-MEM-157 it is the
+  `SubmittedAnalyzer`, which forms exactly what ChatGPT submits; R4.3 item C
+  (Mock or Provider analyzer) is cancelled.
 - No persisted format, IPC command or wire change. `NativeMemoryOwner` gains two
   methods, so the Runtime surface digest changes; Workspace stays at 61 commands.
 

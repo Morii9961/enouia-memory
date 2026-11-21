@@ -927,3 +927,12 @@ ordinary formation policy for Runtime capture: his own subject, create-only, 128
 fresh source IDs, valid for 1 to 90 days. `capture_windows` lists open windows
 with unused IDs, so Runtime rotates windows instead of building policies by hand.
 No new delta or format.
+
+### ADR-MEM-157 — Daily memories distilled by ChatGPT, validated and stored by Memory
+
+[Decision](157-chatgpt-authored-daily-formation.md): Morii chose ChatGPT distillation.
+ChatGPT submits raw turns plus statements that quote user turns. Memory captures the
+turns through the owner capture path, and the captured worker forms exactly the
+submitted statements under its existing checks, attributed to ChatGPT and its model.
+This replaces server-side analysis (R4.3 B/C) and amends ADR-MEM-102's Runtime-only
+capture producer.

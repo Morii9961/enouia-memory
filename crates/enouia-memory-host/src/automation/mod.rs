@@ -7,6 +7,7 @@ pub mod attention;
 #[cfg(windows)]
 pub mod captured_worker;
 pub mod catalog;
+pub mod connector_formation;
 pub mod continuation;
 mod model;
 #[cfg(windows)]

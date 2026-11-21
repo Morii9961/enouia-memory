@@ -1,5 +1,16 @@
 # Runtime integration (ADR-MEM-45)
 
+2026-11-21 ChatGPT-authored daily formation ([ADR-MEM-157](../adr/157-chatgpt-authored-daily-formation.md)):
+new `automation::connector_formation` (`ConnectorSubmission`, `SubmittedAnalyzer`,
+`submit`) lets the remote connector hand ChatGPT's turns and distilled statements
+to the owner capture path and captured worker. Runtime calls none of it and has
+nothing to adopt. ChatGPT-formed memories show `prompt_version`
+`chatgpt-connector-authored-1` and the reported `model_version` in the existing
+catalog and detail reads; their conversations carry the connector's own capture
+provenance. No persisted format, IPC command or wire change; Workspace stays at 61
+commands. Surface aggregate (with ADR-MEM-156 merged):
+`c3c4358a7c6480e07e959f2598539b24cc5218df3d009379f7ab9818551cad94`.
+
 2026-11-21 Morii capture windows ([ADR-MEM-156](../adr/156-morii-capture-windows.md)):
 `NativeMemoryOwner::open_capture_window(days, max, allowed_forms)` commits a
 create-only formation policy for Runtime capture. It covers Morii's subject, has
