@@ -919,3 +919,11 @@ read (ADR-MEM-153), so they still work after formation windows end. Replay accep
 whichever basis reproduces the recorded scope hash, so earlier current-policy
 actions still replay. Binaries without this change refuse a Vault once it holds
 such a commit.
+
+### ADR-MEM-156 — Morii-opened capture windows for daily Runtime capture
+
+[Decision](156-morii-capture-windows.md): Morii-only `open_capture_window` commits an
+ordinary formation policy for Runtime capture: his own subject, create-only, 128
+fresh source IDs, valid for 1 to 90 days. `capture_windows` lists open windows
+with unused IDs, so Runtime rotates windows instead of building policies by hand.
+No new delta or format.

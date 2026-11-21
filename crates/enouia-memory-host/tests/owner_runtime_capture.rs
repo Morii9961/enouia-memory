@@ -1321,3 +1321,75 @@ fn hosted_worker_consumes_a_saved_supersede_report_into_a_revision_automatically
             .all(|s| s.state == FormationJobState::Formed && s.receipts.len() == 1)
     );
 }
+
+#[test]
+fn morii_capture_window_feeds_owner_runtime_capture_and_tracks_unused_ids() {
+    use enouia_memory_host::automation::owner::NativeMemoryOwner;
+    let e = owner_env();
+    let v = Arc::new(e.create(Faults::none()));
+    let owner =
+        NativeMemoryOwner::from_authenticated_owner(v.clone(), e.descriptor.created_by.clone())
+            .unwrap();
+    let forms = vec![
+        FormationKind::Fact,
+        FormationKind::Preference,
+        FormationKind::Episode,
+    ];
+    for days in [0, MAX_CAPTURE_WINDOW_DAYS + 1] {
+        assert!(
+            owner
+                .open_capture_window(days, Sensitivity::Private, forms.clone())
+                .is_err()
+        );
+    }
+    assert!(
+        owner
+            .open_capture_window(30, Sensitivity::Private, vec![])
+            .is_err()
+    );
+    assert!(
+        v.open_capture_window(
+            &e.descriptor.system_actor,
+            30,
+            Sensitivity::Private,
+            forms.clone()
+        )
+        .is_err()
+    );
+    assert!(owner.capture_windows().unwrap().is_empty());
+    let window = owner
+        .open_capture_window(30, Sensitivity::Private, forms.clone())
+        .unwrap();
+    let p = &window.policy;
+    assert_eq!(p.source_ids.len(), MAX_SOURCES);
+    assert_eq!(Some(&p.subject_id), e.descriptor.owner_subject_id.as_ref());
+    assert!(p.allow_create && p.target_ids.is_empty() && p.project_id.is_none());
+    assert_eq!(
+        p.valid_until.unix_ms() - p.valid_from.unix_ms(),
+        30 * 86_400_000
+    );
+    assert_eq!(
+        owner.capture_windows().unwrap()[0].unused_source_ids.len(),
+        MAX_SOURCES
+    );
+    // The window is an ordinary policy the existing owner Runtime capture accepts.
+    let captured = native_capture(&v, &e, p, &request());
+    assert!(!captured.sources.is_empty());
+    let windows = owner.capture_windows().unwrap();
+    assert_eq!(windows.len(), 1);
+    assert_eq!(
+        windows[0].unused_source_ids.len(),
+        MAX_SOURCES - captured.sources.len()
+    );
+    assert!(
+        captured
+            .sources
+            .iter()
+            .all(|s| !windows[0].unused_source_ids.contains(&s.source_id))
+    );
+    owner.lock().unwrap();
+    assert!(owner.capture_windows().is_err());
+    owner.unlock(&e.descriptor.created_by).unwrap();
+    e.clock.set(NOW + 31 * 86_400_000);
+    assert!(owner.capture_windows().unwrap().is_empty());
+}
