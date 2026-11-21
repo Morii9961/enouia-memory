@@ -1164,7 +1164,7 @@ fn emit_synthetic_owner_examples() {
 }
 
 #[test]
-fn owner_entity_merge_refuses_foreign_policy_aliases_and_commit_rechecks_permission_expiry() {
+fn owner_entity_merge_refuses_foreign_policy_aliases_and_formation_expiry_no_longer_blocks_morii() {
     let e = env();
     let v = Arc::new(e.create(Faults::none()));
     let (a, b, _) = entity_fixture(&e, &v);
@@ -1237,9 +1237,16 @@ fn owner_entity_merge_refuses_foreign_policy_aliases_and_commit_rechecks_permiss
         )
         .unwrap();
     let before = v.snapshot().unwrap();
+    // ADR-MEM-155: the formation window ending between confirmation and commit
+    // no longer withdraws Morii's own action on the memory.
     e.clock.set(NOW + 101);
-    assert!(h.commit(token).is_err());
-    assert_eq!(v.snapshot().unwrap(), before);
+    let outcome = h.commit(token).unwrap();
+    assert_ne!(v.snapshot().unwrap(), before);
+    assert_eq!(
+        h.outcome(&outcome.operation_id, Sensitivity::Private)
+            .unwrap(),
+        Some(outcome)
+    );
 }
 
 #[test]
@@ -1337,4 +1344,83 @@ fn owner_roots_cannot_be_adopted_or_rebound_by_editing_only_the_descriptor() {
             .is_err()
         );
     }
+}
+
+#[test]
+fn owner_actions_after_formation_windows_end_use_morii_full_history_and_replay() {
+    let e = env();
+    let v = Arc::new(e.create(Faults::none()));
+    let (a, i) = seed(&e, &v);
+    let p = e.policy(1, 1, 2);
+    let second = e.source(2, Sensitivity::Public);
+    v.capture(
+        &e.descriptor.system_actor,
+        vec![second.clone()],
+        RecordCatalog::default(),
+    )
+    .unwrap();
+    let b = commit(&e, &v, e.input(&second, &p, 2));
+    let b_target = v
+        .read(&e.descriptor.system_actor, Sensitivity::Private, |d| {
+            d.memories
+                .iter()
+                .find(|m| m.memory.memory == b.result)
+                .unwrap()
+                .target
+                .clone()
+        })
+        .unwrap();
+    // Fixture formation policies end at 2026-10-25T00:00Z.
+    e.clock.set(NOW + 86_400_000);
+    let h = NativeMemoryOwner::from_authenticated_owner(v.clone(), e.descriptor.created_by.clone())
+        .unwrap();
+    let corrected = execute(
+        &h,
+        h.plan(correct(a.clone()), Sensitivity::Private, Some(meta(&i)))
+            .unwrap(),
+    );
+    assert_eq!(corrected.memory_result.as_ref().unwrap().revision.get(), 2);
+    let withdrawn = execute(
+        &h,
+        h.plan(
+            OwnerAction::Withdraw {
+                target: b_target,
+                reason: None,
+            },
+            Sensitivity::Private,
+            None,
+        )
+        .unwrap(),
+    );
+    drop(h);
+    drop(v);
+    let reopened = Arc::new(e.open());
+    let h = NativeMemoryOwner::from_authenticated_owner(
+        reopened.clone(),
+        e.descriptor.created_by.clone(),
+    )
+    .unwrap();
+    assert_eq!(
+        h.outcome(&corrected.operation_id, Sensitivity::Private)
+            .unwrap(),
+        Some(corrected.clone())
+    );
+    assert!(
+        h.outcome(&withdrawn.operation_id, Sensitivity::Private)
+            .unwrap()
+            .is_some()
+    );
+    let full = SegmentedMemoryReader::from_authenticated_system_full_history(
+        reopened,
+        e.descriptor.system_actor.clone(),
+    )
+    .unwrap();
+    let p = profile();
+    let filter = CatalogFilter::default();
+    let page = full
+        .memory_page_native(&request(&p, &filter, Sensitivity::Private), None)
+        .unwrap();
+    assert_eq!(page.matched_in_scope, 1);
+    assert_eq!(page.items[0].base.memory.memory_id, a.memory.memory_id);
+    assert_eq!(page.items[0].base.memory.revision.get(), 2);
 }
