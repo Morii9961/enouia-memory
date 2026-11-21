@@ -74,6 +74,29 @@ The exposure scope (`subject_id`, `project_id`, `policy_ids`, `source_ids`,
 `max_sensitivity`, `source_read`) is exactly what ChatGPT may read. The Vault
 refuses anything an active policy does not cover. Unknown fields are refused.
 
+To let ChatGPT submit conversations and the memories it distilled
+([ADR-MEM-158](../adr/158-remote-connector-write-tool.md)), add an optional
+`connector` section. Without it the service stays read-only and never offers
+`memory.write`:
+
+```json
+  "connector": {
+    "producer_id": "prn_00000000-0000-4000-8000-000000000006",
+    "config": {
+      "account_scope": "chatgpt-connector",
+      "default_timezone": "Asia/Shanghai",
+      "max_sensitivity": "private",
+      "allowed_forms": ["fact", "preference", "episode", "open_loop"],
+      "window_days": 30
+    }
+  }
+```
+
+With it, approved clients receive `memory.write` as well. The service opens
+30-day capture windows as needed and forms submitted memories synchronously.
+ChatGPT should keep each memory's title inside the quoted text, because a title
+outside the quote is replaced by part of the quote.
+
 ## systemd (`/etc/systemd/system/enouia-memory-remote.service`)
 
 ```ini

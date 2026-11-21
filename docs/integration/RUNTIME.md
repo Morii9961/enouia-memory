@@ -1,5 +1,18 @@
 # Runtime integration (ADR-MEM-45)
 
+2026-11-21 remote connector write tool ([ADR-MEM-158](../adr/158-remote-connector-write-tool.md)):
+the remote service can enable `memory.write` and `memory_submit_conversation`
+for ChatGPT. `connector_formation` is now a platform-neutral `ConnectorWriter`;
+the earlier free `submit(host, analyzer, ...)` from ADR-MEM-157 is replaced. If a
+Runtime test used it, switch to `ConnectorWriter::new(vault, owner, producer,
+config).submit(submission, preflight, now_ms)`. Capture only accepts the
+`enouia-runtime` platform, so connector conversations are identified by the
+configured `account_scope`. For connector status in Settings or Inspector, read
+`NativeMemoryOwner::capture_windows()` (ceiling, forms, validity, unused IDs) and
+filter conversations by that `account_scope`; there is no new System port. No
+persisted format, IPC command or wire change; Workspace stays at 61 commands.
+Surface aggregate: `01dfe4c341d8de39334c46df4b1d893bde6c96c3ad9595a5a8ba7012b9ab7efc`.
+
 2026-11-21 ChatGPT-authored daily formation ([ADR-MEM-157](../adr/157-chatgpt-authored-daily-formation.md)):
 new `automation::connector_formation` (`ConnectorSubmission`, `SubmittedAnalyzer`,
 `submit`) lets the remote connector hand ChatGPT's turns and distilled statements

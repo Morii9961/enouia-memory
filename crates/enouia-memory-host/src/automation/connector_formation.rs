@@ -1,13 +1,18 @@
-//! ADR-MEM-157: daily memories distilled by ChatGPT and submitted through the
-//! remote connector. Memory only validates and stores: the submitted turns are
-//! captured through the owner Runtime capture path, and the captured formation
-//! worker forms the submitted statements under its existing checks.
+//! ADR-MEM-157/158: daily memories distilled by ChatGPT and submitted through
+//! the remote connector. Memory only validates and stores: the submitted turns
+//! are captured under a Morii capture window, and the captured formation step
+//! forms exactly the submitted statements under its existing checks. Uses the
+//! platform-neutral Vault API, so it runs wherever the remote service runs.
 use super::application::{ApplicationFault, ApplicationResult};
-use super::runtime_capture::RuntimeCaptureHost;
-use enouia_memory_contract::{common::SpeakerRole, next::*};
+use enouia_memory_contract::{
+    common::{ActorRef, ActorType, Sensitivity, SpeakerRole},
+    next::*,
+    time::Timestamp,
+};
 use enouia_memory_vault::automation::segmented::{
-    CaptureAnalysis, CaptureAnalyzer, CaptureStatement, CaptureStopToken, CapturedQueueReceipt,
-    NativeRuntimeCapture, PendingCaptureAnalysis, QueuedCapture,
+    CaptureAnalysis, CaptureAnalyzer, CaptureStatement, CaptureStopToken, CapturedFormation,
+    CapturedQueueReceipt, MAX_CAPTURE_WINDOW_DAYS, NativeRuntimeCapture, PendingCaptureAnalysis,
+    ProducerJobStatus, QueuedCapture, RuntimeCaptureScope, SegmentedAutomationVault,
 };
 use serde::{Deserialize, Serialize};
 use std::{
@@ -17,6 +22,11 @@ use std::{
 
 pub const PROMPT_VERSION: &str = "chatgpt-connector-authored-1";
 pub const MAX_STATEMENTS: usize = 32;
+pub const CAPTURE_PLATFORM: &str = "enouia-runtime";
+/// Formation steps one submission may drive before answering.
+const MAX_STEPS: usize = 64;
+/// Capture permits stay short (the Vault allows at most five minutes).
+const PERMIT_MS: i64 = 240_000;
 
 /// One memory ChatGPT distilled from a user turn of the same submission.
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -42,18 +52,33 @@ pub struct ConnectorSubmission {
     pub statements: Vec<ConnectorStatement>,
 }
 
+/// Fixed by Morii's service configuration, never by the submitting client.
+/// Owner capture accepts only the `enouia-runtime` platform, so the
+/// connector's conversations are told apart by `account_scope`.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ConnectorConfig {
+    pub account_scope: String,
+    pub default_timezone: String,
+    pub max_sensitivity: Sensitivity,
+    pub allowed_forms: Vec<FormationKind>,
+    pub window_days: u32,
+}
+
 #[derive(Serialize)]
 pub struct ConnectorReceipt {
-    pub capture: NativeRuntimeCapture,
+    pub capture: Option<NativeRuntimeCapture>,
     pub queue: Option<CapturedQueueReceipt>,
-    pub statements: usize,
+    pub jobs: Vec<ProducerJobStatus>,
+    /// True when preflight found no open window; one would be opened on submit.
+    pub window_needed: bool,
 }
 
 type Key = (String, String);
 
 /// A `CaptureAnalyzer` that returns exactly what was submitted for a turn. A
-/// turn that was never registered in this process (for example after a
-/// restart) pauses, so it stays queued until the same request is resubmitted.
+/// turn never registered in this process (for example after a restart) pauses,
+/// so it stays queued until the same request is resubmitted.
 #[derive(Clone, Default)]
 pub struct SubmittedAnalyzer(Arc<Mutex<BTreeMap<Key, Vec<CaptureStatement>>>>);
 
@@ -90,7 +115,7 @@ impl CaptureAnalyzer for SubmittedAnalyzer {
 
 impl ConnectorSubmission {
     /// Checks the submission against itself before anything reaches the Vault.
-    /// The Vault and the formation worker repeat their own checks.
+    /// The Vault and the formation step repeat their own checks.
     pub fn valid(&self) -> bool {
         let text_ok = |s: &str, max: usize| !s.trim().is_empty() && s.chars().count() <= max;
         self.request.valid()
@@ -148,37 +173,166 @@ impl ConnectorSubmission {
     }
 }
 
-/// Preflight writes nothing. Otherwise the statements are registered for the
-/// running worker, then the turns are captured and enqueued; a replayed request
-/// returns the original capture and does not enqueue twice.
-pub fn submit(
-    host: &RuntimeCaptureHost,
-    analyzer: &SubmittedAnalyzer,
-    submission: &ConnectorSubmission,
-    preflight: bool,
-) -> ApplicationResult<ConnectorReceipt> {
-    if !submission.valid() {
-        return Err(ApplicationFault::Invalid);
+/// Morii's connector writer for one leased Vault. Not reachable from a client
+/// without the remote service's own authorization (ADR-MEM-158).
+pub struct ConnectorWriter {
+    vault: Arc<SegmentedAutomationVault>,
+    owner: ActorRef,
+    producer: ActorRef,
+    config: ConnectorConfig,
+    analyzer: SubmittedAnalyzer,
+}
+
+impl ConnectorWriter {
+    /// The embedding native service authenticates Morii; `producer` is the
+    /// connector's own Client principal.
+    pub fn new(
+        vault: Arc<SegmentedAutomationVault>,
+        owner: ActorRef,
+        producer: ActorRef,
+        config: ConnectorConfig,
+    ) -> ApplicationResult<Self> {
+        if owner != vault.descriptor().created_by
+            || owner.actor_type != ActorType::Owner
+            || producer.actor_type != ActorType::Client
+            || !(1..=MAX_CAPTURE_WINDOW_DAYS).contains(&config.window_days)
+            || config.allowed_forms.is_empty()
+        {
+            return Err(ApplicationFault::Invalid);
+        }
+        Ok(Self {
+            vault,
+            owner,
+            producer,
+            config,
+            analyzer: SubmittedAnalyzer::default(),
+        })
     }
-    if preflight {
-        return Ok(ConnectorReceipt {
-            capture: host.preflight(&submission.request)?,
-            queue: None,
-            statements: submission.statements.len(),
+    pub fn config(&self) -> &ConnectorConfig {
+        &self.config
+    }
+    /// Preflight writes nothing. Otherwise: choose or open a capture window,
+    /// capture, enqueue, then drive formation for this submission and report
+    /// its jobs. A resubmitted request replays under its original window.
+    pub fn submit(
+        &self,
+        submission: &ConnectorSubmission,
+        preflight: bool,
+        now_ms: i64,
+    ) -> ApplicationResult<ConnectorReceipt> {
+        let at =
+            |offset: i64| Timestamp::from_unix_ms(now_ms + offset).ok_or(ApplicationFault::Invalid);
+        if !submission.valid() {
+            return Err(ApplicationFault::Invalid);
+        }
+        let request = &submission.request;
+        let turns = request.turns.len();
+        let replay = self.vault.capture_policy_for_request(
+            &self.owner,
+            &self.producer,
+            &request.request_id,
+        )?;
+        let policy = match replay {
+            Some(policy) => policy,
+            None => {
+                let needed_until = at(2 * PERMIT_MS)?;
+                let open = self
+                    .vault
+                    .capture_windows(&self.owner)?
+                    .into_iter()
+                    .find(|w| {
+                        w.unused_source_ids.len() >= turns
+                            && w.policy.valid_until > needed_until
+                            && w.policy.max_sensitivity == self.config.max_sensitivity
+                            && w.policy.allowed_forms == self.config.allowed_forms
+                    })
+                    .map(|w| w.policy);
+                match open {
+                    Some(policy) => policy,
+                    None if preflight => {
+                        return Ok(ConnectorReceipt {
+                            capture: None,
+                            queue: None,
+                            jobs: vec![],
+                            window_needed: true,
+                        });
+                    }
+                    None => {
+                        self.vault
+                            .open_capture_window(
+                                &self.owner,
+                                self.config.window_days,
+                                self.config.max_sensitivity,
+                                self.config.allowed_forms.clone(),
+                            )?
+                            .policy
+                    }
+                }
+            }
+        };
+        let permit = self.vault.authorize_owner_runtime_capture(
+            &self.owner,
+            self.producer.clone(),
+            RuntimeCaptureScope {
+                policy_id: policy.policy_id.clone(),
+                source_ids: policy.source_ids.clone(),
+                max_sensitivity: self.config.max_sensitivity,
+                platform: CAPTURE_PLATFORM.into(),
+                account_scope: self.config.account_scope.clone(),
+                default_timezone: self.config.default_timezone.clone(),
+                valid_until: at(PERMIT_MS)?,
+            },
+        )?;
+        if preflight {
+            let capture = self.vault.capture_runtime(&permit, request, true);
+            permit.revoke();
+            return Ok(ConnectorReceipt {
+                capture: Some(capture?),
+                queue: None,
+                jobs: vec![],
+                window_needed: false,
+            });
+        }
+        self.analyzer
+            .0
+            .lock()
+            .map_err(|_| ApplicationFault::Locked)?
+            .extend(submission.statements_by_turn());
+        let capture = self.vault.capture_runtime(&permit, request, false);
+        let queue = capture.as_ref().ok().map(|c| {
+            self.vault
+                .enqueue_captured(&self.vault.descriptor().system_actor, c, permit.policy())
         });
+        permit.revoke();
+        let capture = capture?;
+        let queue = queue.transpose()?;
+        let mut formation =
+            CapturedFormation::open(self.vault.clone(), &self.vault.descriptor().system_actor)?;
+        let mut analyzer = self.analyzer.clone();
+        for _ in 0..MAX_STEPS {
+            if !formation.step(&mut analyzer)? {
+                break;
+            }
+        }
+        let keys = queue
+            .as_ref()
+            .map(|q| q.job_keys.clone())
+            .unwrap_or_default();
+        Ok(ConnectorReceipt {
+            jobs: formation
+                .status()
+                .into_iter()
+                .filter(|j| keys.contains(&j.job_key))
+                .map(|j| ProducerJobStatus {
+                    job_key: j.job_key,
+                    state: j.state,
+                    receipts: j.receipts.len(),
+                    refused: j.refused,
+                })
+                .collect(),
+            capture: Some(capture),
+            queue,
+            window_needed: false,
+        })
     }
-    analyzer
-        .0
-        .lock()
-        .map_err(|_| ApplicationFault::Locked)?
-        .extend(submission.statements_by_turn());
-    let capture = host.capture(&submission.request)?;
-    let queue = (!capture.replayed)
-        .then(|| host.enqueue(&capture))
-        .transpose()?;
-    Ok(ConnectorReceipt {
-        capture,
-        queue,
-        statements: submission.statements.len(),
-    })
 }
