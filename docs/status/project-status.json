@@ -1,29 +1,29 @@
 {
-  "schema_version": "1.0",
+  "schema_version": "1.1",
   "project_id": "enouia.memory",
   "project_name": "Enouia Memory",
-  "snapshot_at": "2026-11-16T18:21:17+08:00",
+  "snapshot_at": "2026-11-21T13:11:01+08:00",
   "source": {
-    "branch": "codex/fresh-text-only-retention",
-    "commit_sha": "214373f3d116ff795bb6788cabf2bb9efd35ac41",
+    "branch": "main",
+    "commit_sha": "ae1f859b81d2226601cd215fb327c4f83ac86c49",
     "tests_rerun": false,
     "basis": [
-      "2026-11-16 Codex 按 Morii 明确请求更新状态；只核对 Git/GitHub、设计/ADR、保存报告及 Runtime 工程交接，未重跑产品测试或构建。",
-      "实现 checkout 为 PR #113 的 214373f；已交付 main 为 a543c1eb81e5d7150ebe7820592eea35a9042697（#111）。#110、#112、#113 仍开放，#112 依赖 #110。",
+      "2026-11-21 生成快照：只读 Git、GitHub 和仓库文档；不重跑测试、构建或真实验收",
+      "main@ae1f859（PR #128 合并提交），与 origin/main 一致",
+      "上一份快照（2026-11-16，Codex）之后合并的 #110～#128",
+      "docs/integration/INITIALIZED_VAULT.md（2026-11-19 状态与存放变化）",
+      "docs/design/IMPLEMENTATION_PLAN.md（2026-11-19 当前接续，第 15 节）",
       "docs/handoff/MEMORY_DELIVERY_ROUTE_2026-11-16.md",
-      "docs/integration/INITIALIZED_VAULT.md；docs/integration/RUNTIME.md；docs/adr/README.md",
-      "docs/validation/Fresh-visible-text-view.md：保存的全工作区 1082 passed / 0 failed / 6 ignored，另有 1 项原生合成演练；非本次重跑。",
-      "docs/validation/Fresh-text-only-retention.md：PR #113 保存的 initializer 64 passed / 0 failed / 1 ignored，另有 1 项原生合成演练；未合并、未用于真实输入。",
-      "https://github.com/Morii9961/enouia-memory/pull/110",
-      "https://github.com/Morii9961/enouia-memory/pull/112",
-      "https://github.com/Morii9961/enouia-runtime/blob/19ff0d1c53649f16bef97c131cfd755d1d39afdc/docs/integration/memory-pin.json",
-      "https://github.com/Morii9961/enouia-runtime/blob/19ff0d1c53649f16bef97c131cfd755d1d39afdc/docs/integration/RUNTIME_CONTINUATION_2026-11-12.md",
-      "对照 Moriium Dashboard docs/protocol/README.md 及 v1.0 schema；按 Memory AGENTS 保持协议 1.0，移除原文件仅属 1.1 的 reporter 和非里程碑 id。",
-      "已按主人授权清理 6 个本地、28 个远端已合并分支及旧共享构建目录；保留 main、3 个待合并分支、2 个工作树、交接/证据及用量数据。"
+      "enouia-runtime docs/integration/R4_AUTHORIZATION_GATES_2026-11-19.md",
+      "私人验收记录只在本机，本快照不引用其内容"
     ]
   },
-  "stage": "integration",
-  "summary": "原生建库、文字视图与连接器能力已推进；纯文本保留及恢复接续仍有3个开放PR。真实新库、全量容量与独立恢复未验收；Runtime已采用eb70509，但仍需ADR146兼容版本、正式Owner入口及新候选。",
+  "reporter": {
+    "agent": "claude",
+    "note": "Claude Opus 5.5"
+  },
+  "stage": "acceptance",
+  "summary": "11 月 18～19 日真实新库已原生形成、关闭重开并核对来源，主库迁入统一数据区，Morii 本人读取不再受期限限制；Runtime 已采用 f9ac21d 只读接入。剩下 Morii 亲自验收、独立介质备份（已暂缓），以及写入、模型、MCP 授权。",
   "overall_progress": null,
   "milestones": [
     {
@@ -75,40 +75,33 @@
     },
     {
       "id": "runtime_integration",
-      "title": "Runtime 已采用 eb70509 / 61 命令；ADR146 兼容与正式 Owner 产品接入待完成",
-      "status": "in_progress",
+      "title": "Runtime 已采用 Memory f9ac21d：登记只读入口读取全部敏感级别与全部历史",
+      "status": "done",
       "evidence_level": "repository",
       "evidence_refs": [
         "docs/integration/RUNTIME.md",
-        "https://github.com/Morii9961/enouia-runtime/pull/177",
-        "https://github.com/Morii9961/enouia-runtime/blob/19ff0d1c53649f16bef97c131cfd755d1d39afdc/docs/integration/RUNTIME_CONTINUATION_2026-11-12.md"
+        "enouia-runtime PR #219"
       ],
       "human_acceptance": "pending"
     },
     {
       "id": "long_running_safety",
-      "title": "备份基础已实现；fresh 恢复接续与真实独立备份恢复待验收",
+      "title": "同盘原生导出（seq 440）已校验并逐文件核对；独立物理介质加密备份与恢复验收暂缓",
       "status": "in_progress",
       "evidence_level": "existing_test",
       "evidence_refs": [
-        "docs/validation/Segmented-owner-backup.md",
-        "docs/validation/Owner-cross-platform-rehearsal.md",
-        "https://github.com/Morii9961/enouia-memory/pull/110",
-        "https://github.com/Morii9961/enouia-memory/pull/112"
+        "docs/integration/INITIALIZED_VAULT.md"
       ],
       "human_acceptance": "pending"
     },
     {
       "id": "history_initialization",
-      "title": "全新原始聊天分析到原生 Owner 库：入口已实现，纯文本全量容量和真实建库待完成",
-      "status": "in_progress",
+      "title": "从完整原始聊天全新形成真实新库：原生形成、关闭重开、来源核对已完成",
+      "status": "done",
       "evidence_level": "existing_test",
       "evidence_refs": [
         "docs/integration/INITIALIZED_VAULT.md",
-        "docs/validation/Fresh-native-driver.md",
-        "docs/validation/Fresh-visible-text-view.md",
-        "docs/validation/Fresh-text-only-retention.md",
-        "https://github.com/Morii9961/enouia-memory/pull/113"
+        "docs/design/IMPLEMENTATION_PLAN.md"
       ],
       "human_acceptance": "pending"
     },
@@ -127,13 +120,12 @@
     },
     {
       "id": "daily_use_v1",
-      "title": "真实新库在 Runtime 中可查询来源并独立恢复的日用闭环",
-      "status": "blocked",
-      "evidence_level": "repository",
+      "title": "真实新库在 Runtime 中只读查询与来源核对已接通；Morii 亲自验收和独立恢复未完成",
+      "status": "in_progress",
+      "evidence_level": "existing_test",
       "evidence_refs": [
-        "docs/handoff/MEMORY_DELIVERY_ROUTE_2026-11-16.md",
         "docs/integration/INITIALIZED_VAULT.md",
-        "docs/integration/RUNTIME.md"
+        "enouia-runtime docs/integration/R4_AUTHORIZATION_GATES_2026-11-19.md"
       ],
       "human_acceptance": "pending"
     },
@@ -203,48 +195,94 @@
         "docs/validation/MCP-5-opening-resources.md"
       ],
       "human_acceptance": "not_required"
+    },
+    {
+      "id": "storage_relocation",
+      "title": "主库迁入统一数据区（ADR-MEM-154）与 Morii 全历史本机读取（ADR-MEM-153）",
+      "status": "done",
+      "evidence_level": "repository",
+      "evidence_refs": [
+        "PR #127",
+        "PR #128",
+        "docs/adr/153-morii-full-history-native-read.md",
+        "docs/adr/154-relocate-registered-home.md"
+      ],
+      "human_acceptance": "not_required"
+    },
+    {
+      "id": "system_recall_preview",
+      "title": "分段 Vault 的原生 System 召回预览（ADR-MEM-152，#125）",
+      "status": "done",
+      "evidence_level": "existing_test",
+      "evidence_refs": [
+        "PR #125"
+      ],
+      "human_acceptance": "not_required"
+    },
+    {
+      "id": "r4_followups",
+      "title": "R4 后续能力（回看建议等，Morii 11-19 确定列入路线）",
+      "status": "not_started",
+      "evidence_level": "repository",
+      "evidence_refs": [
+        "docs/design/IMPLEMENTATION_PLAN.md 第 15 节"
+      ],
+      "human_acceptance": "not_required"
     }
   ],
   "blockers": [
     {
-      "title": "纯文本新库尚未实际交付",
-      "impact": "#113 未合并；完整真实 Plan/journal 生命周期容量、原生形成、重开查询及来源核验未完成。分析产物与合成测试不能代替交库。"
+      "id": "single_same_disk_backup",
+      "title": "只有一份同盘备份",
+      "impact": "独立物理介质的加密备份与恢复验收已由 Morii 11-19 暂缓；主库和备份在同一块盘上，附件原件已删除，无法取回。"
     },
     {
-      "title": "恢复出口和 Runtime 接入仍有缺口",
-      "impact": "#112 依赖 #110；真实独立恢复未验收。Runtime 的 eb70509 尚无 ADR146，旧候选 5175284 不能作为新 Owner 根交付包。"
+      "id": "morii_acceptance_pending",
+      "title": "还没有 Morii 亲自验收和真实安装",
+      "impact": "Runtime 候选 884c015 等一次性安装验收（门槛 G）；验收前只算本机代理验收。"
     },
     {
-      "title": "路线与旧状态文档曾落后于实际实现",
-      "impact": "旧候选迁入及重复 fresh-driver 任务不能继续作为当前路线；本次新增统一交付路线，历史段落的定点修订列入后续任务。"
+      "id": "write_gates_pending",
+      "title": "写入、模型、MCP 仍是只读",
+      "impact": "门槛 A～D 未授权：纠正、会话写入与形成、模型调用、外部 Agent 读写都不能用。"
     }
   ],
   "next_actions": [
     {
-      "title": "收束三个 PR 并交付可查询、可恢复的本机新库",
+      "id": "support_gate_g",
+      "title": "配合 Runtime 候选 884c015 的一次性验收",
       "priority": "P0",
-      "result": "先完成可审阅的组合核验并保留主人合并门槛；合并后做纯文本全量容量预检、原生形成、重开来源核验及独立恢复。"
+      "result": "Morii 在本机装上候选，确认能读到全部历史并核对来源，记下验收结论。"
     },
     {
-      "title": "由 Runtime 采用兼容版本并完成首个 Owner 接入",
+      "id": "r4_followups",
+      "title": "按计划第 15 节实现 R4 后续能力",
       "priority": "P1",
-      "result": "兼容 pin 准备可并行；以真实交库证据对接正式 Owner 入口、新候选及人工验收，不重做已完成的旧版本采用。"
+      "result": "回看建议等能力先以合成数据交 PR，合并后再接真实库。"
     },
     {
-      "title": "分开规划云端只读与持续采集写入",
+      "id": "independent_backup",
+      "title": "恢复独立介质加密备份与恢复验收",
       "priority": "P2",
-      "result": "待 Morii 决定真实权限、部署和备份条件后，再交付 VPS/ChatGPT 互通；自动采集、云端写入和离线同步另列出口。"
+      "result": "等 Morii 定下时间和介质后，做一次可恢复的独立备份并演练恢复。"
     }
   ],
   "needs_morii": [
     {
-      "decision": "待 Morii 决定：审阅合并 #110 → #112 及 #113；现有“新增能力先交 PR、等主人合并”门槛未被本次接续指令取消。"
+      "id": "gate_g_when",
+      "decision": "何时装上 Runtime 候选 884c015 做一次性验收？"
     },
     {
-      "decision": "待 Morii 决定：Runtime 首个正式 Owner 接入切片及真实安装/人工验收安排。"
+      "id": "independent_backup_when",
+      "decision": "独立物理介质加密备份何时恢复推进？用什么介质？"
     },
     {
-      "decision": "待 Morii 决定：独立备份目标，以及后续连接器真实来源、敏感度、原文权限、期限与 VPS 部署条件；不重复询问已确认的纯文本建库方向。"
+      "id": "write_gates",
+      "decision": "写入真实库、模型调用、MCP 读写（门槛 A～D）是否授权？按 A→C→B→D 的顺序吗？"
+    },
+    {
+      "id": "old_registration",
+      "decision": "统一数据区根上 10-28 的那份旧登记怎么处理？"
     }
   ]
 }
