@@ -1,6 +1,8 @@
 //! Explicit ADR-MEM-94 synthetic root. No implicit opening, migration or routes.
 mod agent;
 pub mod backup;
+mod capture_window;
+pub use capture_window::{CaptureWindow, MAX_CAPTURE_WINDOW_DAYS};
 mod catalog;
 mod correction_intake;
 mod forget_intake;
