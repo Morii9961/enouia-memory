@@ -1,5 +1,22 @@
 # Runtime integration (ADR-MEM-45)
 
+2026-11-21 Morii capture windows ([ADR-MEM-156](../adr/156-morii-capture-windows.md)):
+`NativeMemoryOwner::open_capture_window(days, max, allowed_forms)` commits a
+create-only formation policy for Runtime capture. It covers Morii's subject, has
+128 fresh source IDs and lasts 1 to 90 days.
+`NativeMemoryOwner::capture_windows()` lists open windows with their unused source
+IDs. For each capture session on the registered entry:
+
+1. Choose a window with enough unused IDs and time left, or open one. The R4.3
+   defaults are 30 days and `Private` while the analyzer is an external model.
+2. Build `RuntimeCaptureScope { policy_id, source_ids: unused_source_ids, ... }`.
+3. Enroll with `RuntimeCaptureHost::enroll_owner`.
+
+The window policy is an ordinary policy commit; there is no new format, IPC
+command or wire change. Workspace stays at 61 commands. Opening a window writes
+to the real Vault, so take the verified export first, as for other R4.3 writes.
+Surface aggregate: `e3408f62ef770514aea7a5030499a973ede47e5ca91c9ee3ec68a8c79f3a9477`.
+
 2026-11-21 Morii actions on full history ([ADR-MEM-155](../adr/155-owner-actions-full-history.md)):
 `NativeMemoryOwner` plan / `confirm_from_owner_gesture` / `commit` / `outcome`
 now find targets in Morii's full history. Correct, withdraw, forget, protect, tag

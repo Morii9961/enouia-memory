@@ -2,7 +2,7 @@
 use super::application::{ApplicationFault, ApplicationResult};
 use enouia_memory_contract::{common::*, hash::Sha256Hex, ids::OperationId, next::*};
 use enouia_memory_vault::automation::segmented::{
-    NativeOwnerConsent, NativeOwnerPreview, SegmentedAutomationVault,
+    CaptureWindow, NativeOwnerConsent, NativeOwnerPreview, SegmentedAutomationVault,
 };
 use std::sync::{Arc, RwLock, RwLockReadGuard};
 pub struct NativeMemoryOwner {
@@ -89,6 +89,22 @@ impl NativeMemoryOwner {
     pub fn commit(&self, consent: NativeOwnerConsent) -> ApplicationResult<NativeOwnerOutcome> {
         let _g = self.gate()?;
         Ok(self.vault.commit_owner_action(&self.owner, consent)?)
+    }
+    /// ADR-MEM-156: open a Runtime capture window (a fresh formation policy).
+    pub fn open_capture_window(
+        &self,
+        days: u32,
+        max: Sensitivity,
+        allowed_forms: Vec<FormationKind>,
+    ) -> ApplicationResult<CaptureWindow> {
+        let _g = self.gate()?;
+        Ok(self
+            .vault
+            .open_capture_window(&self.owner, days, max, allowed_forms)?)
+    }
+    pub fn capture_windows(&self) -> ApplicationResult<Vec<CaptureWindow>> {
+        let _g = self.gate()?;
+        Ok(self.vault.capture_windows(&self.owner)?)
     }
     pub fn outcome(
         &self,
