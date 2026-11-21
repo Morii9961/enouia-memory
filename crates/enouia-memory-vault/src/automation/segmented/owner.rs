@@ -235,6 +235,7 @@ impl State {
         max: Sensitivity,
         proposed: Option<&OwnerCorrectionMetadata>,
         confirmed_at: &Timestamp,
+        basis: ReadBasis<'_>,
     ) -> Result<(OwnerActionEffects, Vec<TargetRef>)> {
         if descriptor.layout != AutomationLayout::SegmentedOwnerV1
             || !descriptor.validate().is_empty()
@@ -247,7 +248,7 @@ impl State {
         {
             return deny();
         }
-        let data = self.authorized(descriptor, max, confirmed_at.clone())?;
+        let data = self.authorized_for(descriptor, max, confirmed_at.clone(), basis)?;
         let current = |t: &TargetRef| {
             data.memories
                 .iter()
@@ -332,7 +333,9 @@ impl State {
                             .unwrap_or(&e.entity_id)
                             == from_entity
                     }) {
-                        let p = self.policy(i).ok_or(AutomationFault::Denied)?;
+                        let p = self
+                            .read_policy(i, data.independent_read)
+                            .ok_or(AutomationFault::Denied)?;
                         if !self.entity_in_policy(into_entity, p, i.sensitivity) {
                             return deny();
                         }
@@ -380,7 +383,9 @@ impl State {
             {
                 return deny();
             }
-            let original = self.policy(i).ok_or(AutomationFault::Denied)?;
+            let original = self
+                .read_policy(i, data.independent_read)
+                .ok_or(AutomationFault::Denied)?;
             let mut source_ids = BTreeSet::from([source_id.clone()]);
             for e in &m.entities {
                 if !self.entity_in_policy(&e.entity_id, original, m.sensitivity) {
@@ -624,10 +629,25 @@ impl State {
         {
             return deny();
         }
-        let fresh = self.authorized(descriptor, effects.max_sensitivity, c.created_at.clone())?;
-        if scope_hash(&fresh) != effects.scope_hash {
-            return deny();
+        // ADR-MEM-155: actions planned before ADR-MEM-155 used the current-policy
+        // scope; later ones use Morii's full history. Replay picks whichever
+        // scope reproduces the recorded hash, so both kinds stay deterministic.
+        let mut basis = None;
+        for candidate in [ReadBasis::Current, ReadBasis::FullHistory] {
+            let fresh = self.authorized_for(
+                descriptor,
+                effects.max_sensitivity,
+                c.created_at.clone(),
+                candidate,
+            )?;
+            if scope_hash(&fresh) == effects.scope_hash {
+                basis = Some(candidate);
+                break;
+            }
         }
+        let Some(basis) = basis else {
+            return deny();
+        };
         let proposed = effects.correction.as_ref().map(metadata);
         let (mut expected, _) = self.owner_effects(
             descriptor,
@@ -635,6 +655,7 @@ impl State {
             effects.max_sensitivity,
             proposed.as_ref(),
             &record.confirmation.confirmed_at,
+            basis,
         )?;
         if let Some(correction) = &mut expected.correction {
             correction
@@ -731,7 +752,12 @@ impl SegmentedAutomationVault {
         | OwnerAction::ThemePin { theme, members }
         | OwnerAction::ThemeDissolve { theme, members } = &mut action
         {
-            let data = state.authorized(&self.native.descriptor, max, now.clone())?;
+            let data = state.authorized_for(
+                &self.native.descriptor,
+                max,
+                now.clone(),
+                ReadBasis::FullHistory,
+            )?;
             let seed = data
                 .memories
                 .iter()
@@ -744,7 +770,12 @@ impl SegmentedAutomationVault {
             impact_preview_hash,
         } = &mut action
         {
-            let data = state.authorized(&self.native.descriptor, max, now.clone())?;
+            let data = state.authorized_for(
+                &self.native.descriptor,
+                max,
+                now.clone(),
+                ReadBasis::FullHistory,
+            )?;
             let a = OwnerAction::Withdraw {
                 target: target.clone(),
                 reason: None,
@@ -770,8 +801,14 @@ impl SegmentedAutomationVault {
             .ok_or(AutomationFault::Capacity)?,
             action,
         };
-        let (effects, affected) =
-            state.owner_effects(&self.native.descriptor, &plan, max, metadata.as_ref(), &now)?;
+        let (effects, affected) = state.owner_effects(
+            &self.native.descriptor,
+            &plan,
+            max,
+            metadata.as_ref(),
+            &now,
+            ReadBasis::FullHistory,
+        )?;
         let preview = NativeOwnerPreview {
             plan: plan.clone(),
             effects_hash: digest(&effects),
@@ -846,6 +883,7 @@ impl SegmentedAutomationVault {
             p.effects.max_sensitivity,
             proposed.as_ref(),
             &now,
+            ReadBasis::FullHistory,
         )?;
         if let Some(correction) = &mut effects.correction {
             correction
@@ -957,7 +995,12 @@ impl SegmentedAutomationVault {
             .owner_actions
             .get(operation)
             .ok_or(AutomationFault::Denied)?;
-        let data = state.authorized(&self.native.descriptor, max, self.native.now()?)?;
+        let data = state.authorized_for(
+            &self.native.descriptor,
+            max,
+            self.native.now()?,
+            ReadBasis::FullHistory,
+        )?;
         let result = effects
             .correction
             .as_ref()

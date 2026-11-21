@@ -910,3 +910,12 @@ the trusted native `relocate` command rebinds only the registration's recorded
 path. It checks the account, operation, recorded old path and Vault descriptor,
 and requires that nothing remains at the old path. The registration format is
 unchanged, so earlier readers can open the relocated home.
+
+### ADR-MEM-155 — Morii's own actions work on his full history
+
+[Decision](155-owner-actions-full-history.md): Morii's corrections, withdrawals,
+forgets, protection, tags and theme/entity actions plan against his full-history
+read (ADR-MEM-153), so they still work after formation windows end. Replay accepts
+whichever basis reproduces the recorded scope hash, so earlier current-policy
+actions still replay. Binaries without this change refuse a Vault once it holds
+such a commit.

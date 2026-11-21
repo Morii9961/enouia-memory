@@ -1,5 +1,22 @@
 # Runtime integration (ADR-MEM-45)
 
+2026-11-21 Morii actions on full history ([ADR-MEM-155](../adr/155-owner-actions-full-history.md)):
+`NativeMemoryOwner` plan / `confirm_from_owner_gesture` / `commit` / `outcome`
+now find targets in Morii's full history. Correct, withdraw, forget, protect, tag
+and theme/entity actions therefore keep working after formation windows end.
+Replay accepts both the earlier current-policy actions and the new ones. The API
+signatures are unchanged.
+
+**Adoption order matters.** After the first new-style action is committed,
+binaries without this change refuse to open the Vault. Move the pin to this merge
+and rebuild the desktop and backup tools before the first real write. Make a
+verified native export with the new backup binary before each batch of real
+writes. For R4.3 the desktop surface is `TrustedSurface::TrustedWindowsApp`, and
+it should only call `confirm_from_owner_gesture` after Morii confirms the
+displayed plan. No persisted format, IPC command or wire change; Workspace stays
+at 61 commands. Surface aggregate:
+`ae79349ec939712bedfe8b002f05c468ee0d3beb4f1e190182223630a0c02e6c`.
+
 2026-11-19 Morii full-history reads and home relocation
 ([ADR-MEM-153](../adr/153-morii-full-history-native-read.md),
 [ADR-MEM-154](../adr/154-relocate-registered-home.md)):
