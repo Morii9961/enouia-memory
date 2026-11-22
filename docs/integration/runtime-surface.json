@@ -703,7 +703,7 @@
     {
       "path": "crates/enouia-memory-host/src/automation/catalog/projections.rs",
       "role": "host-session",
-      "sha256": "014ef2f603c20f817fbad6e07089423cd200754dbf6f36a5b2feb35e04428621"
+      "sha256": "a6fe7831ead00e2755a889e9af9dee46a5623b7f5ecb4c8611982c7cd1508450"
     },
     {
       "path": "crates/enouia-memory-host/src/automation/connector_formation.rs",
@@ -1401,5 +1401,5 @@
       "sha256": "3603c1855d9f9ec9b3585143a0191508980b260b1ffd26c82b3e6f9b7223a75d"
     }
   ],
-  "aggregate": "21bed91165b97b79df6e0ef16c3bd647e88899023ff83eaf019dea9ebfec08d5"
+  "aggregate": "9ff0a73ce2f15f4fe6b11eab332b3a5698e9be4ecdea548cc710b5fee39684f6"
 }
