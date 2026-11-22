@@ -499,12 +499,12 @@ fn real_owner_correction_needs_current_source_policy_and_stays_an_attributed_sta
         .iter()
         .map(|r| r.source_id.clone())
         .collect();
-    // The correction's reserved policy is Public; a broader requested ceiling
-    // must refuse, rather than silently borrowing the original policy's limit.
-    assert!(
-        h.reader(&e.descriptor.created_by, agent(78), selected.clone())
-            .is_err()
-    );
+    // The correction's reserved policy is Public. ADR-MEM-159: a broader
+    // ceiling is accepted but clamps to that policy's own Public maximum; it
+    // never borrows the original policy's limit.
+    h.reader(&e.descriptor.created_by, agent(78), selected.clone())
+        .unwrap()
+        .revoke();
     selected.max_sensitivity = Sensitivity::Public;
     assert_eq!(
         selected.subject_id, current.subject_id,

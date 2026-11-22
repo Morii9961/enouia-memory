@@ -1,5 +1,12 @@
 # Runtime integration (ADR-MEM-45)
 
+2026-11-22 read ceilings clamp per policy ([ADR-MEM-159](../adr/159-read-ceiling-clamps-per-policy.md)):
+segmented Agent permits and Owner read grants accept a `max_sensitivity` above a
+selected policy's maximum and clamp to that maximum per policy, instead of refusing.
+Runtime has nothing to adopt. Older binaries refuse a grant commit that relies on
+this, so move the pin before such a grant is written. No persisted format, IPC
+command or wire change; Workspace stays at 61 commands. Surface aggregate: `965f842c61f3c7d6616c332b00b46f417385d8f6e5a5c044d113dd6ef9af9772`.
+
 2026-11-21 remote connector write tool ([ADR-MEM-158](../adr/158-remote-connector-write-tool.md)):
 the remote service can enable `memory.write` and `memory_submit_conversation`
 for ChatGPT. `connector_formation` is now a platform-neutral `ConnectorWriter`;

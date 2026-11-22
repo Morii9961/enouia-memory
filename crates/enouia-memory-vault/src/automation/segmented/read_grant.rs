@@ -40,7 +40,6 @@ impl State {
                     p.reference() != *r
                         || p.subject_id != grant.subject_id
                         || p.project_id != grant.project_id
-                        || grant.max_sensitivity > p.max_sensitivity
                 })
             })
             || grant.source_ids.iter().any(|id| {

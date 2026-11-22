@@ -277,8 +277,10 @@ fn initialized_native_partial_sources_keep_exact_policy_subject_role_and_generat
         host.reader(&e.descriptor.created_by, agent(), wrong)
             .is_err()
     );
+    // ADR-MEM-159: a ceiling above the policy maximum clamps; an unknown
+    // policy still refuses.
     let mut wrong = selected.clone();
-    wrong.max_sensitivity = Sensitivity::HighlySensitive;
+    wrong.policy_ids = vec![PolicyId::parse(&id("pol", 9999)).unwrap()];
     assert!(
         host.reader(&e.descriptor.created_by, agent(), wrong)
             .is_err()
