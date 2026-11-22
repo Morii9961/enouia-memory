@@ -41,6 +41,21 @@ when a host explicitly starts it with corrections. Neither the remote connector
   worker stays opt-in, and no Morii-facing host starts it. Hosts must keep it
   that way while the queue is the confirmation path.
 
+## Addendum: hosting Agent pipes
+
+Claude Code and Codex start the `enouia-memory-mcp` stdio bridge themselves, so
+the hosting Runtime cannot know the bridge's PID before it connects.
+`windows::Pipe::client_pid()` reads the connected client's PID from the OS on
+the server end after `accept`. The host then calls `Enrollment::enroll(pid,
+principal, scopes)` and `serve_connection`. The trust basis is unchanged:
+
+- a per-Agent, per-protocol pipe name written only into that Agent's local MCP
+  configuration;
+- the current-user pipe ACL.
+
+A PID reported by the bridge itself would add nothing, because only the OS value
+can be checked.
+
 ## Consequences
 
 - Dismissals are local to the desktop that made them and are not in backups.
