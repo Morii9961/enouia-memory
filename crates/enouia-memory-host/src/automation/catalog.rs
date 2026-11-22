@@ -647,6 +647,7 @@ impl SegmentedMemoryReader {
     }
 }
 
+pub mod attention_schedule;
 mod projections;
 
 fn effective(entry: &SegmentedMemory) -> Sensitivity {

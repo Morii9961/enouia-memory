@@ -597,3 +597,148 @@ fn lexical_neighbor_suggestions_link_overlapping_memories_and_explain_shared_ter
     assert_eq!((coverage.candidates, coverage.retained), (1, 1));
     assert!(!page.semantic_neighbors_available);
 }
+
+#[test]
+fn attention_schedule_and_review_suggestions_derive_from_capture_time_and_profile() {
+    use enouia_memory_host::automation::catalog::attention_schedule::*;
+    const DAY: i64 = 86_400_000;
+    let at = |ms: i64| Timestamp::from_unix_ms(ms).unwrap();
+    let e = Env::new();
+    let v = Arc::new(e.create(Faults::none()));
+    let p = e.policy(1, 1, 4);
+    v.set_policy(&e.descriptor.created_by, p.clone()).unwrap();
+    // Profile: fade after 30 days, archive after 180. 1 fresh (valid until
+    // NOW + 5 days), 2 fading (archives in 10 days), 3 archived 20 days ago,
+    // 4 protected by the profile.
+    let ages = [0, 170, 200, 40];
+    let sources: Vec<_> = (1..=4)
+        .map(|n| {
+            let mut s = e.source(n, Sensitivity::Public);
+            s.record.captured_at = at(NOW - ages[n as usize - 1] * DAY);
+            s
+        })
+        .collect();
+    v.capture(
+        &e.descriptor.system_actor,
+        sources.clone(),
+        RecordCatalog::default(),
+    )
+    .unwrap();
+    let mut targets = vec![];
+    for (index, s) in sources.iter().enumerate() {
+        let mut input = e.input(s, &p, index as u32 + 1);
+        if index == 0 {
+            let (from, until) = (at(NOW - 30 * DAY), at(NOW + 5 * DAY));
+            input.dimensions.as_mut().unwrap().valid_time = Some(FormationTime {
+                from: from.clone(),
+                until: Some(until.clone()),
+            });
+            input.record_fields.as_mut().unwrap().valid_time = RecordTime {
+                from: Some(from),
+                until: Some(until),
+                precision: RecordPrecision::Instant,
+                bound: TimeBound::Span,
+                tz: Some("Etc/UTC".into()),
+                basis: TimeBasis::Stated,
+            };
+        }
+        targets.push(commit(&e, &v, input).result.memory_id);
+    }
+    let r = reader(&e, v);
+    let mut p = profile();
+    p.protected_ids = vec![targets[3].clone()];
+    let f = CatalogFilter::default();
+    let req = request(&p, &f);
+    let query = AttentionScheduleQuery {
+        from: at(NOW - 175 * DAY),
+        until: at(NOW + 181 * DAY),
+    };
+    let schedule = r
+        .memory_attention_schedule_native(&req, &query, None)
+        .unwrap();
+    assert_eq!(schedule.protected_in_scope, 1);
+    let seen: Vec<_> = schedule
+        .events
+        .iter()
+        .map(|ev| {
+            let n = targets
+                .iter()
+                .position(|t| t == &ev.memory.memory.memory_id)
+                .unwrap();
+            (n + 1, ev.transition, (ev.at.unix_ms() - NOW) / DAY, ev.past)
+        })
+        .collect();
+    use AttentionTransition::*;
+    assert_eq!(
+        seen,
+        vec![
+            (3, Fading, -170, true),
+            (2, Fading, -140, true),
+            (3, Archived, -20, true),
+            (2, Archived, 10, false),
+            (1, Fading, 30, false),
+            (1, Archived, 180, false),
+        ]
+    );
+    // Paging by two keeps the order and ends without a cursor.
+    let mut small = request(&p, &f);
+    small.options.limit = 2;
+    let mut paged = vec![];
+    let mut cursor = None;
+    loop {
+        let page = r
+            .memory_attention_schedule_native(&small, &query, cursor.as_ref())
+            .unwrap();
+        paged.extend(page.events);
+        match page.next {
+            Some(next) => cursor = Some(next),
+            None => break,
+        }
+    }
+    assert_eq!(paged, schedule.events);
+    let narrow = AttentionScheduleQuery {
+        from: at(NOW),
+        until: at(NOW + 31 * DAY),
+    };
+    assert_eq!(
+        r.memory_attention_schedule_native(&req, &narrow, None)
+            .unwrap()
+            .events
+            .len(),
+        2
+    );
+    assert!(
+        r.memory_attention_schedule_native(
+            &req,
+            &AttentionScheduleQuery {
+                from: at(NOW),
+                until: at(NOW + 400 * DAY),
+            },
+            None
+        )
+        .is_err()
+    );
+    // Review: the validity end (5 days) comes before the archive (10 days).
+    let review = r
+        .memory_review_suggestions_native(&req, &ReviewQuery { horizon_days: 14 })
+        .unwrap();
+    assert_eq!(review.total_in_horizon, 2);
+    assert_eq!(review.items[0].memory.memory.memory_id, targets[0]);
+    assert_eq!(
+        review.items[0].reasons,
+        vec![ReviewReason::ValidityEndsSoon]
+    );
+    assert_eq!(review.items[0].due, at(NOW + 5 * DAY));
+    assert_eq!(review.items[1].memory.memory.memory_id, targets[1]);
+    assert_eq!(review.items[1].reasons, vec![ReviewReason::ArchivesSoon]);
+    assert_eq!(review.items[1].attention, AttentionState::Fading);
+    assert_eq!(review.items[1].archives_at, Some(at(NOW + 10 * DAY)));
+    let short = r
+        .memory_review_suggestions_native(&req, &ReviewQuery { horizon_days: 7 })
+        .unwrap();
+    assert_eq!(short.total_in_horizon, 1);
+    assert!(
+        r.memory_review_suggestions_native(&req, &ReviewQuery { horizon_days: 91 })
+            .is_err()
+    );
+}

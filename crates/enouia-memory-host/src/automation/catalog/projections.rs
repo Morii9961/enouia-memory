@@ -237,7 +237,7 @@ pub(super) fn theme_budget(
     }
     Ok(())
 }
-fn header(
+pub(super) fn header(
     data: &AuthorizedSegmentedRead<'_>,
     selection: CatalogSelection,
     algorithm: &str,
@@ -259,12 +259,15 @@ fn header(
         limits,
     }
 }
-fn same_header(expected: &ProjectionHeader, current: &ProjectionHeader) -> bool {
+pub(super) fn same_header(expected: &ProjectionHeader, current: &ProjectionHeader) -> bool {
     let mut expected = expected.clone();
     expected.authorized_at = current.authorized_at.clone();
     expected == *current
 }
-fn finish<T: NextDocument + serde::Serialize>(value: T, max_bytes: usize) -> ApplicationResult<T> {
+pub(super) fn finish<T: NextDocument + serde::Serialize>(
+    value: T,
+    max_bytes: usize,
+) -> ApplicationResult<T> {
     if !value.validate().is_empty() || bytes(&value)? > max_bytes {
         return Err(invalid());
     }
