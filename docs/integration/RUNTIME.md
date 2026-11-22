@@ -1,5 +1,14 @@
 # Runtime integration (ADR-MEM-45)
 
+2026-11-23 Agent lexical neighbors ([ADR-MEM-167](../adr/167-agent-lexical-neighbors.md)):
+`QualifiedAgentReader::related` (the Agent `memory_related` tool) adds up to three
+`lexical_neighbor` suggested edges for the anchor, by the same rules as the System
+graph. `edge_coverage` now has five entries, and the related schemas allow five.
+Agent tool descriptions add that lexical neighbors are term-overlap suggestions.
+Runtime code that renders Agent related output should show these as
+suggestions with their shared terms. No persisted format, IPC command or protocol
+change; Workspace stays at 61 commands. Surface aggregate: `15020ff6796129d9023108b55851778ca15d74d9fbe772a8fbf33c7c824a978a`.
+
 2026-11-22 combined Agent protocol, idle reads and bridge library ([ADR-MEM-166](../adr/166-combined-agent-protocol-and-idle-reads.md)):
 `mcp::agent::native::serve_connection(reader, AgentWriters { note, correction,
 forget }, profile, pipe, enrollment, timeout, stop)` serves one connection with the

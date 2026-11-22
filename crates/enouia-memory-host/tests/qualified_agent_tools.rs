@@ -784,3 +784,123 @@ fn long_history_pages_bound_construction_and_bind_scope_profile_memory_and_snaps
             .is_err()
     );
 }
+
+#[test]
+fn related_suggests_lexical_neighbors_only_among_scoped_current_memories() {
+    let e = env();
+    let v = Arc::new(e.create(Faults::none()));
+    let p = e.policy(1, 1, 4);
+    v.set_policy(&e.descriptor.created_by, p.clone()).unwrap();
+    let texts = [
+        "I went hiking in the Alps with my sister last summer.",
+        "My sister wants to go hiking in the Alps again next summer.",
+        "Quarterly tax filing deadline moved to April.",
+        "我喜欢在雨天读科幻小说。",
+    ];
+    let sources: Vec<_> = texts
+        .iter()
+        .enumerate()
+        .map(|(n, t)| {
+            let mut s = e.source(n as u32 + 1, Sensitivity::Public);
+            s.text = t.to_string();
+            s.record.content_hash = enouia_memory_contract::hash::sha256(t.as_bytes());
+            s
+        })
+        .collect();
+    v.capture(
+        &e.descriptor.system_actor,
+        sources.clone(),
+        RecordCatalog::default(),
+    )
+    .unwrap();
+    let receipts: Vec<_> = sources
+        .iter()
+        .enumerate()
+        .map(|(n, s)| {
+            let mut input = e.input(s, &p, n as u32 + 1);
+            input.record_fields.as_mut().unwrap().title = s.text.clone();
+            publish(&v, &e, input)
+        })
+        .collect();
+    let memory = |n: usize| receipts[n].result.memory_id.clone();
+    let h =
+        QualifiedAgentHost::from_authenticated_owner(v.clone(), e.descriptor.created_by.clone())
+            .unwrap();
+    let all = h
+        .reader(
+            &e.descriptor.created_by,
+            agent(77),
+            scope(&e, &[1, 2, 3, 4], false),
+        )
+        .unwrap();
+    let lexical = |result: &Value| -> Vec<Value> {
+        result["suggested_edges"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter(|edge| edge["relation"] == "lexical_neighbor")
+            .cloned()
+            .collect()
+    };
+    let result = all
+        .related(&profile(), &memory(0), None, 64 * 1024)
+        .unwrap()
+        .unwrap();
+    let edges = lexical(&result);
+    assert_eq!(edges.len(), 1, "{edges:?}");
+    assert_eq!(edges[0]["from"], json!(memory(0)));
+    assert_eq!(edges[0]["to"], json!(memory(1)));
+    assert_eq!(edges[0]["class"], "algorithm_suggestion");
+    assert!(
+        edges[0]["witness"]
+            .as_str()
+            .unwrap()
+            .starts_with("shared_terms:")
+    );
+    assert!(edges[0]["witness"].as_str().unwrap().contains("alps"));
+    assert!(edges[0]["score_milli"].as_u64().unwrap() >= 150);
+    let coverage = result["edge_coverage"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|c| c["relation"] == "lexical_neighbor")
+        .unwrap();
+    assert_eq!(
+        (coverage["candidates"].clone(), coverage["retained"].clone()),
+        (json!(1), json!(1))
+    );
+    assert_eq!(result["edge_coverage"].as_array().unwrap().len(), 5);
+    assert_eq!(
+        result["unavailable"],
+        json!(["same_conversation", "semantic_neighbors"])
+    );
+    for n in [2, 3] {
+        let other = all
+            .related(&profile(), &memory(n), None, 64 * 1024)
+            .unwrap()
+            .unwrap();
+        assert!(lexical(&other).is_empty());
+    }
+    // A memory outside the reader's scope is never a neighbor.
+    let narrow = h
+        .reader(
+            &e.descriptor.created_by,
+            agent(78),
+            scope(&e, &[1, 3, 4], false),
+        )
+        .unwrap();
+    let result = narrow
+        .related(&profile(), &memory(0), None, 64 * 1024)
+        .unwrap()
+        .unwrap();
+    assert!(lexical(&result).is_empty());
+    assert!(!result.to_string().contains(memory(1).as_str()));
+    // Nor is a deleted one.
+    v.delete(&e.descriptor.created_by, vec![], vec![memory(1)])
+        .unwrap();
+    let result = all
+        .related(&profile(), &memory(0), None, 64 * 1024)
+        .unwrap()
+        .unwrap();
+    assert!(lexical(&result).is_empty());
+}

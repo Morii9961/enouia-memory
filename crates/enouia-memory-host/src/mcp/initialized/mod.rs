@@ -24,7 +24,7 @@ const TOOLS: [&str; 5] = [
     "memory_recall",
 ];
 pub(super) fn tools() -> Vec<Value> {
-    TOOLS.iter().map(|name|json!({"name":name,"description":"Scoped automation-root read. Attributed statements are subject statements, not verified facts; staged remains automatic reassessment. Coverage is explicit. Recorded relations are not independent verification. Theme suggestions are not facts. Same-conversation and semantic neighbors are unavailable. Native Owner proofs do not permit Owner actions. Reads do not reinforce attention.","inputSchema":schemas::schema(name,false).expect("tool"),"outputSchema":schemas::schema(name,true).expect("tool"),"annotations":{"readOnlyHint":true,"destructiveHint":false,"idempotentHint":true,"openWorldHint":false}})).collect()
+    TOOLS.iter().map(|name|json!({"name":name,"description":"Scoped automation-root read. Attributed statements are subject statements, not verified facts; staged remains automatic reassessment. Coverage is explicit. Recorded relations are not independent verification. Theme suggestions are not facts. Same-conversation and semantic neighbors are unavailable; lexical neighbors are term-overlap suggestions. Native Owner proofs do not permit Owner actions. Reads do not reinforce attention.","inputSchema":schemas::schema(name,false).expect("tool"),"outputSchema":schemas::schema(name,true).expect("tool"),"annotations":{"readOnlyHint":true,"destructiveHint":false,"idempotentHint":true,"openWorldHint":false}})).collect()
 }
 #[derive(Clone, Copy, Deserialize, Serialize)]
 enum Operation {
