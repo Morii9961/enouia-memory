@@ -1,5 +1,28 @@
 # Runtime integration (ADR-MEM-45)
 
+2026-11-22 persistent Agent registration ([ADR-MEM-160](../adr/160-agent-request-grants.md)):
+`OwnerReadGrant` gains optional `allow_requests`, and request-capable grants keep
+Agent notes, correction requests and forget requests working after formation
+windows end. Runtime Settings can manage one grant per Agent with the native Owner
+APIs on `SegmentedAutomationVault` (Morii as `owner`):
+
+- status: `owner_read_status(owner)` (policies, refs, grants) and
+  `owner_read_grant(owner, id)`;
+- register: build an `OwnerReadGrant` (Agent principal, Morii's subject, explicit
+  `policies` and `source_ids`, `max_sensitivity: private`, `source_read: true`,
+  `allow_requests: true`, 90 days), then `plan_owner_read_grant(owner, grant)`. Show
+  the plan and, on Morii's confirmation, call `commit_owner_read_grant(owner,
+  &plan)` within five minutes;
+- renew: the same grant with `revision + 1` and a later `valid_until`, then plan
+  and commit;
+- revoke: `revision + 1` and `active: false`, then plan and commit.
+
+The Agent side uses
+`QualifiedAgentHost::{note_writer, correction_reporter, forget_requester}_with_owner_grant`
+and `reader_with_owner_grant`. Adopt this pin before writing a grant with
+`allow_requests`; older binaries refuse it. No IPC command or wire change;
+Workspace stays at 61 commands. Surface aggregate: `3fce2ac5dda0eb75f58afd2ad8230ac75ce388af460c2c9c8ad0149899e2a74a`.
+
 2026-11-22 read ceilings clamp per policy ([ADR-MEM-159](../adr/159-read-ceiling-clamps-per-policy.md)):
 segmented Agent permits and Owner read grants accept a `max_sensitivity` above a
 selected policy's maximum and clamp to that maximum per policy, instead of refusing.

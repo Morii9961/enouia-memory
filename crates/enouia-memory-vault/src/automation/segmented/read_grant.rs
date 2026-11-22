@@ -19,6 +19,29 @@ pub struct OwnerReadStatus {
 }
 
 impl State {
+    /// ADR-MEM-160: an active request-capable grant of `principal` covers this
+    /// exact source and policy revision at `at`. Grants are on the same chain,
+    /// so replay sees exactly the grants that existed at that commit.
+    pub(super) fn request_grant_covers(
+        &self,
+        principal: &ActorRef,
+        source: &enouia_memory_contract::common::SourceRevisionRef,
+        policy: &AutomationPolicy,
+        sensitivity: Sensitivity,
+        at: &Timestamp,
+    ) -> bool {
+        let reference = policy.reference();
+        self.read_grants.values().any(|g| {
+            g.active
+                && g.allow_requests
+                && &g.principal == principal
+                && *at >= g.valid_from
+                && *at < g.valid_until
+                && sensitivity <= g.max_sensitivity
+                && g.source_ids.contains(&source.source_id)
+                && g.policies.contains(&reference)
+        })
+    }
     pub(super) fn check_read_grant(
         &self,
         descriptor: &AutomationDescriptor,

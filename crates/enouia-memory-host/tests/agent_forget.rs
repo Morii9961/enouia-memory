@@ -616,3 +616,75 @@ fn forget_server_live_gate_keeps_full_call_when_native_publication_is_already_un
         );
     }
 }
+
+#[test]
+fn request_capable_grant_keeps_forget_requests_working_after_formation_windows_end() {
+    use enouia_memory_contract::time::Timestamp;
+    let (e, v, p, request) = forget_rig(SpeakerRole::User);
+    let owner = &e.descriptor.created_by;
+    let agent = actor(ActorType::Agent, 88);
+    let sources = vec![
+        request.source.source_id.clone(),
+        e.source(8, Sensitivity::Public).record.source_id,
+    ];
+    let grant = |n: u32, allow_requests: bool| OwnerReadGrant {
+        grant_id: PolicyId::parse(&id("pol", n)).unwrap(),
+        revision: Revision::new(1).unwrap(),
+        vault_id: e.descriptor.vault_id.clone(),
+        principal: agent.clone(),
+        subject_id: p.subject_id.clone(),
+        project_id: p.project_id.clone(),
+        policies: vec![p.reference()],
+        source_ids: sources.clone(),
+        max_sensitivity: Sensitivity::Private,
+        source_read: true,
+        active: true,
+        valid_from: Timestamp::from_unix_ms(NOW).unwrap(),
+        valid_until: Timestamp::from_unix_ms(NOW + 90 * 86_400_000).unwrap(),
+        allow_requests,
+    };
+    // A request-capable grant must also allow source reads.
+    let mut blind = grant(9202, true);
+    blind.source_read = false;
+    assert!(v.plan_owner_read_grant(owner, blind).is_err());
+    for g in [grant(9200, false), grant(9201, true)] {
+        let plan = v.plan_owner_read_grant(owner, g).unwrap();
+        v.commit_owner_read_grant(owner, &plan).unwrap();
+    }
+    // The fixture formation policy ends at 2026-10-25T00:00Z.
+    e.clock.set(NOW + 86_400_000);
+    let mut s = scope(&p);
+    s.source_ids = sources.clone();
+    s.valid_until = Timestamp::from_unix_ms(NOW + 86_400_000 + 120_000).unwrap();
+    let host =
+        QualifiedAgentHost::from_authenticated_initialized_owner(v.clone(), owner.clone()).unwrap();
+    assert!(
+        host.forget_requester(owner, agent.clone(), s.clone())
+            .is_err()
+    );
+    let read_only = PolicyId::parse(&id("pol", 9200)).unwrap();
+    assert!(
+        host.forget_requester_with_owner_grant(owner, agent.clone(), &read_only, s.clone())
+            .is_err()
+    );
+    let capable = PolicyId::parse(&id("pol", 9201)).unwrap();
+    let receipt = host
+        .forget_requester_with_owner_grant(owner, agent.clone(), &capable, s.clone())
+        .unwrap()
+        .submit(&request)
+        .unwrap();
+    assert_eq!(receipt.state, AgentForgetState::ForgetRequestSaved);
+    drop(host);
+    drop(v);
+    // Reopen replays the chain: the saved request is admitted under the grant
+    // that existed when it was committed, and the original key replays.
+    let reopened = Arc::new(e.open());
+    let host =
+        QualifiedAgentHost::from_authenticated_initialized_owner(reopened, owner.clone()).unwrap();
+    let replay = host
+        .forget_requester_with_owner_grant(owner, agent, &capable, s)
+        .unwrap()
+        .submit(&request)
+        .unwrap();
+    assert_eq!(replay, receipt);
+}

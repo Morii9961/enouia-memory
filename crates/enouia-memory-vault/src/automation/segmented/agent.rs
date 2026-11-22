@@ -572,6 +572,68 @@ impl SegmentedAutomationVault {
     }
     /// Explicit trusted native Owner delegation; existing read permits do not
     /// authorize note submission, and this preparation route writes nothing.
+    /// ADR-MEM-160: the selected grant must be request-capable; the read part
+    /// is the existing grant-backed permit, so it outlives formation windows.
+    fn request_grant_read(
+        &self,
+        owner: &ActorRef,
+        principal: ActorRef,
+        grant_id: &PolicyId,
+        scope: SegmentedAgentScope,
+    ) -> Result<SegmentedAgentPermit> {
+        if !scope.source_read {
+            return Err(AutomationFault::Denied);
+        }
+        {
+            let _writer = lock::acquire(&self.native.root, Duration::ZERO)?;
+            let state = self
+                .state
+                .lock()
+                .map_err(|_| AutomationFault::Unavailable)?;
+            self.current(&state)?;
+            if !state
+                .read_grants
+                .get(grant_id)
+                .is_some_and(|g| g.allow_requests && g.principal == principal)
+            {
+                return Err(AutomationFault::Denied);
+            }
+        }
+        self.authorize_owner_grant_read(owner, principal, grant_id, scope)
+    }
+    pub fn authorize_granted_agent_note(
+        &self,
+        owner: &ActorRef,
+        principal: ActorRef,
+        grant_id: &PolicyId,
+        scope: SegmentedAgentScope,
+    ) -> Result<AgentNotePermit> {
+        let read = self.request_grant_read(owner, principal, grant_id, scope)?;
+        let hash = digest(&(AGENT_NOTE_CAPABILITY, read.scope_hash()));
+        Ok(AgentNotePermit { read, hash })
+    }
+    pub fn authorize_granted_agent_correction(
+        &self,
+        owner: &ActorRef,
+        principal: ActorRef,
+        grant_id: &PolicyId,
+        scope: SegmentedAgentScope,
+    ) -> Result<AgentCorrectionPermit> {
+        let read = self.request_grant_read(owner, principal, grant_id, scope)?;
+        let hash = digest(&(AGENT_CORRECTION_CAPABILITY, read.scope_hash()));
+        Ok(AgentCorrectionPermit { read, hash })
+    }
+    pub fn authorize_granted_agent_forget(
+        &self,
+        owner: &ActorRef,
+        principal: ActorRef,
+        grant_id: &PolicyId,
+        scope: SegmentedAgentScope,
+    ) -> Result<AgentForgetPermit> {
+        let read = self.request_grant_read(owner, principal, grant_id, scope)?;
+        let hash = digest(&(AGENT_FORGET_CAPABILITY, read.scope_hash()));
+        Ok(AgentForgetPermit { read, hash })
+    }
     pub fn authorize_agent_note(
         &self,
         owner: &ActorRef,
