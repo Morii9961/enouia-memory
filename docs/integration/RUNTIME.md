@@ -1,5 +1,17 @@
 # Runtime integration (ADR-MEM-45)
 
+2026-11-22 grant-backed permits renew in place ([ADR-MEM-163](../adr/163-grant-backed-permit-renewal.md)):
+readers and writers from `QualifiedAgentHost::reader_with_owner_grant` and
+`{note_writer, correction_reporter, forget_requester}_with_owner_grant` renew their
+five-minute permit at each connection check while the Owner read grant is the
+exact current revision, active and unexpired. A pipe session served by
+`serve_connection` therefore stays connected past five minutes, including after
+long idle periods. Runtime changes no call site: keep one reader and writer per
+connection and move the pin. Grant revoke, renew or narrow still ends live
+connections at the next check, and window-based permits still end at their own
+`valid_until`. The permit types gain `renew(vault)`. No persisted format, IPC
+command, wire or protocol change; Workspace stays at 61 commands. Surface aggregate: `be7b5df36ce1e5bd0bc00e470415e3e3dea5126440e8f28a0194345e53997ba0`.
+
 2026-11-22 lexical neighbor suggestions ([ADR-MEM-162](../adr/162-lexical-neighbor-suggestions.md)):
 `GraphEdgeKind` gains `lexical_neighbor` (`lexical_neighbor` on the wire), always
 `class: algorithm_suggestion` with `score_milli` and a `witness` of
