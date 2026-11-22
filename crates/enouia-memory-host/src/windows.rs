@@ -301,13 +301,17 @@ impl Pipe {
             server: false,
         })
     }
+    /// `deadline: None` waits without a time limit (ADR-MEM-166); `proceed`
+    /// runs every quarter second while the operation is pending, and `false`
+    /// cancels it with `Interrupted`.
     fn operation(
         &mut self,
-        deadline: Instant,
+        deadline: Option<Instant>,
         connect: bool,
+        proceed: &mut dyn FnMut() -> bool,
         start: impl FnOnce(HANDLE, *mut OVERLAPPED) -> i32,
     ) -> io::Result<u32> {
-        if Instant::now() >= deadline {
+        if deadline.is_some_and(|d| Instant::now() >= d) {
             return Err(io::ErrorKind::TimedOut.into());
         }
         // SAFETY: unnamed manual-reset event, noninherited and initially nonsignaled.
@@ -334,16 +338,25 @@ impl Pipe {
                 return Err(e);
             }
         }
-        let remaining = deadline.saturating_duration_since(Instant::now());
-        let wait_ms = remaining.as_millis().min(u128::from(u32::MAX - 1)) as u32;
-        // SAFETY: the live event belongs exclusively to this OVERLAPPED.
-        let waited = unsafe { WaitForSingleObject(raw(&event), wait_ms) };
-        let wait_error = if waited == WAIT_OBJECT_0 {
-            None
-        } else if waited == WAIT_TIMEOUT {
-            Some(io::Error::from(io::ErrorKind::TimedOut))
-        } else {
-            Some(io::Error::last_os_error())
+        let wait_error = loop {
+            let slice = Duration::from_millis(250);
+            let wait = deadline.map_or(slice, |d| {
+                d.saturating_duration_since(Instant::now()).min(slice)
+            });
+            // SAFETY: the live event belongs exclusively to this OVERLAPPED.
+            let waited = unsafe { WaitForSingleObject(raw(&event), wait.as_millis() as u32) };
+            if waited == WAIT_OBJECT_0 {
+                break None;
+            }
+            if waited != WAIT_TIMEOUT {
+                break Some(io::Error::last_os_error());
+            }
+            if deadline.is_some_and(|d| Instant::now() >= d) {
+                break Some(io::Error::from(io::ErrorKind::TimedOut));
+            }
+            if !proceed() {
+                break Some(io::Error::from(io::ErrorKind::Interrupted));
+            }
         };
         if wait_error.is_some() {
             // SAFETY: cancel only this operation; it may already have completed.
@@ -365,10 +378,15 @@ impl Pipe {
         if !self.server {
             return Err(denied());
         }
-        self.operation(Instant::now() + timeout, true, |h, o| {
-            // SAFETY: live pipe/event/OVERLAPPED retained by operation until completion.
-            unsafe { ConnectNamedPipe(h, o) }
-        })?;
+        self.operation(
+            Some(Instant::now() + timeout),
+            true,
+            &mut || true,
+            |h, o| {
+                // SAFETY: live pipe/event/OVERLAPPED retained by operation until completion.
+                unsafe { ConnectNamedPipe(h, o) }
+            },
+        )?;
         Ok(())
     }
     /// ADR-MEM-161 addendum: the connected client's process ID, read from
@@ -407,7 +425,7 @@ impl Pipe {
     pub fn read_exact(&mut self, mut bytes: &mut [u8], deadline: Instant) -> io::Result<()> {
         while !bytes.is_empty() {
             let len = bytes.len().min(u32::MAX as usize) as u32;
-            let n = self.operation(deadline, false, |h, o| {
+            let n = self.operation(Some(deadline), false, &mut || true, |h, o| {
                 // SAFETY: output buffer remains borrowed until operation drains completion.
                 unsafe { ReadFile(h, bytes.as_mut_ptr(), len, ptr::null_mut(), o) }
             })? as usize;
@@ -418,10 +436,28 @@ impl Pipe {
         }
         Ok(())
     }
+    /// ADR-MEM-166: waits without a time limit for the next bytes of an idle
+    /// connection and returns how many arrived. `proceed` runs every quarter
+    /// second; `false` cancels the pending read with `Interrupted`.
+    pub fn read_idle(
+        &mut self,
+        bytes: &mut [u8],
+        proceed: &mut dyn FnMut() -> bool,
+    ) -> io::Result<usize> {
+        let len = bytes.len().min(u32::MAX as usize) as u32;
+        let n = self.operation(None, false, proceed, |h, o| {
+            // SAFETY: output buffer remains borrowed until operation drains completion.
+            unsafe { ReadFile(h, bytes.as_mut_ptr(), len, ptr::null_mut(), o) }
+        })? as usize;
+        if n == 0 {
+            return Err(io::ErrorKind::UnexpectedEof.into());
+        }
+        Ok(n)
+    }
     pub fn write_all(&mut self, mut bytes: &[u8], deadline: Instant) -> io::Result<()> {
         while !bytes.is_empty() {
             let len = bytes.len().min(u32::MAX as usize) as u32;
-            let n = self.operation(deadline, false, |h, o| {
+            let n = self.operation(Some(deadline), false, &mut || true, |h, o| {
                 // SAFETY: input buffer remains borrowed until operation drains completion.
                 unsafe { WriteFile(h, bytes.as_ptr(), len, ptr::null_mut(), o) }
             })? as usize;

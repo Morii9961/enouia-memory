@@ -1,5 +1,8 @@
 //! Restricted MCP 2025-11-25 boundary (ADR-MEM-80).
 //! Opt-in native enrollment lives in `native`; no owner bridge or automatic retry.
+pub mod agent;
+#[cfg(windows)]
+pub mod bridge;
 pub mod catalog;
 pub mod corrections;
 pub mod forget_requests;
@@ -17,6 +20,13 @@ pub mod remote;
 pub mod supersedes;
 pub mod v2;
 pub use read::{HostPort, ReadPort};
+
+/// One write-tool call (ADR-MEM-166). `Reply` carries the response and whether
+/// the session must close; `Unknown` means the write outcome is uncertain.
+pub(crate) enum WriteCall {
+    Reply(Value, bool),
+    Unknown,
+}
 
 use enouia_memory_contract::common::{ActorRef, ActorType};
 use enouia_memory_contract::ipc::{self, Arguments, IpcRequest, Operation};

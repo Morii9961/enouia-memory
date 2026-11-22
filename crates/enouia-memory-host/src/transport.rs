@@ -32,9 +32,32 @@ impl From<ServiceFault> for TransportFault {
     }
 }
 pub(crate) fn read(pipe: &mut Pipe, client: bool, timeout: Duration) -> Result<(Tag, Vec<u8>)> {
-    let deadline = Instant::now() + timeout;
+    read_frame(pipe, client, timeout, None)
+}
+/// ADR-MEM-166: an idle wait for the next frame is not a timeout. `proceed`
+/// runs every quarter second until the frame starts; the rest of the frame
+/// must arrive within `timeout`.
+pub(crate) fn read_idle(
+    pipe: &mut Pipe,
+    client: bool,
+    timeout: Duration,
+    proceed: &mut dyn FnMut() -> bool,
+) -> Result<(Tag, Vec<u8>)> {
+    read_frame(pipe, client, timeout, Some(proceed))
+}
+fn read_frame(
+    pipe: &mut Pipe,
+    client: bool,
+    timeout: Duration,
+    idle: Option<&mut dyn FnMut() -> bool>,
+) -> Result<(Tag, Vec<u8>)> {
     let mut header = [0; 5];
-    pipe.read_exact(&mut header, deadline)?;
+    let have = match idle {
+        Some(proceed) => pipe.read_idle(&mut header, proceed)?,
+        None => 0,
+    };
+    let deadline = Instant::now() + timeout;
+    pipe.read_exact(&mut header[have..], deadline)?;
     let tag = Tag::decode(header[0], client)?;
     let len = u32::from_le_bytes(header[1..].try_into().expect("four-byte frame size")) as usize;
     if len == 0 || len > tag.limit() {
