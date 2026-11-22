@@ -1,5 +1,22 @@
 # Runtime integration (ADR-MEM-45)
 
+2026-11-22 attention schedule and review suggestions ([ADR-MEM-164](../adr/164-attention-schedule-and-review-suggestions.md)):
+`SegmentedMemoryReader` gains two read-only System projections in
+`automation::catalog::attention_schedule`:
+
+- `memory_attention_schedule_native(request, &AttentionScheduleQuery { from, until }, cursor)`
+  for windows of up to 366 days. Its events (`fading` / `archived`, `at`, `past`,
+  memory and title) can mark fade and archive moments on the timeline. Page with
+  `next`.
+- `memory_review_suggestions_native(request, &ReviewQuery { horizon_days })`, with
+  1 to 90 days, for the G24 review list. Items carry `reasons`
+  (`archives_soon`, `validity_ends_soon`), `due`, `archives_at`, `valid_until`
+  and the attention state, sorted by `due`; `total_in_horizon` counts them all.
+
+Label both as derived and time-based. Review, correction or protection still go
+through the existing Owner action flow. No persisted format, contract schema,
+IPC command or wire change; Workspace stays at 61 commands. Surface aggregate: `5eb93d9b08b3c36c90ce8b5795a396cd4236a5589a5b27ccb411386d5d2fca3a`.
+
 2026-11-22 grant-backed permits renew in place ([ADR-MEM-163](../adr/163-grant-backed-permit-renewal.md)):
 readers and writers from `QualifiedAgentHost::reader_with_owner_grant` and
 `{note_writer, correction_reporter, forget_requester}_with_owner_grant` renew their
@@ -21,6 +38,7 @@ when the pin moves: draw it as a suggestion and show the shared terms. The heade
 the limit note `lexical_neighbors_are_term_overlap_suggestions`, and
 `semantic_neighbors_available` stays false. No persisted format or IPC command
 change; Workspace stays at 61 commands. Surface aggregate: `f95185c8a9d23c5c10b2704b90a6c6267f739da8b5e99d7bbac51f27271300db`.
+
 
 2026-11-22 Agent request queue ([ADR-MEM-161](../adr/161-agent-request-queue.md)):
 `NativeMemoryOwner::agent_requests(max)` lists saved Agent correction and forget

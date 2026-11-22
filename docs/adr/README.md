@@ -982,3 +982,11 @@ as witness. Semantic (model or embedding) neighbors stay unavailable.
 grant extends itself to `min(now + 5 minutes, grant end)` at each host connection
 check while the grant is the exact current revision. Long Agent pipe sessions stay
 connected; a grant change still revokes at once; window permits never renew.
+
+### ADR-MEM-164 — Time-derived attention schedule and review suggestions
+
+[Decision](164-attention-schedule-and-review-suggestions.md): two read-only System
+projections. One lists when selected, unprotected memories enter Fading and
+Archived; the other suggests memories to review because they archive soon or
+their validity ends soon. Both are recomputed from capture time and the
+attention profile and are kept apart from the publication-proof activity feed.
