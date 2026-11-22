@@ -737,3 +737,78 @@ fn morii_queue_lists_saved_forget_requests_until_the_target_is_forgotten() {
     morii.lock().unwrap();
     assert!(morii.agent_requests(Sensitivity::Private).is_err());
 }
+
+#[test]
+fn grant_backed_connections_renew_past_five_minutes_until_the_grant_changes() {
+    use enouia_memory_contract::time::Timestamp;
+    let (e, v, p, request) = forget_rig(SpeakerRole::User);
+    let owner = &e.descriptor.created_by;
+    let agent = actor(ActorType::Agent, 89);
+    let sources = vec![request.source.source_id.clone()];
+    let grant_id = PolicyId::parse(&id("pol", 9300)).unwrap();
+    let grant = |revision: u64, active: bool| OwnerReadGrant {
+        grant_id: grant_id.clone(),
+        revision: Revision::new(revision).unwrap(),
+        vault_id: e.descriptor.vault_id.clone(),
+        principal: agent.clone(),
+        subject_id: p.subject_id.clone(),
+        project_id: p.project_id.clone(),
+        policies: vec![p.reference()],
+        source_ids: sources.clone(),
+        max_sensitivity: Sensitivity::Private,
+        source_read: true,
+        active,
+        valid_from: Timestamp::from_unix_ms(NOW).unwrap(),
+        valid_until: Timestamp::from_unix_ms(NOW + 600_000).unwrap(),
+        allow_requests: true,
+    };
+    let commit = |g: OwnerReadGrant| {
+        let plan = v.plan_owner_read_grant(owner, g).unwrap();
+        v.commit_owner_read_grant(owner, &plan).unwrap();
+    };
+    let scoped = |until: i64| {
+        let mut s = scope(&p);
+        s.source_ids = sources.clone();
+        s.valid_until = Timestamp::from_unix_ms(until).unwrap();
+        s
+    };
+    commit(grant(1, true));
+    let host =
+        QualifiedAgentHost::from_authenticated_initialized_owner(v.clone(), owner.clone()).unwrap();
+    let writer = host
+        .forget_requester_with_owner_grant(owner, agent.clone(), &grant_id, scoped(NOW + 120_000))
+        .unwrap();
+    // A window permit with the same lifetime does not renew.
+    let window = host
+        .forget_requester(owner, agent.clone(), scope(&p))
+        .unwrap();
+    // Past the permit's own end the grant renews it, five minutes at a time.
+    e.clock.set(NOW + 200_000);
+    writer.check_connection().unwrap();
+    assert!(window.check_connection().is_err());
+    e.clock.set(NOW + 480_000);
+    writer.check_connection().unwrap();
+    // A new grant revision revokes a live renewed connection at once.
+    let second = host
+        .forget_requester_with_owner_grant(owner, agent.clone(), &grant_id, scoped(NOW + 590_000))
+        .unwrap();
+    second.check_connection().unwrap();
+    commit(grant(2, false));
+    assert!(writer.check_connection().is_err());
+    assert!(second.check_connection().is_err());
+    // An explicitly revoked permit never renews, even under a current grant.
+    commit(grant(3, true));
+    let revoked = host
+        .forget_requester_with_owner_grant(owner, agent.clone(), &grant_id, scoped(NOW + 590_000))
+        .unwrap();
+    revoked.revoke();
+    assert!(revoked.check_connection().is_err());
+    // Renewal never passes the grant's own end.
+    let last = host
+        .forget_requester_with_owner_grant(owner, agent, &grant_id, scoped(NOW + 590_000))
+        .unwrap();
+    e.clock.set(NOW + 595_000);
+    last.check_connection().unwrap();
+    e.clock.set(NOW + 600_000);
+    assert!(last.check_connection().is_err());
+}

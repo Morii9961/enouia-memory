@@ -975,3 +975,10 @@ consumption stays off in Morii-facing hosts.
 algorithm-suggestion edges from title/content term overlap (ASCII words, CJK
 bigrams), with Jaccard scores, at most three neighbors per node and the shared terms
 as witness. Semantic (model or embedding) neighbors stay unavailable.
+
+### ADR-MEM-163 — Grant-backed Agent permits renew in place
+
+[Decision](163-grant-backed-permit-renewal.md): a permit issued under an Owner read
+grant extends itself to `min(now + 5 minutes, grant end)` at each host connection
+check while the grant is the exact current revision. Long Agent pipe sessions stay
+connected; a grant change still revokes at once; window permits never renew.

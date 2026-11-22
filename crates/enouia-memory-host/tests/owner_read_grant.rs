@@ -537,3 +537,43 @@ fn unknown_grant_publication_recovers_the_original_revision_without_new_commit()
         .unwrap();
     assert_eq!(recovered.snapshot().unwrap(), head);
 }
+
+#[test]
+fn grant_backed_reader_renews_in_place_and_keeps_its_recall_context() {
+    let (e, v, p, _) = correction_rig(SpeakerRole::User);
+    let owner = &e.descriptor.created_by;
+    let grant = read_grant(&e, &p);
+    let plan = v.plan_owner_read_grant(owner, grant.clone()).unwrap();
+    v.commit_owner_read_grant(owner, &plan).unwrap();
+    let mut s = scope(&p);
+    s.source_ids = grant.source_ids.clone();
+    let raw = v
+        .authorize_owner_grant_read(owner, grant.principal.clone(), &grant.grant_id, s.clone())
+        .unwrap();
+    let host =
+        QualifiedAgentHost::from_authenticated_initialized_owner(v.clone(), owner.clone()).unwrap();
+    let reader = host
+        .reader_with_owner_grant(owner, grant.principal.clone(), &grant.grant_id, s)
+        .unwrap();
+    let profile: AttentionProfile =
+        serde_json::from_value(value("attention/profile.json")).unwrap();
+    let request = RequestId::parse(&id("req", 901)).unwrap();
+    let query = RecallQuery {
+        intent: RecallIntent::Browse,
+        text: String::new(),
+        conditions: vec![],
+        event_window: None,
+        at: Timestamp::from_unix_ms(NOW).unwrap(),
+        limit: 4,
+        max_bytes: 16384,
+    };
+    reader.recall(&profile, &query, request.clone()).unwrap();
+    let hash = reader.scope_hash().clone();
+    // ADR-MEM-163: past the permit's own end the grant renews the host reader in
+    // place. The scope hash is unchanged, so its recall context and cursors
+    // survive; a raw permit that nobody renews still ends.
+    e.clock.set(NOW + 200_000);
+    assert!(reader.context_trace(&request).unwrap().is_some());
+    assert_eq!(reader.scope_hash(), &hash);
+    assert!(v.check_agent_read_live(&raw).is_err());
+}

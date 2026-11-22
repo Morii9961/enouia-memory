@@ -19,6 +19,10 @@ impl AgentCorrectionPermit {
     pub fn revoke(&self) {
         self.read.revoke();
     }
+    /// ADR-MEM-163: see [`SegmentedAgentPermit::renew`].
+    pub fn renew(&self, vault: &SegmentedAutomationVault) -> Result<()> {
+        self.read.renew(vault)
+    }
     pub(super) fn live(&self, vault: &SegmentedAutomationVault) -> Result<Timestamp> {
         self.read.live(vault)
     }
@@ -82,6 +86,10 @@ impl AgentSupersedePermit {
     pub fn revoke(&self) {
         self.read.revoke();
     }
+    /// ADR-MEM-163: see [`SegmentedAgentPermit::renew`].
+    pub fn renew(&self, vault: &SegmentedAutomationVault) -> Result<()> {
+        self.read.renew(vault)
+    }
     pub(super) fn live(&self, vault: &SegmentedAutomationVault) -> Result<Timestamp> {
         self.read.live(vault)
     }
@@ -144,6 +152,10 @@ impl AgentForgetPermit {
     pub fn revoke(&self) {
         self.read.revoke();
     }
+    /// ADR-MEM-163: see [`SegmentedAgentPermit::renew`].
+    pub fn renew(&self, vault: &SegmentedAutomationVault) -> Result<()> {
+        self.read.renew(vault)
+    }
     pub(super) fn live(&self, vault: &SegmentedAutomationVault) -> Result<Timestamp> {
         self.read.live(vault)
     }
@@ -205,6 +217,10 @@ impl AgentNotePermit {
     }
     pub fn revoke(&self) {
         self.read.revoke();
+    }
+    /// ADR-MEM-163: see [`SegmentedAgentPermit::renew`].
+    pub fn renew(&self, vault: &SegmentedAutomationVault) -> Result<()> {
+        self.read.renew(vault)
     }
     pub(super) fn live(&self, vault: &SegmentedAutomationVault) -> Result<Timestamp> {
         self.read.live(vault)
@@ -278,7 +294,8 @@ pub struct SegmentedAgentPermit {
     grant: Option<OwnerReadGrant>,
     hash: Sha256Hex,
     active: AtomicBool,
-    until: Instant,
+    /// Monotonic and wall-clock end of validity. Only `renew` extends it.
+    expires: Mutex<(Instant, Timestamp)>,
     last_seen: Mutex<Timestamp>,
 }
 impl SegmentedAgentPermit {
@@ -314,16 +331,54 @@ impl SegmentedAgentPermit {
                 return Err(e);
             }
         };
-        if !self.active.load(Ordering::SeqCst)
-            || Instant::now() >= self.until
-            || now < *last
-            || now >= self.scope.valid_until
-        {
+        let expired = {
+            let expires = self.expires.lock().map_err(|_| AutomationFault::Denied)?;
+            Instant::now() >= expires.0 || now >= expires.1
+        };
+        if !self.active.load(Ordering::SeqCst) || expired || now < *last {
             self.revoke();
             return Err(AutomationFault::Denied);
         }
         *last = now.clone();
         Ok(now)
+    }
+    /// ADR-MEM-163: a permit issued under an Owner read grant, and not revoked,
+    /// extends its validity to `min(now + 5 minutes, grant end)` while that grant
+    /// is still the exact current revision, active and unexpired. A long Agent
+    /// connection stays authorized by its grant instead of ending after five
+    /// minutes. Window permits do not renew (no-op). Call before `live` so an
+    /// idle connection can resume; a grant change still revokes at once.
+    pub fn renew(&self, vault: &SegmentedAutomationVault) -> Result<()> {
+        let Some(g) = &self.grant else {
+            return Ok(());
+        };
+        if !self.active.load(Ordering::SeqCst)
+            || !Arc::ptr_eq(&self.instance, &vault.native.agent_instance)
+            || self.layout != vault.native.descriptor.layout
+        {
+            return Err(AutomationFault::Denied);
+        }
+        let now = vault.native.now()?;
+        let current = self.policies_current(
+            &*vault
+                .state
+                .lock()
+                .map_err(|_| AutomationFault::Unavailable)?,
+        );
+        if !current || !g.active || now < g.valid_from || now >= g.valid_until {
+            self.revoke();
+            return Err(AutomationFault::Denied);
+        }
+        let end = (now.unix_ms() + 300_000).min(g.valid_until.unix_ms());
+        let until = Timestamp::from_unix_ms(end).ok_or(AutomationFault::Denied)?;
+        let mut expires = self.expires.lock().map_err(|_| AutomationFault::Denied)?;
+        if until > expires.1 {
+            *expires = (
+                Instant::now() + Duration::from_millis((end - now.unix_ms()) as u64),
+                until,
+            );
+        }
+        Ok(())
     }
     fn policies_current(&self, state: &State) -> bool {
         if let Some(g) = &self.grant {
@@ -917,6 +972,7 @@ impl SegmentedAutomationVault {
         let hash = digest(
             &serde_json::json!({"capability":capability,"layout":layout,"vault":self.native.descriptor.vault_id,"principal":principal,"scope":scope,"policies":policies,"read_grant":grant,"nonce":self.native.ids.random_16()}),
         );
+        let valid_until = scope.valid_until.clone();
         Ok(SegmentedAgentPermit {
             layout,
             capability,
@@ -929,7 +985,10 @@ impl SegmentedAutomationVault {
             grant,
             hash,
             active: AtomicBool::new(true),
-            until: Instant::now() + Duration::from_millis(ttl as u64),
+            expires: Mutex::new((
+                Instant::now() + Duration::from_millis(ttl as u64),
+                valid_until,
+            )),
             last_seen: Mutex::new(now),
         })
     }

@@ -79,6 +79,7 @@ impl AgentCorrectionReporter<'_> {
         if gate.is_none() || !self.generation.load(Ordering::SeqCst) {
             return Err(ApplicationFault::Locked);
         }
+        self.permit.renew(&self.host.vault)?;
         self.host
             .vault
             .check_agent_correction_live(&self.permit)
@@ -170,6 +171,7 @@ impl AgentSupersedeReporter<'_> {
         if gate.is_none() || !self.generation.load(Ordering::SeqCst) {
             return Err(ApplicationFault::Locked);
         }
+        self.permit.renew(&self.host.vault)?;
         self.host
             .vault
             .check_agent_supersede_live(&self.permit)
@@ -261,6 +263,7 @@ impl AgentForgetRequester<'_> {
         if gate.is_none() || !self.generation.load(Ordering::SeqCst) {
             return Err(ApplicationFault::Locked);
         }
+        self.permit.renew(&self.host.vault)?;
         self.host
             .vault
             .check_agent_forget_live(&self.permit)
@@ -329,6 +332,7 @@ impl AgentNoteWriter<'_> {
         if gate.is_none() || !self.generation.load(Ordering::SeqCst) {
             return Err(ApplicationFault::Locked);
         }
+        self.permit.renew(&self.host.vault)?;
         self.host
             .vault
             .check_agent_note_live(&self.permit)
@@ -760,6 +764,7 @@ impl QualifiedAgentReader<'_> {
         {
             return Err(ApplicationFault::Locked);
         }
+        self.permit.renew(&self.host.vault)?;
         if current_policies {
             self.host.vault.check_agent_context_live(&self.permit)?;
         } else {
