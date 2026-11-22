@@ -789,6 +789,21 @@ fn fake(actions: &[FakeAction]) -> HostedAnalyzer {
         started: None,
     }
 }
+fn retry_busy<T>(mut op: impl FnMut() -> Result<T, ApplicationFault>) -> T {
+    let deadline = Instant::now() + Duration::from_secs(15);
+    loop {
+        match op() {
+            Err(ApplicationFault::Vault(AutomationFault::Busy)) => {
+                assert!(
+                    Instant::now() < deadline,
+                    "bounded synthetic worker deadline"
+                );
+                std::thread::sleep(Duration::from_millis(5));
+            }
+            other => return other.unwrap(),
+        }
+    }
+}
 fn wait_until(mut ready: impl FnMut() -> bool) {
     let deadline = Instant::now() + Duration::from_secs(15);
     while !ready() {
@@ -1106,16 +1121,20 @@ fn hosted_worker_consumes_a_saved_correction_report_into_a_revision_automaticall
             .is_ok_and(|s| s[0].state == FormationJobState::Formed)
     });
     let system = &e.descriptor.system_actor;
-    let target = v
-        .read(system, Sensitivity::Private, |d| {
+    // The worker keeps scanning after the job is formed and holds the writer
+    // lock meanwhile; Busy changes nothing, so foreground setup repeats it.
+    let target = retry_busy(|| {
+        v.read(system, Sensitivity::Private, |d| {
             d.memories[0].target.clone()
         })
-        .unwrap();
+        .map_err(ApplicationFault::Vault)
+    });
     let owner = &e.descriptor.created_by;
-    let agents =
-        QualifiedAgentHost::from_authenticated_initialized_owner(v.clone(), owner.clone()).unwrap();
-    let reporter = agents
-        .correction_reporter(
+    let agents = retry_busy(|| {
+        QualifiedAgentHost::from_authenticated_initialized_owner(v.clone(), owner.clone())
+    });
+    let reporter = retry_busy(|| {
+        agents.correction_reporter(
             owner,
             ActorRef {
                 actor_type: ActorType::Agent,
@@ -1131,7 +1150,7 @@ fn hosted_worker_consumes_a_saved_correction_report_into_a_revision_automaticall
                 valid_until: Timestamp::from_unix_ms(NOW + 120_000).unwrap(),
             },
         )
-        .unwrap();
+    });
     let request = AgentCorrectionRequest {
         request_id: RequestId::parse(&id("req", 41)).unwrap(),
         target: target.clone(),
@@ -1241,16 +1260,20 @@ fn hosted_worker_consumes_a_saved_supersede_report_into_a_revision_automatically
             .is_ok_and(|s| s[0].state == FormationJobState::Formed)
     });
     let system = &e.descriptor.system_actor;
-    let target = v
-        .read(system, Sensitivity::Private, |d| {
+    // The worker keeps scanning after the job is formed and holds the writer
+    // lock meanwhile; Busy changes nothing, so foreground setup repeats it.
+    let target = retry_busy(|| {
+        v.read(system, Sensitivity::Private, |d| {
             d.memories[0].target.clone()
         })
-        .unwrap();
+        .map_err(ApplicationFault::Vault)
+    });
     let owner = &e.descriptor.created_by;
-    let agents =
-        QualifiedAgentHost::from_authenticated_initialized_owner(v.clone(), owner.clone()).unwrap();
-    let reporter = agents
-        .supersede_reporter(
+    let agents = retry_busy(|| {
+        QualifiedAgentHost::from_authenticated_initialized_owner(v.clone(), owner.clone())
+    });
+    let reporter = retry_busy(|| {
+        agents.supersede_reporter(
             owner,
             ActorRef {
                 actor_type: ActorType::Agent,
@@ -1266,7 +1289,7 @@ fn hosted_worker_consumes_a_saved_supersede_report_into_a_revision_automatically
                 valid_until: Timestamp::from_unix_ms(NOW + 120_000).unwrap(),
             },
         )
-        .unwrap();
+    });
     let request = AgentSupersedeRequest {
         request_id: RequestId::parse(&id("req", 41)).unwrap(),
         target: target.clone(),
