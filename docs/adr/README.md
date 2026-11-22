@@ -952,3 +952,11 @@ from `capture_windows()`.
 read grants no longer refuse a `max_sensitivity` above a selected policy's maximum.
 Reads already clamp per policy, so one scope or grant can span Private and
 HighlySensitive policies.
+
+### ADR-MEM-160 — Persistent Agent registration through request-capable read grants
+
+[Decision](160-agent-request-grants.md): `OwnerReadGrant` gains optional
+`allow_requests`. With it, grant-backed note, correction and forget permits work and
+their intake is admissible after formation windows end, checked against grants on
+the same chain at commit time. One grant per Agent is its registration (read up to
+Private for 90 days by default).

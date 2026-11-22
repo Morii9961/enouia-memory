@@ -1379,6 +1379,9 @@
         },
         "valid_until": {
           "$ref": "../memory/common-v1.schema.json#/$defs/timestamp"
+        },
+        "allow_requests": {
+          "type": "boolean"
         }
       }
     }

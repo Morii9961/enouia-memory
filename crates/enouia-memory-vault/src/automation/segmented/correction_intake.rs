@@ -34,9 +34,14 @@ impl State {
                 .and_then(|v| v.last())
                 .is_some_and(|m| m.target == report.target)
             && policy.reference() == report.policy
-            && policy.active
-            && *at >= policy.valid_from
-            && *at < policy.valid_until
+            && ((policy.active && *at >= policy.valid_from && *at < policy.valid_until)
+                || self.request_grant_covers(
+                    &report.principal,
+                    &reference,
+                    policy,
+                    source.record.sensitivity,
+                    at,
+                ))
             && self.source_in_policy(&reference, policy, policy.max_sensitivity)
             && source.record.source_kind == enouia_memory_contract::source::SourceKind::RuntimeEvent
             && runtime_capture::provenance(source).is_some()

@@ -22,9 +22,14 @@ impl State {
                 .count()
                 < MAX_AGENT_NOTES_PER_SOURCE
             && policy.reference() == note.policy
-            && policy.active
-            && *at >= policy.valid_from
-            && *at < policy.valid_until
+            && ((policy.active && *at >= policy.valid_from && *at < policy.valid_until)
+                || self.request_grant_covers(
+                    &note.principal,
+                    &reference,
+                    policy,
+                    source.record.sensitivity,
+                    at,
+                ))
             && self.source_in_policy(&reference, policy, policy.max_sensitivity)
             && self.sources[&reference.source_id]
                 .last()

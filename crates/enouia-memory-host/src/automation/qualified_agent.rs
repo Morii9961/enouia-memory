@@ -647,6 +647,74 @@ impl QualifiedAgentHost {
             context: Mutex::new(None),
         })
     }
+    /// The generation gate shared by the ADR-MEM-160 request writers below.
+    fn request_generation(&self, owner: &ActorRef) -> ApplicationResult<Arc<AtomicBool>> {
+        if owner != &self.owner || self.capability != INITIALIZED_CAPABILITY {
+            return Err(AutomationFault::Denied.into());
+        }
+        let gate = self
+            .generation
+            .read()
+            .map_err(|_| ApplicationFault::Locked)?;
+        Ok(gate.as_ref().ok_or(ApplicationFault::Locked)?.clone())
+    }
+    /// ADR-MEM-160: note writer under a request-capable Owner read grant.
+    pub fn note_writer_with_owner_grant(
+        &self,
+        owner: &ActorRef,
+        principal: ActorRef,
+        grant_id: &PolicyId,
+        scope: SegmentedAgentScope,
+    ) -> ApplicationResult<AgentNoteWriter<'_>> {
+        let generation = self.request_generation(owner)?;
+        let permit = self
+            .vault
+            .authorize_granted_agent_note(owner, principal, grant_id, scope)?;
+        Ok(AgentNoteWriter {
+            host: self,
+            permit,
+            generation,
+            unknown: Mutex::new(None),
+        })
+    }
+    /// ADR-MEM-160: correction reporter under a request-capable grant.
+    pub fn correction_reporter_with_owner_grant(
+        &self,
+        owner: &ActorRef,
+        principal: ActorRef,
+        grant_id: &PolicyId,
+        scope: SegmentedAgentScope,
+    ) -> ApplicationResult<AgentCorrectionReporter<'_>> {
+        let generation = self.request_generation(owner)?;
+        let permit = self
+            .vault
+            .authorize_granted_agent_correction(owner, principal, grant_id, scope)?;
+        Ok(AgentCorrectionReporter {
+            host: self,
+            permit,
+            generation,
+            unknown: Mutex::new(None),
+        })
+    }
+    /// ADR-MEM-160: forget requester under a request-capable grant.
+    pub fn forget_requester_with_owner_grant(
+        &self,
+        owner: &ActorRef,
+        principal: ActorRef,
+        grant_id: &PolicyId,
+        scope: SegmentedAgentScope,
+    ) -> ApplicationResult<AgentForgetRequester<'_>> {
+        let generation = self.request_generation(owner)?;
+        let permit = self
+            .vault
+            .authorize_granted_agent_forget(owner, principal, grant_id, scope)?;
+        Ok(AgentForgetRequester {
+            host: self,
+            permit,
+            generation,
+            unknown: Mutex::new(None),
+        })
+    }
     pub(crate) fn owner_read_grant_until(
         &self,
         owner: &ActorRef,

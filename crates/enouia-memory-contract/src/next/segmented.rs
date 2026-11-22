@@ -38,11 +38,20 @@ pub struct OwnerReadGrant {
     pub active: bool,
     pub valid_from: Timestamp,
     pub valid_until: Timestamp,
+    /// ADR-MEM-160 opt-in: the principal may also submit Agent notes,
+    /// correction reports and forget requests under this grant after the
+    /// formation windows end. Absent/false keeps existing grant bytes.
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub allow_requests: bool,
+}
+fn is_false(value: &bool) -> bool {
+    !*value
 }
 impl OwnerReadGrant {
     pub fn valid(&self) -> bool {
         use std::collections::BTreeSet;
         self.principal.actor_type == crate::common::ActorType::Agent
+            && (!self.allow_requests || self.source_read)
             && self.valid_from < self.valid_until
             && !self.policies.is_empty()
             && self.policies.len() <= MAX_SEGMENTED_POLICIES
