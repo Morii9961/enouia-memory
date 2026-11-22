@@ -960,3 +960,11 @@ HighlySensitive policies.
 their intake is admissible after formation windows end, checked against grants on
 the same chain at commit time. One grant per Agent is its registration (read up to
 Private for 90 days by default).
+
+### ADR-MEM-161 — Morii's desktop queue for Agent correction and forget requests
+
+[Decision](161-agent-request-queue.md): the Morii-only `agent_requests(max)` lists saved
+Agent correction and forget requests with the cited statement, the Agent's untrusted
+text and a `pending` flag (the target is unchanged). Morii acts through the existing
+Owner Correct/Forget plans; Runtime keeps dismissals locally. Automatic correction
+consumption stays off in Morii-facing hosts.

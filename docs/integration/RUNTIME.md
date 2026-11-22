@@ -1,5 +1,17 @@
 # Runtime integration (ADR-MEM-45)
 
+2026-11-22 Agent request queue ([ADR-MEM-161](../adr/161-agent-request-queue.md)):
+`NativeMemoryOwner::agent_requests(max)` lists saved Agent correction and forget
+requests. Each item has `kind`, `key`, `request_id`, `principal`, `target`, the
+cited `evidence`, the Agent's untrusted `text`, `committed_in`, and `pending`
+(the target is unchanged). Act through `plan(Correct { .. })`, with the text
+Morii reviewed, or `plan(Forget { .. })`, then confirm and commit. Keep
+dismissals locally by `key`. Do not start the correction-consuming worker in the
+registered entry. To host Agent pipes, call `windows::Pipe::client_pid()` after
+`accept` and enroll that PID (`Enrollment::enroll(pid, principal, scopes)`) before
+`serve_connection`. No persisted format, IPC command or wire change; Workspace stays
+at 61 commands. Surface aggregate: `6c9b2416a182d0f1c7a0799d697c7f9094015d9456a182c43bb003e8a0d16444`.
+
 2026-11-22 persistent Agent registration ([ADR-MEM-160](../adr/160-agent-request-grants.md)):
 `OwnerReadGrant` gains optional `allow_requests`, and request-capable grants keep
 Agent notes, correction requests and forget requests working after formation

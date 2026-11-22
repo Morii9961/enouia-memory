@@ -371,6 +371,19 @@ impl Pipe {
         })?;
         Ok(())
     }
+    /// ADR-MEM-161 addendum: the connected client's process ID, read from
+    /// the OS after `accept`. A host serving Agents that start the stdio
+    /// bridge themselves enrolls this PID; the trust basis stays the pipe
+    /// name plus the current-user pipe ACL.
+    pub fn client_pid(&self) -> io::Result<u32> {
+        if !self.server {
+            return Err(denied());
+        }
+        let mut pid = 0;
+        // SAFETY: connected server-end pipe and a valid PID out-pointer.
+        check(unsafe { GetNamedPipeClientProcessId(raw(&self.handle), &mut pid) })?;
+        Ok(pid)
+    }
     pub fn disconnect(&mut self) -> io::Result<()> {
         if !self.server {
             return Err(denied());
