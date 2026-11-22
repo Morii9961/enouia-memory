@@ -1,5 +1,19 @@
 # Runtime integration (ADR-MEM-45)
 
+2026-11-22 grant-backed enrollment and bridge host discovery ([ADR-MEM-165](../adr/165-grant-backed-enrollment-and-host-discovery.md)):
+an `Enrollment` passed to the qualified, initialized, opening, correction,
+supersede, forget-request or note `serve_connection` stops applying its own
+five-minute deadline once the reader is grant-backed, and no longer cuts the
+caller's read timeout. Grant-backed pipe sessions therefore stay connected past
+five minutes and across long idle reads; a grant change still ends them at the
+next check. Window permits keep the deadline. `enouia-memory-mcp` now accepts
+`--protocol`, `--pipe` and `--vault-id` without `--host-pid`: it enrolls the
+serving process of the connected pipe (same user and logon session required), so
+Runtime can write a static MCP configuration with a stable pipe name. Each pipe
+name has one instance at a time; recreate it after each connection. New
+`Pipe::server_pid` and `QualifiedAgentReader::grant_backed`. No persisted format,
+IPC command, wire or protocol change; Workspace stays at 61 commands. Surface aggregate: `21bed91165b97b79df6e0ef16c3bd647e88899023ff83eaf019dea9ebfec08d5`.
+
 2026-11-22 attention schedule and review suggestions ([ADR-MEM-164](../adr/164-attention-schedule-and-review-suggestions.md)):
 `SegmentedMemoryReader` gains two read-only System projections in
 `automation::catalog::attention_schedule`:
@@ -16,6 +30,7 @@
 Label both as derived and time-based. Review, correction or protection still go
 through the existing Owner action flow. No persisted format, contract schema,
 IPC command or wire change; Workspace stays at 61 commands. Surface aggregate: `5eb93d9b08b3c36c90ce8b5795a396cd4236a5589a5b27ccb411386d5d2fca3a`.
+
 
 2026-11-22 grant-backed permits renew in place ([ADR-MEM-163](../adr/163-grant-backed-permit-renewal.md)):
 readers and writers from `QualifiedAgentHost::reader_with_owner_grant` and

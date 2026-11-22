@@ -67,8 +67,10 @@ fn run() -> Result<(), ()> {
         || options.contains_key("--pipe")
         || options.contains_key("--host-pid")
     {
-        if options.len() != 4
-            || !["--protocol", "--pipe", "--host-pid", "--vault-id"]
+        // ADR-MEM-165: `--host-pid` is optional; without it the bridge enrolls
+        // the server end of the connected pipe.
+        if options.len() != 3 + usize::from(options.contains_key("--host-pid"))
+            || !["--protocol", "--pipe", "--vault-id"]
                 .iter()
                 .all(|key| options.contains_key(*key))
         {
@@ -78,13 +80,12 @@ fn run() -> Result<(), ()> {
         let pipe =
             enouia_memory_contract::hash::Sha256Hex::parse(options["--pipe"].to_str().ok_or(())?)
                 .ok_or(())?;
-        let pid: u32 = options["--host-pid"]
-            .to_str()
-            .ok_or(())?
-            .parse()
-            .map_err(|_| ())?;
-        let peer = ProcessPeer::enroll(pid, HostSurface::QuickSearch).map_err(|_| ())?;
         let pipe = Pipe::connect(&pipe).map_err(|_| ())?;
+        let pid: u32 = match options.get("--host-pid") {
+            Some(pid) => pid.to_str().ok_or(())?.parse().map_err(|_| ())?,
+            None => pipe.server_pid().map_err(|_| ())?,
+        };
+        let peer = ProcessPeer::enroll(pid, HostSurface::QuickSearch).map_err(|_| ())?;
         return match options["--protocol"].to_str().ok_or(())? {
             "automation-context-v1" => {
                 let mut client = enouia_memory_host::mcp::opening::native::Client::connect(

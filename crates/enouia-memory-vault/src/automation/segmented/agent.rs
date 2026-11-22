@@ -311,6 +311,9 @@ impl SegmentedAgentPermit {
     pub fn source_read(&self) -> bool {
         self.scope.source_read
     }
+    pub fn grant_backed(&self) -> bool {
+        self.grant.is_some()
+    }
     pub fn max_sensitivity(&self) -> Sensitivity {
         self.scope.max_sensitivity
     }

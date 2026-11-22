@@ -12,6 +12,7 @@ use enouia_memory_contract::policy::Scope;
 use enouia_memory_contract::workspace::HostSurface;
 use serde_json::{Value, json};
 use std::io::{self, BufRead, Read, Write};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant};
 
 const TTL: Duration = Duration::from_millis(crate::SESSION_TTL_MS as u64);
@@ -41,6 +42,10 @@ pub struct Enrollment {
     peer: ProcessPeer,
     grant: Grant,
     until: Instant,
+    /// ADR-MEM-165: set once the connection's reader permit is grant-backed.
+    /// The five-minute deadline then defers to that permit, which renews only
+    /// while its Owner read grant is unchanged and is checked around every read.
+    grant_lifetime: AtomicBool,
 }
 impl Enrollment {
     pub fn enroll(pid: u32, principal: ActorRef, scopes: Vec<Scope>) -> Result<Self> {
@@ -58,6 +63,7 @@ impl Enrollment {
             peer: ProcessPeer::enroll(pid, HostSurface::QuickSearch)?,
             grant,
             until: Instant::now() + TTL,
+            grant_lifetime: AtomicBool::new(false),
         })
     }
     pub(super) fn allows_v2_reader(&self, principal: &ActorRef, source_read: bool) -> bool {
@@ -77,8 +83,8 @@ impl Enrollment {
     }
     pub fn live(&self) -> Result<()> {
         self.peer.live()?;
-        if Instant::now() >= self.until
-            || !self.grant.active.load(std::sync::atomic::Ordering::SeqCst)
+        if (!self.grant_lifetime.load(Ordering::SeqCst) && Instant::now() >= self.until)
+            || !self.grant.active.load(Ordering::SeqCst)
         {
             return Err(TransportFault::Incompatible);
         }
@@ -90,7 +96,17 @@ impl Enrollment {
         Ok(())
     }
     pub(super) fn timeout(&self, timeout: Duration) -> Duration {
+        if self.grant_lifetime.load(Ordering::SeqCst) {
+            return timeout;
+        }
         timeout.min(self.until.saturating_duration_since(Instant::now()))
+    }
+    /// Call only after the reader's connection check succeeded, so a
+    /// grant-backed permit has just renewed against the exact current grant.
+    pub(super) fn follow_grant(&self, grant_backed: bool) {
+        if grant_backed {
+            self.grant_lifetime.store(true, Ordering::SeqCst);
+        }
     }
 }
 impl Drop for Enrollment {
@@ -372,5 +388,28 @@ mod tests {
         assert!(enrollment.live().is_err());
         drop(enrollment);
         assert!(!revocation.allows(enouia_memory_contract::ipc::Operation::MemoryRead));
+    }
+    #[test]
+    fn grant_backed_enrollment_defers_its_deadline_until_the_transport_grant_is_revoked() {
+        let principal = ActorRef {
+            actor_type: ActorType::Agent,
+            actor_id: PrincipalId::parse("prn_00000002-0000-4000-8000-000000000002").unwrap(),
+        };
+        let mut enrollment =
+            Enrollment::enroll(std::process::id(), principal, vec![Scope::MemoryRead]).unwrap();
+        let long = Duration::from_secs(3600);
+        assert!(enrollment.timeout(long) <= TTL);
+        enrollment.follow_grant(false);
+        enrollment.until = Instant::now();
+        assert!(
+            enrollment.live().is_err(),
+            "a window permit keeps the deadline"
+        );
+        assert_eq!(enrollment.timeout(long), Duration::ZERO);
+        enrollment.follow_grant(true);
+        assert!(enrollment.live().is_ok());
+        assert_eq!(enrollment.timeout(long), long);
+        enrollment.revocation().revoke();
+        assert!(enrollment.live().is_err());
     }
 }

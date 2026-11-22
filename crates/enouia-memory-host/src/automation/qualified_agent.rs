@@ -749,6 +749,10 @@ impl QualifiedAgentReader<'_> {
     pub fn source_read(&self) -> bool {
         self.permit.source_read()
     }
+    /// Issued under an Owner read grant (ADR-MEM-160/163), not a policy window.
+    pub fn grant_backed(&self) -> bool {
+        self.permit.grant_backed()
+    }
     fn gate(
         &self,
         current_policies: bool,

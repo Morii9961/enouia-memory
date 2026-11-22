@@ -97,6 +97,7 @@ pub fn serve_connection(
             reader
                 .check_context_connection()
                 .map_err(|_| TransportFault::Incompatible)?;
+            enrollment.follow_grant(reader.grant_backed());
             let (tag, bytes) = read(pipe, true, enrollment.timeout(timeout))?;
             enrollment.check(pipe)?;
             reader
