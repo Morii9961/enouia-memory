@@ -9,6 +9,23 @@ pub struct OwnerReadGrantPlan {
     pub expires_at: Timestamp,
     pub grant: OwnerReadGrant,
 }
+/// ADR-MEM-168: what an Owner read grant does not cover yet in its own
+/// subject and project, and the next revision that would cover it.
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize)]
+pub struct OwnerReadGrantCoverage {
+    pub snapshot: SnapshotBinding,
+    pub grant: OwnerReadGrant,
+    /// Current revisions of the subject's and project's policies (capture
+    /// windows included) that the grant does not list.
+    pub uncovered_policies: Vec<PolicyRef>,
+    /// Captured, undeleted sources of the listed and uncovered policies that
+    /// the grant does not list.
+    pub uncovered_sources: Vec<SourceId>,
+    /// `revision + 1` listing all of them, otherwise unchanged and already
+    /// checked like a plan. Absent when nothing is uncovered, the grant is
+    /// revoked or it would exceed the grant limits. Plan and confirm it to apply.
+    pub refreshed: Option<OwnerReadGrant>,
+}
 #[derive(serde::Serialize)]
 pub struct OwnerReadStatus {
     pub snapshot: SnapshotBinding,
@@ -116,6 +133,71 @@ impl SegmentedAutomationVault {
                 .map(AutomationPolicy::reference)
                 .collect(),
             grants: state.read_grants.values().cloned().collect(),
+        })
+    }
+    /// ADR-MEM-168: read-only; writes nothing and authorizes nothing.
+    pub fn owner_read_grant_coverage(
+        &self,
+        owner: &ActorRef,
+        id: &PolicyId,
+    ) -> Result<OwnerReadGrantCoverage> {
+        self.native.owner(owner)?;
+        let _writer = lock::acquire(&self.native.root, Duration::ZERO)?;
+        let state = self
+            .state
+            .lock()
+            .map_err(|_| AutomationFault::Unavailable)?;
+        self.current(&state)?;
+        let grant = state
+            .read_grants
+            .get(id)
+            .cloned()
+            .ok_or(AutomationFault::Denied)?;
+        let listed: BTreeSet<_> = grant.policies.iter().map(|r| &r.hash).collect();
+        let mut uncovered_policies: Vec<PolicyRef> = state
+            .policies
+            .values()
+            .filter(|p| p.subject_id == grant.subject_id && p.project_id == grant.project_id)
+            .map(AutomationPolicy::reference)
+            .filter(|r| !listed.contains(&r.hash))
+            .collect();
+        uncovered_policies.sort_by(|a, b| (&a.policy_id, &a.hash).cmp(&(&b.policy_id, &b.hash)));
+        let policies: Vec<PolicyRef> = grant
+            .policies
+            .iter()
+            .chain(&uncovered_policies)
+            .cloned()
+            .collect();
+        let sources: BTreeSet<SourceId> = policies
+            .iter()
+            .flat_map(|r| &state.policy_history[&r.hash].source_ids)
+            .filter(|id| state.sources.contains_key(*id) && !state.deleted_sources.contains(*id))
+            .cloned()
+            .collect();
+        let uncovered_sources: Vec<SourceId> = sources
+            .iter()
+            .filter(|id| !grant.source_ids.contains(id))
+            .cloned()
+            .collect();
+        let refreshed = (grant.active
+            && !(uncovered_policies.is_empty() && uncovered_sources.is_empty()))
+        .then(|| {
+            let mut next = grant.clone();
+            next.revision = Revision::new(grant.revision.get() + 1)?;
+            next.policies = policies;
+            next.source_ids = sources.into_iter().collect();
+            state
+                .check_read_grant(self.descriptor(), &next)
+                .is_ok()
+                .then_some(next)
+        })
+        .flatten();
+        Ok(OwnerReadGrantCoverage {
+            snapshot: state.snapshot()?,
+            grant,
+            uncovered_policies,
+            uncovered_sources,
+            refreshed,
         })
     }
     pub fn plan_owner_read_grant(

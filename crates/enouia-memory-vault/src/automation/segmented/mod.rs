@@ -13,7 +13,7 @@ mod formation_worker;
 mod intake;
 mod note_intake;
 mod read_grant;
-pub use read_grant::{OwnerReadGrantPlan, OwnerReadStatus};
+pub use read_grant::{OwnerReadGrantCoverage, OwnerReadGrantPlan, OwnerReadStatus};
 mod supersede_intake;
 pub use agent::{
     AGENT_CORRECTION_CAPABILITY, AGENT_FORGET_CAPABILITY, AGENT_NOTE_CAPABILITY,
