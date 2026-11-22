@@ -1007,3 +1007,10 @@ the connection's writers allow, on one pipe. Its `serve_connection` waits betwee
 frames without a time limit, checks a caller stop flag and liveness every quarter
 second, and applies the timeout only inside a frame. The bridge body becomes
 `mcp::bridge::run` so Runtime can ship the executable.
+
+### ADR-MEM-167 — Lexical neighbor suggestions for Agent readers
+
+[Decision](167-agent-lexical-neighbors.md): the ADR-MEM-162 term-overlap computation
+is shared. Agent `related` now suggests the anchor's top three lexical neighbors
+among authorized current memories in scope, as labeled `algorithm_suggestion`
+edges with a shared-terms witness; out-of-scope and deleted memories never appear.

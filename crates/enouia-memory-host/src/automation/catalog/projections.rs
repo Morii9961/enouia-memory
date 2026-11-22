@@ -537,143 +537,19 @@ impl SegmentedMemoryReader {
                 let mut candidates = 0u64;
                 let begin = edges.len();
                 if kind == GraphEdgeKind::LexicalNeighbor {
-                    // ADR-MEM-162: term overlap of title and content (ASCII words
-                    // of 3+ letters, CJK bigrams). Terms in more than half of the
-                    // selected nodes are dropped, and the rest are kept rarest
-                    // first within a pair-work budget; a pair needs 2+ shared
-                    // terms and Jaccard >= 0.15; each node keeps its top 3.
-                    let cjk = |c: char| ('\u{4e00}'..='\u{9fff}').contains(&c);
-                    let mut vocab: BTreeMap<String, usize> = BTreeMap::new();
-                    let mut terms: Vec<Vec<usize>> = Vec::with_capacity(selected.len());
-                    for row in &selected {
-                        let i = &row.entry.memory.decision.input;
-                        let title = &i.record_fields.as_ref().unwrap().title;
-                        let mut set = BTreeSet::new();
-                        let mut word = String::new();
-                        let mut prev: Option<char> = None;
-                        // Only ASCII words and CJK bigrams count, so ASCII
-                        // lowercasing per character is enough and stops early.
-                        for c in title
-                            .chars()
-                            .chain(Some(' '))
-                            .chain(i.content.chars())
-                            .chain(Some(' '))
-                            .map(|c| c.to_ascii_lowercase())
-                        {
-                            if c.is_ascii_alphanumeric() {
-                                word.push(c);
-                            } else {
-                                if word.chars().count() >= 3 {
-                                    set.insert(word.clone());
-                                }
-                                word.clear();
-                            }
-                            if let Some(p) = prev.filter(|p| cjk(*p) && cjk(c)) {
-                                set.insert(format!("{p}{c}"));
-                            }
-                            prev = Some(c);
-                            if set.len() >= 512 {
-                                break;
-                            }
-                        }
-                        let mut ids: Vec<usize> = set
-                            .into_iter()
-                            .map(|t| {
-                                let next = vocab.len();
-                                *vocab.entry(t).or_insert(next)
-                            })
-                            .collect();
-                        ids.sort_unstable();
-                        terms.push(ids);
-                    }
-                    let mut names = vec![""; vocab.len()];
-                    for (name, &id) in &vocab {
-                        names[id] = name;
-                    }
-                    let mut postings = vec![Vec::new(); vocab.len()];
-                    for (n, ids) in terms.iter().enumerate() {
-                        for &t in ids {
-                            postings[t].push(n);
-                        }
-                    }
-                    let common = (selected.len() / 2).max(2);
-                    let mut order: Vec<usize> = (0..vocab.len())
-                        .filter(|&t| (2..=common).contains(&postings[t].len()))
-                        .collect();
-                    order.sort_by_key(|&t| (postings[t].len(), names[t]));
-                    let mut kept = vec![false; vocab.len()];
-                    let mut work = 0usize;
-                    for t in order {
-                        let df = postings[t].len();
-                        work += df * (df - 1) / 2;
-                        if work > 2_000_000 {
-                            break;
-                        }
-                        kept[t] = true;
-                    }
-                    let kept_terms: Vec<Vec<usize>> = terms
-                        .iter()
-                        .map(|ids| ids.iter().copied().filter(|&t| kept[t]).collect())
-                        .collect();
-                    let mut scored: Vec<(u16, usize, usize)> = Vec::new();
-                    let mut count = vec![0u16; selected.len()];
-                    let mut touched = Vec::new();
-                    for (a, ids) in kept_terms.iter().enumerate() {
-                        for &t in ids {
-                            for &b in postings[t].iter().filter(|&&b| b > a) {
-                                if count[b] == 0 {
-                                    touched.push(b);
-                                }
-                                count[b] += 1;
-                            }
-                        }
-                        touched.sort_unstable();
-                        for b in touched.drain(..) {
-                            let shared = count[b] as usize;
-                            count[b] = 0;
-                            if shared < 2 {
-                                continue;
-                            }
-                            let union = kept_terms[a].len() + kept_terms[b].len() - shared;
-                            let milli = (shared * 1000 / union.max(1)) as u16;
-                            if milli >= 150 {
-                                scored.push((milli, a, b));
-                            }
-                        }
-                    }
-                    scored.sort_by(|x, y| y.0.cmp(&x.0).then((x.1, x.2).cmp(&(y.1, y.2))));
-                    let mut degree = vec![0usize; selected.len()];
-                    for (milli, a, b) in scored {
-                        if degree[a] >= 3 || degree[b] >= 3 {
-                            continue;
-                        }
-                        degree[a] += 1;
-                        degree[b] += 1;
+                    for pair in lexical_neighbors(&selected, None) {
                         candidates += 1;
                         if edges.len() - begin >= query.edge_limit_per_kind {
                             continue;
                         }
-                        let mut ts: Vec<usize> = kept_terms[a]
-                            .iter()
-                            .copied()
-                            .filter(|t| kept_terms[b].binary_search(t).is_ok())
-                            .collect();
-                        ts.sort_by_key(|&t| (postings[t].len(), names[t]));
                         edges.push(MemoryGraphEdge {
-                            from: selected[a].id().clone(),
-                            to: selected[b].id().clone(),
+                            from: selected[pair.a].id().clone(),
+                            to: selected[pair.b].id().clone(),
                             relation: kind,
                             class: GraphEdgeClass::AlgorithmSuggestion,
                             owner_relations: vec![],
-                            witness: format!(
-                                "shared_terms:{}",
-                                ts.iter()
-                                    .take(5)
-                                    .map(|&t| names[t])
-                                    .collect::<Vec<_>>()
-                                    .join(",")
-                            ),
-                            score_milli: Some(milli),
+                            witness: pair.witness,
+                            score_milli: Some(pair.milli),
                         });
                     }
                 } else if matches!(kind, GraphEdgeKind::DerivedFrom | GraphEdgeKind::Reversion) {
@@ -862,4 +738,160 @@ impl SegmentedMemoryReader {
             finish(page, request.options.max_bytes)
         })
     }
+}
+
+/// One lexical neighbor suggestion between `rows[a]` and `rows[b]`.
+pub(super) struct LexicalNeighbor {
+    pub milli: u16,
+    pub a: usize,
+    pub b: usize,
+    pub witness: String,
+}
+/// ADR-MEM-162/167: term overlap of title and content (ASCII words of 3+
+/// letters, CJK bigrams). Terms in more than half of the rows are dropped, and
+/// the rest are kept rarest first within a pair-work budget; a pair needs 2+
+/// shared terms and Jaccard >= 0.15; each row keeps its top 3, by descending
+/// score. With `anchor`, only pairs that include that row are considered.
+pub(super) fn lexical_neighbors(rows: &[&Row], anchor: Option<usize>) -> Vec<LexicalNeighbor> {
+    let cjk = |c: char| ('\u{4e00}'..='\u{9fff}').contains(&c);
+    let mut vocab: BTreeMap<String, usize> = BTreeMap::new();
+    let mut terms: Vec<Vec<usize>> = Vec::with_capacity(rows.len());
+    for row in rows {
+        let i = &row.entry.memory.decision.input;
+        let title = &i.record_fields.as_ref().unwrap().title;
+        let mut set = BTreeSet::new();
+        let mut word = String::new();
+        let mut prev: Option<char> = None;
+        // Only ASCII words and CJK bigrams count, so ASCII
+        // lowercasing per character is enough and stops early.
+        for c in title
+            .chars()
+            .chain(Some(' '))
+            .chain(i.content.chars())
+            .chain(Some(' '))
+            .map(|c| c.to_ascii_lowercase())
+        {
+            if c.is_ascii_alphanumeric() {
+                word.push(c);
+            } else {
+                if word.chars().count() >= 3 {
+                    set.insert(word.clone());
+                }
+                word.clear();
+            }
+            if let Some(p) = prev.filter(|p| cjk(*p) && cjk(c)) {
+                set.insert(format!("{p}{c}"));
+            }
+            prev = Some(c);
+            if set.len() >= 512 {
+                break;
+            }
+        }
+        let mut ids: Vec<usize> = set
+            .into_iter()
+            .map(|t| {
+                let next = vocab.len();
+                *vocab.entry(t).or_insert(next)
+            })
+            .collect();
+        ids.sort_unstable();
+        terms.push(ids);
+    }
+    let mut names = vec![""; vocab.len()];
+    for (name, &id) in &vocab {
+        names[id] = name;
+    }
+    let mut postings = vec![Vec::new(); vocab.len()];
+    for (n, ids) in terms.iter().enumerate() {
+        for &t in ids {
+            postings[t].push(n);
+        }
+    }
+    let common = (rows.len() / 2).max(2);
+    let mut order: Vec<usize> = (0..vocab.len())
+        .filter(|&t| (2..=common).contains(&postings[t].len()))
+        .collect();
+    order.sort_by_key(|&t| (postings[t].len(), names[t]));
+    let mut kept = vec![false; vocab.len()];
+    let mut work = 0usize;
+    for t in order {
+        let df = postings[t].len();
+        work += df * (df - 1) / 2;
+        if work > 2_000_000 {
+            break;
+        }
+        kept[t] = true;
+    }
+    let kept_terms: Vec<Vec<usize>> = terms
+        .iter()
+        .map(|ids| ids.iter().copied().filter(|&t| kept[t]).collect())
+        .collect();
+    let mut scored: Vec<(u16, usize, usize)> = Vec::new();
+    let mut count = vec![0u16; rows.len()];
+    let mut touched = Vec::new();
+    for (a, ids) in kept_terms.iter().enumerate() {
+        if anchor.is_some_and(|x| x != a) {
+            continue;
+        }
+        for &t in ids {
+            for &b in postings[t]
+                .iter()
+                .filter(|&&b| if anchor.is_some() { b != a } else { b > a })
+            {
+                if count[b] == 0 {
+                    touched.push(b);
+                }
+                count[b] += 1;
+            }
+        }
+        touched.sort_unstable();
+        for b in touched.drain(..) {
+            let shared = count[b] as usize;
+            count[b] = 0;
+            if shared < 2 {
+                continue;
+            }
+            let union = kept_terms[a].len() + kept_terms[b].len() - shared;
+            let milli = (shared * 1000 / union.max(1)) as u16;
+            if milli >= 150 {
+                scored.push((milli, a, b));
+            }
+        }
+    }
+    scored.sort_by(|x, y| y.0.cmp(&x.0).then((x.1, x.2).cmp(&(y.1, y.2))));
+    let mut degree = vec![0usize; rows.len()];
+    let mut result = Vec::new();
+    for (milli, a, b) in scored {
+        if degree[a] >= 3 || degree[b] >= 3 {
+            continue;
+        }
+        degree[a] += 1;
+        degree[b] += 1;
+        let mut ts: Vec<usize> = kept_terms[a]
+            .iter()
+            .copied()
+            .filter(|t| kept_terms[b].binary_search(t).is_ok())
+            .collect();
+        ts.sort_by_key(|&t| (postings[t].len(), names[t]));
+        // Up to five shared terms, rarest first, within the 256-character
+        // witness limit of the read schemas.
+        let mut witness = String::from("shared_terms:");
+        for (i, &t) in ts.iter().take(5).enumerate() {
+            let extra = names[t].chars().count() + usize::from(i > 0);
+            if witness.chars().count() + extra > 256 {
+                break;
+            }
+            if i > 0 {
+                witness.push(',');
+            }
+            witness.push_str(names[t]);
+        }
+        result.push(LexicalNeighbor {
+            milli,
+            a: a.min(b),
+            b: a.max(b),
+            witness,
+        });
+    }
+    result
 }

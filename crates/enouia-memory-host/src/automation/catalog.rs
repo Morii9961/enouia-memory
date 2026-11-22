@@ -775,6 +775,7 @@ pub(crate) fn qualified_relations(
         GraphEdgeKind::Reversion,
         GraphEdgeKind::SameEntity,
         GraphEdgeKind::ThemeCooccurrence,
+        GraphEdgeKind::LexicalNeighbor,
     ];
     let mut counts: BTreeMap<_, u64> = kinds.into_iter().map(|k| (k, 0)).collect();
     let mut edges = Vec::new();
@@ -854,6 +855,22 @@ pub(crate) fn qualified_relations(
                 owner_relations: vec![],
             });
         }
+    }
+    // ADR-MEM-167: the anchor's top lexical neighbors among all authorized
+    // current memories in scope, by the same rules as the System graph.
+    let rows: Vec<&Row> = all.iter().collect();
+    let at = rows.iter().position(|r| r.id() == memory).unwrap();
+    for pair in projections::lexical_neighbors(&rows, Some(at)) {
+        let other = if pair.a == at { pair.b } else { pair.a };
+        add(MemoryGraphEdge {
+            from: memory.clone(),
+            to: rows[other].id().clone(),
+            relation: GraphEdgeKind::LexicalNeighbor,
+            class: GraphEdgeClass::AlgorithmSuggestion,
+            witness: pair.witness,
+            score_milli: Some(pair.milli),
+            owner_relations: vec![],
+        });
     }
     let coverage = kinds
         .into_iter()

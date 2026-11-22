@@ -1478,7 +1478,7 @@
           "items": {
             "$ref": "#/$defs/edge_coverage"
           },
-          "maxItems": 4
+          "maxItems": 5
         },
         "coverage_scope": {
           "const": "supported_authorized_current_relations"
