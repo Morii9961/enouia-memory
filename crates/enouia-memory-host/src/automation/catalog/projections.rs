@@ -539,77 +539,111 @@ impl SegmentedMemoryReader {
                 if kind == GraphEdgeKind::LexicalNeighbor {
                     // ADR-MEM-162: term overlap of title and content (ASCII words
                     // of 3+ letters, CJK bigrams). Terms in more than half of the
-                    // selected nodes are dropped; a pair needs 2+ shared terms
-                    // and Jaccard >= 0.15; each node keeps its top 3 neighbors.
+                    // selected nodes are dropped, and the rest are kept rarest
+                    // first within a pair-work budget; a pair needs 2+ shared
+                    // terms and Jaccard >= 0.15; each node keeps its top 3.
                     let cjk = |c: char| ('\u{4e00}'..='\u{9fff}').contains(&c);
-                    let terms: Vec<BTreeSet<String>> = selected
-                        .iter()
-                        .map(|row| {
-                            let i = &row.entry.memory.decision.input;
-                            let text = format!(
-                                "{} {}",
-                                i.record_fields.as_ref().unwrap().title,
-                                i.content
-                            )
-                            .to_lowercase();
-                            let mut set = BTreeSet::new();
-                            let mut word = String::new();
-                            let mut prev: Option<char> = None;
-                            for c in text.chars().chain(Some(' ')) {
-                                if c.is_ascii_alphanumeric() {
-                                    word.push(c);
-                                } else {
-                                    if word.chars().count() >= 3 {
-                                        set.insert(word.clone());
-                                    }
-                                    word.clear();
+                    let mut vocab: BTreeMap<String, usize> = BTreeMap::new();
+                    let mut terms: Vec<Vec<usize>> = Vec::with_capacity(selected.len());
+                    for row in &selected {
+                        let i = &row.entry.memory.decision.input;
+                        let title = &i.record_fields.as_ref().unwrap().title;
+                        let mut set = BTreeSet::new();
+                        let mut word = String::new();
+                        let mut prev: Option<char> = None;
+                        // Only ASCII words and CJK bigrams count, so ASCII
+                        // lowercasing per character is enough and stops early.
+                        for c in title
+                            .chars()
+                            .chain(Some(' '))
+                            .chain(i.content.chars())
+                            .chain(Some(' '))
+                            .map(|c| c.to_ascii_lowercase())
+                        {
+                            if c.is_ascii_alphanumeric() {
+                                word.push(c);
+                            } else {
+                                if word.chars().count() >= 3 {
+                                    set.insert(word.clone());
                                 }
-                                if let Some(p) = prev.filter(|p| cjk(*p) && cjk(c)) {
-                                    set.insert(format!("{p}{c}"));
-                                }
-                                prev = Some(c);
-                                if set.len() >= 512 {
-                                    break;
-                                }
+                                word.clear();
                             }
-                            set
-                        })
-                        .collect();
-                    let mut postings: BTreeMap<&String, Vec<usize>> = BTreeMap::new();
-                    for (n, set) in terms.iter().enumerate() {
-                        for t in set {
-                            postings.entry(t).or_default().push(n);
+                            if let Some(p) = prev.filter(|p| cjk(*p) && cjk(c)) {
+                                set.insert(format!("{p}{c}"));
+                            }
+                            prev = Some(c);
+                            if set.len() >= 512 {
+                                break;
+                            }
+                        }
+                        let mut ids: Vec<usize> = set
+                            .into_iter()
+                            .map(|t| {
+                                let next = vocab.len();
+                                *vocab.entry(t).or_insert(next)
+                            })
+                            .collect();
+                        ids.sort_unstable();
+                        terms.push(ids);
+                    }
+                    let mut names = vec![""; vocab.len()];
+                    for (name, &id) in &vocab {
+                        names[id] = name;
+                    }
+                    let mut postings = vec![Vec::new(); vocab.len()];
+                    for (n, ids) in terms.iter().enumerate() {
+                        for &t in ids {
+                            postings[t].push(n);
                         }
                     }
                     let common = (selected.len() / 2).max(2);
-                    postings.retain(|_, docs| docs.len() > 1 && docs.len() <= common);
-                    let mut shared: BTreeMap<(usize, usize), Vec<&String>> = BTreeMap::new();
+                    let mut order: Vec<usize> = (0..vocab.len())
+                        .filter(|&t| (2..=common).contains(&postings[t].len()))
+                        .collect();
+                    order.sort_by_key(|&t| (postings[t].len(), names[t]));
+                    let mut kept = vec![false; vocab.len()];
                     let mut work = 0usize;
-                    for (t, docs) in &postings {
-                        for (x, a) in docs.iter().enumerate() {
-                            for b in &docs[x + 1..] {
-                                work += 1;
-                                if work > 2_000_000 {
-                                    return Err(AutomationFault::Capacity.into());
+                    for t in order {
+                        let df = postings[t].len();
+                        work += df * (df - 1) / 2;
+                        if work > 2_000_000 {
+                            break;
+                        }
+                        kept[t] = true;
+                    }
+                    let kept_terms: Vec<Vec<usize>> = terms
+                        .iter()
+                        .map(|ids| ids.iter().copied().filter(|&t| kept[t]).collect())
+                        .collect();
+                    let mut scored: Vec<(u16, usize, usize)> = Vec::new();
+                    let mut count = vec![0u16; selected.len()];
+                    let mut touched = Vec::new();
+                    for (a, ids) in kept_terms.iter().enumerate() {
+                        for &t in ids {
+                            for &b in postings[t].iter().filter(|&&b| b > a) {
+                                if count[b] == 0 {
+                                    touched.push(b);
                                 }
-                                shared.entry((*a, *b)).or_default().push(*t);
+                                count[b] += 1;
+                            }
+                        }
+                        touched.sort_unstable();
+                        for b in touched.drain(..) {
+                            let shared = count[b] as usize;
+                            count[b] = 0;
+                            if shared < 2 {
+                                continue;
+                            }
+                            let union = kept_terms[a].len() + kept_terms[b].len() - shared;
+                            let milli = (shared * 1000 / union.max(1)) as u16;
+                            if milli >= 150 {
+                                scored.push((milli, a, b));
                             }
                         }
                     }
-                    let kept =
-                        |n: usize| terms[n].iter().filter(|t| postings.contains_key(t)).count();
-                    let mut scored: Vec<(u16, usize, usize, Vec<&String>)> = shared
-                        .into_iter()
-                        .filter(|(_, ts)| ts.len() >= 2)
-                        .filter_map(|((a, b), ts)| {
-                            let union = kept(a) + kept(b) - ts.len();
-                            let milli = (ts.len() * 1000 / union.max(1)) as u16;
-                            (milli >= 150).then_some((milli, a, b, ts))
-                        })
-                        .collect();
                     scored.sort_by(|x, y| y.0.cmp(&x.0).then((x.1, x.2).cmp(&(y.1, y.2))));
                     let mut degree = vec![0usize; selected.len()];
-                    for (milli, a, b, mut ts) in scored {
+                    for (milli, a, b) in scored {
                         if degree[a] >= 3 || degree[b] >= 3 {
                             continue;
                         }
@@ -619,7 +653,12 @@ impl SegmentedMemoryReader {
                         if edges.len() - begin >= query.edge_limit_per_kind {
                             continue;
                         }
-                        ts.sort_by_key(|t| (postings[*t].len(), *t));
+                        let mut ts: Vec<usize> = kept_terms[a]
+                            .iter()
+                            .copied()
+                            .filter(|t| kept_terms[b].binary_search(t).is_ok())
+                            .collect();
+                        ts.sort_by_key(|&t| (postings[t].len(), names[t]));
                         edges.push(MemoryGraphEdge {
                             from: selected[a].id().clone(),
                             to: selected[b].id().clone(),
@@ -630,7 +669,7 @@ impl SegmentedMemoryReader {
                                 "shared_terms:{}",
                                 ts.iter()
                                     .take(5)
-                                    .map(|t| t.as_str())
+                                    .map(|&t| names[t])
                                     .collect::<Vec<_>>()
                                     .join(",")
                             ),

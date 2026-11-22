@@ -1,5 +1,12 @@
 # Runtime integration (ADR-MEM-45)
 
+2026-11-22 faster lexical neighbors ([ADR-MEM-162 addendum](../adr/162-lexical-neighbor-suggestions.md)):
+`memory_graph_native` computes lexical neighbor edges with interned terms and
+per-node counting. A synthetic 351-memory library with long texts went from 231 s
+to 1.3 s in debug at `node_limit` 5000. A page over the work budget now drops the
+most common terms instead of failing with `Capacity`. Edge rules, fields and
+wire are unchanged; Workspace stays at 61 commands. Surface aggregate: `9ff0a73ce2f15f4fe6b11eab332b3a5698e9be4ecdea548cc710b5fee39684f6`.
+
 2026-11-22 grant-backed enrollment and bridge host discovery ([ADR-MEM-165](../adr/165-grant-backed-enrollment-and-host-discovery.md)):
 an `Enrollment` passed to the qualified, initialized, opening, correction,
 supersede, forget-request or note `serve_connection` stops applying its own

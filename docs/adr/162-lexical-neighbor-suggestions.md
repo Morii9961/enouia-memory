@@ -24,9 +24,10 @@ authorized nodes:
   Jaccard score of at least 0.15 over the kept terms; `score_milli` is
   Jaccard × 1000.
 - **Bounding.** Pairs are taken by descending score, and each node keeps at
-  most three neighbors. Pair accumulation stops with `Capacity` beyond two
-  million posting steps. The usual per-kind `edge_limit_per_kind` and coverage
-  counts apply.
+  most three neighbors. Kept terms are taken rarest first (then by term) while
+  their pair work stays within two million posting steps; more common terms are
+  dropped instead of failing the page. The usual per-kind `edge_limit_per_kind`
+  and coverage counts apply.
 - **Explanation.** `witness` is `shared_terms:` followed by up to five shared
   terms, rarest first.
 
@@ -59,3 +60,26 @@ The graph has exactly one lexical-neighbor edge, between the two overlapping
 memories. It is an algorithm suggestion with a score of at least 150 and a
 witness that includes `alps`. Coverage is 1/1 and semantic neighbors stay
 unavailable. Existing projection, catalog, process and Agent read tests pass.
+
+## Addendum (2026-11-22): long texts
+
+Runtime measured the graph on a 351-memory real library: 2.9 s in release for 100
+nodes, against 43 ms before this ADR. The cost was in the pair stage: every
+candidate pair re-counted both nodes' kept terms through string-keyed map
+lookups, and shared terms were accumulated in a map per pair.
+
+- **Interning.** Terms are now interned to integer ids.
+- **Counting.** Shared terms are counted per node with a reused array, and the
+  shared-term witness is computed only for retained edges.
+- **Extraction.** Lowercasing is per character over title and content, ASCII
+  only, which is equivalent for ASCII words and CJK bigrams. It stops at the
+  512-term cap instead of lowercasing the whole text first.
+- **Budget.** The two-million-step budget now drops the most common terms (see
+  Bounding) instead of returning `Capacity`.
+
+The rules and the output for the same kept terms are unchanged.
+
+A synthetic timing probe (ignored test
+`lexical_neighbors_on_long_texts_stay_fast`) uses 351 memories of 3,000
+characters each with a skewed vocabulary. In debug builds, 100 nodes went from
+2.7 s to 0.42 s and 351 nodes from 231 s to 1.3 s.

@@ -742,3 +742,89 @@ fn attention_schedule_and_review_suggestions_derive_from_capture_time_and_profil
             .is_err()
     );
 }
+
+#[test]
+#[ignore = "timing probe: cargo test --release -- --ignored --nocapture"]
+fn lexical_neighbors_on_long_texts_stay_fast() {
+    // Synthetic long Chinese and English texts with a skewed vocabulary, so the
+    // 512-term cap fills and many bigrams are shared, like a real library.
+    let e = Env::new();
+    let v = Arc::new(e.create(Faults::none()));
+    let n = 351u32;
+    let chars: Vec<char> = "的一是在不了有和人这中大为上个国我以要他时来用们生到作地于出就分对成会可主发年动同工也能下过子说产种面而方后多定行学法所民得经十三之进着等部度家电力里如水化高自二理起小物现实加量都两体制机当使点从业本去把性好应开它合还因由其些然前外天政四日那社义事平形相全表间样与关各重新线内数正心反你明看原又么利比或但质气第向道命此变条只没结解问意建月公无系军很情者最立代想已通并提直题党程展五果料象员革位入常文总次品式活设及管特件长求老头基资边流路级少图山统接知较将组见计别她手角期根论运农指几九区强放决西被干做必战先回则任取据处理府研质"
+        .chars()
+        .collect();
+    let words = [
+        "memory", "sister", "project", "summer", "deadline", "travel", "music", "coffee",
+    ];
+    let mut seed = 0x2545_f491_4f6c_dd1du64;
+    let mut next = move || {
+        seed ^= seed << 13;
+        seed ^= seed >> 7;
+        seed ^= seed << 17;
+        seed
+    };
+    let sources: Vec<_> = (1..=n)
+        .map(|i| {
+            let mut text = String::new();
+            for k in 0..3000 {
+                let r = next();
+                let a = (r % chars.len() as u64) as usize;
+                let b = ((r >> 20) % chars.len() as u64) as usize;
+                text.push(chars[a * b / chars.len()]);
+                if k % 40 == 0 {
+                    text.push(' ');
+                    text.push_str(words[(r >> 40) as usize % words.len()]);
+                    text.push(' ');
+                }
+            }
+            let mut s = e.source(i, Sensitivity::Public);
+            s.text = text;
+            s.record.content_hash = sha256(s.text.as_bytes());
+            s
+        })
+        .collect();
+    for (c, chunk) in sources.chunks(64).enumerate() {
+        let first = c as u32 * 64 + 1;
+        let p = e.policy(first, first, chunk.len() as u32);
+        v.set_policy(&e.descriptor.created_by, p.clone()).unwrap();
+        v.capture(
+            &e.descriptor.system_actor,
+            chunk.to_vec(),
+            RecordCatalog::default(),
+        )
+        .unwrap();
+        for (i, s) in chunk.iter().enumerate() {
+            let mut input = e.input(s, &p, first + i as u32);
+            let quote = &mut input.record_fields.as_mut().unwrap().evidence[0];
+            quote.quote = s.text.chars().take(400).collect();
+            quote.end = 400;
+            commit(&e, &v, input);
+        }
+    }
+    let r = reader(&e, v.clone());
+    let profile = profile();
+    let filter = CatalogFilter::default();
+    for (node_limit, edge_limit_per_kind) in [(100, 200), (5000, 20_000)] {
+        let started = std::time::Instant::now();
+        let page = r.memory_graph_native(
+            &request(&profile, &filter),
+            &GraphQuery {
+                node_limit,
+                edge_limit_per_kind,
+            },
+            None,
+        );
+        let lexical = page.as_ref().map(|page| {
+            page.edges
+                .iter()
+                .filter(|edge| edge.relation == GraphEdgeKind::LexicalNeighbor)
+                .count()
+        });
+        println!(
+            "node_limit={node_limit} ok={} lexical={lexical:?} elapsed={:?}",
+            page.is_ok(),
+            started.elapsed()
+        );
+    }
+}
