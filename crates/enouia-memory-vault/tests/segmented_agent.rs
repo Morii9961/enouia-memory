@@ -100,7 +100,9 @@ fn admission_ceilings_are_independent_of_the_native_system_reader() {
         match change {
             0 => s.policy_ids.push(s.policy_ids[0].clone()),
             1 => s.source_ids.push(s.source_ids[0].clone()),
-            2 => s.max_sensitivity = Sensitivity::HighlySensitive,
+            // ADR-MEM-159: a ceiling above the policy maximum now clamps
+            // instead of refusing, so case 2 tests an unknown policy instead.
+            2 => s.policy_ids = vec![PolicyId::parse(&id("pol", 9999)).unwrap()],
             3 => {
                 s.valid_until =
                     enouia_memory_contract::time::Timestamp::from_unix_ms(NOW + 300_001).unwrap()
@@ -113,6 +115,18 @@ fn admission_ceilings_are_independent_of_the_native_system_reader() {
                 .is_err()
         );
     }
+    let mut above = scope(&e, 8);
+    above.max_sensitivity = Sensitivity::HighlySensitive;
+    let clamped = v
+        .authorize_agent_read(&e.descriptor.created_by, agent(), above)
+        .unwrap();
+    assert_eq!(
+        v.read_agent(&clamped, None, |d| d.current.memories.len())
+            .unwrap(),
+        8,
+        "a HighlySensitive ceiling over Private policies reads what Private reads"
+    );
+    clamped.revoke();
     let mut public = scope(&e, 8);
     public.max_sensitivity = Sensitivity::Public;
     let p = v

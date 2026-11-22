@@ -945,3 +945,10 @@ capture producer.
 opens a capture window, replays resubmissions under their original window, captures,
 and forms the submitted statements synchronously. Runtime reads the connector's scope
 from `capture_windows()`.
+
+### ADR-MEM-159 — A read ceiling above a policy's maximum clamps per policy
+
+[Decision](159-read-ceiling-clamps-per-policy.md): segmented Agent permits and Owner
+read grants no longer refuse a `max_sensitivity` above a selected policy's maximum.
+Reads already clamp per policy, so one scope or grant can span Private and
+HighlySensitive policies.

@@ -225,7 +225,8 @@ fn owner_scope_source_text_and_deletion_gates_remain_independent() {
         match change {
             0 => wrong.subject_id = SubjectId::parse(&id("sub", 99)).unwrap(),
             1 => wrong.project_id = Some(ProjectId::parse(&id("prj", 99)).unwrap()),
-            2 => wrong.max_sensitivity = Sensitivity::HighlySensitive,
+            // ADR-MEM-159: a ceiling above the policy maximum clamps instead.
+            2 => wrong.policy_ids = vec![PolicyId::parse(&id("pol", 9999)).unwrap()],
             _ => wrong.valid_until = Timestamp::from_unix_ms(NOW + 300_001).unwrap(),
         }
         assert!(

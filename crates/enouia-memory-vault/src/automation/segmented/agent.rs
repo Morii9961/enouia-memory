@@ -816,9 +816,11 @@ impl SegmentedAutomationVault {
                         || now < p.valid_from
                         || now >= p.valid_until
                         || scope.valid_until > p.valid_until))
+                    // ADR-MEM-159: a ceiling above this policy's own maximum
+                    // clamps to it per policy (see `allows`), so it no longer
+                    // refuses a scope that spans policies of different maxima.
                     || p.subject_id != scope.subject_id
                     || p.project_id != scope.project_id
-                    || scope.max_sensitivity > p.max_sensitivity
                 {
                     return Err(AutomationFault::Denied);
                 }
