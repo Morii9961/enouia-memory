@@ -990,3 +990,11 @@ projections. One lists when selected, unprotected memories enter Fading and
 Archived; the other suggests memories to review because they archive soon or
 their validity ends soon. Both are recomputed from capture time and the
 attention profile and are kept apart from the publication-proof activity feed.
+
+### ADR-MEM-165 — Grant-backed native enrollment and bridge host discovery
+
+[Decision](165-grant-backed-enrollment-and-host-discovery.md): once a pipe's reader
+permit is grant-backed, its native enrollment drops its own five-minute deadline and
+lives as long as that permit, which is checked around every read. The stdio bridge
+accepts a missing `--host-pid` and enrolls the pipe's server process (same user and
+session) instead, so static MCP configuration works.

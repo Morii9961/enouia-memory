@@ -823,8 +823,7 @@ fn stdio_executable_attaches_to_owner_host_and_reaps_on_eof() {
             "automation-qualified-v1",
             "--pipe",
             id.as_str(),
-            "--host-pid",
-            &std::process::id().to_string(),
+            // ADR-MEM-165: no `--host-pid`; the bridge enrolls the pipe's server.
             "--vault-id",
             e.descriptor.vault_id.as_str(),
         ])

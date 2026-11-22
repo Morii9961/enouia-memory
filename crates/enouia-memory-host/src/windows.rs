@@ -384,6 +384,19 @@ impl Pipe {
         check(unsafe { GetNamedPipeClientProcessId(raw(&self.handle), &mut pid) })?;
         Ok(pid)
     }
+    /// ADR-MEM-165: the serving process ID, read from the OS on a connected
+    /// client end. A bridge started from a static MCP config, without
+    /// `--host-pid`, enrolls this PID; `ProcessPeer::enroll` still requires the
+    /// same user and logon session and holds the process against PID reuse.
+    pub fn server_pid(&self) -> io::Result<u32> {
+        if self.server {
+            return Err(denied());
+        }
+        let mut pid = 0;
+        // SAFETY: connected client-end pipe and a valid PID out-pointer.
+        check(unsafe { GetNamedPipeServerProcessId(raw(&self.handle), &mut pid) })?;
+        Ok(pid)
+    }
     pub fn disconnect(&mut self) -> io::Result<()> {
         if !self.server {
             return Err(denied());
