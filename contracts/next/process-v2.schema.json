@@ -1225,7 +1225,8 @@
             "corrects",
             "same_entity",
             "same_conversation",
-            "theme_cooccurrence"
+            "theme_cooccurrence",
+            "lexical_neighbor"
           ]
         },
         "class": {

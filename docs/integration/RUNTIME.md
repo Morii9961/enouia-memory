@@ -1,5 +1,15 @@
 # Runtime integration (ADR-MEM-45)
 
+2026-11-22 lexical neighbor suggestions ([ADR-MEM-162](../adr/162-lexical-neighbor-suggestions.md)):
+`GraphEdgeKind` gains `lexical_neighbor` (`lexical_neighbor` on the wire), always
+`class: algorithm_suggestion` with `score_milli` and a `witness` of
+`shared_terms:` plus up to five shared terms. Every graph page can now contain
+it, so Runtime's graph view and any code that matches edge kinds must handle it
+when the pin moves: draw it as a suggestion and show the shared terms. The header adds
+the limit note `lexical_neighbors_are_term_overlap_suggestions`, and
+`semantic_neighbors_available` stays false. No persisted format or IPC command
+change; Workspace stays at 61 commands. Surface aggregate: `f95185c8a9d23c5c10b2704b90a6c6267f739da8b5e99d7bbac51f27271300db`.
+
 2026-11-22 Agent request queue ([ADR-MEM-161](../adr/161-agent-request-queue.md)):
 `NativeMemoryOwner::agent_requests(max)` lists saved Agent correction and forget
 requests. Each item has `kind`, `key`, `request_id`, `principal`, `target`, the
@@ -11,6 +21,7 @@ registered entry. To host Agent pipes, call `windows::Pipe::client_pid()` after
 `accept` and enroll that PID (`Enrollment::enroll(pid, principal, scopes)`) before
 `serve_connection`. No persisted format, IPC command or wire change; Workspace stays
 at 61 commands. Surface aggregate: `6c9b2416a182d0f1c7a0799d697c7f9094015d9456a182c43bb003e8a0d16444`.
+
 
 2026-11-22 persistent Agent registration ([ADR-MEM-160](../adr/160-agent-request-grants.md)):
 `OwnerReadGrant` gains optional `allow_requests`, and request-capable grants keep

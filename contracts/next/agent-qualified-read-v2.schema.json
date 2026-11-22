@@ -1374,7 +1374,8 @@
         },
         "relation": {
           "enum": [
-            "theme_cooccurrence"
+            "theme_cooccurrence",
+            "lexical_neighbor"
           ]
         },
         "class": {
@@ -1415,7 +1416,8 @@
             "derived_from",
             "reversion",
             "same_entity",
-            "theme_cooccurrence"
+            "theme_cooccurrence",
+            "lexical_neighbor"
           ]
         },
         "candidates": {
