@@ -1,5 +1,7 @@
 //! Explicit ADR-MEM-94 synthetic root. No implicit opening, migration or routes.
 mod agent;
+mod agent_requests;
+pub use agent_requests::{AgentRequestKind, AgentRequestView};
 pub mod backup;
 mod capture_window;
 pub use capture_window::{CaptureWindow, MAX_CAPTURE_WINDOW_DAYS};

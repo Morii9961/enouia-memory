@@ -1,5 +1,15 @@
 # Runtime integration (ADR-MEM-45)
 
+2026-11-22 Agent request queue ([ADR-MEM-161](../adr/161-agent-request-queue.md)):
+`NativeMemoryOwner::agent_requests(max)` lists saved Agent correction and forget
+requests. Each item has `kind`, `key`, `request_id`, `principal`, `target`, the
+cited `evidence`, the Agent's untrusted `text`, `committed_in`, and `pending`
+(the target is unchanged). Act through `plan(Correct { .. })`, with the text
+Morii reviewed, or `plan(Forget { .. })`, then confirm and commit. Keep
+dismissals locally by `key`. Do not start the correction-consuming worker in the
+registered entry. No persisted format, IPC command or wire change; Workspace stays
+at 61 commands. Surface aggregate: `561398521d7bd373ea1248561058690d192b745722f37823f024c4435f3985ff`.
+
 2026-11-22 persistent Agent registration ([ADR-MEM-160](../adr/160-agent-request-grants.md)):
 `OwnerReadGrant` gains optional `allow_requests`, and request-capable grants keep
 Agent notes, correction requests and forget requests working after formation

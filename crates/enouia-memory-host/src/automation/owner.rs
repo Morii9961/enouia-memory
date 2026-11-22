@@ -2,7 +2,8 @@
 use super::application::{ApplicationFault, ApplicationResult};
 use enouia_memory_contract::{common::*, hash::Sha256Hex, ids::OperationId, next::*};
 use enouia_memory_vault::automation::segmented::{
-    CaptureWindow, NativeOwnerConsent, NativeOwnerPreview, SegmentedAutomationVault,
+    AgentRequestView, CaptureWindow, NativeOwnerConsent, NativeOwnerPreview,
+    SegmentedAutomationVault,
 };
 use std::sync::{Arc, RwLock, RwLockReadGuard};
 pub struct NativeMemoryOwner {
@@ -101,6 +102,12 @@ impl NativeMemoryOwner {
         Ok(self
             .vault
             .open_capture_window(&self.owner, days, max, allowed_forms)?)
+    }
+    /// ADR-MEM-161: saved Agent correction and forget requests for Morii's
+    /// desktop queue. Acting on one uses `plan` with Correct/Forget.
+    pub fn agent_requests(&self, max: Sensitivity) -> ApplicationResult<Vec<AgentRequestView>> {
+        let _g = self.gate()?;
+        Ok(self.vault.agent_requests(&self.owner, max)?)
     }
     pub fn capture_windows(&self) -> ApplicationResult<Vec<CaptureWindow>> {
         let _g = self.gate()?;

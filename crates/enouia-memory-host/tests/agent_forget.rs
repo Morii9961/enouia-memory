@@ -688,3 +688,52 @@ fn request_capable_grant_keeps_forget_requests_working_after_formation_windows_e
         .unwrap();
     assert_eq!(replay, receipt);
 }
+
+#[test]
+fn morii_queue_lists_saved_forget_requests_until_the_target_is_forgotten() {
+    use enouia_memory_host::automation::owner::NativeMemoryOwner;
+    let (e, v, p, request) = forget_rig(SpeakerRole::User);
+    let owner = &e.descriptor.created_by;
+    let host =
+        QualifiedAgentHost::from_authenticated_initialized_owner(v.clone(), owner.clone()).unwrap();
+    host.forget_requester(owner, actor(ActorType::Agent, 88), scope(&p))
+        .unwrap()
+        .submit(&request)
+        .unwrap();
+    assert!(
+        v.agent_requests(&e.descriptor.system_actor, Sensitivity::Private)
+            .is_err()
+    );
+    let morii = NativeMemoryOwner::from_authenticated_owner(v.clone(), owner.clone()).unwrap();
+    let queue = morii.agent_requests(Sensitivity::Private).unwrap();
+    assert_eq!(queue.len(), 1);
+    assert_eq!(queue[0].kind, AgentRequestKind::Forget);
+    assert_eq!(queue[0].target, request.target);
+    assert!(queue[0].pending);
+    assert_eq!(queue[0].text, request.forget);
+    // Acting on it is an ordinary Owner forget; the request is then resolved.
+    let preview = morii
+        .plan(
+            OwnerAction::Forget {
+                target: request.target.clone(),
+                impact_preview_hash: sha256(b"computed by the plan"),
+            },
+            Sensitivity::Private,
+            None,
+        )
+        .unwrap();
+    let consent = morii
+        .confirm_from_owner_gesture(
+            &preview.plan.operation_id,
+            &digest(&preview.plan),
+            &preview.effects_hash,
+            TrustedSurface::TrustedWindowsApp,
+        )
+        .unwrap();
+    morii.commit(consent).unwrap();
+    let queue = morii.agent_requests(Sensitivity::Private).unwrap();
+    assert_eq!(queue.len(), 1);
+    assert!(!queue[0].pending);
+    morii.lock().unwrap();
+    assert!(morii.agent_requests(Sensitivity::Private).is_err());
+}
