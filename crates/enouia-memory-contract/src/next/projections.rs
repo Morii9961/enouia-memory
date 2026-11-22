@@ -191,6 +191,9 @@ pub enum GraphEdgeKind {
     SameConversation,
     SameEntity,
     ThemeCooccurrence,
+    /// ADR-MEM-162: term-overlap suggestion between authorized memories; an
+    /// algorithm suggestion, not a recorded or semantic-embedding relation.
+    LexicalNeighbor,
 }
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -299,7 +302,7 @@ impl NextDocument for MemoryGraphPage {
                 .collect::<std::collections::BTreeSet<_>>()
                 .len()
                 == self.edge_coverage.len()
-            && self.edge_coverage.len() <= 5
+            && self.edge_coverage.len() <= 6
             && !self.semantic_neighbors_available
             && self
                 .edge_coverage
@@ -312,7 +315,10 @@ impl NextDocument for MemoryGraphPage {
                         p.valid() && ["entity_merge", "entity_split"].contains(&p.action.as_str())
                     })
                     && (e.owner_relations.is_empty() || e.relation == GraphEdgeKind::SameEntity)
-                    && if e.relation == GraphEdgeKind::ThemeCooccurrence {
+                    && if matches!(
+                        e.relation,
+                        GraphEdgeKind::ThemeCooccurrence | GraphEdgeKind::LexicalNeighbor
+                    ) {
                         e.class == GraphEdgeClass::AlgorithmSuggestion
                             && e.score_milli.is_some_and(|s| s <= 1000)
                     } else {

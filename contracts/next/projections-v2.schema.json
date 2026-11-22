@@ -532,7 +532,8 @@
                   "reversion",
                   "same_conversation",
                   "same_entity",
-                  "theme_cooccurrence"
+                  "theme_cooccurrence",
+                  "lexical_neighbor"
                 ]
               },
               "class": {
@@ -587,7 +588,8 @@
                   "reversion",
                   "same_conversation",
                   "same_entity",
-                  "theme_cooccurrence"
+                  "theme_cooccurrence",
+                  "lexical_neighbor"
                 ]
               },
               "candidates": {

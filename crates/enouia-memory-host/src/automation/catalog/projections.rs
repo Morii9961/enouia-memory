@@ -514,6 +514,7 @@ impl SegmentedMemoryReader {
                 vec![
                     "edge_candidates_and_retention_describe_only_selected_nodes".into(),
                     "semantic_neighbors_unavailable_no_model_or_embeddings".into(),
+                    "lexical_neighbors_are_term_overlap_suggestions".into(),
                     "same_entity_is_a_recorded_mention_relation_not_independent_verification"
                         .into(),
                 ],
@@ -528,10 +529,112 @@ impl SegmentedMemoryReader {
                 GraphEdgeKind::SameConversation,
                 GraphEdgeKind::SameEntity,
                 GraphEdgeKind::ThemeCooccurrence,
+                GraphEdgeKind::LexicalNeighbor,
             ] {
                 let mut candidates = 0u64;
                 let begin = edges.len();
-                if matches!(kind, GraphEdgeKind::DerivedFrom | GraphEdgeKind::Reversion) {
+                if kind == GraphEdgeKind::LexicalNeighbor {
+                    // ADR-MEM-162: term overlap of title and content (ASCII words
+                    // of 3+ letters, CJK bigrams). Terms in more than half of the
+                    // selected nodes are dropped; a pair needs 2+ shared terms
+                    // and Jaccard >= 0.15; each node keeps its top 3 neighbors.
+                    let cjk = |c: char| ('\u{4e00}'..='\u{9fff}').contains(&c);
+                    let terms: Vec<BTreeSet<String>> = selected
+                        .iter()
+                        .map(|row| {
+                            let i = &row.entry.memory.decision.input;
+                            let text = format!(
+                                "{} {}",
+                                i.record_fields.as_ref().unwrap().title,
+                                i.content
+                            )
+                            .to_lowercase();
+                            let mut set = BTreeSet::new();
+                            let mut word = String::new();
+                            let mut prev: Option<char> = None;
+                            for c in text.chars().chain(Some(' ')) {
+                                if c.is_ascii_alphanumeric() {
+                                    word.push(c);
+                                } else {
+                                    if word.chars().count() >= 3 {
+                                        set.insert(word.clone());
+                                    }
+                                    word.clear();
+                                }
+                                if let Some(p) = prev.filter(|p| cjk(*p) && cjk(c)) {
+                                    set.insert(format!("{p}{c}"));
+                                }
+                                prev = Some(c);
+                                if set.len() >= 512 {
+                                    break;
+                                }
+                            }
+                            set
+                        })
+                        .collect();
+                    let mut postings: BTreeMap<&String, Vec<usize>> = BTreeMap::new();
+                    for (n, set) in terms.iter().enumerate() {
+                        for t in set {
+                            postings.entry(t).or_default().push(n);
+                        }
+                    }
+                    let common = (selected.len() / 2).max(2);
+                    postings.retain(|_, docs| docs.len() > 1 && docs.len() <= common);
+                    let mut shared: BTreeMap<(usize, usize), Vec<&String>> = BTreeMap::new();
+                    let mut work = 0usize;
+                    for (t, docs) in &postings {
+                        for (x, a) in docs.iter().enumerate() {
+                            for b in &docs[x + 1..] {
+                                work += 1;
+                                if work > 2_000_000 {
+                                    return Err(AutomationFault::Capacity.into());
+                                }
+                                shared.entry((*a, *b)).or_default().push(*t);
+                            }
+                        }
+                    }
+                    let kept =
+                        |n: usize| terms[n].iter().filter(|t| postings.contains_key(t)).count();
+                    let mut scored: Vec<(u16, usize, usize, Vec<&String>)> = shared
+                        .into_iter()
+                        .filter(|(_, ts)| ts.len() >= 2)
+                        .filter_map(|((a, b), ts)| {
+                            let union = kept(a) + kept(b) - ts.len();
+                            let milli = (ts.len() * 1000 / union.max(1)) as u16;
+                            (milli >= 150).then_some((milli, a, b, ts))
+                        })
+                        .collect();
+                    scored.sort_by(|x, y| y.0.cmp(&x.0).then((x.1, x.2).cmp(&(y.1, y.2))));
+                    let mut degree = vec![0usize; selected.len()];
+                    for (milli, a, b, mut ts) in scored {
+                        if degree[a] >= 3 || degree[b] >= 3 {
+                            continue;
+                        }
+                        degree[a] += 1;
+                        degree[b] += 1;
+                        candidates += 1;
+                        if edges.len() - begin >= query.edge_limit_per_kind {
+                            continue;
+                        }
+                        ts.sort_by_key(|t| (postings[*t].len(), *t));
+                        edges.push(MemoryGraphEdge {
+                            from: selected[a].id().clone(),
+                            to: selected[b].id().clone(),
+                            relation: kind,
+                            class: GraphEdgeClass::AlgorithmSuggestion,
+                            owner_relations: vec![],
+                            witness: format!(
+                                "shared_terms:{}",
+                                ts.iter()
+                                    .take(5)
+                                    .map(|t| t.as_str())
+                                    .collect::<Vec<_>>()
+                                    .join(",")
+                            ),
+                            score_milli: Some(milli),
+                        });
+                    }
+                } else if matches!(kind, GraphEdgeKind::DerivedFrom | GraphEdgeKind::Reversion) {
                     let mut add = |edge: MemoryGraphEdge| {
                         candidates += 1;
                         if edges.len() - begin < query.edge_limit_per_kind {

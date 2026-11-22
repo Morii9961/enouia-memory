@@ -523,3 +523,77 @@ fn five_thousand_graph_nodes_progress_with_exact_window_coverage_and_no_omission
     assert!(page.header.complete_in_scope);
     println!("native graph nodes=5000, pages={pages}, deletion invalidates old cursor");
 }
+
+#[test]
+fn lexical_neighbor_suggestions_link_overlapping_memories_and_explain_shared_terms() {
+    let e = Env::new();
+    let v = Arc::new(e.create(Faults::none()));
+    let p = e.policy(1, 1, 4);
+    v.set_policy(&e.descriptor.created_by, p.clone()).unwrap();
+    let texts = [
+        "I went hiking in the Alps with my sister last summer.",
+        "My sister wants to go hiking in the Alps again next summer.",
+        "Quarterly tax filing deadline moved to April.",
+        "我喜欢在雨天读科幻小说。",
+    ];
+    let sources: Vec<_> = texts
+        .iter()
+        .enumerate()
+        .map(|(i, t)| {
+            let mut s = e.source(i as u32 + 1, Sensitivity::Public);
+            s.text = t.to_string();
+            s.record.content_hash = sha256(t.as_bytes());
+            s
+        })
+        .collect();
+    v.capture(
+        &e.descriptor.system_actor,
+        sources.clone(),
+        RecordCatalog::default(),
+    )
+    .unwrap();
+    let receipts: Vec<_> = sources
+        .iter()
+        .enumerate()
+        .map(|(i, s)| {
+            let mut input = e.input(s, &p, i as u32 + 1);
+            input.record_fields.as_mut().unwrap().title = s.text.clone();
+            commit(&e, &v, input)
+        })
+        .collect();
+    let r = reader(&e, v.clone());
+    let profile = profile();
+    let filter = CatalogFilter::default();
+    let page = r
+        .memory_graph_native(
+            &request(&profile, &filter),
+            &GraphQuery {
+                node_limit: 100,
+                edge_limit_per_kind: 20,
+            },
+            None,
+        )
+        .unwrap();
+    let lexical: Vec<_> = page
+        .edges
+        .iter()
+        .filter(|edge| edge.relation == GraphEdgeKind::LexicalNeighbor)
+        .collect();
+    assert_eq!(lexical.len(), 1, "{lexical:?}");
+    let pair = [
+        receipts[0].result.memory_id.clone(),
+        receipts[1].result.memory_id.clone(),
+    ];
+    assert!(pair.contains(&lexical[0].from) && pair.contains(&lexical[0].to));
+    assert_eq!(lexical[0].class, GraphEdgeClass::AlgorithmSuggestion);
+    assert!(lexical[0].witness.starts_with("shared_terms:"));
+    assert!(lexical[0].witness.contains("alps"));
+    assert!(lexical[0].score_milli.unwrap() >= 150);
+    let coverage = page
+        .edge_coverage
+        .iter()
+        .find(|c| c.relation == GraphEdgeKind::LexicalNeighbor)
+        .unwrap();
+    assert_eq!((coverage.candidates, coverage.retained), (1, 1));
+    assert!(!page.semantic_neighbors_available);
+}

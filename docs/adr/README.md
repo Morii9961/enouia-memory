@@ -968,3 +968,10 @@ Agent correction and forget requests with the cited statement, the Agent's untru
 text and a `pending` flag (the target is unchanged). Morii acts through the existing
 Owner Correct/Forget plans; Runtime keeps dismissals locally. Automatic correction
 consumption stays off in Morii-facing hosts.
+
+### ADR-MEM-162 — Lexical neighbor suggestions in the graph projection
+
+[Decision](162-lexical-neighbor-suggestions.md): the graph adds `lexical_neighbor`
+algorithm-suggestion edges from title/content term overlap (ASCII words, CJK
+bigrams), with Jaccard scores, at most three neighbors per node and the shared terms
+as witness. Semantic (model or embedding) neighbors stay unavailable.
