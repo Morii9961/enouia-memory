@@ -1,6 +1,6 @@
 //! Explicit correction-report MCP boundary. No old reader grants write authority.
 use super::{
-    closed, error, initialized,
+    WriteCall, closed, error, initialized,
     read_session::{ReadSession, Route},
     reply, tool_result,
 };
@@ -105,54 +105,24 @@ impl<'a, 'host> Server<'a, 'host> {
                     return Some(error(id, -32602, "invalid_tool_cursor"));
                 }
                 let mut tools = initialized::tools();
-                tools.push(json!({"name":"memory_correction_report","description":"Save an untrusted correction report backed by a permitted Runtime user statement. Success means report_saved only, not a corrected memory, Owner approval or a review queue.","inputSchema":schema(false),"outputSchema":schema(true),"annotations":{"readOnlyHint":false,"destructiveHint":false,"idempotentHint":true,"openWorldHint":false}}));
+                tools.push(tool());
                 Some(reply(id, json!({"tools":tools})))
             }
             "tools/call" if params["name"] == "memory_correction_report" => {
-                if !closed(&params, &["name", "arguments", "_meta"]) {
-                    return Some(error(id, -32602, "invalid_arguments"));
-                }
-                let Ok(packet) = serde_json::from_value::<Packet>(params["arguments"].clone())
-                else {
-                    return Some(error(id, -32602, "unsupported_request"));
-                };
-                let _version = packet.schema_version;
-                if packet.kind != "agent_correction_request" || packet.capability != CAPABILITY {
-                    return Some(error(id, -32602, "unsupported_request"));
-                }
-                let (receipt, fault) = match self.writer.submit(&packet.request) {
-                    Ok(receipt) => (json!(receipt), Value::Null),
-                    Err(ApplicationFault::Vault(AutomationFault::OutcomeUnknown)) => {
+                match call(self.writer, id, &params) {
+                    WriteCall::Reply(response, close) => {
+                        if close {
+                            self.session.close();
+                        }
+                        Some(response)
+                    }
+                    WriteCall::Unknown => {
                         self.uncertain = true;
                         self.original = Some(message.clone());
                         self.session.close();
-                        return None;
+                        None
                     }
-                    Err(fault) => {
-                        let code = match fault {
-                            ApplicationFault::Invalid => "invalid_request",
-                            ApplicationFault::Locked
-                            | ApplicationFault::Vault(AutomationFault::Denied) => {
-                                "permission_denied"
-                            }
-                            ApplicationFault::Vault(AutomationFault::Conflict) => "conflict",
-                            ApplicationFault::Vault(AutomationFault::Stale) => "stale_scope",
-                            ApplicationFault::Vault(AutomationFault::Capacity) => "capacity",
-                            ApplicationFault::Vault(AutomationFault::Busy) => "busy",
-                            ApplicationFault::Vault(AutomationFault::RecoveryRequired) => {
-                                "recovery_required"
-                            }
-                            _ => "unavailable",
-                        };
-                        if self.writer.check_connection().is_err() {
-                            self.session.close();
-                        }
-                        (Value::Null, json!({"code":code,"retryable":false}))
-                    }
-                };
-                let failed = !fault.is_null();
-                let response = json!({"schema_version":2,"kind":"agent_correction_response","capability":CAPABILITY,"request_id":packet.request.request_id,"receipt":receipt,"error":fault});
-                Some(reply(id, tool_result(response, failed)))
+                }
             }
             "tools/call" => {
                 let response = self.reads.call(id, &params);
@@ -164,4 +134,48 @@ impl<'a, 'host> Server<'a, 'host> {
             _ => Some(error(id, -32601, "method_not_found")),
         }
     }
+}
+
+/// The tool this module adds; shared with the combined Agent protocol.
+pub(super) fn tool() -> Value {
+    json!({"name":"memory_correction_report","description":"Save an untrusted correction report backed by a permitted Runtime user statement. Success means report_saved only, not a corrected memory, Owner approval or a review queue.","inputSchema":schema(false),"outputSchema":schema(true),"annotations":{"readOnlyHint":false,"destructiveHint":false,"idempotentHint":true,"openWorldHint":false}})
+}
+/// One `tools/call` of this module's tool; shared with the combined Agent protocol.
+pub(super) fn call(writer: &AgentCorrectionReporter<'_>, id: Value, params: &Value) -> WriteCall {
+    if !closed(params, &["name", "arguments", "_meta"]) {
+        return WriteCall::Reply(error(id, -32602, "invalid_arguments"), false);
+    }
+    let Ok(packet) = serde_json::from_value::<Packet>(params["arguments"].clone()) else {
+        return WriteCall::Reply(error(id, -32602, "unsupported_request"), false);
+    };
+    let _version = packet.schema_version;
+    if packet.kind != "agent_correction_request" || packet.capability != CAPABILITY {
+        return WriteCall::Reply(error(id, -32602, "unsupported_request"), false);
+    }
+    let mut close = false;
+    let (receipt, fault) = match writer.submit(&packet.request) {
+        Ok(receipt) => (json!(receipt), Value::Null),
+        Err(ApplicationFault::Vault(AutomationFault::OutcomeUnknown)) => {
+            return WriteCall::Unknown;
+        }
+        Err(fault) => {
+            let code = match fault {
+                ApplicationFault::Invalid => "invalid_request",
+                ApplicationFault::Locked | ApplicationFault::Vault(AutomationFault::Denied) => {
+                    "permission_denied"
+                }
+                ApplicationFault::Vault(AutomationFault::Conflict) => "conflict",
+                ApplicationFault::Vault(AutomationFault::Stale) => "stale_scope",
+                ApplicationFault::Vault(AutomationFault::Capacity) => "capacity",
+                ApplicationFault::Vault(AutomationFault::Busy) => "busy",
+                ApplicationFault::Vault(AutomationFault::RecoveryRequired) => "recovery_required",
+                _ => "unavailable",
+            };
+            close = writer.check_connection().is_err();
+            (Value::Null, json!({"code":code,"retryable":false}))
+        }
+    };
+    let failed = !fault.is_null();
+    let response = json!({"schema_version":2,"kind":"agent_correction_response","capability":CAPABILITY,"request_id":packet.request.request_id,"receipt":receipt,"error":fault});
+    WriteCall::Reply(reply(id, tool_result(response, failed)), close)
 }

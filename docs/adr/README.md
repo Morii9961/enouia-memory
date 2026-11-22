@@ -998,3 +998,12 @@ permit is grant-backed, its native enrollment drops its own five-minute deadline
 lives as long as that permit, which is checked around every read. The stdio bridge
 accepts a missing `--host-pid` and enrolls the pipe's server process (same user and
 session) instead, so static MCP configuration works.
+
+### ADR-MEM-166 — Combined Agent protocol, idle reads and the bridge library
+
+[Decision](166-combined-agent-protocol-and-idle-reads.md): `automation-agent-v1`
+serves the read tools plus the note, correction-report and forget-request tools
+the connection's writers allow, on one pipe. Its `serve_connection` waits between
+frames without a time limit, checks a caller stop flag and liveness every quarter
+second, and applies the timeout only inside a frame. The bridge body becomes
+`mcp::bridge::run` so Runtime can ship the executable.
