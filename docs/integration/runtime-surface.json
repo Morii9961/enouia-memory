@@ -988,7 +988,7 @@
     {
       "path": "crates/enouia-memory-host/src/mcp/remote/oauth.rs",
       "role": "host-session",
-      "sha256": "49d22890ed97d09da2e38560f18cd2f1109eed4b8bfbfdc4eb7ac73d794eb091"
+      "sha256": "1d960512071f563444c3466ca49c02e2b7818c28540b64c68e22db93f936afff"
     },
     {
       "path": "crates/enouia-memory-host/src/mcp/remote/service.rs",
@@ -1431,5 +1431,5 @@
       "sha256": "3603c1855d9f9ec9b3585143a0191508980b260b1ffd26c82b3e6f9b7223a75d"
     }
   ],
-  "aggregate": "7699a38976c5e79833681f9df70667e2b6f425b8d2b898359e252f469fe1910b"
+  "aggregate": "312acff841d00c661c3a288aab24d7094b9fd7c7f0b4175b29f286a4b6a3bd89"
 }

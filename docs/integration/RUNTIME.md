@@ -1,5 +1,11 @@
 # Runtime integration (ADR-MEM-45)
 
+2026-11-24 OAuth registration lapse ([ADR-MEM-179](../adr/179-unapproved-client-lapse.md)):
+remote OAuth registrations never approved with Morii's code lapse after an hour and free
+their slot. Remote service only; Runtime needs no change (no IPC, wire or schema change;
+Workspace stays at 61 commands). Surface aggregate:
+`312acff841d00c661c3a288aab24d7094b9fd7c7f0b4175b29f286a4b6a3bd89`.
+
 2026-11-24 ChatGPT-shaped tool inputs ([ADR-MEM-178](../adr/178-chatgpt-shaped-tool-inputs.md)):
 the remote service now advertises flat read inputs and completes the envelope itself,
 and its write tools accept a short conversation form with free-form request keys.

@@ -1097,3 +1097,9 @@ records fade/archive events and review suggestions as delivered by ADR-MEM-164.
 inputs for the read tools and completes the frozen envelope (request ID, time, defaults,
 profile-capped recall sizes) itself; write tools accept a short conversation form and free-form
 request keys mapped to stable request IDs. Full forms pass through unchanged.
+
+### ADR-MEM-179 — Unapproved OAuth registrations lapse after an hour
+
+[Decision](179-unapproved-client-lapse.md): remote OAuth registrations that Morii never approves
+lapse after one hour (at the next registration or authorize request), freeing their slot;
+approved clients and older state files are unaffected.
