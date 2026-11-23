@@ -72,6 +72,14 @@ pub enum OwnerAction {
         #[serde(deserialize_with = "crate::json::nullable")]
         reason: Option<String>,
     },
+    /// ADR-MEM-173: Morii saves a recall result as a named capsule: the query
+    /// he ran and the memories it returned, in order. Saving the same name
+    /// again replaces it; no members discards it.
+    Capsule {
+        name: String,
+        query: String,
+        members: Vec<TargetRef>,
+    },
 }
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub enum OwnerPlanKind {
@@ -232,6 +240,16 @@ impl NextDocument for OwnerActionPlan {
                         && e.iter().all(|id| check_prefixed_uuid(id, "ent").is_ok())
                         && e.iter().collect::<std::collections::BTreeSet<_>>().len() == e.len()
                         && reason(r)
+                }
+                OwnerAction::Capsule {
+                    name,
+                    query,
+                    members,
+                } => {
+                    record_fields::text(name, 60)
+                        && query.len() <= 8 * 1024
+                        && query.chars().count() <= 2000
+                        && (members.is_empty() || targets(members))
                 }
             };
         if valid {

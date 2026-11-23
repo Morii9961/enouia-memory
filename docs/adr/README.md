@@ -1053,3 +1053,10 @@ groups records as one identity across windows (`same: true`) or separates one
 Records of one type and name link automatically as revocable `same_name` suggestion
 edges. `NativeMemoryOwner::entity_identities` lists groups for Runtime's
 confirmation UI.
+
+### ADR-MEM-173 — Saved recall capsules on the registered Vault
+
+[Decision](173-saved-recall-capsules.md): owner action `Capsule { name, query,
+members }` saves (or with no members discards) a named recall result through the
+usual plan/confirm/commit; `NativeMemoryOwner::capsules` lists the latest version
+per name with each member's saved and current revision.

@@ -109,6 +109,14 @@ impl NativeMemoryOwner {
         let _g = self.gate()?;
         Ok(self.vault.agent_requests(&self.owner, max)?)
     }
+    /// ADR-MEM-173: Morii's saved recall capsules.
+    pub fn capsules(
+        &self,
+        max: Sensitivity,
+    ) -> ApplicationResult<enouia_memory_vault::automation::segmented::SavedCapsules> {
+        let _g = self.gate()?;
+        Ok(self.vault.capsules(&self.owner, max)?)
+    }
     /// ADR-MEM-172: entity identities for Morii's confirmation UI.
     pub fn entity_identities(
         &self,

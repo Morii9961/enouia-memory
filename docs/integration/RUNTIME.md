@@ -1,5 +1,17 @@
 # Runtime integration (ADR-MEM-45)
 
+2026-11-23 saved recall capsules ([ADR-MEM-173](../adr/173-saved-recall-capsules.md), R5 B1):
+save a recall result with
+`OwnerAction::Capsule { name, query, members }` (name 1–60 characters, query up to
+2000, up to 128 distinct targets in order) through the usual plan → confirm →
+commit. Saving the same name replaces it, and saving no members discards it.
+`NativeMemoryOwner::capsules(max)` lists `SavedCapsules { snapshot, capsules }`, the
+latest version per name. Each capsule has its query, a `saved_by` proof and
+`members` with `saved` and `current` (`None` once the memory is gone). Keep it off
+on the real Vault until Morii decides. Handle the owner action and the proof name
+`capsule` when matching. No IPC command or wire change; Workspace stays at 61
+commands. Surface aggregate: `e699ef6de8315ef8f01d91c6e797c9b4fdfde62ff28e1634a2457a9fab07f9a7`.
+
 2026-11-23 entity identity across windows ([ADR-MEM-172](../adr/172-entity-identity-across-windows.md)):
 Morii confirms identities in the Runtime UI.
 

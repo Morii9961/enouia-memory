@@ -129,6 +129,7 @@ impl OwnerActionProof {
             ),
             OwnerAction::Tag { .. } => ("tag", vec![]),
             OwnerAction::EntityIdentity { entities, .. } => ("entity_identity", entities.clone()),
+            OwnerAction::Capsule { .. } => ("capsule", vec![]),
         };
         Self {
             operation_id: r.plan.operation_id.clone(),
@@ -156,6 +157,7 @@ impl OwnerActionProof {
                 "theme_dissolve",
                 "entity_merge",
                 "entity_identity",
+                "capsule",
                 "entity_split",
                 "tag",
             ]
