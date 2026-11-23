@@ -35,7 +35,30 @@ pub struct OwnerReadStatus {
     pub grants: Vec<OwnerReadGrant>,
 }
 
+/// ADR-MEM-170: what a following grant covers beyond its listed scope.
+pub(super) struct GrantFollow {
+    /// Policy revision hashes of the grant's subject and project.
+    pub policies: BTreeSet<Sha256Hex>,
+    /// Captured, undeleted sources of those revisions.
+    pub sources: BTreeSet<SourceId>,
+}
 impl State {
+    pub(super) fn grant_follow(&self, g: &OwnerReadGrant) -> GrantFollow {
+        let revisions: Vec<_> = self
+            .policy_history
+            .iter()
+            .filter(|(_, p)| p.subject_id == g.subject_id && p.project_id == g.project_id)
+            .collect();
+        GrantFollow {
+            policies: revisions.iter().map(|(hash, _)| (*hash).clone()).collect(),
+            sources: revisions
+                .iter()
+                .flat_map(|(_, p)| &p.source_ids)
+                .filter(|id| self.sources.contains_key(*id) && !self.deleted_sources.contains(*id))
+                .cloned()
+                .collect(),
+        }
+    }
     /// ADR-MEM-160: an active request-capable grant of `principal` covers this
     /// exact source and policy revision at `at`. Grants are on the same chain,
     /// so replay sees exactly the grants that existed at that commit.
@@ -55,8 +78,12 @@ impl State {
                 && *at >= g.valid_from
                 && *at < g.valid_until
                 && sensitivity <= g.max_sensitivity
-                && g.source_ids.contains(&source.source_id)
-                && g.policies.contains(&reference)
+                && ((g.source_ids.contains(&source.source_id) && g.policies.contains(&reference))
+                    // ADR-MEM-170: a following grant covers its whole subject
+                    // and project as of this commit.
+                    || (g.follow_new_sources
+                        && policy.subject_id == g.subject_id
+                        && policy.project_id == g.project_id))
         })
     }
     pub(super) fn check_read_grant(
@@ -153,6 +180,16 @@ impl SegmentedAutomationVault {
             .get(id)
             .cloned()
             .ok_or(AutomationFault::Denied)?;
+        // ADR-MEM-170: a following grant already covers its subject and project.
+        if grant.follow_new_sources {
+            return Ok(OwnerReadGrantCoverage {
+                snapshot: state.snapshot()?,
+                grant,
+                uncovered_policies: vec![],
+                uncovered_sources: vec![],
+                refreshed: None,
+            });
+        }
         let listed: BTreeSet<_> = grant.policies.iter().map(|r| &r.hash).collect();
         let mut uncovered_policies: Vec<PolicyRef> = state
             .policies

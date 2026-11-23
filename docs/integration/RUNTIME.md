@@ -1,5 +1,17 @@
 # Runtime integration (ADR-MEM-45)
 
+2026-11-23 following read grants ([ADR-MEM-170](../adr/170-following-read-grants.md)):
+`OwnerReadGrant` gains optional `follow_new_sources`. Per Morii's decision, register
+or re-register each Agent's grant with `follow_new_sources: true`. Keep
+`max_sensitivity: private`, `source_read`, `allow_requests` and the 90-day expiry,
+and use the usual plan/confirm/commit. The grant then covers new windows and
+captured sources of its subject and project at every read and request, and live
+connections pick them up at their next check. For such grants,
+`owner_read_grant_coverage` returns no gap and no `refreshed`, so hide the "include
+new sources" action. Revocation is unchanged. Adopt this pin before writing the
+flag; older binaries refuse it. No IPC command or wire change; Workspace stays at
+61 commands. Surface aggregate: `731df3a269181fb43140e5a6161bd221697911f52c0d1b9cbcaf7d3b9684aaf5`.
+
 2026-11-23 shared Agent pipe names ([ADR-MEM-169](../adr/169-shared-agent-pipes.md)):
 `Pipe::listen_shared(id)` creates one more instance of a name that may have up to
 `SHARED_PIPE_INSTANCES` (8). To serve parallel sessions of one Agent, switch its

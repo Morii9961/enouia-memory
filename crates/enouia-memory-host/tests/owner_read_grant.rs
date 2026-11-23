@@ -660,3 +660,124 @@ fn grant_coverage_lists_later_windows_and_sources_and_refreshes_only_through_a_p
     assert_eq!(coverage.uncovered_sources.len(), 1);
     assert!(coverage.refreshed.is_none());
 }
+
+#[test]
+fn a_following_grant_reads_and_files_requests_for_later_windows_until_revoked() {
+    use enouia_memory_vault::automation::segmented::{
+        AgentNoteRequest, RuntimeCaptureScope, SegmentedAgentScope,
+    };
+    let (e, v, p, _) = correction_rig(SpeakerRole::User);
+    let owner = &e.descriptor.created_by;
+    let commit = |g: OwnerReadGrant| {
+        let plan = v.plan_owner_read_grant(owner, g).unwrap();
+        v.commit_owner_read_grant(owner, &plan).unwrap();
+    };
+    let mut follow = read_grant(&e, &p);
+    follow.allow_requests = true;
+    follow.follow_new_sources = true;
+    let mut fixed = read_grant(&e, &p);
+    fixed.grant_id = PolicyId::parse(&id("pol", 9101)).unwrap();
+    fixed.principal = actor(ActorType::Agent, 89);
+    fixed.allow_requests = true;
+    commit(follow.clone());
+    commit(fixed.clone());
+    let listed = |g: &OwnerReadGrant| {
+        let mut s = scope(&p);
+        s.source_ids = g.source_ids.clone();
+        s
+    };
+    let permit = |g: &OwnerReadGrant, s: SegmentedAgentScope| {
+        v.authorize_owner_grant_read(owner, g.principal.clone(), &g.grant_id, s)
+    };
+    let following = permit(&follow, listed(&follow)).unwrap();
+    let pinned = permit(&fixed, listed(&fixed)).unwrap();
+    let count = |r: &enouia_memory_vault::automation::segmented::SegmentedAgentPermit| {
+        v.read_agent(r, None, |d| d.current.memories.len()).unwrap()
+    };
+    let before = count(&following);
+    assert_eq!(count(&pinned), before);
+    // A later capture window of the same subject: one Runtime-captured turn
+    // and one formed memory.
+    let window = e.policy(2, 20, 4);
+    v.set_policy(owner, window.clone()).unwrap();
+    let capture_permit = v
+        .authorize_owner_runtime_capture(
+            owner,
+            actor(ActorType::Client, 77),
+            RuntimeCaptureScope {
+                policy_id: window.policy_id.clone(),
+                source_ids: window.source_ids.clone(),
+                max_sensitivity: Sensitivity::Private,
+                platform: "enouia-runtime".into(),
+                account_scope: "account-synthetic".into(),
+                default_timezone: "Asia/Shanghai".into(),
+                valid_until: scope(&window).valid_until,
+            },
+        )
+        .unwrap();
+    let mut capture: RuntimeCaptureRequest =
+        serde_json::from_value(value("runtime-owner-capture/cases.json")["base"].clone()).unwrap();
+    capture.request_id = RequestId::parse(&id("req", 2)).unwrap();
+    capture.conversation_id = "synthetic-later".into();
+    capture.turns[0].message_id = "m2".into();
+    capture.turns[0].text = "A later synthetic turn.".into();
+    capture.turns[0].attachments.clear();
+    let captured = v.capture_runtime(&capture_permit, &capture, false).unwrap();
+    let later = e.source(23, Sensitivity::Public);
+    v.capture(
+        &e.descriptor.system_actor,
+        vec![later.clone()],
+        RecordCatalog::default(),
+    )
+    .unwrap();
+    publish(&e, &v, e.input(&later, &window, 23));
+    // A live connection sees it after its next check; a fixed grant does not.
+    following.renew(&v).unwrap();
+    pinned.renew(&v).unwrap();
+    assert_eq!(count(&following), before + 1);
+    assert_eq!(count(&pinned), before);
+    // New permits may name the later source only under the following grant.
+    let mut wider = listed(&follow);
+    wider.policy_ids.push(window.policy_id.clone());
+    wider.source_ids.push(later.record.source_id.clone());
+    assert!(permit(&follow, wider.clone()).is_ok());
+    let mut wider_fixed = wider.clone();
+    wider_fixed.source_ids = wider.source_ids.clone();
+    assert!(permit(&fixed, wider_fixed).is_err());
+    // Coverage has nothing to add for a following grant.
+    let coverage = v
+        .owner_read_grant_coverage(owner, &follow.grant_id)
+        .unwrap();
+    assert!(coverage.uncovered_policies.is_empty() && coverage.uncovered_sources.is_empty());
+    assert!(coverage.refreshed.is_none());
+    assert!(
+        !v.owner_read_grant_coverage(owner, &fixed.grant_id)
+            .unwrap()
+            .uncovered_sources
+            .is_empty()
+    );
+    // Agent requests on the later window are admitted only by the following grant.
+    let agents =
+        QualifiedAgentHost::from_authenticated_initialized_owner(v.clone(), owner.clone()).unwrap();
+    let note = |g: &OwnerReadGrant, n: u32| {
+        agents
+            .note_writer_with_owner_grant(owner, g.principal.clone(), &g.grant_id, listed(g))
+            .and_then(|w| {
+                w.submit(&AgentNoteRequest {
+                    request_id: RequestId::parse(&id("req", n)).unwrap(),
+                    source: captured.sources[0].clone(),
+                    quote_hint: "A later synthetic turn.".into(),
+                    note: "Optional synthetic interpretation; not Owner confirmation.".into(),
+                })
+            })
+    };
+    assert_eq!(note(&follow, 30).unwrap().state, AgentNoteState::HintSaved);
+    assert!(note(&fixed, 31).is_err());
+    // Revoking the grant ends the live connection at its next check.
+    let mut revoked = follow.clone();
+    revoked.revision = Revision::new(2).unwrap();
+    revoked.active = false;
+    commit(revoked);
+    assert!(following.renew(&v).is_err());
+    assert!(v.read_agent(&following, None, |_| ()).is_err());
+}

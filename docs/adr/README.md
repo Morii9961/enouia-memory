@@ -1029,3 +1029,11 @@ future windows is left to Morii.
 up to eight instances, so several Claude Code or Codex sessions of the same Agent can
 connect at once; trust stays with the mutual same-user process enrollment.
 `Pipe::connect` waits up to five seconds while every instance is busy.
+
+### ADR-MEM-170 — Read grants that follow new windows and sources
+
+[Decision](170-following-read-grants.md): optional `follow_new_sources` on an Owner
+read grant (Morii's decision) makes it cover, at every read and request, all policy
+revisions of its subject and project and their captured, undeleted sources, including
+later windows. Ceiling, expiry and revocation still apply; live connections pick up
+new sources at their next check.

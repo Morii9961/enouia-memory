@@ -1,4 +1,5 @@
 //! Separate native Agent delegation. Never call a System read port as an Agent.
+use super::read_grant::GrantFollow;
 use super::*;
 use std::collections::BTreeSet;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -35,13 +36,7 @@ impl AgentCorrectionPermit {
         state: &State,
         source: &enouia_memory_contract::common::SourceRevisionRef,
     ) -> Option<PolicyRef> {
-        self.read
-            .source_policies
-            .get(&source.source_id)?
-            .iter()
-            .filter_map(|id| state.policies.get(id))
-            .find(|p| state.source_in_policy(source, p, self.read.scope.max_sensitivity))
-            .map(|p| p.reference())
+        self.read.request_policy(state, source)
     }
 }
 #[derive(Clone, serde::Serialize, serde::Deserialize)]
@@ -102,13 +97,7 @@ impl AgentSupersedePermit {
         state: &State,
         source: &enouia_memory_contract::common::SourceRevisionRef,
     ) -> Option<PolicyRef> {
-        self.read
-            .source_policies
-            .get(&source.source_id)?
-            .iter()
-            .filter_map(|id| state.policies.get(id))
-            .find(|p| state.source_in_policy(source, p, self.read.scope.max_sensitivity))
-            .map(|p| p.reference())
+        self.read.request_policy(state, source)
     }
 }
 #[derive(Clone, serde::Serialize, serde::Deserialize)]
@@ -168,13 +157,7 @@ impl AgentForgetPermit {
         state: &State,
         source: &enouia_memory_contract::common::SourceRevisionRef,
     ) -> Option<PolicyRef> {
-        self.read
-            .source_policies
-            .get(&source.source_id)?
-            .iter()
-            .filter_map(|id| state.policies.get(id))
-            .find(|p| state.source_in_policy(source, p, self.read.scope.max_sensitivity))
-            .map(|p| p.reference())
+        self.read.request_policy(state, source)
     }
 }
 #[derive(Clone, serde::Serialize, serde::Deserialize)]
@@ -292,6 +275,8 @@ pub struct SegmentedAgentPermit {
     source_policies: BTreeMap<SourceId, Vec<PolicyId>>,
     policies: BTreeMap<PolicyId, PolicyRef>,
     grant: Option<OwnerReadGrant>,
+    /// ADR-MEM-170: what a following grant adds, recomputed at each renewal.
+    follow: Mutex<Option<GrantFollow>>,
     hash: Sha256Hex,
     active: AtomicBool,
     /// Monotonic and wall-clock end of validity. Only `renew` extends it.
@@ -362,16 +347,21 @@ impl SegmentedAgentPermit {
             return Err(AutomationFault::Denied);
         }
         let now = vault.native.now()?;
-        let current = self.policies_current(
-            &*vault
-                .state
-                .lock()
-                .map_err(|_| AutomationFault::Unavailable)?,
-        );
-        if !current || !g.active || now < g.valid_from || now >= g.valid_until {
+        let state = vault
+            .state
+            .lock()
+            .map_err(|_| AutomationFault::Unavailable)?;
+        if !self.policies_current(&state) || !g.active || now < g.valid_from || now >= g.valid_until
+        {
             self.revoke();
             return Err(AutomationFault::Denied);
         }
+        // ADR-MEM-170: windows and sources added since the last check join a
+        // following grant's coverage; deleted ones leave it.
+        if g.follow_new_sources {
+            *self.follow.lock().map_err(|_| AutomationFault::Denied)? = Some(state.grant_follow(g));
+        }
+        drop(state);
         let end = (now.unix_ms() + 300_000).min(g.valid_until.unix_ms());
         let until = Timestamp::from_unix_ms(end).ok_or(AutomationFault::Denied)?;
         let mut expires = self.expires.lock().map_err(|_| AutomationFault::Denied)?;
@@ -394,13 +384,60 @@ impl SegmentedAgentPermit {
                 .is_some_and(|p| p.reference() == *reference)
         })
     }
+    /// ADR-MEM-170: listed in the scope, or added by a following grant.
+    fn has_source(&self, id: &SourceId) -> bool {
+        self.sources.contains(id)
+            || self
+                .follow
+                .lock()
+                .is_ok_and(|f| f.as_ref().is_some_and(|f| f.sources.contains(id)))
+    }
+    fn follows_policy(&self, hash: &Sha256Hex) -> bool {
+        self.follow
+            .lock()
+            .is_ok_and(|f| f.as_ref().is_some_and(|f| f.policies.contains(hash)))
+    }
+    /// The current policy revision under which this permit may file an Agent
+    /// request about `source`: a delegated one, or for a following grant any
+    /// policy of its subject and project.
+    pub(super) fn request_policy(
+        &self,
+        state: &State,
+        source: &enouia_memory_contract::common::SourceRevisionRef,
+    ) -> Option<PolicyRef> {
+        let follows = self.has_source(&source.source_id) && self.follow_on();
+        self.source_policies
+            .get(&source.source_id)
+            .into_iter()
+            .flatten()
+            .filter_map(|id| state.policies.get(id))
+            .chain(state.policies.values().filter(|p| {
+                follows
+                    && p.subject_id == self.scope.subject_id
+                    && p.project_id == self.scope.project_id
+            }))
+            .find(|p| state.source_in_policy(source, p, self.scope.max_sensitivity))
+            .map(|p| p.reference())
+    }
+    fn follow_on(&self) -> bool {
+        self.grant.as_ref().is_some_and(|g| g.follow_new_sources)
+    }
     fn source_allowed(&self, state: &State, source: &CapturedSource) -> bool {
         if let Some(g) = &self.grant {
-            return self.sources.contains(&source.record.source_id)
+            return self.has_source(&source.record.source_id)
                 && g.policies
                     .iter()
                     .filter(|r| self.scope.policy_ids.contains(&r.policy_id))
-                    .filter_map(|r| state.policy_history.get(&r.hash))
+                    .map(|r| &r.hash)
+                    .chain(
+                        self.follow
+                            .lock()
+                            .ok()
+                            .and_then(|f| f.as_ref().map(|f| f.policies.clone()))
+                            .unwrap_or_default()
+                            .iter(),
+                    )
+                    .filter_map(|hash| state.policy_history.get(hash))
                     .any(|p| {
                         state.source_in_policy(&source.reference(), p, self.scope.max_sensitivity)
                     });
@@ -436,7 +473,8 @@ impl SegmentedAgentPermit {
         let valid = depth < 128
             && !state.deleted_memories.contains(&m.memory.memory_id)
             && (if let Some(g) = &self.grant {
-                self.scope.policy_ids.contains(&p.policy_id) && g.policies.contains(&i.policy)
+                (self.scope.policy_ids.contains(&p.policy_id) && g.policies.contains(&i.policy))
+                    || self.follows_policy(&i.policy.hash)
             } else {
                 self.policies.get(&p.policy_id) == Some(&i.policy)
             })
@@ -447,7 +485,7 @@ impl SegmentedAgentPermit {
             && i.egress_policy_id == p.egress_policy_id
             && i.sensitivity <= self.scope.max_sensitivity.min(p.max_sensitivity)
             && i.input_refs.iter().all(|r| {
-                self.sources.contains(&r.source_id)
+                self.has_source(&r.source_id)
                     && state.source_in_policy(r, p, i.sensitivity.min(self.scope.max_sensitivity))
             })
             && i.record_fields.as_ref().is_some_and(|f| {
@@ -464,7 +502,7 @@ impl SegmentedAgentPermit {
                             e.evidence
                                 .iter()
                                 .chain(e.aliases.iter().flat_map(|a| &a.evidence))
-                                .all(|q| self.sources.contains(&q.reference.source_id))
+                                .all(|q| self.has_source(&q.reference.source_id))
                         })
                 })
             })
@@ -753,12 +791,9 @@ impl SegmentedAutomationVault {
         if !evidence.resolves(std::slice::from_ref(source)) {
             return Err(AutomationFault::Denied);
         }
-        let policy = read.source_policies[&request.source.source_id]
-            .iter()
-            .map(|id| &state.policies[id])
-            .find(|p| state.source_in_policy(&request.source, p, read.scope.max_sensitivity))
-            .unwrap()
-            .reference();
+        let policy = read
+            .request_policy(&state, &request.source)
+            .ok_or(AutomationFault::Denied)?;
         let authorized_at = permit.live(self)?;
         Ok(AgentNoteDraft {
             schema_version: NextVersion,
@@ -895,8 +930,19 @@ impl SegmentedAutomationVault {
                 || g.subject_id != scope.subject_id
                 || g.project_id != scope.project_id
                 || scope.max_sensitivity > g.max_sensitivity
-                || (scope.source_read && !g.source_read)
-                || scope.source_ids.iter().any(|id| !g.source_ids.contains(id)))
+                || (scope.source_read && !g.source_read))
+        {
+            return Err(AutomationFault::Denied);
+        }
+        let follow = grant
+            .as_ref()
+            .filter(|g| g.follow_new_sources)
+            .map(|g| state.grant_follow(g));
+        if let Some(g) = &grant
+            && scope.source_ids.iter().any(|id| {
+                !g.source_ids.contains(id)
+                    && !follow.as_ref().is_some_and(|f| f.sources.contains(id))
+            })
         {
             return Err(AutomationFault::Denied);
         }
@@ -916,7 +962,11 @@ impl SegmentedAutomationVault {
         let candidates: Vec<_> = if let Some(g) = &grant {
             g.policies
                 .iter()
-                .filter_map(|r| state.policy_history.get(&r.hash))
+                .map(|r| &r.hash)
+                .chain(follow.iter().flat_map(|f| &f.policies))
+                .collect::<BTreeSet<_>>()
+                .into_iter()
+                .filter_map(|hash| state.policy_history.get(hash))
                 .collect()
         } else {
             state.policies.values().collect()
@@ -986,6 +1036,7 @@ impl SegmentedAutomationVault {
             scope,
             policies,
             grant,
+            follow: Mutex::new(follow),
             hash,
             active: AtomicBool::new(true),
             expires: Mutex::new((
