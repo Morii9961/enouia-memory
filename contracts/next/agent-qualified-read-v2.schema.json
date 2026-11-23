@@ -1375,7 +1375,8 @@
         "relation": {
           "enum": [
             "theme_cooccurrence",
-            "lexical_neighbor"
+            "lexical_neighbor",
+            "same_name"
           ]
         },
         "class": {
@@ -1417,7 +1418,8 @@
             "reversion",
             "same_entity",
             "theme_cooccurrence",
-            "lexical_neighbor"
+            "lexical_neighbor",
+            "same_name"
           ]
         },
         "candidates": {
@@ -1478,7 +1480,7 @@
           "items": {
             "$ref": "#/$defs/edge_coverage"
           },
-          "maxItems": 5
+          "maxItems": 6
         },
         "coverage_scope": {
           "const": "supported_authorized_current_relations"

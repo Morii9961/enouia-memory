@@ -199,7 +199,8 @@
             "theme_dissolve",
             "entity_merge",
             "entity_split",
-            "tag"
+            "tag",
+            "entity_identity"
           ]
         },
         "memory_result": {
@@ -252,12 +253,13 @@
             "theme_dissolve",
             "entity_merge",
             "entity_split",
-            "tag"
+            "tag",
+            "entity_identity"
           ]
         },
         "entities": {
           "type": "array",
-          "maxItems": 2,
+          "maxItems": 16,
           "items": {
             "$ref": "ui-records-v2.schema.json#/$defs/entityId"
           }

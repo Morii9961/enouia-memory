@@ -52,6 +52,7 @@ fn action_name(a: &OwnerAction) -> &'static str {
         OwnerAction::EntityMerge { .. } => "entity_merge",
         OwnerAction::EntitySplit { .. } => "entity_split",
         OwnerAction::Tag { .. } => "tag",
+        OwnerAction::EntityIdentity { .. } => "entity_identity",
     }
 }
 pub(super) fn action_targets(a: &OwnerAction) -> Vec<&TargetRef> {
@@ -142,6 +143,24 @@ fn impacts(data: &AuthorizedSegmentedRead<'_>, action: &OwnerAction) -> Vec<Targ
         .into_iter()
         .map(|t| t.memory.memory_id.clone())
         .collect();
+    if let OwnerAction::EntityIdentity { entities, .. } = action {
+        ids.extend(
+            data.memories
+                .iter()
+                .filter(|m| {
+                    m.memory
+                        .decision
+                        .input
+                        .record_fields
+                        .as_ref()
+                        .unwrap()
+                        .entities
+                        .iter()
+                        .any(|e| entities.contains(&e.entity_id))
+                })
+                .map(|m| m.memory.memory.memory_id.clone()),
+        );
+    }
     if let OwnerAction::EntityMerge {
         from_entity,
         into_entity,
@@ -350,6 +369,18 @@ impl State {
                     })
                 {
                     return deny();
+                }
+            }
+            // ADR-MEM-172: identity decisions only need visible records of
+            // one type; they link across windows without moving mentions.
+            OwnerAction::EntityIdentity { entities, .. } => {
+                let mut kind = None;
+                for id in entities {
+                    let e = data.entities.get(id).ok_or(AutomationFault::Denied)?;
+                    if *kind.get_or_insert(e.entity_type) != e.entity_type {
+                        return deny();
+                    }
+                    floor = floor.max(e.sensitivity);
                 }
             }
             _ => {}

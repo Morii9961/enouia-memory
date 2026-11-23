@@ -1073,6 +1073,45 @@
               "additionalProperties": false,
               "required": [
                 "action",
+                "entities",
+                "same",
+                "reason"
+              ],
+              "properties": {
+                "action": {
+                  "const": "entity_identity"
+                },
+                "entities": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/entityId"
+                  },
+                  "minItems": 2,
+                  "maxItems": 16,
+                  "uniqueItems": true
+                },
+                "same": {
+                  "type": "boolean"
+                },
+                "reason": {
+                  "oneOf": [
+                    {
+                      "type": "null"
+                    },
+                    {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 500
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "action",
                 "name",
                 "targets"
               ],

@@ -470,6 +470,7 @@ impl State {
             entity_redirects: BTreeMap::new(),
             entity_proofs: BTreeMap::new(),
             entity_aliases: BTreeMap::new(),
+            entity_opted_out: BTreeSet::new(),
             withdrawal_watermark: Revision::new(1 + self.withdrawal_watermark).unwrap(),
             snapshot: self.snapshot()?,
             now,
@@ -542,6 +543,10 @@ impl State {
                         } => {
                             entities.contains_key(from_entity) && entities.contains_key(into_entity)
                         }
+                        // ADR-MEM-172: seen only when every listed record is.
+                        OwnerAction::EntityIdentity {
+                            entities: listed, ..
+                        } => listed.iter().all(|id| entities.contains_key(id)),
                         OwnerAction::Withdraw { .. } | OwnerAction::Forget { .. } => false,
                     }
             })
@@ -634,6 +639,61 @@ impl State {
             }
         }
 
+        // ADR-MEM-172: Morii's identity decisions, in commit order, group
+        // records across windows. A mention of a grouped record resolves to
+        // the group's smallest ID with the deciding proof; `same: false`
+        // takes the first listed record out of its group and same-name links.
+        let mut groups: Vec<(BTreeSet<String>, OwnerActionProof)> = Vec::new();
+        let mut opted_out = BTreeSet::new();
+        for action in &owner_actions {
+            let OwnerAction::EntityIdentity { entities, same, .. } = &action.record.plan.action
+            else {
+                continue;
+            };
+            if *same {
+                let mut merged: BTreeSet<String> = entities.iter().cloned().collect();
+                groups.retain(|(members, _)| {
+                    let touches = members.iter().any(|m| merged.contains(m));
+                    if touches {
+                        merged.extend(members.iter().cloned());
+                    }
+                    !touches
+                });
+                groups.push((merged, OwnerActionProof::from_record(action.record)));
+            } else {
+                // Separates the first listed record from the others.
+                let separated = &entities[0];
+                for (members, _) in &mut groups {
+                    members.remove(separated);
+                }
+                groups.retain(|(members, _)| members.len() > 1);
+                opted_out.insert(separated.clone());
+            }
+        }
+        for m in memories {
+            for mention in &m
+                .memory
+                .decision
+                .input
+                .record_fields
+                .as_ref()
+                .unwrap()
+                .entities
+            {
+                let key = (m.memory.memory.memory_id.clone(), mention.entity_id.clone());
+                let resolved = entity_redirects.get(&key).unwrap_or(&mention.entity_id);
+                let Some((members, proof)) = groups.iter().find(|(g, _)| g.contains(resolved))
+                else {
+                    continue;
+                };
+                let canonical = members.first().unwrap().clone();
+                if &canonical != resolved {
+                    entity_proofs.insert(key.clone(), proof.clone());
+                    entity_redirects.insert(key, canonical);
+                }
+            }
+        }
+        data.entity_opted_out = opted_out;
         data.owner_actions = owner_actions;
         data.entity_redirects = entity_redirects;
         data.entity_proofs = entity_proofs;

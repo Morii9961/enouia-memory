@@ -1,5 +1,27 @@
 # Runtime integration (ADR-MEM-45)
 
+2026-11-23 entity identity across windows ([ADR-MEM-172](../adr/172-entity-identity-across-windows.md)):
+Morii confirms identities in the Runtime UI.
+
+- **View:** `NativeMemoryOwner::entity_identities(max, limit)` returns
+  `EntityIdentities { snapshot, groups, total_groups, complete }`. Each group has
+  `basis` (`confirmed`, `same_name` or `single`), `entity_type`, `name` and
+  `records` (`entity_id`, `resolved_entity_id`, `display_name`, `memories`,
+  `opted_out`).
+- **Actions:** plan `OwnerAction::EntityIdentity { entities, same, reason }` and
+  confirm and commit it as usual. Confirm a group with `same: true`. Separate a
+  record with `same: false`, listing that record first. Link a record to a group
+  with `same: true`.
+- **Edges and actions to handle:** a new edge kind `same_name`, which is always
+  an algorithm suggestion (witness `same_name:<name>`); graph coverage now has
+  seven kinds and related coverage six. Confirmed groups appear as `same_entity`
+  with an `entity_identity` owner proof. Render `same_name` as an unconfirmed
+  suggestion, and handle `entity_identity` wherever owner actions are matched.
+
+Adopt the pin before Morii's first decision; older binaries refuse the action. No
+IPC command or wire change; Workspace stays at 61 commands. Surface aggregate:
+`15b636862407962de1ea1d35021d83c52a16e912dc91ea94af42815cc03ecc33`.
+
 2026-11-23 named entities in daily memories ([ADR-MEM-171](../adr/171-connector-named-entities.md)):
 ChatGPT connector statements may carry `entities` (name, type, reality, role). The
 connector records them through the new

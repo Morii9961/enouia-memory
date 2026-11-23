@@ -776,6 +776,7 @@ pub(crate) fn qualified_relations(
         GraphEdgeKind::SameEntity,
         GraphEdgeKind::ThemeCooccurrence,
         GraphEdgeKind::LexicalNeighbor,
+        GraphEdgeKind::SameName,
     ];
     let mut counts: BTreeMap<_, u64> = kinds.into_iter().map(|k| (k, 0)).collect();
     let mut edges = Vec::new();
@@ -786,6 +787,25 @@ pub(crate) fn qualified_relations(
         }
     };
     let themes: BTreeSet<_> = anchor.theme_values().map(|(id, _)| id).collect();
+    // ADR-MEM-172: same-name keys of each row, with the identities they resolve to.
+    let names = |row: &Row| {
+        let mut keys: BTreeMap<String, (String, BTreeSet<String>)> = BTreeMap::new();
+        for e in &row.entities {
+            if let Some(key) = data.same_name_key(&e.recorded_entity_id) {
+                keys.entry(key)
+                    .or_insert_with(|| {
+                        (
+                            data.entities[&e.recorded_entity_id].display_name.clone(),
+                            BTreeSet::new(),
+                        )
+                    })
+                    .1
+                    .insert(e.entity_id.clone());
+            }
+        }
+        keys
+    };
+    let anchor_names = names(anchor);
     for other in all.iter().filter(|r| r.id() != memory) {
         for (from, to) in [(anchor, other), (other, anchor)] {
             let d = from
@@ -854,6 +874,23 @@ pub(crate) fn qualified_relations(
                 score_milli: Some(750),
                 owner_relations: vec![],
             });
+        }
+        let other_names = names(other);
+        for (key, (name, resolved)) in &anchor_names {
+            if other_names
+                .get(key)
+                .is_some_and(|(_, theirs)| resolved.is_disjoint(theirs))
+            {
+                add(MemoryGraphEdge {
+                    from: memory.clone(),
+                    to: other.id().clone(),
+                    relation: GraphEdgeKind::SameName,
+                    class: GraphEdgeClass::AlgorithmSuggestion,
+                    witness: format!("same_name:{name}").chars().take(256).collect(),
+                    score_milli: Some(900),
+                    owner_relations: vec![],
+                });
+            }
         }
     }
     // ADR-MEM-167: the anchor's top lexical neighbors among all authorized

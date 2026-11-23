@@ -533,7 +533,8 @@
                   "same_conversation",
                   "same_entity",
                   "theme_cooccurrence",
-                  "lexical_neighbor"
+                  "lexical_neighbor",
+                  "same_name"
                 ]
               },
               "class": {
@@ -589,7 +590,8 @@
                   "same_conversation",
                   "same_entity",
                   "theme_cooccurrence",
-                  "lexical_neighbor"
+                  "lexical_neighbor",
+                  "same_name"
                 ]
               },
               "candidates": {
@@ -604,7 +606,7 @@
               }
             }
           },
-          "maxItems": 5,
+          "maxItems": 7,
           "minItems": 0
         },
         "semantic_neighbors_available": {

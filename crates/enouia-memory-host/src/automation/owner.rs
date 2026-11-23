@@ -109,6 +109,15 @@ impl NativeMemoryOwner {
         let _g = self.gate()?;
         Ok(self.vault.agent_requests(&self.owner, max)?)
     }
+    /// ADR-MEM-172: entity identities for Morii's confirmation UI.
+    pub fn entity_identities(
+        &self,
+        max: Sensitivity,
+        limit: usize,
+    ) -> ApplicationResult<enouia_memory_vault::automation::segmented::EntityIdentities> {
+        let _g = self.gate()?;
+        Ok(self.vault.entity_identities(&self.owner, max, limit)?)
+    }
     pub fn capture_windows(&self) -> ApplicationResult<Vec<CaptureWindow>> {
         let _g = self.gate()?;
         Ok(self.vault.capture_windows(&self.owner)?)

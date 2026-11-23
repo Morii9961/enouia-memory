@@ -10,8 +10,10 @@ mod correction_intake;
 mod forget_intake;
 mod formation_queue;
 mod formation_worker;
+mod identity;
 mod intake;
 mod note_intake;
+pub use identity::{EntityIdentities, EntityIdentityGroup, EntityIdentityRecord, IdentityBasis};
 mod read_grant;
 pub use read_grant::{OwnerReadGrantCoverage, OwnerReadGrantPlan, OwnerReadStatus};
 mod supersede_intake;
@@ -86,6 +88,8 @@ pub struct AuthorizedSegmentedRead<'a> {
     pub entity_redirects: BTreeMap<(MemoryId, String), String>,
     pub entity_proofs: BTreeMap<(MemoryId, String), OwnerActionProof>,
     pub entity_aliases: BTreeMap<(MemoryId, String), BTreeSet<String>>,
+    /// ADR-MEM-172: records Morii separated; never linked by name.
+    pub entity_opted_out: BTreeSet<String>,
     pub withdrawal_watermark: Revision,
     pub snapshot: SnapshotBinding,
     pub now: Timestamp,
