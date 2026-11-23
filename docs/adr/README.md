@@ -1103,3 +1103,9 @@ request keys mapped to stable request IDs. Full forms pass through unchanged.
 [Decision](179-unapproved-client-lapse.md): remote OAuth registrations that Morii never approves
 lapse after one hour (at the next registration or authorize request), freeing their slot;
 approved clients and older state files are unaffected.
+
+### ADR-MEM-180 — Tool descriptions worded for ChatGPT
+
+[Decision](180-chatgpt-tool-descriptions.md): the remote service gives each read tool a short
+ChatGPT-facing description of when to use it, keeping the honesty notes; local Agent protocols
+are unchanged.

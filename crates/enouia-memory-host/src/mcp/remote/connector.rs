@@ -221,8 +221,12 @@ impl<S: Session> Session for ConnectorSession<'_, S> {
                 && let Some(tools) = response["result"]["tools"].as_array_mut()
             {
                 for tool in tools.iter_mut() {
-                    if let Some(schema) = tool["name"].as_str().and_then(chatgpt::short_schema) {
+                    let name = tool["name"].as_str().unwrap_or_default().to_owned();
+                    if let Some(schema) = chatgpt::short_schema(&name) {
                         tool["inputSchema"] = schema;
+                    }
+                    if let Some(description) = chatgpt::short_description(&name) {
+                        tool["description"] = json!(description);
                     }
                 }
                 if let Some(writer) = self.writer {
