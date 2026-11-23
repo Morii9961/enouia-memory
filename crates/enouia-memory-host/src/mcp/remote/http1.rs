@@ -1,7 +1,8 @@
 //! Loopback HTTP/1.1 driver for [`super::Endpoint`] or [`super::Router`] (ADR-MEM-130). It listens only
 //! on a loopback address behind a TLS-terminating reverse proxy, answers one
 //! request per connection and closes it. Deliberately narrow: HTTP/1.1 only,
-//! `Content-Length` bodies only, no chunked coding, pipelining or upgrades.
+//! `Content-Length` or chunked request bodies (a tunnel such as cloudflared may
+//! forward chunked bodies without buffering), no pipelining or upgrades.
 use super::{Handler, Request, Response};
 use crate::mcp::MAX_INPUT_BYTES;
 use std::io::{self, Read, Write};
@@ -150,8 +151,24 @@ fn read_request(stream: &mut impl Read) -> Result<Request, Refusal> {
     if named("host").len() != 1 {
         return Err(bad);
     }
-    if !named("transfer-encoding").is_empty() {
-        return Err(Refusal::Status(501));
+    let chunked = match named("transfer-encoding").as_slice() {
+        [] => false,
+        [coding] if coding.eq_ignore_ascii_case("chunked") => true,
+        _ => return Err(Refusal::Status(501)),
+    };
+    if chunked {
+        // Both framings at once is ambiguous (RFC 9112 6.1): refuse it.
+        if !named("content-length").is_empty() {
+            return Err(Refusal::Status(400));
+        }
+        let mut input = io::Cursor::new(buffer[end + 4..].to_vec()).chain(stream);
+        let body = read_chunked(&mut input)?;
+        return Ok(Request {
+            method: method.to_owned(),
+            target: target.to_owned(),
+            headers,
+            body,
+        });
     }
     let length = match named("content-length").as_slice() {
         [] if method == "POST" => return Err(Refusal::Status(411)),
@@ -184,6 +201,68 @@ fn read_request(stream: &mut impl Read) -> Result<Request, Refusal> {
         headers,
         body,
     })
+}
+
+/// Decodes a chunked body, bounded by [`MAX_INPUT_BYTES`]. Chunk extensions
+/// and trailers are read and discarded; bytes after the body are never read.
+fn read_chunked(input: &mut impl Read) -> Result<Vec<u8>, Refusal> {
+    fn eof(error: io::Error) -> Refusal {
+        match error.kind() {
+            io::ErrorKind::UnexpectedEof => Refusal::Status(400),
+            _ => Refusal::Io(error),
+        }
+    }
+    fn line(input: &mut impl Read) -> Result<String, Refusal> {
+        let mut out = Vec::new();
+        loop {
+            let mut byte = [0u8];
+            input.read_exact(&mut byte).map_err(eof)?;
+            if byte[0] == b'\n' {
+                break;
+            }
+            out.push(byte[0]);
+            if out.len() > MAX_HEAD_BYTES {
+                return Err(Refusal::Status(431));
+            }
+        }
+        if out.pop() != Some(b'\r') {
+            return Err(Refusal::Status(400));
+        }
+        String::from_utf8(out).map_err(|_| Refusal::Status(400))
+    }
+    let mut body = Vec::new();
+    loop {
+        let size_line = line(input)?;
+        let size = size_line
+            .split(';')
+            .next()
+            .unwrap_or("")
+            .trim_matches([' ', '\t']);
+        if size.is_empty() || size.len() > 16 || !size.bytes().all(|b| b.is_ascii_hexdigit()) {
+            return Err(Refusal::Status(400));
+        }
+        let size = u64::from_str_radix(size, 16).map_err(|_| Refusal::Status(400))?;
+        if size == 0 {
+            break;
+        }
+        if body.len() as u64 + size > MAX_INPUT_BYTES as u64 {
+            return Err(Refusal::Status(413));
+        }
+        let start = body.len();
+        body.resize(start + size as usize, 0);
+        input.read_exact(&mut body[start..]).map_err(eof)?;
+        if !line(input)?.is_empty() {
+            return Err(Refusal::Status(400));
+        }
+    }
+    let mut trailers = 0;
+    while !line(input)?.is_empty() {
+        trailers += 1;
+        if trailers > MAX_HEADERS {
+            return Err(Refusal::Status(431));
+        }
+    }
+    Ok(body)
 }
 
 fn reason(status: u16) -> &'static str {

@@ -5,7 +5,12 @@
 //! `enouia-memory-remote approve <config.json>` prints a one-time approval
 //! code for the authorize page. Run both as the OS account owning the Vault.
 use enouia_memory_contract::{
-    ids::PolicyId, json::Revision, next::OwnerReadGrant, time::Timestamp,
+    common::{ActorRef, ActorType},
+    ids::PolicyId,
+    json::Revision,
+    next::OwnerReadGrant,
+    ports::IdSource,
+    time::Timestamp,
 };
 use enouia_memory_host::mcp::remote::{http1, service};
 use enouia_memory_vault::automation::segmented::{OwnerReadGrantPlan, SegmentedAutomationVault};
@@ -13,7 +18,7 @@ use enouia_memory_vault::{OsIdSource, RootPolicy, SystemClock, fault::Faults, ve
 use std::sync::Arc;
 
 fn run(args: &[String]) -> Result<(), String> {
-    const USAGE: &str = "usage: enouia-memory-remote <serve|approve|read-check|read-status|read-plan|read-set|read-renew-plan|read-revoke-plan|read-refresh-plan|oauth-status|oauth-revoke> <config.json> [arguments]";
+    const USAGE: &str = "usage: enouia-memory-remote <serve|approve|read-check|read-status|read-draft|read-plan|read-set|read-renew-plan|read-revoke-plan|read-refresh-plan|oauth-status|oauth-revoke> <config.json> [arguments]";
     let [command, path, rest @ ..] = args else {
         return Err(USAGE.into());
     };
@@ -38,8 +43,8 @@ fn run(args: &[String]) -> Result<(), String> {
             );
             Ok(())
         }
-        "serve" | "read-check" | "read-status" | "read-plan" | "read-set" | "read-renew-plan"
-        | "read-revoke-plan" | "read-refresh-plan" => {
+        "serve" | "read-check" | "read-status" | "read-draft" | "read-plan" | "read-set"
+        | "read-renew-plan" | "read-revoke-plan" | "read-refresh-plan" => {
             let root = verify_data_root(&config.vault_root, &RootPolicy::default())
                 .map_err(|e| format!("vault root: {e:?}"))?;
             let vault = SegmentedAutomationVault::open(
@@ -68,6 +73,56 @@ fn run(args: &[String]) -> Result<(), String> {
                     )
                     .map_err(|e| e.to_string())?,
                 ),
+                // ADR-MEM-176: draft the connector's following grant from this
+                // config, so Morii reviews one plan instead of writing JSON.
+                ("read-draft", [until, out]) => {
+                    let status = vault
+                        .owner_read_status(&owner)
+                        .map_err(|e| format!("read status: {e:?}"))?;
+                    let until = Timestamp::parse(until).map_err(|_| "invalid expiry")?;
+                    let grant = OwnerReadGrant {
+                        grant_id: PolicyId::from_random(OsIdSource.random_16()),
+                        revision: Revision::new(1).ok_or("revision")?,
+                        vault_id: vault.descriptor().vault_id.clone(),
+                        principal: ActorRef {
+                            actor_type: ActorType::Agent,
+                            actor_id: config.agent_id.clone(),
+                        },
+                        subject_id: config.subject_id.clone(),
+                        project_id: config.project_id.clone(),
+                        // Every recorded revision of the listed policies; the
+                        // grant follows the subject's other and later windows.
+                        policies: status
+                            .policy_refs
+                            .into_iter()
+                            .filter(|r| config.policy_ids.contains(&r.policy_id))
+                            .collect(),
+                        source_ids: config.source_ids.clone(),
+                        max_sensitivity: config.max_sensitivity,
+                        source_read: config.source_read,
+                        active: true,
+                        valid_from: status.now,
+                        valid_until: until,
+                        allow_requests: false,
+                        follow_new_sources: true,
+                        purpose: Some("chatgpt_connector".into()),
+                    };
+                    let id = grant.grant_id.clone();
+                    let plan = vault
+                        .plan_owner_read_grant(&owner, grant)
+                        .map_err(|e| format!("read plan: {e:?}"))?;
+                    // Written as UTF-8 by this command, never through a shell
+                    // redirect that may change the encoding; never overwritten.
+                    let bytes = serde_json::to_vec_pretty(&plan).map_err(|e| e.to_string())?;
+                    std::fs::OpenOptions::new()
+                        .write(true)
+                        .create_new(true)
+                        .open(out)
+                        .and_then(|mut f| std::io::Write::write_all(&mut f, &bytes))
+                        .map_err(|e| format!("plan file: {e}"))?;
+                    println!("{}", serde_json::json!({"plan_file": out, "grant_id": id}));
+                    return Ok(());
+                }
                 ("read-plan", [file]) => {
                     let grant: OwnerReadGrant =
                         serde_json::from_slice(&std::fs::read(file).map_err(|e| e.to_string())?)

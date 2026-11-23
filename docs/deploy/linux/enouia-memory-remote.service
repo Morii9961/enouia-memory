@@ -1,0 +1,37 @@
+# Template for the remote MCP service (ADR-MEM-133, REMOTE_MCP_LINUX.md).
+# Install to /etc/systemd/system/enouia-memory-remote.service, then
+#   systemctl daemon-reload && systemctl enable --now enouia-memory-remote
+# Only after Morii has created the Vault, the read grant and the config.
+[Unit]
+Description=Enouia Memory remote MCP
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=enouia
+Group=enouia
+UMask=0077
+ExecStart=/usr/local/bin/enouia-memory-remote serve /etc/enouia-memory/remote.json
+# An unknown outcome exits with an error: stay down after a few tries so the
+# Vault is recovered by hand, never by blind restarts.
+Restart=on-failure
+RestartSec=5
+StartLimitIntervalSec=300
+StartLimitBurst=3
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/enouia-memory
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+RestrictNamespaces=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+SystemCallArchitectures=native
+
+[Install]
+WantedBy=multi-user.target

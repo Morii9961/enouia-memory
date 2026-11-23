@@ -1,0 +1,31 @@
+{
+  "vault_root": "/var/lib/enouia-memory/home/vaults/vlt_00000000-0000-4000-8000-000000000005",
+  "host_id": "dev_00000000-0000-4000-8000-000000000000",
+  "state_dir": "/var/lib/enouia-memory/oauth",
+  "bind": "127.0.0.1:8787",
+  "resource": "https://memory.example.org/mcp",
+  "issuer": "https://memory.example.org",
+  "redirect_prefixes": ["https://chatgpt.com/"],
+  "origins": ["https://chatgpt.com"],
+  "agent_id": "prn_00000000-0000-4000-8000-000000000001",
+  "subject_id": "sub_00000000-0000-4000-8000-000000000002",
+  "project_id": null,
+  "policy_ids": ["pol_00000000-0000-4000-8000-000000000003"],
+  "source_ids": ["src_00000000-0000-4000-8000-000000000004"],
+  "max_sensitivity": "highly_sensitive",
+  "source_read": true,
+  "read_grant_id": "pol_00000000-0000-4000-8000-000000000007",
+  "profile": {
+    "...": "an AttentionProfile document, see tests/fixtures/attention/profile.json"
+  },
+  "connector": {
+    "producer_id": "prn_00000000-0000-4000-8000-000000000006",
+    "config": {
+      "account_scope": "chatgpt-connector",
+      "default_timezone": "Asia/Shanghai",
+      "max_sensitivity": "highly_sensitive",
+      "allowed_forms": ["fact", "preference", "episode", "open_loop"],
+      "window_days": 30
+    }
+  }
+}

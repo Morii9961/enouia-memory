@@ -164,6 +164,15 @@ fn malformed_framing_is_refused_before_the_endpoint() {
                 1,
             )
             .into_bytes(),
+            400,
+        ),
+        (
+            post.replacen(
+                &format!("Content-Length: {}", INIT.len()),
+                "Transfer-Encoding: gzip, chunked",
+                1,
+            )
+            .into_bytes(),
             501,
         ),
         (
@@ -264,6 +273,59 @@ fn malformed_framing_is_refused_before_the_endpoint() {
     assert!(empty.output.is_empty());
     drop(endpoint);
     assert_eq!(opened, 0);
+}
+
+fn chunked_post(chunks: &[&str], tail: &str) -> Vec<u8> {
+    let mut raw = "POST /mcp HTTP/1.1\r\nHost: 127.0.0.1\r\nContent-Type: application/json\r\nAccept: application/json, text/event-stream\r\nAuthorization: Bearer tok-owner\r\nTransfer-Encoding: Chunked\r\n\r\n".to_owned();
+    for chunk in chunks {
+        raw.push_str(&format!("{:x}\r\n{chunk}\r\n", chunk.len()));
+    }
+    raw.push_str(tail);
+    raw.into_bytes()
+}
+
+#[test]
+fn chunked_bodies_from_a_tunnel_are_decoded_and_bounded() {
+    let ids = SequentialIdSource::new(5);
+    let mut opened = 0;
+    let mut endpoint = Endpoint::new(config(), &Fixed, &ids, |_: &Bearer| {
+        opened += 1;
+        Some(Echo(vec![]))
+    });
+    let (head, rest) = INIT.split_at(40);
+    let mut bytes = chunked_post(&[head, rest], "0\r\nX-Trailer: t\r\n\r\n");
+    // Bytes after the body are never read as another request.
+    bytes.extend_from_slice(&raw_post(INIT, None));
+    let (status, _, body) = once(&mut endpoint, bytes);
+    assert_eq!(status, 200);
+    assert_eq!(serde_json::from_slice::<Value>(&body).unwrap()["id"], 1);
+    // A chunk extension is ignored; sizes are hexadecimal in either case.
+    let extended = String::from_utf8(chunked_post(&[INIT], "0\r\n\r\n"))
+        .unwrap()
+        .replacen(
+            &format!("\r\n\r\n{:x}\r\n", INIT.len()),
+            &format!("\r\n\r\n{:X};ext=1\r\n", INIT.len()),
+            1,
+        );
+    assert_eq!(once(&mut endpoint, extended.into_bytes()).0, 200);
+    let big = "a".repeat(200 * 1024);
+    let cases: Vec<(Vec<u8>, u16)> = vec![
+        (chunked_post(&[&big, &big], "0\r\n\r\n"), 413),
+        (chunked_post(&[], "fffffffffffffffff\r\n"), 400),
+        (chunked_post(&[], "zz\r\nab\r\n0\r\n\r\n"), 400),
+        (chunked_post(&[], "\r\n"), 400),
+        (chunked_post(&[], "5\r\nabcdefg\r\n0\r\n\r\n"), 400),
+        (chunked_post(&[], "5\nabcde\r\n0\r\n\r\n"), 400),
+        (chunked_post(&[INIT], ""), 400),
+        (chunked_post(&[INIT], "0\r\n"), 400),
+    ];
+    for (n, (bytes, want)) in cases.into_iter().enumerate() {
+        let (status, head, body) = once(&mut endpoint, bytes);
+        assert_eq!(status, want, "case {n}: {head}");
+        assert!(body.is_empty(), "case {n}");
+    }
+    drop(endpoint);
+    assert_eq!(opened, 2);
 }
 
 #[test]

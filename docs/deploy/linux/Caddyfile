@@ -1,0 +1,10 @@
+# Template: /etc/caddy/Caddyfile on the VPS (route B, REMOTE_MCP_LINUX.md).
+# memory.example.org is a placeholder for the hostname on Morii's domain; its
+# A/AAAA record points at the VPS. Caddy obtains the certificate itself.
+memory.example.org {
+	reverse_proxy 127.0.0.1:8787 {
+		# The service also decodes chunked bodies (ADR-MEM-176); buffering
+		# keeps one request per connection short either way.
+		request_buffers 300KiB
+	}
+}

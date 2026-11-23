@@ -38,7 +38,9 @@ the nameservers; adding only a CNAME needs a Business plan. Two routes:
   Follow the [Linux reference](REMOTE_MCP_LINUX.md); that route also moves the
   Vault primary to Linux.
 
-The rest of this document is route A.
+The rest of this document is route A. Before a domain exists, a one-off check
+through a Cloudflare quick tunnel (no domain, no account) is described in
+[CHATGPT_QUICK_TUNNEL_CHECK.md](CHATGPT_QUICK_TUNNEL_CHECK.md).
 
 ## What Morii does himself (route A, once the domain exists)
 

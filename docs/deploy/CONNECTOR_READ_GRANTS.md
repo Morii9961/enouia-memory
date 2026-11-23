@@ -24,6 +24,7 @@ refresh 每次使用轮换，并从该次重新计算三十天。它们只证明
 ```text
 enouia-memory-remote read-status <config.json>
 enouia-memory-remote read-check <config.json>
+enouia-memory-remote read-draft <config.json> <UTC-expiry> <plan-file.json>
 enouia-memory-remote read-plan <config.json> <explicit-grant.json>
 enouia-memory-remote read-set <config.json> <reviewed-plan.json> --confirm-owner-read
 enouia-memory-remote read-renew-plan <config.json> <grant-id> <UTC-expiry>
@@ -40,6 +41,12 @@ plan，形状同 `read-plan`。连接器每天新开或续用的窗口不会自�
 授权也可以带 `"follow_new_sources": true`（[ADR170](../adr/170-following-read-grants.md)）：
 之后同一主体/项目的新窗口和已采集来源在每次读取时自动纳入，上限、期限和撤回照旧，
 `read-refresh-plan` 对这类授权报告无缺口。开启或关闭都是一次普通的授权修订，需主人确认。
+
+`read-draft`（[ADR176](../adr/176-remote-tunnel-readiness.md)）按服务配置起草连接器授权，
+不用手写 JSON：Agent、主体/项目、上限和 `source_read` 取自配置，策略取配置里 `policy_ids`
+的全部历史修订，来源取 `source_ids`，并自动加上 `follow_new_sources: true` 和
+`purpose: "chatgpt_connector"`，有效期从现在到给定时间。它把 plan 写进指定文件（UTF-8，
+已存在时拒绝覆盖），输出 grant ID，不写 Vault；检查后照常交给 `read-set` 确认。
 
 给连接器用的授权，建议加上 `"purpose": "chatgpt_connector"`（[ADR175](../adr/175-runtime-r5-support.md)）：
 Runtime 的设置页靠这个标签认出连接器的授权，显示覆盖与跟随状态。这个标签不授予任何权限。
