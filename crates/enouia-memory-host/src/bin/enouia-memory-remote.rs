@@ -13,7 +13,7 @@ use enouia_memory_vault::{OsIdSource, RootPolicy, SystemClock, fault::Faults, ve
 use std::sync::Arc;
 
 fn run(args: &[String]) -> Result<(), String> {
-    const USAGE: &str = "usage: enouia-memory-remote <serve|approve|read-check|read-status|read-plan|read-set|read-renew-plan|read-revoke-plan|oauth-status|oauth-revoke> <config.json> [arguments]";
+    const USAGE: &str = "usage: enouia-memory-remote <serve|approve|read-check|read-status|read-plan|read-set|read-renew-plan|read-revoke-plan|read-refresh-plan|oauth-status|oauth-revoke> <config.json> [arguments]";
     let [command, path, rest @ ..] = args else {
         return Err(USAGE.into());
     };
@@ -39,7 +39,7 @@ fn run(args: &[String]) -> Result<(), String> {
             Ok(())
         }
         "serve" | "read-check" | "read-status" | "read-plan" | "read-set" | "read-renew-plan"
-        | "read-revoke-plan" => {
+        | "read-revoke-plan" | "read-refresh-plan" => {
             let root = verify_data_root(&config.vault_root, &RootPolicy::default())
                 .map_err(|e| format!("vault root: {e:?}"))?;
             let vault = SegmentedAutomationVault::open(
@@ -102,6 +102,30 @@ fn run(args: &[String]) -> Result<(), String> {
                     } else {
                         grant.active = false;
                     }
+                    Some(
+                        serde_json::to_value(
+                            vault
+                                .plan_owner_read_grant(&owner, grant)
+                                .map_err(|e| format!("read plan: {e:?}"))?,
+                        )
+                        .map_err(|e| e.to_string())?,
+                    )
+                }
+                // ADR-MEM-168: show what the grant misses and plan the refresh;
+                // `read-set` with the plan file still needs Morii's confirmation.
+                ("read-refresh-plan", [id]) => {
+                    let id = PolicyId::parse(id).map_err(|e| e.to_string())?;
+                    let coverage = vault
+                        .owner_read_grant_coverage(&owner, &id)
+                        .map_err(|e| format!("read coverage: {e:?}"))?;
+                    eprintln!(
+                        "uncovered policies: {}, uncovered sources: {}",
+                        coverage.uncovered_policies.len(),
+                        coverage.uncovered_sources.len()
+                    );
+                    let grant = coverage
+                        .refreshed
+                        .ok_or("nothing to refresh, or the grant is revoked or at its limits")?;
                     Some(
                         serde_json::to_value(
                             vault

@@ -577,3 +577,86 @@ fn grant_backed_reader_renews_in_place_and_keeps_its_recall_context() {
     assert_eq!(reader.scope_hash(), &hash);
     assert!(v.check_agent_read_live(&raw).is_err());
 }
+
+#[test]
+fn grant_coverage_lists_later_windows_and_sources_and_refreshes_only_through_a_plan() {
+    let (e, v, p, _) = correction_rig(SpeakerRole::User);
+    let owner = &e.descriptor.created_by;
+    let grant = read_grant(&e, &p);
+    let plan = v.plan_owner_read_grant(owner, grant.clone()).unwrap();
+    v.commit_owner_read_grant(owner, &plan).unwrap();
+    // Nothing new yet: both captured sources of the only policy are listed.
+    let coverage = v.owner_read_grant_coverage(owner, &grant.grant_id).unwrap();
+    assert_eq!(coverage.grant, grant);
+    assert!(coverage.uncovered_policies.is_empty());
+    assert!(coverage.uncovered_sources.is_empty());
+    assert!(coverage.refreshed.is_none());
+    assert!(
+        v.owner_read_grant_coverage(&grant.principal, &grant.grant_id)
+            .is_err()
+    );
+    // A later window of the same subject, and a later capture in the old one.
+    let window = e.policy(2, 20, 4);
+    v.set_policy(owner, window.clone()).unwrap();
+    let later = [
+        e.source(20, Sensitivity::Public),
+        e.source(3, Sensitivity::Public),
+    ];
+    v.capture(
+        &e.descriptor.system_actor,
+        later.to_vec(),
+        RecordCatalog::default(),
+    )
+    .unwrap();
+    let before = v.snapshot().unwrap();
+    let coverage = v.owner_read_grant_coverage(owner, &grant.grant_id).unwrap();
+    assert_eq!(v.snapshot().unwrap(), before, "coverage writes nothing");
+    assert_eq!(coverage.uncovered_policies, vec![window.reference()]);
+    let mut expected = vec![
+        later[0].record.source_id.clone(),
+        later[1].record.source_id.clone(),
+    ];
+    expected.sort();
+    assert_eq!(coverage.uncovered_sources, expected);
+    let refreshed = coverage.refreshed.unwrap();
+    assert_eq!(refreshed.revision.get(), 2);
+    assert_eq!(refreshed.policies, vec![p.reference(), window.reference()]);
+    assert_eq!(refreshed.source_ids.len(), 4);
+    assert_eq!(
+        (
+            &refreshed.principal,
+            refreshed.max_sensitivity,
+            &refreshed.valid_until,
+            refreshed.allow_requests
+        ),
+        (
+            &grant.principal,
+            grant.max_sensitivity,
+            &grant.valid_until,
+            grant.allow_requests
+        )
+    );
+    // The grant itself is unchanged until Morii plans and confirms it.
+    assert_eq!(v.owner_read_grant(owner, &grant.grant_id).unwrap(), grant);
+    let plan = v.plan_owner_read_grant(owner, refreshed.clone()).unwrap();
+    v.commit_owner_read_grant(owner, &plan).unwrap();
+    let coverage = v.owner_read_grant_coverage(owner, &grant.grant_id).unwrap();
+    assert_eq!(coverage.grant, refreshed);
+    assert!(coverage.uncovered_policies.is_empty() && coverage.uncovered_sources.is_empty());
+    assert!(coverage.refreshed.is_none());
+    // A revoked grant reports its gap but offers no refresh.
+    let mut revoked = refreshed.clone();
+    revoked.revision = Revision::new(3).unwrap();
+    revoked.active = false;
+    let plan = v.plan_owner_read_grant(owner, revoked).unwrap();
+    v.commit_owner_read_grant(owner, &plan).unwrap();
+    v.capture(
+        &e.descriptor.system_actor,
+        vec![e.source(21, Sensitivity::Public)],
+        RecordCatalog::default(),
+    )
+    .unwrap();
+    let coverage = v.owner_read_grant_coverage(owner, &grant.grant_id).unwrap();
+    assert_eq!(coverage.uncovered_sources.len(), 1);
+    assert!(coverage.refreshed.is_none());
+}

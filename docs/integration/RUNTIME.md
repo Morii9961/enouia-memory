@@ -1,5 +1,15 @@
 # Runtime integration (ADR-MEM-45)
 
+2026-11-23 read grant coverage ([ADR-MEM-168](../adr/168-read-grant-coverage.md)):
+`SegmentedAutomationVault::owner_read_grant_coverage(owner, grant_id)` returns
+`OwnerReadGrantCoverage { snapshot, grant, uncovered_policies, uncovered_sources,
+refreshed }`. Show in Settings, per Agent registration and for the connector, how
+many later windows and captured sources the grant misses. Offer "include new
+sources": pass `refreshed` to `plan_owner_read_grant`, show the plan, and commit on
+Morii's confirmation. `refreshed` is absent when there is nothing to add, the grant
+is revoked or limits would be exceeded. No persisted format, IPC command or wire
+change; Workspace stays at 61 commands. Surface aggregate: `7928c391bb1575f3a7e91d483516c7efa8c6b2873397251ea5120ccb2f846e6b`.
+
 2026-11-23 Agent lexical neighbors ([ADR-MEM-167](../adr/167-agent-lexical-neighbors.md)):
 `QualifiedAgentReader::related` (the Agent `memory_related` tool) adds up to three
 `lexical_neighbor` suggested edges for the anchor, by the same rules as the System
@@ -8,6 +18,7 @@ Agent tool descriptions add that lexical neighbors are term-overlap suggestions.
 Runtime code that renders Agent related output should show these as
 suggestions with their shared terms. No persisted format, IPC command or protocol
 change; Workspace stays at 61 commands. Surface aggregate: `15020ff6796129d9023108b55851778ca15d74d9fbe772a8fbf33c7c824a978a`.
+
 
 2026-11-22 combined Agent protocol, idle reads and bridge library ([ADR-MEM-166](../adr/166-combined-agent-protocol-and-idle-reads.md)):
 `mcp::agent::native::serve_connection(reader, AgentWriters { note, correction,

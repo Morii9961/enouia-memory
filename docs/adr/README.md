@@ -1014,3 +1014,11 @@ second, and applies the timeout only inside a frame. The bridge body becomes
 is shared. Agent `related` now suggests the anchor's top three lexical neighbors
 among authorized current memories in scope, as labeled `algorithm_suggestion`
 edges with a shared-terms witness; out-of-scope and deleted memories never appear.
+
+### ADR-MEM-168 — Owner read grant coverage and refresh plans
+
+[Decision](168-read-grant-coverage.md): `owner_read_grant_coverage(owner, id)` reports
+the later windows and captured sources in a grant's subject and project that it does
+not list, with a checked `revision + 1` covering them. Applying it is the normal
+plan/confirm flow (`read-refresh-plan` on the remote CLI); automatic following of
+future windows is left to Morii.

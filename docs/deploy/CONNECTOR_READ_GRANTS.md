@@ -28,7 +28,14 @@ enouia-memory-remote read-plan <config.json> <explicit-grant.json>
 enouia-memory-remote read-set <config.json> <reviewed-plan.json> --confirm-owner-read
 enouia-memory-remote read-renew-plan <config.json> <grant-id> <UTC-expiry>
 enouia-memory-remote read-revoke-plan <config.json> <grant-id> --revoke
+enouia-memory-remote read-refresh-plan <config.json> <grant-id>
 ```
+
+`read-refresh-plan`（[ADR168](../adr/168-read-grant-coverage.md)）先在 stderr 报告授权在自身
+主体/项目内还缺多少后来的采集窗口和已采集来源，再在 stdout 输出把它们全部纳入的下一修订
+plan，形状同 `read-plan`。连接器每天新开或续用的窗口不会自动进入已有授权，ChatGPT 读不到
+这些新记忆；定期运行它，检查 plan 后照常交给 `read-set` 确认。没有缺口、授权已撤回或会超出
+上限时以非零退出，不写 Vault。
 
 `read-status` 返回 snapshot、当前时间、历史形成策略/精确 `policy_refs` 和当前授权；
 没有原文、令牌或令牌摘要。由主人核对 active 与起止时间，选择实际范围。
