@@ -561,6 +561,7 @@ fn correcting(target: &CorrectionTarget, quote: &str) -> CaptureStatement {
         note: Some("Scripted synthetic supersede analysis.".into()),
         prompt_version: "scripted-supersede-1".into(),
         model_version: None,
+        entities: vec![],
     }
 }
 fn target_time() -> RecordTime {

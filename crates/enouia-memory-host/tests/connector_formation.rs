@@ -67,6 +67,7 @@ fn statement(message: &str, quote: &str) -> ConnectorStatement {
         event_time: unknown(),
         valid_time: unknown(),
         note: Some("distilled in ChatGPT".into()),
+        entities: vec![],
     }
 }
 
@@ -144,4 +145,96 @@ fn chatgpt_submission_opens_a_window_forms_once_and_replays() {
         );
     })
     .unwrap();
+}
+
+#[test]
+fn named_entities_become_records_and_mentions_and_replay_without_duplicates() {
+    let e = owner_env();
+    let v = Arc::new(e.create(Faults::none()));
+    let owner = e.descriptor.created_by.clone();
+    let w = ConnectorWriter::new(v.clone(), owner, producer(), config()).unwrap();
+    let entity = |name: &str, entity_type: EntityType, role: EntityRole| ConnectorEntity {
+        name: name.into(),
+        entity_type,
+        reality: EntityReality::Real,
+        role,
+    };
+    let mut named = statement("m1", "hiking with Lin at Huangshan");
+    named.entities = vec![
+        entity("Lin", EntityType::Person, EntityRole::Participant),
+        entity("Huangshan", EntityType::Place, EntityRole::Place),
+    ];
+    let submission = ConnectorSubmission {
+        request: request(1, "I went hiking with Lin at Huangshan."),
+        analyst_model: "synthetic-chatgpt-model".into(),
+        statements: vec![named.clone()],
+    };
+    // Too many entities, or a blank name, are refused before the Vault.
+    let mut crowded = submission.clone();
+    crowded.statements[0].entities = (0..9)
+        .map(|n| entity(&format!("E{n}"), EntityType::Thing, EntityRole::Mentioned))
+        .collect();
+    assert!(w.submit(&crowded, false, NOW).is_err());
+    let mut blank = submission.clone();
+    blank.statements[0].entities[0].name = " ".into();
+    assert!(w.submit(&blank, false, NOW).is_err());
+    // Preflight (with a window open) records nothing.
+    let mut opener = request(2, "Thanks.");
+    opener.turns[0].parent_message_id = None;
+    let plain = ConnectorSubmission {
+        request: opener,
+        analyst_model: "synthetic-chatgpt-model".into(),
+        statements: vec![],
+    };
+    w.submit(&plain, false, NOW).unwrap();
+    let before = v.snapshot().unwrap();
+    assert!(w.submit(&submission, true, NOW).is_ok());
+    assert_eq!(v.snapshot().unwrap(), before);
+    let first = w.submit(&submission, false, NOW).unwrap();
+    assert_eq!(first.jobs[0].state, FormationJobState::Formed);
+    let read = || {
+        v.read(&e.descriptor.system_actor, Sensitivity::Private, |d| {
+            let memory = d
+                .memories
+                .iter()
+                .find(|m| {
+                    m.memory.request.model_version.as_deref() == Some("synthetic-chatgpt-model")
+                })
+                .unwrap();
+            let fields = memory.memory.request.record_fields.as_ref().unwrap();
+            let named: Vec<_> = fields
+                .entities
+                .iter()
+                .map(|m| {
+                    let record = &d.entities[&m.entity_id];
+                    assert_eq!(m.evidence, fields.evidence);
+                    assert_eq!(record.evidence, fields.evidence);
+                    (record.display_name.clone(), record.entity_type, m.role)
+                })
+                .collect();
+            (named, d.entities.len())
+        })
+        .unwrap()
+    };
+    let (named, count) = read();
+    assert_eq!(
+        named,
+        vec![
+            (
+                "Lin".to_string(),
+                EntityType::Person,
+                EntityRole::Participant
+            ),
+            (
+                "Huangshan".to_string(),
+                EntityType::Place,
+                EntityRole::Place
+            ),
+        ]
+    );
+    assert_eq!(count, 2);
+    // A resubmission replays: the same records, no duplicates, no second memory.
+    let again = w.submit(&submission, false, NOW).unwrap();
+    assert!(again.capture.unwrap().replayed);
+    assert_eq!(read(), (named, 2));
 }

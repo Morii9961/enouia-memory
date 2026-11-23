@@ -50,6 +50,18 @@ impl<'w, S: Session> ConnectorSession<'w, S> {
 }
 
 pub fn tool() -> Value {
+    // ADR-MEM-171: kept apart so the schema stays within `json!` nesting limits.
+    let entity = json!({
+        "type": "object",
+        "required": ["name", "entity_type", "reality", "role"],
+        "additionalProperties": false,
+        "properties": {
+            "name": {"type": "string", "maxLength": 128},
+            "entity_type": {"enum": ["person", "project", "place", "organization", "thing", "pet", "work"]},
+            "reality": {"enum": ["real", "fictional", "unknown"]},
+            "role": {"enum": ["subject", "participant", "mentioned", "place", "project", "organization"]}
+        }
+    });
     json!({
         "name": TOOL,
         "title": "Submit a conversation and its distilled memories",
@@ -79,7 +91,8 @@ pub fn tool() -> Value {
                                 "kind": {"type": "string"},
                                 "event_time": {"type": "object"},
                                 "valid_time": {"type": "object"},
-                                "note": {"type": ["string", "null"], "maxLength": 512}
+                                "note": {"type": ["string", "null"], "maxLength": 512},
+                                "entities": {"type": "array", "maxItems": 8, "description": "People, places, projects or other entities this memory names. Each gets its own record; Morii decides later which records are the same.", "items": entity}
                             }
                         }}
                     }

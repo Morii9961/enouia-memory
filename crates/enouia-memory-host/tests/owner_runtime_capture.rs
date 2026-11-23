@@ -771,6 +771,7 @@ impl CaptureAnalyzer for HostedAnalyzer {
                     note: None,
                     prompt_version: "hosted-fake-2".into(),
                     model_version: None,
+                    entities: vec![],
                 }]);
                 if matches!(action, FakeAction::Delayed) {
                     Ok(Box::new(PendingFake(self.polls.clone(), Some(analysis))))
@@ -1091,6 +1092,7 @@ impl CorrectionAnalyzer for HostedCorrections {
             note: None,
             prompt_version: "hosted-correction-1".into(),
             model_version: None,
+            entities: vec![],
         }]))
     }
 }
@@ -1229,6 +1231,7 @@ impl SupersedeAnalyzer for HostedSupersedes {
             note: None,
             prompt_version: "hosted-supersede-1".into(),
             model_version: None,
+            entities: vec![],
         }]))
     }
 }

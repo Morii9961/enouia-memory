@@ -294,3 +294,62 @@ fn preflight_has_no_publication_and_unknown_capture_never_auto_retries() {
     e.clock.set(NOW + 120_000);
     assert!(v.runtime_capture_live(&fresh).is_err());
 }
+
+#[test]
+fn captured_entities_need_a_new_user_turn_a_resolving_quote_and_a_fresh_id() {
+    let e = Env::new();
+    let v = e.create(Faults::none());
+    let p = e.policy(1, 1, 8);
+    v.set_policy(&e.descriptor.created_by, p.clone()).unwrap();
+    let permit = v
+        .authorize_runtime_capture(&e.descriptor.created_by, client(), scope(&e, &p))
+        .unwrap();
+    let mut r = request();
+    let mut machine = r.turns[0].clone();
+    machine.message_id = "m2".into();
+    machine.parent_message_id = Some("m1".into());
+    machine.sequence = 2;
+    machine.speaker = SpeakerRole::Assistant;
+    machine.assistant_model = Some("synthetic-model".into());
+    machine.text = "合成回答。".into();
+    r.turns.push(machine);
+    let entity = |message: &str, quote: &str, n: u32| RuntimeCaptureEntity {
+        message_id: message.into(),
+        quote: quote.into(),
+        entity_id: id("ent", n),
+        entity_type: EntityType::Person,
+        reality: EntityReality::Real,
+        display_name: "合成人物".into(),
+    };
+    let before = v.snapshot().unwrap();
+    for bad in [
+        vec![entity("m9", "原样保留", 501)],
+        vec![entity("m1", "没有这句", 501)],
+        vec![entity("m2", "合成回答", 501)],
+        vec![entity("m1", "原样保留", 501), entity("m1", "原样保留", 501)],
+    ] {
+        assert!(matches!(
+            v.capture_runtime_with_entities(&permit, &r, &bad, false),
+            Err(AutomationFault::Conflict)
+        ));
+    }
+    assert_eq!(v.snapshot().unwrap(), before);
+    let good = [entity("m1", "原样保留", 501)];
+    v.capture_runtime_with_entities(&permit, &r, &good, false)
+        .unwrap();
+    v.read(&e.descriptor.system_actor, Sensitivity::Private, |d| {
+        let record = &d.entities[&good[0].entity_id];
+        assert_eq!(record.display_name, "合成人物");
+        assert_eq!(record.evidence[0].quote, "原样保留");
+        assert_eq!(record.access_policy_id, p.access_policy_id);
+    })
+    .unwrap();
+    // The same ID cannot be recorded again by a later capture.
+    let mut later = request();
+    later.request_id = RequestId::parse(&id("req", 2)).unwrap();
+    later.turns[0].message_id = "m3".into();
+    assert!(matches!(
+        v.capture_runtime_with_entities(&permit, &later, &good, false),
+        Err(AutomationFault::Conflict)
+    ));
+}

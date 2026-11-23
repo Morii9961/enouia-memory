@@ -332,6 +332,7 @@ fn real_correction_pipe_saves_replays_and_keeps_five_reads_with_the_explicit_wri
                 note: None,
                 prompt_version: "correction-pipe-synthetic-1".into(),
                 model_version: None,
+                entities: vec![],
             }]))
         }
     }

@@ -95,6 +95,17 @@ pub struct NativeRuntimeCapture {
     pub replayed: bool,
     pub formation_scheduled: bool,
 }
+/// ADR-MEM-171: an entity to record with a newly captured turn. Its evidence
+/// is `quote` in that turn; the producer chooses a fresh `entity_id`.
+#[derive(Clone, Debug)]
+pub struct RuntimeCaptureEntity {
+    pub message_id: String,
+    pub quote: String,
+    pub entity_id: String,
+    pub entity_type: EntityType,
+    pub reality: EntityReality,
+    pub display_name: String,
+}
 struct Plan {
     sources: Vec<CapturedSource>,
     catalog: RecordCatalog,
@@ -325,6 +336,17 @@ impl SegmentedAutomationVault {
         request: &RuntimeCaptureRequest,
         preflight: bool,
     ) -> Result<NativeRuntimeCapture> {
+        self.capture_runtime_with_entities(permit, request, &[], preflight)
+    }
+    /// ADR-MEM-171: as `capture_runtime`, also recording `entities` in the
+    /// same capture. A replay of the same request keeps what it recorded first.
+    pub fn capture_runtime_with_entities(
+        &self,
+        permit: &RuntimeCapturePermit,
+        request: &RuntimeCaptureRequest,
+        entities: &[RuntimeCaptureEntity],
+        preflight: bool,
+    ) -> Result<NativeRuntimeCapture> {
         if request.capability.as_str() != permit.capability {
             return Err(deny());
         }
@@ -344,7 +366,7 @@ impl SegmentedAutomationVault {
             permit.revoke();
             return Err(deny());
         }
-        let plan = plan(&state, p, permit, request, &now)?;
+        let plan = plan(&state, p, permit, request, entities, &now)?;
         let refs = plan.sources.iter().map(CapturedSource::reference).collect();
         let published = !preflight && !plan.replay;
         if !plan.replay {
@@ -535,6 +557,7 @@ fn plan(
     p: &AutomationPolicy,
     permit: &RuntimeCapturePermit,
     r: &RuntimeCaptureRequest,
+    entities: &[RuntimeCaptureEntity],
     now: &Timestamp,
 ) -> Result<Plan> {
     if !r.valid() {
@@ -729,8 +752,42 @@ fn plan(
         record_time(times.iter().min().cloned(), &permit.scope.default_timezone);
     conversation.ended_at =
         record_time(times.iter().max().cloned(), &permit.scope.default_timezone);
+    let mut records = Vec::new();
+    for e in entities {
+        let s = sources
+            .iter()
+            .find(|s| {
+                s.record.original_message_id.as_ref() == Some(&e.message_id)
+                    && s.record.speaker_role == SpeakerRole::User
+            })
+            .ok_or_else(invalid)?;
+        let evidence = quoted_evidence(s, &e.quote).ok_or_else(invalid)?;
+        if state.entities.contains_key(&e.entity_id)
+            || records
+                .iter()
+                .any(|r: &EntityRecord| r.entity_id == e.entity_id)
+        {
+            return Err(invalid());
+        }
+        records.push(EntityRecord {
+            entity_id: e.entity_id.clone(),
+            revision: Revision::new(1).unwrap(),
+            entity_type: e.entity_type,
+            reality: e.reality,
+            display_name: e.display_name.clone(),
+            aliases: vec![],
+            evidence: vec![evidence],
+            project_id: (e.entity_type == EntityType::Project)
+                .then(|| p.project_id.clone())
+                .flatten(),
+            first_seen: s.record.occurred_at.clone(),
+            last_seen: s.record.occurred_at.clone(),
+            sensitivity: s.record.sensitivity,
+            access_policy_id: p.access_policy_id.clone(),
+        });
+    }
     let catalog = RecordCatalog {
-        entities: vec![],
+        entities: records,
         conversations: vec![conversation],
     };
     state.check_catalog(&sources, &catalog, now)?;

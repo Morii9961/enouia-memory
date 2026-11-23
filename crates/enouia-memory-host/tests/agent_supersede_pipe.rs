@@ -339,6 +339,7 @@ fn real_supersede_pipe_saves_replays_and_keeps_five_reads_with_the_explicit_writ
                 note: None,
                 prompt_version: "supersede-pipe-synthetic-1".into(),
                 model_version: None,
+                entities: vec![],
             }]))
         }
     }

@@ -533,6 +533,7 @@ fn correcting(target: &CorrectionTarget, quote: &str) -> CaptureStatement {
         note: Some("Scripted synthetic correction analysis.".into()),
         prompt_version: "scripted-correction-1".into(),
         model_version: None,
+        entities: vec![],
     }
 }
 fn target_time() -> RecordTime {

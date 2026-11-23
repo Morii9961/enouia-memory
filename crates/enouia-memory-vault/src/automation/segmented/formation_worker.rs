@@ -26,6 +26,13 @@ const MAX_JOURNAL_BYTES: usize = 16 * 1024 * 1024;
 const MAX_STATEMENTS: usize = 32;
 
 /// Untrusted analysis output. The evaluator decides; this approves nothing.
+/// ADR-MEM-171: an entity captured with the statement's source, mentioned
+/// by the formed memory with the statement's own quote as evidence.
+#[derive(Clone, Debug, Serialize)]
+pub struct StatementEntity {
+    pub entity_id: String,
+    pub role: EntityRole,
+}
 #[derive(Clone, Serialize)]
 pub struct CaptureStatement {
     pub quote: String,
@@ -37,6 +44,7 @@ pub struct CaptureStatement {
     pub note: Option<String>,
     pub prompt_version: String,
     pub model_version: Option<String>,
+    pub entities: Vec<StatementEntity>,
 }
 pub enum CaptureAnalysis {
     Statements(Vec<CaptureStatement>),
@@ -980,10 +988,20 @@ impl CapturedFormation {
         result: MemoryRevisionRef,
     ) -> Option<AdmissionInput> {
         let ids = &self.vault.native.ids;
+        let evidence = quoted_evidence(source, &statement.quote)?;
+        let entities = statement
+            .entities
+            .iter()
+            .map(|e| EntityMention {
+                entity_id: e.entity_id.clone(),
+                role: e.role,
+                evidence: vec![evidence.clone()],
+            })
+            .collect();
         formation_seed(FormationSeed {
             policy,
             source,
-            evidence: quoted_evidence(source, &statement.quote)?,
+            evidence,
             snapshot_commit: CommitId::from_random(ids.random_16()),
             operation_id: OperationId::from_random(ids.random_16()),
             title: &statement.title,
@@ -991,7 +1009,7 @@ impl CapturedFormation {
             dimensions: statement.dimensions.clone(),
             event_time: statement.event_time.clone(),
             valid_time: statement.valid_time.clone(),
-            entities: vec![],
+            entities,
             prompt_version: &statement.prompt_version,
             model_version: statement.model_version.clone(),
             import_batch_id: None,
