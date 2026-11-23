@@ -1,0 +1,432 @@
+#![cfg(any(windows, target_os = "linux"))]
+//! The ChatGPT connector's daily flow against the real `enouia-memory-remote`
+//! process on loopback: a synthetic segmented Owner Vault, an Owner read grant
+//! labelled `chatgpt_connector` that follows new windows, and the connector
+//! section enabled. The approval code comes from the `approve` command run as
+//! a separate process, as Morii would run it beside the service.
+#[path = "support/remote_client.rs"]
+mod client;
+#[path = "support/owner_read_grant_fixture.rs"]
+mod fixture;
+use client::*;
+use enouia_memory_contract::{common::*, next::*, time::Timestamp};
+use enouia_memory_vault::{
+    OsIdSource, SystemClock,
+    automation::segmented::{SegmentedAutomationVault, SystemReadScope},
+    fault::Faults,
+};
+use fixture::*;
+use serde_json::{Value, json};
+use std::collections::BTreeSet;
+use std::net::{SocketAddr, TcpListener, TcpStream};
+use std::process::{Child, Command, Stdio};
+use std::sync::Arc;
+
+const EXE: &str = env!("CARGO_BIN_EXE_enouia-memory-remote");
+
+struct Server(Child);
+impl Drop for Server {
+    fn drop(&mut self) {
+        let _ = self.0.kill();
+        let _ = self.0.wait();
+    }
+}
+
+fn now_ms() -> i64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_millis() as i64
+}
+fn memory_ids(value: &Value, out: &mut BTreeSet<String>) {
+    match value {
+        Value::Object(map) => {
+            for (key, v) in map {
+                match (key.as_str(), v) {
+                    ("memory_id", Value::String(id)) => {
+                        out.insert(id.clone());
+                    }
+                    _ => memory_ids(v, out),
+                }
+            }
+        }
+        Value::Array(items) => items.iter().for_each(|v| memory_ids(v, out)),
+        _ => {}
+    }
+}
+fn conversation(n: u32, text: &str, quote: &str) -> Value {
+    let cases: Value = value("runtime-owner-capture/cases.json");
+    let mut request = cases["base"].clone();
+    request["request_id"] = json!(id("req", 700 + n));
+    request["conversation_id"] = json!(format!("chatgpt-synthetic-{n}"));
+    request["turns"][0]["text"] = json!(text);
+    request["turns"][0]["attachments"] = json!([]);
+    let unknown = json!({"from":null,"until":null,"precision":"unknown","bound":"within","tz":null,"basis":"unknown"});
+    json!({"request": request, "analyst_model": "synthetic-chatgpt-model", "statements": [{
+        "message_id": "m1", "quote": quote, "title": quote,
+        "interpretation": "clear_self_report", "kind": "preference",
+        "event_time": unknown, "valid_time": unknown, "note": null,
+        "entities": [{"name": "Lumen Cafe", "entity_type": "place", "reality": "real", "role": "mentioned"}]
+    }]})
+}
+
+#[test]
+fn chatgpt_daily_flow_through_the_real_remote_process() {
+    let (e, v, p, _) = correction_rig(SpeakerRole::User);
+    // Seeds for the config: one policy and its sources. The drafted grant
+    // follows the subject's other and later windows.
+    let seed = read_grant(&e, &p);
+    let full = SystemReadScope::MoriiFullHistory;
+    let before = v
+        .read_scoped(
+            &e.descriptor.system_actor,
+            Sensitivity::Private,
+            full,
+            |d| d.memories.len(),
+        )
+        .unwrap();
+    // One process opens the Vault at a time: close it before serving.
+    drop(v);
+
+    let files = Env::new();
+    let state_dir = files.path.join("oauth");
+    let addr: SocketAddr = {
+        let probe = TcpListener::bind("127.0.0.1:0").unwrap();
+        probe.local_addr().unwrap()
+    };
+    let config = json!({
+        "vault_root": e.root.path(),
+        "host_id": e.descriptor.host_id,
+        "state_dir": state_dir,
+        "bind": addr.to_string(),
+        "resource": "https://memory.example/mcp",
+        "issuer": "https://memory.example",
+        "redirect_prefixes": ["https://chatgpt.com/"],
+        "origins": ["https://chatgpt.com"],
+        "agent_id": seed.principal.actor_id,
+        "subject_id": seed.subject_id,
+        "project_id": seed.project_id,
+        "policy_ids": [p.policy_id],
+        "source_ids": seed.source_ids,
+        "max_sensitivity": "private",
+        "source_read": true,
+        "profile": value("attention/profile.json"),
+        "connector": {
+            "producer_id": id("prn", 6),
+            "config": {
+                "account_scope": "chatgpt-connector",
+                "default_timezone": "Asia/Shanghai",
+                "max_sensitivity": "private",
+                "allowed_forms": ["fact", "preference", "episode", "open_loop"],
+                "window_days": 30
+            }
+        }
+    });
+    let config_path = files.path.join("remote.json");
+    std::fs::write(&config_path, config.to_string()).unwrap();
+    let cli = |args: &[&str]| -> Value {
+        let out = Command::new(EXE)
+            .arg(args[0])
+            .arg(&config_path)
+            .args(&args[1..])
+            .output()
+            .unwrap();
+        assert!(
+            out.status.success(),
+            "{}",
+            String::from_utf8_lossy(&out.stderr)
+        );
+        serde_json::from_slice(&out.stdout).unwrap()
+    };
+    // Morii's grant: drafted from the config, reviewed, then confirmed.
+    let expiry = Timestamp::from_unix_ms(now_ms() + 2 * 86_400_000).unwrap();
+    let plan_path = files.path.join("plan.json");
+    let drafted = cli(&["read-draft", expiry.as_str(), plan_path.to_str().unwrap()]);
+    let plan: Value = serde_json::from_slice(&std::fs::read(&plan_path).unwrap()).unwrap();
+    let grant = &plan["grant"];
+    assert_eq!(drafted["grant_id"], grant["grant_id"]);
+    // An existing plan file is never overwritten.
+    let again = Command::new(EXE)
+        .arg("read-draft")
+        .arg(&config_path)
+        .args([expiry.as_str(), plan_path.to_str().unwrap()])
+        .output()
+        .unwrap();
+    assert!(!again.status.success());
+    assert_eq!(grant["follow_new_sources"], true);
+    assert_eq!(grant["purpose"], "chatgpt_connector");
+    assert_eq!(grant["allow_requests"], Value::Null);
+    assert_eq!(
+        grant["principal"]["actor_id"],
+        json!(seed.principal.actor_id)
+    );
+    assert_eq!(grant["policies"], json!([p.reference()]));
+    assert_eq!(grant["source_ids"], json!(seed.source_ids));
+    assert_eq!(grant["valid_until"], json!(expiry));
+    assert_eq!(
+        cli(&["read-status"])["grants"],
+        json!([]),
+        "a draft writes nothing"
+    );
+    cli(&[
+        "read-set",
+        plan_path.to_str().unwrap(),
+        "--confirm-owner-read",
+    ]);
+    let mut config = config;
+    config["read_grant_id"] = grant["grant_id"].clone();
+    std::fs::write(&config_path, config.to_string()).unwrap();
+    assert_eq!(cli(&["read-check"])["authority_mode"], "owner_read_grant");
+
+    let server = Server(
+        Command::new(EXE)
+            .args(["serve".as_ref(), config_path.as_os_str()])
+            .stdout(Stdio::null())
+            .stderr(Stdio::piped())
+            .spawn()
+            .unwrap(),
+    );
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(20);
+    while TcpStream::connect(addr).is_err() {
+        assert!(
+            std::time::Instant::now() < deadline,
+            "service did not listen"
+        );
+        std::thread::sleep(std::time::Duration::from_millis(50));
+    }
+
+    // OAuth as ChatGPT does it, with Morii's approval code from the CLI.
+    let json_headers = [("Content-Type", "application/json".to_owned())];
+    let form_headers = [(
+        "Content-Type",
+        "application/x-www-form-urlencoded".to_owned(),
+    )];
+    let resource = send(
+        addr,
+        "GET",
+        "/.well-known/oauth-protected-resource/mcp",
+        &[],
+        "",
+    )
+    .json();
+    assert!(
+        resource["scopes_supported"]
+            .as_array()
+            .unwrap()
+            .contains(&json!("memory.write"))
+    );
+    let registered = send(
+        addr,
+        "POST",
+        "/oauth/register",
+        &json_headers,
+        &json!({"redirect_uris":[REDIRECT]}).to_string(),
+    );
+    assert_eq!(registered.status, 201);
+    let client_id = registered.json()["client_id"].as_str().unwrap().to_owned();
+    let approved = Command::new(EXE)
+        .args(["approve".as_ref(), config_path.as_os_str()])
+        .output()
+        .unwrap();
+    assert!(approved.status.success());
+    let code = String::from_utf8(approved.stdout)
+        .unwrap()
+        .trim()
+        .to_owned();
+    let challenge = challenge(VERIFIER);
+    let authorized = send(
+        addr,
+        "POST",
+        "/oauth/authorize",
+        &form_headers,
+        &form(&[
+            ("response_type", "code"),
+            ("client_id", &client_id),
+            ("redirect_uri", REDIRECT),
+            ("code_challenge", &challenge),
+            ("code_challenge_method", "S256"),
+            ("state", "s1"),
+            ("scope", "memory.read memory.write"),
+            ("approval_code", &code),
+        ]),
+    );
+    assert_eq!(
+        authorized.status,
+        302,
+        "{}",
+        String::from_utf8_lossy(&authorized.body)
+    );
+    let location = authorized.header("location").unwrap();
+    let auth_code = location
+        .split("code=")
+        .nth(1)
+        .unwrap()
+        .split('&')
+        .next()
+        .unwrap()
+        .to_owned();
+    let tokens = send(
+        addr,
+        "POST",
+        "/oauth/token",
+        &form_headers,
+        &form(&[
+            ("grant_type", "authorization_code"),
+            ("code", &auth_code),
+            ("redirect_uri", REDIRECT),
+            ("client_id", &client_id),
+            ("code_verifier", VERIFIER),
+        ]),
+    )
+    .json();
+    let token = tokens["access_token"].as_str().unwrap().to_owned();
+    let session = initialize(addr, &token);
+    let mut next = 10;
+    let mut rpc = |method: &str, params: Value| {
+        next += 1;
+        let reply = mcp(
+            addr,
+            &token,
+            Some(&session),
+            json!({"jsonrpc":"2.0","id":next,"method":method,"params":params}),
+        );
+        assert_eq!(
+            reply.status,
+            200,
+            "{}",
+            String::from_utf8_lossy(&reply.body)
+        );
+        reply.json()["result"].clone()
+    };
+    let tools: BTreeSet<String> = rpc("tools/list", json!({}))["tools"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|t| t["name"].as_str().unwrap().to_owned())
+        .collect();
+    for name in [
+        "memory_search",
+        "memory_read",
+        "memory_submit_conversation",
+        "memory_submit_theme",
+    ] {
+        assert!(tools.contains(name), "{name} in {tools:?}");
+    }
+    let mut search_n = 900;
+    let mut search = |rpc: &mut dyn FnMut(&str, Value) -> Value| {
+        search_n += 1;
+        let result = rpc(
+            "tools/call",
+            json!({"name":"memory_search","arguments":{"schema_version":2,"kind":"agent_initialized_read_request","capability":enouia_memory_host::mcp::initialized::CAPABILITY,"request_id":id("req",search_n),"operation":"memory_search","arguments":{"filter":CatalogFilter::default(),"cursor":null,"limit":100,"max_bytes":262144,"include_facets":false}}}),
+        );
+        assert_ne!(result["isError"], json!(true), "{result}");
+        let mut ids = BTreeSet::new();
+        memory_ids(&result["structuredContent"], &mut ids);
+        ids
+    };
+    let baseline = search(&mut rpc);
+    assert!(!baseline.is_empty());
+    let submit = |rpc: &mut dyn FnMut(&str, Value) -> Value, submission: Value, preflight: bool| {
+        let result = rpc(
+            "tools/call",
+            json!({"name":"memory_submit_conversation","arguments":{"submission":submission,"preflight":preflight}}),
+        );
+        assert_ne!(result["isError"], json!(true), "{result}");
+        result["structuredContent"].clone()
+    };
+    // Preflight writes nothing and says a window would open.
+    let first = conversation(1, "I like the window seat at Lumen Cafe.", "window seat");
+    let checked = submit(&mut rpc, first.clone(), true);
+    assert_eq!(checked["window_needed"], true, "{checked}");
+    assert_eq!(search(&mut rpc), baseline);
+    let formed = submit(&mut rpc, first.clone(), false);
+    assert_eq!(formed["jobs"][0]["state"], "formed", "{formed}");
+    let replayed = submit(&mut rpc, first, false);
+    assert!(
+        replayed["jobs"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|j| j["receipts"].as_u64() <= Some(1))
+    );
+    let second = conversation(
+        2,
+        "Lumen Cafe has the quietest window seat.",
+        "quietest window seat",
+    );
+    assert_eq!(
+        submit(&mut rpc, second, false)["jobs"][0]["state"],
+        "formed"
+    );
+    // The following grant sees the connector's new window on the next read.
+    let after: BTreeSet<_> = search(&mut rpc).difference(&baseline).cloned().collect();
+    assert_eq!(after.len(), 2, "{after:?}");
+
+    let theme = json!({
+        "request_id": id("req", 801),
+        "analyst_model": "synthetic-chatgpt-model",
+        "title": "window seats",
+        "summary": "Morii keeps returning to quiet window seats at the same cafe.",
+        "members": after.iter().collect::<Vec<_>>(),
+        "note": null
+    });
+    let submit_theme = |rpc: &mut dyn FnMut(&str, Value) -> Value, preflight: bool| {
+        let result = rpc(
+            "tools/call",
+            json!({"name":"memory_submit_theme","arguments":{"theme":theme.clone(),"preflight":preflight}}),
+        );
+        assert_ne!(result["isError"], json!(true), "{result}");
+        result["structuredContent"].clone()
+    };
+    assert_eq!(submit_theme(&mut rpc, true)["memory"], Value::Null);
+    let themed = submit_theme(&mut rpc, false);
+    let theme_id = themed["memory"]["memory_id"].as_str().unwrap().to_owned();
+    assert_eq!(themed["replayed"], false);
+    let again = submit_theme(&mut rpc, false);
+    assert_eq!(
+        (
+            again["replayed"].clone(),
+            again["memory"]["memory_id"].as_str()
+        ),
+        (json!(true), Some(theme_id.as_str()))
+    );
+    assert!(search(&mut rpc).contains(&theme_id));
+
+    // Stop the service and inspect the Vault it left behind.
+    drop(server);
+    let reopened = SegmentedAutomationVault::open(
+        &e.root,
+        e.descriptor.host_id.clone(),
+        Arc::new(SystemClock),
+        Arc::new(OsIdSource),
+        Faults::none(),
+    )
+    .unwrap();
+    let (count, theme) = reopened
+        .read_scoped(
+            &e.descriptor.system_actor,
+            Sensitivity::Private,
+            full,
+            |d| {
+                let theme = d
+                    .memories
+                    .iter()
+                    .find(|m| m.memory.memory.memory_id.as_str() == theme_id)
+                    .map(|m| {
+                        let i = &m.memory.decision.input;
+                        (
+                            i.interpretation,
+                            i.dimensions.as_ref().map(|f| f.derived_from.len()),
+                        )
+                    });
+                (d.memories.len(), theme)
+            },
+        )
+        .unwrap();
+    assert_eq!(count, before + 3);
+    assert_eq!(theme, Some((Interpretation::Inference, Some(2))));
+    let saved = std::fs::read_to_string(state_dir.join("oauth-state.json")).unwrap();
+    for secret in [code.as_str(), auth_code.as_str(), token.as_str()] {
+        assert!(!saved.contains(secret));
+    }
+}

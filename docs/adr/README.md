@@ -1075,3 +1075,11 @@ and replay.
 `chatgpt_connector`) lets Runtime find the connector's grant; the recall preview adds
 `selected_targets`; reads, permit issuance and read-only Owner grant queries wait up
 to two seconds for the writer lock, while commits still try once.
+
+### ADR-MEM-176 — Tunnel-ready remote service, drafted connector grants and deploy bundle
+
+[Decision](176-remote-tunnel-readiness.md): the loopback HTTP driver decodes chunked
+request bodies (tunnels may forward them unbuffered); `enouia-memory-remote read-draft`
+drafts the connector's following, `chatgpt_connector` grant from the service config into a
+reviewed-plan file; Linux deploy templates, a packaging script and a quick-tunnel runbook
+are added. A process-level test drives ChatGPT's daily flow through the real binary.

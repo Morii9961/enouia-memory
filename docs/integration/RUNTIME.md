@@ -1,5 +1,16 @@
 # Runtime integration (ADR-MEM-45)
 
+2026-11-24 tunnel-ready remote service ([ADR-MEM-176](../adr/176-remote-tunnel-readiness.md)):
+the remote service's HTTP driver now decodes chunked request bodies, and
+`enouia-memory-remote read-draft <config> <UTC-expiry> <plan-file>` drafts the
+connector's following `chatgpt_connector` grant into a reviewed-plan file (Vault
+untouched; `read-set` still confirms). Linux deploy templates, a packaging script
+and a quick-tunnel runbook (`docs/deploy/CHATGPT_QUICK_TUNNEL_CHECK.md`) are added.
+Runtime needs no change: no IPC command, wire or schema change, and Workspace stays
+at 61 commands. During a quick-tunnel check Runtime must stay closed, because the
+remote service opens the Vault. Surface aggregate:
+`2394532c12afa28b9cfe559bc5e3a03d01defdd2739c1a54f38f139595a72328`.
+
 2026-11-24 R5 support ([ADR-MEM-175](../adr/175-runtime-r5-support.md)):
 
 - **Connector grant.** `OwnerReadGrant.purpose` (optional; lowercase ASCII,

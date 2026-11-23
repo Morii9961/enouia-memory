@@ -3,7 +3,10 @@
 Reference for [ADR-MEM-133](../adr/133-remote-mcp-service-entry.md). It
 describes how the pieces fit together. Deployment, the domain, and which real
 Vault and scope to expose are Morii's decisions and are not made here. All
-values below are placeholders.
+values below are placeholders. Ready-to-edit copies of the files below are in
+[linux/](linux/), and `tools/deploy/package_linux.sh` builds a release bundle
+(binaries, templates, these documents, SHA-256) on Linux without deploying it
+([ADR-MEM-176](../adr/176-remote-tunnel-readiness.md)).
 
 For explicit long-term read authority, historical policy revisions, renewal and
 revocation, follow the [Morii read-grant workflow](CONNECTOR_READ_GRANTS.md)
@@ -71,7 +74,12 @@ memories) is a separate, Morii-authorized step.
 ```
 
 The exposure scope (`subject_id`, `project_id`, `policy_ids`, `source_ids`,
-`max_sensitivity`, `source_read`) is exactly what ChatGPT may read. The Vault
+`max_sensitivity`, `source_read`) is exactly what ChatGPT may read. With a
+following read grant (`read_grant_id`), one seed policy and its sources are
+enough: the grant adds the subject's other and later windows. Draft that grant
+from this file with `enouia-memory-remote read-draft <config> <UTC-expiry>
+<plan-file>`, review the plan, then confirm it with `read-set ...
+--confirm-owner-read` ([workflow](CONNECTOR_READ_GRANTS.md)). The Vault
 refuses anything an active policy does not cover. Unknown fields are refused.
 
 To let ChatGPT submit conversations and the memories it distilled
@@ -127,7 +135,7 @@ stays down after the restart limit. Recover the Vault before starting it again.
 ```text
 memory.example.org {
     reverse_proxy 127.0.0.1:8787 {
-        # The service accepts only Content-Length bodies, so buffer requests.
+        # The service also decodes chunked bodies; buffering keeps requests short.
         request_buffers 300KiB
     }
 }
@@ -148,5 +156,8 @@ memory.example.org {
 - Vault permits last five minutes and renew every four. Open MCP sessions end
   at renewal, and ChatGPT starts a new session with the same token.
 - Requests are served one at a time; this is a single-Morii service.
-- Interoperability with ChatGPT's current connector client has not been
-  tested yet.
+- The daily flow (OAuth with the `approve` command, read, conversation and theme
+  submission) is tested against the real binary on loopback
+  (`remote_daily_process`). Interoperability with ChatGPT's own connector
+  client is still to be checked, for example with the
+  [quick-tunnel runbook](CHATGPT_QUICK_TUNNEL_CHECK.md).
