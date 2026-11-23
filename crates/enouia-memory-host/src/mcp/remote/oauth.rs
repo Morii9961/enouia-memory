@@ -18,6 +18,9 @@ pub const CODE_TTL_MS: i64 = 2 * 60 * 1000;
 pub const APPROVAL_TTL_MS: i64 = 10 * 60 * 1000;
 pub const MAX_APPROVAL_FAILURES: u32 = 5;
 pub const MAX_CLIENTS: usize = 16;
+/// ADR-MEM-179: a registration never approved with Morii's code lapses after
+/// this long, so strangers on a public address cannot hold every slot.
+pub const PENDING_CLIENT_TTL_MS: i64 = 3_600_000;
 const METADATA: &str = "/.well-known/oauth-authorization-server";
 const REGISTER: &str = "/oauth/register";
 const AUTHORIZE: &str = "/oauth/authorize";
@@ -86,6 +89,27 @@ pub struct State {
     /// Digests of consumed codes and rotated refresh tokens, kept until they
     /// would have expired so a replay can revoke the family.
     spent: BTreeMap<String, Issued>,
+    /// ADR-MEM-179: registration time of clients not yet approved. Clients
+    /// from older state files are absent here and count as approved.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pending: BTreeMap<String, i64>,
+}
+
+impl State {
+    /// Drops registrations that lapsed before Morii approved them.
+    fn prune_pending(&mut self, now: i64) {
+        let lapsed: Vec<String> = self
+            .pending
+            .iter()
+            .filter(|(_, registered)| now - **registered >= PENDING_CLIENT_TTL_MS)
+            .map(|(id, _)| id.clone())
+            .collect();
+        for id in lapsed {
+            self.pending.remove(&id);
+            self.clients.remove(&id);
+            self.codes.retain(|_, g| g.client_id != id);
+        }
+    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
@@ -287,6 +311,7 @@ impl<'a> Authority<'a> {
     pub fn revoke_client(&self, client_id: &str) -> bool {
         let mut state = self.state.borrow_mut();
         let existed = state.clients.remove(client_id).is_some();
+        state.pending.remove(client_id);
         state.codes.retain(|_, g| g.client_id != client_id);
         state.access.retain(|_, t| t.client_id != client_id);
         state.refresh.retain(|_, t| t.client_id != client_id);
@@ -419,11 +444,14 @@ impl<'a> Authority<'a> {
             return invalid("invalid_client_metadata");
         }
         let mut state = self.state.borrow_mut();
+        let now = self.clock.now_unix_ms();
+        state.prune_pending(now);
         if state.clients.len() >= MAX_CLIENTS {
             return invalid("invalid_client_metadata");
         }
         let client_id = hex(&self.ids.random_16());
         state.clients.insert(client_id.clone(), uris.clone());
+        state.pending.insert(client_id.clone(), now);
         Response::json(
             201,
             &json!({
@@ -444,6 +472,9 @@ impl<'a> Authority<'a> {
         let (Some(client_id), Some(redirect_uri)) = (get("client_id"), get("redirect_uri")) else {
             return page(400, "<p>缺少客户端或回调地址。</p>");
         };
+        self.state
+            .borrow_mut()
+            .prune_pending(self.clock.now_unix_ms());
         let registered = self
             .state
             .borrow()
@@ -542,6 +573,7 @@ impl<'a> Authority<'a> {
             return form("批准码不正确。");
         }
         state.approval = None;
+        state.pending.remove(client_id);
         let code = self.secret();
         state.codes.insert(
             digest(&code),

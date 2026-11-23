@@ -101,7 +101,8 @@ enouia-memory-remote oauth-revoke <config.json> <client-id> --confirm-revoke-cli
 enouia-memory-remote approve <config.json>
 ```
 
-status 只列客户端 ID 与尚有效的 access/refresh 最晚到期时间。revoke 删除该客户端登记、
+从未通过批准码的登记 1 小时后自动作废并释放名额（[ADR179](../adr/179-unapproved-client-lapse.md)），
+已批准的客户端不受影响。status 只列客户端 ID 与尚有效的 access/refresh 最晚到期时间。revoke 删除该客户端登记、
 待兑换 code 和所有 token，并清除当前未使用批准码；下一请求，包括旧 MCP 会话，认证失败。
 其他客户端不被撤回。要再连接，须重新登记并通过新的主人批准码；approve 本身不续期 Vault 授权。
 

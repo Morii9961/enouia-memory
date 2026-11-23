@@ -191,6 +191,63 @@ fn refresh(authority: &Authority, client: &str, token: &str) -> Response {
         .unwrap()
 }
 
+/// ADR-MEM-179: registrations never approved lapse after an hour, so they
+/// cannot hold every slot; approved clients and their tokens stay.
+#[test]
+fn unapproved_registrations_lapse_and_free_their_slots() {
+    let ids = SequentialIdSource::new(700);
+    let now = Now(Cell::new(1_000_000));
+    let authority = Authority::new(config(), &ids, &now, State::default());
+    let approved = register(&authority);
+    let code = approve(&authority, &approved);
+    let tokens = json_body(&exchange(&authority, &approved, &code));
+    let strangers: Vec<_> = (1..MAX_CLIENTS).map(|_| register(&authority)).collect();
+    let full = |authority: &Authority| {
+        authority
+            .respond(&post_json(
+                "/oauth/register",
+                json!({"redirect_uris":[REDIRECT]}),
+            ))
+            .unwrap()
+            .status
+    };
+    assert_eq!(full(&authority), 400, "all slots are held");
+    // Just before the hour nothing lapses.
+    now.0.set(1_000_000 + PENDING_CLIENT_TTL_MS - 1);
+    assert_eq!(full(&authority), 400);
+    // A lapsed registration can no longer authorize, even with a valid code.
+    now.0.set(1_000_000 + PENDING_CLIENT_TTL_MS);
+    let approval = authority.issue_approval_code();
+    let challenge = challenge(VERIFIER);
+    let mut params = authorize_params(&strangers[0], &challenge);
+    params.push(("approval_code", &approval));
+    let refused = authority
+        .respond(&post_form("/oauth/authorize", &params))
+        .unwrap();
+    assert_eq!(refused.status, 400, "{}", text(&refused));
+    // Their slots are free again; the approved client still refreshes.
+    let fresh = register(&authority);
+    assert!(!strangers.contains(&fresh));
+    let renewed = refresh(
+        &authority,
+        &approved,
+        tokens["refresh_token"].as_str().unwrap(),
+    );
+    assert_eq!(renewed.status, 200, "{}", text(&renewed));
+    let listed = authority.client_status();
+    let ids: Vec<_> = listed["clients"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c["client_id"].as_str().unwrap().to_owned())
+        .collect();
+    assert!(ids.contains(&approved) && ids.contains(&fresh));
+    assert!(strangers.iter().all(|s| !ids.contains(s)));
+    // Only the fresh, unapproved registration is still pending.
+    let saved = serde_json::to_value(authority.state()).unwrap();
+    assert!(saved["pending"].as_object().is_some_and(|p| p.len() == 1));
+}
+
 #[test]
 fn config_requires_https_origin_resource_under_it_and_https_redirect_prefixes() {
     assert!(
