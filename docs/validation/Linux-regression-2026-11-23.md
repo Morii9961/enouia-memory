@@ -28,3 +28,11 @@ compiled out on Linux, as designed.
 - No Linux persistent-filesystem durability beyond what the synthetic tests
   exercise.
 - The Workspace Tauri application is not built on Linux.
+
+## Rerun at `main@e856156` (after ADR-MEM-171 to 174)
+
+The same environment and command, now also covering `enouia-memory-init`. All
+four packages pass: 123 test binaries, no failures. The Linux-built host tests
+now also include connector entities (ADR-MEM-171) and ChatGPT themes
+(ADR-MEM-174). The entity identity and capsule tests are Windows-only, because
+they drive the trusted owner gesture.
