@@ -1109,3 +1109,9 @@ approved clients and older state files are unaffected.
 [Decision](180-chatgpt-tool-descriptions.md): the remote service gives each read tool a short
 ChatGPT-facing description of when to use it, keeping the honesty notes; local Agent protocols
 are unchanged.
+
+### ADR-MEM-181 — Refusal reasons for ChatGPT submissions
+
+[Decision](181-connector-refusal-reasons.md): refused connector submissions and themes return
+`problems`, a list of the self-checks they fail (verbatim quote, user turn, limits, allowed kind,
+members); allowed forms are now checked before capture.

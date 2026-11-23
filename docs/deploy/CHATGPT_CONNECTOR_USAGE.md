@@ -58,7 +58,8 @@ ChatGPT 可以读你的记忆，也可以提交新记忆。本页说明怎样让
 
 ## 出错时
 
-- 返回 `invalid_submission`：通常是引文和原文对不上，或者字段超出了长度、数量限制；按提示
-  修改后，用同一个 `request_id` 重新提交。
+- 返回 `invalid_submission`：同时会附带 `problems`，逐条说明哪里不对，例如引文没有逐字出现在
+  那条 user 消息里、`kind` 不被允许、字段超长（[ADR181](../adr/181-connector-refusal-reasons.md)）。
+  按提示修改后，用同一个 `request_id` 重新提交。
 - 返回结果不确定（例如网络中断）：服务端会停止，不会自动重试；先在服务器上恢复，再用同一个
   `request_id` 查询或回放。

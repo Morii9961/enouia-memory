@@ -67,19 +67,41 @@ pub struct ThemeReceipt {
     pub preflight: bool,
 }
 impl ConnectorTheme {
-    pub fn valid(&self) -> bool {
+    /// ADR-MEM-181: every self-check this theme fails, worded so ChatGPT can
+    /// correct it. Empty means the theme may reach the Vault.
+    pub fn problems(&self) -> Vec<String> {
         let text_ok = |s: &str, max: usize| !s.trim().is_empty() && s.chars().count() <= max;
-        text_ok(&self.analyst_model, 128)
-            && text_ok(&self.title, 60)
-            && text_ok(&self.summary, 2000)
-            && self.note.as_ref().is_none_or(|n| text_ok(n, 512))
-            && (2..=MAX_THEME_MEMBERS).contains(&self.members.len())
-            && self
-                .members
-                .iter()
-                .collect::<std::collections::BTreeSet<_>>()
-                .len()
-                == self.members.len()
+        let mut out = Vec::new();
+        for (field, value, max) in [
+            ("analyst_model", &self.analyst_model, 128),
+            ("title", &self.title, 60),
+            ("summary", &self.summary, 2000),
+        ] {
+            if !text_ok(value, max) {
+                out.push(format!("{field} must be 1 to {max} characters"));
+            }
+        }
+        if self.note.as_ref().is_some_and(|n| !text_ok(n, 512)) {
+            out.push("note must be 1 to 512 characters, or null".into());
+        }
+        if !(2..=MAX_THEME_MEMBERS).contains(&self.members.len()) {
+            out.push(format!(
+                "members must list 2 to {MAX_THEME_MEMBERS} memory IDs"
+            ));
+        }
+        if self
+            .members
+            .iter()
+            .collect::<std::collections::BTreeSet<_>>()
+            .len()
+            != self.members.len()
+        {
+            out.push("members must not repeat a memory ID".into());
+        }
+        out
+    }
+    pub fn valid(&self) -> bool {
+        self.problems().is_empty()
     }
 }
 pub const CAPTURE_PLATFORM: &str = "enouia-runtime";
@@ -188,25 +210,86 @@ impl CaptureAnalyzer for SubmittedAnalyzer {
 }
 
 impl ConnectorSubmission {
-    /// Checks the submission against itself before anything reaches the Vault.
-    /// The Vault and the formation step repeat their own checks.
-    pub fn valid(&self) -> bool {
+    /// Checks the submission against itself and the forms this service
+    /// allows before anything reaches the Vault. The Vault and the formation
+    /// step repeat their own checks.
+    pub fn valid(&self, allowed: &[FormationKind]) -> bool {
+        self.problems(allowed).is_empty()
+    }
+    /// ADR-MEM-181: every self-check this submission fails, worded so ChatGPT
+    /// can correct it. Empty means the submission may reach the Vault.
+    pub fn problems(&self, allowed: &[FormationKind]) -> Vec<String> {
         let text_ok = |s: &str, max: usize| !s.trim().is_empty() && s.chars().count() <= max;
-        self.request.valid()
-            && text_ok(&self.analyst_model, 128)
-            && self.statements.len() <= MAX_STATEMENTS
-            && self.statements.iter().all(|s| {
-                text_ok(&s.title, 128)
-                    && text_ok(&s.quote, 2048)
-                    && s.note.as_ref().is_none_or(|n| text_ok(n, 512))
-                    && s.entities.len() <= MAX_STATEMENT_ENTITIES
-                    && s.entities.iter().all(|e| text_ok(&e.name, 128))
-                    && self.request.turns.iter().any(|t| {
-                        t.message_id == s.message_id
-                            && t.speaker == SpeakerRole::User
-                            && t.text.contains(&s.quote)
-                    })
-            })
+        let mut out = Vec::new();
+        let turns = &self.request.turns;
+        if !(1..=8).contains(&turns.len()) {
+            out.push("request.turns must hold 1 to 8 turns".into());
+        }
+        if turns
+            .iter()
+            .map(|t| &t.message_id)
+            .collect::<std::collections::BTreeSet<_>>()
+            .len()
+            != turns.len()
+        {
+            out.push("each turn needs its own message_id".into());
+        }
+        for t in turns {
+            if t.text.trim().is_empty() || t.text.len() > 16 * 1024 {
+                out.push(format!(
+                    "turn {}: text must be non-empty and at most 16 KiB",
+                    t.message_id
+                ));
+            }
+        }
+        if out.is_empty() && !self.request.valid() {
+            out.push("request is malformed: check conversation_id (1-256 characters), title, branch and sequence, parent_message_id, content_lang and attachments".into());
+        }
+        if !text_ok(&self.analyst_model, 128) {
+            out.push("analyst_model must be 1 to 128 characters".into());
+        }
+        if self.statements.len() > MAX_STATEMENTS {
+            out.push(format!(
+                "at most {MAX_STATEMENTS} statements per submission"
+            ));
+        }
+        for (n, s) in self.statements.iter().enumerate() {
+            let at = format!("statement {n} ({})", s.message_id);
+            if !text_ok(&s.title, 128) {
+                out.push(format!("{at}: title must be 1 to 128 characters"));
+            }
+            if !text_ok(&s.quote, 2048) {
+                out.push(format!("{at}: quote must be 1 to 2048 characters"));
+            }
+            if s.note.as_ref().is_some_and(|n| !text_ok(n, 512)) {
+                out.push(format!("{at}: note must be 1 to 512 characters, or null"));
+            }
+            if s.entities.len() > MAX_STATEMENT_ENTITIES
+                || s.entities.iter().any(|e| !text_ok(&e.name, 128))
+            {
+                out.push(format!(
+                    "{at}: at most {MAX_STATEMENT_ENTITIES} entities, each named in 1 to 128 characters"
+                ));
+            }
+            if !allowed.contains(&s.kind) {
+                out.push(format!(
+                    "{at}: kind is not allowed here; use one of {allowed:?}"
+                ));
+            }
+            match turns.iter().find(|t| t.message_id == s.message_id) {
+                None => out.push(format!(
+                    "{at}: no turn in this submission has this message_id"
+                )),
+                Some(t) if t.speaker != SpeakerRole::User => {
+                    out.push(format!("{at}: quote Morii's own (user) turns only"))
+                }
+                Some(t) if !t.text.contains(&s.quote) => out.push(format!(
+                    "{at}: the quote does not appear verbatim in that turn's text"
+                )),
+                Some(_) => {}
+            }
+        }
+        out
     }
     /// A fresh, deterministic entity ID per statement and position, so a
     /// resubmitted request names the entities its first capture recorded.
@@ -575,7 +658,7 @@ impl ConnectorWriter {
     ) -> ApplicationResult<ConnectorReceipt> {
         let at =
             |offset: i64| Timestamp::from_unix_ms(now_ms + offset).ok_or(ApplicationFault::Invalid);
-        if !submission.valid() {
+        if !submission.valid(&self.config.allowed_forms) {
             return Err(ApplicationFault::Invalid);
         }
         let request = &submission.request;

@@ -471,6 +471,21 @@ fn daily_flow(e: &Env, p: &AutomationPolicy, before: usize, root: &VerifiedRoot)
             .all(|j| j["receipts"].as_u64() <= Some(1)),
         "{again}"
     );
+    // ADR-MEM-181: a refused submission says what to fix.
+    let bad = json!({"submission": {
+        "request": {"request_id": "bad-1", "conversation_id": "chatgpt-bad", "turns": [
+            {"message_id": "m1", "speaker": "user", "text": "I drink tea in the morning."}
+        ]},
+        "analyst_model": "synthetic-chatgpt-model",
+        "statements": [{"message_id": "m1", "quote": "coffee", "title": "coffee", "interpretation": "clear_self_report", "kind": "theme"}]
+    }});
+    let refused = short(&mut rpc, "memory_submit_conversation", bad);
+    assert_eq!(refused["isError"], true);
+    let problems = refused["structuredContent"]["problems"].to_string();
+    assert!(
+        problems.contains("verbatim") && problems.contains("kind is not allowed"),
+        "{refused}"
+    );
     // The following grant sees the connector's new window on the next read.
     let after: BTreeSet<_> = search(&mut rpc).difference(&baseline).cloned().collect();
     assert_eq!(after.len(), 2, "{after:?}");
@@ -491,6 +506,23 @@ fn daily_flow(e: &Env, p: &AutomationPolicy, before: usize, root: &VerifiedRoot)
         assert_ne!(result["isError"], json!(true), "{result}");
         result["structuredContent"].clone()
     };
+    // Members must be the connector's own current memories.
+    let outside = [
+        baseline.iter().next().unwrap(),
+        after.iter().next().unwrap(),
+    ];
+    let refused = short(
+        &mut rpc,
+        "memory_submit_theme",
+        json!({"theme": {"request_id": "bad-theme", "analyst_model": "m", "title": "t", "summary": "s", "members": outside}}),
+    );
+    assert_eq!(refused["isError"], true);
+    assert!(
+        refused["structuredContent"]["problems"]
+            .to_string()
+            .contains("this connector submitted"),
+        "{refused}"
+    );
     assert_eq!(submit_theme(&mut rpc, true)["memory"], Value::Null);
     let themed = submit_theme(&mut rpc, false);
     let theme_id = themed["memory"]["memory_id"].as_str().unwrap().to_owned();
