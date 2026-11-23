@@ -1,5 +1,14 @@
 # Runtime integration (ADR-MEM-45)
 
+2026-11-23 ChatGPT themes ([ADR-MEM-174](../adr/174-chatgpt-themes.md), R5 B2): once the
+connector is deployed, ChatGPT can submit themes with `memory_submit_theme`. They
+arrive as ordinary theme memories (`kind: theme`, `change: synthesis`,
+interpretation `inference`, `derived_from` the cited daily memories), so the theme
+lanes, families and owner theme actions work unchanged. Label them as ChatGPT's
+inference. New `SegmentedAutomationVault::open_capture_window_in(..., (access,
+egress))`; `open_capture_window` is unchanged. No IPC command or wire change;
+Workspace stays at 61 commands. Surface aggregate: `a925dfe44c1a30948172b2b2991580ae72a61c52760d3a678c867038f5ea6ab5`.
+
 2026-11-23 saved recall capsules ([ADR-MEM-173](../adr/173-saved-recall-capsules.md), R5 B1):
 save a recall result with
 `OwnerAction::Capsule { name, query, members }` (name 1–60 characters, query up to

@@ -106,6 +106,9 @@ different maxima. For writes, add the `connector` section (ADR-MEM-158) with
    `enouia-memory-remote approve remote.json` on this PC and enter the code.
 5. First call `memory_submit_conversation` with `"preflight": true`, then for
    real. This also shows whether the ChatGPT plan can call write tools.
+6. Optionally, once some daily memories exist, ask ChatGPT for a theme across them
+   with `memory_submit_theme` (preflight first). Themes stay ChatGPT's inference,
+   linked to the memories they cite ([ADR-MEM-174](../adr/174-chatgpt-themes.md)).
 
 ## Not covered
 

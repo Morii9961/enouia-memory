@@ -238,3 +238,146 @@ fn named_entities_become_records_and_mentions_and_replay_without_duplicates() {
     assert!(again.capture.unwrap().replayed);
     assert_eq!(read(), (named, 2));
 }
+
+#[test]
+fn chatgpt_themes_synthesize_daily_memories_across_windows_of_its_domain() {
+    let e = owner_env();
+    let v = Arc::new(e.create(Faults::none()));
+    let owner = e.descriptor.created_by.clone();
+    let writer = |forms: Vec<FormationKind>, scope: &str| {
+        let mut c = config();
+        c.allowed_forms = forms;
+        c.account_scope = scope.into();
+        ConnectorWriter::new(v.clone(), owner.clone(), producer(), c).unwrap()
+    };
+    // Same account scope, different forms: two windows in one domain.
+    let prefer = writer(
+        vec![FormationKind::Preference],
+        "chatgpt-connector-synthetic",
+    );
+    let fact = writer(vec![FormationKind::Fact], "chatgpt-connector-synthetic");
+    let other = writer(vec![FormationKind::Preference], "another-connector");
+    assert_eq!(prefer.domain(), fact.domain());
+    assert_ne!(prefer.domain(), other.domain());
+    let submit = |w: &ConnectorWriter, n: u32, text: &str, quote: &str, kind: FormationKind| {
+        let mut r = request(n, text);
+        r.conversation_id = format!("chatgpt-synthetic-{n}");
+        r.turns[0].parent_message_id = None;
+        let mut s = statement(&format!("m{n}"), quote);
+        s.kind = kind;
+        w.submit(
+            &ConnectorSubmission {
+                request: r,
+                analyst_model: "synthetic-chatgpt-model".into(),
+                statements: vec![s],
+            },
+            false,
+            NOW,
+        )
+        .unwrap();
+    };
+    submit(
+        &prefer,
+        1,
+        "I love walking at night.",
+        "walking at night",
+        FormationKind::Preference,
+    );
+    submit(
+        &fact,
+        2,
+        "I walked along the river tonight.",
+        "walked along the river tonight",
+        FormationKind::Fact,
+    );
+    submit(
+        &other,
+        3,
+        "I like night walks too.",
+        "night walks",
+        FormationKind::Preference,
+    );
+    assert_eq!(v.capture_windows(&owner).unwrap().len(), 3);
+    let id_of = |title: &str| {
+        v.read(&e.descriptor.system_actor, Sensitivity::Private, |d| {
+            d.memories
+                .iter()
+                .find(|m| m.memory.request.record_fields.as_ref().unwrap().title == title)
+                .unwrap()
+                .memory
+                .memory
+                .memory_id
+                .clone()
+        })
+        .unwrap()
+    };
+    let (a, b, c) = (
+        id_of("walking at night"),
+        id_of("walked along the river tonight"),
+        id_of("night walks"),
+    );
+    let theme = |members: Vec<MemoryId>| ConnectorTheme {
+        request_id: RequestId::parse(&id("req", 50)).unwrap(),
+        analyst_model: "synthetic-chatgpt-model".into(),
+        title: "Night walks".into(),
+        summary: "Morii often walks at night, especially by the river.".into(),
+        members,
+        note: Some("synthesized in ChatGPT".into()),
+    };
+    // Too few members, or a member outside the connector's domain, are refused.
+    assert!(
+        prefer
+            .submit_theme(&theme(vec![a.clone()]), false, NOW)
+            .is_err()
+    );
+    assert!(
+        prefer
+            .submit_theme(&theme(vec![a.clone(), c.clone()]), false, NOW)
+            .is_err()
+    );
+    // Preflight writes nothing.
+    let before = v.snapshot().unwrap();
+    let dry = prefer
+        .submit_theme(&theme(vec![a.clone(), b.clone()]), true, NOW)
+        .unwrap();
+    assert!(dry.preflight && dry.memory.is_none());
+    assert_eq!(v.snapshot().unwrap(), before);
+    let formed = prefer
+        .submit_theme(&theme(vec![a.clone(), b.clone()]), false, NOW)
+        .unwrap();
+    let memory = formed.memory.unwrap();
+    assert!(!formed.replayed);
+    v.read(&e.descriptor.system_actor, Sensitivity::Private, |d| {
+        let m = d
+            .memories
+            .iter()
+            .find(|m| m.memory.memory.memory_id == memory.memory_id)
+            .unwrap();
+        let i = &m.memory.request;
+        let dims = i.dimensions.as_ref().unwrap();
+        assert_eq!(dims.kind, FormationKind::Theme);
+        assert_eq!(dims.change, FormationChange::Synthesis);
+        assert_eq!(dims.derived_from.len(), 2);
+        assert_eq!(i.interpretation, Interpretation::Inference);
+        assert_eq!(
+            i.content,
+            "Morii often walks at night, especially by the river."
+        );
+        assert_eq!(i.record_fields.as_ref().unwrap().title, "Night walks");
+        assert_eq!(i.input_refs.len(), 2);
+        assert_eq!(i.record_fields.as_ref().unwrap().evidence.len(), 2);
+        let parents: Vec<_> = dims
+            .derived_from
+            .iter()
+            .map(|t| t.memory.memory_id.clone())
+            .collect();
+        assert!(parents.contains(&a) && parents.contains(&b));
+    })
+    .unwrap();
+    // Resubmitting the request replays the same theme without writing.
+    let before = v.snapshot().unwrap();
+    let again = prefer.submit_theme(&theme(vec![a, b]), false, NOW).unwrap();
+    assert!(again.replayed);
+    assert_eq!(again.memory, Some(memory));
+    assert_eq!(v.snapshot().unwrap(), before);
+}

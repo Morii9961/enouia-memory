@@ -22,6 +22,23 @@ impl SegmentedAutomationVault {
         max_sensitivity: Sensitivity,
         allowed_forms: Vec<FormationKind>,
     ) -> Result<CaptureWindow> {
+        let ids = &self.native.ids;
+        let domain = (
+            PolicyId::from_random(ids.random_16()),
+            PolicyId::from_random(ids.random_16()),
+        );
+        self.open_capture_window_in(owner, days, max_sensitivity, allowed_forms, domain)
+    }
+    /// ADR-MEM-174: as `open_capture_window`, in a given access and egress
+    /// domain, so that windows of one producer can be synthesized together.
+    pub fn open_capture_window_in(
+        &self,
+        owner: &ActorRef,
+        days: u32,
+        max_sensitivity: Sensitivity,
+        allowed_forms: Vec<FormationKind>,
+        (access_policy_id, egress_policy_id): (PolicyId, PolicyId),
+    ) -> Result<CaptureWindow> {
         let d = &self.native.descriptor;
         let Some(subject_id) = d.owner_subject_id.clone() else {
             return Err(AutomationFault::Denied);
@@ -54,8 +71,8 @@ impl SegmentedAutomationVault {
             target_ids: Vec::new(),
             allowed_forms,
             max_sensitivity,
-            access_policy_id: PolicyId::from_random(ids.random_16()),
-            egress_policy_id: PolicyId::from_random(ids.random_16()),
+            access_policy_id,
+            egress_policy_id,
             active: true,
             valid_from: now,
             valid_until,

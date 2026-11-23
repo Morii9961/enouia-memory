@@ -3,13 +3,25 @@
 //! unchanged. Only a bearer holding `memory.write` sees and may call the tool.
 use super::{Session, WRITE_SCOPE};
 use crate::automation::application::ApplicationFault;
-use crate::automation::connector_formation::{ConnectorSubmission, ConnectorWriter};
+use crate::automation::connector_formation::{
+    ConnectorSubmission, ConnectorTheme, ConnectorWriter,
+};
 use enouia_memory_contract::foundation::Clock;
 use enouia_memory_vault::automation::AutomationFault;
 use serde::Deserialize;
 use serde_json::{Value, json};
 
 pub const TOOL: &str = "memory_submit_conversation";
+/// ADR-MEM-174: ChatGPT submits a theme over daily memories it has read.
+pub const THEME_TOOL: &str = "memory_submit_theme";
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct ThemeArguments {
+    theme: ConnectorTheme,
+    #[serde(default)]
+    preflight: bool,
+}
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -103,6 +115,36 @@ pub fn tool() -> Value {
     })
 }
 
+pub fn theme_tool() -> Value {
+    json!({
+        "name": THEME_TOOL,
+        "title": "Submit a theme over daily memories",
+        "description": "Name a recurring theme you see across 2-32 of Morii's current daily memories (their memory_id values from the read tools) and describe it in your own words. Memory stores it as an inference linked to those memories, never as something Morii said; set preflight to check without writing. Resubmitting the same request_id replays.",
+        "inputSchema": {
+            "type": "object",
+            "required": ["theme"],
+            "additionalProperties": false,
+            "properties": {
+                "preflight": {"type": "boolean"},
+                "theme": {
+                    "type": "object",
+                    "required": ["request_id", "analyst_model", "title", "summary", "members"],
+                    "additionalProperties": false,
+                    "properties": {
+                        "request_id": {"type": "string"},
+                        "analyst_model": {"type": "string", "maxLength": 128},
+                        "title": {"type": "string", "maxLength": 60},
+                        "summary": {"type": "string", "maxLength": 2000},
+                        "members": {"type": "array", "minItems": 2, "maxItems": 32, "items": {"type": "string"}},
+                        "note": {"type": ["string", "null"], "maxLength": 512}
+                    }
+                }
+            }
+        },
+        "annotations": {"readOnlyHint": false, "destructiveHint": false, "idempotentHint": true, "openWorldHint": false}
+    })
+}
+
 fn result(id: &Value, data: Value, is_error: bool) -> Value {
     json!({"jsonrpc": "2.0", "id": id, "result": {
         "content": [{"type": "text", "text": data.to_string()}],
@@ -118,10 +160,11 @@ impl<S: Session> Session for ConnectorSession<'_, S> {
             self.ready = true;
         }
         let call_name = message["params"]["name"].as_str();
-        let Some(writer) = self
-            .writer
-            .filter(|_| self.ready && method == "tools/call" && call_name == Some(TOOL))
-        else {
+        let Some(writer) = self.writer.filter(|_| {
+            self.ready
+                && method == "tools/call"
+                && (call_name == Some(TOOL) || call_name == Some(THEME_TOOL))
+        }) else {
             let mut response = self.inner.handle(message)?;
             if method == "initialize" && response.get("result").is_some() {
                 self.initialized = true;
@@ -131,20 +174,30 @@ impl<S: Session> Session for ConnectorSession<'_, S> {
                 && let Some(tools) = response["result"]["tools"].as_array_mut()
             {
                 tools.push(tool());
+                tools.push(theme_tool());
             }
             return Some(response);
         };
         let id = message.get("id").cloned().unwrap_or(Value::Null);
-        let Ok(args) = serde_json::from_value::<Arguments>(message["params"]["arguments"].clone())
-        else {
-            return Some(result(&id, json!({"error": "invalid_arguments"}), true));
+        let arguments = message["params"]["arguments"].clone();
+        let now = self.clock.now_unix_ms();
+        let outcome = if call_name == Some(THEME_TOOL) {
+            let Ok(args) = serde_json::from_value::<ThemeArguments>(arguments) else {
+                return Some(result(&id, json!({"error": "invalid_arguments"}), true));
+            };
+            writer
+                .submit_theme(&args.theme, args.preflight, now)
+                .map(|r| serde_json::to_value(r).unwrap_or(Value::Null))
+        } else {
+            let Ok(args) = serde_json::from_value::<Arguments>(arguments) else {
+                return Some(result(&id, json!({"error": "invalid_arguments"}), true));
+            };
+            writer
+                .submit(&args.submission, args.preflight, now)
+                .map(|r| serde_json::to_value(r).unwrap_or(Value::Null))
         };
-        match writer.submit(&args.submission, args.preflight, self.clock.now_unix_ms()) {
-            Ok(receipt) => Some(result(
-                &id,
-                serde_json::to_value(receipt).unwrap_or(Value::Null),
-                false,
-            )),
+        match outcome {
+            Ok(receipt) => Some(result(&id, receipt, false)),
             Err(ApplicationFault::Vault(
                 AutomationFault::OutcomeUnknown | AutomationFault::RecoveryRequired,
             )) => {
