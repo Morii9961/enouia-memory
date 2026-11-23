@@ -90,10 +90,13 @@ fn write_tool_needs_write_scope_and_an_initialized_session() {
     )
     .unwrap();
     let clock = FakeClock::new(NOW);
+    let ids = SequentialIdSource::new(40);
+    let profile: AttentionProfile =
+        serde_json::from_value(value("attention/profile.json")).unwrap();
     let read_only = vec!["memory.read".to_string()];
     let read_write = vec!["memory.read".to_string(), "memory.write".to_string()];
     // Without memory.write the tool is neither listed nor callable.
-    let mut s = ConnectorSession::new(Stub, Some(&writer), &read_only, &clock);
+    let mut s = ConnectorSession::new(Stub, Some(&writer), &read_only, &clock, &ids, &profile);
     for m in init() {
         s.handle(&m);
     }
@@ -106,7 +109,7 @@ fn write_tool_needs_write_scope_and_an_initialized_session() {
         .unwrap();
     assert_eq!(refused["error"]["message"], "stub");
     // With memory.write, calls before initialization go to the read session.
-    let mut s = ConnectorSession::new(Stub, Some(&writer), &read_write, &clock);
+    let mut s = ConnectorSession::new(Stub, Some(&writer), &read_write, &clock, &ids, &profile);
     let early = s
         .handle(&call(1, json!({"submission": submission()})))
         .unwrap();

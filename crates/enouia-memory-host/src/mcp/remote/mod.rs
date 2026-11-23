@@ -4,6 +4,7 @@
 //! No listener, TLS, authorization server or deployment lives here.
 use super::{MAX_INPUT_BYTES, PROTOCOL_VERSION, json as unique};
 
+pub mod chatgpt;
 pub mod connector;
 pub mod http1;
 pub mod oauth;

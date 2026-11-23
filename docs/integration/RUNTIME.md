@@ -1,5 +1,14 @@
 # Runtime integration (ADR-MEM-45)
 
+2026-11-24 ChatGPT-shaped tool inputs ([ADR-MEM-178](../adr/178-chatgpt-shaped-tool-inputs.md)):
+the remote service now advertises flat read inputs and completes the envelope itself,
+and its write tools accept a short conversation form with free-form request keys.
+Only the remote service changed; `ConnectorSession::new` takes the ID source and
+attention profile. Runtime needs no change: no IPC, wire or schema change, and
+Workspace stays at 61 commands. ADR-MEM-177 (moved-root test, VPS move runbook)
+changed no surface file. Surface aggregate:
+`7699a38976c5e79833681f9df70667e2b6f425b8d2b898359e252f469fe1910b`.
+
 2026-11-24 tunnel-ready remote service ([ADR-MEM-176](../adr/176-remote-tunnel-readiness.md)):
 the remote service's HTTP driver now decodes chunked request bodies, and
 `enouia-memory-remote read-draft <config> <UTC-expiry> <plan-file>` drafts the

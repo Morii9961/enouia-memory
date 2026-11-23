@@ -343,12 +343,21 @@ fn daily_flow(e: &Env, p: &AutomationPolicy, before: usize, root: &VerifiedRoot)
         );
         reply.json()["result"].clone()
     };
-    let tools: BTreeSet<String> = rpc("tools/list", json!({}))["tools"]
+    let listed = rpc("tools/list", json!({}))["tools"].clone();
+    let tools: BTreeSet<String> = listed
         .as_array()
         .unwrap()
         .iter()
         .map(|t| t["name"].as_str().unwrap().to_owned())
         .collect();
+    // ADR-MEM-178: ChatGPT sees flat read inputs, with no `$ref` to resolve.
+    for tool in listed.as_array().unwrap() {
+        assert!(
+            !tool["inputSchema"].to_string().contains("$ref"),
+            "{}",
+            tool["name"]
+        );
+    }
     for name in [
         "memory_search",
         "memory_read",
@@ -369,8 +378,34 @@ fn daily_flow(e: &Env, p: &AutomationPolicy, before: usize, root: &VerifiedRoot)
         memory_ids(&result["structuredContent"], &mut ids);
         ids
     };
+    let short_search = |rpc: &mut dyn FnMut(&str, Value) -> Value| {
+        let result = rpc(
+            "tools/call",
+            json!({"name":"memory_search","arguments":{"query":"","limit":100}}),
+        );
+        assert_ne!(result["isError"], json!(true), "{result}");
+        let mut ids = BTreeSet::new();
+        memory_ids(&result["structuredContent"], &mut ids);
+        ids
+    };
     let baseline = search(&mut rpc);
     assert!(!baseline.is_empty());
+    assert_eq!(short_search(&mut rpc), baseline);
+    let short = |rpc: &mut dyn FnMut(&str, Value) -> Value, name: &str, arguments: Value| {
+        rpc("tools/call", json!({"name": name, "arguments": arguments}))
+    };
+    let started = short(&mut rpc, "session_start", json!({}));
+    assert_eq!(
+        started["structuredContent"]["kind"], "agent_session_start_response",
+        "{started}"
+    );
+    let unknown = short(
+        &mut rpc,
+        "memory_search",
+        json!({"query": "x", "colour": "red"}),
+    );
+    assert_eq!(unknown["isError"], true);
+    assert_eq!(unknown["structuredContent"]["error"], "invalid_arguments");
     let submit = |rpc: &mut dyn FnMut(&str, Value) -> Value, submission: Value, preflight: bool| {
         let result = rpc(
             "tools/call",
@@ -394,21 +429,46 @@ fn daily_flow(e: &Env, p: &AutomationPolicy, before: usize, root: &VerifiedRoot)
             .iter()
             .all(|j| j["receipts"].as_u64() <= Some(1))
     );
-    let second = conversation(
-        2,
-        "Lumen Cafe has the quietest window seat.",
-        "quietest window seat",
-    );
-    assert_eq!(
-        submit(&mut rpc, second, false)["jobs"][0]["state"],
-        "formed"
+    // The short form: a free-form request key, three fields per turn and
+    // no times. The same key replays.
+    let second = json!({
+        "request": {
+            "request_id": "chatgpt-2026-11-24-cafe",
+            "conversation_id": "chatgpt-synthetic-2",
+            "turns": [
+                {"message_id": "a0", "speaker": "assistant", "text": "Where do you like to sit?"},
+                {"message_id": "m1", "speaker": "user", "text": "Lumen Cafe has the quietest window seat."}
+            ]
+        },
+        "analyst_model": "synthetic-chatgpt-model",
+        "statements": [{
+            "message_id": "m1", "quote": "quietest window seat", "title": "quietest window seat",
+            "interpretation": "clear_self_report", "kind": "preference"
+        }]
+    });
+    let formed = submit(&mut rpc, second.clone(), false);
+    let states: Vec<_> = formed["jobs"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|j| j["state"].clone())
+        .collect();
+    assert!(states.contains(&json!("formed")), "{formed}");
+    let again = submit(&mut rpc, second, false);
+    assert!(
+        again["jobs"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|j| j["receipts"].as_u64() <= Some(1)),
+        "{again}"
     );
     // The following grant sees the connector's new window on the next read.
     let after: BTreeSet<_> = search(&mut rpc).difference(&baseline).cloned().collect();
     assert_eq!(after.len(), 2, "{after:?}");
 
     let theme = json!({
-        "request_id": id("req", 801),
+        "request_id": "weekly-theme-window-seats",
         "analyst_model": "synthetic-chatgpt-model",
         "title": "window seats",
         "summary": "Morii keeps returning to quiet window seats at the same cafe.",
@@ -436,6 +496,12 @@ fn daily_flow(e: &Env, p: &AutomationPolicy, before: usize, root: &VerifiedRoot)
         (json!(true), Some(theme_id.as_str()))
     );
     assert!(search(&mut rpc).contains(&theme_id));
+    let read = short(&mut rpc, "memory_read", json!({"memory_id": theme_id}));
+    assert_ne!(read["isError"], json!(true), "{read}");
+    let recalled = short(&mut rpc, "memory_recall", json!({"text": "window seat"}));
+    assert_ne!(recalled["isError"], json!(true), "{recalled}");
+    let related = short(&mut rpc, "memory_related", json!({"memory_id": theme_id}));
+    assert_ne!(related["isError"], json!(true), "{related}");
 
     // Stop the service and inspect the Vault it left behind.
     drop(server);

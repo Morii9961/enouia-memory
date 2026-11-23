@@ -318,8 +318,9 @@ pub fn serve(
         let now = clock.now_unix_ms();
         let (reader, permit_until) = config.reader(&host, &owner, now)?;
         let endpoint = Endpoint::new(config.endpoint().expect("checked"), &authority, ids, |b| {
-            opening::Server::new(&reader, &config.profile)
-                .map(|s| ConnectorSession::new(s, writer.as_ref(), &b.scopes, clock))
+            opening::Server::new(&reader, &config.profile).map(|s| {
+                ConnectorSession::new(s, writer.as_ref(), &b.scopes, clock, ids, &config.profile)
+            })
         });
         let mut handler = Persisted {
             inner: Router {
