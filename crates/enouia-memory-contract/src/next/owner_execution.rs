@@ -128,6 +128,7 @@ impl OwnerActionProof {
                 vec![from_entity.clone(), into_entity.clone()],
             ),
             OwnerAction::Tag { .. } => ("tag", vec![]),
+            OwnerAction::EntityIdentity { entities, .. } => ("entity_identity", entities.clone()),
         };
         Self {
             operation_id: r.plan.operation_id.clone(),
@@ -140,7 +141,7 @@ impl OwnerActionProof {
     }
     pub fn valid(&self) -> bool {
         self.owner.actor_type == ActorType::Owner
-            && self.entities.len() <= 2
+            && self.entities.len() <= 16
             && self
                 .entities
                 .iter()
@@ -154,6 +155,7 @@ impl OwnerActionProof {
                 "theme_pin",
                 "theme_dissolve",
                 "entity_merge",
+                "entity_identity",
                 "entity_split",
                 "tag",
             ]

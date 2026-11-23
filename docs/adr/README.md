@@ -1044,3 +1044,12 @@ new sources at their next check.
 entities per statement. `capture_runtime_with_entities` records one entity per
 mention with the captured turn (statement quote as evidence, no name-based merge),
 and formation mentions them. Cross-window identity is the next slice.
+
+### ADR-MEM-172 — Entity identity across windows: same-name links and Morii's decisions
+
+[Decision](172-entity-identity-across-windows.md): owner action `EntityIdentity`
+groups records as one identity across windows (`same: true`) or separates one
+(`same: false`); mentions resolve to the group through the existing redirects.
+Records of one type and name link automatically as revocable `same_name` suggestion
+edges. `NativeMemoryOwner::entity_identities` lists groups for Runtime's
+confirmation UI.

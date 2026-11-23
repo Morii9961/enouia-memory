@@ -62,6 +62,16 @@ pub enum OwnerAction {
         name: String,
         targets: Vec<TargetRef>,
     },
+    /// ADR-MEM-172: Morii's identity decision. `same: true` links the listed
+    /// entity records as one identity across windows; `same: false` separates
+    /// the first listed record from the others: it leaves its group and never
+    /// joins an automatic same-name link.
+    EntityIdentity {
+        entities: Vec<String>,
+        same: bool,
+        #[serde(deserialize_with = "crate::json::nullable")]
+        reason: Option<String>,
+    },
 }
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub enum OwnerPlanKind {
@@ -212,6 +222,16 @@ impl NextDocument for OwnerActionPlan {
                 }
                 OwnerAction::Tag { name, targets: t } => {
                     record_fields::text(name, 64) && targets(t)
+                }
+                OwnerAction::EntityIdentity {
+                    entities: e,
+                    reason: r,
+                    ..
+                } => {
+                    (2..=16).contains(&e.len())
+                        && e.iter().all(|id| check_prefixed_uuid(id, "ent").is_ok())
+                        && e.iter().collect::<std::collections::BTreeSet<_>>().len() == e.len()
+                        && reason(r)
                 }
             };
         if valid {

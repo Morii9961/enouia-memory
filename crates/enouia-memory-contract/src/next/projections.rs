@@ -194,6 +194,9 @@ pub enum GraphEdgeKind {
     /// ADR-MEM-162: term-overlap suggestion between authorized memories; an
     /// algorithm suggestion, not a recorded or semantic-embedding relation.
     LexicalNeighbor,
+    /// ADR-MEM-172: entity records of the same type and name that Morii has
+    /// neither confirmed nor separated; an automatic, revocable suggestion.
+    SameName,
 }
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -302,7 +305,7 @@ impl NextDocument for MemoryGraphPage {
                 .collect::<std::collections::BTreeSet<_>>()
                 .len()
                 == self.edge_coverage.len()
-            && self.edge_coverage.len() <= 6
+            && self.edge_coverage.len() <= 7
             && !self.semantic_neighbors_available
             && self
                 .edge_coverage
@@ -312,12 +315,16 @@ impl NextDocument for MemoryGraphPage {
                 e.from != e.to
                     && e.owner_relations.len() <= 64
                     && e.owner_relations.iter().all(|p| {
-                        p.valid() && ["entity_merge", "entity_split"].contains(&p.action.as_str())
+                        p.valid()
+                            && ["entity_merge", "entity_split", "entity_identity"]
+                                .contains(&p.action.as_str())
                     })
                     && (e.owner_relations.is_empty() || e.relation == GraphEdgeKind::SameEntity)
                     && if matches!(
                         e.relation,
-                        GraphEdgeKind::ThemeCooccurrence | GraphEdgeKind::LexicalNeighbor
+                        GraphEdgeKind::ThemeCooccurrence
+                            | GraphEdgeKind::LexicalNeighbor
+                            | GraphEdgeKind::SameName
                     ) {
                         e.class == GraphEdgeClass::AlgorithmSuggestion
                             && e.score_milli.is_some_and(|s| s <= 1000)

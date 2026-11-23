@@ -518,6 +518,7 @@ impl SegmentedMemoryReader {
                     "edge_candidates_and_retention_describe_only_selected_nodes".into(),
                     "semantic_neighbors_unavailable_no_model_or_embeddings".into(),
                     "lexical_neighbors_are_term_overlap_suggestions".into(),
+                    "same_name_edges_are_unconfirmed_identity_suggestions".into(),
                     "same_entity_is_a_recorded_mention_relation_not_independent_verification"
                         .into(),
                 ],
@@ -533,10 +534,63 @@ impl SegmentedMemoryReader {
                 GraphEdgeKind::SameEntity,
                 GraphEdgeKind::ThemeCooccurrence,
                 GraphEdgeKind::LexicalNeighbor,
+                GraphEdgeKind::SameName,
             ] {
                 let mut candidates = 0u64;
                 let begin = edges.len();
-                if kind == GraphEdgeKind::LexicalNeighbor {
+                if kind == GraphEdgeKind::SameName {
+                    // ADR-MEM-172: memories naming records of the same type and
+                    // name that resolve to different identities. A suggestion
+                    // until Morii confirms or separates them.
+                    // Per same-name key: (node, display name, resolved identities).
+                    type Named<'a> = (usize, &'a str, BTreeSet<&'a str>);
+                    let mut groups: BTreeMap<String, Vec<Named<'_>>> = BTreeMap::new();
+                    for (n, row) in selected.iter().enumerate() {
+                        let mut keys: BTreeMap<String, (&str, BTreeSet<&str>)> = BTreeMap::new();
+                        for e in &row.entities {
+                            if let Some(key) = data.same_name_key(&e.recorded_entity_id) {
+                                let entry = keys.entry(key).or_insert((
+                                    data.entities[&e.recorded_entity_id].display_name.as_str(),
+                                    BTreeSet::new(),
+                                ));
+                                entry.1.insert(e.entity_id.as_str());
+                            }
+                        }
+                        for (key, (name, resolved)) in keys {
+                            groups.entry(key).or_default().push((n, name, resolved));
+                        }
+                    }
+                    let mut work = 0usize;
+                    for members in groups.values() {
+                        for (i, a) in members.iter().enumerate() {
+                            for b in &members[i + 1..] {
+                                work += 1;
+                                if work > 4_000_000 {
+                                    return Err(AutomationFault::Capacity.into());
+                                }
+                                if a.2.intersection(&b.2).next().is_some() {
+                                    continue;
+                                }
+                                candidates += 1;
+                                if edges.len() - begin >= query.edge_limit_per_kind {
+                                    continue;
+                                }
+                                edges.push(MemoryGraphEdge {
+                                    from: selected[a.0].id().clone(),
+                                    to: selected[b.0].id().clone(),
+                                    relation: kind,
+                                    class: GraphEdgeClass::AlgorithmSuggestion,
+                                    owner_relations: vec![],
+                                    witness: format!("same_name:{}", a.1)
+                                        .chars()
+                                        .take(256)
+                                        .collect(),
+                                    score_milli: Some(900),
+                                });
+                            }
+                        }
+                    }
+                } else if kind == GraphEdgeKind::LexicalNeighbor {
                     for pair in lexical_neighbors(&selected, None) {
                         candidates += 1;
                         if edges.len() - begin >= query.edge_limit_per_kind {

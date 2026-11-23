@@ -869,7 +869,8 @@ fn related_suggests_lexical_neighbors_only_among_scoped_current_memories() {
         (coverage["candidates"].clone(), coverage["retained"].clone()),
         (json!(1), json!(1))
     );
-    assert_eq!(result["edge_coverage"].as_array().unwrap().len(), 5);
+    // Lexical and (ADR-MEM-172) same-name kinds included.
+    assert_eq!(result["edge_coverage"].as_array().unwrap().len(), 6);
     assert_eq!(
         result["unavailable"],
         json!(["same_conversation", "semantic_neighbors"])
