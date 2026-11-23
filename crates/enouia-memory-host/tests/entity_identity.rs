@@ -192,6 +192,75 @@ fn identical_names_link_as_suggestions_until_morii_confirms_or_separates() {
     };
     let identities =
         || -> EntityIdentities { h.entity_identities(Sensitivity::Private, 100).unwrap() };
+    // An Agent reader scoped to both windows sees the same suggestion in
+    // `related`, anchored on the first "Lin" memory.
+    {
+        use enouia_memory_host::automation::qualified_agent::QualifiedAgentHost;
+        use enouia_memory_vault::automation::segmented::SegmentedAgentScope;
+        let windows = v.capture_windows(owner).unwrap();
+        let (memories, sources) = v
+            .read(&e.descriptor.system_actor, Sensitivity::Private, |d| {
+                let memories: std::collections::BTreeMap<String, MemoryId> = d
+                    .memories
+                    .iter()
+                    .map(|m| {
+                        (
+                            m.memory
+                                .request
+                                .record_fields
+                                .as_ref()
+                                .unwrap()
+                                .title
+                                .clone(),
+                            m.memory.memory.memory_id.clone(),
+                        )
+                    })
+                    .collect();
+                let sources: Vec<SourceId> = d.sources.keys().cloned().collect();
+                (memories, sources)
+            })
+            .unwrap();
+        let agents =
+            QualifiedAgentHost::from_authenticated_owner(v.clone(), owner.clone()).unwrap();
+        let reader = agents
+            .reader(
+                owner,
+                ActorRef {
+                    actor_type: ActorType::Agent,
+                    actor_id: PrincipalId::parse(&id("prn", 77)).unwrap(),
+                },
+                SegmentedAgentScope {
+                    subject_id: windows[0].policy.subject_id.clone(),
+                    project_id: None,
+                    policy_ids: windows.iter().map(|w| w.policy.policy_id.clone()).collect(),
+                    source_ids: sources,
+                    max_sensitivity: Sensitivity::Private,
+                    source_read: false,
+                    valid_until: enouia_memory_contract::time::Timestamp::from_unix_ms(
+                        NOW + 120_000,
+                    )
+                    .unwrap(),
+                },
+            )
+            .unwrap();
+        let related = reader
+            .related(&profile, &memories["hiking with Lin"], None, 64 * 1024)
+            .unwrap()
+            .unwrap();
+        let same_name: Vec<_> = related["suggested_edges"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter(|edge| edge["relation"] == "same_name")
+            .collect();
+        assert_eq!(same_name.len(), 1, "{related}");
+        assert_eq!(
+            same_name[0]["to"],
+            serde_json::json!(memories["Lin called me today"])
+        );
+        assert_eq!(same_name[0]["witness"], "same_name:Lin");
+        assert_eq!(related["edge_coverage"].as_array().unwrap().len(), 6);
+    }
     // 1. Identical names across windows: one automatic suggestion.
     assert_eq!(
         graph(),
