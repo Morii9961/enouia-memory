@@ -49,6 +49,10 @@ pub struct OwnerReadGrant {
     /// ceiling, expiry and revocation still apply. Absent/false keeps bytes.
     #[serde(default, skip_serializing_if = "is_false")]
     pub follow_new_sources: bool,
+    /// ADR-MEM-175: what the grant is for, as Morii labels it (for example
+    /// `chatgpt_connector`), so Runtime can find it. Grants nothing.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub purpose: Option<String>,
 }
 fn is_false(value: &bool) -> bool {
     !*value
@@ -58,6 +62,12 @@ impl OwnerReadGrant {
         use std::collections::BTreeSet;
         self.principal.actor_type == crate::common::ActorType::Agent
             && (!self.allow_requests || self.source_read)
+            && self.purpose.as_ref().is_none_or(|p| {
+                !p.is_empty()
+                    && p.len() <= 64
+                    && p.bytes()
+                        .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'_')
+            })
             && self.valid_from < self.valid_until
             && !self.policies.is_empty()
             && self.policies.len() <= MAX_SEGMENTED_POLICIES

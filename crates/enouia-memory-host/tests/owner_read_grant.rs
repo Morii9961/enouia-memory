@@ -781,3 +781,48 @@ fn a_following_grant_reads_and_files_requests_for_later_windows_until_revoked() 
     assert!(following.renew(&v).is_err());
     assert!(v.read_agent(&following, None, |_| ()).is_err());
 }
+
+#[test]
+fn grant_purpose_labels_are_closed_and_owner_queries_wait_briefly_for_the_lock() {
+    let (e, v, p, _) = correction_rig(SpeakerRole::User);
+    let owner = &e.descriptor.created_by;
+    let mut grant = read_grant(&e, &p);
+    // Labels are lowercase ASCII words; anything else is refused.
+    for bad in ["", "Chat GPT", "chatgpt-connector", &"x".repeat(65)] {
+        let mut g = grant.clone();
+        g.purpose = Some(bad.to_string());
+        assert!(v.plan_owner_read_grant(owner, g).is_err(), "{bad}");
+    }
+    grant.purpose = Some("chatgpt_connector".into());
+    let plan = v.plan_owner_read_grant(owner, grant.clone()).unwrap();
+    v.commit_owner_read_grant(owner, &plan).unwrap();
+    let status = v.owner_read_status(owner).unwrap();
+    let labelled: Vec<_> = status
+        .grants
+        .iter()
+        .filter(|g| g.purpose.as_deref() == Some("chatgpt_connector"))
+        .collect();
+    assert_eq!(labelled.len(), 1);
+    assert_eq!(labelled[0].grant_id, grant.grant_id);
+    // A reader holding the writer lock for a moment makes an Owner status
+    // query wait instead of failing with Busy.
+    let mut s = scope(&p);
+    s.source_ids = grant.source_ids.clone();
+    let reader = v
+        .authorize_owner_grant_read(owner, grant.principal.clone(), &grant.grant_id, s)
+        .unwrap();
+    let (held, wait) = std::sync::mpsc::channel();
+    std::thread::scope(|scope| {
+        scope.spawn(|| {
+            v.read_agent(&reader, None, |_| {
+                held.send(()).unwrap();
+                std::thread::sleep(std::time::Duration::from_millis(300));
+            })
+            .unwrap();
+        });
+        wait.recv().unwrap();
+        let started = std::time::Instant::now();
+        assert!(v.owner_read_status(owner).is_ok());
+        assert!(started.elapsed() >= std::time::Duration::from_millis(200));
+    });
+}

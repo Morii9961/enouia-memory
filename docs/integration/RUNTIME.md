@@ -1,5 +1,25 @@
 # Runtime integration (ADR-MEM-45)
 
+2026-11-24 R5 support ([ADR-MEM-175](../adr/175-runtime-r5-support.md)):
+
+- **Connector grant.** `OwnerReadGrant.purpose` (optional; lowercase ASCII,
+  digits and `_`, at most 64) marks a grant's use. Find the ChatGPT connector's
+  grant in `owner_read_status` by `purpose == "chatgpt_connector"`. Morii sets
+  the label when he creates or revises that grant.
+- **Recall targets.** `recall_preview_native` now returns `selected_targets`,
+  one exact `TargetRef` per `trace.selected` entry in the same order, so capsule
+  saving needs no detail reads.
+- **Lock waits.** Agent reads, permit issuance (including the
+  `*_with_owner_grant` constructors), note drafts and the read-only Owner grant
+  queries wait up to two seconds for the writer lock, so Runtime's own Busy
+  retry can go. Commits still try once.
+- **Turn times.** These were already available: each `native_conversation_detail`
+  turn has `source_record.occurred_at`, `captured_at`, `original_time`,
+  `original_timezone` and `time_precision`.
+
+Adopt this pin before writing `purpose`. No IPC command or wire change; Workspace
+stays at 61 commands. Surface aggregate: `15ba60b7aa79a7a0815ae25ea4422a5edc9bbcf7cbd8a68a677bcf3137bbd25f`.
+
 2026-11-23 ChatGPT themes ([ADR-MEM-174](../adr/174-chatgpt-themes.md), R5 B2): once the
 connector is deployed, ChatGPT can submit themes with `memory_submit_theme`. They
 arrive as ordinary theme memories (`kind: theme`, `change: synthesis`,

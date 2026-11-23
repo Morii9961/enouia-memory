@@ -106,6 +106,10 @@ pub struct SegmentedAutomationVault {
     state: Mutex<State>,
     owner_pending: Mutex<owner::PendingOwnerPlans>,
 }
+/// ADR-MEM-175: how long reads, permit issuance and read-only Owner grant
+/// queries wait for the writer lock; parallel Agent sessions take turns
+/// instead of failing with `Busy`. Commits still try once.
+pub(super) const BRIEF_LOCK_WAIT: Duration = Duration::from_secs(2);
 fn next(v: Revision) -> Result<Revision> {
     Revision::new(v.get() + 1).ok_or(AutomationFault::Capacity)
 }

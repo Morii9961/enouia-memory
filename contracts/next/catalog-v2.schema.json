@@ -1385,6 +1385,10 @@
         },
         "follow_new_sources": {
           "type": "boolean"
+        },
+        "purpose": {
+          "type": "string",
+          "pattern": "^[a-z0-9_]{1,64}$"
         }
       }
     }

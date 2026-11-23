@@ -189,6 +189,15 @@ fn morii_full_history_reader_keeps_reading_after_formation_windows_end() {
         .recall_preview_native(&p, &query, Sensitivity::Private)
         .unwrap();
     assert_eq!(recall["trace"]["considered"], 11);
+    // ADR-MEM-175: one exact target per selection, in the same order.
+    let selected = recall["trace"]["selected"].as_array().unwrap();
+    let targets = recall["selected_targets"].as_array().unwrap();
+    assert!(!selected.is_empty());
+    assert_eq!(selected.len(), targets.len());
+    for (s, t) in selected.iter().zip(targets) {
+        assert_eq!(s["memory"], t["memory"]);
+        assert!(t["hash"].as_str().is_some_and(|h| h.len() == 64));
+    }
     full.lock().unwrap();
     assert!(matches!(
         full.memory_page_native(&private, None),
