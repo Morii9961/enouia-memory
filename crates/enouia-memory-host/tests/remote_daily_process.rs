@@ -9,11 +9,16 @@ mod client;
 #[path = "support/owner_read_grant_fixture.rs"]
 mod fixture;
 use client::*;
+use enouia_memory_contract::foundation::Clock;
 use enouia_memory_contract::{common::*, next::*, time::Timestamp};
 use enouia_memory_vault::{
-    OsIdSource, SystemClock,
-    automation::segmented::{SegmentedAutomationVault, SystemReadScope},
+    OsIdSource, RootPolicy, SystemClock, VerifiedRoot,
+    automation::segmented::{
+        SegmentedAutomationVault, SystemReadScope,
+        backup::{activate_owner, export_owner, restore_owner, verify_owner},
+    },
     fault::Faults,
+    verify_data_root,
 };
 use fixture::*;
 use serde_json::{Value, json};
@@ -70,23 +75,63 @@ fn conversation(n: u32, text: &str, quote: &str) -> Value {
     }]})
 }
 
+fn memories(e: &Env, v: &SegmentedAutomationVault) -> usize {
+    v.read_scoped(
+        &e.descriptor.system_actor,
+        Sensitivity::Private,
+        SystemReadScope::MoriiFullHistory,
+        |d| d.memories.len(),
+    )
+    .unwrap()
+}
+
 #[test]
 fn chatgpt_daily_flow_through_the_real_remote_process() {
     let (e, v, p, _) = correction_rig(SpeakerRole::User);
-    // Seeds for the config: one policy and its sources. The drafted grant
-    // follows the subject's other and later windows.
-    let seed = read_grant(&e, &p);
-    let full = SystemReadScope::MoriiFullHistory;
-    let before = v
-        .read_scoped(
-            &e.descriptor.system_actor,
-            Sensitivity::Private,
-            full,
-            |d| d.memories.len(),
-        )
-        .unwrap();
+    let before = memories(&e, &v);
     // One process opens the Vault at a time: close it before serving.
     drop(v);
+    daily_flow(&e, &p, before, &e.root);
+}
+
+/// ADR-MEM-177: the move to a VPS is export, copy, restore and activate. The
+/// restored root, opened by the real process, serves the same flow.
+#[test]
+fn a_restored_and_activated_root_serves_the_daily_flow() {
+    let (e, v, p, _) = correction_rig(SpeakerRole::User);
+    let before = memories(&e, &v);
+    drop(v);
+    let files = Env::new();
+    let dir = |name: &str| {
+        let path = files.path.join(name);
+        std::fs::create_dir(&path).unwrap();
+        verify_data_root(&path, &RootPolicy::default()).unwrap()
+    };
+    let (export, target) = (dir("export"), dir("restored"));
+    let clock: Arc<dyn Clock + Send + Sync> = Arc::new(SystemClock);
+    let exported = export_owner(&e.root, &export, clock.clone(), Arc::new(OsIdSource)).unwrap();
+    assert_eq!(verify_owner(&export).unwrap().head, exported.head);
+    restore_owner(&export, &target, &*clock).unwrap();
+    // A restore stays gated until Morii activates it.
+    assert!(
+        SegmentedAutomationVault::open(
+            &target,
+            e.descriptor.host_id.clone(),
+            clock.clone(),
+            Arc::new(OsIdSource),
+            Faults::none(),
+        )
+        .is_err()
+    );
+    activate_owner(&target, &export, &*clock).unwrap();
+    daily_flow(&e, &p, before, &target);
+}
+
+fn daily_flow(e: &Env, p: &AutomationPolicy, before: usize, root: &VerifiedRoot) {
+    // Seeds for the config: one policy and its sources. The drafted grant
+    // follows the subject's other and later windows.
+    let seed = read_grant(e, p);
+    let full = SystemReadScope::MoriiFullHistory;
 
     let files = Env::new();
     let state_dir = files.path.join("oauth");
@@ -95,7 +140,7 @@ fn chatgpt_daily_flow_through_the_real_remote_process() {
         probe.local_addr().unwrap()
     };
     let config = json!({
-        "vault_root": e.root.path(),
+        "vault_root": root.path(),
         "host_id": e.descriptor.host_id,
         "state_dir": state_dir,
         "bind": addr.to_string(),
@@ -395,7 +440,7 @@ fn chatgpt_daily_flow_through_the_real_remote_process() {
     // Stop the service and inspect the Vault it left behind.
     drop(server);
     let reopened = SegmentedAutomationVault::open(
-        &e.root,
+        root,
         e.descriptor.host_id.clone(),
         Arc::new(SystemClock),
         Arc::new(OsIdSource),
