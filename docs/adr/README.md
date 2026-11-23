@@ -1022,3 +1022,10 @@ the later windows and captured sources in a grant's subject and project that it 
 not list, with a checked `revision + 1` covering them. Applying it is the normal
 plan/confirm flow (`read-refresh-plan` on the remote CLI); automatic following of
 future windows is left to Morii.
+
+### ADR-MEM-169 — Shared pipe names for parallel Agent sessions
+
+[Decision](169-shared-agent-pipes.md): `Pipe::listen_shared` lets one pipe name have
+up to eight instances, so several Claude Code or Codex sessions of the same Agent can
+connect at once; trust stays with the mutual same-user process enrollment.
+`Pipe::connect` waits up to five seconds while every instance is busy.
