@@ -1090,3 +1090,10 @@ are added. A process-level test drives ChatGPT's daily flow through the real bin
 an exported, restored and activated root (refused before activation), on Windows and Linux;
 `docs/deploy/MOVE_VAULT_TO_VPS.md` gives the single-primary move procedure. Roadmap §15
 records fade/archive events and review suggestions as delivered by ADR-MEM-164.
+
+### ADR-MEM-178 — ChatGPT-shaped tool inputs on the remote service
+
+[Decision](178-chatgpt-shaped-tool-inputs.md): the remote service advertises flat, `$ref`-free
+inputs for the read tools and completes the frozen envelope (request ID, time, defaults,
+profile-capped recall sizes) itself; write tools accept a short conversation form and free-form
+request keys mapped to stable request IDs. Full forms pass through unchanged.

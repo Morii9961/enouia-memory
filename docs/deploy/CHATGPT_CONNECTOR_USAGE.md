@@ -16,6 +16,19 @@ ChatGPT 可以读你的记忆，也可以提交新记忆。本页说明怎样让
 两个写工具都支持 `preflight: true`，只检查、不写入。同一个 `request_id` 重复提交只会
 回放，不会写两次。
 
+## 调用时只需要填最少的字段
+
+[ADR178](../adr/178-chatgpt-shaped-tool-inputs.md) 之后，服务端会补齐其余字段：
+
+- 读：`memory_search` 只需要 `query`（可以加 `form`、`attention`、`limit`）；`memory_recall`
+  只需要 `text`；`memory_read` / `memory_related` 只需要 `memory_id`；`memory_source` 只需要
+  `source_id`；`session_start` 可以不带参数。
+- 写：`request_id` 可以是任意稳定的字符串（最多 128 字），同一个字符串重复提交只会回放。
+  每个 turn 只需要 `message_id`、`speaker`（user 或 assistant）和 `text`；分支、序号、父消息、
+  语言会自动补上。每条记忆的 `event_time` / `valid_time` 不填时按“未知”处理。
+
+完整格式仍然接受。
+
 ## 每日提炼的规则
 
 1. 每条记忆必须**逐字引用**你在同一次提交里说过的一句话（`quote`），只能引用你自己的话，
@@ -37,8 +50,8 @@ ChatGPT 可以读你的记忆，也可以提交新记忆。本页说明怎样让
 
 ## 可以放进 ChatGPT 自定义指令的一段话
 
-> 每天对话结束时，调用 `memory_submit_conversation`：附上今天对话的原文，以及从我的原话里
-> 提炼出的记忆。每条记忆都要逐字引用我说的一句话，并在 `entities` 里写出提到的人和地点。
+> 每天对话结束时，调用 `memory_submit_conversation`：附上今天对话的原文（request_id 用
+> “日期-主题”这样的字符串），以及从我的原话里提炼出的记忆。每条记忆都要逐字引用我说的一句话，并在 `entities` 里写出提到的人和地点。
 > 先用 `preflight: true` 检查，没问题再正式提交。
 > 每周看一次最近的记忆，如果有反复出现的主题，就用 `memory_submit_theme` 提交一个，概括要
 > 用你自己的话写，并说明这是你的推断。
