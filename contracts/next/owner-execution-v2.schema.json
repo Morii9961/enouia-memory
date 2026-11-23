@@ -200,7 +200,8 @@
             "entity_merge",
             "entity_split",
             "tag",
-            "entity_identity"
+            "entity_identity",
+            "capsule"
           ]
         },
         "memory_result": {
@@ -254,7 +255,8 @@
             "entity_merge",
             "entity_split",
             "tag",
-            "entity_identity"
+            "entity_identity",
+            "capsule"
           ]
         },
         "entities": {

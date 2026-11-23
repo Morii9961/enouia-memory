@@ -543,6 +543,14 @@ impl State {
                         } => {
                             entities.contains_key(from_entity) && entities.contains_key(into_entity)
                         }
+                        // ADR-MEM-173: a discard is always seen; a capsule when
+                        // any member is.
+                        OwnerAction::Capsule { members, .. } => {
+                            members.is_empty()
+                                || members
+                                    .iter()
+                                    .any(|t| targets.contains_key(&t.memory.memory_id))
+                        }
                         // ADR-MEM-172: seen only when every listed record is.
                         OwnerAction::EntityIdentity {
                             entities: listed, ..

@@ -53,6 +53,7 @@ fn action_name(a: &OwnerAction) -> &'static str {
         OwnerAction::EntitySplit { .. } => "entity_split",
         OwnerAction::Tag { .. } => "tag",
         OwnerAction::EntityIdentity { .. } => "entity_identity",
+        OwnerAction::Capsule { .. } => "capsule",
     }
 }
 pub(super) fn action_targets(a: &OwnerAction) -> Vec<&TargetRef> {
@@ -67,6 +68,7 @@ pub(super) fn action_targets(a: &OwnerAction) -> Vec<&TargetRef> {
             std::iter::once(theme).chain(members).collect()
         }
         OwnerAction::Tag { targets, .. } => targets.iter().collect(),
+        OwnerAction::Capsule { members, .. } => members.iter().collect(),
         _ => vec![],
     }
 }

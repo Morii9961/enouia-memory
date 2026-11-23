@@ -1113,6 +1113,37 @@
               "required": [
                 "action",
                 "name",
+                "query",
+                "members"
+              ],
+              "properties": {
+                "action": {
+                  "const": "capsule"
+                },
+                "name": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 60
+                },
+                "query": {
+                  "type": "string",
+                  "maxLength": 2000
+                },
+                "members": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "automation-v2.schema.json#/$defs/targetRef"
+                  },
+                  "maxItems": 128
+                }
+              }
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "action",
+                "name",
                 "targets"
               ],
               "properties": {
