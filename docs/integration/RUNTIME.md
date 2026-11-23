@@ -1,5 +1,10 @@
 # Runtime integration (ADR-MEM-45)
 
+2026-11-24 connector refusal reasons ([ADR-MEM-181](../adr/181-connector-refusal-reasons.md)):
+refused ChatGPT submissions and themes now carry `problems`; a statement `kind` outside the
+connector's allowed forms is refused before capture. `ConnectorSubmission::valid` now takes
+the allowed forms. Runtime needs no change. Surface aggregate: `63bd0fcde85d53f0267104306eee45b80ae0344c43f740e8768a58e57d572ae8`.
+
 2026-11-24 ChatGPT tool descriptions ([ADR-MEM-180](../adr/180-chatgpt-tool-descriptions.md)):
 remote service only; each read tool gets a ChatGPT-facing description. Runtime needs no
 change. Surface aggregate: `220322d2fd277b3d26fb6cdc06a3cb8a37631bc581dc2fe2fbf76f6be613f33d`.

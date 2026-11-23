@@ -249,17 +249,38 @@ impl<S: Session> Session for ConnectorSession<'_, S> {
             let Ok(args) = serde_json::from_value::<ThemeArguments>(arguments) else {
                 return Some(result(&id, json!({"error": "invalid_arguments"}), true));
             };
-            writer
+            let outcome = writer
                 .submit_theme(&args.theme, args.preflight, now)
-                .map(|r| serde_json::to_value(r).unwrap_or(Value::Null))
+                .map(|r| serde_json::to_value(r).unwrap_or(Value::Null));
+            if matches!(outcome, Err(ApplicationFault::Invalid)) {
+                let mut problems = args.theme.problems();
+                if problems.is_empty() {
+                    problems.push("every member must be a current memory this connector submitted, in its own domain".into());
+                }
+                return Some(result(
+                    &id,
+                    json!({"error": "invalid_submission", "problems": problems}),
+                    true,
+                ));
+            }
+            outcome
         } else {
             chatgpt::conversation_arguments(&mut arguments);
             let Ok(args) = serde_json::from_value::<Arguments>(arguments) else {
                 return Some(result(&id, json!({"error": "invalid_arguments"}), true));
             };
-            writer
+            let outcome = writer
                 .submit(&args.submission, args.preflight, now)
-                .map(|r| serde_json::to_value(r).unwrap_or(Value::Null))
+                .map(|r| serde_json::to_value(r).unwrap_or(Value::Null));
+            if matches!(outcome, Err(ApplicationFault::Invalid)) {
+                let problems = args.submission.problems(&writer.config().allowed_forms);
+                return Some(result(
+                    &id,
+                    json!({"error": "invalid_submission", "problems": problems}),
+                    true,
+                ));
+            }
+            outcome
         };
         match outcome {
             Ok(receipt) => Some(result(&id, receipt, false)),
