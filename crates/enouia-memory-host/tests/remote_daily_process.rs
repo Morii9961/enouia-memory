@@ -350,7 +350,15 @@ fn daily_flow(e: &Env, p: &AutomationPolicy, before: usize, root: &VerifiedRoot)
         .iter()
         .map(|t| t["name"].as_str().unwrap().to_owned())
         .collect();
-    // ADR-MEM-178: ChatGPT sees flat read inputs, with no `$ref` to resolve.
+    // ADR-MEM-178/180: ChatGPT sees flat read inputs, with no `$ref` to
+    // resolve, and a description of what each tool is for.
+    let descriptions: BTreeSet<_> = listed
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|t| t["description"].as_str().unwrap().to_owned())
+        .collect();
+    assert_eq!(descriptions.len(), tools.len(), "one description per tool");
     for tool in listed.as_array().unwrap() {
         assert!(
             !tool["inputSchema"].to_string().contains("$ref"),

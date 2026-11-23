@@ -1,5 +1,9 @@
 # Runtime integration (ADR-MEM-45)
 
+2026-11-24 ChatGPT tool descriptions ([ADR-MEM-180](../adr/180-chatgpt-tool-descriptions.md)):
+remote service only; each read tool gets a ChatGPT-facing description. Runtime needs no
+change. Surface aggregate: `220322d2fd277b3d26fb6cdc06a3cb8a37631bc581dc2fe2fbf76f6be613f33d`.
+
 2026-11-24 OAuth registration lapse ([ADR-MEM-179](../adr/179-unapproved-client-lapse.md)):
 remote OAuth registrations never approved with Morii's code lapse after an hour and free
 their slot. Remote service only; Runtime needs no change (no IPC, wire or schema change;

@@ -36,6 +36,33 @@ fn filter_enum(field: &str) -> Value {
     json!({"enum": values})
 }
 
+/// ADR-MEM-180: what each read tool is for, worded for ChatGPT. The honesty
+/// notes stay: memories are Morii's statements or inferences, suggestions
+/// are not facts, and reads change nothing.
+pub fn short_description(tool: &str) -> Option<&'static str> {
+    Some(match tool {
+        "session_start" => {
+            "Call at the start of a conversation: a short, bounded set of Morii's current memories to orient yourself. Optional `topic`. Reads only."
+        }
+        "memory_recall" => {
+            "Find the memories most relevant to a question or topic (`text`), ranked by relevance and attention. Use it before answering anything about Morii's life, preferences, people or plans. Memories record what Morii said or what was inferred, not verified facts."
+        }
+        "memory_search" => {
+            "List Morii's memories, newest first, optionally matching words in `query` or filtered by form or attention. Returns titles and IDs; page with `cursor`. Use memory_read for one memory in full."
+        }
+        "memory_read" => {
+            "Read one memory in full by `memory_id`: content, quoted evidence, times, entities and revision history."
+        }
+        "memory_source" => {
+            "Read the original conversation text behind a memory's evidence, by the `source_id` that memory_read shows."
+        }
+        "memory_related" => {
+            "List memories linked to one memory: lineage, shared entities and themes, and term-overlap or same-name suggestions. Suggestions are not facts."
+        }
+        _ => return None,
+    })
+}
+
 /// The flat input schema advertised for a shortened read tool.
 pub fn short_schema(tool: &str) -> Option<Value> {
     let id = |what: &str| json!({"type": "string", "description": format!("A {what} ID from an earlier result")});
