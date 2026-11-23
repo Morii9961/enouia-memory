@@ -1068,3 +1068,10 @@ domain; theme synthesis may draw on parents from other policies of that domain (
 parent sources still in the theme's own policy). `memory_submit_theme` forms a theme
 (ChatGPT's inference, 2–32 members) under a per-request synthesis policy, with preflight
 and replay.
+
+### ADR-MEM-175 — Grant purpose labels, recall targets and brief lock waits
+
+[Decision](175-runtime-r5-support.md): optional grant `purpose` (e.g.
+`chatgpt_connector`) lets Runtime find the connector's grant; the recall preview adds
+`selected_targets`; reads, permit issuance and read-only Owner grant queries wait up
+to two seconds for the writer lock, while commits still try once.

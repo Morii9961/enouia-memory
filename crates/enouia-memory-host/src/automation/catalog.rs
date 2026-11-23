@@ -517,9 +517,22 @@ impl SegmentedMemoryReader {
         self.vault
             .read_scoped(&self.system, max_sensitivity, self.scope, |data| {
                 let p = super::segmented_agent::recall_preview(&data, profile, query)?;
+                // ADR-MEM-175: exact targets of `trace.selected`, in order.
+                let selected_targets: Vec<&TargetRef> = p
+                    .trace
+                    .selected
+                    .iter()
+                    .filter_map(|s| {
+                        data.memories
+                            .iter()
+                            .find(|m| m.target.memory == s.memory)
+                            .map(|m| &m.target)
+                    })
+                    .collect();
                 let value = serde_json::json!({
                     "effect": MemoryReadEffect::NativeRead,
                     "trace": p.trace,
+                    "selected_targets": selected_targets,
                     "trace_coverage": p.trace_coverage,
                     "rendered_context": p.rendered_context,
                     "items": p.items,

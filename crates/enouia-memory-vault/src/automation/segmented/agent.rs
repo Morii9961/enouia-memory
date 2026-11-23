@@ -681,7 +681,7 @@ impl SegmentedAutomationVault {
             return Err(AutomationFault::Denied);
         }
         {
-            let _writer = lock::acquire(&self.native.root, Duration::ZERO)?;
+            let _writer = lock::acquire(&self.native.root, BRIEF_LOCK_WAIT)?;
             let state = self
                 .state
                 .lock()
@@ -762,7 +762,7 @@ impl SegmentedAutomationVault {
         }
         let read = &permit.read;
         permit.live(self)?;
-        let _writer = lock::acquire(&self.native.root, Duration::ZERO)?;
+        let _writer = lock::acquire(&self.native.root, BRIEF_LOCK_WAIT)?;
         let state = self
             .state
             .lock()
@@ -902,7 +902,7 @@ impl SegmentedAutomationVault {
         if principal.actor_type != ActorType::Agent || self.native.descriptor.layout != layout {
             return Err(AutomationFault::Denied);
         }
-        let _writer = lock::acquire(&self.native.root, Duration::ZERO)?;
+        let _writer = lock::acquire(&self.native.root, BRIEF_LOCK_WAIT)?;
         let state = self
             .state
             .lock()
@@ -1091,7 +1091,7 @@ impl SegmentedAutomationVault {
         f: impl FnOnce(AuthorizedSegmentedAgentRead<'_>) -> T,
     ) -> Result<T> {
         permit.live(self)?;
-        let _writer = lock::acquire(&self.native.root, Duration::ZERO)?;
+        let _writer = lock::acquire(&self.native.root, BRIEF_LOCK_WAIT)?;
         let state = self
             .state
             .lock()

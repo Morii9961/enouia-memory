@@ -127,7 +127,7 @@ impl State {
 impl SegmentedAutomationVault {
     pub fn owner_read_grant(&self, owner: &ActorRef, id: &PolicyId) -> Result<OwnerReadGrant> {
         self.native.owner(owner)?;
-        let _writer = lock::acquire(&self.native.root, Duration::ZERO)?;
+        let _writer = lock::acquire(&self.native.root, BRIEF_LOCK_WAIT)?;
         let state = self
             .state
             .lock()
@@ -141,7 +141,7 @@ impl SegmentedAutomationVault {
     }
     pub fn owner_read_status(&self, owner: &ActorRef) -> Result<OwnerReadStatus> {
         self.native.owner(owner)?;
-        let _writer = lock::acquire(&self.native.root, Duration::ZERO)?;
+        let _writer = lock::acquire(&self.native.root, BRIEF_LOCK_WAIT)?;
         let state = self
             .state
             .lock()
@@ -169,7 +169,7 @@ impl SegmentedAutomationVault {
         id: &PolicyId,
     ) -> Result<OwnerReadGrantCoverage> {
         self.native.owner(owner)?;
-        let _writer = lock::acquire(&self.native.root, Duration::ZERO)?;
+        let _writer = lock::acquire(&self.native.root, BRIEF_LOCK_WAIT)?;
         let state = self
             .state
             .lock()
@@ -243,7 +243,7 @@ impl SegmentedAutomationVault {
         grant: OwnerReadGrant,
     ) -> Result<OwnerReadGrantPlan> {
         self.native.owner(owner)?;
-        let _writer = lock::acquire(&self.native.root, Duration::ZERO)?;
+        let _writer = lock::acquire(&self.native.root, BRIEF_LOCK_WAIT)?;
         let state = self
             .state
             .lock()
