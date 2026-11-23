@@ -1115,3 +1115,8 @@ are unchanged.
 [Decision](181-connector-refusal-reasons.md): refused connector submissions and themes return
 `problems`, a list of the self-checks they fail (verbatim quote, user turn, limits, allowed kind,
 members); allowed forms are now checked before capture.
+
+### ADR-MEM-182 — Recent-memory search for ChatGPT
+
+[Decision](182-chatgpt-recent-search.md): the short `memory_search` takes `days` (1–366) and
+returns memories learned in that period, for ChatGPT's weekly theme pass.
