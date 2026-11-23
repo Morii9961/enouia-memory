@@ -35,10 +35,12 @@ pub use formation_queue::{CapturedQueueReceipt, QueuedCapture};
 pub use formation_worker::{
     CaptureAnalysis, CaptureAnalyzer, CaptureStatement, CaptureStopToken, CapturedFormation,
     CorrectionAnalyzer, CorrectionTarget, FormationJobState, FormationJobStatus, FormationSeed,
-    PendingCaptureAnalysis, PreparedFormation, ProducerJobStatus, SupersedeAnalyzer,
-    formation_seed, quoted_evidence,
+    PendingCaptureAnalysis, PreparedFormation, ProducerJobStatus, StatementEntity,
+    SupersedeAnalyzer, formation_seed, quoted_evidence,
 };
-pub use runtime_capture::{NativeRuntimeCapture, RuntimeCapturePermit, RuntimeCaptureScope};
+pub use runtime_capture::{
+    NativeRuntimeCapture, RuntimeCaptureEntity, RuntimeCapturePermit, RuntimeCaptureScope,
+};
 pub use state::SegmentedMemory;
 use state::State;
 use std::{

@@ -708,7 +708,7 @@
     {
       "path": "crates/enouia-memory-host/src/automation/connector_formation.rs",
       "role": "host-session",
-      "sha256": "3100939aac2f3eb6b99a2d8134872d0f5838eb4bce5249d3451fd2dd553a5e18"
+      "sha256": "16eb16081897f4489af49caedc98008e570a7cab0fdb44bffe5f4a9bbf7d5ca9"
     },
     {
       "path": "crates/enouia-memory-host/src/automation/continuation.rs",
@@ -968,7 +968,7 @@
     {
       "path": "crates/enouia-memory-host/src/mcp/remote/connector.rs",
       "role": "host-session",
-      "sha256": "035f040b47ae21c17baac84fe27ee5969b3e4096eb409a098c8d4264f641e5ed"
+      "sha256": "81af9c3e96a39c7d7aec38f511b797d56cc5c48a506d49ff1d0db93cce9e893f"
     },
     {
       "path": "crates/enouia-memory-host/src/mcp/remote/http1.rs",
@@ -1213,7 +1213,7 @@
     {
       "path": "crates/enouia-memory-vault/src/automation/segmented/formation_worker.rs",
       "role": "automatic-memory-storage",
-      "sha256": "2c2df6fc71f2d7be57de24ddcb9fad60f32235d26639b1ac781b62ab2b210ecf"
+      "sha256": "3fed44770de145c45be06512cf74aa8fa6f5c1417466e38e39e8521a7cbcd78c"
     },
     {
       "path": "crates/enouia-memory-vault/src/automation/segmented/intake.rs",
@@ -1223,7 +1223,7 @@
     {
       "path": "crates/enouia-memory-vault/src/automation/segmented/mod.rs",
       "role": "automatic-memory-storage",
-      "sha256": "951c098dcdc91b10751e9bc2c774b161e77168d7bf7c86fc7524b0cdf6f459dc"
+      "sha256": "4799307e060077fc914d3b7c11c8710a98a9e051cc06a8cc769805d30166299c"
     },
     {
       "path": "crates/enouia-memory-vault/src/automation/segmented/note_intake.rs",
@@ -1248,7 +1248,7 @@
     {
       "path": "crates/enouia-memory-vault/src/automation/segmented/runtime_capture.rs",
       "role": "automatic-memory-storage",
-      "sha256": "a1f7502c9e5cba89ce11f023d53ad1a72e145fb9cd15e1d72ad24a2afc7e430f"
+      "sha256": "00d8c7045f3ba5974fe982d65176000e4891a16ece0d0c00f93288d5039e17d4"
     },
     {
       "path": "crates/enouia-memory-vault/src/automation/segmented/state.rs",
@@ -1416,5 +1416,5 @@
       "sha256": "3603c1855d9f9ec9b3585143a0191508980b260b1ffd26c82b3e6f9b7223a75d"
     }
   ],
-  "aggregate": "731df3a269181fb43140e5a6161bd221697911f52c0d1b9cbcaf7d3b9684aaf5"
+  "aggregate": "80c251d22ecdf071d92849dd58bf87bc0377469a10c535e5b28166fb7e606ac7"
 }

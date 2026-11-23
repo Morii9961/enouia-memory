@@ -450,6 +450,7 @@ fn owner_wire_background_forms_and_status_reports_only_genuine_commits() {
                 note: None,
                 prompt_version: "wire-fake-2".into(),
                 model_version: None,
+                entities: vec![],
             }]))
         }
     }

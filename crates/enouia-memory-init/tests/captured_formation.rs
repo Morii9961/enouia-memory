@@ -80,6 +80,7 @@ fn statement(quote: &str, interpretation: Interpretation) -> CaptureStatement {
         note: Some("Scripted synthetic analysis.".into()),
         prompt_version: "scripted-capture-1".into(),
         model_version: None,
+        entities: vec![],
     }
 }
 /// Quotes the first sentence of each turn. No model, network or embedding.

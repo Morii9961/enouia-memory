@@ -1037,3 +1037,10 @@ read grant (Morii's decision) makes it cover, at every read and request, all pol
 revisions of its subject and project and their captured, undeleted sources, including
 later windows. Ceiling, expiry and revocation still apply; live connections pick up
 new sources at their next check.
+
+### ADR-MEM-171 — Named entities in ChatGPT-distilled memories
+
+[Decision](171-connector-named-entities.md): ChatGPT submissions may name up to eight
+entities per statement. `capture_runtime_with_entities` records one entity per
+mention with the captured turn (statement quote as evidence, no name-based merge),
+and formation mentions them. Cross-window identity is the next slice.

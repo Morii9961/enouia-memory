@@ -1,5 +1,17 @@
 # Runtime integration (ADR-MEM-45)
 
+2026-11-23 named entities in daily memories ([ADR-MEM-171](../adr/171-connector-named-entities.md)):
+ChatGPT connector statements may carry `entities` (name, type, reality, role). The
+connector records them through the new
+`SegmentedAutomationVault::capture_runtime_with_entities(permit, request, entities,
+preflight)`; `capture_runtime` is unchanged. `CaptureStatement` gains
+`entities: Vec<StatementEntity>`. If Runtime constructs `CaptureStatement` (for
+example in an analyzer), add `entities: vec![]` when moving the pin. Entities
+appear in existing catalog, Inspector and relation output, bounded by their
+window. Cross-window linking and Morii's confirmation UI come with the next Memory
+slice. No persisted format, IPC command or wire change; Workspace stays at 61
+commands. Surface aggregate: `80c251d22ecdf071d92849dd58bf87bc0377469a10c535e5b28166fb7e606ac7`.
+
 2026-11-23 following read grants ([ADR-MEM-170](../adr/170-following-read-grants.md)):
 `OwnerReadGrant` gains optional `follow_new_sources`. Per Morii's decision, register
 or re-register each Agent's grant with `follow_new_sources: true`. Keep

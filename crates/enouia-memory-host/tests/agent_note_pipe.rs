@@ -367,6 +367,7 @@ fn real_note_pipe_saves_replays_and_keeps_five_reads_with_the_explicit_write_too
                 note: Some("Synthetic optional cue considered.".into()),
                 prompt_version: "note-pipe-synthetic-1".into(),
                 model_version: None,
+                entities: vec![],
             }]))
         }
     }

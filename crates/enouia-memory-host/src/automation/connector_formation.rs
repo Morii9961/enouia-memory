@@ -12,7 +12,8 @@ use enouia_memory_contract::{
 use enouia_memory_vault::automation::segmented::{
     CaptureAnalysis, CaptureAnalyzer, CaptureStatement, CaptureStopToken, CapturedFormation,
     CapturedQueueReceipt, MAX_CAPTURE_WINDOW_DAYS, NativeRuntimeCapture, PendingCaptureAnalysis,
-    ProducerJobStatus, QueuedCapture, RuntimeCaptureScope, SegmentedAutomationVault,
+    ProducerJobStatus, QueuedCapture, RuntimeCaptureEntity, RuntimeCaptureScope,
+    SegmentedAutomationVault, StatementEntity,
 };
 use serde::{Deserialize, Serialize};
 use std::{
@@ -22,6 +23,8 @@ use std::{
 
 pub const PROMPT_VERSION: &str = "chatgpt-connector-authored-1";
 pub const MAX_STATEMENTS: usize = 32;
+/// ADR-MEM-171: named people, places and other entities per statement.
+pub const MAX_STATEMENT_ENTITIES: usize = 8;
 pub const CAPTURE_PLATFORM: &str = "enouia-runtime";
 /// Formation steps one submission may drive before answering.
 const MAX_STEPS: usize = 64;
@@ -41,6 +44,20 @@ pub struct ConnectorStatement {
     pub valid_time: RecordTime,
     #[serde(default)]
     pub note: Option<String>,
+    /// ADR-MEM-171: who or what the statement names. Each becomes its own
+    /// entity record (no name-based merge), evidenced by the statement quote.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub entities: Vec<ConnectorEntity>,
+}
+
+/// One entity a statement names, as ChatGPT reports it.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ConnectorEntity {
+    pub name: String,
+    pub entity_type: EntityType,
+    pub reality: EntityReality,
+    pub role: EntityRole,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -125,12 +142,51 @@ impl ConnectorSubmission {
                 text_ok(&s.title, 128)
                     && text_ok(&s.quote, 2048)
                     && s.note.as_ref().is_none_or(|n| text_ok(n, 512))
+                    && s.entities.len() <= MAX_STATEMENT_ENTITIES
+                    && s.entities.iter().all(|e| text_ok(&e.name, 128))
                     && self.request.turns.iter().any(|t| {
                         t.message_id == s.message_id
                             && t.speaker == SpeakerRole::User
                             && t.text.contains(&s.quote)
                     })
             })
+    }
+    /// A fresh, deterministic entity ID per statement and position, so a
+    /// resubmitted request names the entities its first capture recorded.
+    fn entity_id(&self, statement: usize, entity: usize) -> String {
+        let digest = enouia_memory_contract::hash::sha256(
+            &enouia_memory_contract::json::canonical_bytes(&serde_json::json!([
+                "connector-entity-1",
+                self.request.request_id,
+                statement,
+                entity
+            ]))
+            .expect("closed entity seed"),
+        );
+        let mut bytes = [0; 16];
+        for (i, byte) in bytes.iter_mut().enumerate() {
+            *byte = u8::from_str_radix(&digest.as_str()[2 * i..2 * i + 2], 16).unwrap_or(0);
+        }
+        format!("ent_{}", enouia_memory_contract::ids::format_uuid_v4(bytes))
+    }
+    fn capture_entities(&self) -> Vec<RuntimeCaptureEntity> {
+        self.statements
+            .iter()
+            .enumerate()
+            .flat_map(|(n, s)| {
+                s.entities
+                    .iter()
+                    .enumerate()
+                    .map(move |(k, e)| RuntimeCaptureEntity {
+                        message_id: s.message_id.clone(),
+                        quote: s.quote.clone(),
+                        entity_id: self.entity_id(n, k),
+                        entity_type: e.entity_type,
+                        reality: e.reality,
+                        display_name: e.name.clone(),
+                    })
+            })
+            .collect()
     }
     fn statements_by_turn(&self) -> BTreeMap<Key, Vec<CaptureStatement>> {
         self.request
@@ -140,8 +196,9 @@ impl ConnectorSubmission {
                 let statements = self
                     .statements
                     .iter()
-                    .filter(|s| s.message_id == t.message_id)
-                    .map(|s| CaptureStatement {
+                    .enumerate()
+                    .filter(|(_, s)| s.message_id == t.message_id)
+                    .map(|(n, s)| CaptureStatement {
                         quote: s.quote.clone(),
                         title: s.title.clone(),
                         interpretation: s.interpretation,
@@ -162,6 +219,15 @@ impl ConnectorSubmission {
                         note: s.note.clone(),
                         prompt_version: PROMPT_VERSION.into(),
                         model_version: Some(self.analyst_model.clone()),
+                        entities: s
+                            .entities
+                            .iter()
+                            .enumerate()
+                            .map(|(k, e)| StatementEntity {
+                                entity_id: self.entity_id(n, k),
+                                role: e.role,
+                            })
+                            .collect(),
                     })
                     .collect();
                 (
@@ -284,7 +350,12 @@ impl ConnectorWriter {
             },
         )?;
         if preflight {
-            let capture = self.vault.capture_runtime(&permit, request, true);
+            let capture = self.vault.capture_runtime_with_entities(
+                &permit,
+                request,
+                &submission.capture_entities(),
+                true,
+            );
             permit.revoke();
             return Ok(ConnectorReceipt {
                 capture: Some(capture?),
@@ -298,7 +369,12 @@ impl ConnectorWriter {
             .lock()
             .map_err(|_| ApplicationFault::Locked)?
             .extend(submission.statements_by_turn());
-        let capture = self.vault.capture_runtime(&permit, request, false);
+        let capture = self.vault.capture_runtime_with_entities(
+            &permit,
+            request,
+            &submission.capture_entities(),
+            false,
+        );
         let queue = capture.as_ref().ok().map(|c| {
             self.vault
                 .enqueue_captured(&self.vault.descriptor().system_actor, c, permit.policy())
