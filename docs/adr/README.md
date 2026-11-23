@@ -1083,3 +1083,10 @@ request bodies (tunnels may forward them unbuffered); `enouia-memory-remote read
 drafts the connector's following, `chatgpt_connector` grant from the service config into a
 reviewed-plan file; Linux deploy templates, a packaging script and a quick-tunnel runbook
 are added. A process-level test drives ChatGPT's daily flow through the real binary.
+
+### ADR-MEM-177 — Serving a moved Vault, and the VPS move runbook
+
+[Decision](177-vps-move-rehearsal.md): the real-process ChatGPT daily-flow test also runs on
+an exported, restored and activated root (refused before activation), on Windows and Linux;
+`docs/deploy/MOVE_VAULT_TO_VPS.md` gives the single-primary move procedure. Roadmap §15
+records fade/archive events and review suggestions as delivered by ADR-MEM-164.

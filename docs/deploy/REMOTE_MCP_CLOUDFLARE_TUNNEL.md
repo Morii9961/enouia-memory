@@ -116,7 +116,7 @@ different maxima. For writes, add the `connector` section (ADR-MEM-158) with
 
 ## Not covered
 
-The VPS move, a permanent Windows service setup, monitoring, and keeping
-ChatGPT's read scope in step with new capture windows. The configured read scope
-lists policies explicitly, so memories formed under later windows need a grant
-or scope update before ChatGPT can read them.
+A permanent Windows service setup and monitoring. The VPS move is in
+[MOVE_VAULT_TO_VPS.md](MOVE_VAULT_TO_VPS.md). New capture windows need no scope
+update: a grant drafted with `read-draft` follows them
+([ADR-MEM-170](../adr/170-following-read-grants.md)).

@@ -29,6 +29,9 @@ ChatGPT ──HTTPS──▶ Caddy (TLS, :443) ──HTTP──▶ enouia-memory
 - The state directory lives outside the Vault root. The service refuses
   otherwise.
 
+To move the existing Vault from the PC instead of creating a new one, follow
+[MOVE_VAULT_TO_VPS.md](MOVE_VAULT_TO_VPS.md).
+
 ## Creating Morii Vault (ADR-MEM-134)
 
 As the service account, prepare a Morii-data home outside any repository and
