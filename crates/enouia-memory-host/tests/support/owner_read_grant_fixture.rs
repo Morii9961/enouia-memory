@@ -29,5 +29,6 @@ pub(crate) fn read_grant(e: &Env, p: &AutomationPolicy) -> OwnerReadGrant {
         valid_from: Timestamp::from_unix_ms(NOW).unwrap(),
         valid_until: Timestamp::from_unix_ms(p.valid_until.unix_ms() + 86_400_000).unwrap(),
         allow_requests: false,
+        follow_new_sources: false,
     }
 }

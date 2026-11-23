@@ -43,6 +43,12 @@ pub struct OwnerReadGrant {
     /// formation windows end. Absent/false keeps existing grant bytes.
     #[serde(default, skip_serializing_if = "is_false")]
     pub allow_requests: bool,
+    /// ADR-MEM-170 opt-in: the grant also covers, at each read and request,
+    /// every policy revision of its subject and project and their captured,
+    /// undeleted sources, including windows and sources added after it. The
+    /// ceiling, expiry and revocation still apply. Absent/false keeps bytes.
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub follow_new_sources: bool,
 }
 fn is_false(value: &bool) -> bool {
     !*value

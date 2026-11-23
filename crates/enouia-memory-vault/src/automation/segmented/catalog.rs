@@ -215,6 +215,17 @@ impl State {
             return Err(AutomationFault::Denied);
         }
         let policy_list: Vec<_> = match basis {
+            // ADR-MEM-170: a following grant also spans every revision of its
+            // subject and project; the permit still checks each memory.
+            ReadBasis::Grant(g) if g.follow_new_sources => self
+                .policy_history
+                .iter()
+                .filter(|(hash, p)| {
+                    g.policies.iter().any(|r| &r.hash == *hash)
+                        || (p.subject_id == g.subject_id && p.project_id == g.project_id)
+                })
+                .map(|(_, p)| p)
+                .collect(),
             ReadBasis::Grant(g) => g
                 .policies
                 .iter()

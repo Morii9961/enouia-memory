@@ -52,13 +52,14 @@ fn a_busy_name_makes_the_client_wait_for_the_next_instance() {
         let waiting = scope.spawn(|| {
             let started = Instant::now();
             let pipe = Pipe::connect(&id);
-            (pipe.is_ok(), started.elapsed())
+            (pipe, started.elapsed())
         });
         std::thread::sleep(Duration::from_millis(300));
         let mut second = Pipe::listen_shared(&id).unwrap();
+        // The client is returned, not dropped, so it is still open at accept.
+        let (client, waited) = waiting.join().unwrap();
+        let _client = client.unwrap();
         second.accept(Duration::from_secs(5)).unwrap();
-        let (connected, waited) = waiting.join().unwrap();
-        assert!(connected);
         assert!(waited >= Duration::from_millis(250), "{waited:?}");
         assert!(waited < Duration::from_secs(5), "{waited:?}");
     });

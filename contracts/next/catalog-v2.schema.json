@@ -1382,6 +1382,9 @@
         },
         "allow_requests": {
           "type": "boolean"
+        },
+        "follow_new_sources": {
+          "type": "boolean"
         }
       }
     }

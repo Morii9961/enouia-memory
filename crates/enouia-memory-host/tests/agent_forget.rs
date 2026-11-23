@@ -642,6 +642,7 @@ fn request_capable_grant_keeps_forget_requests_working_after_formation_windows_e
         valid_from: Timestamp::from_unix_ms(NOW).unwrap(),
         valid_until: Timestamp::from_unix_ms(NOW + 90 * 86_400_000).unwrap(),
         allow_requests,
+        follow_new_sources: false,
     };
     // A request-capable grant must also allow source reads.
     let mut blind = grant(9202, true);
@@ -761,6 +762,7 @@ fn grant_backed_connections_renew_past_five_minutes_until_the_grant_changes() {
         valid_from: Timestamp::from_unix_ms(NOW).unwrap(),
         valid_until: Timestamp::from_unix_ms(NOW + 600_000).unwrap(),
         allow_requests: true,
+        follow_new_sources: false,
     };
     let commit = |g: OwnerReadGrant| {
         let plan = v.plan_owner_read_grant(owner, g).unwrap();

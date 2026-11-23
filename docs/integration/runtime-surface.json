@@ -323,7 +323,7 @@
     {
       "path": "contracts/next/catalog-v2.schema.json",
       "role": "automation-contract",
-      "sha256": "31c8a80c8d1b1033beb47c9eb7ad1c141eee75542fab2cc56297acbbe4276412"
+      "sha256": "e89f8b29d11977c3aa1be86d81109c53c1f052f6b5b8d66ae263095d13686af8"
     },
     {
       "path": "contracts/next/continuation-v2.schema.json",
@@ -583,7 +583,7 @@
     {
       "path": "crates/enouia-memory-contract/src/next/segmented.rs",
       "role": "automation-contract",
-      "sha256": "5bfc78491900ab20f18d14cfea0400ab0ae6bb066d9a8174f04cebbae25bf279"
+      "sha256": "126209ecdbca22f60a54ff8492cb36e7517866474f6d6fefff1aa3c5ae81404d"
     },
     {
       "path": "crates/enouia-memory-contract/src/next/storage.rs",
@@ -1173,7 +1173,7 @@
     {
       "path": "crates/enouia-memory-vault/src/automation/segmented/agent.rs",
       "role": "automatic-memory-storage",
-      "sha256": "8387632294bc44b0a6da624761d78c0bd041c8f06d84f48665a1449d2ea29bfe"
+      "sha256": "b24929499db632506347dc6a7124f2492e06b94a377a28c5c30f4434f3638166"
     },
     {
       "path": "crates/enouia-memory-vault/src/automation/segmented/agent_requests.rs",
@@ -1193,7 +1193,7 @@
     {
       "path": "crates/enouia-memory-vault/src/automation/segmented/catalog.rs",
       "role": "automatic-memory-storage",
-      "sha256": "3f6a4dc0000beda3ac6b0f81baa005c3fb6f43d61f58670e94cfd79cbc7a0f6c"
+      "sha256": "77bc7260622d122a008dfc46b039293fb46eb6bf6da1c39ce41822b08ef816d5"
     },
     {
       "path": "crates/enouia-memory-vault/src/automation/segmented/correction_intake.rs",
@@ -1243,7 +1243,7 @@
     {
       "path": "crates/enouia-memory-vault/src/automation/segmented/read_grant.rs",
       "role": "automatic-memory-storage",
-      "sha256": "b39b1a58324a19d390c17f9a3f17854610d340b7546baf05babeedd825bf9cec"
+      "sha256": "27dbb49826b0fa9e7a1081233422de487a5aa0d8b6015a6bd939dc5c9dd5ef38"
     },
     {
       "path": "crates/enouia-memory-vault/src/automation/segmented/runtime_capture.rs",
@@ -1416,5 +1416,5 @@
       "sha256": "3603c1855d9f9ec9b3585143a0191508980b260b1ffd26c82b3e6f9b7223a75d"
     }
   ],
-  "aggregate": "1f77435ea9deb18ac5b9eb54d0b4169e94a08debba0bea8dea3f1333e095bb1f"
+  "aggregate": "731df3a269181fb43140e5a6161bd221697911f52c0d1b9cbcaf7d3b9684aaf5"
 }
