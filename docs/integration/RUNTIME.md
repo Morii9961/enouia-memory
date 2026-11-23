@@ -1,5 +1,15 @@
 # Runtime integration (ADR-MEM-45)
 
+2026-11-23 shared Agent pipe names ([ADR-MEM-169](../adr/169-shared-agent-pipes.md)):
+`Pipe::listen_shared(id)` creates one more instance of a name that may have up to
+`SHARED_PIPE_INSTANCES` (8). To serve parallel sessions of one Agent, switch its
+listener to `listen_shared`. Keep a few listening instances, serve each accepted
+connection as today, and create a replacement instance when one is taken. Do not
+mix `listen` and `listen_shared` on one name. `Pipe::connect`, used by the bridge,
+now waits up to five seconds while all instances are busy, which also covers the
+gap before a replacement instance exists. No persisted format, IPC command or wire
+change; Workspace stays at 61 commands. Surface aggregate: `1f77435ea9deb18ac5b9eb54d0b4169e94a08debba0bea8dea3f1333e095bb1f`.
+
 2026-11-23 read grant coverage ([ADR-MEM-168](../adr/168-read-grant-coverage.md)):
 `SegmentedAutomationVault::owner_read_grant_coverage(owner, grant_id)` returns
 `OwnerReadGrantCoverage { snapshot, grant, uncovered_policies, uncovered_sources,

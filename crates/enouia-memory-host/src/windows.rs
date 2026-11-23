@@ -7,8 +7,8 @@ use std::os::windows::io::{AsRawHandle, FromRawHandle, OwnedHandle};
 use std::ptr;
 use std::time::{Duration, Instant};
 use windows_sys::Win32::Foundation::{
-    ERROR_IO_PENDING, ERROR_PIPE_CONNECTED, ERROR_SUCCESS, HANDLE, INVALID_HANDLE_VALUE, LocalFree,
-    WAIT_OBJECT_0, WAIT_TIMEOUT,
+    ERROR_IO_PENDING, ERROR_PIPE_BUSY, ERROR_PIPE_CONNECTED, ERROR_SUCCESS, HANDLE,
+    INVALID_HANDLE_VALUE, LocalFree, WAIT_OBJECT_0, WAIT_TIMEOUT,
 };
 use windows_sys::Win32::Security::Authorization::{
     EXPLICIT_ACCESS_W, NO_MULTIPLE_TRUSTEE, SET_ACCESS, SetEntriesInAclW, TRUSTEE_IS_SID,
@@ -27,7 +27,7 @@ use windows_sys::Win32::System::IO::{CancelIoEx, GetOverlappedResult, OVERLAPPED
 use windows_sys::Win32::System::Pipes::{
     ConnectNamedPipe, CreateNamedPipeW, DisconnectNamedPipe, GetNamedPipeClientProcessId,
     GetNamedPipeServerProcessId, PIPE_READMODE_BYTE, PIPE_REJECT_REMOTE_CLIENTS, PIPE_TYPE_BYTE,
-    PIPE_WAIT,
+    PIPE_WAIT, WaitNamedPipeW,
 };
 use windows_sys::Win32::System::Threading::{
     CreateEventW, GetCurrentProcess, GetProcessId, OpenProcess, OpenProcessToken,
@@ -224,8 +224,22 @@ fn name(id: &Sha256Hex) -> Vec<u16> {
         .chain(Some(0))
         .collect()
 }
+/// ADR-MEM-169: instances one shared pipe name may have at once.
+pub const SHARED_PIPE_INSTANCES: u32 = 8;
 impl Pipe {
+    /// The sole instance of this name; another `listen` fails while it exists.
     pub fn listen(id: &Sha256Hex) -> io::Result<Self> {
+        Self::create(id, false)
+    }
+    /// ADR-MEM-169: one more instance of a name that serves several clients at
+    /// once (up to `SHARED_PIPE_INSTANCES`), e.g. parallel Agent sessions.
+    /// Every instance keeps the current-user DACL and rejects remote clients;
+    /// each side still verifies the other's process (same user and session)
+    /// before trusting it. Do not mix with `listen` for the same name.
+    pub fn listen_shared(id: &Sha256Hex) -> io::Result<Self> {
+        Self::create(id, true)
+    }
+    fn create(id: &Sha256Hex, shared: bool) -> io::Result<Self> {
         // SAFETY: local pseudo-handle, never owned/closed.
         let mut owner = user(unsafe { GetCurrentProcess() })?;
         let entry = EXPLICIT_ACCESS_W {
@@ -259,14 +273,19 @@ impl Pipe {
                 bInheritHandle: 0,
             };
             let name = name(id);
+            let (first, instances) = if shared {
+                (0, SHARED_PIPE_INSTANCES)
+            } else {
+                (FILE_FLAG_FIRST_PIPE_INSTANCE, 1)
+            };
             // SAFETY: bounded NUL-terminated local name; explicit owner DACL copied
-            // by creation. One instance reserves this endpoint until handle drop.
+            // by creation. A sole instance reserves this endpoint until handle drop.
             let handle = handle(unsafe {
                 CreateNamedPipeW(
                     name.as_ptr(),
-                    PIPE_ACCESS_DUPLEX | FILE_FLAG_OVERLAPPED | FILE_FLAG_FIRST_PIPE_INSTANCE,
+                    PIPE_ACCESS_DUPLEX | FILE_FLAG_OVERLAPPED | first,
                     PIPE_TYPE_BYTE | PIPE_READMODE_BYTE | PIPE_WAIT | PIPE_REJECT_REMOTE_CLIENTS,
-                    1,
+                    instances,
                     4096,
                     4096,
                     0,
@@ -282,24 +301,43 @@ impl Pipe {
         unsafe { LocalFree(acl.cast()) };
         result
     }
+    /// ADR-MEM-169: while every instance is busy, waits up to five seconds
+    /// for one to become free instead of failing at once.
     pub fn connect(id: &Sha256Hex) -> io::Result<Self> {
         let name = name(id);
-        // SAFETY: local NUL-terminated name; no inherited handle or default file creation.
-        let handle = handle(unsafe {
-            CreateFileW(
-                name.as_ptr(),
-                FILE_GENERIC_READ | FILE_GENERIC_WRITE,
-                0,
-                ptr::null(),
-                OPEN_EXISTING,
-                FILE_FLAG_OVERLAPPED,
-                ptr::null_mut(),
-            )
-        })?;
-        Ok(Self {
-            handle,
-            server: false,
-        })
+        let deadline = Instant::now() + Duration::from_secs(5);
+        loop {
+            // SAFETY: local NUL-terminated name; no inherited handle or default file creation.
+            let handle = handle(unsafe {
+                CreateFileW(
+                    name.as_ptr(),
+                    FILE_GENERIC_READ | FILE_GENERIC_WRITE,
+                    0,
+                    ptr::null(),
+                    OPEN_EXISTING,
+                    FILE_FLAG_OVERLAPPED,
+                    ptr::null_mut(),
+                )
+            });
+            match handle {
+                Ok(handle) => {
+                    return Ok(Self {
+                        handle,
+                        server: false,
+                    });
+                }
+                Err(e) if e.raw_os_error() == Some(ERROR_PIPE_BUSY as i32) => {
+                    let left = deadline.saturating_duration_since(Instant::now());
+                    if left.is_zero() {
+                        return Err(e);
+                    }
+                    // SAFETY: local NUL-terminated name. A false return (timeout
+                    // or vanished name) is followed by one more bounded attempt.
+                    unsafe { WaitNamedPipeW(name.as_ptr(), left.as_millis().max(1) as u32) };
+                }
+                Err(e) => return Err(e),
+            }
+        }
     }
     /// `deadline: None` waits without a time limit (ADR-MEM-166); `proceed`
     /// runs every quarter second while the operation is pending, and `false`

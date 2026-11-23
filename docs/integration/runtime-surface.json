@@ -1043,7 +1043,7 @@
     {
       "path": "crates/enouia-memory-host/src/windows.rs",
       "role": "host-session",
-      "sha256": "1373e2a03fcf143ae49acc7b53d269d6b30382a03e76688b8f1f083b96dd7953"
+      "sha256": "2e559bfc3156739a78338723e3bdccda160d10b5de9e531fbddad677b483d104"
     },
     {
       "path": "crates/enouia-memory-import/Cargo.toml",
@@ -1416,5 +1416,5 @@
       "sha256": "3603c1855d9f9ec9b3585143a0191508980b260b1ffd26c82b3e6f9b7223a75d"
     }
   ],
-  "aggregate": "7928c391bb1575f3a7e91d483516c7efa8c6b2873397251ea5120ccb2f846e6b"
+  "aggregate": "1f77435ea9deb18ac5b9eb54d0b4169e94a08debba0bea8dea3f1333e095bb1f"
 }
