@@ -1,5 +1,9 @@
 # Runtime integration (ADR-MEM-45)
 
+2026-11-24 recent-memory search for ChatGPT ([ADR-MEM-182](../adr/182-chatgpt-recent-search.md)):
+remote service only; the short `memory_search` takes `days`. Runtime needs no change.
+Surface aggregate: `81a73bba1227f63239e3c001c5a316b049a29725812fa9dfbe03bee87c21d7aa`.
+
 2026-11-24 connector refusal reasons ([ADR-MEM-181](../adr/181-connector-refusal-reasons.md)):
 refused ChatGPT submissions and themes now carry `problems`; a statement `kind` outside the
 connector's allowed forms is refused before capture. `ConnectorSubmission::valid` now takes

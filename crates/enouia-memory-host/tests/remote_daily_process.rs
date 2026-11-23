@@ -489,6 +489,17 @@ fn daily_flow(e: &Env, p: &AutomationPolicy, before: usize, root: &VerifiedRoot)
     // The following grant sees the connector's new window on the next read.
     let after: BTreeSet<_> = search(&mut rpc).difference(&baseline).cloned().collect();
     assert_eq!(after.len(), 2, "{after:?}");
+    // ADR-MEM-182: `days` keeps memories learned recently; the fixture's
+    // history was learned a month before the system clock.
+    let recent = short(&mut rpc, "memory_search", json!({"days": 1, "limit": 100}));
+    assert_ne!(recent["isError"], json!(true), "{recent}");
+    let mut recent_ids = BTreeSet::new();
+    memory_ids(&recent["structuredContent"], &mut recent_ids);
+    assert_eq!(recent_ids, after);
+    assert_eq!(
+        short(&mut rpc, "memory_search", json!({"days": 0}))["isError"],
+        true
+    );
 
     let theme = json!({
         "request_id": "weekly-theme-window-seats",

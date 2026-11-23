@@ -73,6 +73,7 @@ pub fn short_schema(tool: &str) -> Option<Value> {
                 "form": filter_enum("form"),
                 "attention": filter_enum("attention"),
                 "adoption": filter_enum("adoption"),
+                "days": {"type": "integer", "minimum": 1, "maximum": 366, "description": "Only memories Memory learned in the last N days, for example 7 for this week."},
                 "limit": {"type": "integer", "minimum": 1, "maximum": 100},
                 "cursor": {"type": "object", "description": "The `next` value of the previous page, to continue it."}
             }),
@@ -125,6 +126,8 @@ struct Search {
     attention: Option<Value>,
     #[serde(default)]
     adoption: Option<Value>,
+    #[serde(default)]
+    days: Option<u16>,
     #[serde(default)]
     limit: Option<u32>,
     #[serde(default)]
@@ -207,6 +210,14 @@ pub fn read_arguments(
                 if let Some(value) = value {
                     filter[key] = value;
                 }
+            }
+            // ADR-MEM-182: recent memories by the time Memory learned them.
+            if let Some(days) = s.days.filter(|d| (1..=366).contains(d)) {
+                let from = Timestamp::from_unix_ms(now.unix_ms() - i64::from(days) * 86_400_000)?;
+                filter["time_axis"] = json!("learned");
+                filter["time_window"] = json!({"from": from, "until": null});
+            } else if s.days.is_some() {
+                return None;
             }
             json!({"filter": filter, "cursor": s.cursor, "limit": s.limit.unwrap_or(20), "max_bytes": 65_536, "include_facets": false})
         }

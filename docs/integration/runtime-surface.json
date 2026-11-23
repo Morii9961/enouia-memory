@@ -968,7 +968,7 @@
     {
       "path": "crates/enouia-memory-host/src/mcp/remote/chatgpt.rs",
       "role": "host-session",
-      "sha256": "9695b60fba63371f0f2fdfea68d8371555a1b88033f5e26cc852848fd8205538"
+      "sha256": "e25a946b9adc4e6a2b262692b550f86f15d17c43809ffe10655cd7f860e8c581"
     },
     {
       "path": "crates/enouia-memory-host/src/mcp/remote/connector.rs",
@@ -1431,5 +1431,5 @@
       "sha256": "3603c1855d9f9ec9b3585143a0191508980b260b1ffd26c82b3e6f9b7223a75d"
     }
   ],
-  "aggregate": "63bd0fcde85d53f0267104306eee45b80ae0344c43f740e8768a58e57d572ae8"
+  "aggregate": "81a73bba1227f63239e3c001c5a316b049a29725812fa9dfbe03bee87c21d7aa"
 }
