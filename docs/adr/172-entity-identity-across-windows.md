@@ -102,5 +102,6 @@ windows: "Lin" twice and "Lin Xiao" once.
    shows a `confirmed` group of two and the separated record as `single` with
    `opted_out`.
 
-Agent `related` uses the same same-name and redirect rules; this test exercises
-them through the System graph.
+Before any decision, an Agent reader scoped to both windows also gets exactly
+one `same_name` suggestion in `related`, from the first "Lin" memory to the
+other, with witness `same_name:Lin` and six coverage entries.
