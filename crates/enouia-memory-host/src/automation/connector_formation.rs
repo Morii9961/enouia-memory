@@ -5,15 +5,18 @@
 //! platform-neutral Vault API, so it runs wherever the remote service runs.
 use super::application::{ApplicationFault, ApplicationResult};
 use enouia_memory_contract::{
-    common::{ActorRef, ActorType, Sensitivity, SpeakerRole},
+    common::{ActorRef, ActorType, Sensitivity, SourceRevisionRef, SpeakerRole},
+    ids::{CommitId, MemoryId, OperationId, PolicyId, RequestId},
+    json::Revision,
     next::*,
     time::Timestamp,
 };
 use enouia_memory_vault::automation::segmented::{
     CaptureAnalysis, CaptureAnalyzer, CaptureStatement, CaptureStopToken, CapturedFormation,
-    CapturedQueueReceipt, MAX_CAPTURE_WINDOW_DAYS, NativeRuntimeCapture, PendingCaptureAnalysis,
-    ProducerJobStatus, QueuedCapture, RuntimeCaptureEntity, RuntimeCaptureScope,
-    SegmentedAutomationVault, StatementEntity,
+    CapturedQueueReceipt, FormationSeed, MAX_CAPTURE_WINDOW_DAYS, NativeRuntimeCapture,
+    PendingCaptureAnalysis, ProducerJobStatus, QueuedCapture, RuntimeCaptureEntity,
+    RuntimeCaptureScope, SegmentedAutomationVault, StatementEntity, SystemReadScope,
+    formation_seed,
 };
 use serde::{Deserialize, Serialize};
 use std::{
@@ -25,6 +28,60 @@ pub const PROMPT_VERSION: &str = "chatgpt-connector-authored-1";
 pub const MAX_STATEMENTS: usize = 32;
 /// ADR-MEM-171: named people, places and other entities per statement.
 pub const MAX_STATEMENT_ENTITIES: usize = 8;
+/// ADR-MEM-174: memories one ChatGPT theme may synthesize.
+pub const MAX_THEME_MEMBERS: usize = 32;
+pub const THEME_PROMPT_VERSION: &str = "chatgpt-connector-theme-1";
+
+/// Sixteen stable bytes for a derived identifier.
+fn seed16(value: &serde_json::Value) -> [u8; 16] {
+    let digest = enouia_memory_contract::hash::sha256(
+        &enouia_memory_contract::json::canonical_bytes(value).expect("closed seed"),
+    );
+    let mut bytes = [0; 16];
+    for (i, byte) in bytes.iter_mut().enumerate() {
+        *byte = u8::from_str_radix(&digest.as_str()[2 * i..2 * i + 2], 16).unwrap_or(0);
+    }
+    bytes
+}
+
+/// ADR-MEM-174: a theme ChatGPT synthesized over daily memories it read.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ConnectorTheme {
+    pub request_id: RequestId,
+    /// The model ChatGPT reports for its own synthesis, recorded as-is.
+    pub analyst_model: String,
+    pub title: String,
+    /// The theme in ChatGPT's own words: an inference, not a statement by Morii.
+    pub summary: String,
+    /// The current memories it draws on, 2 to 32, in the connector domain.
+    pub members: Vec<MemoryId>,
+    #[serde(default)]
+    pub note: Option<String>,
+}
+#[derive(Debug, Serialize)]
+pub struct ThemeReceipt {
+    /// The formed theme, or `None` on preflight.
+    pub memory: Option<MemoryRevisionRef>,
+    pub replayed: bool,
+    pub preflight: bool,
+}
+impl ConnectorTheme {
+    pub fn valid(&self) -> bool {
+        let text_ok = |s: &str, max: usize| !s.trim().is_empty() && s.chars().count() <= max;
+        text_ok(&self.analyst_model, 128)
+            && text_ok(&self.title, 60)
+            && text_ok(&self.summary, 2000)
+            && self.note.as_ref().is_none_or(|n| text_ok(n, 512))
+            && (2..=MAX_THEME_MEMBERS).contains(&self.members.len())
+            && self
+                .members
+                .iter()
+                .collect::<std::collections::BTreeSet<_>>()
+                .len()
+                == self.members.len()
+    }
+}
 pub const CAPTURE_PLATFORM: &str = "enouia-runtime";
 /// Formation steps one submission may drive before answering.
 const MAX_STEPS: usize = 64;
@@ -154,19 +211,12 @@ impl ConnectorSubmission {
     /// A fresh, deterministic entity ID per statement and position, so a
     /// resubmitted request names the entities its first capture recorded.
     fn entity_id(&self, statement: usize, entity: usize) -> String {
-        let digest = enouia_memory_contract::hash::sha256(
-            &enouia_memory_contract::json::canonical_bytes(&serde_json::json!([
-                "connector-entity-1",
-                self.request.request_id,
-                statement,
-                entity
-            ]))
-            .expect("closed entity seed"),
-        );
-        let mut bytes = [0; 16];
-        for (i, byte) in bytes.iter_mut().enumerate() {
-            *byte = u8::from_str_radix(&digest.as_str()[2 * i..2 * i + 2], 16).unwrap_or(0);
-        }
+        let bytes = seed16(&serde_json::json!([
+            "connector-entity-1",
+            self.request.request_id,
+            statement,
+            entity
+        ]));
         format!("ent_{}", enouia_memory_contract::ids::format_uuid_v4(bytes))
     }
     fn capture_entities(&self) -> Vec<RuntimeCaptureEntity> {
@@ -277,6 +327,243 @@ impl ConnectorWriter {
     pub fn config(&self) -> &ConnectorConfig {
         &self.config
     }
+    /// ADR-MEM-174: the connector's own access and egress domain, stable for
+    /// this Vault and account scope, so its windows can be synthesized together.
+    pub fn domain(&self) -> (PolicyId, PolicyId) {
+        let id = |part: &str| {
+            PolicyId::from_random(seed16(&serde_json::json!([
+                "connector-domain-1",
+                self.vault.descriptor().vault_id,
+                self.config.account_scope,
+                part
+            ])))
+        };
+        (id("access"), id("egress"))
+    }
+    /// ADR-MEM-174: forms a theme over current daily memories of this
+    /// connector's domain, under a fresh synthesis policy that lists exactly
+    /// their sources. Preflight writes nothing. A resubmitted request replays.
+    pub fn submit_theme(
+        &self,
+        theme: &ConnectorTheme,
+        preflight: bool,
+        now_ms: i64,
+    ) -> ApplicationResult<ThemeReceipt> {
+        if !theme.valid() {
+            return Err(ApplicationFault::Invalid);
+        }
+        let descriptor = self.vault.descriptor();
+        let system = descriptor.system_actor.clone();
+        let subject = descriptor
+            .owner_subject_id
+            .clone()
+            .ok_or(ApplicationFault::Invalid)?;
+        let domain = self.domain();
+        let policy_id = PolicyId::from_random(seed16(&serde_json::json!([
+            "connector-theme-policy-1",
+            theme.request_id
+        ])));
+        // `prepare` assigns the real result; replays are found by policy.
+        let result = MemoryRevisionRef {
+            memory_id: MemoryId::from_random(seed16(&serde_json::json!([
+                "connector-theme-memory-1",
+                theme.request_id
+            ]))),
+            revision: Revision::new(1).unwrap(),
+        };
+        struct Member {
+            target: TargetRef,
+            sensitivity: Sensitivity,
+            refs: Vec<SourceRevisionRef>,
+            evidence: QuotedEvidence,
+            source: CapturedSource,
+        }
+        type Read = Result<Vec<Member>, MemoryRevisionRef>;
+        let read = self.vault.read_scoped(
+            &system,
+            self.config.max_sensitivity,
+            SystemReadScope::MoriiFullHistory,
+            |d| -> ApplicationResult<Read> {
+                // The theme formed under this request's synthesis policy, if any.
+                if let Some(m) = d
+                    .memories
+                    .iter()
+                    .find(|m| m.memory.decision.input.policy.policy_id == policy_id)
+                {
+                    return Ok(Err(m.memory.memory.clone()));
+                }
+                theme
+                    .members
+                    .iter()
+                    .map(|id| {
+                        let m = d
+                            .memories
+                            .iter()
+                            .find(|m| &m.memory.memory.memory_id == id)
+                            .ok_or(ApplicationFault::Invalid)?;
+                        let i = &m.memory.decision.input;
+                        let fields = i.record_fields.as_ref().unwrap();
+                        let evidence = fields.evidence.first().ok_or(ApplicationFault::Invalid)?;
+                        if (i.access_policy_id.clone(), i.egress_policy_id.clone()) != domain
+                            || i.subject_id != subject
+                            || i.project_id.is_some()
+                        {
+                            return Err(ApplicationFault::Invalid);
+                        }
+                        let source = d
+                            .sources
+                            .get(&evidence.reference.source_id)
+                            .ok_or(ApplicationFault::Invalid)?;
+                        Ok(Member {
+                            target: m.target.clone(),
+                            sensitivity: i.sensitivity,
+                            refs: i.input_refs.clone(),
+                            evidence: evidence.clone(),
+                            source: (*source).clone(),
+                        })
+                    })
+                    .collect::<ApplicationResult<Vec<_>>>()
+                    .map(Ok)
+            },
+        )??;
+        let members = match read {
+            Err(formed) => {
+                return Ok(ThemeReceipt {
+                    memory: Some(formed),
+                    replayed: true,
+                    preflight,
+                });
+            }
+            Ok(members) => members,
+        };
+        let refs: std::collections::BTreeSet<SourceRevisionRef> = members
+            .iter()
+            .flat_map(|m| m.refs.iter().cloned())
+            .collect();
+        let source_ids: std::collections::BTreeSet<_> =
+            refs.iter().map(|r| r.source_id.clone()).collect();
+        if source_ids.len() > MAX_SOURCES {
+            return Err(ApplicationFault::Invalid);
+        }
+        if preflight {
+            return Ok(ThemeReceipt {
+                memory: None,
+                replayed: false,
+                preflight: true,
+            });
+        }
+        let at =
+            |offset: i64| Timestamp::from_unix_ms(now_ms + offset).ok_or(ApplicationFault::Invalid);
+        let existing = self
+            .vault
+            .owner_read_status(&self.owner)?
+            .policies
+            .into_iter()
+            .find(|p| p.policy_id == policy_id);
+        let policy = match existing {
+            Some(policy) => policy,
+            None => {
+                let policy = AutomationPolicy {
+                    schema_version: NextVersion,
+                    kind: PolicyKind::AutomationPolicy,
+                    policy_id,
+                    revision: Revision::new(1).unwrap(),
+                    rule_version: RuleVersion::V3,
+                    system_actor: system.clone(),
+                    vault_id: descriptor.vault_id.clone(),
+                    subject_id: subject,
+                    project_id: None,
+                    source_ids: source_ids.into_iter().collect(),
+                    allow_create: true,
+                    allow_revise_created: false,
+                    target_ids: vec![],
+                    allowed_forms: vec![FormationKind::Theme],
+                    max_sensitivity: self.config.max_sensitivity,
+                    access_policy_id: domain.0.clone(),
+                    egress_policy_id: domain.1.clone(),
+                    active: true,
+                    valid_from: at(0)?,
+                    valid_until: at(86_400_000)?,
+                };
+                self.vault.set_policy(&self.owner, policy.clone())?;
+                policy
+            }
+        };
+        use enouia_memory_contract::ports::IdSource;
+        let ids = enouia_memory_vault::OsIdSource;
+        let mut input = formation_seed(FormationSeed {
+            policy: &policy,
+            source: &members[0].source,
+            evidence: members[0].evidence.clone(),
+            snapshot_commit: CommitId::from_random(ids.random_16()),
+            operation_id: OperationId::from_random(ids.random_16()),
+            result: result.clone(),
+            title: &theme.title,
+            interpretation: Interpretation::Inference,
+            dimensions: FormationDimensions {
+                kind: FormationKind::Theme,
+                occurrence: OccurrenceAssertion::Unknown,
+                state: None,
+                change: FormationChange::Synthesis,
+                conditions: vec![],
+                event_time: None,
+                valid_time: None,
+                counter_sources: vec![],
+                derived_from: members.iter().map(|m| m.target.clone()).collect(),
+                reverts_to: None,
+            },
+            event_time: unknown_time(),
+            valid_time: unknown_time(),
+            entities: vec![],
+            prompt_version: THEME_PROMPT_VERSION,
+            model_version: Some(theme.analyst_model.clone()),
+            import_batch_id: None,
+            mode: FormationMode::Live,
+            annotations: Some(FormationAnnotations {
+                memory: result.clone(),
+                model_version: Some(theme.analyst_model.clone()),
+                prompt_version: THEME_PROMPT_VERSION.into(),
+                formation_note: theme.note.clone(),
+                suggested_tags: vec![],
+                tone: None,
+                importance_guess_milli: None,
+                current_state_note: None,
+                suggested_relations: vec![],
+            }),
+        })
+        .ok_or(ApplicationFault::Invalid)?;
+        input.content = theme.summary.clone();
+        input.input_refs = refs.into_iter().collect();
+        input.evidence = members
+            .iter()
+            .map(|m| m.evidence.reference.clone())
+            .collect();
+        input.sensitivity = members
+            .iter()
+            .map(|m| m.sensitivity)
+            .max()
+            .unwrap_or(Sensitivity::Public);
+        let fields = input.record_fields.as_mut().unwrap();
+        fields.title = theme.title.clone();
+        fields.evidence = members.iter().map(|m| m.evidence.clone()).collect();
+        let input = self.vault.prepare(&system, input)?;
+        let response = serde_json::to_string(&self.vault.evaluate(&system, &input)?)
+            .map_err(|_| ApplicationFault::Invalid)?;
+        let binding = GenerationBinding {
+            operation_id: input.operation_id.clone(),
+            input_hash: digest(&input),
+            response_hash: enouia_memory_contract::hash::sha256(response.as_bytes()),
+        };
+        let receipt = self
+            .vault
+            .apply_batch(&system, vec![input], vec![response], vec![binding])?
+            .remove(0);
+        Ok(ThemeReceipt {
+            memory: Some(receipt.result),
+            replayed: false,
+            preflight: false,
+        })
+    }
     /// Preflight writes nothing. Otherwise: choose or open a capture window,
     /// capture, enqueue, then drive formation for this submission and report
     /// its jobs. A resubmitted request replays under its original window.
@@ -293,6 +580,7 @@ impl ConnectorWriter {
         }
         let request = &submission.request;
         let turns = request.turns.len();
+        let domain = self.domain();
         let replay = self.vault.capture_policy_for_request(
             &self.owner,
             &self.producer,
@@ -308,6 +596,8 @@ impl ConnectorWriter {
                     .into_iter()
                     .find(|w| {
                         w.unused_source_ids.len() >= turns
+                            && w.policy.access_policy_id == domain.0
+                            && w.policy.egress_policy_id == domain.1
                             && w.policy.valid_until > needed_until
                             && w.policy.max_sensitivity == self.config.max_sensitivity
                             && w.policy.allowed_forms == self.config.allowed_forms
@@ -325,11 +615,12 @@ impl ConnectorWriter {
                     }
                     None => {
                         self.vault
-                            .open_capture_window(
+                            .open_capture_window_in(
                                 &self.owner,
                                 self.config.window_days,
                                 self.config.max_sensitivity,
                                 self.config.allowed_forms.clone(),
+                                domain.clone(),
                             )?
                             .policy
                     }
@@ -410,5 +701,16 @@ impl ConnectorWriter {
             queue,
             window_needed: false,
         })
+    }
+}
+
+fn unknown_time() -> RecordTime {
+    RecordTime {
+        from: None,
+        until: None,
+        precision: RecordPrecision::Unknown,
+        bound: TimeBound::Within,
+        tz: None,
+        basis: TimeBasis::Unknown,
     }
 }

@@ -1060,3 +1060,11 @@ confirmation UI.
 members }` saves (or with no members discards) a named recall result through the
 usual plan/confirm/commit; `NativeMemoryOwner::capsules` lists the latest version
 per name with each member's saved and current revision.
+
+### ADR-MEM-174 — Themes synthesized by ChatGPT across daily memories
+
+[Decision](174-chatgpt-themes.md): the connector keeps its windows in one stable access
+domain; theme synthesis may draw on parents from other policies of that domain (all
+parent sources still in the theme's own policy). `memory_submit_theme` forms a theme
+(ChatGPT's inference, 2–32 members) under a per-request synthesis policy, with preflight
+and replay.

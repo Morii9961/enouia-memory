@@ -523,7 +523,7 @@
     {
       "path": "crates/enouia-memory-contract/src/next/formation.rs",
       "role": "automation-contract",
-      "sha256": "598ad7ad671ad7ee7f7b6edab6ca7bbb0af786440389926ddad29b9761ea7859"
+      "sha256": "5168355f258c45ba67f229b09986bf58177d1da90f6c34725f02307c05c34414"
     },
     {
       "path": "crates/enouia-memory-contract/src/next/mod.rs",
@@ -708,7 +708,7 @@
     {
       "path": "crates/enouia-memory-host/src/automation/connector_formation.rs",
       "role": "host-session",
-      "sha256": "16eb16081897f4489af49caedc98008e570a7cab0fdb44bffe5f4a9bbf7d5ca9"
+      "sha256": "1a5a2a857996b705755037ea04cbc87d13a386b9055c735905df86436e7011ed"
     },
     {
       "path": "crates/enouia-memory-host/src/automation/continuation.rs",
@@ -968,7 +968,7 @@
     {
       "path": "crates/enouia-memory-host/src/mcp/remote/connector.rs",
       "role": "host-session",
-      "sha256": "81af9c3e96a39c7d7aec38f511b797d56cc5c48a506d49ff1d0db93cce9e893f"
+      "sha256": "1966f783077a891a830863efced86b8afee9b03c53c52a05c279acaac5916915"
     },
     {
       "path": "crates/enouia-memory-host/src/mcp/remote/http1.rs",
@@ -1193,7 +1193,7 @@
     {
       "path": "crates/enouia-memory-vault/src/automation/segmented/capture_window.rs",
       "role": "automatic-memory-storage",
-      "sha256": "76ae1d0610ac0e13a4a813262e5e30ce538105c3645160cd18a7c2652008de48"
+      "sha256": "062b89e196bdbb774a81ca485430e9005919fac67b3a02e4aeff561369a66f76"
     },
     {
       "path": "crates/enouia-memory-vault/src/automation/segmented/catalog.rs",
@@ -1263,7 +1263,7 @@
     {
       "path": "crates/enouia-memory-vault/src/automation/segmented/state.rs",
       "role": "automatic-memory-storage",
-      "sha256": "d2079437b2ff0900c00d8a6d88f1d5662ef7d3e73f467fe73c78a84e26e918fd"
+      "sha256": "3e8d2ecab340aaf5a206bcaeb1b3be96654cfb64f914229c93196bf3ffcf984e"
     },
     {
       "path": "crates/enouia-memory-vault/src/automation/segmented/supersede_intake.rs",
@@ -1426,5 +1426,5 @@
       "sha256": "3603c1855d9f9ec9b3585143a0191508980b260b1ffd26c82b3e6f9b7223a75d"
     }
   ],
-  "aggregate": "e699ef6de8315ef8f01d91c6e797c9b4fdfde62ff28e1634a2457a9fab07f9a7"
+  "aggregate": "a925dfe44c1a30948172b2b2991580ae72a61c52760d3a678c867038f5ea6ab5"
 }

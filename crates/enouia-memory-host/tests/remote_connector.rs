@@ -123,9 +123,16 @@ fn write_tool_needs_write_scope_and_an_initialized_session() {
         .iter()
         .map(|t| t["name"].clone())
         .collect();
-    assert_eq!(names, vec![json!("memory_read"), json!(TOOL)]);
+    assert_eq!(
+        names,
+        vec![json!("memory_read"), json!(TOOL), json!(THEME_TOOL)]
+    );
     let bad = s.handle(&call(3, json!({"submission": 1}))).unwrap();
     assert_eq!(bad["result"]["isError"], true);
+    let bad_theme = s
+        .handle(&json!({"jsonrpc":"2.0","id":30,"method":"tools/call","params":{"name":THEME_TOOL,"arguments":{"theme":1}}}))
+        .unwrap();
+    assert_eq!(bad_theme["result"]["isError"], true);
     let dry = s
         .handle(&call(
             4,

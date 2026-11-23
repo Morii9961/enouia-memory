@@ -205,7 +205,11 @@ pub(super) fn validate_formation(
             || p.deleted
             || !p.writable
             || p.target.memory.memory_id == input.result.memory_id
-            || p.policy != input.policy
+            // ADR-MEM-174: a theme synthesis may draw on parents formed under
+            // other policies of the same access domain; every parent source
+            // must still be one of the theme's own (checked below and at
+            // admission), so nothing outside the theme's policy is laundered.
+            || (p.policy != input.policy && !(d.kind == K::Theme && d.change == C::Synthesis))
             || p.subject_id != input.subject_id
             || p.project_id != input.project_id
             || p.access_policy_id != input.access_policy_id

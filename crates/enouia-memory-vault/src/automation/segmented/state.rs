@@ -257,6 +257,11 @@ impl State {
             .flat_map(|d| d.derived_from.iter().cloned())
             .collect();
         let mut visited = BTreeSet::new();
+        // ADR-MEM-174: a theme synthesis may draw on other policies of its
+        // access domain; the contract keeps every parent source in its own.
+        let synthesis = input.dimensions.as_ref().is_some_and(|d| {
+            d.kind == FormationKind::Theme && d.change == FormationChange::Synthesis
+        });
         while let Some(target) = pending.pop() {
             if target.memory.memory_id == input.result.memory_id
                 || self.deleted_memories.contains(&target.memory.memory_id)
@@ -274,7 +279,13 @@ impl State {
                 .get(&target.memory.memory_id)
                 .and_then(|v| v.last())
                 .ok_or_else(deny)?;
-            if current.target != target || current.memory.decision.input.policy != input.policy {
+            let parent = &current.memory.decision.input;
+            if current.target != target
+                || (parent.policy != input.policy
+                    && !(synthesis
+                        && parent.access_policy_id == input.access_policy_id
+                        && parent.egress_policy_id == input.egress_policy_id))
+            {
                 return Err(deny());
             }
             pending.extend(
