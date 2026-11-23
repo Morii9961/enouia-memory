@@ -109,6 +109,8 @@ different maxima. For writes, add the `connector` section (ADR-MEM-158) with
 6. Optionally, once some daily memories exist, ask ChatGPT for a theme across them
    with `memory_submit_theme` (preflight first). Themes stay ChatGPT's inference,
    linked to the memories they cite ([ADR-MEM-174](../adr/174-chatgpt-themes.md)).
+7. For day-to-day use (what to put in ChatGPT's custom instructions), see
+   [CHATGPT_CONNECTOR_USAGE.md](CHATGPT_CONNECTOR_USAGE.md).
 
 ## Not covered
 
