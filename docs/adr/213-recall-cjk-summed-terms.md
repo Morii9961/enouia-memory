@@ -1,7 +1,7 @@
 # ADR-MEM-213 — CJK recall sums weighted terms, with repeats as tie-breaks
 
-Date: 2026-11-24. Status: Accepted (route: ChatGPT daily use and Runtime
-recall); synthetic validation. Replaces the CJK scoring of ADR-MEM-212,
+Date: 2026-11-24. Status: Accepted and adopted by Runtime (#256); refined by
+ADR-MEM-214 (route: ChatGPT daily use and Runtime recall); synthetic validation. Replaces the CJK scoring of ADR-MEM-212,
 after the Runtime session's fourth real-library check.
 
 ## Context

@@ -260,29 +260,44 @@ pub struct RecallTerms {
 pub const MAX_RECALL_FRAGMENTS: usize = 256;
 /// ADR-MEM-209/212: Chinese, Japanese and Korean are written without spaces,
 /// so their runs are matched by fragment.
+/// ADR-MEM-214: characters that ask rather than name: sentence particles
+/// and interrogatives. A question is matched against statements, where these
+/// are rare, so rarity would overrate them; they split CJK runs instead.
+pub const RECALL_QUESTION_CHARS: &str = "吗呢吧啊呀嘛么什怎哪谁几";
 pub fn recall_terms(text: &str) -> RecallTerms {
-    let cjk = |c: char| matches!(c, '\u{3040}'..='\u{30ff}' | '\u{3400}'..='\u{4dbf}' | '\u{4e00}'..='\u{9fff}' | '\u{f900}'..='\u{faff}' | '\u{ac00}'..='\u{d7af}');
+    // 0: other text, 1: CJK, 2: a question character (dropped).
+    let kind = |c: char| {
+        if RECALL_QUESTION_CHARS.contains(c) {
+            2
+        } else if matches!(c, '\u{3040}'..='\u{30ff}' | '\u{3400}'..='\u{4dbf}' | '\u{4e00}'..='\u{9fff}' | '\u{f900}'..='\u{faff}' | '\u{ac00}'..='\u{d7af}')
+        {
+            1
+        } else {
+            0
+        }
+    };
     let mut terms = RecallTerms::default();
     let mut seen = BTreeSet::new();
     for word in text.split_whitespace() {
         let word = word.to_lowercase();
-        if seen.insert(word.clone()) {
+        let chars: Vec<char> = word.chars().collect();
+        if !chars.iter().all(|c| kind(*c) == 2) && seen.insert(word.clone()) {
             terms.words.push(word.clone());
         }
-        let chars: Vec<char> = word.chars().collect();
         let mut start = 0;
         while start < chars.len() {
-            let kind = cjk(chars[start]);
+            let this = kind(chars[start]);
             let mut end = start;
-            while end < chars.len() && cjk(chars[end]) == kind {
+            while end < chars.len() && kind(chars[end]) == this {
                 end += 1;
             }
             let run: String = chars[start..end].iter().collect();
-            if kind {
+            if this == 1 {
                 if !terms.runs.contains(&run) {
                     terms.runs.push(run);
                 }
-            } else if run.chars().filter(|c| c.is_alphanumeric()).count() >= 2
+            } else if this == 0
+                && run.chars().filter(|c| c.is_alphanumeric()).count() >= 2
                 && seen.insert(run.clone())
             {
                 terms.words.push(run);
@@ -328,9 +343,17 @@ fn select_with_limit(
         rendered_bytes: 0,
     };
     let terms = recall_terms(&query.text);
+    // ADR-MEM-214: recall matches a memory's content and its title.
     let bodies: Vec<String> = candidates
         .iter()
-        .map(|c| c.memory.decision.input.content.to_lowercase())
+        .map(|c| {
+            let input = &c.memory.decision.input;
+            match &input.record_fields {
+                Some(fields) => format!("{}\n{}", input.content, fields.title),
+                None => input.content.clone(),
+            }
+            .to_lowercase()
+        })
         .collect();
     // ADR-MEM-213: each CJK run of the query gives its two-character pieces
     // and its characters. A term weighs log2(N / df) over the candidates, in
@@ -340,14 +363,18 @@ fn select_with_limit(
     let n = candidates.len() as u64;
     let df = |term: &str| bodies.iter().filter(|b| b.contains(term)).count() as u64;
     let weight = |df: u64| n.checked_div(df).map_or(0, |q| u64::from(q.ilog2()));
-    let mut pieces: Vec<(String, u64)> = Vec::new();
+    // ADR-MEM-214: a piece is a word, not a chance pairing, when it holds
+    // more than a quarter of its rarer character's memories: 京都 holds most
+    // of 京, while 过京 (from "说过京都") holds almost none. A chance pairing
+    // is weak whatever its weight.
+    let mut pieces: Vec<(String, u64, bool)> = Vec::new();
     let mut chars: Vec<(String, u64)> = Vec::new();
     for run in &terms.runs {
         let run: Vec<char> = run.chars().collect();
         for pair in run.windows(2) {
             let text: String = pair.iter().collect();
             if pieces.len() + chars.len() >= MAX_RECALL_FRAGMENTS
-                || pieces.iter().any(|(t, _)| *t == text)
+                || pieces.iter().any(|(t, ..)| *t == text)
             {
                 continue;
             }
@@ -363,7 +390,7 @@ fn select_with_limit(
                 weight(found.max(rarer))
             };
             if w > 0 {
-                pieces.push((text, w));
+                pieces.push((text, w, found * 4 > rarer));
             }
         }
         for c in &run {
@@ -379,16 +406,37 @@ fn select_with_limit(
             }
         }
     }
-    // ADR-MEM-213: CJK terms cue a memory through a piece of weight 2 (in at
-    // most a quarter of the memories) or a character of weight 4 (at most 1
-    // in 16), so 酒 or 茶 can find a memory and 我 or 的 cannot. A library
-    // too small to reach these uses the heaviest weight it has.
-    let heaviest = |terms: &[(String, u64)]| terms.iter().map(|(_, w)| *w).max().unwrap_or(0);
-    let (piece_cue, char_cue) = (heaviest(&pieces).min(2), heaviest(&chars).min(4));
+    // ADR-MEM-214: strong terms decide; weak ones only order ties. A piece is
+    // strong at weight 3 (in at most an eighth of the memories), a character
+    // at weight 4 (at most 1 in 16): 京都, 酒 or 茶 are strong, a chance
+    // pairing of common characters such as 去过 is weak. A library too small
+    // to reach these uses the heaviest weight it has.
+    let piece_strong = pieces
+        .iter()
+        .filter(|(.., word)| *word)
+        .map(|(_, w, _)| *w)
+        .max()
+        .unwrap_or(0)
+        .min(3);
+    let char_strong = chars.iter().map(|(_, w)| *w).max().unwrap_or(0).min(4);
     let cjk = !pieces.is_empty() || !chars.is_empty();
+    // A title names what a memory is about: a strong piece in it counts as
+    // two body mentions (ADR-MEM-214).
+    let titles: Vec<String> = candidates
+        .iter()
+        .map(|c| {
+            c.memory
+                .decision
+                .input
+                .record_fields
+                .as_ref()
+                .map_or(String::new(), |f| f.title.to_lowercase())
+        })
+        .collect();
     let lexical: Vec<u64> = bodies
         .iter()
-        .map(|body| {
+        .zip(&titles)
+        .map(|(body, title)| {
             let words = terms
                 .words
                 .iter()
@@ -397,30 +445,58 @@ fn select_with_limit(
             if !cjk {
                 return words;
             }
-            // Every matched term adds its weight once; a character inside a
-            // matched piece is not counted again.
-            let mut cued = words > 0;
+            // A strong piece counts up to twice (a title and its body, or a
+            // memory returning to the word); a character inside a matched
+            // piece is not counted again; weak terms and further repeats only
+            // break ties.
+            let mut strong = words;
+            let mut weak = 0;
             let mut covered = BTreeSet::new();
-            let mut sum = words;
-            let mut repeats = 0;
-            for (piece, w) in &pieces {
+            for (piece, w, word) in &pieces {
                 let times = body.matches(piece.as_str()).take(4).count() as u64;
-                if times > 0 {
-                    sum += w;
-                    repeats += times - 1;
-                    cued |= *w >= piece_cue;
-                    covered.extend(piece.chars());
+                if times == 0 {
+                    continue;
+                }
+                covered.extend(piece.chars());
+                if *word && *w >= piece_strong {
+                    let named = if title.contains(piece.as_str()) { 1 } else { 0 };
+                    let mentions = times + named;
+                    strong += w * mentions.min(2);
+                    weak += mentions.saturating_sub(2);
+                } else {
+                    weak += w;
                 }
             }
             for (c, w) in &chars {
                 if body.contains(c.as_str()) && !c.chars().any(|c| covered.contains(&c)) {
-                    sum += w;
-                    cued |= *w >= char_cue;
+                    if *w >= char_strong {
+                        strong += w;
+                    } else {
+                        weak += w;
+                    }
                 }
             }
-            // Repeats only break ties: a lexical unit is 4, repeats add at
-            // most 3.
-            if cued { sum * 4 + repeats.min(3) } else { 0 }
+            // ADR-MEM-214: holding a whole run of three or more characters
+            // (摄影集) adds its heaviest piece once more.
+            for run in &terms.runs {
+                if run.chars().count() >= 3 && body.contains(run.as_str()) {
+                    strong += run
+                        .chars()
+                        .collect::<Vec<_>>()
+                        .windows(2)
+                        .filter_map(|pair| {
+                            let text: String = pair.iter().collect();
+                            pieces.iter().find(|(t, ..)| *t == text).map(|(_, w, _)| *w)
+                        })
+                        .max()
+                        .unwrap_or(0);
+                }
+            }
+            if strong == 0 {
+                0
+            } else {
+                strong * 16 + weak.min(15)
+            }
         })
         .collect();
     let mut ranked = Vec::new();

@@ -230,16 +230,20 @@ fn recall_terms_keep_words_and_cjk_runs() {
     let spaced = recall_terms("喝 茶 喝茶");
     assert_eq!(spaced.words, ["喝", "茶", "喝茶"]);
     assert_eq!(spaced.runs, ["喝", "茶", "喝茶"]);
+    // ADR-MEM-214: punctuation and question characters end a run.
     let question = recall_terms("我平时喜欢喝什么茶？");
-    assert_eq!(
-        question.runs,
-        ["我平时喜欢喝什么茶"],
-        "punctuation ends a run"
-    );
+    assert_eq!(question.runs, ["我平时喜欢喝", "茶"]);
+    let kyoto = recall_terms("我去过京都吗");
+    assert_eq!(kyoto.runs, ["我去过京都"]);
+    assert_eq!(recall_terms("什么").words, Vec::<String>::new());
 }
 
 /// Synthetic memories with the given texts, as recall candidates.
+/// A text may carry a title before " | " (ADR-MEM-214).
 fn library(texts: &[&str]) -> Vec<MachineMemory> {
+    let fields: Value =
+        support::fixture("../catalog/admitted.json")["delta"]["requests"][0]["record_fields"]
+            .clone();
     texts
         .iter()
         .enumerate()
@@ -247,7 +251,13 @@ fn library(texts: &[&str]) -> Vec<MachineMemory> {
             let mut m = memory();
             m.memory.memory_id =
                 MemoryId::parse(&format!("mem_{n:08x}-0000-4000-8000-000000000002")).unwrap();
-            m.decision.input.content = (*text).into();
+            let (title, content) = text.split_once(" | ").unwrap_or(("", text));
+            m.decision.input.content = content.into();
+            if !title.is_empty() {
+                let mut f: MemoryRecordFields = serde_json::from_value(fields.clone()).unwrap();
+                f.title = title.into();
+                m.decision.input.record_fields = Some(f);
+            }
             m
         })
         .collect()
@@ -408,5 +418,50 @@ fn repeats_break_ties_only() {
         matcha.first(),
         Some(&memories[2].memory.memory_id),
         "{matcha:?}"
+    );
+}
+
+/// ADR-MEM-214, from Runtime's check of ADR-MEM-213: memories about 京都,
+/// one naming it only in its title, lead memories that mention it once among
+/// the question's common characters.
+#[test]
+fn titles_count_and_a_rare_word_outweighs_common_characters() {
+    let memories = with_filler(
+        &[
+            "京都Day8：鸭川日落与宇治抹茶 | 满行程两万多步，鸭川日落，宇治抹茶",
+            "京都Day9：雨中三千院 | 雨中去了三千院和琉璃光院，京都的雨很安静",
+            "日本行Day7：第一次新干线到京都 | 坐新干线到了京都，夜间参拜",
+            "我去过很多地方，也说过京都很好，但陪伴的意义不在去过哪里，我过得很好",
+            "我去看过一部小说，主角去过的地方，我也想去，我过去常去",
+            "向往东京长期生活，东京的冬天",
+            "北京的朋友来看我",
+        ],
+        60,
+    );
+    let kyoto = recalled(&memories, "我去过京都吗");
+    for (diary, m) in memories.iter().enumerate().take(3) {
+        assert!(
+            kyoto[..3].contains(&m.memory.memory_id),
+            "diary {diary} among the first three: {kyoto:?}"
+        );
+    }
+}
+
+/// ADR-MEM-214: the memory holding the whole word 摄影集 leads a broader
+/// memory about 摄影, even one that also hits another character.
+#[test]
+fn the_whole_word_leads_a_broader_memory() {
+    let memories = with_filler(
+        &[
+            "主人喜爱摄影，摄影找小众地点，摄影多年，摄影器材，周末逛集市",
+            "第一本摄影集从设计到印成实物",
+        ],
+        60,
+    );
+    let photos = recalled(&memories, "摄影集");
+    assert_eq!(
+        photos.first(),
+        Some(&memories[1].memory.memory_id),
+        "{photos:?}"
     );
 }

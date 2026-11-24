@@ -1,5 +1,14 @@
 # Runtime integration (ADR-MEM-45)
 
+2026-11-24 titles and strong words ([ADR-MEM-214](../adr/214-recall-titles-and-strong-words.md)), after Runtime
+adopted baf55b6 (Runtime #256) and reported the remaining real-library issues: recall now matches each memory's
+content and title (all queries); question characters (吗呢吧啊呀嘛么什怎哪谁几) split CJK runs; a piece holding a
+quarter or less of its rarer character's memories is a weak chance pairing (过京); strong terms (words of weight 3,
+characters of weight 4, a title mention counting twice) score ×16 over a tie-break of weak terms; a memory holding
+a whole run of three or more characters earns a bonus. **Runtime adoption:** bump the pin only after the same
+real-library set (16 KB and 64 KB) is no worse than baf55b6; expected: Kyoto diaries (including the title-only
+Day8) lead "我去过京都吗" and the 摄影集 memory leads "摄影集". Surface aggregate: `6ddbe1c5c5f5173882f8b3d3b34d0a3acecaab9a61784cad12d0fb58c7476d42`.
+
 2026-11-24 CJK summed terms ([ADR-MEM-213](../adr/213-recall-cjk-summed-terms.md)), after Runtime's fourth
 real-library check (ADR-MEM-212 lost 第一次喝酒 and tied all 京都 memories; Runtime stayed on abdcacf): CJK scoring
 returns to ADR-MEM-210's sum of piece and character weights without its half-of-best floor; a piece is never
