@@ -249,3 +249,82 @@ fn tool_results_carry_a_grant_notice_near_the_grant_end() {
             .is_none()
     );
 }
+
+/// ADR-MEM-195: turn times as ChatGPT writes them, and why arguments fail.
+#[test]
+fn chatgpt_turn_times_become_utc_and_bad_arguments_say_why() {
+    use enouia_memory_host::mcp::remote::chatgpt::{conversation_arguments, utc_time};
+    for (given, utc) in [
+        (
+            "2026-11-24T21:05:00+08:00",
+            Some("2026-11-24T13:05:00.000Z"),
+        ),
+        ("2026-11-24T13:05:00Z", Some("2026-11-24T13:05:00.000Z")),
+        ("2026-11-24t13:05:00.5z", Some("2026-11-24T13:05:00.500Z")),
+        (
+            "2026-11-24T01:05:00.123456-05:30",
+            Some("2026-11-24T06:35:00.123Z"),
+        ),
+        (
+            "2026-11-24T00:30:00+08:00",
+            Some("2026-11-23T16:30:00.000Z"),
+        ),
+        ("2026-11-24 13:05:00", None),
+        ("2026-11-24T13:05:00", None),
+        ("2026-11-24T13:05:00+8", None),
+        ("2026-13-24T13:05:00Z", None),
+        ("２０２６-11-24T13:05:00Z", None),
+    ] {
+        assert_eq!(utc_time(given).as_deref(), utc, "{given}");
+    }
+    let mut args = json!({"submission": {"request": {"request_id": "k", "conversation_id": "c", "turns": [
+        {"message_id": "a", "speaker": "user", "text": "hi", "occurred_at": "2026-11-24T21:05:00+08:00"},
+        {"message_id": "b", "speaker": "user", "text": "hi", "occurred_at": "2026-11-24T13:05:00.000Z"}
+    ]}, "analyst_model": "m", "statements": []}});
+    conversation_arguments(&mut args);
+    let turns = &args["submission"]["request"]["turns"];
+    assert_eq!(turns[0]["occurred_at"], "2026-11-24T13:05:00.000Z");
+    assert_eq!(turns[0]["original_time"], "2026-11-24T21:05:00+08:00");
+    assert_eq!(turns[1]["occurred_at"], "2026-11-24T13:05:00.000Z");
+    assert_eq!(turns[1]["original_time"], Value::Null);
+
+    // An extra field ChatGPT invents is named in the refusal.
+    let e = owner_env();
+    let v = Arc::new(e.create(Faults::none()));
+    let writer = ConnectorWriter::new(
+        v.clone(),
+        e.descriptor.created_by.clone(),
+        ActorRef {
+            actor_type: ActorType::Client,
+            actor_id: PrincipalId::parse(&id("prn", 88)).unwrap(),
+        },
+        ConnectorConfig {
+            account_scope: "chatgpt-connector-synthetic".into(),
+            default_timezone: "Asia/Shanghai".into(),
+            max_sensitivity: Sensitivity::Private,
+            allowed_forms: vec![FormationKind::Preference],
+            window_days: 30,
+        },
+    )
+    .unwrap();
+    let clock = FakeClock::new(NOW);
+    let ids = SequentialIdSource::new(40);
+    let profile: AttentionProfile =
+        serde_json::from_value(value("attention/profile.json")).unwrap();
+    let scopes = vec!["memory.read".to_string(), "memory.write".to_string()];
+    let mut s = ConnectorSession::new(Stub, Some(&writer), &scopes, &clock, &ids, &profile);
+    for m in init() {
+        s.handle(&m);
+    }
+    let bad = json!({"request": {"request_id": "k", "conversation_id": "c", "turns": [
+        {"message_id": "a", "speaker": "user", "text": "hi", "created_at": "today"}
+    ]}, "analyst_model": "m", "statements": []});
+    let refused = s.handle(&call(9, json!({"submission": bad}))).unwrap();
+    assert_eq!(refused["result"]["isError"], true);
+    let data = &refused["result"]["structuredContent"];
+    assert_eq!(data["error"], "invalid_arguments");
+    assert!(
+        data["problems"][0].as_str().unwrap().contains("created_at"),
+        "{data}"
+    );
+}

@@ -1,5 +1,9 @@
 # Runtime integration (ADR-MEM-45)
 
+2026-11-24 ChatGPT turn times and argument errors ([ADR-MEM-195](../adr/195-chatgpt-turn-times-and-argument-errors.md)):
+connector turns sent with an RFC 3339 offset time are stored in UTC with the given text as
+`original_time`. Remote connector only; Runtime needs no change. Surface aggregate: `16f4c2222eae3a101bf65cf02c622831b10b042fe1580d1867c24e3384d9691d`.
+
 2026-11-24 Busy hint and VPS renewal ([ADR-MEM-194](../adr/194-remote-busy-hint-and-vps-renewal.md)):
 remote admin commands explain a held Vault. Remote service only; Runtime needs no change. Surface
 aggregate: `1c2ac666d0faf5aff7fdef7731847eb746b1907e68755be3ab9831d5a457e4c7`.

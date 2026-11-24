@@ -1193,3 +1193,9 @@ conversation; with no reason found, the generic error stays.
 
 [Decision](194-remote-busy-hint-and-vps-renewal.md): commands that find the Vault held say which kind
 of process to stop; the grant guide adds the systemd stop/renew/confirm/start sequence for the VPS.
+
+### ADR-MEM-195 — ChatGPT turn times become UTC; argument errors say why
+
+[Decision](195-chatgpt-turn-times-and-argument-errors.md): short-form `occurred_at` in any RFC 3339
+form is converted to the Vault's UTC millisecond form (original text kept as `original_time`); argument
+parse failures answer `invalid_arguments` with the parser's message in `problems`.
