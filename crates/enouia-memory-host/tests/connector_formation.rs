@@ -485,6 +485,25 @@ fn a_conversation_continues_across_windows() {
         w.submission_problems(&next).is_empty(),
         "a replay is not a resend"
     );
+    // ADR-MEM-191: the same ID on a different text is a reused ID, not a
+    // resend: ChatGPT is told to rename it, never to drop the new message.
+    let reused = ConnectorSubmission {
+        request: {
+            let mut r = request(10, "Today I tried oolong.");
+            r.turns[0].message_id = "m1".into();
+            r.turns[0].parent_message_id = None;
+            r
+        },
+        analyst_model: "synthetic-chatgpt-model".into(),
+        statements: vec![],
+    };
+    assert!(w.submit(&reused, false, later).is_err());
+    let problems = w.submission_problems(&reused);
+    assert_eq!(problems.len(), 1, "{problems:?}");
+    assert!(
+        problems[0].contains("message_id m1 already names a different message"),
+        "{problems:?}"
+    );
     assert_eq!(conversations.len(), 2, "{conversations:?}");
     assert_eq!(conversations[0], ("chatgpt-synthetic".into(), 1, 0));
     assert!(conversations[1].0.starts_with("chatgpt-synthetic#pol_"));

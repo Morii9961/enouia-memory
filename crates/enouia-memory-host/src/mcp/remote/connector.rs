@@ -260,13 +260,13 @@ pub fn tool() -> Value {
                             "description": "The conversation. Constants, branch, sequence, parent and language are filled in; the full runtime-owner-capture form is also accepted.",
                             "properties": {
                                 "request_id": {"type": "string", "maxLength": 128, "description": "Any stable key for this submission; the same key replays instead of writing twice."},
-                                "conversation_id": {"type": "string", "maxLength": 256},
+                                "conversation_id": {"type": "string", "maxLength": 256, "description": "One stable ID for this chat, reused in every later submission of the same chat."},
                                 "title": {"type": ["string", "null"], "maxLength": 256},
                                 "turns": {"type": "array", "minItems": 1, "maxItems": 8, "items": {
                                     "type": "object",
                                     "required": ["message_id", "speaker", "text"],
                                     "properties": {
-                                        "message_id": {"type": "string", "maxLength": 256},
+                                        "message_id": {"type": "string", "maxLength": 256, "description": "Unique within this chat across all submissions: never reuse an ID for a different message (for example 2026-11-24-3)."},
                                         "speaker": {"enum": ["user", "assistant"]},
                                         "text": {"type": "string"},
                                         "occurred_at": {"type": ["string", "null"], "description": "RFC 3339 time of the turn, if known."},

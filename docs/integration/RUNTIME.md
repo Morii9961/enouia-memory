@@ -1,5 +1,9 @@
 # Runtime integration (ADR-MEM-45)
 
+2026-11-24 reused message IDs ([ADR-MEM-191](../adr/191-connector-reused-message-ids.md)):
+`ConnectorWriter::resent_turns` now returns `(message_id, same_text)` pairs; a reused ID gets its own
+refusal reason. Remote connector only; Runtime needs no change. Surface aggregate: `59a0029490c846c4f96b62d843bd58b010e870f0e4bbc38be399236f060206eb`.
+
 2026-11-24 grant end notice ([ADR-MEM-190](../adr/190-connector-grant-end-notice.md)): in the
 read grant's last 14 days, connector tool results carry `grant_notice`. Remote connector only; Runtime
 needs no change. Surface aggregate: `40319b3d6dab07b5d972e214df9d73d09325e626647b4b47aa5b00051c12404d`.

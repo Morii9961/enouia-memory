@@ -72,7 +72,8 @@ ChatGPT 可以读你的记忆，也可以提交新记忆。本页说明怎样让
 > 每天对话结束时，调用 `memory_submit_conversation`：附上今天新增的对话原文（只发还没提交过的
 > 消息；request_id 用“日期-主题”这样的字符串），以及从我的原话里提炼出的记忆。每条记忆都要
 > 逐字引用我说的一句话，并在 `entities` 里写出提到的人和地点。先用 `preflight: true` 检查，
-> 没问题再正式提交；被拒时按 `problems` 修改。
+> 没问题再正式提交；被拒时按 `problems` 修改。同一个对话始终用同一个 `conversation_id`；
+> 每条消息的 `message_id` 用“日期-序号”（例如 2026-11-24-3），同一对话里永远不要重复使用。
 > 我说某条记忆不对或者要忘掉时，先提交包含这句话的对话，再用 `memory_request_correction` 或
 > `memory_request_forget` 提交请求，引用我的原话。
 > 每周用 `memory_search`（`days: 7`）看一次最近的记忆，如果有反复出现的主题，就用
@@ -88,5 +89,7 @@ ChatGPT 可以读你的记忆，也可以提交新记忆。本页说明怎样让
 - 返回 `invalid_submission`：同时会附带 `problems`，逐条说明哪里不对，例如引文没有逐字出现在
   那条 user 消息里、`kind` 不被允许、字段超长（[ADR181](../adr/181-connector-refusal-reasons.md)）。
   按提示修改后，用同一个 `request_id` 重新提交。
+- 提示 `message_id … already names a different message`：这个 ID 在同一对话里已经用给了另一条消息
+  （[ADR191](../adr/191-connector-reused-message-ids.md)）。给新消息换一个没用过的 ID 再提交，不要删掉这条消息。
 - 返回结果不确定（例如网络中断）：服务端会停止，不会自动重试；先在服务器上恢复，再用同一个
   `request_id` 查询或回放。
