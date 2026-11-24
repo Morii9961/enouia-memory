@@ -66,3 +66,21 @@ and no panics. The run adds coverage for the following:
 - **Same-chat continuation** (ADR-MEM-192). This includes a next-day
   short-form call through the real binary.
 - **Explained capture conflicts** (ADR-MEM-193).
+
+## Rerun at `main@6026b78` (after ADR-MEM-194 to 203)
+
+The same environment and per-package command. All four packages pass: 124
+test binaries, no failures and no panics. The run adds coverage for the
+following:
+
+- **Busy hint** (ADR-MEM-194).
+- **Turn-time conversion and argument reasons** (ADR-MEM-195/196).
+- **OAuth scope and resource tolerance** (ADR-MEM-197).
+- **MCP header tolerance** (ADR-MEM-198).
+- **Session eviction and continuity across permit renewal** (ADR-MEM-199/200).
+- **`Expect: 100-continue`** (ADR-MEM-201).
+- **Not-found note** (ADR-MEM-202).
+- **Per-member theme refusals** (ADR-MEM-203).
+
+The full Windows `enouia-memory-host` suite also passed at the same point
+(58 test binaries).
