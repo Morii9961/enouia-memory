@@ -354,11 +354,8 @@ fn select_with_limit(
     let n = candidates.len() as u64;
     let weigh = |term: &String| {
         let df = bodies.iter().filter(|b| b.contains(term.as_str())).count() as u64;
-        let weight = if df == 0 {
-            0
-        } else {
-            u64::from((n / df).ilog2())
-        };
+        // df never exceeds n, so a nonzero df gives a quotient of at least 1.
+        let weight = n.checked_div(df).map_or(0, |q| u64::from(q.ilog2()));
         (weight > 0).then(|| (term.clone(), weight))
     };
     let pieces: Vec<_> = terms.pieces.iter().filter_map(weigh).collect();
