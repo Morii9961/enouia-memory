@@ -433,7 +433,7 @@ impl<S: Session> Session for ConnectorSession<'_, S> {
                 .submit(&args.submission, args.preflight, now)
                 .map(|r| serde_json::to_value(r).unwrap_or(Value::Null));
             if matches!(outcome, Err(ApplicationFault::Invalid)) {
-                let problems = args.submission.problems(&writer.config().allowed_forms);
+                let problems = writer.submission_problems(&args.submission);
                 return Some(result(
                     &id,
                     json!({"error": "invalid_submission", "problems": problems}),
