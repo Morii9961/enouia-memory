@@ -502,7 +502,7 @@ fn daily_flow(e: &Env, p: &AutomationPolicy, before: usize, root: &VerifiedRoot)
         "request": {
             "request_id": "chatgpt-2026-11-25-cafe",
             "conversation_id": "chatgpt-synthetic-2",
-            "turns": [{"message_id": "2026-11-25-1", "speaker": "user", "text": "Still the window seat for me."}]
+            "turns": [{"message_id": "2026-11-25-1", "speaker": "user", "text": "Still the window seat for me.", "occurred_at": "2026-11-25T09:00:00+08:00"}]
         },
         "analyst_model": "synthetic-chatgpt-model",
         "statements": []

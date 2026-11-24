@@ -278,6 +278,49 @@ fn fill(object: &mut Map<String, Value>, key: &str, value: Value) {
     object.entry(key).or_insert(value);
 }
 
+/// ADR-MEM-195: an RFC 3339 time with any offset and precision, as the
+/// Vault's UTC millisecond form; `None` when it is not one.
+pub fn utc_time(value: &str) -> Option<String> {
+    let b = value.as_bytes();
+    if !value.is_ascii()
+        || b.len() < 20
+        || b[4] != b'-'
+        || b[7] != b'-'
+        || !matches!(b[10], b'T' | b't')
+        || b[13] != b':'
+        || b[16] != b':'
+    {
+        return None;
+    }
+    let mut rest = &value[19..];
+    let mut millis = "000".to_owned();
+    if let Some(fraction) = rest.strip_prefix('.') {
+        let digits = fraction.bytes().take_while(u8::is_ascii_digit).count();
+        if digits == 0 {
+            return None;
+        }
+        millis = format!("{:0<3}", &fraction[..digits.min(3)]);
+        rest = &fraction[digits..];
+    }
+    let offset_minutes = match rest {
+        "Z" | "z" => 0,
+        _ => {
+            let sign = match rest.as_bytes().first()? {
+                b'+' => 1,
+                b'-' => -1,
+                _ => return None,
+            };
+            let (h, m) = rest[1..].split_once(':')?;
+            if h.len() != 2 || m.len() != 2 {
+                return None;
+            }
+            sign * (h.parse::<i64>().ok()? * 60 + m.parse::<i64>().ok()?)
+        }
+    };
+    let local = Timestamp::parse(&format!("{}T{}.{millis}Z", &value[..10], &value[11..19])).ok()?;
+    Timestamp::from_unix_ms(local.unix_ms() - offset_minutes * 60_000).map(|t| t.to_string())
+}
+
 fn unknown_time() -> Value {
     json!({"from": null, "until": null, "precision": "unknown", "bound": "within", "tz": null, "basis": "unknown"})
 }
@@ -308,6 +351,18 @@ pub fn conversation_arguments(arguments: &mut Value) {
             let Some(turn) = turn.as_object_mut() else {
                 continue;
             };
+            // ADR-MEM-195: a turn time as ChatGPT writes it becomes UTC; the
+            // text it gave is kept as the original time.
+            if let Some(given) = turn
+                .get("occurred_at")
+                .and_then(Value::as_str)
+                .map(str::to_owned)
+                && Timestamp::parse(&given).is_err()
+                && let Some(utc) = utc_time(&given)
+            {
+                turn.insert("occurred_at".into(), json!(utc));
+                fill(turn, "original_time", json!(given));
+            }
             fill(turn, "parent_message_id", parent.clone());
             fill(turn, "branch_id", json!("main"));
             fill(turn, "sequence", json!(index + 1));

@@ -129,8 +129,15 @@ impl<'w, S: Session> ConnectorSession<'w, S> {
                 true,
             ))
         };
-        let Ok(args) = serde_json::from_value::<RequestArguments>(arguments) else {
-            return Some(result(id, json!({"error": "invalid_arguments"}), true));
+        let args = match serde_json::from_value::<RequestArguments>(arguments) {
+            Ok(args) => args,
+            Err(e) => {
+                return Some(result(
+                    id,
+                    json!({"error": "invalid_arguments", "problems": [e.to_string()]}),
+                    true,
+                ));
+            }
         };
         let text = if name == CORRECTION_TOOL {
             args.correction
@@ -269,7 +276,7 @@ pub fn tool() -> Value {
                                         "message_id": {"type": "string", "maxLength": 256, "description": "Unique within this chat across all submissions: never reuse an ID for a different message (for example 2026-11-24-3)."},
                                         "speaker": {"enum": ["user", "assistant"]},
                                         "text": {"type": "string"},
-                                        "occurred_at": {"type": ["string", "null"], "description": "RFC 3339 time of the turn, if known."},
+                                        "occurred_at": {"type": ["string", "null"], "description": "RFC 3339 time of the turn with any offset (for example 2026-11-24T21:05:00+08:00), if known; otherwise leave it out."},
                                         "assistant_model": {"type": ["string", "null"], "maxLength": 128}
                                     }
                                 }}
@@ -414,8 +421,15 @@ impl<S: Session> ConnectorSession<'_, S> {
         }
         let outcome = if call_name == Some(THEME_TOOL) {
             chatgpt::theme_arguments(&mut arguments);
-            let Ok(args) = serde_json::from_value::<ThemeArguments>(arguments) else {
-                return Some(result(&id, json!({"error": "invalid_arguments"}), true));
+            let args = match serde_json::from_value::<ThemeArguments>(arguments) {
+                Ok(args) => args,
+                Err(e) => {
+                    return Some(result(
+                        &id,
+                        json!({"error": "invalid_arguments", "problems": [e.to_string()]}),
+                        true,
+                    ));
+                }
             };
             let outcome = writer
                 .submit_theme(&args.theme, args.preflight, now)
@@ -434,8 +448,16 @@ impl<S: Session> ConnectorSession<'_, S> {
             outcome
         } else {
             chatgpt::conversation_arguments(&mut arguments);
-            let Ok(args) = serde_json::from_value::<Arguments>(arguments) else {
-                return Some(result(&id, json!({"error": "invalid_arguments"}), true));
+            // ADR-MEM-195: say why the arguments did not parse.
+            let args = match serde_json::from_value::<Arguments>(arguments) {
+                Ok(args) => args,
+                Err(e) => {
+                    return Some(result(
+                        &id,
+                        json!({"error": "invalid_arguments", "problems": [e.to_string()]}),
+                        true,
+                    ));
+                }
             };
             let outcome = writer
                 .submit(&args.submission, args.preflight, now)
