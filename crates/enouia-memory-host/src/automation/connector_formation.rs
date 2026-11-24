@@ -168,6 +168,16 @@ pub struct ConnectorReceipt {
     pub jobs: Vec<ProducerJobStatus>,
     /// True when preflight found no open window; one would be opened on submit.
     pub window_needed: bool,
+    /// ADR-MEM-183: the current memories formed from this submission's
+    /// captured turns, so ChatGPT can cite them without searching.
+    pub memories: Vec<FormedMemory>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct FormedMemory {
+    pub memory_id: MemoryId,
+    pub revision: Revision,
+    pub title: String,
 }
 
 type Key = (String, String);
@@ -694,6 +704,7 @@ impl ConnectorWriter {
                             queue: None,
                             jobs: vec![],
                             window_needed: true,
+                            memories: vec![],
                         });
                     }
                     None => {
@@ -736,6 +747,7 @@ impl ConnectorWriter {
                 queue: None,
                 jobs: vec![],
                 window_needed: false,
+                memories: vec![],
             });
         }
         self.analyzer
@@ -768,7 +780,40 @@ impl ConnectorWriter {
             .as_ref()
             .map(|q| q.job_keys.clone())
             .unwrap_or_default();
+        let sources: std::collections::BTreeSet<_> =
+            capture.sources.iter().map(|r| &r.source_id).collect();
+        let memories = self.vault.read_scoped(
+            &self.vault.descriptor().system_actor,
+            self.config.max_sensitivity,
+            SystemReadScope::MoriiFullHistory,
+            |d| {
+                d.memories
+                    .iter()
+                    .filter(|m| {
+                        let input = &m.memory.decision.input;
+                        input.policy.policy_id == policy.policy_id
+                            && input
+                                .input_refs
+                                .iter()
+                                .any(|r| sources.contains(&r.source_id))
+                    })
+                    .map(|m| FormedMemory {
+                        memory_id: m.memory.memory.memory_id.clone(),
+                        revision: m.memory.memory.revision,
+                        title: m
+                            .memory
+                            .decision
+                            .input
+                            .record_fields
+                            .as_ref()
+                            .map(|f| f.title.clone())
+                            .unwrap_or_default(),
+                    })
+                    .collect()
+            },
+        )?;
         Ok(ConnectorReceipt {
+            memories,
             jobs: formation
                 .status()
                 .into_iter()

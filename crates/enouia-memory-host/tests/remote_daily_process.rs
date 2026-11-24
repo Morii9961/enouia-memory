@@ -429,7 +429,12 @@ fn daily_flow(e: &Env, p: &AutomationPolicy, before: usize, root: &VerifiedRoot)
     assert_eq!(search(&mut rpc), baseline);
     let formed = submit(&mut rpc, first.clone(), false);
     assert_eq!(formed["jobs"][0]["state"], "formed", "{formed}");
+    // ADR-MEM-183: the receipt names the memory it formed; a replay names it too.
+    let first_memories = formed["memories"].clone();
+    assert_eq!(first_memories.as_array().unwrap().len(), 1, "{formed}");
+    assert_eq!(first_memories[0]["title"], "window seat");
     let replayed = submit(&mut rpc, first, false);
+    assert_eq!(replayed["memories"], first_memories);
     assert!(
         replayed["jobs"]
             .as_array()
@@ -462,7 +467,9 @@ fn daily_flow(e: &Env, p: &AutomationPolicy, before: usize, root: &VerifiedRoot)
         .map(|j| j["state"].clone())
         .collect();
     assert!(states.contains(&json!("formed")), "{formed}");
-    let again = submit(&mut rpc, second, false);
+    let second_memories = formed["memories"].clone();
+    assert_eq!(second_memories.as_array().unwrap().len(), 1, "{formed}");
+    let again = submit(&mut rpc, second.clone(), false);
     assert!(
         again["jobs"]
             .as_array()
@@ -488,6 +495,11 @@ fn daily_flow(e: &Env, p: &AutomationPolicy, before: usize, root: &VerifiedRoot)
     );
     // The following grant sees the connector's new window on the next read.
     let after: BTreeSet<_> = search(&mut rpc).difference(&baseline).cloned().collect();
+    let receipted: BTreeSet<_> = [&first_memories[0], &second_memories[0]]
+        .iter()
+        .map(|m| m["memory_id"].as_str().unwrap().to_owned())
+        .collect();
+    assert_eq!(receipted, after);
     assert_eq!(after.len(), 2, "{after:?}");
     // ADR-MEM-182: `days` keeps memories learned recently; the fixture's
     // history was learned a month before the system clock.
@@ -547,6 +559,8 @@ fn daily_flow(e: &Env, p: &AutomationPolicy, before: usize, root: &VerifiedRoot)
         (json!(true), Some(theme_id.as_str()))
     );
     assert!(search(&mut rpc).contains(&theme_id));
+    // A theme over these memories is not listed as formed from the turns.
+    assert_eq!(submit(&mut rpc, second, false)["memories"], second_memories);
     let read = short(&mut rpc, "memory_read", json!({"memory_id": theme_id}));
     assert_ne!(read["isError"], json!(true), "{read}");
     let recalled = short(&mut rpc, "memory_recall", json!({"text": "window seat"}));
