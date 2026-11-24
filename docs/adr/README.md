@@ -1251,3 +1251,9 @@ quoted evidence).
 [Decision](204-remote-set-origin.md): `enouia-memory-remote set-origin <config> <https://host>` rewrites
 `resource` (keeping its path) and `issuer` after validating them like `serve`; other fields are
 untouched and a refused origin leaves the file as it was.
+
+### ADR-MEM-205 — `recover` finishes a publication an unknown outcome left half done
+
+[Decision](205-remote-recover-command.md): `enouia-memory-remote recover <config> --confirm-recover` opens the
+Vault and, only on `RecoveryRequired`, runs the Vault's explicit forward recovery under the descriptor's
+System actor; a cleanly opening Vault is untouched. Other commands and `serve`'s halt name it.

@@ -7,12 +7,14 @@
 //! `enouia-memory-remote backup <config.json> <backup-dir>` exports the
 //! stopped Vault into a new UTC-stamped directory and verifies it
 //! (ADR-MEM-188).
+//! `enouia-memory-remote recover <config.json> --confirm-recover` finishes a
+//! publication an unknown outcome left half done (ADR-MEM-205).
 use enouia_memory_contract::{
     common::{ActorRef, ActorType},
     foundation::Clock,
     ids::PolicyId,
     json::Revision,
-    next::OwnerReadGrant,
+    next::{AutomationDescriptor, OwnerReadGrant},
     ports::IdSource,
     time::Timestamp,
 };
@@ -26,7 +28,7 @@ use enouia_memory_vault::{OsIdSource, RootPolicy, SystemClock, fault::Faults, ve
 use std::sync::Arc;
 
 fn run(args: &[String]) -> Result<(), String> {
-    const USAGE: &str = "usage: enouia-memory-remote <serve|approve|backup|set-origin|read-check|read-status|read-draft|read-plan|read-set|read-renew-plan|read-revoke-plan|read-refresh-plan|oauth-status|oauth-revoke> <config.json> [arguments]";
+    const USAGE: &str = "usage: enouia-memory-remote <serve|approve|backup|recover|set-origin|read-check|read-status|read-draft|read-plan|read-set|read-renew-plan|read-revoke-plan|read-refresh-plan|oauth-status|oauth-revoke> <config.json> [arguments]";
     let [command, path, rest @ ..] = args else {
         return Err(USAGE.into());
     };
@@ -116,6 +118,57 @@ fn run(args: &[String]) -> Result<(), String> {
             );
             Ok(())
         }
+        // ADR-MEM-205: after an unknown outcome, roll a publication that
+        // reached the Vault forward; a Vault that opens cleanly is untouched.
+        "recover" => {
+            if rest != ["--confirm-recover"] {
+                return Err("recover <config> --confirm-recover".into());
+            }
+            let root = verify_data_root(&config.vault_root, &RootPolicy::default())
+                .map_err(|e| format!("vault root: {e:?}"))?;
+            let fault = |e: AutomationFault| {
+                match e {
+                AutomationFault::Busy => "vault: Busy; another process holds the Vault (the service, Runtime, a backup or another command); stop it first".to_string(),
+                e => format!("vault: {e:?}; recovery cannot finish this publication, restore the latest verified backup"),
+            }
+            };
+            let (vault, recovered) = match SegmentedAutomationVault::open(
+                &root,
+                config.host_id.clone(),
+                Arc::new(SystemClock),
+                Arc::new(OsIdSource),
+                Faults::none(),
+            ) {
+                Ok(vault) => (vault, false),
+                Err(AutomationFault::RecoveryRequired) => {
+                    let raw = std::fs::read(
+                        config
+                            .vault_root
+                            .join(enouia_memory_contract::layout::vault_descriptor()),
+                    )
+                    .map_err(|e| format!("vault descriptor: {e}"))?;
+                    let descriptor: AutomationDescriptor = serde_json::from_slice(&raw)
+                        .map_err(|e| format!("vault descriptor: {e}"))?;
+                    let vault = SegmentedAutomationVault::recover(
+                        &root,
+                        config.host_id.clone(),
+                        &descriptor.system_actor,
+                        Arc::new(SystemClock),
+                        Arc::new(OsIdSource),
+                        Faults::none(),
+                    )
+                    .map_err(fault)?;
+                    (vault, true)
+                }
+                Err(e) => return Err(fault(e)),
+            };
+            let head = vault.snapshot().map_err(|e| format!("snapshot: {e:?}"))?;
+            println!(
+                "{}",
+                serde_json::json!({"recovered": recovered, "commit_id": head.base_commit_id})
+            );
+            Ok(())
+        }
         "oauth-status" | "oauth-revoke" => {
             let client = match (command.as_str(), rest) {
                 ("oauth-status", []) => None,
@@ -141,6 +194,7 @@ fn run(args: &[String]) -> Result<(), String> {
             )
             .map_err(|e| match e {
                 AutomationFault::Busy => "vault: Busy; another process holds the Vault (the service, Runtime, a backup or another command); stop it first".to_string(),
+                AutomationFault::RecoveryRequired => "vault: RecoveryRequired; a publication was left half done; run `enouia-memory-remote recover <config> --confirm-recover` first".to_string(),
                 e => format!("vault: {e:?}"),
             })?;
             if command == "read-check" && rest.is_empty() {

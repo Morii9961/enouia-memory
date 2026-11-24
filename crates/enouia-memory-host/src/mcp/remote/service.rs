@@ -443,7 +443,7 @@ pub fn serve(
             forget.revoke();
         }
         if halted {
-            return Err("an outcome is unknown; recover the Vault before serving again".into());
+            return Err("an outcome is unknown; run `enouia-memory-remote recover <config> --confirm-recover`, then start the service again".into());
         }
     }
     Ok(())

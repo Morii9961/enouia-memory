@@ -99,8 +99,10 @@ Cloudflare 的临时隧道（trycloudflare，不需要域名和账号），在�
 
 ## 出问题时
 
-- serve 因结果未知退出：不要重启，也不要重试。先按原生恢复流程处理，再用同一个
-  `request_id` 查询。
+- serve 因结果未知退出：不要直接重启，也不要换新的 `request_id` 重试。先运行
+  `enouia-memory-remote recover <config> --confirm-recover`（[ADR205](../adr/205-remote-recover-command.md)），
+  它会把写到一半的那次提交补完，或者报告库本来就是完整的；再启动 serve，让 ChatGPT 用同一个
+  `request_id` 重发。`recover` 本身失败时，用最近一次校验过的导出恢复。
 - ChatGPT 报授权失败：检查 `resource` 和 `issuer` 是不是当前隧道的地址，审批码有没有过期。
 - 读不到新记忆：运行 `read-check`，确认授权有效、没有过期，`follow_new_sources` 是 true。
 

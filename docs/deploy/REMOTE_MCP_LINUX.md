@@ -131,7 +131,24 @@ WantedBy=multi-user.target
 ```
 
 If the service stops because an outcome is unknown, it exits with an error and
-stays down after the restart limit. Recover the Vault before starting it again.
+stays down after the restart limit. Recover before starting it again
+(ADR-MEM-205):
+
+```sh
+systemctl stop enouia-memory-remote
+sudo -u enouia enouia-memory-remote recover /etc/enouia-memory/remote.json --confirm-recover
+systemctl reset-failed enouia-memory-remote && systemctl start enouia-memory-remote
+```
+
+- `{"recovered": true, ...}`: a write had reached the Vault but was not
+  finished; it is now finished.
+- `{"recovered": false, ...}`: the Vault was already consistent; nothing
+  changed.
+
+Either way, ask ChatGPT to resend the same call with the same `request_id`. A
+write that landed replays its receipt; one that did not is written now. If
+`recover` itself fails, restore the latest verified export
+([SEGMENTED_MORII_BACKUP.md](SEGMENTED_MORII_BACKUP.md)).
 
 ## Logs (ADR-MEM-189)
 

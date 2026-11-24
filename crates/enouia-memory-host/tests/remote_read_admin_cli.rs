@@ -174,3 +174,55 @@ fn native_cli_previews_sets_renews_revokes_and_reports_without_source_text() {
     assert!(!final_status.to_string().contains("moonlight"));
     assert_eq!(cli(&config, &["oauth-status"])["clients"], json!([]));
 }
+
+/// ADR-MEM-205: `recover` finishes a publication an unknown outcome left half
+/// done, and leaves a cleanly opening Vault untouched.
+#[test]
+fn recover_rolls_a_half_done_publication_forward_once() {
+    use enouia_memory_host::automation::qualified_agent::QualifiedAgentHost;
+    use enouia_memory_vault::fault::{FaultAction, FaultPoint, Faults};
+    let faults = Faults::armed();
+    let (e, v, p, request) = correction_rig_with(SpeakerRole::User, faults.clone());
+    let owner = e.descriptor.created_by.clone();
+    let host =
+        QualifiedAgentHost::from_authenticated_initialized_owner(v.clone(), owner.clone()).unwrap();
+    let reporter = host
+        .correction_reporter(&owner, actor(ActorType::Agent, 88), scope(&p))
+        .unwrap();
+    let before = v.snapshot().unwrap();
+    faults.arm(FaultPoint::AfterCurrent, 1, FaultAction::Fail(121));
+    assert!(reporter.submit(&request).is_err());
+    drop(reporter);
+    drop(host);
+    drop(v);
+    let files = Env::new();
+    let config = files.path.join("remote.json");
+    std::fs::write(&config, json!({
+        "vault_root":e.root.path(),"host_id":e.descriptor.host_id,"state_dir":files.path.join("oauth"),"bind":"127.0.0.1:0",
+        "resource":"https://memory.example/mcp","issuer":"https://memory.example","redirect_prefixes":["https://chatgpt.com/"],"origins":[],
+        "agent_id":actor(ActorType::Agent, 88).actor_id,"subject_id":p.subject_id,"project_id":p.project_id,"policy_ids":[p.policy_id],"source_ids":[],
+        "max_sensitivity":"private","source_read":false,"profile":value("attention/profile.json")
+    }).to_string()).unwrap();
+    let run = |args: &[&str]| {
+        Command::new(env!("CARGO_BIN_EXE_enouia-memory-remote"))
+            .arg(args[0])
+            .arg(&config)
+            .args(&args[1..])
+            .output()
+            .unwrap()
+    };
+    let stuck = run(&["read-status"]);
+    assert!(!stuck.status.success());
+    assert!(String::from_utf8_lossy(&stuck.stderr).contains("--confirm-recover"));
+    assert!(!run(&["recover"]).status.success(), "the flag is required");
+    let recovered = cli(&config, &["recover", "--confirm-recover"]);
+    assert_eq!(recovered["recovered"], true);
+    assert_ne!(recovered["commit_id"], json!(before.base_commit_id));
+    let status = cli(&config, &["read-status"]);
+    assert_eq!(status["snapshot"]["base_commit_id"], recovered["commit_id"]);
+    let again = cli(&config, &["recover", "--confirm-recover"]);
+    assert_eq!(
+        again,
+        json!({"recovered": false, "commit_id": recovered["commit_id"]})
+    );
+}
