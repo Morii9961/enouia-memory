@@ -510,3 +510,89 @@ fn a_conversation_continues_across_windows() {
     // The continued turn lost its parent in the old window; the third kept its own.
     assert_eq!((conversations[1].1, conversations[1].2), (2, 1));
 }
+
+/// ADR-MEM-192: ChatGPT's short form numbers every call from 1 with no
+/// parent. A later call of the same chat continues after the recorded turns,
+/// and replays of either call still match what was recorded.
+#[test]
+fn a_later_call_of_the_same_chat_continues_after_its_recorded_turns() {
+    let e = owner_env();
+    let v = Arc::new(e.create(Faults::none()));
+    let w = ConnectorWriter::new(
+        v.clone(),
+        e.descriptor.created_by.clone(),
+        producer(),
+        config(),
+    )
+    .unwrap();
+    let call = |n: u32, message: &str, text: &str| {
+        let mut r = request(n, text);
+        r.turns[0].message_id = message.into();
+        r.turns[0].parent_message_id = None;
+        r.turns[0].sequence = 1;
+        ConnectorSubmission {
+            request: r,
+            analyst_model: "synthetic-chatgpt-model".into(),
+            statements: vec![statement(message, text.trim_end_matches('.'))],
+        }
+    };
+    let first = call(1, "2026-11-24-1", "I prefer quiet rooms.");
+    let second = call(2, "2026-11-25-1", "I also like tea.");
+    let third = call(3, "2026-11-26-1", "Green tea most of all.");
+    w.submit(&first, false, NOW).unwrap();
+    // Preflight already sees the continuation; nothing is written.
+    let before = v.snapshot().unwrap();
+    assert!(
+        w.submit(&second, true, NOW + 1000)
+            .unwrap()
+            .capture
+            .is_some()
+    );
+    assert_eq!(v.snapshot().unwrap(), before);
+    for (s, at) in [(&second, 1000), (&third, 2000)] {
+        let receipt = w.submit(s, false, NOW + at).unwrap();
+        assert!(receipt.capture.unwrap().captured);
+        assert_eq!(receipt.jobs[0].state, FormationJobState::Formed);
+    }
+    // Replays of an earlier and a later call match their records.
+    for s in [&first, &second, &third] {
+        assert!(
+            w.submit(s, false, NOW + 3000)
+                .unwrap()
+                .capture
+                .unwrap()
+                .replayed
+        );
+    }
+    let turns = v
+        .read_scoped(
+            &e.descriptor.system_actor,
+            Sensitivity::Private,
+            SystemReadScope::MoriiFullHistory,
+            |d| {
+                let message = |id: &enouia_memory_contract::ids::SourceId| {
+                    d.sources[id].record.original_message_id.clone().unwrap()
+                };
+                let c = d.conversations.values().next().unwrap();
+                c.turns
+                    .iter()
+                    .map(|t| {
+                        (
+                            message(&t.source.source_id),
+                            t.sequence,
+                            t.parent_source.as_ref().map(|p| message(&p.source_id)),
+                        )
+                    })
+                    .collect::<Vec<_>>()
+            },
+        )
+        .unwrap();
+    assert_eq!(
+        turns,
+        vec![
+            ("2026-11-24-1".into(), 1, None),
+            ("2026-11-25-1".into(), 2, Some("2026-11-24-1".into())),
+            ("2026-11-26-1".into(), 3, Some("2026-11-25-1".into())),
+        ]
+    );
+}

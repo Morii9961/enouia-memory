@@ -496,6 +496,21 @@ fn daily_flow(e: &Env, p: &AutomationPolicy, before: usize, root: &VerifiedRoot)
             .all(|j| j["receipts"].as_u64() <= Some(1)),
         "{again}"
     );
+    // ADR-MEM-192: the next day's call of the same chat, numbered from 1
+    // again by the short form, continues the chat and replays.
+    let next_day = json!({
+        "request": {
+            "request_id": "chatgpt-2026-11-25-cafe",
+            "conversation_id": "chatgpt-synthetic-2",
+            "turns": [{"message_id": "2026-11-25-1", "speaker": "user", "text": "Still the window seat for me."}]
+        },
+        "analyst_model": "synthetic-chatgpt-model",
+        "statements": []
+    });
+    let continued = submit(&mut rpc, next_day.clone(), false);
+    assert_eq!(continued["capture"]["captured"], true, "{continued}");
+    let replayed = submit(&mut rpc, next_day, false);
+    assert_eq!(replayed["capture"]["replayed"], true, "{replayed}");
     // ADR-MEM-181: a refused submission says what to fix.
     let bad = json!({"submission": {
         "request": {"request_id": "bad-1", "conversation_id": "chatgpt-bad", "turns": [

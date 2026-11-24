@@ -584,10 +584,17 @@ impl ConnectorWriter {
     /// named `<conversation_id>#<window policy>`; a parent outside the segment
     /// is dropped. The rule depends only on recorded state and the window, so
     /// a replay rebuilds the same request.
+    ///
+    /// ADR-MEM-192: a new request whose sequences overlap the target
+    /// conversation's recorded turns continues after them: its sequences
+    /// shift past the last recorded one, and its first turn, if parentless,
+    /// follows the last recorded turn. A replay takes each turn's sequence
+    /// and parent from what was recorded for it.
     fn segment(
         &self,
         submission: &ConnectorSubmission,
         policy: &AutomationPolicy,
+        replay: bool,
     ) -> ApplicationResult<ConnectorSubmission> {
         let original = submission.request.conversation_id.as_str();
         let suffix = format!("#{}", policy.policy_id);
@@ -596,16 +603,41 @@ impl ConnectorWriter {
             .take(256 - suffix.chars().count())
             .chain(suffix.chars())
             .collect();
-        let (elsewhere, known) = self.vault.read_scoped(
+        let (elsewhere, known, recorded) = self.vault.read_scoped(
             &self.vault.descriptor().system_actor,
             self.config.max_sensitivity,
             SystemReadScope::MoriiFullHistory,
             |d| {
                 let mut elsewhere = false;
                 let mut known = std::collections::BTreeSet::new();
+                // Per conversation: (message ID, sequence, parent message ID).
+                let mut recorded: std::collections::BTreeMap<
+                    String,
+                    Vec<(String, u32, Option<String>)>,
+                > = Default::default();
+                let message = |source: &enouia_memory_contract::ids::SourceId| {
+                    d.sources
+                        .get(source)
+                        .and_then(|s| s.record.original_message_id.clone())
+                };
                 for c in d.conversations.values().filter(|c| {
                     c.platform == CAPTURE_PLATFORM && c.account_scope == self.config.account_scope
                 }) {
+                    if let Some(id) = c
+                        .original_conversation_id
+                        .as_deref()
+                        .filter(|id| *id == original || *id == segment_id)
+                    {
+                        recorded.entry(id.to_owned()).or_default().extend(
+                            c.turns.iter().filter_map(|t| {
+                                Some((
+                                    message(&t.source.source_id)?,
+                                    t.sequence,
+                                    t.parent_source.as_ref().and_then(|p| message(&p.source_id)),
+                                ))
+                            }),
+                        );
+                    }
                     match c.original_conversation_id.as_deref() {
                         Some(id) if id == original => {
                             elsewhere |= c
@@ -623,7 +655,7 @@ impl ConnectorWriter {
                         _ => {}
                     }
                 }
-                (elsewhere, known)
+                (elsewhere, known, recorded)
             },
         )?;
         let mut out = submission.clone();
@@ -642,6 +674,31 @@ impl ConnectorWriter {
                 {
                     t.parent_message_id = None;
                 }
+            }
+        }
+        let target = recorded
+            .get(&out.request.conversation_id)
+            .map(Vec::as_slice)
+            .unwrap_or_default();
+        let turns = &mut out.request.turns;
+        if replay {
+            for t in turns.iter_mut() {
+                if let Some((_, sequence, parent)) = target.iter().find(|r| r.0 == t.message_id) {
+                    t.sequence = *sequence;
+                    t.parent_message_id = parent.clone();
+                }
+            }
+        } else if let (Some(last), Some(first)) = (
+            target.iter().max_by_key(|r| r.1),
+            turns.iter().map(|t| t.sequence).min(),
+        ) && first <= last.1
+        {
+            let shift = last.1 + 1 - first;
+            for t in turns.iter_mut() {
+                if t.sequence == first && t.parent_message_id.is_none() {
+                    t.parent_message_id = Some(last.0.clone());
+                }
+                t.sequence += shift;
             }
         }
         Ok(out)
@@ -980,7 +1037,7 @@ impl ConnectorWriter {
         };
         // ADR-MEM-185: a conversation already captured under another window
         // continues here as its own segment.
-        let segmented = self.segment(submission, &policy)?;
+        let segmented = self.segment(submission, &policy, replay_found)?;
         let submission = &segmented;
         let request = &submission.request;
         // ADR-MEM-187: a replay whose window has ended cannot get a capture
