@@ -1205,3 +1205,9 @@ parse failures answer `invalid_arguments` with the parser's message in `problems
 [Decision](196-chatgpt-read-argument-reasons.md): short read-tool completion failures answer
 `invalid_arguments` with a reason (parser message, `days` range); search `limit` is clamped to 1-100
 so a larger request pages instead of failing.
+
+### ADR-MEM-197 — OAuth accepts ChatGPT's extra scopes and announces `iss`
+
+[Decision](197-oauth-chatgpt-tolerance.md): a scope request needs only one configured scope (others
+ignored; tokens always carry the configured scopes), the resource matches with or without a trailing
+slash, and the metadata announces `authorization_response_iss_parameter_supported`.
