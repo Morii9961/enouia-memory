@@ -117,7 +117,8 @@ serve 窗口每个请求打印一行：时间、方法、路径、状态码、�
 | 添加连接器时失败 | `POST /oauth/register 400` | 回调地址不在 `redirect_prefixes` 里，或者 16 个客户端名额满了：用 `oauth-status` 查看，撤销旧客户端 |
 | 授权页报错 | `GET /oauth/authorize 302` 后 ChatGPT 显示错误 | `invalid_target`：`resource` 和填入的地址不一致（末尾斜杠没关系，[ADR197](../adr/197-oauth-chatgpt-tolerance.md)）；`invalid_scope`：请求里一个配置的 scope 都没有 |
 | 输入审批码后失败 | `POST /oauth/authorize 400` | 审批码过期或输错：重新运行 `approve` |
-| 能授权但调用失败 | `POST /mcp 401` | 令牌过期或被撤销：在 ChatGPT 里重新连接 |
+| 能授权但调用失败，ChatGPT 只显示 `Mcp error: -32603` | `POST /mcp 401` | 令牌过期或被撤销。ChatGPT 收到 401 时据报道不会自己刷新或要求重新授权，只报内部错误：在连接器设置里点重新连接（Reconnect） |
+| 换了新版本程序后，ChatGPT 还按旧的工具说明调用 | 新程序已在运行，调用参数却是旧格式 | ChatGPT 保存的是添加连接器时的工具列表快照：在连接器设置里刷新工具列表；没有刷新入口就删掉重加 |
 | 用着用着要求重新授权，或反复失败 | 一串 `POST /oauth/token 400` | 刷新令牌被判为重放（同一个旧令牌两分钟后又被用，或者来自别的客户端，[ADR207](../adr/207-refresh-reuse-grace.md)），整组令牌已撤销：在 ChatGPT 里删掉连接器重新添加，再用 `approve` 拿新审批码 |
 | 工具调用报错 | `tool=… error` | 让 ChatGPT 把返回里的 `problems` 原样贴出来，按提示改；常见的已在 [CHATGPT_CONNECTOR_USAGE.md](CHATGPT_CONNECTOR_USAGE.md) 的“出错时”列出 |
 | 偶尔一次 404 | `POST /mcp 404` | 会话过期后客户端会重新初始化；连续出现再看是否换过令牌（[ADR200](../adr/200-remote-session-continuity.md)） |

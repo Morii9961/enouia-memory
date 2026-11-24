@@ -243,11 +243,19 @@ memory.example.org {
 3. ChatGPT then holds rotating tokens. Approving another client needs a new
    code.
 
+After installing a newer `enouia-memory-remote`, refresh the connector's tool
+list in ChatGPT, or remove and add the connector again. ChatGPT keeps the
+tool list it read when the connector was added. If calls fail with only
+`Mcp error: -32603` while the log shows `POST /mcp 401`, use the connector's
+Reconnect action; ChatGPT is reported not to re-authorize on its own after a
+401.
+
 ## Operational notes
 
-- Vault permits last five minutes and renew every four. Open MCP sessions end
-  at renewal, and ChatGPT starts a new session with the same token.
-- Requests are served one at a time; this is a single-Morii service.
+- Vault permits last five minutes and renew every four. Open MCP sessions
+  continue across renewals for the same token holder (ADR-MEM-200).
+- Requests are served one at a time; this is a single-Morii service, and
+  Morii chose to keep it that way (2026-11-24).
 - The daily flow (OAuth with the `approve` command, read, conversation and theme
   submission) is tested against the real binary on loopback
   (`remote_daily_process`). Interoperability with ChatGPT's own connector
