@@ -292,6 +292,10 @@ fn metadata_and_registration_accept_only_public_pkce_clients_on_allowed_redirect
         json!(["S256"])
     );
     assert_eq!(
+        json_body(&meta)["authorization_response_iss_parameter_supported"],
+        true
+    );
+    assert_eq!(
         json_body(&meta)["token_endpoint_auth_methods_supported"],
         json!(["none"])
     );
@@ -390,16 +394,31 @@ fn approval_code_gates_authorization_and_unknown_clients_never_redirect() {
         )["error"],
         "invalid_request"
     );
+    // ADR-MEM-197: scopes this server does not offer are ignored, but a
+    // request must name at least one it does.
     let mut wide = authorize_params(&client, &challenge);
-    wide[6].1 = "memory.read memory.write";
+    wide[6].1 = "memory.read  memory.write offline_access";
+    let shown = authority
+        .respond(&get(&format!("/oauth/authorize?{}", query(&wide))))
+        .unwrap();
+    assert_eq!(shown.status, 200, "{}", text(&shown));
+    let mut foreign = authorize_params(&client, &challenge);
+    foreign[6].1 = "memory.write offline_access";
     assert_eq!(
         location_params(
             &authority
-                .respond(&get(&format!("/oauth/authorize?{}", query(&wide))))
+                .respond(&get(&format!("/oauth/authorize?{}", query(&foreign))))
                 .unwrap()
         )["error"],
         "invalid_scope"
     );
+    let mut slash = authorize_params(&client, &challenge);
+    let with_slash = format!("{RESOURCE}/");
+    slash[7].1 = &with_slash;
+    let shown = authority
+        .respond(&get(&format!("/oauth/authorize?{}", query(&slash))))
+        .unwrap();
+    assert_eq!(shown.status, 200, "{}", text(&shown));
     let mut elsewhere = authorize_params(&client, &challenge);
     elsewhere[7].1 = "https://other.example/mcp";
     assert_eq!(

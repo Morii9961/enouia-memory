@@ -41,10 +41,17 @@ impl OAuthConfig {
         self.scopes.push(WRITE_SCOPE.into());
         self
     }
+    /// ADR-MEM-197: tokens always carry the configured scopes, so a request
+    /// only needs one of them; others (`offline_access`, ...) are ignored as
+    /// RFC 6749 section 3.3 allows, and the token response names what was granted.
     fn scope_ok(&self, requested: &str) -> bool {
         requested
-            .split(' ')
-            .all(|x| self.scopes.iter().any(|s| s == x))
+            .split_whitespace()
+            .any(|x| self.scopes.iter().any(|s| s == x))
+    }
+    /// ADR-MEM-197: the MCP URL, with or without a trailing slash.
+    fn resource_ok(&self, requested: &str) -> bool {
+        requested.trim_end_matches('/') == self.resource.trim_end_matches('/')
     }
     /// `issuer` is the server origin (`https://host`), `resource` the MCP URL
     /// on that origin, and every redirect prefix an `https://host/` prefix
@@ -371,6 +378,8 @@ impl<'a> Authority<'a> {
                     "code_challenge_methods_supported": ["S256"],
                     "token_endpoint_auth_methods_supported": ["none"],
                     "scopes_supported": self.config.scopes,
+                    // ADR-MEM-197: every authorization response carries `iss`.
+                    "authorization_response_iss_parameter_supported": true,
                 }),
             ),
             ("POST", REGISTER) if query.is_empty() => self.register(request),
@@ -506,7 +515,7 @@ impl<'a> Authority<'a> {
                 .bytes()
                 .all(|b| b.is_ascii_alphanumeric() || b == b'-' || b == b'_');
         let scope_ok = get("scope").is_none_or(|s| self.config.scope_ok(s));
-        let resource_ok = get("resource").is_none_or(|r| r == self.config.resource);
+        let resource_ok = get("resource").is_none_or(|r| self.config.resource_ok(r));
         if get("response_type") != Some("code") {
             return redirect(&[("error", "unsupported_response_type")]);
         }
@@ -591,7 +600,7 @@ impl<'a> Authority<'a> {
 
     fn token(&self, params: &BTreeMap<String, String>, now: i64) -> Response {
         let get = |k: &str| params.get(k).map(String::as_str);
-        if get("resource").is_some_and(|r| r != self.config.resource) {
+        if get("resource").is_some_and(|r| !self.config.resource_ok(r)) {
             return oauth_error(400, "invalid_target");
         }
         if get("scope").is_some_and(|s| !self.config.scope_ok(s)) {

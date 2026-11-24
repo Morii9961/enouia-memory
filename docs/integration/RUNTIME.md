@@ -1,5 +1,9 @@
 # Runtime integration (ADR-MEM-45)
 
+2026-11-24 OAuth tolerance for ChatGPT ([ADR-MEM-197](../adr/197-oauth-chatgpt-tolerance.md)): remote
+OAuth ignores unknown requested scopes, accepts a trailing-slash resource and announces `iss` support.
+Remote service only; Runtime needs no change. Surface aggregate: `d37f9b424d456854c889e613f0ba0d6dced81d5c8ccda7c226669a13a26069ff`.
+
 2026-11-24 grant notice correction ([ADR-MEM-190](../adr/190-connector-grant-end-notice.md#correction-same-day)):
 JSON-RPC error replies from the remote connector no longer gain a `result` member during the notice
 period. Remote connector only; Runtime needs no change. Surface aggregate: `9b8032990255248b5b2c2368bcfd019eed8124aa068488bde0ea088d1609da6d`.
