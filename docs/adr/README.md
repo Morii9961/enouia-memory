@@ -1269,3 +1269,9 @@ consecutive turns of the same speaker (`<id>-1`, `<id>-2`).
 [Decision](207-refresh-reuse-grace.md): a rotated-away refresh token presented again within two minutes by
 its own client, while its grant lives, gets fresh tokens instead of revoking the grant (ChatGPT refreshes
 before every tool call); every other replay still revokes the family.
+
+### ADR-MEM-208 — ChatGPT recall splits Chinese questions into two-character pieces
+
+[Decision](208-chatgpt-recall-cjk-pieces.md): the ChatGPT short form of `memory_recall` adds the overlapping
+two-character pieces of each CJK run to the query text, so a question written without spaces matches and
+ranks memories by shared pieces; the recall contract and `memory_search` are unchanged.

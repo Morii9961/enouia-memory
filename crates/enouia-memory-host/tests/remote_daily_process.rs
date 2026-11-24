@@ -751,6 +751,39 @@ fn daily_flow(e: &Env, p: &AutomationPolicy, before: usize, root: &VerifiedRoot)
     // Requests change no memory: both still read as before.
     assert!(search(&mut rpc).is_superset(&after));
 
+    // ADR-MEM-208: a Chinese question without spaces recalls by its
+    // two-character pieces, most shared pieces first.
+    let unknown = json!({"from":null,"until":null,"precision":"unknown","bound":"within","tz":null,"basis":"unknown"});
+    let tea = submit(
+        &mut rpc,
+        json!({
+            "request": {"request_id": "chatgpt-tea-1", "conversation_id": "chatgpt-synthetic-zh", "turns": [
+                {"message_id": "m1", "speaker": "user", "text": "我最喜欢喝乌龙茶，早上一杯。"}
+            ]},
+            "analyst_model": "synthetic-chatgpt-model",
+            "statements": [{"message_id": "m1", "quote": "我最喜欢喝乌龙茶", "title": "最喜欢乌龙茶",
+                "interpretation": "clear_self_report", "kind": "preference",
+                "event_time": unknown, "valid_time": unknown, "note": null, "entities": []}]
+        }),
+        false,
+    );
+    let tea_id = tea["memories"][0]["memory_id"].as_str().unwrap().to_owned();
+    let recalled = short(
+        &mut rpc,
+        "memory_recall",
+        json!({"text": "Morii平时喜欢喝什么茶？"}),
+    );
+    assert_ne!(recalled["isError"], json!(true), "{recalled}");
+    // Only the selected items count; the trace also names excluded memories.
+    let content = &recalled["structuredContent"];
+    let items = [&content["items"], &content["data"]["items"]]
+        .into_iter()
+        .find(|v| v.is_array())
+        .unwrap_or_else(|| panic!("{recalled}"));
+    let mut recalled_ids = BTreeSet::new();
+    memory_ids(items, &mut recalled_ids);
+    assert!(recalled_ids.contains(&tea_id), "{recalled}");
+
     // ChatGPT as reported: it refreshes before every tool call and opens a
     // new session each turn; two parallel calls refresh with the same token
     // (ADR-MEM-199, 207). Six turns outnumber the four session slots.
@@ -900,7 +933,7 @@ fn daily_flow(e: &Env, p: &AutomationPolicy, before: usize, root: &VerifiedRoot)
             },
         )
         .unwrap();
-    assert_eq!(count, before + 3);
+    assert_eq!(count, before + 4);
     // Both requests wait in Morii's queue, still pending.
     let queued = reopened
         .agent_requests(&e.descriptor.created_by, Sensitivity::Private)
