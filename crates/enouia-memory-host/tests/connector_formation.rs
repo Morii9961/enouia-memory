@@ -2,7 +2,8 @@
 #[path = "../../enouia-memory-vault/tests/support/segmented_fixture.rs"]
 mod fixture;
 use enouia_memory_contract::{common::*, ids::*, next::*};
-use enouia_memory_host::automation::connector_formation::*;
+use enouia_memory_host::automation::{application::ApplicationFault, connector_formation::*};
+use enouia_memory_vault::automation::AutomationFault;
 use enouia_memory_vault::{automation::segmented::*, fault::Faults};
 use fixture::*;
 use std::sync::Arc;
@@ -594,5 +595,60 @@ fn a_later_call_of_the_same_chat_continues_after_its_recorded_turns() {
             ("2026-11-25-1".into(), 2, Some("2026-11-24-1".into())),
             ("2026-11-26-1".into(), 3, Some("2026-11-25-1".into())),
         ]
+    );
+}
+
+/// ADR-MEM-193: the Vault's structural refusals come with a reason ChatGPT
+/// can act on.
+#[test]
+fn changed_replays_and_unknown_parents_are_explained() {
+    let e = owner_env();
+    let v = Arc::new(e.create(Faults::none()));
+    let w = ConnectorWriter::new(
+        v.clone(),
+        e.descriptor.created_by.clone(),
+        producer(),
+        config(),
+    )
+    .unwrap();
+    let first = ConnectorSubmission {
+        request: request(1, "I prefer quiet rooms."),
+        analyst_model: "synthetic-chatgpt-model".into(),
+        statements: vec![statement("m1", "quiet rooms")],
+    };
+    w.submit(&first, false, NOW).unwrap();
+    assert!(w.submission_problems(&first).is_empty(), "an exact replay");
+    // The same request_id with an extra turn.
+    let mut extra = first.clone();
+    let mut turn = extra.request.turns[0].clone();
+    turn.message_id = "m2".into();
+    turn.parent_message_id = Some("m1".into());
+    turn.sequence = 2;
+    turn.text = "And tea.".into();
+    extra.request.turns.push(turn);
+    assert!(matches!(
+        w.submit(&extra, false, NOW + 1000),
+        Err(ApplicationFault::Vault(AutomationFault::Conflict))
+    ));
+    let problems = w.submission_problems(&extra);
+    assert_eq!(problems.len(), 1, "{problems:?}");
+    assert!(
+        problems[0].contains("request_id was already used"),
+        "{problems:?}"
+    );
+    // A new request naming a parent this conversation does not hold.
+    let mut orphan = request(2, "I also like tea.");
+    orphan.turns[0].parent_message_id = Some("m9".into());
+    let orphan = ConnectorSubmission {
+        request: orphan,
+        analyst_model: "synthetic-chatgpt-model".into(),
+        statements: vec![],
+    };
+    assert!(w.submit(&orphan, false, NOW + 1000).is_err());
+    let problems = w.submission_problems(&orphan);
+    assert_eq!(problems.len(), 1, "{problems:?}");
+    assert!(
+        problems[0].contains("parent_message_id m9, which is not a turn"),
+        "{problems:?}"
     );
 }

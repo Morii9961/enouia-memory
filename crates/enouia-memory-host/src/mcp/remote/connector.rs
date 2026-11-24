@@ -440,13 +440,21 @@ impl<S: Session> ConnectorSession<'_, S> {
             let outcome = writer
                 .submit(&args.submission, args.preflight, now)
                 .map(|r| serde_json::to_value(r).unwrap_or(Value::Null));
-            if matches!(outcome, Err(ApplicationFault::Invalid)) {
+            // ADR-MEM-193: the Vault's Conflict on a capture is a structural
+            // refusal (a changed replay, an unknown parent); say what it was.
+            let conflict = matches!(
+                outcome,
+                Err(ApplicationFault::Vault(AutomationFault::Conflict))
+            );
+            if matches!(outcome, Err(ApplicationFault::Invalid)) || conflict {
                 let problems = writer.submission_problems(&args.submission);
-                return Some(result(
-                    &id,
-                    json!({"error": "invalid_submission", "problems": problems}),
-                    true,
-                ));
+                if !problems.is_empty() || !conflict {
+                    return Some(result(
+                        &id,
+                        json!({"error": "invalid_submission", "problems": problems}),
+                        true,
+                    ));
+                }
             }
             outcome
         };

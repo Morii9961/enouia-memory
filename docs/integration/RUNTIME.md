@@ -1,5 +1,9 @@
 # Runtime integration (ADR-MEM-45)
 
+2026-11-24 conflict reasons ([ADR-MEM-193](../adr/193-connector-conflict-reasons.md)): connector
+capture conflicts (changed replay, unknown parent) are answered with `problems`. Remote connector only;
+Runtime needs no change. Surface aggregate: `9e6171332de074a41feb4ab1812de8b0d49cae1cf17a507690a85be91eeeb025`.
+
 2026-11-24 same-chat continuation ([ADR-MEM-192](../adr/192-connector-same-chat-continuation.md)):
 a later connector call of the same chat continues after its recorded turns (sequence shift, parent of
 the first turn). Runtime's conversation view shows such chats as one thread. No IPC, wire or schema
