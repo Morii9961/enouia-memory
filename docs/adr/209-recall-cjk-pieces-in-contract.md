@@ -1,7 +1,7 @@
 # ADR-MEM-209 — Recall terms split CJK runs in the shared contract
 
-Date: 2026-11-24. Status: Accepted (route: ChatGPT daily use and Runtime
-recall); synthetic validation. Requested by the Runtime session after a
+Date: 2026-11-24. Status: Accepted, scoring refined by ADR-MEM-210 (route:
+ChatGPT daily use and Runtime recall); synthetic validation. Requested by the Runtime session after a
 read-only check on the real library.
 
 ## Context

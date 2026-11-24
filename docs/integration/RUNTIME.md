@@ -1,5 +1,14 @@
 # Runtime integration (ADR-MEM-45)
 
+2026-11-24 CJK rarity weights ([ADR-MEM-210](../adr/210-recall-cjk-rarity-weights.md)), after Runtime's
+real-library check of ADR-MEM-209: `recall_terms` now returns words, CJK pieces and CJK characters; pieces and
+characters weigh ⌊log2(N/df)⌋ over the candidates, a character inside a matched piece is not recounted, and
+with CJK terms a memory under half the best adopted score is `no_cue`. Queries without CJK are unchanged.
+`recall_terms` now returns a `RecallTerms` struct instead of a `Vec<String>` (Rust API change; Runtime does
+not call it directly as far as Memory knows). **Runtime adoption:** bump the pin and rerun the real-library
+check; expected: "我平时喜欢喝什么茶？" no longer selects the "喜欢"-only memories and can select memories with 茶.
+Surface aggregate: `4fa3f99a4e90f312ff60264fb48e1312d678b15cd1d4362da854ccbd1dc60588`.
+
 2026-11-24 CJK recall terms in the contract ([ADR-MEM-209](../adr/209-recall-cjk-pieces-in-contract.md)),
 at Runtime's request: `recall_terms` in the attention contract adds the overlapping two-character pieces of
 each CJK run (and the other parts of mixed words such as "Enouia迁移") to the whitespace words that every
