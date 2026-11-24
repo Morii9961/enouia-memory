@@ -1,5 +1,9 @@
 # Runtime integration (ADR-MEM-45)
 
+2026-11-24 remote session continuity ([ADR-MEM-200](../adr/200-remote-session-continuity.md)): remote
+MCP sessions survive the four-minute permit renewal for the same bearer subject. Remote service only;
+Runtime needs no change. Surface aggregate: `3430fb26888f95f98f1edc234f9abadbd8099a03667edf68365ec7be70151b17`.
+
 2026-11-24 remote session eviction ([ADR-MEM-199](../adr/199-remote-session-eviction.md)): a full
 remote endpoint ends its least recently used session instead of refusing `initialize`. Remote service
 only; Runtime needs no change. Surface aggregate: `a320d3eea0cb7668834fb9d3dc609956a85a65a78e94886767a7c05e66207356`.

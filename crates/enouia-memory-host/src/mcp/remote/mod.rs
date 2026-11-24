@@ -150,8 +150,14 @@ pub struct Endpoint<'f, S: Session> {
     /// Session ID to (bearer subject, session, last use).
     sessions: BTreeMap<String, (String, S, u64)>,
     uses: u64,
+    /// ADR-MEM-200: session IDs issued by earlier generations, with their
+    /// bearer subjects; they resume on their next request.
+    carried: BTreeMap<String, String>,
     halted: Option<Value>,
 }
+
+/// ADR-MEM-200: at most this many session IDs carry into a generation.
+pub const MAX_CARRIED: usize = 16;
 
 /// Anything the HTTP driver can serve.
 pub trait Handler {
@@ -194,7 +200,41 @@ impl<'f, S: Session> Endpoint<'f, S> {
             open: Box::new(open),
             sessions: BTreeMap::new(),
             uses: 0,
+            carried: BTreeMap::new(),
             halted: None,
+        }
+    }
+    /// ADR-MEM-200: continue the sessions an earlier generation issued.
+    pub fn resume(mut self, carried: BTreeMap<String, String>) -> Self {
+        self.carried = carried;
+        self
+    }
+    /// ADR-MEM-200: the session IDs to carry into the next generation: live
+    /// sessions first, then carried ones not yet resumed, at most `MAX_CARRIED`.
+    pub fn carry(&self) -> BTreeMap<String, String> {
+        let mut out: BTreeMap<String, String> = self
+            .sessions
+            .iter()
+            .map(|(id, (subject, ..))| (id.clone(), subject.clone()))
+            .collect();
+        for (id, subject) in &self.carried {
+            if out.len() >= MAX_CARRIED {
+                break;
+            }
+            out.entry(id.clone()).or_insert_with(|| subject.clone());
+        }
+        out
+    }
+    /// ADR-MEM-199: when full, end the least recently used session.
+    fn make_room(&mut self) {
+        if self.sessions.len() >= MAX_SESSIONS
+            && let Some(oldest) = self
+                .sessions
+                .iter()
+                .min_by_key(|(_, (.., used))| *used)
+                .map(|(id, _)| id.clone())
+        {
+            self.sessions.remove(&oldest);
         }
     }
     pub fn sessions(&self) -> usize {
@@ -327,15 +367,7 @@ impl<'f, S: Session> Endpoint<'f, S> {
             }
             // ADR-MEM-199: when full, the least recently used session ends;
             // its client gets 404 and initializes again, as MCP specifies.
-            if self.sessions.len() >= MAX_SESSIONS
-                && let Some(oldest) = self
-                    .sessions
-                    .iter()
-                    .min_by_key(|(_, (.., used))| *used)
-                    .map(|(id, _)| id.clone())
-            {
-                self.sessions.remove(&oldest);
-            }
+            self.make_room();
             let Some(mut session) = (self.open)(&bearer) else {
                 return Response::new(403);
             };
@@ -370,6 +402,31 @@ impl<'f, S: Session> Endpoint<'f, S> {
             Ok(None | Some(PROTOCOL_VERSION))
         ) {
             return Response::new(400);
+        }
+        // ADR-MEM-200: a session from an earlier generation resumes under
+        // this generation's permit, initialized as before, for its own subject.
+        if !self.sessions.contains_key(id) && self.carried.get(id) == Some(&bearer.subject) {
+            self.carried.remove(id);
+            self.make_room();
+            let Some(mut session) = (self.open)(&bearer) else {
+                return Response::new(403);
+            };
+            let initialized = session
+                .handle(
+                    &json!({"jsonrpc": "2.0", "id": 0, "method": "initialize", "params": {
+                        "protocolVersion": PROTOCOL_VERSION,
+                        "capabilities": {},
+                        "clientInfo": {"name": "resumed-session", "version": "1"}
+                    }}),
+                )
+                .is_some_and(|r| r.get("result").is_some());
+            session.handle(&json!({"jsonrpc": "2.0", "method": "notifications/initialized"}));
+            if !initialized || session.closed() {
+                return Response::new(404);
+            }
+            self.uses += 1;
+            self.sessions
+                .insert(id.to_owned(), (bearer.subject.clone(), session, self.uses));
         }
         let Some((subject, session, used)) = self.sessions.get_mut(id) else {
             return Response::new(404);

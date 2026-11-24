@@ -1223,3 +1223,9 @@ still refused.
 [Decision](199-remote-session-eviction.md): instead of answering a fifth `initialize` with 503, the
 endpoint ends its least recently used session (whose client gets 404 and re-initializes) and opens
 the new one; the limit and halting are unchanged.
+
+### ADR-MEM-200 — MCP sessions continue across permit generations
+
+[Decision](200-remote-session-continuity.md): session IDs issued by one permit generation (at most 16,
+with their bearer subjects) resume in the next for the same subject, re-initialized inside under the new
+permit; other subjects and unknown IDs still get 404, and token and grant checks are unchanged.
