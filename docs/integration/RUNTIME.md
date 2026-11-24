@@ -1,5 +1,9 @@
 # Runtime integration (ADR-MEM-45)
 
+2026-11-24 nightly remote backup ([ADR-MEM-188](../adr/188-remote-nightly-backup.md)):
+`enouia-memory-remote backup <config> <dir>` plus a Linux script and systemd timer for the VPS.
+Remote service only; Runtime needs no change. Surface aggregate: `9c974a59f053baa4b098e1ea27bd673efeed8a26aba09ac04b52a88165445e1f`.
+
 2026-11-24 late connector replays ([ADR-MEM-187](../adr/187-connector-late-replay.md)):
 remote connector only; Runtime needs no change. Surface aggregate: `22f47366f13e5405b7c4940aef964867e84eef4919d0baaff773a457ed24ec50`.
 

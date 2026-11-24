@@ -4,8 +4,12 @@
 //! Vault on a loopback address behind a TLS reverse proxy.
 //! `enouia-memory-remote approve <config.json>` prints a one-time approval
 //! code for the authorize page. Run both as the OS account owning the Vault.
+//! `enouia-memory-remote backup <config.json> <backup-dir>` exports the
+//! stopped Vault into a new UTC-stamped directory and verifies it
+//! (ADR-MEM-188).
 use enouia_memory_contract::{
     common::{ActorRef, ActorType},
+    foundation::Clock,
     ids::PolicyId,
     json::Revision,
     next::OwnerReadGrant,
@@ -13,12 +17,15 @@ use enouia_memory_contract::{
     time::Timestamp,
 };
 use enouia_memory_host::mcp::remote::{http1, service};
-use enouia_memory_vault::automation::segmented::{OwnerReadGrantPlan, SegmentedAutomationVault};
+use enouia_memory_vault::automation::segmented::{
+    OwnerReadGrantPlan, SegmentedAutomationVault,
+    backup::{export_owner, verify_owner},
+};
 use enouia_memory_vault::{OsIdSource, RootPolicy, SystemClock, fault::Faults, verify_data_root};
 use std::sync::Arc;
 
 fn run(args: &[String]) -> Result<(), String> {
-    const USAGE: &str = "usage: enouia-memory-remote <serve|approve|read-check|read-status|read-draft|read-plan|read-set|read-renew-plan|read-revoke-plan|read-refresh-plan|oauth-status|oauth-revoke> <config.json> [arguments]";
+    const USAGE: &str = "usage: enouia-memory-remote <serve|approve|backup|read-check|read-status|read-draft|read-plan|read-set|read-renew-plan|read-revoke-plan|read-refresh-plan|oauth-status|oauth-revoke> <config.json> [arguments]";
     let [command, path, rest @ ..] = args else {
         return Err(USAGE.into());
     };
@@ -29,6 +36,48 @@ fn run(args: &[String]) -> Result<(), String> {
         "approve" if rest.is_empty() => {
             let code = service::approve(&config, &OsIdSource, &SystemClock)?;
             println!("{code}");
+            Ok(())
+        }
+        "backup" => {
+            let [dir] = rest else {
+                return Err("backup <config> <backup-dir>".into());
+            };
+            let root = verify_data_root(&config.vault_root, &RootPolicy::default())
+                .map_err(|e| format!("vault root: {e:?}"))?;
+            let now = Timestamp::from_unix_ms(SystemClock.now_unix_ms())
+                .ok_or("clock out of range")?
+                .to_string();
+            let name: String = now[..19]
+                .chars()
+                .filter(|c| c.is_ascii_digit() || *c == 'T')
+                .chain(['Z'])
+                .collect();
+            let path = std::path::Path::new(dir).join(name);
+            std::fs::create_dir(&path).map_err(|e| format!("backup dir: {e}"))?;
+            let export = verify_data_root(&path, &RootPolicy::default())
+                .map_err(|e| format!("backup dir: {e:?}"))?;
+            let done = export_owner(&root, &export, Arc::new(SystemClock), Arc::new(OsIdSource))
+                .map_err(|e| {
+                    // Only an empty directory is removed; a partial export stays.
+                    let _ = std::fs::remove_dir(&path);
+                    format!(
+                        "export: {e:?}; Busy means the service or another process holds the Vault"
+                    )
+                })?;
+            let checked = verify_owner(&export).map_err(|e| format!("verify: {e:?}"))?;
+            if checked.head != done.head {
+                return Err("verify: the export head differs from the Vault head".into());
+            }
+            println!(
+                "{}",
+                serde_json::json!({
+                    "export": path,
+                    "commit_id": done.head.commit_id,
+                    "sequence": done.head.sequence,
+                    "files": done.files.len(),
+                    "verified": true,
+                })
+            );
             Ok(())
         }
         "oauth-status" | "oauth-revoke" => {

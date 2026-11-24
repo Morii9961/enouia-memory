@@ -620,8 +620,47 @@ fn daily_flow(e: &Env, p: &AutomationPolicy, before: usize, root: &VerifiedRoot)
     // Requests change no memory: both still read as before.
     assert!(search(&mut rpc).is_superset(&after));
 
-    // Stop the service and inspect the Vault it left behind.
+    // ADR-MEM-188: the nightly backup refuses while the service holds the
+    // Vault, and leaves no directory behind.
+    let backups = files.path.join("backups");
+    std::fs::create_dir(&backups).unwrap();
+    let busy = Command::new(EXE)
+        .args([
+            "backup".as_ref(),
+            config_path.as_os_str(),
+            backups.as_os_str(),
+        ])
+        .output()
+        .unwrap();
+    assert!(!busy.status.success());
+    assert!(String::from_utf8_lossy(&busy.stderr).contains("Busy"));
+    assert_eq!(std::fs::read_dir(&backups).unwrap().count(), 0);
+
+    // Stop the service (killed, as `systemctl stop` would end it) and back up.
     drop(server);
+    let backup = Command::new(EXE)
+        .args([
+            "backup".as_ref(),
+            config_path.as_os_str(),
+            backups.as_os_str(),
+        ])
+        .output()
+        .unwrap();
+    assert!(
+        backup.status.success(),
+        "{}",
+        String::from_utf8_lossy(&backup.stderr)
+    );
+    let backup: Value = serde_json::from_slice(&backup.stdout).unwrap();
+    assert_eq!(backup["verified"], true);
+    let exported = verify_data_root(
+        std::path::Path::new(backup["export"].as_str().unwrap()),
+        &RootPolicy::default(),
+    )
+    .unwrap();
+    let head = verify_owner(&exported).unwrap().head;
+    assert_eq!(json!(head.sequence), backup["sequence"]);
+
     let reopened = SegmentedAutomationVault::open(
         root,
         e.descriptor.host_id.clone(),

@@ -1,0 +1,14 @@
+# Nightly Vault backup for the remote MCP service (ADR-MEM-188).
+# Install to /etc/systemd/system/enouia-memory-backup.service with
+# enouia-memory-backup.timer, then
+#   systemctl daemon-reload && systemctl enable --now enouia-memory-backup.timer
+# Runs as root only to stop and start enouia-memory-remote; the export itself
+# runs as the service account.
+[Unit]
+Description=Enouia Memory nightly Vault backup
+After=enouia-memory-remote.service
+
+[Service]
+Type=oneshot
+UMask=0077
+ExecStart=/usr/local/bin/enouia-memory-nightly-backup /etc/enouia-memory/remote.json /var/lib/enouia-memory/backups
