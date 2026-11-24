@@ -751,6 +751,51 @@ fn daily_flow(e: &Env, p: &AutomationPolicy, before: usize, root: &VerifiedRoot)
     // Requests change no memory: both still read as before.
     assert!(search(&mut rpc).is_superset(&after));
 
+    // ChatGPT as reported: it refreshes before every tool call and opens a
+    // new session each turn; two parallel calls refresh with the same token
+    // (ADR-MEM-199, 207). Six turns outnumber the four session slots.
+    let mut refresh_token = tokens["refresh_token"].as_str().unwrap().to_owned();
+    for turn in 0..6 {
+        let refresh = |old: &str| {
+            send(
+                addr,
+                "POST",
+                "/oauth/token",
+                &form_headers,
+                &form(&[
+                    ("grant_type", "refresh_token"),
+                    ("refresh_token", old),
+                    ("client_id", &client_id),
+                ]),
+            )
+        };
+        let fresh = refresh(&refresh_token);
+        assert_eq!(fresh.status, 200, "turn {turn}");
+        let fresh = fresh.json();
+        let mut access = vec![fresh["access_token"].as_str().unwrap().to_owned()];
+        if turn == 2 {
+            let parallel = refresh(&refresh_token);
+            assert_eq!(parallel.status, 200, "a parallel refresh is no theft");
+            access.push(parallel.json()["access_token"].as_str().unwrap().to_owned());
+        }
+        refresh_token = fresh["refresh_token"].as_str().unwrap().to_owned();
+        for access in &access {
+            let session = initialize(addr, access);
+            let called = mcp(
+                addr,
+                access,
+                Some(&session),
+                json!({"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"memory_search","arguments":{"query":"seat"}}}),
+            );
+            assert_eq!(called.status, 200, "turn {turn}");
+            assert_ne!(
+                called.json()["result"]["isError"],
+                json!(true),
+                "turn {turn}"
+            );
+        }
+    }
+
     // ADR-MEM-188: the nightly backup refuses while the service holds the
     // Vault, and leaves no directory behind.
     let backups = files.path.join("backups");
