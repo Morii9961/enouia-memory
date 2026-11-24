@@ -336,6 +336,19 @@ fn chatgpt_themes_synthesize_daily_memories_across_windows_of_its_domain() {
             .submit_theme(&theme(vec![a.clone(), c.clone()]), false, NOW)
             .is_err()
     );
+    // ADR-MEM-203: the refusal names each member that cannot join.
+    let unknown = MemoryId::parse(&id("mem", 4095)).unwrap();
+    let problems = prefer.theme_problems(&theme(vec![a.clone(), c.clone(), unknown.clone()]));
+    assert_eq!(problems.len(), 2, "{problems:?}");
+    assert!(problems[0].contains(&format!(
+        "member {c} was not submitted through this connector"
+    )));
+    assert!(problems[1].contains(&format!("member {unknown} is not a current memory")));
+    assert!(
+        prefer
+            .theme_problems(&theme(vec![a.clone(), b.clone()]))
+            .is_empty()
+    );
     // Preflight writes nothing.
     let before = v.snapshot().unwrap();
     let dry = prefer

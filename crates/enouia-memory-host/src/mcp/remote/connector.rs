@@ -467,6 +467,9 @@ impl<S: Session> ConnectorSession<'_, S> {
             if matches!(outcome, Err(ApplicationFault::Invalid)) {
                 let mut problems = args.theme.problems();
                 if problems.is_empty() {
+                    problems = writer.theme_problems(&args.theme);
+                }
+                if problems.is_empty() {
                     problems.push("every member must be a current memory this connector submitted, in its own domain".into());
                 }
                 return Some(result(

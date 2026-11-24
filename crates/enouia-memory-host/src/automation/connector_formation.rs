@@ -780,6 +780,41 @@ impl ConnectorWriter {
     /// ADR-MEM-174: forms a theme over current daily memories of this
     /// connector's domain, under a fresh synthesis policy that lists exactly
     /// their sources. Preflight writes nothing. A resubmitted request replays.
+    /// ADR-MEM-203: why each member cannot join this connector's theme.
+    pub fn theme_problems(&self, theme: &ConnectorTheme) -> Vec<String> {
+        let domain = self.domain();
+        let subject = self.vault.descriptor().owner_subject_id.clone();
+        self.vault
+            .read_scoped(
+                &self.vault.descriptor().system_actor,
+                self.config.max_sensitivity,
+                SystemReadScope::MoriiFullHistory,
+                |d| {
+                    theme
+                        .members
+                        .iter()
+                        .filter_map(|id| {
+                            let Some(m) = d.memories.iter().find(|m| &m.memory.memory.memory_id == id) else {
+                                return Some(format!("member {id} is not a current memory visible to this connector"));
+                            };
+                            let i = &m.memory.decision.input;
+                            if (i.access_policy_id.clone(), i.egress_policy_id.clone()) != domain
+                                || Some(&i.subject_id) != subject.as_ref()
+                                || i.project_id.is_some()
+                            {
+                                return Some(format!("member {id} was not submitted through this connector; a theme joins only memories this connector submitted"));
+                            }
+                            i.record_fields
+                                .as_ref()
+                                .and_then(|f| f.evidence.first())
+                                .is_none()
+                                .then(|| format!("member {id} has no quoted evidence"))
+                        })
+                        .collect()
+                },
+            )
+            .unwrap_or_default()
+    }
     pub fn submit_theme(
         &self,
         theme: &ConnectorTheme,
@@ -839,8 +874,13 @@ impl ConnectorWriter {
                             .find(|m| &m.memory.memory.memory_id == id)
                             .ok_or(ApplicationFault::Invalid)?;
                         let i = &m.memory.decision.input;
-                        let fields = i.record_fields.as_ref().unwrap();
-                        let evidence = fields.evidence.first().ok_or(ApplicationFault::Invalid)?;
+                        // ADR-MEM-203: a member without record fields (an
+                        // imported memory, say) is refused, never a panic.
+                        let evidence = i
+                            .record_fields
+                            .as_ref()
+                            .and_then(|f| f.evidence.first())
+                            .ok_or(ApplicationFault::Invalid)?;
                         if (i.access_policy_id.clone(), i.egress_policy_id.clone()) != domain
                             || i.subject_id != subject
                             || i.project_id.is_some()
