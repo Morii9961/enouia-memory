@@ -32,8 +32,11 @@ to stop the service, export, verify and start it again.
   - `enouia-memory-backup.service` (oneshot) and `enouia-memory-backup.timer`
     run it daily at 04:30 Asia/Shanghai, with `Persistent=true`.
 - **No automatic pruning.** Old exports are Morii's backup material. Pruning
-  them and copying them off the VPS (the existing restic adapter) remain
-  Morii's own steps.
+  them and copying them off the VPS remain Morii's own steps.
+- **No automatic upload** (Morii, 2026-11-24). Morii downloads exports to the
+  local machine by hand and verifies them there; the steps are in
+  `docs/deploy/REMOTE_MCP_LINUX.md` ("Downloading an export"). No restic
+  repository or password is kept on the VPS.
 
 Killing the service mid-request is the crash case the Vault's commit
 protocol already covers. An unknown outcome is answered by request replay
