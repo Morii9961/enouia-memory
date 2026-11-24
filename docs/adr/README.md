@@ -1158,3 +1158,9 @@ refused; nothing is written.
 [Decision](188-remote-nightly-backup.md): `enouia-memory-remote backup <config> <dir>` exports and
 verifies the stopped Vault into a new UTC-stamped directory; a root script and systemd timer stop the
 service nightly, back up as the service account and restart it only if it was running; no pruning.
+
+### ADR-MEM-189 — Minimal access log for the remote service
+
+[Decision](189-remote-access-log.md): `serve` writes a startup line (resource, bind, read grant end,
+writes on/off) and one stderr line per request (time, method, path without query, status, ms,
+JSON-RPC method, tool name, error flag) for journald; never bodies, queries, codes or tokens.
