@@ -1182,3 +1182,9 @@ the Vault, and the submit schema describes stable `conversation_id` and chat-uni
 [Decision](192-connector-same-chat-continuation.md): a new connector request whose sequences overlap
 the target conversation's record shifts past its last turn and attaches a parentless first turn to it;
 a replay takes each turn's recorded sequence and parent. Fixes `Denied` on a chat's second call.
+
+### ADR-MEM-193 — Structural capture refusals come with a reason
+
+[Decision](193-connector-conflict-reasons.md): a capture `Conflict` is answered as `invalid_submission`
+with `problems`: a request_id replayed with changed content, or a parent that is not a turn of the
+conversation; with no reason found, the generic error stays.

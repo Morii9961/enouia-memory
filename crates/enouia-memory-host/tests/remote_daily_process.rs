@@ -511,6 +511,22 @@ fn daily_flow(e: &Env, p: &AutomationPolicy, before: usize, root: &VerifiedRoot)
     assert_eq!(continued["capture"]["captured"], true, "{continued}");
     let replayed = submit(&mut rpc, next_day, false);
     assert_eq!(replayed["capture"]["replayed"], true, "{replayed}");
+    // ADR-MEM-193: the same request_id with changed content is explained.
+    let mut changed = second.clone();
+    changed["request"]["turns"][1]["text"] =
+        json!("Lumen Cafe has the quietest window seat, and good tea.");
+    let refused = short(
+        &mut rpc,
+        "memory_submit_conversation",
+        json!({"submission": changed}),
+    );
+    assert_eq!(refused["isError"], true, "{refused}");
+    assert!(
+        refused["structuredContent"]["problems"]
+            .to_string()
+            .contains("request_id was already used"),
+        "{refused}"
+    );
     // ADR-MEM-181: a refused submission says what to fix.
     let bad = json!({"submission": {
         "request": {"request_id": "bad-1", "conversation_id": "chatgpt-bad", "turns": [

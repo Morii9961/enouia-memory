@@ -89,6 +89,8 @@ ChatGPT 可以读你的记忆，也可以提交新记忆。本页说明怎样让
 - 返回 `invalid_submission`：同时会附带 `problems`，逐条说明哪里不对，例如引文没有逐字出现在
   那条 user 消息里、`kind` 不被允许、字段超长（[ADR181](../adr/181-connector-refusal-reasons.md)）。
   按提示修改后，用同一个 `request_id` 重新提交。
+- 提示 `this request_id was already used for a different submission`：同一个 `request_id` 已经提交过别的内容
+  （[ADR193](../adr/193-connector-conflict-reasons.md)）。原样重发可以回放；有新消息就换一个新的 `request_id`。
 - 提示 `message_id … already names a different message`：这个 ID 在同一对话里已经用给了另一条消息
   （[ADR191](../adr/191-connector-reused-message-ids.md)）。给新消息换一个没用过的 ID 再提交，不要删掉这条消息。
 - 返回结果不确定（例如网络中断）：服务端会停止，不会自动重试；先在服务器上恢复，再用同一个

@@ -513,13 +513,25 @@ impl ConnectorWriter {
         &self,
         request: &RuntimeCaptureRequest,
     ) -> ApplicationResult<Vec<(String, bool)>> {
-        let base = request.conversation_id.as_str();
-        let segment = format!("{base}#");
-        let wanted: std::collections::BTreeMap<_, _> = request
+        let recorded = self.recorded_messages(&request.conversation_id)?;
+        Ok(request
             .turns
             .iter()
-            .map(|t| (t.message_id.as_str(), t.text.as_str()))
-            .collect();
+            .filter_map(|t| {
+                recorded
+                    .get(&t.message_id)
+                    .map(|text| (t.message_id.clone(), *text == t.text))
+            })
+            .collect())
+    }
+    /// Message ID to text of every turn this connector captured in the
+    /// conversation, its original or any segment.
+    fn recorded_messages(
+        &self,
+        conversation_id: &str,
+    ) -> ApplicationResult<std::collections::BTreeMap<String, String>> {
+        let base = conversation_id;
+        let segment = format!("{base}#");
         Ok(self.vault.read_scoped(
             &self.vault.descriptor().system_actor,
             self.config.max_sensitivity,
@@ -537,25 +549,21 @@ impl ConnectorWriter {
                         })
                 }) {
                     for t in &c.turns {
-                        let Some(s) = d.sources.get(&t.source.source_id) else {
-                            continue;
-                        };
-                        if let Some((m, text)) = s
-                            .record
-                            .original_message_id
-                            .as_deref()
-                            .and_then(|m| wanted.get_key_value(m))
+                        if let Some(s) = d.sources.get(&t.source.source_id)
+                            && let Some(m) = &s.record.original_message_id
                         {
-                            found.insert((*m).to_owned(), s.text == *text);
+                            found.insert(m.clone(), s.text.clone());
                         }
                     }
                 }
-                found.into_iter().collect()
+                found
             },
         )?)
     }
     /// ADR-MEM-181/186: every reason this submission would be refused before
     /// the Vault: its own checks, then turns already submitted.
+    /// ADR-MEM-193: also a request_id reused for different content, and
+    /// parents that are not turns of this conversation.
     pub fn submission_problems(&self, submission: &ConnectorSubmission) -> Vec<String> {
         let mut out = submission.problems(&self.config.allowed_forms);
         let replay = self
@@ -563,8 +571,38 @@ impl ConnectorWriter {
             .capture_policy_for_request(&self.owner, &self.producer, &submission.request.request_id)
             .ok()
             .flatten();
+        let changed = || {
+            let recorded = self
+                .recorded_messages(&submission.request.conversation_id)
+                .unwrap_or_default();
+            submission
+                .request
+                .turns
+                .iter()
+                .any(|t| recorded.get(&t.message_id) != Some(&t.text))
+        };
+        if replay.is_some() && out.is_empty() && changed() {
+            out.push("this request_id was already used for a different submission; resubmit that submission unchanged to replay it, or use a new request_id for new turns".into());
+        }
         if replay.is_none() {
-            for (m, same) in self.resent_turns(&submission.request).unwrap_or_default() {
+            let request = &submission.request;
+            let recorded = self
+                .recorded_messages(&request.conversation_id)
+                .unwrap_or_default();
+            let mut earlier = std::collections::BTreeSet::new();
+            for t in &request.turns {
+                if let Some(p) = &t.parent_message_id
+                    && !earlier.contains(p)
+                    && !recorded.contains_key(p)
+                {
+                    out.push(format!(
+                        "turn {} names parent_message_id {p}, which is not a turn of this conversation; leave parent_message_id out",
+                        t.message_id
+                    ));
+                }
+                earlier.insert(&t.message_id);
+            }
+            for (m, same) in self.resent_turns(request).unwrap_or_default() {
                 out.push(if same {
                     format!(
                         "turn {m} was already submitted in this conversation; send only new turns (resubmitting the same request_id replays)"
