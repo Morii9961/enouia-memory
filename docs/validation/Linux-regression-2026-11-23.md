@@ -50,3 +50,19 @@ lapse (ADR-MEM-179), and conversation segments and resent-turn refusal
 `libdbus-sys` build script needs the system D-Bus development package, which
 this WSL image does not install. The Linux service needs none of these
 packages.
+
+## Rerun at `main@729812d` (after ADR-MEM-187 to 193)
+
+The same environment and per-package command for `enouia-memory-contract`,
+`-vault`, `-init` and `-host`. All four pass: 124 test binaries, no failures
+and no panics. The run adds coverage for the following:
+
+- **Late replays** (ADR-MEM-187).
+- **Nightly backup command** (ADR-MEM-188). It refuses while the real
+  service runs and succeeds after the service is killed.
+- **Content-free access log** (ADR-MEM-189).
+- **Grant-end notice** (ADR-MEM-190).
+- **Reused message IDs** (ADR-MEM-191).
+- **Same-chat continuation** (ADR-MEM-192). This includes a next-day
+  short-form call through the real binary.
+- **Explained capture conflicts** (ADR-MEM-193).
