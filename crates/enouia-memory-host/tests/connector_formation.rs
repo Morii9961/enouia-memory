@@ -422,8 +422,8 @@ fn a_conversation_continues_across_windows() {
         w.submit(&third, false, later).unwrap().jobs[0].state,
         FormationJobState::Formed
     );
-    // The continued request replays unchanged. A request whose window has
-    // ended cannot replay (its capture stands; the permit is gone).
+    // The continued request replays unchanged. ADR-MEM-187: a request whose
+    // window has ended replays from what was recorded, writing nothing.
     assert!(
         w.submit(&next, false, later)
             .unwrap()
@@ -431,14 +431,13 @@ fn a_conversation_continues_across_windows() {
             .unwrap()
             .replayed
     );
-    assert!(matches!(
-        w.submit(&first, false, later),
-        Err(
-            enouia_memory_host::automation::application::ApplicationFault::Vault(
-                enouia_memory_vault::automation::AutomationFault::Denied
-            )
-        )
-    ));
+    let before = v.snapshot().unwrap();
+    let late = w.submit(&first, false, later).unwrap();
+    assert!(late.window_ended && late.capture.is_none());
+    assert_eq!(late.memories.len(), 1);
+    assert_eq!(late.turns.len(), 1);
+    assert_eq!(late.turns[0].message_id, "m1");
+    assert_eq!(v.snapshot().unwrap(), before);
     let conversations = v
         .read_scoped(
             &e.descriptor.system_actor,

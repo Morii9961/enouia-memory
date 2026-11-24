@@ -1,5 +1,8 @@
 # Runtime integration (ADR-MEM-45)
 
+2026-11-24 late connector replays ([ADR-MEM-187](../adr/187-connector-late-replay.md)):
+remote connector only; Runtime needs no change. Surface aggregate: `22f47366f13e5405b7c4940aef964867e84eef4919d0baaff773a457ed24ec50`.
+
 2026-11-24 ChatGPT conversation segments ([ADR-MEM-185](../adr/185-connector-conversation-segments.md)):
 a ChatGPT thread continued after its capture window rotated is captured as a segment whose
 original conversation ID is `<id>#<window policy>`. Runtime may show such segments under their

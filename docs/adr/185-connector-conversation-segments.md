@@ -38,10 +38,9 @@ hashes still match. Conversations confined to one window are untouched.
 - Long ChatGPT threads keep being captured. In Runtime a thread that spans
   windows appears as one conversation per window. The later ones carry the
   `#pol_…` suffix and start without a cross-window parent.
-- **Known limit.** Resubmitting a request whose window has already ended is
-  refused (`Denied`), because the capture needs a live permit for that window.
-  The original capture and its memories stand. ChatGPT should use a new
-  `request_id` for new turns rather than retrying old ones days later.
+- **Resolved limit.** Resubmitting a request whose window had already ended was
+  refused (`Denied`). [ADR-MEM-187](187-connector-late-replay.md) answers such
+  replays from the record instead.
 - No schema, IPC or wire change.
 
 ## Verification

@@ -1146,3 +1146,9 @@ longer refused after a window rotates; replays rebuild the same request.
 [Decision](186-connector-resent-turns.md): a new connector request that resends a turn already
 captured in the same conversation (original or segment) is refused, and its problems name the turn;
 replays of the same request_id are unaffected.
+
+### ADR-MEM-187 — Late replays answer from what was recorded
+
+[Decision](187-connector-late-replay.md): a connector request resubmitted after its window ended
+replays from the record (turn sources and formed memories, `window_ended: true`) instead of being
+refused; nothing is written.
