@@ -346,13 +346,15 @@ pub fn serve(
         .map_err(|e| format!("owner host: {e:?}"))?;
     let authority = Authority::new(oauth, ids, clock, State::default());
     // ADR-MEM-189: say once what is being served and until when it may read.
-    let grant_until = match &config.read_grant_id {
-        Some(id) => host
-            .owner_read_grant_until(&owner, id)
-            .map(|t| t.to_string())
-            .map_err(|e| format!("read grant: {e:?}"))?,
-        None => "none (no read grant)".into(),
-    };
+    let grant_end = config
+        .read_grant_id
+        .as_ref()
+        .map(|id| host.owner_read_grant_until(&owner, id))
+        .transpose()
+        .map_err(|e| format!("read grant: {e:?}"))?;
+    let grant_until = grant_end
+        .as_ref()
+        .map_or("none (no read grant)".into(), |t| t.to_string());
     eprintln!(
         "{} serving {} on {}; read grant until {grant_until}; writes {}",
         Timestamp::from_unix_ms(clock.now_unix_ms())
@@ -398,6 +400,10 @@ pub fn serve(
                     ids,
                     &config.profile,
                 );
+                let session = match &grant_end {
+                    Some(end) => session.with_grant_end(end.clone()),
+                    None => session,
+                };
                 match &requests {
                     Some((correction, forget)) => {
                         session.with_requests(RequestFilers { correction, forget })

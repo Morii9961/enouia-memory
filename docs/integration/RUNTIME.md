@@ -1,5 +1,9 @@
 # Runtime integration (ADR-MEM-45)
 
+2026-11-24 grant end notice ([ADR-MEM-190](../adr/190-connector-grant-end-notice.md)): in the
+read grant's last 14 days, connector tool results carry `grant_notice`. Remote connector only; Runtime
+needs no change. Surface aggregate: `40319b3d6dab07b5d972e214df9d73d09325e626647b4b47aa5b00051c12404d`.
+
 2026-11-24 remote access log ([ADR-MEM-189](../adr/189-remote-access-log.md)): `serve` writes a
 startup line and one content-free line per request to stderr. Remote service only; Runtime needs no
 change. Surface aggregate: `1052af7fbab8668e4c5b69204f46b2d700e4d6e0aad211f0bf8b25d64c332906`.
