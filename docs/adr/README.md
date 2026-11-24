@@ -1120,3 +1120,9 @@ members); allowed forms are now checked before capture.
 
 [Decision](182-chatgpt-recent-search.md): the short `memory_search` takes `days` (1–366) and
 returns memories learned in that period, for ChatGPT's weekly theme pass.
+
+### ADR-MEM-183 — Conversation receipts name the memories they formed
+
+[Decision](183-connector-receipt-memories.md): `memory_submit_conversation` receipts list the
+current memory ID, revision and title of each memory formed from the submission's captured
+turns (replays return the same list; themes are not included).

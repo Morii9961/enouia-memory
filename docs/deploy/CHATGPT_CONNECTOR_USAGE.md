@@ -14,7 +14,8 @@ ChatGPT 可以读你的记忆，也可以提交新记忆。本页说明怎样让
   - `memory_submit_theme`：从已有的每日记忆中，归纳出一个反复出现的主题。
 
 两个写工具都支持 `preflight: true`，只检查、不写入。同一个 `request_id` 重复提交只会
-回放，不会写两次。
+回放，不会写两次。提交对话的回执里有 `memories`，列出这次形成的记忆的 `memory_id` 和标题
+（[ADR183](../adr/183-connector-receipt-memories.md)），归纳主题时可以直接引用。
 
 ## 调用时只需要填最少的字段
 

@@ -1,5 +1,9 @@
 # Runtime integration (ADR-MEM-45)
 
+2026-11-24 conversation receipts name formed memories ([ADR-MEM-183](../adr/183-connector-receipt-memories.md)):
+`ConnectorReceipt.memories` (memory ID, revision, title). Remote connector only; Runtime needs
+no change. Surface aggregate: `464db71eb637de5318bc813e82211366b23a166aa778e8267332ef0606139431`.
+
 2026-11-24 recent-memory search for ChatGPT ([ADR-MEM-182](../adr/182-chatgpt-recent-search.md)):
 remote service only; the short `memory_search` takes `days`. Runtime needs no change.
 Surface aggregate: `81a73bba1227f63239e3c001c5a316b049a29725812fa9dfbe03bee87c21d7aa`.
