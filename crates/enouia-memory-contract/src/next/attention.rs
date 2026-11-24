@@ -348,18 +348,54 @@ fn select_with_limit(
         .iter()
         .map(|c| c.memory.decision.input.content.to_lowercase())
         .collect();
-    // ADR-MEM-210: a CJK piece or character weighs log2(N / df) over the
-    // candidates, in integers so every platform ranks alike. Terms in more
-    // than half of the memories weigh nothing.
+    // ADR-MEM-210/211: a CJK piece or character weighs log2(N / df) over the
+    // candidates, in integers so every platform ranks alike; terms in more
+    // than half of the memories weigh nothing. Each counts up to three
+    // occurrences, so a memory that keeps returning to a term ranks higher.
     let n = candidates.len() as u64;
-    let weigh = |term: &String| {
-        let df = bodies.iter().filter(|b| b.contains(term.as_str())).count() as u64;
-        // df never exceeds n, so a nonzero df gives a quotient of at least 1.
-        let weight = n.checked_div(df).map_or(0, |q| u64::from(q.ilog2()));
-        (weight > 0).then(|| (term.clone(), weight))
-    };
-    let pieces: Vec<_> = terms.pieces.iter().filter_map(weigh).collect();
-    let chars: Vec<_> = terms.chars.iter().filter_map(weigh).collect();
+    let df = |term: &str| bodies.iter().filter(|b| b.contains(term)).count() as u64;
+    // df never exceeds n, so a nonzero df gives a quotient of at least 1.
+    let weight = |df: u64| n.checked_div(df).map_or(0, |q| u64::from(q.ilog2()));
+    // ADR-MEM-211: a piece is never rarer than its rarer character, so a
+    // chance pairing across words ("去过京都" gives 过京) weighs no more
+    // than 京 itself, while a real word such as 京都 keeps its weight.
+    let pieces: Vec<_> = terms
+        .pieces
+        .iter()
+        .filter_map(|piece| {
+            let rarer = piece
+                .chars()
+                .map(|c| df(c.encode_utf8(&mut [0; 4])))
+                .min()
+                .unwrap_or(0);
+            let found = df(piece);
+            let w = if found == 0 {
+                0
+            } else {
+                weight(found.max(rarer))
+            };
+            (w > 0).then(|| (piece.clone(), w))
+        })
+        .collect();
+    let chars: Vec<_> = terms
+        .chars
+        .iter()
+        .filter_map(|c| {
+            let w = weight(df(c));
+            (w > 0).then(|| (c.clone(), w))
+        })
+        .collect();
+    // ADR-MEM-211: CJK terms cue a memory only through a strong one, weighing
+    // 2 or more (in at most a quarter of the memories), or the heaviest
+    // weight any term reaches in a small library. Common characters alone
+    // never recall, and no other memory's score can push a memory out.
+    let strong = pieces
+        .iter()
+        .chain(&chars)
+        .map(|(_, w)| *w)
+        .max()
+        .unwrap_or(0)
+        .min(2);
     let lexical: Vec<u64> = bodies
         .iter()
         .map(|body| {
@@ -368,37 +404,28 @@ fn select_with_limit(
                 .iter()
                 .filter(|w| body.contains(w.as_str()))
                 .count() as u64;
+            let mut cued = words > 0;
             // A character inside a matched piece is not counted again.
             let mut covered = BTreeSet::new();
             let mut weight = 0;
             for (piece, w) in &pieces {
-                if body.contains(piece.as_str()) {
-                    weight += w;
+                let times = body.matches(piece.as_str()).take(3).count() as u64;
+                if times > 0 {
+                    weight += w * times;
+                    cued |= *w >= strong;
                     covered.extend(piece.chars());
                 }
             }
             for (c, w) in &chars {
-                if body.contains(c.as_str()) && !c.chars().any(|c| covered.contains(&c)) {
-                    weight += w;
+                let times = body.matches(c.as_str()).take(3).count() as u64;
+                if times > 0 && !c.chars().any(|c| covered.contains(&c)) {
+                    weight += w * times;
+                    cued |= *w >= strong;
                 }
             }
-            words + weight
+            if cued { words + weight } else { 0 }
         })
         .collect();
-    // ADR-MEM-210: with CJK terms in play, a memory scoring under half the
-    // best adopted score has no cue: common pieces alone do not recall.
-    let floor = if pieces.is_empty() && chars.is_empty() {
-        0
-    } else {
-        candidates
-            .iter()
-            .zip(&lexical)
-            .filter(|(c, _)| c.memory.decision.outcome.adoption == AdoptionState::Adopted)
-            .map(|(_, l)| *l)
-            .max()
-            .unwrap_or(0)
-            .div_ceil(2)
-    };
     let mut ranked = Vec::new();
     for (index, candidate) in candidates.iter().enumerate() {
         let memory = candidate.memory;
@@ -410,11 +437,7 @@ fn select_with_limit(
         );
         let body = &bodies[index];
         let mut reasons = Vec::new();
-        let lexical = if lexical[index] >= floor {
-            lexical[index]
-        } else {
-            0
-        };
+        let lexical = lexical[index];
         let alias = profile
             .aliases
             .iter()

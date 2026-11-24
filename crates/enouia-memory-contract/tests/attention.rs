@@ -242,65 +242,108 @@ fn recall_terms_split_cjk_runs_into_pieces_and_characters() {
     assert!(long.pieces.len() + long.chars.len() <= MAX_RECALL_CJK_TERMS);
 }
 
-/// ADR-MEM-210: rare CJK terms decide; common pieces alone do not recall.
-#[test]
-fn chinese_questions_recall_by_rare_terms_not_common_pieces() {
+/// Synthetic memories with the given texts, as recall candidates.
+fn library(texts: &[&str]) -> Vec<MachineMemory> {
+    texts
+        .iter()
+        .enumerate()
+        .map(|(n, text)| {
+            let mut m = memory();
+            m.memory.memory_id =
+                MemoryId::parse(&format!("mem_{n:08x}-0000-4000-8000-000000000002")).unwrap();
+            m.decision.input.content = (*text).into();
+            m
+        })
+        .collect()
+}
+/// The catalog and qualified selectors agree; the selected IDs in order.
+fn recalled(memories: &[MachineMemory], text: &str) -> Vec<MemoryId> {
     let p = profile();
-    // A library like the one Runtime checked: "喜欢" is common, no memory is
-    // about a tea preference, and one mentions matcha.
-    let mut texts = vec![
-        "京都第八天去宇治喝了抹茶",
-        "Enouia 迁移到新服务器",
-        "周末去爬山",
-        "我最喜欢的寿司是三文鱼",
-        "喜欢安静地过生日",
-        "喜欢晚上散步",
-        "喜欢白猫",
-    ];
-    for n in 0..9 {
-        texts.push(["早上跑步", "读了一本书", "下雨天在家"][n % 3]);
-    }
-    let mut memories = Vec::new();
-    for (n, text) in texts.iter().enumerate() {
-        let mut m = memory();
-        m.memory.memory_id =
-            MemoryId::parse(&format!("mem_{n:08x}-0000-4000-8000-000000000002")).unwrap();
-        m.decision.input.content = (*text).into();
-        memories.push(m);
-    }
+    let q = query(text);
     let snapshot = memories[0].request.snapshot.clone();
     let candidates: Vec<_> = memories
         .iter()
         .map(|m| RecallCandidate {
             memory: m,
-            source_time: query("").at.clone(),
+            source_time: q.at.clone(),
             rendered_bytes: 100,
         })
         .collect();
-    let selected = |text: &str| -> Vec<MemoryId> {
-        let q = query(text);
-        let states = vec![AttentionState::Active; candidates.len()];
-        let catalog = select_catalog_recall(&p, &q, &snapshot, &q.at, &candidates).unwrap();
-        let qualified =
-            select_qualified_catalog_recall(&p, &q, &snapshot, &q.at, &candidates, &states)
-                .unwrap();
-        assert_eq!(catalog.selected, qualified.selected, "{text}");
-        catalog
-            .selected
-            .iter()
-            .map(|s| s.memory.memory_id.clone())
-            .collect()
-    };
+    let states = vec![AttentionState::Active; candidates.len()];
+    let catalog = select_catalog_recall(&p, &q, &snapshot, &q.at, &candidates).unwrap();
+    let qualified =
+        select_qualified_catalog_recall(&p, &q, &snapshot, &q.at, &candidates, &states).unwrap();
+    assert_eq!(catalog.selected, qualified.selected, "{text}");
+    catalog
+        .selected
+        .iter()
+        .map(|s| s.memory.memory_id.clone())
+        .collect()
+}
+/// Everyday memories in Morii's voice: 我, 去, 过 and 了 are common, as in a
+/// real library.
+const FILLER: [&str; 3] = [
+    "我早上去跑步了",
+    "我读过一本书，觉得不错",
+    "下雨天我在家里看过电影",
+];
+
+/// ADR-MEM-210/211: rare CJK terms rank first; common pieces only trail.
+#[test]
+fn chinese_questions_rank_rare_terms_above_common_pieces() {
+    // "喜欢" is common, no memory is about a tea preference, one mentions
+    // matcha and two are about drinks.
+    let mut texts = vec![
+        "京都第八天去宇治喝了抹茶",
+        "Enouia 迁移到新服务器",
+        "周末去爬山",
+        "居酒屋里喝了一杯酒",
+        "喜欢安静地过生日",
+        "喜欢晚上散步",
+        "喜欢白猫",
+    ];
+    texts.extend((0..25).map(|n| FILLER[n % 3]));
+    let memories = library(&texts);
     let id = |n: usize| memories[n].memory.memory_id.clone();
-    // The rare "茶" wins over the common "喜欢"; "喜欢"-only memories stay out.
-    let tea = selected("我平时喜欢喝什么茶？");
-    assert_eq!(tea.first(), Some(&id(0)), "{tea:?}");
-    for n in 4..7 {
-        assert!(!tea.contains(&id(n)), "{n}: {tea:?}");
+    let tea = recalled(&memories, "我平时喜欢喝什么茶？");
+    assert_eq!(tea.first(), Some(&id(0)), "matcha first: {tea:?}");
+    let position = |n: usize| tea.iter().position(|m| m == &id(n));
+    for common in 4..7 {
+        if let Some(at) = position(common) {
+            assert!(
+                at > position(3).unwrap(),
+                "{common} trails the drinks: {tea:?}"
+            );
+        }
     }
-    assert_eq!(selected("Enouia迁移"), vec![id(1)]);
-    assert_eq!(selected("寿司"), vec![id(3)]);
-    assert!(selected("滑雪").is_empty(), "no shared term, no recall");
+    assert_eq!(recalled(&memories, "Enouia迁移"), vec![id(1)]);
+    assert!(recalled(&memories, "滑雪").is_empty(), "no shared term");
     // Without CJK terms the old count rule applies unchanged.
-    assert_eq!(selected("Enouia"), vec![id(1)]);
+    assert_eq!(recalled(&memories, "Enouia"), vec![id(1)]);
+}
+
+/// ADR-MEM-211: a stray memory with a rare chance pairing cannot push out
+/// the memories that keep returning to the rare word asked about.
+#[test]
+fn chinese_questions_keep_the_memories_about_the_rare_word() {
+    let mut texts = vec![
+        "旅行第七天坐新干线到京都，京都的寺很多，京都很冷",
+        "旅行第八天在京都吃抹茶，京都的街很安静",
+        "旅行第九天离开京都去大阪，京都的雨停了",
+        "十天旅行总结：从京都到大阪，京都最难忘",
+        "旅行第六天，明天去京都，查了京都的地图",
+        "京都的红叶和京都的寺庙",
+        "我去过很多地方，陪伴的意义不在于去过哪里，也不在京都",
+    ];
+    texts.extend((0..33).map(|n| FILLER[n % 3]));
+    let memories = library(&texts);
+    let kyoto = recalled(&memories, "我去过京都吗");
+    for (diary, m) in memories.iter().enumerate().take(6) {
+        assert!(kyoto.contains(&m.memory.memory_id), "{diary}: {kyoto:?}");
+    }
+    assert_ne!(
+        kyoto.first(),
+        Some(&memories[6].memory.memory_id),
+        "the stray memory does not lead: {kyoto:?}"
+    );
 }
