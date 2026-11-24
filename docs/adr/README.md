@@ -1306,3 +1306,10 @@ scoring of ADR-MEM-210/211; queries without CJK are unchanged.
 [Decision](213-recall-cjk-summed-terms.md): CJK scoring returns to ADR-MEM-210's sum of piece and character
 weights, without its relative floor, with pieces bounded by their rarer character, a cue through a piece of
 weight 2 or a character of weight 4, and repeats only breaking ties; supersedes ADR-MEM-212's scoring.
+
+### ADR-MEM-214 — Recall matches titles, and rare words outweigh common characters
+
+[Decision](214-recall-titles-and-strong-words.md): recall matches content and title; question characters split
+CJK runs; a piece holding no more than a quarter of its rarer character's memories is a weak chance pairing;
+strong terms (words of weight 3, characters of weight 4, a title mention counting twice) score ×16 over a
+tie-break of weak terms; a memory holding a whole run of three or more characters earns a bonus.

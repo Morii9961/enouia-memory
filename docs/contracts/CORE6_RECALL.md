@@ -33,9 +33,9 @@ external calls. Unknown algorithm/version and unbounded tuning refuse.
 | Knowledge/adoption | Staged hypotheses/uncertainty/conflict never enter ordinary statement context |
 | Conditions | Every recorded condition needs an explicit matching cue; no implicit universal preference |
 | Event/valid time | Unknown event time cannot match an invented date; Current validity uses present native time |
-| Candidate relevance | Lexical terms plus explicit profile aliases; no vectors, random old memories or latent model scores. Whitespace words and the other parts of mixed words count 1 each. Each CJK run of the query gives its two-character pieces and characters, weighted ⌊log2(N/df)⌋ over the candidates (a piece never above its rarer character); matched terms add their weight once, a piece of weight 2 or a character of weight 4 cues the memory, and the CJK score is that sum ×4 plus up to 3 piece repeats as a tie-break (`recall_terms`, ADR-MEM-209/213) |
+| Candidate relevance | Lexical terms plus explicit profile aliases over a memory's content and title; no vectors, random old memories or latent model scores. Whitespace words and the other parts of mixed words count 1 each. Question characters split CJK runs; each run gives two-character pieces and characters weighted ⌊log2(N/df)⌋ (a piece never above its rarer character, and a chance pairing when it holds a quarter or less of that character's memories). Strong terms (words of weight 3, characters of weight 4; a title mention counts twice, at most two) score ×16 over a tie-break of weak terms and repeats (at most 15); a whole run of three or more characters adds its heaviest piece (`recall_terms`, ADR-MEM-209/214) |
 | Attention | Active/fading/archived/protected is separate from truth, adoption and plan state |
-| Ranking | Lexical score (words, or for CJK the weighted sum ×4 plus repeats) x100, alias match +60, active/protected +3, fading +1; stable identity/revision ties |
+| Ranking | Lexical score (words, or for CJK strong ×16 plus tie-break) x100, alias match +60, active/protected +3, fading +1; stable identity/revision ties |
 | Budget | Exact qualified rendered UTF-8 bytes including separators, plus item cap; overflow/truncation explained |
 
 `RecallTrace` includes algorithm, snapshot, profile hash, ranking/authorization
