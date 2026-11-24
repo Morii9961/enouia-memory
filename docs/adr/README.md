@@ -1164,3 +1164,9 @@ service nightly, back up as the service account and restart it only if it was ru
 [Decision](189-remote-access-log.md): `serve` writes a startup line (resource, bind, read grant end,
 writes on/off) and one stderr line per request (time, method, path without query, status, ms,
 JSON-RPC method, tool name, error flag) for journald; never bodies, queries, codes or tokens.
+
+### ADR-MEM-190 — Tool results warn before the read grant ends
+
+[Decision](190-connector-grant-end-notice.md): in the read grant's last 14 days every connector
+`tools/call` result carries `grant_notice` (`ends_at`, `days_left`, renew message) for ChatGPT to
+relay to Morii; expiry behaviour itself is unchanged.

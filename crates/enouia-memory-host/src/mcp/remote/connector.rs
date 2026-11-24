@@ -67,6 +67,7 @@ pub struct ConnectorSession<'w, S: Session> {
     ids: &'w dyn IdSource,
     profile: &'w AttentionProfile,
     requests: Option<RequestFilers<'w>>,
+    grant_end: Option<Timestamp>,
     initialized: bool,
     ready: bool,
     original: Option<Value>,
@@ -91,6 +92,7 @@ impl<'w, S: Session> ConnectorSession<'w, S> {
             ids,
             profile,
             requests: None,
+            grant_end: None,
             initialized: false,
             ready: false,
             original: None,
@@ -103,6 +105,12 @@ impl<'w, S: Session> ConnectorSession<'w, S> {
     /// connector writer, which is what resolves their references.
     pub fn with_requests(mut self, requests: RequestFilers<'w>) -> Self {
         self.requests = Some(requests);
+        self
+    }
+    /// ADR-MEM-190: the read grant's end. In its last `GRANT_NOTICE_MS`,
+    /// every tool result carries a `grant_notice` for ChatGPT to relay.
+    pub fn with_grant_end(mut self, end: Timestamp) -> Self {
+        self.grant_end = Some(end);
         self
     }
     fn file_request(
@@ -330,8 +338,8 @@ fn result(id: &Value, data: Value, is_error: bool) -> Value {
     }})
 }
 
-impl<S: Session> Session for ConnectorSession<'_, S> {
-    fn handle(&mut self, message: &Value) -> Option<Value> {
+impl<S: Session> ConnectorSession<'_, S> {
+    fn answer(&mut self, message: &Value) -> Option<Value> {
         let method = message["method"].as_str().unwrap_or_default();
         if method == "notifications/initialized" && self.initialized {
             self.ready = true;
@@ -456,6 +464,36 @@ impl<S: Session> Session for ConnectorSession<'_, S> {
             }
             Err(fault) => Some(result(&id, json!({"error": format!("{fault:?}")}), true)),
         }
+    }
+}
+
+/// ADR-MEM-190: how long before the read grant ends tool results say so.
+pub const GRANT_NOTICE_MS: i64 = 14 * 86_400_000;
+
+impl<S: Session> Session for ConnectorSession<'_, S> {
+    fn handle(&mut self, message: &Value) -> Option<Value> {
+        let mut response = self.answer(message)?;
+        let left = self
+            .grant_end
+            .as_ref()
+            .map(|end| end.unix_ms() - self.clock.now_unix_ms())
+            .filter(|left| *left < GRANT_NOTICE_MS);
+        if let (Some(left), Some(end)) = (left, &self.grant_end)
+            && message["method"] == "tools/call"
+            && let Some(data) = response["result"]["structuredContent"].as_object_mut()
+        {
+            data.insert(
+                "grant_notice".into(),
+                json!({
+                    "ends_at": end,
+                    "days_left": left.max(0) / 86_400_000,
+                    "message": "Morii's read grant for this connector ends soon; after that this connector stops. Tell Morii to renew it on the server (enouia-memory-remote read-renew-plan).",
+                }),
+            );
+            let text = response["result"]["structuredContent"].to_string();
+            response["result"]["content"] = json!([{"type": "text", "text": text}]);
+        }
+        Some(response)
     }
     fn closed(&self) -> bool {
         self.inner.closed()

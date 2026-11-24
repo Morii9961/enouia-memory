@@ -185,3 +185,67 @@ fn protected_resource_metadata_lists_write_only_when_enabled() {
         assert_eq!(body["scopes_supported"], scopes);
     }
 }
+
+/// ADR-MEM-190: in the read grant's last 14 days, tool results say when it
+/// ends so ChatGPT can tell Morii; earlier, and outside tool calls, nothing.
+#[test]
+fn tool_results_carry_a_grant_notice_near_the_grant_end() {
+    let e = owner_env();
+    let v = Arc::new(e.create(Faults::none()));
+    let writer = ConnectorWriter::new(
+        v.clone(),
+        e.descriptor.created_by.clone(),
+        ActorRef {
+            actor_type: ActorType::Client,
+            actor_id: PrincipalId::parse(&id("prn", 88)).unwrap(),
+        },
+        ConnectorConfig {
+            account_scope: "chatgpt-connector-synthetic".into(),
+            default_timezone: "Asia/Shanghai".into(),
+            max_sensitivity: Sensitivity::Private,
+            allowed_forms: vec![FormationKind::Preference],
+            window_days: 30,
+        },
+    )
+    .unwrap();
+    let clock = FakeClock::new(NOW);
+    let ids = SequentialIdSource::new(40);
+    let profile: AttentionProfile =
+        serde_json::from_value(value("attention/profile.json")).unwrap();
+    let scopes = vec!["memory.read".to_string(), "memory.write".to_string()];
+    let day = 86_400_000;
+    let session = |days: i64| {
+        let end = enouia_memory_contract::time::Timestamp::from_unix_ms(NOW + days * day).unwrap();
+        let mut s = ConnectorSession::new(Stub, Some(&writer), &scopes, &clock, &ids, &profile)
+            .with_grant_end(end);
+        for m in init() {
+            s.handle(&m);
+        }
+        s
+    };
+    let dry = |s: &mut ConnectorSession<Stub>| {
+        s.handle(&call(
+            4,
+            json!({"submission": submission(), "preflight": true}),
+        ))
+        .unwrap()
+    };
+    let mut near = session(3);
+    let result = dry(&mut near);
+    let notice = &result["result"]["structuredContent"]["grant_notice"];
+    assert_eq!(notice["days_left"], 3, "{result}");
+    assert!(notice["message"].as_str().unwrap().contains("renew"));
+    let text: Value =
+        serde_json::from_str(result["result"]["content"][0]["text"].as_str().unwrap()).unwrap();
+    assert_eq!(&text["grant_notice"], notice);
+    let list = near
+        .handle(&json!({"jsonrpc":"2.0","id":2,"method":"tools/list"}))
+        .unwrap();
+    assert!(list["result"].get("grant_notice").is_none());
+    let mut far = session(30);
+    assert!(
+        dry(&mut far)["result"]["structuredContent"]
+            .get("grant_notice")
+            .is_none()
+    );
+}

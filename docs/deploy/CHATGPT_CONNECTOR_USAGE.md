@@ -77,8 +77,13 @@ ChatGPT 可以读你的记忆，也可以提交新记忆。本页说明怎样让
 > `memory_request_forget` 提交请求，引用我的原话。
 > 每周用 `memory_search`（`days: 7`）看一次最近的记忆，如果有反复出现的主题，就用
 > `memory_submit_theme` 提交一个，概括要用你自己的话写，并说明这是你的推断。
+> 如果工具结果里出现 `grant_notice`，就把到期时间告诉我，提醒我续期。
 
 ## 出错时
+
+- 结果里带 `grant_notice`：读取授权会在 14 天内到期（[ADR190](../adr/190-connector-grant-end-notice.md)）。
+  到期后服务会停止。在服务器上按 [CONNECTOR_READ_GRANTS.md](CONNECTOR_READ_GRANTS.md) 用
+  `read-renew-plan` 续期，然后重启服务。
 
 - 返回 `invalid_submission`：同时会附带 `problems`，逐条说明哪里不对，例如引文没有逐字出现在
   那条 user 消息里、`kind` 不被允许、字段超长（[ADR181](../adr/181-connector-refusal-reasons.md)）。
