@@ -1211,3 +1211,9 @@ so a larger request pages instead of failing.
 [Decision](197-oauth-chatgpt-tolerance.md): a scope request needs only one configured scope (others
 ignored; tokens always carry the configured scopes), the resource matches with or without a trailing
 slash, and the metadata announces `authorization_response_iss_parameter_supported`.
+
+### ADR-MEM-198 — Missing version and Accept headers follow the specifications
+
+[Decision](198-mcp-transport-header-tolerance.md): without `MCP-Protocol-Version` the negotiated version
+applies, and without `Accept` any media type is accepted; a wrong version or an Accept excluding JSON is
+still refused.

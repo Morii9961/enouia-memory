@@ -243,9 +243,11 @@ fn initialize_binds_one_session_to_the_bearer_subject_and_protocol_version() {
             .status,
         404
     );
+    // ADR-MEM-198: a missing version header means the negotiated version;
+    // a different version is refused.
     let mut old = post(Some("tok-owner"), Some(&id), call(3, "tools/list"));
     old.headers.retain(|(n, _)| n != "MCP-Protocol-Version");
-    assert_eq!(endpoint.respond(&old).status, 400);
+    assert_eq!(endpoint.respond(&old).status, 200);
     old.headers
         .push(("MCP-Protocol-Version".into(), "2025-03-26".into()));
     assert_eq!(endpoint.respond(&old).status, 400);
@@ -261,6 +263,9 @@ fn initialize_binds_one_session_to_the_bearer_subject_and_protocol_version() {
     let mut accept = post(Some("tok-owner"), Some(&id), call(5, "tools/list"));
     accept.headers[1].1 = "text/event-stream".into();
     assert_eq!(endpoint.respond(&accept).status, 406);
+    // No Accept header at all accepts any media type.
+    accept.headers.remove(1);
+    assert_eq!(endpoint.respond(&accept).status, 200);
     let batch = endpoint.respond(&post(
         Some("tok-owner"),
         Some(&id),
@@ -293,6 +298,9 @@ fn initialize_binds_one_session_to_the_bearer_subject_and_protocol_version() {
         [
             json!("initialize"),
             json!("notifications/initialized"),
+            json!("tools/list"),
+            // ADR-MEM-198: without a version header, and without Accept.
+            json!("tools/list"),
             json!("tools/list")
         ]
     );
