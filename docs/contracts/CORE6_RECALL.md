@@ -33,7 +33,7 @@ external calls. Unknown algorithm/version and unbounded tuning refuse.
 | Knowledge/adoption | Staged hypotheses/uncertainty/conflict never enter ordinary statement context |
 | Conditions | Every recorded condition needs an explicit matching cue; no implicit universal preference |
 | Event/valid time | Unknown event time cannot match an invented date; Current validity uses present native time |
-| Candidate relevance | Lexical terms plus explicit profile aliases; no vectors, random old memories or latent model scores |
+| Candidate relevance | Lexical terms plus explicit profile aliases; no vectors, random old memories or latent model scores. Terms are the whitespace words plus, for each CJK run, its overlapping two-character pieces and the other parts of mixed words (`recall_terms`, ADR-MEM-209) |
 | Attention | Active/fading/archived/protected is separate from truth, adoption and plan state |
 | Ranking | Lexical count x100, alias match +60, active/protected +3, fading +1; stable identity/revision ties |
 | Budget | Exact qualified rendered UTF-8 bytes including separators, plus item cap; overflow/truncation explained |

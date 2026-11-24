@@ -508,7 +508,7 @@
     {
       "path": "crates/enouia-memory-contract/src/next/attention.rs",
       "role": "automation-contract",
-      "sha256": "a065d16cb8fc4a95c01d4ac68322ecc0d77c6d93b92ec0b7d7d0454ddd141f73"
+      "sha256": "c049caeb5faef7daf4eb705511cecd087f84ceec80dc62d0f01b7ae3aa0b5695"
     },
     {
       "path": "crates/enouia-memory-contract/src/next/catalog_read.rs",
@@ -968,7 +968,7 @@
     {
       "path": "crates/enouia-memory-host/src/mcp/remote/chatgpt.rs",
       "role": "host-session",
-      "sha256": "8ed34e8019025982b5c573d0312e6d85b32ad5012da3599850bed4e1121df6f7"
+      "sha256": "80c7ad8f2d99059bd262d73cda4fedcd42992945477c87d0816cc1b7d8cd863a"
     },
     {
       "path": "crates/enouia-memory-host/src/mcp/remote/connector.rs",
@@ -1431,5 +1431,5 @@
       "sha256": "3603c1855d9f9ec9b3585143a0191508980b260b1ffd26c82b3e6f9b7223a75d"
     }
   ],
-  "aggregate": "8f4a4e3c25de6d6490307178eb5dfc43804254171e840da07f95cc4c65a850b3"
+  "aggregate": "fd8c2737716c334ec663b23467f941eddfa0a23fb03ae815d5414259b94260a1"
 }

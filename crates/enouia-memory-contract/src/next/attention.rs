@@ -245,6 +245,43 @@ pub fn select_qualified_catalog_recall(
         Some(attention),
     )
 }
+/// ADR-MEM-209: the lexical terms of a recall query, lowercased and without
+/// duplicates. Each whitespace-separated word is a term. Chinese, Japanese
+/// and Korean are written without spaces, so each run of those characters
+/// also adds its overlapping two-character pieces ("喜欢喝茶" adds 喜欢, 欢喝,
+/// 喝茶), and a mixed word such as "Enouia迁移" also adds its other parts
+/// with at least two letters or digits ("enouia"). A memory counts one hit per
+/// term it contains, so memories sharing more pieces rank first.
+pub fn recall_terms(text: &str) -> Vec<String> {
+    let cjk = |c: char| matches!(c, '\u{3040}'..='\u{30ff}' | '\u{3400}'..='\u{4dbf}' | '\u{4e00}'..='\u{9fff}' | '\u{f900}'..='\u{faff}' | '\u{ac00}'..='\u{d7af}');
+    let mut seen = BTreeSet::new();
+    let mut terms = Vec::new();
+    let mut add = |term: String| {
+        if seen.insert(term.clone()) {
+            terms.push(term);
+        }
+    };
+    for word in text.split_whitespace() {
+        add(word.to_lowercase());
+        let chars: Vec<char> = word.to_lowercase().chars().collect();
+        let mut start = 0;
+        while start < chars.len() {
+            let kind = cjk(chars[start]);
+            let mut end = start;
+            while end < chars.len() && cjk(chars[end]) == kind {
+                end += 1;
+            }
+            let run = &chars[start..end];
+            if kind {
+                run.windows(2).for_each(|pair| add(pair.iter().collect()));
+            } else if run.iter().filter(|c| c.is_alphanumeric()).count() >= 2 {
+                add(run.iter().collect());
+            }
+            start = end;
+        }
+    }
+    terms
+}
 fn select_with_limit(
     profile: &AttentionProfile,
     query: &RecallQuery,
@@ -280,11 +317,7 @@ fn select_with_limit(
         excluded: vec![],
         rendered_bytes: 0,
     };
-    let words: Vec<_> = query
-        .text
-        .split_whitespace()
-        .map(str::to_lowercase)
-        .collect();
+    let words = recall_terms(&query.text);
     let mut ranked = Vec::new();
     for (index, candidate) in candidates.iter().enumerate() {
         let memory = candidate.memory;

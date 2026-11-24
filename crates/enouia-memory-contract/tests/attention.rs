@@ -217,3 +217,77 @@ fn selection_counts_rendered_bytes_and_ties_replay_stably() {
         select_recall(&p, &q, &m.request.snapshot, &q.at, &candidates).unwrap()
     );
 }
+
+/// ADR-MEM-209: CJK runs add two-character pieces; other words are unchanged.
+#[test]
+fn recall_terms_split_cjk_runs_into_pieces_and_keep_other_words() {
+    assert_eq!(recall_terms("moonlight Pottery"), ["moonlight", "pottery"]);
+    assert_eq!(recall_terms("摄影集"), ["摄影集", "摄影", "影集"]);
+    assert_eq!(recall_terms("Enouia迁移"), ["enouia迁移", "enouia", "迁移"]);
+    assert_eq!(
+        recall_terms("喝 茶 喝茶"),
+        ["喝", "茶", "喝茶"],
+        "single characters stay words; duplicates count once"
+    );
+    let question = recall_terms("我平时喜欢喝什么茶？");
+    for piece in ["喜欢", "欢喝", "么茶"] {
+        assert!(question.contains(&piece.to_owned()), "{question:?}");
+    }
+    assert!(
+        !question
+            .iter()
+            .any(|t| t.contains('？') && t.chars().count() == 2)
+    );
+}
+
+/// ADR-MEM-209: a Chinese question without spaces recalls the memories that
+/// share its pieces, most shared first, through every catalog entry point.
+#[test]
+fn chinese_questions_without_spaces_recall_by_shared_pieces() {
+    let p = profile();
+    let texts = [
+        "我最喜欢喝乌龙茶",
+        "早上喝咖啡",
+        "周末去爬山",
+        "Enouia 迁移到新服务器",
+    ];
+    let mut memories = Vec::new();
+    for (n, text) in texts.iter().enumerate() {
+        let mut m = memory();
+        m.memory.memory_id =
+            MemoryId::parse(&format!("mem_{n:08x}-0000-4000-8000-000000000002")).unwrap();
+        m.decision.input.content = (*text).into();
+        memories.push(m);
+    }
+    let snapshot = memories[0].request.snapshot.clone();
+    let candidates: Vec<_> = memories
+        .iter()
+        .map(|m| RecallCandidate {
+            memory: m,
+            source_time: query("").at.clone(),
+            rendered_bytes: 100,
+        })
+        .collect();
+    let selected = |text: &str| -> Vec<MemoryId> {
+        let q = query(text);
+        let states = vec![AttentionState::Active; candidates.len()];
+        let catalog = select_catalog_recall(&p, &q, &snapshot, &q.at, &candidates).unwrap();
+        let qualified =
+            select_qualified_catalog_recall(&p, &q, &snapshot, &q.at, &candidates, &states)
+                .unwrap();
+        assert_eq!(catalog.selected, qualified.selected, "{text}");
+        catalog
+            .selected
+            .iter()
+            .map(|s| s.memory.memory_id.clone())
+            .collect()
+    };
+    let tea = selected("我平时喜欢喝什么茶？");
+    assert_eq!(tea.first(), Some(&memories[0].memory.memory_id), "{tea:?}");
+    assert!(!tea.contains(&memories[2].memory.memory_id), "{tea:?}");
+    assert_eq!(
+        selected("Enouia迁移"),
+        vec![memories[3].memory.memory_id.clone()]
+    );
+    assert!(selected("滑雪").is_empty(), "no shared piece, no recall");
+}
