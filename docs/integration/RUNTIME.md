@@ -3,7 +3,7 @@
 2026-11-24 ChatGPT conversation segments ([ADR-MEM-185](../adr/185-connector-conversation-segments.md)):
 a ChatGPT thread continued after its capture window rotated is captured as a segment whose
 original conversation ID is `<id>#<window policy>`. Runtime may show such segments under their
-base ID. No IPC, wire or schema change. Surface aggregate: `6a52f44fef35a530cfaab193fa34cee1ab48541ac694dc19251eca10ad16057e`.
+base ID. No IPC, wire or schema change. Resent turns are refused with a reason ([ADR-MEM-186](../adr/186-connector-resent-turns.md)). Surface aggregate: `37a700bd829f1e19905aa18a15b516481e79631f967f532ef3a25c0a37e667e9`.
 
 2026-11-24 ChatGPT correction and forget requests ([ADR-MEM-184](../adr/184-chatgpt-correction-forget-requests.md)):
 the remote connector can file correction and forget requests under its request-capable grant.

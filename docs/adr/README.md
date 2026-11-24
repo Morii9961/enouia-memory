@@ -1140,3 +1140,9 @@ enter Morii's existing confirmation queue and change nothing until he confirms i
 turns under another window, the connector captures the continuation as a deterministic segment
 `<conversation_id>#<window policy>` (cross-window parents dropped), so long ChatGPT threads are no
 longer refused after a window rotates; replays rebuild the same request.
+
+### ADR-MEM-186 — Refuse resent ChatGPT turns, with the reason
+
+[Decision](186-connector-resent-turns.md): a new connector request that resends a turn already
+captured in the same conversation (original or segment) is refused, and its problems name the turn;
+replays of the same request_id are unaffected.

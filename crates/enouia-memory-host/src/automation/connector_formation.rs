@@ -429,6 +429,65 @@ impl ConnectorWriter {
     pub fn config(&self) -> &ConnectorConfig {
         &self.config
     }
+    /// ADR-MEM-186: message IDs of `request` that this connector already
+    /// captured in the same conversation, its original or any segment.
+    pub fn resent_turns(&self, request: &RuntimeCaptureRequest) -> ApplicationResult<Vec<String>> {
+        let base = request.conversation_id.as_str();
+        let segment = format!("{base}#");
+        let wanted: std::collections::BTreeSet<_> = request
+            .turns
+            .iter()
+            .map(|t| t.message_id.as_str())
+            .collect();
+        Ok(self.vault.read_scoped(
+            &self.vault.descriptor().system_actor,
+            self.config.max_sensitivity,
+            SystemReadScope::MoriiFullHistory,
+            |d| {
+                let mut found = std::collections::BTreeSet::new();
+                for c in d.conversations.values().filter(|c| {
+                    c.platform == CAPTURE_PLATFORM
+                        && c.account_scope == self.config.account_scope
+                        && c.original_conversation_id.as_deref().is_some_and(|id| {
+                            id == base
+                                || id
+                                    .strip_prefix(&segment)
+                                    .is_some_and(|p| p.starts_with("pol_"))
+                        })
+                }) {
+                    for t in &c.turns {
+                        if let Some(m) = d
+                            .sources
+                            .get(&t.source.source_id)
+                            .and_then(|s| s.record.original_message_id.as_deref())
+                            .filter(|m| wanted.contains(m))
+                        {
+                            found.insert(m.to_owned());
+                        }
+                    }
+                }
+                found.into_iter().collect()
+            },
+        )?)
+    }
+    /// ADR-MEM-181/186: every reason this submission would be refused before
+    /// the Vault: its own checks, then turns already submitted.
+    pub fn submission_problems(&self, submission: &ConnectorSubmission) -> Vec<String> {
+        let mut out = submission.problems(&self.config.allowed_forms);
+        let replay = self
+            .vault
+            .capture_policy_for_request(&self.owner, &self.producer, &submission.request.request_id)
+            .ok()
+            .flatten();
+        if replay.is_none() {
+            for m in self.resent_turns(&submission.request).unwrap_or_default() {
+                out.push(format!(
+                    "turn {m} was already submitted in this conversation; send only new turns (resubmitting the same request_id replays)"
+                ));
+            }
+        }
+        out
+    }
     /// ADR-MEM-185: capture permits cover one window, and a conversation's
     /// earlier turns must be in it. When this conversation already has turns
     /// under another window, the submission continues it here as a segment
@@ -779,6 +838,11 @@ impl ConnectorWriter {
             &self.producer,
             &request.request_id,
         )?;
+        // ADR-MEM-186: a new request must not resend turns this conversation
+        // already holds; the same request_id replays instead.
+        if replay.is_none() && !self.resent_turns(request)?.is_empty() {
+            return Err(ApplicationFault::Invalid);
+        }
         let policy = match replay {
             Some(policy) => policy,
             None => {

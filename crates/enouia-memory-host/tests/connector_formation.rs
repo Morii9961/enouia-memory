@@ -462,6 +462,30 @@ fn a_conversation_continues_across_windows() {
             },
         )
         .unwrap();
+    // ADR-MEM-186: a new request resending an old turn is refused with its
+    // message ID; in either window it would otherwise be stored twice.
+    let resent = ConnectorSubmission {
+        request: {
+            let mut r = request(9, "I prefer quiet rooms.");
+            r.turns[0].message_id = "m1".into();
+            r.turns[0].parent_message_id = None;
+            r
+        },
+        analyst_model: "synthetic-chatgpt-model".into(),
+        statements: vec![],
+    };
+    assert!(w.submit(&resent, false, later).is_err());
+    let problems = w.submission_problems(&resent);
+    assert!(
+        problems
+            .iter()
+            .any(|p| p.contains("turn m1 was already submitted")),
+        "{problems:?}"
+    );
+    assert!(
+        w.submission_problems(&next).is_empty(),
+        "a replay is not a resend"
+    );
     assert_eq!(conversations.len(), 2, "{conversations:?}");
     assert_eq!(conversations[0], ("chatgpt-synthetic".into(), 1, 0));
     assert!(conversations[1].0.starts_with("chatgpt-synthetic#pol_"));
