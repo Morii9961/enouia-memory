@@ -542,6 +542,50 @@ fn daily_flow(e: &Env, p: &AutomationPolicy, before: usize, root: &VerifiedRoot)
         problems.contains("verbatim") && problems.contains("kind is not allowed"),
         "{refused}"
     );
+    // ADR-MEM-206: the turn limits say how to split, and the split passes.
+    let long_chat = |turns: Vec<Value>| {
+        json!({"submission": {
+            "request": {"request_id": "long-1", "conversation_id": "chatgpt-long", "turns": turns},
+            "analyst_model": "synthetic-chatgpt-model",
+            "statements": []
+        }, "preflight": true})
+    };
+    let nine: Vec<Value> = (1..=9)
+        .map(|n| json!({"message_id": format!("m{n}"), "speaker": "user", "text": "Tea again."}))
+        .collect();
+    let refused = short(&mut rpc, "memory_submit_conversation", long_chat(nine));
+    assert_eq!(refused["isError"], true);
+    assert!(
+        refused["structuredContent"]["problems"][0]
+            .as_str()
+            .unwrap()
+            .contains("holds 9 turns; send 1 to 8 per call"),
+        "{refused}"
+    );
+    let message = "茶".repeat(7000); // 21,000 bytes of UTF-8
+    let refused = short(
+        &mut rpc,
+        "memory_submit_conversation",
+        long_chat(vec![
+            json!({"message_id": "m1", "speaker": "user", "text": message}),
+        ]),
+    );
+    assert_eq!(refused["isError"], true);
+    let problem = refused["structuredContent"]["problems"][0].to_string();
+    assert!(
+        problem.contains("21000 bytes") && problem.contains("m1-1 and m1-2"),
+        "{refused}"
+    );
+    let (head, tail) = message.split_at(3 * 3500);
+    let split = short(
+        &mut rpc,
+        "memory_submit_conversation",
+        long_chat(vec![
+            json!({"message_id": "m1-1", "speaker": "user", "text": head}),
+            json!({"message_id": "m1-2", "speaker": "user", "text": tail}),
+        ]),
+    );
+    assert_ne!(split["isError"], json!(true), "{split}");
     // The following grant sees the connector's new window on the next read.
     let after: BTreeSet<_> = search(&mut rpc).difference(&baseline).cloned().collect();
     let receipted: BTreeSet<_> = [&first_memories[0], &second_memories[0]]

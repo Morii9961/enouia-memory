@@ -62,6 +62,10 @@ ChatGPT 可以读你的记忆，也可以提交新记忆。本页说明怎样让
    部分会接在新的窗口里（[ADR185](../adr/185-connector-conversation-segments.md)）。每次新提交的消息会自动接在
    这段对话已有消息的后面（[ADR192](../adr/192-connector-same-chat-continuation.md)），所以每次都从 1 开始编号也没关系，
    但 `message_id` 在同一对话里不能重复用给不同的消息（[ADR191](../adr/191-connector-reused-message-ids.md)）。
+6. 每次调用最多 8 条消息，每条消息最多 16384 字节（中文约 5,000 字）
+   （[ADR206](../adr/206-connector-turn-limits-explained.md)）。消息多就按顺序分几次提交，每次换一个
+   `request_id`、`conversation_id` 不变，每条记忆放在包含它所引用那句话的那次调用里。一条消息太长，
+   就把它原样拆成同一说话人的几条连续消息，ID 用 `原ID-1`、`原ID-2`。
 
 ## 主题
 
@@ -81,6 +85,8 @@ ChatGPT 可以读你的记忆，也可以提交新记忆。本页说明怎样让
 > 逐字引用我说的一句话，并在 `entities` 里写出提到的人和地点。先用 `preflight: true` 检查，
 > 没问题再正式提交；被拒时按 `problems` 修改。同一个对话始终用同一个 `conversation_id`；
 > 每条消息的 `message_id` 用“日期-序号”（例如 2026-11-24-3），同一对话里永远不要重复使用。
+> 每次最多 8 条消息：多了就按顺序分几次提交；一条消息超过约 5,000 个汉字，就原样拆成几条
+> 连续消息（ID 加 -1、-2）。
 > 我说某条记忆不对或者要忘掉时，先提交包含这句话的对话，再用 `memory_request_correction` 或
 > `memory_request_forget` 提交请求，引用我的原话。
 > 每周用 `memory_search`（`days: 7`）看一次最近的记忆，如果有反复出现的主题，就用

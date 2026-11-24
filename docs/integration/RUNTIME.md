@@ -1,5 +1,9 @@
 # Runtime integration (ADR-MEM-45)
 
+2026-11-24 turn limits explained ([ADR-MEM-206](../adr/206-connector-turn-limits-explained.md)): connector
+refusals and schema say how to split a chat over 8 turns or a message over 16384 bytes. The capture
+contract is unchanged; Runtime needs no change. Surface aggregate: `ff518447c0b591d60bb5158c9a0e788e9efa15a9f87b5ed6ac567d1a385ff2fd`.
+
 2026-11-24 recover command ([ADR-MEM-205](../adr/205-remote-recover-command.md)): `enouia-memory-remote
 recover <config> --confirm-recover` finishes a publication an unknown outcome left half done. Remote
 service only; Runtime needs no change. Surface aggregate: `8d8495f3336d44680823aca34e87f92d4d3dbf00ed734eaee802f04e8ed742dc`.
