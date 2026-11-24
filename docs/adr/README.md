@@ -1245,3 +1245,9 @@ that answer null data without an error carry a neutral `note` (unknown, deleted 
 [Decision](203-theme-member-reasons.md): a theme member without record fields is refused instead of
 panicking, and theme refusals list each member that cannot join (unknown, not this connector's, or no
 quoted evidence).
+
+### ADR-MEM-204 — `set-origin` points the config at a new public origin
+
+[Decision](204-remote-set-origin.md): `enouia-memory-remote set-origin <config> <https://host>` rewrites
+`resource` (keeping its path) and `issuer` after validating them like `serve`; other fields are
+untouched and a refused origin leaves the file as it was.

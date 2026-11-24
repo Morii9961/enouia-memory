@@ -1,5 +1,9 @@
 # Runtime integration (ADR-MEM-45)
 
+2026-11-24 set-origin ([ADR-MEM-204](../adr/204-remote-set-origin.md)): `enouia-memory-remote set-origin`
+rewrites the service config's resource and issuer for a new tunnel origin. Remote service only; Runtime
+needs no change. Surface aggregate: `20a084d6b209a3490f807b8e577f7cd2af71fd20d9e1df365618ee7c04171c6c`.
+
 2026-11-24 theme member reasons ([ADR-MEM-203](../adr/203-theme-member-reasons.md)): connector theme
 refusals name each member that cannot join; a member without record fields no longer panics. Remote
 connector only; Runtime needs no change. Surface aggregate: `2fc374fe9ef01ed3d0941a7a0fbbea7b20197ef453a27d203b966270dbaf215a`.

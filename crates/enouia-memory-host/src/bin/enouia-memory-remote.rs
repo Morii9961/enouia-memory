@@ -26,7 +26,7 @@ use enouia_memory_vault::{OsIdSource, RootPolicy, SystemClock, fault::Faults, ve
 use std::sync::Arc;
 
 fn run(args: &[String]) -> Result<(), String> {
-    const USAGE: &str = "usage: enouia-memory-remote <serve|approve|backup|read-check|read-status|read-draft|read-plan|read-set|read-renew-plan|read-revoke-plan|read-refresh-plan|oauth-status|oauth-revoke> <config.json> [arguments]";
+    const USAGE: &str = "usage: enouia-memory-remote <serve|approve|backup|set-origin|read-check|read-status|read-draft|read-plan|read-set|read-renew-plan|read-revoke-plan|read-refresh-plan|oauth-status|oauth-revoke> <config.json> [arguments]";
     let [command, path, rest @ ..] = args else {
         return Err(USAGE.into());
     };
@@ -37,6 +37,41 @@ fn run(args: &[String]) -> Result<(), String> {
         "approve" if rest.is_empty() => {
             let code = service::approve(&config, &OsIdSource, &SystemClock)?;
             println!("{code}");
+            Ok(())
+        }
+        // ADR-MEM-204: point the config at a new public origin (a fresh quick
+        // tunnel, say): `resource` keeps its path, `issuer` becomes the origin.
+        "set-origin" => {
+            let [origin] = rest else {
+                return Err("set-origin <config> <https://host>".into());
+            };
+            let host = origin.strip_prefix("https://").unwrap_or_default();
+            if host.is_empty() || host.contains(['/', '?', '#', '@', ' ']) {
+                return Err("set-origin: give the origin only, as https://host".into());
+            }
+            let mut raw: serde_json::Value =
+                serde_json::from_slice(&bytes).map_err(|e| format!("config: {e}"))?;
+            let suffix = config
+                .resource
+                .strip_prefix("https://")
+                .and_then(|r| r.find('/').map(|i| r[i..].to_owned()))
+                .unwrap_or_else(|| "/mcp".into());
+            raw["resource"] = serde_json::json!(format!("{origin}{suffix}"));
+            raw["issuer"] = serde_json::json!(origin);
+            let changed: service::ServiceConfig =
+                serde_json::from_value(raw.clone()).map_err(|e| format!("config: {e}"))?;
+            if changed.oauth().is_none() || changed.endpoint().is_none() {
+                return Err("set-origin: the new origin does not fit the config".into());
+            }
+            let text = serde_json::to_string_pretty(&raw).map_err(|e| e.to_string())?;
+            // Written beside the config, then moved over it in one step.
+            let temporary = format!("{path}.set-origin");
+            std::fs::write(&temporary, text).map_err(|e| format!("write: {e}"))?;
+            std::fs::rename(&temporary, path).map_err(|e| format!("write: {e}"))?;
+            println!(
+                "{}",
+                serde_json::json!({"resource": changed.resource, "issuer": changed.issuer})
+            );
             Ok(())
         }
         "backup" => {
