@@ -1,5 +1,9 @@
 # Runtime integration (ADR-MEM-45)
 
+2026-11-24 not-found note ([ADR-MEM-202](../adr/202-read-not-found-note.md)): the remote connector's
+short lookups add a neutral note when nothing is visible. Runtime needs no change. Surface aggregate:
+`8fbb4d1c6fff8e3dcc962094ce5e3b4fde2a7041f1f3dd5fb9bcde416043c01c`.
+
 2026-11-24 Expect 100-continue ([ADR-MEM-201](../adr/201-http-expect-continue.md)): the remote
 loopback driver sends `100 Continue` when asked. Remote service only; Runtime needs no change. Surface
 aggregate: `2c4a58e0ef61a0f0d8d8ef8301cb76d0ef706423fc27e7a5755ba5b8a756bf7f`.
