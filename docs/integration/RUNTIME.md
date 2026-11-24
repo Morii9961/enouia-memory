@@ -7,7 +7,7 @@ with CJK terms a memory under half the best adopted score is `no_cue`. Queries w
 `recall_terms` now returns a `RecallTerms` struct instead of a `Vec<String>` (Rust API change; Runtime does
 not call it directly as far as Memory knows). **Runtime adoption:** bump the pin and rerun the real-library
 check; expected: "我平时喜欢喝什么茶？" no longer selects the "喜欢"-only memories and can select memories with 茶.
-Surface aggregate: `4fa3f99a4e90f312ff60264fb48e1312d678b15cd1d4362da854ccbd1dc60588`.
+Surface aggregate: `7ae7f71198745834ab50fa097e6ceb4a69809ce32637c0baa49de75a392fee33`.
 
 2026-11-24 CJK recall terms in the contract ([ADR-MEM-209](../adr/209-recall-cjk-pieces-in-contract.md)),
 at Runtime's request: `recall_terms` in the attention contract adds the overlapping two-character pieces of
