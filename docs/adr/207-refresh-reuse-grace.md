@@ -67,4 +67,13 @@ grace barely widens what a thief can do. It removes a likely daily lockout.
   client's replay revokes at once. After that, the owner's retry is refused
   too.
 
-`remote_service`, `remote_http` and `remote_daily_process` pass unchanged.
+`remote_daily_process`, through the real binary, follows the reported
+ChatGPT pattern for six turns:
+
+- it refreshes before every call;
+- it opens a new session each turn, so six sessions outnumber the four
+  slots;
+- in one turn, two refreshes use the same token.
+
+Every refresh and every search succeeds. `remote_service` and `remote_http`
+pass unchanged.
