@@ -508,7 +508,7 @@
     {
       "path": "crates/enouia-memory-contract/src/next/attention.rs",
       "role": "automation-contract",
-      "sha256": "c049caeb5faef7daf4eb705511cecd087f84ceec80dc62d0f01b7ae3aa0b5695"
+      "sha256": "31fa7f464797d242c299b2c1fcda1981f0ad7612cf204ceba311baf8ace2862c"
     },
     {
       "path": "crates/enouia-memory-contract/src/next/catalog_read.rs",
@@ -1431,5 +1431,5 @@
       "sha256": "3603c1855d9f9ec9b3585143a0191508980b260b1ffd26c82b3e6f9b7223a75d"
     }
   ],
-  "aggregate": "fd8c2737716c334ec663b23467f941eddfa0a23fb03ae815d5414259b94260a1"
+  "aggregate": "7ae7f71198745834ab50fa097e6ceb4a69809ce32637c0baa49de75a392fee33"
 }

@@ -245,25 +245,34 @@ pub fn select_qualified_catalog_recall(
         Some(attention),
     )
 }
-/// ADR-MEM-209: the lexical terms of a recall query, lowercased and without
-/// duplicates. Each whitespace-separated word is a term. Chinese, Japanese
-/// and Korean are written without spaces, so each run of those characters
-/// also adds its overlapping two-character pieces ("喜欢喝茶" adds 喜欢, 欢喝,
-/// 喝茶), and a mixed word such as "Enouia迁移" also adds its other parts
-/// with at least two letters or digits ("enouia"). A memory counts one hit per
-/// term it contains, so memories sharing more pieces rank first.
-pub fn recall_terms(text: &str) -> Vec<String> {
+/// The lexical terms of a recall query, lowercased and without duplicates.
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub struct RecallTerms {
+    /// Each whitespace-separated word, plus the non-CJK parts of a mixed word
+    /// with at least two letters or digits ("Enouia迁移" adds "enouia"). A
+    /// memory containing one counts one hit, as before (ADR-MEM-209).
+    pub words: Vec<String>,
+    /// The overlapping two-character pieces of each CJK run ("喜欢喝茶" gives
+    /// 喜欢, 欢喝, 喝茶). Weighted by rarity (ADR-MEM-210).
+    pub pieces: Vec<String>,
+    /// The single characters of each CJK run, weighted by rarity and not
+    /// counted again inside a matched piece (ADR-MEM-210).
+    pub chars: Vec<String>,
+}
+/// ADR-MEM-210: CJK terms considered per query, pieces first.
+pub const MAX_RECALL_CJK_TERMS: usize = 64;
+/// ADR-MEM-209/210: Chinese, Japanese and Korean are written without spaces,
+/// so CJK runs also give pieces and characters.
+pub fn recall_terms(text: &str) -> RecallTerms {
     let cjk = |c: char| matches!(c, '\u{3040}'..='\u{30ff}' | '\u{3400}'..='\u{4dbf}' | '\u{4e00}'..='\u{9fff}' | '\u{f900}'..='\u{faff}' | '\u{ac00}'..='\u{d7af}');
+    let mut terms = RecallTerms::default();
     let mut seen = BTreeSet::new();
-    let mut terms = Vec::new();
-    let mut add = |term: String| {
-        if seen.insert(term.clone()) {
-            terms.push(term);
-        }
-    };
     for word in text.split_whitespace() {
-        add(word.to_lowercase());
-        let chars: Vec<char> = word.to_lowercase().chars().collect();
+        let word = word.to_lowercase();
+        if seen.insert(word.clone()) {
+            terms.words.push(word.clone());
+        }
+        let chars: Vec<char> = word.chars().collect();
         let mut start = 0;
         while start < chars.len() {
             let kind = cjk(chars[start]);
@@ -273,13 +282,30 @@ pub fn recall_terms(text: &str) -> Vec<String> {
             }
             let run = &chars[start..end];
             if kind {
-                run.windows(2).for_each(|pair| add(pair.iter().collect()));
+                for pair in run.windows(2) {
+                    let piece: String = pair.iter().collect();
+                    if seen.insert(piece.clone()) {
+                        terms.pieces.push(piece);
+                    }
+                }
+                for c in run {
+                    if seen.insert(c.to_string()) {
+                        terms.chars.push(c.to_string());
+                    }
+                }
             } else if run.iter().filter(|c| c.is_alphanumeric()).count() >= 2 {
-                add(run.iter().collect());
+                let part: String = run.iter().collect();
+                if seen.insert(part.clone()) {
+                    terms.words.push(part);
+                }
             }
             start = end;
         }
     }
+    terms.pieces.truncate(MAX_RECALL_CJK_TERMS);
+    terms
+        .chars
+        .truncate(MAX_RECALL_CJK_TERMS - terms.pieces.len());
     terms
 }
 fn select_with_limit(
@@ -317,7 +343,62 @@ fn select_with_limit(
         excluded: vec![],
         rendered_bytes: 0,
     };
-    let words = recall_terms(&query.text);
+    let terms = recall_terms(&query.text);
+    let bodies: Vec<String> = candidates
+        .iter()
+        .map(|c| c.memory.decision.input.content.to_lowercase())
+        .collect();
+    // ADR-MEM-210: a CJK piece or character weighs log2(N / df) over the
+    // candidates, in integers so every platform ranks alike. Terms in more
+    // than half of the memories weigh nothing.
+    let n = candidates.len() as u64;
+    let weigh = |term: &String| {
+        let df = bodies.iter().filter(|b| b.contains(term.as_str())).count() as u64;
+        // df never exceeds n, so a nonzero df gives a quotient of at least 1.
+        let weight = n.checked_div(df).map_or(0, |q| u64::from(q.ilog2()));
+        (weight > 0).then(|| (term.clone(), weight))
+    };
+    let pieces: Vec<_> = terms.pieces.iter().filter_map(weigh).collect();
+    let chars: Vec<_> = terms.chars.iter().filter_map(weigh).collect();
+    let lexical: Vec<u64> = bodies
+        .iter()
+        .map(|body| {
+            let words = terms
+                .words
+                .iter()
+                .filter(|w| body.contains(w.as_str()))
+                .count() as u64;
+            // A character inside a matched piece is not counted again.
+            let mut covered = BTreeSet::new();
+            let mut weight = 0;
+            for (piece, w) in &pieces {
+                if body.contains(piece.as_str()) {
+                    weight += w;
+                    covered.extend(piece.chars());
+                }
+            }
+            for (c, w) in &chars {
+                if body.contains(c.as_str()) && !c.chars().any(|c| covered.contains(&c)) {
+                    weight += w;
+                }
+            }
+            words + weight
+        })
+        .collect();
+    // ADR-MEM-210: with CJK terms in play, a memory scoring under half the
+    // best adopted score has no cue: common pieces alone do not recall.
+    let floor = if pieces.is_empty() && chars.is_empty() {
+        0
+    } else {
+        candidates
+            .iter()
+            .zip(&lexical)
+            .filter(|(c, _)| c.memory.decision.outcome.adoption == AdoptionState::Adopted)
+            .map(|(_, l)| *l)
+            .max()
+            .unwrap_or(0)
+            .div_ceil(2)
+    };
     let mut ranked = Vec::new();
     for (index, candidate) in candidates.iter().enumerate() {
         let memory = candidate.memory;
@@ -327,9 +408,13 @@ fn select_with_limit(
             || attention_state(profile, memory, &candidate.source_time, &query.at),
             |states| states[index],
         );
-        let body = input.content.to_lowercase();
+        let body = &bodies[index];
         let mut reasons = Vec::new();
-        let lexical = words.iter().filter(|w| body.contains(w.as_str())).count() as u64;
+        let lexical = if lexical[index] >= floor {
+            lexical[index]
+        } else {
+            0
+        };
         let alias = profile
             .aliases
             .iter()

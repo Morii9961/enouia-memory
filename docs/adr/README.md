@@ -1281,3 +1281,9 @@ ranks memories by shared pieces; the recall contract and `memory_search` are unc
 [Decision](209-recall-cjk-pieces-in-contract.md): `recall_terms` in the attention contract adds the two-character
 pieces of each CJK run (and the other parts of mixed words) to the whitespace words for every recall selector,
 at Runtime's request; text without CJK keeps its terms, and ADR-MEM-208's connector-side expansion is removed.
+
+### ADR-MEM-210 — CJK recall terms are weighted by rarity
+
+[Decision](210-recall-cjk-rarity-weights.md): CJK pieces and single characters weigh ⌊log2(N/df)⌋ over the
+candidates (terms in over half weigh nothing; a character inside a matched piece is not recounted), and with
+CJK terms in play a memory under half the best score has no cue; queries without CJK are unchanged.

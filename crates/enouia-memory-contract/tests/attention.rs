@@ -218,39 +218,48 @@ fn selection_counts_rendered_bytes_and_ties_replay_stably() {
     );
 }
 
-/// ADR-MEM-209: CJK runs add two-character pieces; other words are unchanged.
+/// ADR-MEM-209/210: words stay words; CJK runs add pieces and characters.
 #[test]
-fn recall_terms_split_cjk_runs_into_pieces_and_keep_other_words() {
-    assert_eq!(recall_terms("moonlight Pottery"), ["moonlight", "pottery"]);
-    assert_eq!(recall_terms("摄影集"), ["摄影集", "摄影", "影集"]);
-    assert_eq!(recall_terms("Enouia迁移"), ["enouia迁移", "enouia", "迁移"]);
-    assert_eq!(
-        recall_terms("喝 茶 喝茶"),
-        ["喝", "茶", "喝茶"],
-        "single characters stay words; duplicates count once"
-    );
+fn recall_terms_split_cjk_runs_into_pieces_and_characters() {
+    let plain = recall_terms("moonlight Pottery");
+    assert_eq!(plain.words, ["moonlight", "pottery"]);
+    assert!(plain.pieces.is_empty() && plain.chars.is_empty());
+    let photos = recall_terms("摄影集");
+    assert_eq!(photos.words, ["摄影集"]);
+    assert_eq!(photos.pieces, ["摄影", "影集"]);
+    assert_eq!(photos.chars, ["摄", "影", "集"]);
+    let mixed = recall_terms("Enouia迁移");
+    assert_eq!(mixed.words, ["enouia迁移", "enouia"]);
+    assert_eq!(mixed.pieces, ["迁移"]);
+    let spaced = recall_terms("喝 茶 喝茶");
+    assert_eq!(spaced.words, ["喝", "茶", "喝茶"]);
+    assert!(spaced.pieces.is_empty() && spaced.chars.is_empty());
     let question = recall_terms("我平时喜欢喝什么茶？");
-    for piece in ["喜欢", "欢喝", "么茶"] {
-        assert!(question.contains(&piece.to_owned()), "{question:?}");
-    }
-    assert!(
-        !question
-            .iter()
-            .any(|t| t.contains('？') && t.chars().count() == 2)
-    );
+    assert!(question.pieces.contains(&"喜欢".to_owned()));
+    assert!(question.chars.contains(&"茶".to_owned()));
+    assert!(!question.chars.contains(&"？".to_owned()));
+    let long = recall_terms(&"天地玄黄宇宙洪荒".repeat(20));
+    assert!(long.pieces.len() + long.chars.len() <= MAX_RECALL_CJK_TERMS);
 }
 
-/// ADR-MEM-209: a Chinese question without spaces recalls the memories that
-/// share its pieces, most shared first, through every catalog entry point.
+/// ADR-MEM-210: rare CJK terms decide; common pieces alone do not recall.
 #[test]
-fn chinese_questions_without_spaces_recall_by_shared_pieces() {
+fn chinese_questions_recall_by_rare_terms_not_common_pieces() {
     let p = profile();
-    let texts = [
-        "我最喜欢喝乌龙茶",
-        "早上喝咖啡",
-        "周末去爬山",
+    // A library like the one Runtime checked: "喜欢" is common, no memory is
+    // about a tea preference, and one mentions matcha.
+    let mut texts = vec![
+        "京都第八天去宇治喝了抹茶",
         "Enouia 迁移到新服务器",
+        "周末去爬山",
+        "我最喜欢的寿司是三文鱼",
+        "喜欢安静地过生日",
+        "喜欢晚上散步",
+        "喜欢白猫",
     ];
+    for n in 0..9 {
+        texts.push(["早上跑步", "读了一本书", "下雨天在家"][n % 3]);
+    }
     let mut memories = Vec::new();
     for (n, text) in texts.iter().enumerate() {
         let mut m = memory();
@@ -282,12 +291,16 @@ fn chinese_questions_without_spaces_recall_by_shared_pieces() {
             .map(|s| s.memory.memory_id.clone())
             .collect()
     };
+    let id = |n: usize| memories[n].memory.memory_id.clone();
+    // The rare "茶" wins over the common "喜欢"; "喜欢"-only memories stay out.
     let tea = selected("我平时喜欢喝什么茶？");
-    assert_eq!(tea.first(), Some(&memories[0].memory.memory_id), "{tea:?}");
-    assert!(!tea.contains(&memories[2].memory.memory_id), "{tea:?}");
-    assert_eq!(
-        selected("Enouia迁移"),
-        vec![memories[3].memory.memory_id.clone()]
-    );
-    assert!(selected("滑雪").is_empty(), "no shared piece, no recall");
+    assert_eq!(tea.first(), Some(&id(0)), "{tea:?}");
+    for n in 4..7 {
+        assert!(!tea.contains(&id(n)), "{n}: {tea:?}");
+    }
+    assert_eq!(selected("Enouia迁移"), vec![id(1)]);
+    assert_eq!(selected("寿司"), vec![id(3)]);
+    assert!(selected("滑雪").is_empty(), "no shared term, no recall");
+    // Without CJK terms the old count rule applies unchanged.
+    assert_eq!(selected("Enouia"), vec![id(1)]);
 }
