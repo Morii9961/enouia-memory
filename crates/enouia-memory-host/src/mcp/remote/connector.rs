@@ -393,7 +393,10 @@ impl<S: Session> ConnectorSession<'_, S> {
                 self.initialized = true;
             }
             if method == "tools/list"
-                && let Some(tools) = response["result"]["tools"].as_array_mut()
+                && let Some(tools) = response
+                    .get_mut("result")
+                    .and_then(|r| r.get_mut("tools"))
+                    .and_then(Value::as_array_mut)
             {
                 for tool in tools.iter_mut() {
                     let name = tool["name"].as_str().unwrap_or_default().to_owned();
@@ -519,7 +522,11 @@ impl<S: Session> Session for ConnectorSession<'_, S> {
             .filter(|left| *left < GRANT_NOTICE_MS);
         if let (Some(left), Some(end)) = (left, &self.grant_end)
             && message["method"] == "tools/call"
-            && let Some(data) = response["result"]["structuredContent"].as_object_mut()
+            // Never index mutably into a JSON-RPC error: that would add a result.
+            && let Some(data) = response
+                .get_mut("result")
+                .and_then(|r| r.get_mut("structuredContent"))
+                .and_then(Value::as_object_mut)
         {
             data.insert(
                 "grant_notice".into(),

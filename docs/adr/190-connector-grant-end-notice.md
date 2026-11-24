@@ -41,3 +41,16 @@ checks three cases:
 
 The real-process `remote_daily_process` flow and the other remote suites pass
 unchanged.
+
+## Correction (same day)
+
+The first implementation looked up `result.structuredContent` with mutable
+JSON indexing. On a JSON-RPC error reply, that lookup inserted a `result`
+member next to `error`, which produced invalid JSON-RPC. It happened only
+during the notice period, and was found by probing the real binary. The
+lookup now goes through `get_mut` and leaves error replies untouched. The
+`tools/list` rewrite (ADR-MEM-178/180) had the same pattern and was fixed the
+same way.
+
+The test now also sends a `tools/call` that the read session answers with a
+JSON-RPC error. The reply has no `result` and no notice.

@@ -1,5 +1,9 @@
 # Runtime integration (ADR-MEM-45)
 
+2026-11-24 grant notice correction ([ADR-MEM-190](../adr/190-connector-grant-end-notice.md#correction-same-day)):
+JSON-RPC error replies from the remote connector no longer gain a `result` member during the notice
+period. Remote connector only; Runtime needs no change. Surface aggregate: `9b8032990255248b5b2c2368bcfd019eed8124aa068488bde0ea088d1609da6d`.
+
 2026-11-24 short read refusals ([ADR-MEM-196](../adr/196-chatgpt-read-argument-reasons.md)): the
 remote connector's short read calls explain refusals and clamp search `limit`. Runtime needs no change.
 Surface aggregate: `98a4675dd1fc5d6ede2ff3988b4f934d5c671b23bb5ba82d2e7d7bb4e4b44eaf`.
