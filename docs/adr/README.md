@@ -1300,3 +1300,9 @@ weight 2 or more (or the heaviest weight in a small library); queries without CJ
 characters), weighted by rarity and never above their rarest character; per run a memory scores its best strong
 fragment by weight × length, with no repeat counting, so the whole word outranks its parts; supersedes the CJK
 scoring of ADR-MEM-210/211; queries without CJK are unchanged.
+
+### ADR-MEM-213 — CJK recall sums weighted terms, with repeats as tie-breaks
+
+[Decision](213-recall-cjk-summed-terms.md): CJK scoring returns to ADR-MEM-210's sum of piece and character
+weights, without its relative floor, with pieces bounded by their rarer character, a cue through a piece of
+weight 2 or a character of weight 4, and repeats only breaking ties; supersedes ADR-MEM-212's scoring.

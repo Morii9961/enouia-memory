@@ -1,5 +1,12 @@
 # Runtime integration (ADR-MEM-45)
 
+2026-11-24 CJK summed terms ([ADR-MEM-213](../adr/213-recall-cjk-summed-terms.md)), after Runtime's fourth
+real-library check (ADR-MEM-212 lost 第一次喝酒 and tied all 京都 memories; Runtime stayed on abdcacf): CJK scoring
+returns to ADR-MEM-210's sum of piece and character weights without its half-of-best floor; a piece is never
+rarer than its rarer character; a piece of weight 2 or a character of weight 4 cues a memory; the CJK lexical
+score is that sum ×4 plus up to 3 piece repeats as a tie-break. Titles are still not matched. **Runtime
+adoption:** bump the pin and rerun the same set (16 KB and 64 KB budgets). Surface aggregate: `30e6f5fde61f4bd445de748b8d57494fac15cb744d19d354c6c743f400bc0046`.
+
 2026-11-24 CJK best fragment ([ADR-MEM-212](../adr/212-recall-cjk-best-fragment.md)), after Runtime's third
 real-library check showed ADR-MEM-211 regressing (Runtime stayed on abdcacf): each CJK run of the query is matched by
 its substrings (up to 8 characters), weighted ⌊log2(N/max(df, rarest character df))⌋; per run a memory scores its

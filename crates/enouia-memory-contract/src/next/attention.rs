@@ -253,12 +253,10 @@ pub struct RecallTerms {
     /// memory containing one counts one hit, as before (ADR-MEM-209).
     pub words: Vec<String>,
     /// Each run of CJK characters ("我去过京都吗"). Memories are matched
-    /// against fragments of these runs (ADR-MEM-212).
+    /// against its pieces and characters (ADR-MEM-213).
     pub runs: Vec<String>,
 }
-/// ADR-MEM-212: the longest CJK fragment considered, in characters.
-pub const MAX_RECALL_FRAGMENT_CHARS: usize = 8;
-/// ADR-MEM-212: CJK fragments weighed per query.
+/// ADR-MEM-212/213: CJK pieces and characters weighed per query.
 pub const MAX_RECALL_FRAGMENTS: usize = 256;
 /// ADR-MEM-209/212: Chinese, Japanese and Korean are written without spaces,
 /// so their runs are matched by fragment.
@@ -334,64 +332,60 @@ fn select_with_limit(
         .iter()
         .map(|c| c.memory.decision.input.content.to_lowercase())
         .collect();
-    // ADR-MEM-212: a CJK fragment weighs log2(N / df) over the candidates,
-    // in integers so every platform ranks alike, and never more than its
-    // rarer character: "我去过" (common characters) weighs little, "京都"
-    // keeps the weight of 京. A memory takes, per run, its best fragment's
-    // weight times its length, so containing the whole word "摄影集" beats
-    // containing "摄影" many times.
+    // ADR-MEM-213: each CJK run of the query gives its two-character pieces
+    // and its characters. A term weighs log2(N / df) over the candidates, in
+    // integers so every platform ranks alike; a piece never more than its
+    // rarer character, so "我去" or "去过" (common characters) weighs little
+    // while "京都" keeps the weight of 京.
     let n = candidates.len() as u64;
     let df = |term: &str| bodies.iter().filter(|b| b.contains(term)).count() as u64;
     let weight = |df: u64| n.checked_div(df).map_or(0, |q| u64::from(q.ilog2()));
-    let mut fragments: Vec<(usize, String, u64, u64)> = Vec::new();
-    for (run_index, run) in terms.runs.iter().enumerate() {
-        let chars: Vec<char> = run.chars().collect();
-        let char_df: Vec<u64> = chars
-            .iter()
-            .map(|c| df(c.encode_utf8(&mut [0; 4])))
-            .collect();
-        for len in 1..=chars.len().min(MAX_RECALL_FRAGMENT_CHARS) {
-            for start in 0..=chars.len() - len {
-                if fragments.len() >= MAX_RECALL_FRAGMENTS {
-                    break;
-                }
-                let text: String = chars[start..start + len].iter().collect();
-                let found = df(&text);
-                let rarer = char_df[start..start + len]
-                    .iter()
-                    .copied()
-                    .min()
-                    .unwrap_or(0);
-                let w = if found == 0 {
-                    0
-                } else {
-                    weight(found.max(rarer))
-                };
-                if w > 0
-                    && !fragments
-                        .iter()
-                        .any(|(r, t, ..)| *r == run_index && *t == text)
-                {
-                    fragments.push((run_index, text, len as u64, w));
-                }
+    let mut pieces: Vec<(String, u64)> = Vec::new();
+    let mut chars: Vec<(String, u64)> = Vec::new();
+    for run in &terms.runs {
+        let run: Vec<char> = run.chars().collect();
+        for pair in run.windows(2) {
+            let text: String = pair.iter().collect();
+            if pieces.len() + chars.len() >= MAX_RECALL_FRAGMENTS
+                || pieces.iter().any(|(t, _)| *t == text)
+            {
+                continue;
+            }
+            let found = df(&text);
+            let rarer = pair
+                .iter()
+                .map(|c| df(c.encode_utf8(&mut [0; 4])))
+                .min()
+                .unwrap_or(0);
+            let w = if found == 0 {
+                0
+            } else {
+                weight(found.max(rarer))
+            };
+            if w > 0 {
+                pieces.push((text, w));
+            }
+        }
+        for c in &run {
+            let text = c.to_string();
+            if pieces.len() + chars.len() >= MAX_RECALL_FRAGMENTS
+                || chars.iter().any(|(t, _)| *t == text)
+            {
+                continue;
+            }
+            let w = weight(df(&text));
+            if w > 0 {
+                chars.push((text, w));
             }
         }
     }
-    // ADR-MEM-212: only strong fragments count. A fragment of two or more
-    // characters needs weight 2 (in at most a quarter of the memories); a
-    // single character needs weight 5 (at most 1 in 32), so a rare topic
-    // character such as 茶 counts and 京 or 摄 alone does not. A library too
-    // small to reach these uses the heaviest weight it has.
-    let heaviest = |single: bool| {
-        fragments
-            .iter()
-            .filter(|(.., len, _)| (*len == 1) == single)
-            .map(|(.., w)| *w)
-            .max()
-            .unwrap_or(0)
-    };
-    let (piece_strong, char_strong) = (heaviest(false).min(2), heaviest(true).min(5));
-    fragments.retain(|(.., len, w)| *w >= if *len == 1 { char_strong } else { piece_strong });
+    // ADR-MEM-213: CJK terms cue a memory through a piece of weight 2 (in at
+    // most a quarter of the memories) or a character of weight 4 (at most 1
+    // in 16), so 酒 or 茶 can find a memory and 我 or 的 cannot. A library
+    // too small to reach these uses the heaviest weight it has.
+    let heaviest = |terms: &[(String, u64)]| terms.iter().map(|(_, w)| *w).max().unwrap_or(0);
+    let (piece_cue, char_cue) = (heaviest(&pieces).min(2), heaviest(&chars).min(4));
+    let cjk = !pieces.is_empty() || !chars.is_empty();
     let lexical: Vec<u64> = bodies
         .iter()
         .map(|body| {
@@ -400,17 +394,33 @@ fn select_with_limit(
                 .iter()
                 .filter(|w| body.contains(w.as_str()))
                 .count() as u64;
-            let fragments: u64 = (0..terms.runs.len())
-                .map(|run_index| {
-                    fragments
-                        .iter()
-                        .filter(|(r, text, ..)| *r == run_index && body.contains(text.as_str()))
-                        .map(|(.., len, w)| w * len)
-                        .max()
-                        .unwrap_or(0)
-                })
-                .sum();
-            words + fragments
+            if !cjk {
+                return words;
+            }
+            // Every matched term adds its weight once; a character inside a
+            // matched piece is not counted again.
+            let mut cued = words > 0;
+            let mut covered = BTreeSet::new();
+            let mut sum = words;
+            let mut repeats = 0;
+            for (piece, w) in &pieces {
+                let times = body.matches(piece.as_str()).take(4).count() as u64;
+                if times > 0 {
+                    sum += w;
+                    repeats += times - 1;
+                    cued |= *w >= piece_cue;
+                    covered.extend(piece.chars());
+                }
+            }
+            for (c, w) in &chars {
+                if body.contains(c.as_str()) && !c.chars().any(|c| covered.contains(&c)) {
+                    sum += w;
+                    cued |= *w >= char_cue;
+                }
+            }
+            // Repeats only break ties: a lexical unit is 4, repeats add at
+            // most 3.
+            if cued { sum * 4 + repeats.min(3) } else { 0 }
         })
         .collect();
     let mut ranked = Vec::new();

@@ -1,7 +1,7 @@
 # ADR-MEM-212 — CJK recall scores each memory's best fragment
 
-Date: 2026-11-24. Status: Accepted (route: ChatGPT daily use and Runtime
-recall); synthetic validation. Replaces the CJK scoring of ADR-MEM-210 and
+Date: 2026-11-24. Status: Superseded by ADR-MEM-213 (lost the 第一次喝酒
+memory and tied all 京都 memories on the real library); synthetic validation. Replaces the CJK scoring of ADR-MEM-210 and
 211, after the Runtime session's third real-library check.
 
 ## Context

@@ -361,3 +361,52 @@ fn the_whole_word_outranks_a_repeated_part_of_it() {
         "{photos:?}"
     );
 }
+
+/// ADR-MEM-213, from Runtime's check of ADR-MEM-212: a memory saying 首次饮酒
+/// still answers 我第一次喝酒 through the rare character 酒, and memories that
+/// share only 第一次 do not outrank it.
+#[test]
+fn a_rare_character_finds_a_memory_worded_differently() {
+    let memories = with_filler(
+        &[
+            "从未饮酒到9月11日首次麒麟一番榨，酒花微苦",
+            "第一次参加比赛很紧张",
+            "第一次去海边看日出",
+        ],
+        60,
+    );
+    let drink = recalled(&memories, "我第一次喝酒是什么时候？");
+    assert_eq!(
+        drink.first(),
+        Some(&memories[0].memory.memory_id),
+        "{drink:?}"
+    );
+}
+
+/// ADR-MEM-213: among memories that share the same terms, the one returning
+/// to the word asked about ranks first; repeats never outrank a stronger match.
+#[test]
+fn repeats_break_ties_only() {
+    let memories = with_filler(
+        &[
+            "顺带提到京都的一句话",
+            "京都第九天，京都的雨，离开京都",
+            "京都第八天，宇治抹茶，京都的夜",
+        ],
+        60,
+    );
+    let kyoto = recalled(&memories, "京都");
+    assert_eq!(
+        kyoto.last(),
+        Some(&memories[0].memory.memory_id),
+        "{kyoto:?}"
+    );
+    assert_eq!(kyoto.len(), 3, "{kyoto:?}");
+    // 抹茶 is a stronger match for this question than any number of 京都.
+    let matcha = recalled(&memories, "京都抹茶");
+    assert_eq!(
+        matcha.first(),
+        Some(&memories[2].memory.memory_id),
+        "{matcha:?}"
+    );
+}
