@@ -1188,3 +1188,8 @@ a replay takes each turn's recorded sequence and parent. Fixes `Denied` on a cha
 [Decision](193-connector-conflict-reasons.md): a capture `Conflict` is answered as `invalid_submission`
 with `problems`: a request_id replayed with changed content, or a parent that is not a turn of the
 conversation; with no reason found, the generic error stays.
+
+### ADR-MEM-194 — A plain Busy message and the VPS renewal steps
+
+[Decision](194-remote-busy-hint-and-vps-renewal.md): commands that find the Vault held say which kind
+of process to stop; the grant guide adds the systemd stop/renew/confirm/start sequence for the VPS.

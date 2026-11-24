@@ -32,6 +32,24 @@ enouia-memory-remote read-revoke-plan <config.json> <grant-id> --revoke
 enouia-memory-remote read-refresh-plan <config.json> <grant-id>
 ```
 
+### 在 VPS 上续期（systemd）
+
+ChatGPT 的工具结果出现 `grant_notice` 时（[ADR190](../adr/190-connector-grant-end-notice.md)），按下面的顺序续期。
+服务停下的这几分钟里，ChatGPT 的调用会失败，之后可以重试。
+
+```sh
+systemctl stop enouia-memory-remote
+runuser -u enouia -- enouia-memory-remote read-status /etc/enouia-memory/remote.json
+runuser -u enouia -- sh -c 'enouia-memory-remote read-renew-plan /etc/enouia-memory/remote.json <grant-id> <UTC-expiry> > /var/lib/enouia-memory/renew-plan.json'
+# 检查 renew-plan.json 里的完整 grant，再确认：
+runuser -u enouia -- enouia-memory-remote read-set /etc/enouia-memory/remote.json /var/lib/enouia-memory/renew-plan.json --confirm-owner-read
+systemctl start enouia-memory-remote
+journalctl -u enouia-memory-remote -n 1   # 启动行里的 read grant until 应是新的到期时间
+```
+
+`<grant-id>` 是配置里的 `read_grant_id`，不变。续期前最好先手动运行一次夜间备份
+（`systemctl start enouia-memory-backup.service`）。
+
 `read-refresh-plan`（[ADR168](../adr/168-read-grant-coverage.md)）先在 stderr 报告授权在自身
 主体/项目内还缺多少后来的采集窗口和已采集来源，再在 stdout 输出把它们全部纳入的下一修订
 plan，形状同 `read-plan`。连接器每天新开或续用的窗口不会自动进入已有授权，ChatGPT 读不到

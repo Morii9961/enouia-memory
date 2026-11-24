@@ -17,6 +17,7 @@ use enouia_memory_contract::{
     time::Timestamp,
 };
 use enouia_memory_host::mcp::remote::{http1, service};
+use enouia_memory_vault::automation::AutomationFault;
 use enouia_memory_vault::automation::segmented::{
     OwnerReadGrantPlan, SegmentedAutomationVault,
     backup::{export_owner, verify_owner},
@@ -103,7 +104,10 @@ fn run(args: &[String]) -> Result<(), String> {
                 Arc::new(OsIdSource),
                 Faults::none(),
             )
-            .map_err(|e| format!("vault: {e:?}"))?;
+            .map_err(|e| match e {
+                AutomationFault::Busy => "vault: Busy; another process holds the Vault (the service, Runtime, a backup or another command); stop it first".to_string(),
+                e => format!("vault: {e:?}"),
+            })?;
             if command == "read-check" && rest.is_empty() {
                 let result = service::read_check(Arc::new(vault), &config, &SystemClock)?;
                 println!(
