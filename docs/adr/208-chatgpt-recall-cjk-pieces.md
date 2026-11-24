@@ -36,6 +36,9 @@ pieces such as "什么" may let unrelated memories in, but they rank below
 memories that share more pieces, and the profile's item limit bounds the
 result.
 
+`session_start`'s optional `topic` is recalled the same way, so it gets the
+same expansion (added the same day, after the first merge).
+
 The shared recall contract, Runtime's native recall and `memory_search` are
 not changed. Runtime's recall would benefit from the same rule; that is a
 contract change for Runtime to decide (see [RUNTIME.md](../integration/RUNTIME.md)).
@@ -48,6 +51,10 @@ contract change for Runtime to decide (see [RUNTIME.md](../integration/RUNTIME.m
   "我最喜欢喝乌龙茶".
 - **Natural question.** `memory_recall` with "Morii平时喜欢喝什么茶？"
   returns that memory among its selected items.
+- **Topic.** `session_start` with the topic "聊聊我喜欢喝的茶" opens with
+  that memory.
+- **Without the expansion.** Each of these assertions fails, which confirms
+  that the test reproduces the gap.
 
 The English recall in the same flow, and the other remote suites, pass
 unchanged.
