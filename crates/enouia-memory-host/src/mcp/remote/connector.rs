@@ -378,7 +378,25 @@ impl<S: Session> ConnectorSession<'_, S> {
             };
             let mut message = message.clone();
             message["params"]["arguments"] = arguments;
-            return self.inner.handle(&message);
+            let mut response = self.inner.handle(&message)?;
+            // ADR-MEM-202: a lookup that found nothing says so, instead of a
+            // bare null.
+            if matches!(name, "memory_read" | "memory_related" | "memory_source")
+                && let Some(data) = response
+                    .get_mut("result")
+                    .and_then(|r| r.get_mut("structuredContent"))
+                    .and_then(Value::as_object_mut)
+                && data.get("data").is_some_and(Value::is_null)
+                && data.get("error").is_some_and(Value::is_null)
+            {
+                data.insert(
+                    "note".into(),
+                    json!("nothing with this ID is visible to this connector: the ID is unknown, or it was deleted, or it lies outside Morii's read grant"),
+                );
+                let text = response["result"]["structuredContent"].to_string();
+                response["result"]["content"] = json!([{"type": "text", "text": text}]);
+            }
+            return Some(response);
         }
         let Some(writer) = self.writer.filter(|_| {
             self.ready

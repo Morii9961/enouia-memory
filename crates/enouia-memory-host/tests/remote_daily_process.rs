@@ -577,6 +577,22 @@ fn daily_flow(e: &Env, p: &AutomationPolicy, before: usize, root: &VerifiedRoot)
             .contains("top_k"),
         "{typo}"
     );
+    // ADR-MEM-202: an unknown ID says nothing is visible, and is no error.
+    for (tool, key) in [
+        ("memory_read", "memory_id"),
+        ("memory_related", "memory_id"),
+        ("memory_source", "source_id"),
+    ] {
+        let prefix = if key == "source_id" { "src" } else { "mem" };
+        let missing = short(&mut rpc, tool, json!({key: id(prefix, 4095)}));
+        assert_ne!(missing["isError"], json!(true), "{missing}");
+        assert!(
+            missing["structuredContent"]["note"]
+                .as_str()
+                .is_some_and(|n| n.starts_with("nothing with this ID is visible")),
+            "{tool}: {missing}"
+        );
+    }
     let large = short(&mut rpc, "memory_search", json!({"days": 1, "limit": 500}));
     assert_ne!(large["isError"], json!(true), "{large}");
 

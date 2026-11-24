@@ -1234,3 +1234,8 @@ permit; other subjects and unknown IDs still get 404, and token and grant checks
 
 [Decision](201-http-expect-continue.md): once a request head is accepted and a body is still to be read,
 `Expect: 100-continue` gets `100 Continue`, so a waiting client or proxy sends its body without delay.
+
+### ADR-MEM-202 — A short lookup that finds nothing says so
+
+[Decision](202-read-not-found-note.md): short `memory_read`, `memory_related` and `memory_source` calls
+that answer null data without an error carry a neutral `note` (unknown, deleted or outside the grant).
