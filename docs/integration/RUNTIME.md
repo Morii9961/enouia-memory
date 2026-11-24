@@ -1,5 +1,9 @@
 # Runtime integration (ADR-MEM-45)
 
+2026-11-24 Chinese topic for ChatGPT ([ADR-MEM-208](../adr/208-chatgpt-recall-cjk-pieces.md)): the ChatGPT
+short form of `session_start` expands its `topic` the same way as `memory_recall`. Runtime needs no change.
+Surface aggregate: `8f4a4e3c25de6d6490307178eb5dfc43804254171e840da07f95cc4c65a850b3`.
+
 2026-11-24 Chinese recall for ChatGPT ([ADR-MEM-208](../adr/208-chatgpt-recall-cjk-pieces.md)): the ChatGPT
 short form of `memory_recall` adds two-character pieces of CJK runs to the query, so Chinese questions
 without spaces match. The recall contract is unchanged and Runtime needs no change. Runtime's own recall

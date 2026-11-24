@@ -51,6 +51,8 @@ fn memory_ids(value: &Value, out: &mut BTreeSet<String>) {
                     ("memory_id", Value::String(id)) => {
                         out.insert(id.clone());
                     }
+                    // A recall trace also names memories it left out.
+                    ("trace", _) => {}
                     _ => memory_ids(v, out),
                 }
             }
@@ -783,6 +785,16 @@ fn daily_flow(e: &Env, p: &AutomationPolicy, before: usize, root: &VerifiedRoot)
     let mut recalled_ids = BTreeSet::new();
     memory_ids(items, &mut recalled_ids);
     assert!(recalled_ids.contains(&tea_id), "{recalled}");
+    // The opening topic is recalled the same way.
+    let opened = short(
+        &mut rpc,
+        "session_start",
+        json!({"topic": "聊聊我喜欢喝的茶"}),
+    );
+    assert_ne!(opened["isError"], json!(true), "{opened}");
+    let mut opened_ids = BTreeSet::new();
+    memory_ids(&opened["structuredContent"], &mut opened_ids);
+    assert!(opened_ids.contains(&tea_id), "{opened}");
 
     // ChatGPT as reported: it refreshes before every tool call and opens a
     // new session each turn; two parallel calls refresh with the same token

@@ -194,7 +194,7 @@ pub fn read_arguments(
             "schema_version": 2,
             "kind": "agent_session_start_request",
             "capability": opening::SESSION_CAPABILITY,
-            "request": {"request_id": request_id, "at": now, "topic": start.topic}
+            "request": {"request_id": request_id, "at": now, "topic": recall_text(&start.topic)}
         }));
     }
     let inner = match tool {
@@ -253,7 +253,8 @@ pub fn read_arguments(
     }))
 }
 
-/// ADR-MEM-208: recall matches whitespace-separated terms, so a Chinese or
+/// ADR-MEM-208 (and `session_start`'s topic, which is recalled the same
+/// way): recall matches whitespace-separated terms, so a Chinese or
 /// Japanese question written without spaces is one term that no memory
 /// contains. The text keeps its words and gains the overlapping two-character
 /// pieces of each CJK run (and the other parts of mixed tokens), so recall
