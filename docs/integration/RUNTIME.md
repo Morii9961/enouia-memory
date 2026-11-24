@@ -1,5 +1,9 @@
 # Runtime integration (ADR-MEM-45)
 
+2026-11-24 remote session eviction ([ADR-MEM-199](../adr/199-remote-session-eviction.md)): a full
+remote endpoint ends its least recently used session instead of refusing `initialize`. Remote service
+only; Runtime needs no change. Surface aggregate: `a320d3eea0cb7668834fb9d3dc609956a85a65a78e94886767a7c05e66207356`.
+
 2026-11-24 MCP header tolerance ([ADR-MEM-198](../adr/198-mcp-transport-header-tolerance.md)): the
 remote endpoint serves requests without `MCP-Protocol-Version` (negotiated version) or `Accept`. Remote
 service only; Runtime needs no change. Surface aggregate: `038a3408c9105fb85055ec57b0bbfd13d825c23070f112e779e676bf003b070f`.
