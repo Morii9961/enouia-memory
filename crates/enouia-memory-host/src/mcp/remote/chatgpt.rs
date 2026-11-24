@@ -45,10 +45,10 @@ pub fn short_description(tool: &str) -> Option<&'static str> {
             "Call at the start of a conversation: a short, bounded set of Morii's current memories to orient yourself. Optional `topic`. Reads only."
         }
         "memory_recall" => {
-            "Find the memories most relevant to a question or topic (`text`), ranked by relevance and attention. Use it before answering anything about Morii's life, preferences, people or plans. Memories record what Morii said or what was inferred, not verified facts."
+            "Find the memories most relevant to a question or topic (`text`, a plain sentence in any language), ranked by relevance and attention. Use it before answering anything about Morii's life, preferences, people or plans. Memories record what Morii said or what was inferred, not verified facts."
         }
         "memory_search" => {
-            "List Morii's memories, newest first, optionally matching words in `query` or filtered by form or attention. Returns titles and IDs; page with `cursor`. Use memory_read for one memory in full."
+            "List Morii's memories, newest first, optionally matching every word in `query` (for Chinese, give short keywords separated by spaces, not a sentence) or filtered by form or attention. Returns titles and IDs; page with `cursor`. Use memory_read for one memory in full."
         }
         "memory_read" => {
             "Read one memory in full by `memory_id`: content, quoted evidence, times, entities and revision history."
@@ -227,7 +227,7 @@ pub fn read_arguments(
         }
         "memory_recall" => {
             let r: Recall = serde_json::from_value(arguments).map_err(parse)?;
-            json!({"text": r.text, "conditions": r.conditions, "event_window": null, "at": now, "intent": r.intent.unwrap_or_else(|| "current".into()), "limit": r.limit.map_or(profile.max_items, u64::from).min(profile.max_items), "max_bytes": profile.max_bytes})
+            json!({"text": recall_text(&r.text), "conditions": r.conditions, "event_window": null, "at": now, "intent": r.intent.unwrap_or_else(|| "current".into()), "limit": r.limit.map_or(profile.max_items, u64::from).min(profile.max_items), "max_bytes": profile.max_bytes})
         }
         "memory_read" => {
             let r: Read = serde_json::from_value(arguments).map_err(parse)?;
@@ -251,6 +251,48 @@ pub fn read_arguments(
         "operation": tool,
         "arguments": inner
     }))
+}
+
+/// ADR-MEM-208: recall matches whitespace-separated terms, so a Chinese or
+/// Japanese question written without spaces is one term that no memory
+/// contains. The text keeps its words and gains the overlapping two-character
+/// pieces of each CJK run (and the other parts of mixed tokens), so recall
+/// ranks memories by how many pieces they share. It stays within the 2048
+/// bytes a recall query allows; a longer text is left for that check.
+fn recall_text(text: &str) -> String {
+    let cjk = |c: char| matches!(c, '\u{3040}'..='\u{30ff}' | '\u{3400}'..='\u{4dbf}' | '\u{4e00}'..='\u{9fff}' | '\u{f900}'..='\u{faff}' | '\u{ac00}'..='\u{d7af}');
+    let mut out = text.to_owned();
+    let mut seen: std::collections::BTreeSet<String> =
+        text.split_whitespace().map(str::to_lowercase).collect();
+    for token in text.split_whitespace() {
+        let chars: Vec<char> = token.chars().collect();
+        let mut terms = Vec::new();
+        let mut start = 0;
+        while start < chars.len() {
+            let kind = cjk(chars[start]);
+            let mut end = start;
+            while end < chars.len() && cjk(chars[end]) == kind {
+                end += 1;
+            }
+            let run = &chars[start..end];
+            if kind {
+                terms.extend(run.windows(2).map(|pair| pair.iter().collect::<String>()));
+            } else if run.iter().filter(|c| c.is_alphanumeric()).count() >= 2 {
+                terms.push(run.iter().collect::<String>());
+            }
+            start = end;
+        }
+        for term in terms {
+            if out.len() + 1 + term.len() > 2048 {
+                return out;
+            }
+            if seen.insert(term.to_lowercase()) {
+                out.push(' ');
+                out.push_str(&term);
+            }
+        }
+    }
+    out
 }
 
 /// A request ID as given, or the stable one derived from a free-form key of

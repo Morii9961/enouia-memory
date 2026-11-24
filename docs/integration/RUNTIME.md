@@ -1,5 +1,11 @@
 # Runtime integration (ADR-MEM-45)
 
+2026-11-24 Chinese recall for ChatGPT ([ADR-MEM-208](../adr/208-chatgpt-recall-cjk-pieces.md)): the ChatGPT
+short form of `memory_recall` adds two-character pieces of CJK runs to the query, so Chinese questions
+without spaces match. The recall contract is unchanged and Runtime needs no change. Runtime's own recall
+splits on whitespace only and has the same gap for Chinese queries; adopting the same rule there would be a
+contract change for Runtime to request. Surface aggregate: `9b95a78b84b32536194235b8a7c98e0badfe6a4086d8a169e93fd42cbffddd21`.
+
 2026-11-24 refresh reuse grace ([ADR-MEM-207](../adr/207-refresh-reuse-grace.md)): the remote OAuth server
 lets the same client retry a rotated-away refresh token within two minutes while its grant lives. Remote
 service only; Runtime needs no change. Surface aggregate: `f89115e04dcb0f5b4b6dd6708a773af291e92ffa7aa787d6e62f0d8c3490655f`.
