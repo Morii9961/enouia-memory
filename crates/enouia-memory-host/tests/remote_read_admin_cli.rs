@@ -37,6 +37,41 @@ fn native_cli_previews_sets_renews_revokes_and_reports_without_source_text() {
         "agent_id":g.principal.actor_id,"subject_id":g.subject_id,"project_id":g.project_id,"policy_ids":[p.policy_id],"source_ids":g.source_ids,
         "max_sensitivity":"private","source_read":false,"read_grant_id":g.grant_id,"profile":value("attention/profile.json")
     }).to_string()).unwrap();
+    // ADR-MEM-204: a new tunnel origin rewrites resource and issuer only.
+    let unchanged = |raw: &Value| {
+        let mut raw = raw.clone();
+        raw.as_object_mut().unwrap().remove("resource");
+        raw.as_object_mut().unwrap().remove("issuer");
+        raw
+    };
+    let original: Value = serde_json::from_slice(&std::fs::read(&config).unwrap()).unwrap();
+    let moved = cli(
+        &config,
+        &["set-origin", "https://quiet-river-1234.trycloudflare.com"],
+    );
+    assert_eq!(
+        moved,
+        json!({"resource": "https://quiet-river-1234.trycloudflare.com/mcp", "issuer": "https://quiet-river-1234.trycloudflare.com"})
+    );
+    let rewritten: Value = serde_json::from_slice(&std::fs::read(&config).unwrap()).unwrap();
+    assert_eq!(rewritten["resource"], moved["resource"]);
+    assert_eq!(unchanged(&rewritten), unchanged(&original));
+    for bad in [
+        "http://plain.example",
+        "https://host.example/mcp",
+        "https://",
+    ] {
+        let refused = Command::new(env!("CARGO_BIN_EXE_enouia-memory-remote"))
+            .args(["set-origin", config.to_str().unwrap(), bad])
+            .output()
+            .unwrap();
+        assert!(!refused.status.success(), "{bad}");
+    }
+    let after: Value = serde_json::from_slice(&std::fs::read(&config).unwrap()).unwrap();
+    assert_eq!(
+        after, rewritten,
+        "a refused origin leaves the config as it was"
+    );
     let grant_path = files.path.join("grant.json");
     let plan_path = files.path.join("reviewed-plan.json");
     std::fs::write(&grant_path, serde_json::to_vec(&g).unwrap()).unwrap();

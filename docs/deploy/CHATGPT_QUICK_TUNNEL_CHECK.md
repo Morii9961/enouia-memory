@@ -75,8 +75,10 @@ Cloudflare 的临时隧道（trycloudflare，不需要域名和账号），在�
    把 `grant_id` 写进 `remote.json` 的 `read_grant_id`，然后运行
    `enouia-memory-remote read-check <remote.json>`，应返回 `read_ready: true`。
 4. **启动隧道**：`cloudflared tunnel --url http://127.0.0.1:8787`。记下它打印的
-   `https://<随机名>.trycloudflare.com`，把 `remote.json` 的 `resource` 改成
-   `https://<随机名>.trycloudflare.com/mcp`，`issuer` 改成 `https://<随机名>.trycloudflare.com`。
+   `https://<随机名>.trycloudflare.com`，运行
+   `enouia-memory-remote set-origin <remote.json> https://<随机名>.trycloudflare.com`
+   （[ADR204](../adr/204-remote-set-origin.md)）。它把 `resource` 改成 `…/mcp`、`issuer` 改成这个地址，其他字段不动；
+   也可以照旧手改这两处。
 5. **启动服务**：另开一个窗口运行 `enouia-memory-remote serve <remote.json>`，保持窗口开着。
 6. **在 ChatGPT 里添加连接器**：在开发者模式里新建自定义 MCP 连接器，地址填第 4 步的
    `/mcp` 地址，认证选 OAuth。授权页会要求输入审批码，这时在本机第三个窗口运行
