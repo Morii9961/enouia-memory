@@ -33,9 +33,9 @@ external calls. Unknown algorithm/version and unbounded tuning refuse.
 | Knowledge/adoption | Staged hypotheses/uncertainty/conflict never enter ordinary statement context |
 | Conditions | Every recorded condition needs an explicit matching cue; no implicit universal preference |
 | Event/valid time | Unknown event time cannot match an invented date; Current validity uses present native time |
-| Candidate relevance | Lexical terms plus explicit profile aliases; no vectors, random old memories or latent model scores. Terms are the whitespace words and the other parts of mixed words (1 each), plus each CJK run's overlapping two-character pieces and single characters weighted ⌊log2(N/df)⌋ over the candidates (a piece never rarer than its rarer character), each counted up to three occurrences; CJK terms cue a memory only through a term of weight 2 or more, or the heaviest weight in a small library (`recall_terms`, ADR-MEM-209/210/211) |
+| Candidate relevance | Lexical terms plus explicit profile aliases; no vectors, random old memories or latent model scores. Whitespace words and the other parts of mixed words count 1 each; each CJK run of the query scores the memory's best strong fragment (substring up to 8 characters, weight ⌊log2(N/max(df, rarest character df))⌋, at least 2, or 5 for a single character) by weight × length (`recall_terms`, ADR-MEM-209/212) |
 | Attention | Active/fading/archived/protected is separate from truth, adoption and plan state |
-| Ranking | Lexical count (words plus CJK weights) x100, alias match +60, active/protected +3, fading +1; stable identity/revision ties |
+| Ranking | Lexical score (words plus best CJK fragments) x100, alias match +60, active/protected +3, fading +1; stable identity/revision ties |
 | Budget | Exact qualified rendered UTF-8 bytes including separators, plus item cap; overflow/truncation explained |
 
 `RecallTrace` includes algorithm, snapshot, profile hash, ranking/authorization

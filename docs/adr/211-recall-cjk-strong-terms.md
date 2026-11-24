@@ -1,7 +1,7 @@
 # ADR-MEM-211 — CJK recall keeps every memory with a strong term
 
-Date: 2026-11-24. Status: Accepted (route: ChatGPT daily use and Runtime
-recall); synthetic validation. Follows the Runtime session's second
+Date: 2026-11-24. Status: Superseded by ADR-MEM-212 (it regressed on the
+real library); synthetic validation. Follows the Runtime session's second
 real-library check.
 
 ## Context

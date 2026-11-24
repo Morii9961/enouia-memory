@@ -1,5 +1,13 @@
 # Runtime integration (ADR-MEM-45)
 
+2026-11-24 CJK best fragment ([ADR-MEM-212](../adr/212-recall-cjk-best-fragment.md)), after Runtime's third
+real-library check showed ADR-MEM-211 regressing (Runtime stayed on abdcacf): each CJK run of the query is matched by
+its substrings (up to 8 characters), weighted ⌊log2(N/max(df, rarest character df))⌋; per run a memory scores its
+best strong fragment (weight ≥ 2, or ≥ 5 for a single character) by weight × length, with no repeat counting.
+`recall_terms` returns `words` and `runs`. Queries without CJK are unchanged. **Runtime adoption:** bump the pin and
+rerun the same set; expected: the 摄影集 memory leads "摄影集", Kyoto diaries lead "我去过京都吗" and the 东京
+memory drops out. Surface aggregate: `34a4ac799e36f5746c05c7269a3564d609982820c37b3260e5aa1b762dcfa30c`.
+
 2026-11-24 CJK strong terms ([ADR-MEM-211](../adr/211-recall-cjk-strong-terms.md)), after Runtime's second
 real-library check: the half-of-best floor of ADR-MEM-210 is removed (it let a stray memory push out the Kyoto
 diaries). A CJK piece is never rarer than its rarer character, pieces and characters count up to three
