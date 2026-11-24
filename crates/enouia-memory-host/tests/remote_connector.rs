@@ -242,6 +242,12 @@ fn tool_results_carry_a_grant_notice_near_the_grant_end() {
         .handle(&json!({"jsonrpc":"2.0","id":2,"method":"tools/list"}))
         .unwrap();
     assert!(list["result"].get("grant_notice").is_none());
+    // A JSON-RPC error stays an error: no notice and no added result.
+    let error = near
+        .handle(&json!({"jsonrpc":"2.0","id":5,"method":"tools/call","params":{"name":"memory_unknown","arguments":{}}}))
+        .unwrap();
+    assert_eq!(error["error"]["message"], "stub");
+    assert!(error.get("result").is_none(), "{error}");
     let mut far = session(30);
     assert!(
         dry(&mut far)["result"]["structuredContent"]
