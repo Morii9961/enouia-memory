@@ -1170,3 +1170,9 @@ JSON-RPC method, tool name, error flag) for journald; never bodies, queries, cod
 [Decision](190-connector-grant-end-notice.md): in the read grant's last 14 days every connector
 `tools/call` result carries `grant_notice` (`ends_at`, `days_left`, renew message) for ChatGPT to
 relay to Morii; expiry behaviour itself is unchanged.
+
+### ADR-MEM-191 — A reused message ID is not a resend
+
+[Decision](191-connector-reused-message-ids.md): a recorded message ID with different text is reported
+as a reused ID ("give this new message a new ID"), not as a resend to drop; both still refuse before
+the Vault, and the submit schema describes stable `conversation_id` and chat-unique `message_id`.

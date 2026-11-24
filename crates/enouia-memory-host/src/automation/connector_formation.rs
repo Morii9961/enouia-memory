@@ -507,20 +507,25 @@ impl ConnectorWriter {
     }
     /// ADR-MEM-186: message IDs of `request` that this connector already
     /// captured in the same conversation, its original or any segment.
-    pub fn resent_turns(&self, request: &RuntimeCaptureRequest) -> ApplicationResult<Vec<String>> {
+    /// ADR-MEM-191: each comes with whether the recorded text is the same
+    /// (`true`, a resend) or differs (`false`, the ID reused for a new message).
+    pub fn resent_turns(
+        &self,
+        request: &RuntimeCaptureRequest,
+    ) -> ApplicationResult<Vec<(String, bool)>> {
         let base = request.conversation_id.as_str();
         let segment = format!("{base}#");
-        let wanted: std::collections::BTreeSet<_> = request
+        let wanted: std::collections::BTreeMap<_, _> = request
             .turns
             .iter()
-            .map(|t| t.message_id.as_str())
+            .map(|t| (t.message_id.as_str(), t.text.as_str()))
             .collect();
         Ok(self.vault.read_scoped(
             &self.vault.descriptor().system_actor,
             self.config.max_sensitivity,
             SystemReadScope::MoriiFullHistory,
             |d| {
-                let mut found = std::collections::BTreeSet::new();
+                let mut found = std::collections::BTreeMap::new();
                 for c in d.conversations.values().filter(|c| {
                     c.platform == CAPTURE_PLATFORM
                         && c.account_scope == self.config.account_scope
@@ -532,13 +537,16 @@ impl ConnectorWriter {
                         })
                 }) {
                     for t in &c.turns {
-                        if let Some(m) = d
-                            .sources
-                            .get(&t.source.source_id)
-                            .and_then(|s| s.record.original_message_id.as_deref())
-                            .filter(|m| wanted.contains(m))
+                        let Some(s) = d.sources.get(&t.source.source_id) else {
+                            continue;
+                        };
+                        if let Some((m, text)) = s
+                            .record
+                            .original_message_id
+                            .as_deref()
+                            .and_then(|m| wanted.get_key_value(m))
                         {
-                            found.insert(m.to_owned());
+                            found.insert((*m).to_owned(), s.text == *text);
                         }
                     }
                 }
@@ -556,10 +564,16 @@ impl ConnectorWriter {
             .ok()
             .flatten();
         if replay.is_none() {
-            for m in self.resent_turns(&submission.request).unwrap_or_default() {
-                out.push(format!(
-                    "turn {m} was already submitted in this conversation; send only new turns (resubmitting the same request_id replays)"
-                ));
+            for (m, same) in self.resent_turns(&submission.request).unwrap_or_default() {
+                out.push(if same {
+                    format!(
+                        "turn {m} was already submitted in this conversation; send only new turns (resubmitting the same request_id replays)"
+                    )
+                } else {
+                    format!(
+                        "message_id {m} already names a different message in this conversation; give this new message an ID never used in this conversation before, for example the date and its position"
+                    )
+                });
             }
         }
         out
