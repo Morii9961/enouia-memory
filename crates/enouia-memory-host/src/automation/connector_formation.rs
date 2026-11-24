@@ -168,6 +168,9 @@ pub struct ConnectorReceipt {
     pub jobs: Vec<ProducerJobStatus>,
     /// True when preflight found no open window; one would be opened on submit.
     pub window_needed: bool,
+    /// ADR-MEM-187: a replay after its window ended; nothing was captured
+    /// again, and the receipt is read from what was recorded.
+    pub window_ended: bool,
     /// ADR-MEM-183: the current memories formed from this submission's
     /// captured turns, so ChatGPT can cite them without searching.
     pub memories: Vec<FormedMemory>,
@@ -428,6 +431,79 @@ impl ConnectorWriter {
     }
     pub fn config(&self) -> &ConnectorConfig {
         &self.config
+    }
+    /// ADR-MEM-183: current memories formed under `policy` from these turns.
+    fn formed(
+        &self,
+        policy: &AutomationPolicy,
+        turns: &[TurnSource],
+    ) -> ApplicationResult<Vec<FormedMemory>> {
+        let sources: std::collections::BTreeSet<_> =
+            turns.iter().map(|t| &t.source.source_id).collect();
+        Ok(self.vault.read_scoped(
+            &self.vault.descriptor().system_actor,
+            self.config.max_sensitivity,
+            SystemReadScope::MoriiFullHistory,
+            |d| {
+                d.memories
+                    .iter()
+                    .filter(|m| {
+                        let input = &m.memory.decision.input;
+                        input.policy.policy_id == policy.policy_id
+                            && input
+                                .input_refs
+                                .iter()
+                                .any(|r| sources.contains(&r.source_id))
+                    })
+                    .map(|m| FormedMemory {
+                        memory_id: m.memory.memory.memory_id.clone(),
+                        revision: m.memory.memory.revision,
+                        title: m
+                            .memory
+                            .decision
+                            .input
+                            .record_fields
+                            .as_ref()
+                            .map(|f| f.title.clone())
+                            .unwrap_or_default(),
+                    })
+                    .collect()
+            },
+        )?)
+    }
+    /// ADR-MEM-187: the recorded source of each turn of a captured request,
+    /// in turn order, found by conversation and message under `policy`.
+    fn recorded_turns(
+        &self,
+        request: &RuntimeCaptureRequest,
+        policy: &AutomationPolicy,
+    ) -> ApplicationResult<Vec<TurnSource>> {
+        Ok(self.vault.read_scoped(
+            &self.vault.descriptor().system_actor,
+            self.config.max_sensitivity,
+            SystemReadScope::MoriiFullHistory,
+            |d| {
+                request
+                    .turns
+                    .iter()
+                    .filter_map(|t| {
+                        d.sources
+                            .values()
+                            .find(|s| {
+                                policy.source_ids.contains(&s.record.source_id)
+                                    && s.record.original_conversation_id.as_deref()
+                                        == Some(request.conversation_id.as_str())
+                                    && s.record.original_message_id.as_deref()
+                                        == Some(t.message_id.as_str())
+                            })
+                            .map(|s| TurnSource {
+                                message_id: t.message_id.clone(),
+                                source: s.reference(),
+                            })
+                    })
+                    .collect()
+            },
+        )?)
     }
     /// ADR-MEM-186: message IDs of `request` that this connector already
     /// captured in the same conversation, its original or any segment.
@@ -843,6 +919,7 @@ impl ConnectorWriter {
         if replay.is_none() && !self.resent_turns(request)?.is_empty() {
             return Err(ApplicationFault::Invalid);
         }
+        let replay_found = replay.is_some();
         let policy = match replay {
             Some(policy) => policy,
             None => {
@@ -868,6 +945,7 @@ impl ConnectorWriter {
                             queue: None,
                             jobs: vec![],
                             window_needed: true,
+                            window_ended: false,
                             memories: vec![],
                             turns: vec![],
                         });
@@ -891,6 +969,20 @@ impl ConnectorWriter {
         let segmented = self.segment(submission, &policy)?;
         let submission = &segmented;
         let request = &submission.request;
+        // ADR-MEM-187: a replay whose window has ended cannot get a capture
+        // permit; answer from what that capture recorded.
+        if replay_found && (!policy.active || policy.valid_until <= at(0)?) {
+            let turns = self.recorded_turns(request, &policy)?;
+            return Ok(ConnectorReceipt {
+                capture: None,
+                queue: None,
+                jobs: vec![],
+                window_needed: false,
+                window_ended: true,
+                memories: self.formed(&policy, &turns)?,
+                turns,
+            });
+        }
         let permit = self.vault.authorize_owner_runtime_capture(
             &self.owner,
             self.producer.clone(),
@@ -917,6 +1009,7 @@ impl ConnectorWriter {
                 queue: None,
                 jobs: vec![],
                 window_needed: false,
+                window_ended: false,
                 memories: vec![],
                 turns: vec![],
             });
@@ -951,39 +1044,7 @@ impl ConnectorWriter {
             .as_ref()
             .map(|q| q.job_keys.clone())
             .unwrap_or_default();
-        let sources: std::collections::BTreeSet<_> =
-            capture.sources.iter().map(|r| &r.source_id).collect();
-        let memories = self.vault.read_scoped(
-            &self.vault.descriptor().system_actor,
-            self.config.max_sensitivity,
-            SystemReadScope::MoriiFullHistory,
-            |d| {
-                d.memories
-                    .iter()
-                    .filter(|m| {
-                        let input = &m.memory.decision.input;
-                        input.policy.policy_id == policy.policy_id
-                            && input
-                                .input_refs
-                                .iter()
-                                .any(|r| sources.contains(&r.source_id))
-                    })
-                    .map(|m| FormedMemory {
-                        memory_id: m.memory.memory.memory_id.clone(),
-                        revision: m.memory.memory.revision,
-                        title: m
-                            .memory
-                            .decision
-                            .input
-                            .record_fields
-                            .as_ref()
-                            .map(|f| f.title.clone())
-                            .unwrap_or_default(),
-                    })
-                    .collect()
-            },
-        )?;
-        let turn_sources = request
+        let turn_sources: Vec<TurnSource> = request
             .turns
             .iter()
             .zip(&capture.sources)
@@ -992,8 +1053,10 @@ impl ConnectorWriter {
                 source: s.clone(),
             })
             .collect();
+        let memories = self.formed(&policy, &turn_sources)?;
         Ok(ConnectorReceipt {
             memories,
+            window_ended: false,
             turns: turn_sources,
             jobs: formation
                 .status()
