@@ -172,10 +172,38 @@ already stopped is backed up but not started. Run the same backup by hand with
 `systemctl start enouia-memory-backup.service`, and read results with
 `journalctl -u enouia-memory-backup`.
 
-Each export is a full plaintext copy, and none is removed automatically. Copy
-exports off the VPS with the restic adapter
-([SEGMENTED_MORII_BACKUP.md](SEGMENTED_MORII_BACKUP.md)), and delete old ones
-yourself once a newer one is verified off-site.
+Each export is a full plaintext copy, and none is removed automatically.
+Nothing is uploaded anywhere: the owner downloads exports by hand.
+
+### Downloading an export to the local machine
+
+The export directory belongs to `enouia` (mode 0700), so stream it through
+`sudo tar` instead of copying it with `scp`. Windows 10 and later include both
+`ssh` and `tar`. In PowerShell 7 (`pwsh`), with `vps` standing for your SSH
+login:
+
+```powershell
+ssh vps "ls /var/lib/enouia-memory/backups"
+ssh vps "sudo tar -C /var/lib/enouia-memory/backups -cf - <STAMP>" > <DATA_ROOT>\backups\vps-<STAMP>.tar
+tar -xf <DATA_ROOT>\backups\vps-<STAMP>.tar -C <DATA_ROOT>\backups
+enouia-memory-owner-backup verify <DATA_ROOT>\backups\<STAMP>
+```
+
+- `<STAMP>` is the newest name the first command lists, such as
+  `20261125T203000Z`. The names are in UTC.
+- The `verify` output must show the same `commit_id` and `sequence` as that
+  night's journal line (`journalctl -u enouia-memory-backup`).
+- PowerShell 7.4 and later write the stream byte for byte. Windows
+  PowerShell 5 rewrites `>` output as UTF-16 text, which corrupts the archive;
+  there, run that line through `cmd /c "..."`.
+- `sudo` must not ask for a password here, because the stream has no terminal
+  (and `ssh -t` would corrupt it). Log in as root and drop `sudo`, or let
+  your login run `tar` through `sudo` without a password.
+- Keep the downloaded export outside any repository, next to the other local
+  exports. To restore from it, follow
+  [SEGMENTED_MORII_BACKUP.md](SEGMENTED_MORII_BACKUP.md).
+- Once a newer export is downloaded and verified, delete older ones on the
+  VPS yourself: `sudo rm -r /var/lib/enouia-memory/backups/<OLD_STAMP>`.
 
 ## Caddy (`/etc/caddy/Caddyfile`)
 
