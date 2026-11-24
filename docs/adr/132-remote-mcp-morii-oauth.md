@@ -32,7 +32,8 @@ implements `Tokens`. `Router` serves the Authority's paths first and the MCP
 - **Tokens.** Authorization codes last 2 minutes and are single-use. A failed
   exchange burns the code. Access tokens last 1 hour; refresh tokens last
   30 days and rotate on every use. Replaying a consumed code or a rotated-away
-  refresh token revokes the whole grant family. All codes and tokens are
+  refresh token revokes the whole grant family. (ADR-MEM-207 later lets the same client retry a
+  rotated-away refresh token within two minutes.) All codes and tokens are
   256-bit random values; the state keeps only their SHA-256 digests. `resource`
   (RFC 8707), when given, must be the configured MCP URL, and `scope` may only
   be `memory.read`.

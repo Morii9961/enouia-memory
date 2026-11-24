@@ -1263,3 +1263,9 @@ System actor; a cleanly opening Vault is untouched. Other commands and `serve`'s
 [Decision](206-connector-turn-limits-explained.md): the 8-turn and 16384-byte limits stay; the connector schema
 and refusals now say to send a longer chat as several ordered calls and a longer message verbatim as
 consecutive turns of the same speaker (`<id>-1`, `<id>-2`).
+
+### ADR-MEM-207 — A retried refresh token gets a two-minute grace
+
+[Decision](207-refresh-reuse-grace.md): a rotated-away refresh token presented again within two minutes by
+its own client, while its grant lives, gets fresh tokens instead of revoking the grant (ChatGPT refreshes
+before every tool call); every other replay still revokes the family.
