@@ -360,12 +360,21 @@ impl<S: Session> ConnectorSession<'_, S> {
             if arguments.is_null() {
                 arguments = json!({});
             }
-            let completed = Timestamp::from_unix_ms(self.clock.now_unix_ms()).and_then(|now| {
-                chatgpt::read_arguments(name, arguments, &now, self.ids, self.profile)
-            });
-            let Some(arguments) = completed else {
-                let id = message.get("id").cloned().unwrap_or(Value::Null);
-                return Some(result(&id, json!({"error": "invalid_arguments"}), true));
+            let completed = Timestamp::from_unix_ms(self.clock.now_unix_ms())
+                .ok_or_else(|| "clock out of range".to_string())
+                .and_then(|now| {
+                    chatgpt::read_arguments(name, arguments, &now, self.ids, self.profile)
+                });
+            let arguments = match completed {
+                Ok(arguments) => arguments,
+                Err(problem) => {
+                    let id = message.get("id").cloned().unwrap_or(Value::Null);
+                    return Some(result(
+                        &id,
+                        json!({"error": "invalid_arguments", "problems": [problem]}),
+                        true,
+                    ));
+                }
             };
             let mut message = message.clone();
             message["params"]["arguments"] = arguments;

@@ -1,5 +1,9 @@
 # Runtime integration (ADR-MEM-45)
 
+2026-11-24 short read refusals ([ADR-MEM-196](../adr/196-chatgpt-read-argument-reasons.md)): the
+remote connector's short read calls explain refusals and clamp search `limit`. Runtime needs no change.
+Surface aggregate: `98a4675dd1fc5d6ede2ff3988b4f934d5c671b23bb5ba82d2e7d7bb4e4b44eaf`.
+
 2026-11-24 ChatGPT turn times and argument errors ([ADR-MEM-195](../adr/195-chatgpt-turn-times-and-argument-errors.md)):
 connector turns sent with an RFC 3339 offset time are stored in UTC with the given text as
 `original_time`. Remote connector only; Runtime needs no change. Surface aggregate: `16f4c2222eae3a101bf65cf02c622831b10b042fe1580d1867c24e3384d9691d`.

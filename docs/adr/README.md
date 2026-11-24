@@ -1199,3 +1199,9 @@ of process to stop; the grant guide adds the systemd stop/renew/confirm/start se
 [Decision](195-chatgpt-turn-times-and-argument-errors.md): short-form `occurred_at` in any RFC 3339
 form is converted to the Vault's UTC millisecond form (original text kept as `original_time`); argument
 parse failures answer `invalid_arguments` with the parser's message in `problems`.
+
+### ADR-MEM-196 — Short read calls say why they are refused; a large limit pages
+
+[Decision](196-chatgpt-read-argument-reasons.md): short read-tool completion failures answer
+`invalid_arguments` with a reason (parser message, `days` range); search `limit` is clamped to 1-100
+so a larger request pages instead of failing.

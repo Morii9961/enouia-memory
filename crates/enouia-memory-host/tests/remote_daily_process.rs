@@ -557,10 +557,28 @@ fn daily_flow(e: &Env, p: &AutomationPolicy, before: usize, root: &VerifiedRoot)
     let mut recent_ids = BTreeSet::new();
     memory_ids(&recent["structuredContent"], &mut recent_ids);
     assert_eq!(recent_ids, after);
+    // ADR-MEM-196: refused read arguments say why; a large limit pages.
+    let zero = short(&mut rpc, "memory_search", json!({"days": 0}));
+    assert_eq!(zero["isError"], true);
     assert_eq!(
-        short(&mut rpc, "memory_search", json!({"days": 0}))["isError"],
-        true
+        zero["structuredContent"]["problems"][0],
+        "days must be 1 to 366"
     );
+    let typo = short(
+        &mut rpc,
+        "memory_search",
+        json!({"query": "seat", "top_k": 5}),
+    );
+    assert_eq!(typo["isError"], true);
+    assert!(
+        typo["structuredContent"]["problems"][0]
+            .as_str()
+            .unwrap()
+            .contains("top_k"),
+        "{typo}"
+    );
+    let large = short(&mut rpc, "memory_search", json!({"days": 1, "limit": 500}));
+    assert_ne!(large["isError"], json!(true), "{large}");
 
     let theme = json!({
         "request_id": "weekly-theme-window-seats",

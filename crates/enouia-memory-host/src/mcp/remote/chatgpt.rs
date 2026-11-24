@@ -181,14 +181,16 @@ pub fn read_arguments(
     now: &Timestamp,
     ids: &dyn IdSource,
     profile: &AttentionProfile,
-) -> Option<Value> {
+) -> Result<Value, String> {
+    // ADR-MEM-196: every refusal says why.
+    let parse = |e: serde_json::Error| e.to_string();
     if arguments.get("schema_version").is_some() {
-        return Some(arguments);
+        return Ok(arguments);
     }
     let request_id = RequestId::from_random(ids.random_16());
     if tool == "session_start" {
-        let start: Start = serde_json::from_value(arguments).ok()?;
-        return Some(json!({
+        let start: Start = serde_json::from_value(arguments).map_err(parse)?;
+        return Ok(json!({
             "schema_version": 2,
             "kind": "agent_session_start_request",
             "capability": opening::SESSION_CAPABILITY,
@@ -197,10 +199,10 @@ pub fn read_arguments(
     }
     let inner = match tool {
         "memory_search" => {
-            let s: Search = serde_json::from_value(arguments).ok()?;
+            let s: Search = serde_json::from_value(arguments).map_err(parse)?;
             let mut filter =
                 serde_json::to_value(enouia_memory_contract::next::CatalogFilter::default())
-                    .ok()?;
+                    .map_err(parse)?;
             filter["text"] = json!(s.query);
             for (key, value) in [
                 ("form", s.form),
@@ -213,33 +215,35 @@ pub fn read_arguments(
             }
             // ADR-MEM-182: recent memories by the time Memory learned them.
             if let Some(days) = s.days.filter(|d| (1..=366).contains(d)) {
-                let from = Timestamp::from_unix_ms(now.unix_ms() - i64::from(days) * 86_400_000)?;
+                let from = Timestamp::from_unix_ms(now.unix_ms() - i64::from(days) * 86_400_000)
+                    .ok_or("days reaches before year 0000")?;
                 filter["time_axis"] = json!("learned");
                 filter["time_window"] = json!({"from": from, "until": null});
             } else if s.days.is_some() {
-                return None;
+                return Err("days must be 1 to 366".into());
             }
-            json!({"filter": filter, "cursor": s.cursor, "limit": s.limit.unwrap_or(20), "max_bytes": 65_536, "include_facets": false})
+            // A page holds 1 to 100 memories; a larger limit pages instead.
+            json!({"filter": filter, "cursor": s.cursor, "limit": s.limit.unwrap_or(20).clamp(1, 100), "max_bytes": 65_536, "include_facets": false})
         }
         "memory_recall" => {
-            let r: Recall = serde_json::from_value(arguments).ok()?;
+            let r: Recall = serde_json::from_value(arguments).map_err(parse)?;
             json!({"text": r.text, "conditions": r.conditions, "event_window": null, "at": now, "intent": r.intent.unwrap_or_else(|| "current".into()), "limit": r.limit.map_or(profile.max_items, u64::from).min(profile.max_items), "max_bytes": profile.max_bytes})
         }
         "memory_read" => {
-            let r: Read = serde_json::from_value(arguments).ok()?;
+            let r: Read = serde_json::from_value(arguments).map_err(parse)?;
             json!({"memory_id": r.memory_id, "expected": null, "include_source_text": r.include_source_text, "max_bytes": 65_536, "history_cursor": null})
         }
         "memory_source" => {
-            let s: Source = serde_json::from_value(arguments).ok()?;
+            let s: Source = serde_json::from_value(arguments).map_err(parse)?;
             json!({"source_id": s.source_id, "revision": s.revision, "from_byte": s.from_byte, "to_byte": null, "max_bytes": 8_192})
         }
         "memory_related" => {
-            let r: Related = serde_json::from_value(arguments).ok()?;
+            let r: Related = serde_json::from_value(arguments).map_err(parse)?;
             json!({"memory_id": r.memory_id, "expected": null, "max_bytes": 65_536})
         }
-        _ => return None,
+        _ => return Err(format!("{tool} has no short form")),
     };
-    Some(json!({
+    Ok(json!({
         "schema_version": 2,
         "kind": "agent_initialized_read_request",
         "capability": initialized::CAPABILITY,
