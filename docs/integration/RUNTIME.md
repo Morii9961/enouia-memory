@@ -1,5 +1,9 @@
 # Runtime integration (ADR-MEM-45)
 
+2026-11-24 remote access log ([ADR-MEM-189](../adr/189-remote-access-log.md)): `serve` writes a
+startup line and one content-free line per request to stderr. Remote service only; Runtime needs no
+change. Surface aggregate: `1052af7fbab8668e4c5b69204f46b2d700e4d6e0aad211f0bf8b25d64c332906`.
+
 2026-11-24 nightly remote backup ([ADR-MEM-188](../adr/188-remote-nightly-backup.md)):
 `enouia-memory-remote backup <config> <dir>` plus a Linux script and systemd timer for the VPS.
 Remote service only; Runtime needs no change. Surface aggregate: `9c974a59f053baa4b098e1ea27bd673efeed8a26aba09ac04b52a88165445e1f`.

@@ -224,7 +224,7 @@ fn daily_flow(e: &Env, p: &AutomationPolicy, before: usize, root: &VerifiedRoot)
     std::fs::write(&config_path, config.to_string()).unwrap();
     assert_eq!(cli(&["read-check"])["authority_mode"], "owner_read_grant");
 
-    let server = Server(
+    let mut server = Server(
         Command::new(EXE)
             .args(["serve".as_ref(), config_path.as_os_str()])
             .stdout(Stdio::null())
@@ -232,6 +232,13 @@ fn daily_flow(e: &Env, p: &AutomationPolicy, before: usize, root: &VerifiedRoot)
             .spawn()
             .unwrap(),
     );
+    // ADR-MEM-189: drain the access log while the service runs.
+    let mut stderr = server.0.stderr.take().unwrap();
+    let log = std::thread::spawn(move || {
+        let mut text = String::new();
+        std::io::Read::read_to_string(&mut stderr, &mut text).unwrap();
+        text
+    });
     let deadline = std::time::Instant::now() + std::time::Duration::from_secs(20);
     while TcpStream::connect(addr).is_err() {
         assert!(
@@ -241,6 +248,14 @@ fn daily_flow(e: &Env, p: &AutomationPolicy, before: usize, root: &VerifiedRoot)
         std::thread::sleep(std::time::Duration::from_millis(50));
     }
 
+    // A query string never reaches the access log.
+    send(
+        addr,
+        "GET",
+        "/oauth/authorize?state=query-marker-77",
+        &[],
+        "",
+    );
     // OAuth as ChatGPT does it, with Morii's approval code from the CLI.
     let json_headers = [("Content-Type", "application/json".to_owned())];
     let form_headers = [(
@@ -638,6 +653,29 @@ fn daily_flow(e: &Env, p: &AutomationPolicy, before: usize, root: &VerifiedRoot)
 
     // Stop the service (killed, as `systemctl stop` would end it) and back up.
     drop(server);
+    let log = log.join().unwrap();
+    assert!(
+        log.contains(" serving ") && log.contains("writes on"),
+        "{log}"
+    );
+    assert!(log.contains("GET /oauth/authorize "), "{log}");
+    assert!(log.contains("POST /mcp 200 "), "{log}");
+    assert!(log.contains("rpc=tools/call tool=memory_search"), "{log}");
+    assert!(
+        log.lines()
+            .any(|l| l.ends_with("tool=memory_request_forget error")),
+        "{log}"
+    );
+    for private in [
+        "query-marker-77",
+        "Lumen",
+        "corner seat",
+        code.as_str(),
+        auth_code.as_str(),
+        token.as_str(),
+    ] {
+        assert!(!log.contains(private), "{private} in {log}");
+    }
     let backup = Command::new(EXE)
         .args([
             "backup".as_ref(),

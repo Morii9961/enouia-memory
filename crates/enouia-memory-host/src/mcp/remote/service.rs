@@ -224,17 +224,48 @@ struct Persisted<'a, H> {
     inner: H,
     authority: &'a Authority<'a>,
     file: &'a StateFile,
+    clock: &'a dyn Clock,
 }
 
 impl<H: Handler> Handler for Persisted<'_, H> {
     fn respond(&mut self, request: &Request) -> Response {
+        let started = std::time::Instant::now();
         let result = self.file.update(|state| {
             self.authority.replace_state(std::mem::take(state));
             let response = self.inner.respond(request);
             *state = self.authority.state();
             response
         });
-        result.unwrap_or_else(|_| Response::new(503))
+        let response = result.unwrap_or_else(|_| Response::new(503));
+        // ADR-MEM-189: one access line per request on stderr (journald). Only
+        // the path without its query, the JSON-RPC method and tool name, and
+        // whether the reply was an error; never bodies, codes or tokens.
+        let rpc: serde_json::Value = serde_json::from_slice(&request.body).unwrap_or_default();
+        let reply: serde_json::Value = serde_json::from_slice(&response.body).unwrap_or_default();
+        let mut line = format!(
+            "{} {} {} {} {}ms",
+            Timestamp::from_unix_ms(self.clock.now_unix_ms())
+                .map(|t| t.to_string())
+                .unwrap_or_default(),
+            request.method,
+            request.target.split('?').next().unwrap_or_default(),
+            response.status,
+            started.elapsed().as_millis()
+        );
+        if let Some(method) = rpc["method"].as_str() {
+            line += &format!(" rpc={method}");
+        }
+        if let Some(tool) = rpc["params"]["name"]
+            .as_str()
+            .filter(|_| rpc["method"] == "tools/call")
+        {
+            line += &format!(" tool={tool}");
+        }
+        if reply.get("error").is_some() || reply["result"]["isError"] == true {
+            line += " error";
+        }
+        eprintln!("{line}");
+        response
     }
 }
 
@@ -314,6 +345,23 @@ pub fn serve(
     let host = QualifiedAgentHost::from_authenticated_initialized_owner(vault, owner.clone())
         .map_err(|e| format!("owner host: {e:?}"))?;
     let authority = Authority::new(oauth, ids, clock, State::default());
+    // ADR-MEM-189: say once what is being served and until when it may read.
+    let grant_until = match &config.read_grant_id {
+        Some(id) => host
+            .owner_read_grant_until(&owner, id)
+            .map(|t| t.to_string())
+            .map_err(|e| format!("read grant: {e:?}"))?,
+        None => "none (no read grant)".into(),
+    };
+    eprintln!(
+        "{} serving {} on {}; read grant until {grant_until}; writes {}",
+        Timestamp::from_unix_ms(clock.now_unix_ms())
+            .map(|t| t.to_string())
+            .unwrap_or_default(),
+        config.resource,
+        config.bind,
+        if writer.is_some() { "on" } else { "off" },
+    );
     while !stop() {
         let now = clock.now_unix_ms();
         let (reader, permit_until) = config.reader(&host, &owner, now)?;
@@ -365,6 +413,7 @@ pub fn serve(
             },
             authority: &authority,
             file: &file,
+            clock,
         };
         let renew_at = (now + RENEW_MS).min(permit_until.unix_ms());
         http1::serve(listener, &mut handler, IO_TIMEOUT, |h, _| {

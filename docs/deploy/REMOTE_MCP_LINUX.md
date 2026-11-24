@@ -133,6 +133,21 @@ WantedBy=multi-user.target
 If the service stops because an outcome is unknown, it exits with an error and
 stays down after the restart limit. Recover the Vault before starting it again.
 
+## Logs (ADR-MEM-189)
+
+`journalctl -u enouia-memory-remote` shows the following:
+
+- **Startup.** One line with the resource, the bind address, when the read
+  grant ends, and whether writes are on.
+- **Requests.** One line per request with the time, method, path, status and
+  duration. MCP calls add the tool name, plus `error` when the call was
+  refused.
+
+Queries, bodies, memories, codes and tokens are never logged. Lines that keep
+showing `error` point to the cause. After the grant end shown at startup, the
+service stops until the grant is renewed
+([CONNECTOR_READ_GRANTS.md](CONNECTOR_READ_GRANTS.md)).
+
 ## Nightly backup (ADR-MEM-188)
 
 The service holds the Vault, so exports run while it is briefly stopped.
