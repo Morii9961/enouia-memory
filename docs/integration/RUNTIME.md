@@ -1,5 +1,9 @@
 # Runtime integration (ADR-MEM-45)
 
+2026-11-24 MCP header tolerance ([ADR-MEM-198](../adr/198-mcp-transport-header-tolerance.md)): the
+remote endpoint serves requests without `MCP-Protocol-Version` (negotiated version) or `Accept`. Remote
+service only; Runtime needs no change. Surface aggregate: `038a3408c9105fb85055ec57b0bbfd13d825c23070f112e779e676bf003b070f`.
+
 2026-11-24 OAuth tolerance for ChatGPT ([ADR-MEM-197](../adr/197-oauth-chatgpt-tolerance.md)): remote
 OAuth ignores unknown requested scopes, accepts a trailing-slash resource and announces `iss` support.
 Remote service only; Runtime needs no change. Surface aggregate: `d37f9b424d456854c889e613f0ba0d6dced81d5c8ccda7c226669a13a26069ff`.

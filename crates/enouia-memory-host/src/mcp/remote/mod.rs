@@ -298,7 +298,8 @@ impl<'f, S: Session> Endpoint<'f, S> {
         if !media("content-type", &["application/json"]) {
             return Response::new(415);
         }
-        if !media("accept", &["application/json", "*/*"]) {
+        // ADR-MEM-198: no Accept header means any media type (RFC 9110).
+        if one("accept") != Ok(None) && !media("accept", &["application/json", "*/*"]) {
             return Response::new(406);
         }
         if request.body.len() > MAX_INPUT_BYTES {
@@ -349,7 +350,12 @@ impl<'f, S: Session> Endpoint<'f, S> {
         let Some(id) = session_id else {
             return Response::new(400);
         };
-        if one("mcp-protocol-version") != Ok(Some(PROTOCOL_VERSION)) {
+        // ADR-MEM-198: without the header the version negotiated at
+        // initialize applies; a different version is still refused.
+        if !matches!(
+            one("mcp-protocol-version"),
+            Ok(None | Some(PROTOCOL_VERSION))
+        ) {
             return Response::new(400);
         }
         let Some((subject, session)) = self.sessions.get_mut(id) else {
