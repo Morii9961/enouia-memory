@@ -1239,3 +1239,9 @@ permit; other subjects and unknown IDs still get 404, and token and grant checks
 
 [Decision](202-read-not-found-note.md): short `memory_read`, `memory_related` and `memory_source` calls
 that answer null data without an error carry a neutral `note` (unknown, deleted or outside the grant).
+
+### ADR-MEM-203 — Theme refusals name each member; no panic on imported members
+
+[Decision](203-theme-member-reasons.md): a theme member without record fields is refused instead of
+panicking, and theme refusals list each member that cannot join (unknown, not this connector's, or no
+quoted evidence).

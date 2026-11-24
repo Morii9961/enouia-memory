@@ -1,5 +1,9 @@
 # Runtime integration (ADR-MEM-45)
 
+2026-11-24 theme member reasons ([ADR-MEM-203](../adr/203-theme-member-reasons.md)): connector theme
+refusals name each member that cannot join; a member without record fields no longer panics. Remote
+connector only; Runtime needs no change. Surface aggregate: `2fc374fe9ef01ed3d0941a7a0fbbea7b20197ef453a27d203b966270dbaf215a`.
+
 2026-11-24 not-found note ([ADR-MEM-202](../adr/202-read-not-found-note.md)): the remote connector's
 short lookups add a neutral note when nothing is visible. Runtime needs no change. Surface aggregate:
 `8fbb4d1c6fff8e3dcc962094ce5e3b4fde2a7041f1f3dd5fb9bcde416043c01c`.

@@ -629,6 +629,13 @@ fn daily_flow(e: &Env, p: &AutomationPolicy, before: usize, root: &VerifiedRoot)
             .contains("this connector submitted"),
         "{refused}"
     );
+    // ADR-MEM-203: it names the member that cannot join.
+    let problems = refused["structuredContent"]["problems"].as_array().unwrap();
+    assert_eq!(problems.len(), 1, "{refused}");
+    assert!(
+        problems[0].as_str().unwrap().contains(outside[0].as_str()),
+        "{refused}"
+    );
     assert_eq!(submit_theme(&mut rpc, true)["memory"], Value::Null);
     let themed = submit_theme(&mut rpc, false);
     let theme_id = themed["memory"]["memory_id"].as_str().unwrap().to_owned();
