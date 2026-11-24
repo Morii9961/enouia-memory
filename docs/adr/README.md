@@ -1257,3 +1257,9 @@ untouched and a refused origin leaves the file as it was.
 [Decision](205-remote-recover-command.md): `enouia-memory-remote recover <config> --confirm-recover` opens the
 Vault and, only on `RecoveryRequired`, runs the Vault's explicit forward recovery under the descriptor's
 System actor; a cleanly opening Vault is untouched. Other commands and `serve`'s halt name it.
+
+### ADR-MEM-206 — Turn limits tell ChatGPT how to split
+
+[Decision](206-connector-turn-limits-explained.md): the 8-turn and 16384-byte limits stay; the connector schema
+and refusals now say to send a longer chat as several ordered calls and a longer message verbatim as
+consecutive turns of the same speaker (`<id>-1`, `<id>-2`).

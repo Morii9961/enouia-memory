@@ -246,6 +246,17 @@ pub fn tool() -> Value {
             "role": {"enum": ["subject", "participant", "mentioned", "place", "project", "organization"]}
         }
     });
+    let turn = json!({
+        "type": "object",
+        "required": ["message_id", "speaker", "text"],
+        "properties": {
+            "message_id": {"type": "string", "maxLength": 256, "description": "Unique within this chat across all submissions: never reuse an ID for a different message (for example 2026-11-24-3)."},
+            "speaker": {"enum": ["user", "assistant"]},
+            "text": {"type": "string", "description": "The message exactly as written, at most 16384 bytes of UTF-8 (about 5,000 Chinese characters). Split a longer message verbatim into consecutive turns of the same speaker."},
+            "occurred_at": {"type": ["string", "null"], "description": "RFC 3339 time of the turn with any offset (for example 2026-11-24T21:05:00+08:00), if known; otherwise leave it out."},
+            "assistant_model": {"type": ["string", "null"], "maxLength": 128}
+        }
+    });
     json!({
         "name": TOOL,
         "title": "Submit a conversation and its distilled memories",
@@ -269,17 +280,7 @@ pub fn tool() -> Value {
                                 "request_id": {"type": "string", "maxLength": 128, "description": "Any stable key for this submission; the same key replays instead of writing twice."},
                                 "conversation_id": {"type": "string", "maxLength": 256, "description": "One stable ID for this chat, reused in every later submission of the same chat."},
                                 "title": {"type": ["string", "null"], "maxLength": 256},
-                                "turns": {"type": "array", "minItems": 1, "maxItems": 8, "items": {
-                                    "type": "object",
-                                    "required": ["message_id", "speaker", "text"],
-                                    "properties": {
-                                        "message_id": {"type": "string", "maxLength": 256, "description": "Unique within this chat across all submissions: never reuse an ID for a different message (for example 2026-11-24-3)."},
-                                        "speaker": {"enum": ["user", "assistant"]},
-                                        "text": {"type": "string"},
-                                        "occurred_at": {"type": ["string", "null"], "description": "RFC 3339 time of the turn with any offset (for example 2026-11-24T21:05:00+08:00), if known; otherwise leave it out."},
-                                        "assistant_model": {"type": ["string", "null"], "maxLength": 128}
-                                    }
-                                }}
+                                "turns": {"type": "array", "minItems": 1, "maxItems": 8, "description": "Up to 8 turns per call. Send a longer chat as several calls in order, each with its own request_id and the same conversation_id.", "items": turn}
                             }
                         },
                         "analyst_model": {"type": "string", "maxLength": 128},

@@ -244,8 +244,12 @@ impl ConnectorSubmission {
         let text_ok = |s: &str, max: usize| !s.trim().is_empty() && s.chars().count() <= max;
         let mut out = Vec::new();
         let turns = &self.request.turns;
+        // ADR-MEM-206: the limits name the way around them.
         if !(1..=8).contains(&turns.len()) {
-            out.push("request.turns must hold 1 to 8 turns".into());
+            out.push(format!(
+                "request.turns holds {} turns; send 1 to 8 per call: split a longer chat into several calls in order, each with its own request_id and the same conversation_id, and put each memory in the call that holds its quoted turn",
+                turns.len()
+            ));
         }
         if turns
             .iter()
@@ -257,9 +261,14 @@ impl ConnectorSubmission {
             out.push("each turn needs its own message_id".into());
         }
         for t in turns {
-            if t.text.trim().is_empty() || t.text.len() > 16 * 1024 {
+            if t.text.trim().is_empty() {
+                out.push(format!("turn {}: text must not be empty", t.message_id));
+            } else if t.text.len() > 16 * 1024 {
                 out.push(format!(
-                    "turn {}: text must be non-empty and at most 16 KiB",
+                    "turn {}: text is {} bytes of UTF-8, over the 16384-byte limit (about 5,000 Chinese characters); send this message verbatim as consecutive turns of the same speaker, with IDs such as {}-1 and {}-2",
+                    t.message_id,
+                    t.text.len(),
+                    t.message_id,
                     t.message_id
                 ));
             }
