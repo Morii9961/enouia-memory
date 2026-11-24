@@ -708,7 +708,7 @@
     {
       "path": "crates/enouia-memory-host/src/automation/connector_formation.rs",
       "role": "host-session",
-      "sha256": "f5e766859d8556838a6229132d046cd399019d01af944f7b46e230f48f5f7517"
+      "sha256": "47d310f0a0f581dbc20e3b7768a3c58ddd3f0ed6284633b82205827469fd2f90"
     },
     {
       "path": "crates/enouia-memory-host/src/automation/continuation.rs",
@@ -788,7 +788,7 @@
     {
       "path": "crates/enouia-memory-host/src/bin/enouia-memory-remote.rs",
       "role": "host-session",
-      "sha256": "51323bcaf0e63f56881525ec24c738ac13c78f5b4011fba9252ff103dc231b1d"
+      "sha256": "1d7d87c7d54d72d0caadbfb2bbf8e2bcba3eee09d1c6e044a5ef8bdecad07006"
     },
     {
       "path": "crates/enouia-memory-host/src/broker.rs",
@@ -968,12 +968,12 @@
     {
       "path": "crates/enouia-memory-host/src/mcp/remote/chatgpt.rs",
       "role": "host-session",
-      "sha256": "e25a946b9adc4e6a2b262692b550f86f15d17c43809ffe10655cd7f860e8c581"
+      "sha256": "97d98f74351c6ed50f78a4ac1f00b8fbb8c5afb1cf4c0233dc1445ccfbe7d9d9"
     },
     {
       "path": "crates/enouia-memory-host/src/mcp/remote/connector.rs",
       "role": "host-session",
-      "sha256": "be843ee864c7c5c618f4d6b2e2bee371fb5a0fb937185d4e0935c0fa2e2e38a0"
+      "sha256": "e63365dbbe8070c5da60f885fc112a25dcfd3f0d476b246105d769bea054fa34"
     },
     {
       "path": "crates/enouia-memory-host/src/mcp/remote/http1.rs",
@@ -993,7 +993,7 @@
     {
       "path": "crates/enouia-memory-host/src/mcp/remote/service.rs",
       "role": "host-session",
-      "sha256": "6f86582094a8947719f88a74291ca3f8f0e10a1bef5a682f93d58a3ccde05fcd"
+      "sha256": "4e4674c3f382a0e414056fd6564f279bc8ee0b00886d6675b84045e17a4a5bd3"
     },
     {
       "path": "crates/enouia-memory-host/src/mcp/supersedes/mod.rs",
@@ -1431,5 +1431,5 @@
       "sha256": "3603c1855d9f9ec9b3585143a0191508980b260b1ffd26c82b3e6f9b7223a75d"
     }
   ],
-  "aggregate": "464db71eb637de5318bc813e82211366b23a166aa778e8267332ef0606139431"
+  "aggregate": "04a7af973971ac657b981a9959ff0842ab5ce61e1126c4d160a756cf2fbf6737"
 }

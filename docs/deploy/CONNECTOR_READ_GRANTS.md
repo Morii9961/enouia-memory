@@ -44,8 +44,9 @@ plan，形状同 `read-plan`。连接器每天新开或续用的窗口不会自�
 
 `read-draft`（[ADR176](../adr/176-remote-tunnel-readiness.md)）按服务配置起草连接器授权，
 不用手写 JSON：Agent、主体/项目、上限和 `source_read` 取自配置，策略取配置里 `policy_ids`
-的全部历史修订，来源取 `source_ids`，并自动加上 `follow_new_sources: true` 和
-`purpose: "chatgpt_connector"`，有效期从现在到给定时间。它把 plan 写进指定文件（UTF-8，
+的全部历史修订，来源取 `source_ids`，并自动加上 `follow_new_sources: true`、
+`purpose: "chatgpt_connector"`，以及在允许读原文时的 `allow_requests: true`（ChatGPT 的纠正和遗忘
+请求，需 Morii 在 Runtime 确认，[ADR184](../adr/184-chatgpt-correction-forget-requests.md)），有效期从现在到给定时间。它把 plan 写进指定文件（UTF-8，
 已存在时拒绝覆盖），输出 grant ID，不写 Vault；检查后照常交给 `read-set` 确认。
 
 给连接器用的授权，建议加上 `"purpose": "chatgpt_connector"`（[ADR175](../adr/175-runtime-r5-support.md)）：

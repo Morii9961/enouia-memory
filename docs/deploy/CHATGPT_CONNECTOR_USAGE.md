@@ -31,6 +31,18 @@ ChatGPT 可以读你的记忆，也可以提交新记忆。本页说明怎样让
 
 完整格式仍然接受。
 
+## 纠正和遗忘
+
+你在对话里说“那条记错了”或“那条忘掉吧”时，ChatGPT 可以替你提交请求
+（[ADR184](../adr/184-chatgpt-correction-forget-requests.md)）：
+
+1. 先用 `memory_submit_conversation` 提交包含这句话的对话。回执的 `turns` 里有每条消息的
+   `source`。
+2. 再调用 `memory_request_correction`（附 `correction`）或 `memory_request_forget`（附 `reason`），
+   带上那条记忆的 `memory_id`、那条消息的 `source_id`，以及你原话里的一句（逐字）。
+
+请求会进入 Runtime 的待确认队列，你确认之前，记忆不会有任何改动。
+
 ## 每日提炼的规则
 
 1. 每条记忆必须**逐字引用**你在同一次提交里说过的一句话（`quote`），只能引用你自己的话，
