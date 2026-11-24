@@ -1133,3 +1133,10 @@ turns (replays return the same list; themes are not included).
 (with source text); the remote service offers `memory_request_correction` and
 `memory_request_forget`, citing the turn source from conversation receipts' new `turns`; requests
 enter Morii's existing confirmation queue and change nothing until he confirms in Runtime.
+
+### ADR-MEM-185 — ChatGPT conversations continue across capture windows
+
+[Decision](185-connector-conversation-segments.md): when a submitted conversation already has
+turns under another window, the connector captures the continuation as a deterministic segment
+`<conversation_id>#<window policy>` (cross-window parents dropped), so long ChatGPT threads are no
+longer refused after a window rotates; replays rebuild the same request.

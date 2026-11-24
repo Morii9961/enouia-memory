@@ -381,3 +381,90 @@ fn chatgpt_themes_synthesize_daily_memories_across_windows_of_its_domain() {
     assert_eq!(again.memory, Some(memory));
     assert_eq!(v.snapshot().unwrap(), before);
 }
+
+/// ADR-MEM-185: a ChatGPT conversation that continues after its window has
+/// ended (or filled) is still accepted.
+#[test]
+fn a_conversation_continues_across_windows() {
+    let e = owner_env();
+    let v = Arc::new(e.create(Faults::none()));
+    let owner = e.descriptor.created_by.clone();
+    let mut short = config();
+    short.window_days = 1;
+    let w = ConnectorWriter::new(v.clone(), owner.clone(), producer(), short).unwrap();
+    let first = ConnectorSubmission {
+        request: request(1, "I prefer quiet rooms."),
+        analyst_model: "synthetic-chatgpt-model".into(),
+        statements: vec![statement("m1", "quiet rooms")],
+    };
+    w.submit(&first, false, NOW).unwrap();
+    let later = NOW + 2 * 86_400_000;
+    e.clock.set(later);
+    let next = ConnectorSubmission {
+        request: request(2, "I also like tea."),
+        analyst_model: "synthetic-chatgpt-model".into(),
+        statements: vec![statement("m2", "tea")],
+    };
+    let continued = w.submit(&next, false, later).unwrap();
+    assert_eq!(continued.jobs[0].state, FormationJobState::Formed);
+    assert_eq!(continued.memories.len(), 1);
+    // A third turn joins the segment and keeps its parent there.
+    let third = ConnectorSubmission {
+        request: {
+            let mut r = request(3, "And green tea most of all.");
+            r.turns[0].parent_message_id = Some("m2".into());
+            r
+        },
+        analyst_model: "synthetic-chatgpt-model".into(),
+        statements: vec![statement("m3", "green tea")],
+    };
+    assert_eq!(
+        w.submit(&third, false, later).unwrap().jobs[0].state,
+        FormationJobState::Formed
+    );
+    // The continued request replays unchanged. A request whose window has
+    // ended cannot replay (its capture stands; the permit is gone).
+    assert!(
+        w.submit(&next, false, later)
+            .unwrap()
+            .capture
+            .unwrap()
+            .replayed
+    );
+    assert!(matches!(
+        w.submit(&first, false, later),
+        Err(
+            enouia_memory_host::automation::application::ApplicationFault::Vault(
+                enouia_memory_vault::automation::AutomationFault::Denied
+            )
+        )
+    ));
+    let conversations = v
+        .read_scoped(
+            &e.descriptor.system_actor,
+            Sensitivity::Private,
+            SystemReadScope::MoriiFullHistory,
+            |d| {
+                let mut c: Vec<_> = d
+                    .conversations
+                    .values()
+                    .map(|c| {
+                        let parents = c.turns.iter().filter(|t| t.parent_source.is_some()).count();
+                        (
+                            c.original_conversation_id.clone().unwrap(),
+                            c.turns.len(),
+                            parents,
+                        )
+                    })
+                    .collect();
+                c.sort();
+                c
+            },
+        )
+        .unwrap();
+    assert_eq!(conversations.len(), 2, "{conversations:?}");
+    assert_eq!(conversations[0], ("chatgpt-synthetic".into(), 1, 0));
+    assert!(conversations[1].0.starts_with("chatgpt-synthetic#pol_"));
+    // The continued turn lost its parent in the old window; the third kept its own.
+    assert_eq!((conversations[1].1, conversations[1].2), (2, 1));
+}

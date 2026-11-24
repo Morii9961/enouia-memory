@@ -1,5 +1,10 @@
 # Runtime integration (ADR-MEM-45)
 
+2026-11-24 ChatGPT conversation segments ([ADR-MEM-185](../adr/185-connector-conversation-segments.md)):
+a ChatGPT thread continued after its capture window rotated is captured as a segment whose
+original conversation ID is `<id>#<window policy>`. Runtime may show such segments under their
+base ID. No IPC, wire or schema change. Surface aggregate: `6a52f44fef35a530cfaab193fa34cee1ab48541ac694dc19251eca10ad16057e`.
+
 2026-11-24 ChatGPT correction and forget requests ([ADR-MEM-184](../adr/184-chatgpt-correction-forget-requests.md)):
 the remote connector can file correction and forget requests under its request-capable grant.
 They arrive in the existing `agent_requests` queue with the connector's principal, which is the
