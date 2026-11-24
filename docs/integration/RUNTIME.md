@@ -1,5 +1,9 @@
 # Runtime integration (ADR-MEM-45)
 
+2026-11-24 Expect 100-continue ([ADR-MEM-201](../adr/201-http-expect-continue.md)): the remote
+loopback driver sends `100 Continue` when asked. Remote service only; Runtime needs no change. Surface
+aggregate: `2c4a58e0ef61a0f0d8d8ef8301cb76d0ef706423fc27e7a5755ba5b8a756bf7f`.
+
 2026-11-24 remote session continuity ([ADR-MEM-200](../adr/200-remote-session-continuity.md)): remote
 MCP sessions survive the four-minute permit renewal for the same bearer subject. Remote service only;
 Runtime needs no change. Surface aggregate: `3430fb26888f95f98f1edc234f9abadbd8099a03667edf68365ec7be70151b17`.
