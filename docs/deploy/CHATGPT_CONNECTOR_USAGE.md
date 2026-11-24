@@ -67,11 +67,16 @@ ChatGPT 可以读你的记忆，也可以提交新记忆。本页说明怎样让
 
 ## 可以放进 ChatGPT 自定义指令的一段话
 
-> 每天对话结束时，调用 `memory_submit_conversation`：附上今天对话的原文（request_id 用
-> “日期-主题”这样的字符串），以及从我的原话里提炼出的记忆。每条记忆都要逐字引用我说的一句话，并在 `entities` 里写出提到的人和地点。
-> 先用 `preflight: true` 检查，没问题再正式提交。
-> 每周用 `memory_search`（`days: 7`）看一次最近的记忆，如果有反复出现的主题，就用 `memory_submit_theme` 提交一个，概括要
-> 用你自己的话写，并说明这是你的推断。
+> 对话开始时调用 `session_start`；回答和我的生活、偏好、人、计划有关的问题之前，先用
+> `memory_recall` 查一下。
+> 每天对话结束时，调用 `memory_submit_conversation`：附上今天新增的对话原文（只发还没提交过的
+> 消息；request_id 用“日期-主题”这样的字符串），以及从我的原话里提炼出的记忆。每条记忆都要
+> 逐字引用我说的一句话，并在 `entities` 里写出提到的人和地点。先用 `preflight: true` 检查，
+> 没问题再正式提交；被拒时按 `problems` 修改。
+> 我说某条记忆不对或者要忘掉时，先提交包含这句话的对话，再用 `memory_request_correction` 或
+> `memory_request_forget` 提交请求，引用我的原话。
+> 每周用 `memory_search`（`days: 7`）看一次最近的记忆，如果有反复出现的主题，就用
+> `memory_submit_theme` 提交一个，概括要用你自己的话写，并说明这是你的推断。
 
 ## 出错时
 
