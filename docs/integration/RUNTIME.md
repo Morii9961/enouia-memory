@@ -1,5 +1,9 @@
 # Runtime integration (ADR-MEM-45)
 
+2026-11-24 Busy hint and VPS renewal ([ADR-MEM-194](../adr/194-remote-busy-hint-and-vps-renewal.md)):
+remote admin commands explain a held Vault. Remote service only; Runtime needs no change. Surface
+aggregate: `1c2ac666d0faf5aff7fdef7731847eb746b1907e68755be3ab9831d5a457e4c7`.
+
 2026-11-24 conflict reasons ([ADR-MEM-193](../adr/193-connector-conflict-reasons.md)): connector
 capture conflicts (changed replay, unknown parent) are answered with `problems`. Remote connector only;
 Runtime needs no change. Surface aggregate: `9e6171332de074a41feb4ab1812de8b0d49cae1cf17a507690a85be91eeeb025`.

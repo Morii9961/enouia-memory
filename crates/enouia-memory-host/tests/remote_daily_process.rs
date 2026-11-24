@@ -681,6 +681,17 @@ fn daily_flow(e: &Env, p: &AutomationPolicy, before: usize, root: &VerifiedRoot)
     assert!(!busy.status.success());
     assert!(String::from_utf8_lossy(&busy.stderr).contains("Busy"));
     assert_eq!(std::fs::read_dir(&backups).unwrap().count(), 0);
+    // Admin commands say plainly that the running service holds the Vault.
+    let held = Command::new(EXE)
+        .args(["read-status".as_ref(), config_path.as_os_str()])
+        .output()
+        .unwrap();
+    assert!(!held.status.success());
+    assert!(
+        String::from_utf8_lossy(&held.stderr).contains("another process holds the Vault"),
+        "{}",
+        String::from_utf8_lossy(&held.stderr)
+    );
 
     // Stop the service (killed, as `systemctl stop` would end it) and back up.
     drop(server);
