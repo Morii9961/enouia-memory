@@ -1,5 +1,13 @@
 # Runtime integration (ADR-MEM-45)
 
+2026-11-24 CJK recall terms in the contract ([ADR-MEM-209](../adr/209-recall-cjk-pieces-in-contract.md)),
+at Runtime's request: `recall_terms` in the attention contract adds the overlapping two-character pieces of
+each CJK run (and the other parts of mixed words such as "Enouia迁移") to the whitespace words that every
+recall selector counts. Text without CJK keeps exactly its old terms; the algorithm stays `attention-rank-1`.
+**Runtime adoption:** bump the Memory pin. Recall preview, Context and the MCP bridge then match Chinese
+queries written without spaces with no Runtime code change. Rerun the real-library check (expected: "我平时喜欢喝什么茶？"
+and "Enouia迁移" now select). Surface aggregate: `fd8c2737716c334ec663b23467f941eddfa0a23fb03ae815d5414259b94260a1`.
+
 2026-11-24 Chinese topic for ChatGPT ([ADR-MEM-208](../adr/208-chatgpt-recall-cjk-pieces.md)): the ChatGPT
 short form of `session_start` expands its `topic` the same way as `memory_recall`. Runtime needs no change.
 Surface aggregate: `8f4a4e3c25de6d6490307178eb5dfc43804254171e840da07f95cc4c65a850b3`.

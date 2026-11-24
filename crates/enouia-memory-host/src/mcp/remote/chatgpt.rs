@@ -194,7 +194,7 @@ pub fn read_arguments(
             "schema_version": 2,
             "kind": "agent_session_start_request",
             "capability": opening::SESSION_CAPABILITY,
-            "request": {"request_id": request_id, "at": now, "topic": recall_text(&start.topic)}
+            "request": {"request_id": request_id, "at": now, "topic": start.topic}
         }));
     }
     let inner = match tool {
@@ -227,7 +227,7 @@ pub fn read_arguments(
         }
         "memory_recall" => {
             let r: Recall = serde_json::from_value(arguments).map_err(parse)?;
-            json!({"text": recall_text(&r.text), "conditions": r.conditions, "event_window": null, "at": now, "intent": r.intent.unwrap_or_else(|| "current".into()), "limit": r.limit.map_or(profile.max_items, u64::from).min(profile.max_items), "max_bytes": profile.max_bytes})
+            json!({"text": r.text, "conditions": r.conditions, "event_window": null, "at": now, "intent": r.intent.unwrap_or_else(|| "current".into()), "limit": r.limit.map_or(profile.max_items, u64::from).min(profile.max_items), "max_bytes": profile.max_bytes})
         }
         "memory_read" => {
             let r: Read = serde_json::from_value(arguments).map_err(parse)?;
@@ -251,49 +251,6 @@ pub fn read_arguments(
         "operation": tool,
         "arguments": inner
     }))
-}
-
-/// ADR-MEM-208 (and `session_start`'s topic, which is recalled the same
-/// way): recall matches whitespace-separated terms, so a Chinese or
-/// Japanese question written without spaces is one term that no memory
-/// contains. The text keeps its words and gains the overlapping two-character
-/// pieces of each CJK run (and the other parts of mixed tokens), so recall
-/// ranks memories by how many pieces they share. It stays within the 2048
-/// bytes a recall query allows; a longer text is left for that check.
-fn recall_text(text: &str) -> String {
-    let cjk = |c: char| matches!(c, '\u{3040}'..='\u{30ff}' | '\u{3400}'..='\u{4dbf}' | '\u{4e00}'..='\u{9fff}' | '\u{f900}'..='\u{faff}' | '\u{ac00}'..='\u{d7af}');
-    let mut out = text.to_owned();
-    let mut seen: std::collections::BTreeSet<String> =
-        text.split_whitespace().map(str::to_lowercase).collect();
-    for token in text.split_whitespace() {
-        let chars: Vec<char> = token.chars().collect();
-        let mut terms = Vec::new();
-        let mut start = 0;
-        while start < chars.len() {
-            let kind = cjk(chars[start]);
-            let mut end = start;
-            while end < chars.len() && cjk(chars[end]) == kind {
-                end += 1;
-            }
-            let run = &chars[start..end];
-            if kind {
-                terms.extend(run.windows(2).map(|pair| pair.iter().collect::<String>()));
-            } else if run.iter().filter(|c| c.is_alphanumeric()).count() >= 2 {
-                terms.push(run.iter().collect::<String>());
-            }
-            start = end;
-        }
-        for term in terms {
-            if out.len() + 1 + term.len() > 2048 {
-                return out;
-            }
-            if seen.insert(term.to_lowercase()) {
-                out.push(' ');
-                out.push_str(&term);
-            }
-        }
-    }
-    out
 }
 
 /// A request ID as given, or the stable one derived from a free-form key of

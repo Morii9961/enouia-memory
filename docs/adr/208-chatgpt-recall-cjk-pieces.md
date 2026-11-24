@@ -1,7 +1,7 @@
 # ADR-MEM-208 — ChatGPT recall splits Chinese questions into two-character pieces
 
-Date: 2026-11-24. Status: Accepted (route: ChatGPT daily use); synthetic
-validation.
+Date: 2026-11-24. Status: Superseded by ADR-MEM-209 (the rule moved into the
+shared recall contract); synthetic validation.
 
 ## Context
 

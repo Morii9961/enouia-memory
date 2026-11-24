@@ -1275,3 +1275,9 @@ before every tool call); every other replay still revokes the family.
 [Decision](208-chatgpt-recall-cjk-pieces.md): the ChatGPT short form of `memory_recall` adds the overlapping
 two-character pieces of each CJK run to the query text, so a question written without spaces matches and
 ranks memories by shared pieces; the recall contract and `memory_search` are unchanged.
+
+### ADR-MEM-209 — Recall terms split CJK runs in the shared contract
+
+[Decision](209-recall-cjk-pieces-in-contract.md): `recall_terms` in the attention contract adds the two-character
+pieces of each CJK run (and the other parts of mixed words) to the whitespace words for every recall selector,
+at Runtime's request; text without CJK keeps its terms, and ADR-MEM-208's connector-side expansion is removed.
