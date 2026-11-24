@@ -100,5 +100,7 @@ ChatGPT 可以读你的记忆，也可以提交新记忆。本页说明怎样让
   （[ADR193](../adr/193-connector-conflict-reasons.md)）。原样重发可以回放；有新消息就换一个新的 `request_id`。
 - 提示 `message_id … already names a different message`：这个 ID 在同一对话里已经用给了另一条消息
   （[ADR191](../adr/191-connector-reused-message-ids.md)）。给新消息换一个没用过的 ID 再提交，不要删掉这条消息。
-- 返回结果不确定（例如网络中断）：服务端会停止，不会自动重试；先在服务器上恢复，再用同一个
-  `request_id` 查询或回放。
+- 返回结果不确定（例如写盘中断）：服务端会停止，不会自动重试。在服务器上运行
+  `enouia-memory-remote recover <config> --confirm-recover`，再启动服务
+  （[ADR205](../adr/205-remote-recover-command.md)，步骤见 [REMOTE_MCP_LINUX.md](REMOTE_MCP_LINUX.md)），
+  然后让 ChatGPT 用同一个 `request_id` 重发：已写入的会回放，没写入的这次写入。

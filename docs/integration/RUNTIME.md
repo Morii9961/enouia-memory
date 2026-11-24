@@ -1,5 +1,9 @@
 # Runtime integration (ADR-MEM-45)
 
+2026-11-24 recover command ([ADR-MEM-205](../adr/205-remote-recover-command.md)): `enouia-memory-remote
+recover <config> --confirm-recover` finishes a publication an unknown outcome left half done. Remote
+service only; Runtime needs no change. Surface aggregate: `8d8495f3336d44680823aca34e87f92d4d3dbf00ed734eaee802f04e8ed742dc`.
+
 2026-11-24 set-origin ([ADR-MEM-204](../adr/204-remote-set-origin.md)): `enouia-memory-remote set-origin`
 rewrites the service config's resource and issuer for a new tunnel origin. Remote service only; Runtime
 needs no change. Surface aggregate: `20a084d6b209a3490f807b8e577f7cd2af71fd20d9e1df365618ee7c04171c6c`.
