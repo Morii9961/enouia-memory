@@ -424,3 +424,51 @@ fn unknown_outcome_halts_every_session_and_retains_the_first_original() {
     assert_eq!(seen.borrow().len(), before);
     assert_eq!(endpoint.halted(), Some(&boom));
 }
+
+/// ADR-MEM-200: sessions an earlier generation issued resume in the next
+/// one for their own subject, initialized again inside; nothing else does.
+#[test]
+fn issued_sessions_resume_in_the_next_generation_for_their_subject_only() {
+    let seen = RefCell::new(vec![]);
+    let ids = SequentialIdSource::new(1);
+    let open = |_: &Bearer| Some(Probe(&seen, Fake::default()));
+    let mut first = Endpoint::new(config(), &Fixed, &ids, open);
+    let opened = first.respond(&post(Some("tok-owner"), None, init(1)));
+    let id = opened.header_value("mcp-session-id").unwrap().to_owned();
+    let carried = first.carry();
+    assert_eq!(carried.get(&id).map(String::as_str), Some("owner"));
+    drop(first);
+
+    let mut next = Endpoint::new(config(), &Fixed, &ids, open).resume(carried);
+    seen.borrow_mut().clear();
+    // Another subject, and an ID never issued, still get 404.
+    assert_eq!(
+        next.respond(&post(Some("tok-other"), Some(&id), call(2, "tools/list")))
+            .status,
+        404
+    );
+    assert_eq!(
+        next.respond(&post(
+            Some("tok-owner"),
+            Some("ffff"),
+            call(2, "tools/list")
+        ))
+        .status,
+        404
+    );
+    let resumed = next.respond(&post(Some("tok-owner"), Some(&id), call(3, "tools/list")));
+    assert_eq!(resumed.status, 200);
+    assert_eq!(body(&resumed)["result"]["echo"], "tools/list");
+    let methods: Vec<Value> = seen.borrow().iter().map(|m| m["method"].clone()).collect();
+    assert_eq!(
+        methods,
+        [
+            json!("initialize"),
+            json!("notifications/initialized"),
+            json!("tools/list")
+        ]
+    );
+    assert_eq!(next.sessions(), 1);
+    // The resumed session carries on into the generation after that.
+    assert!(next.carry().contains_key(&id));
+}

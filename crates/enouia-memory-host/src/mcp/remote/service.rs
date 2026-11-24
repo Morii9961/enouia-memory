@@ -364,6 +364,8 @@ pub fn serve(
         config.bind,
         if writer.is_some() { "on" } else { "off" },
     );
+    // ADR-MEM-200: sessions continue across permit generations.
+    let mut carried = std::collections::BTreeMap::new();
     while !stop() {
         let now = clock.now_unix_ms();
         let (reader, permit_until) = config.reader(&host, &owner, now)?;
@@ -415,7 +417,7 @@ pub fn serve(
         let mut handler = Persisted {
             inner: Router {
                 authority: &authority,
-                endpoint,
+                endpoint: endpoint.resume(std::mem::take(&mut carried)),
             },
             authority: &authority,
             file: &file,
@@ -433,6 +435,7 @@ pub fn serve(
         })
         .map_err(|e| format!("listener: {e}"))?;
         let halted = handler.inner.endpoint.halted().is_some();
+        carried = handler.inner.endpoint.carry();
         drop(handler);
         reader.revoke();
         if let Some((correction, forget)) = &requests {

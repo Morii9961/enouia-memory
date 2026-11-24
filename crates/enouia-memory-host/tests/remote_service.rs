@@ -192,11 +192,15 @@ fn run_read_flow(independent: bool) {
                 assert_eq!(tools["result"]["tools"].as_array().unwrap().len(), 6);
                 let start = mcp(addr, &access, Some(&session), json!({"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"session_start","arguments":{"schema_version":2,"kind":"agent_session_start_request","capability":enouia_memory_host::mcp::opening::SESSION_CAPABILITY,"request":{"request_id":id("req",171),"at":clock.now_unix_ms_timestamp()}}}})).json();
                 assert_eq!(start["result"]["structuredContent"]["kind"], "agent_session_start_response", "{start}");
-                // Past the renewal point the server swaps the Vault permit: old
-                // sessions end and the same token opens a new one.
+                // Past the renewal point the server swaps the Vault permit.
+                // ADR-MEM-200: the session continues under the new permit for
+                // the same token; another token cannot take it over.
                 clock.set(clock.now_unix_ms() + service::RENEW_MS + 1);
                 std::thread::sleep(std::time::Duration::from_millis(300));
-                assert_eq!(mcp(addr, &access, Some(&session), json!({"jsonrpc":"2.0","id":4,"method":"tools/list"})).status, 404);
+                assert_eq!(mcp(addr, "forged", Some(&session), json!({"jsonrpc":"2.0","id":4,"method":"tools/list"})).status, 401);
+                let resumed = mcp(addr, &access, Some(&session), json!({"jsonrpc":"2.0","id":4,"method":"tools/list"}));
+                assert_eq!(resumed.status, 200);
+                assert_eq!(resumed.json()["result"]["tools"].as_array().unwrap().len(), 6);
                 let renewed = initialize(addr, &access);
                 assert_ne!(renewed, session);
                 if independent {
