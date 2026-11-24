@@ -1293,3 +1293,10 @@ CJK terms in play a memory under half the best score has no cue; queries without
 [Decision](211-recall-cjk-strong-terms.md): the half-of-best floor is removed; a piece is never rarer than its
 rarer character, terms count up to three occurrences, and a memory is cued by CJK terms when it hits one of
 weight 2 or more (or the heaviest weight in a small library); queries without CJK are unchanged.
+
+### ADR-MEM-212 — CJK recall scores each memory's best fragment
+
+[Decision](212-recall-cjk-best-fragment.md): each CJK run of the query is matched by its substrings (up to 8
+characters), weighted by rarity and never above their rarest character; per run a memory scores its best strong
+fragment by weight × length, with no repeat counting, so the whole word outranks its parts; supersedes the CJK
+scoring of ADR-MEM-210/211; queries without CJK are unchanged.

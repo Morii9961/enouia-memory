@@ -218,28 +218,24 @@ fn selection_counts_rendered_bytes_and_ties_replay_stably() {
     );
 }
 
-/// ADR-MEM-209/210: words stay words; CJK runs add pieces and characters.
+/// ADR-MEM-209/212: words stay words; CJK runs are kept whole.
 #[test]
-fn recall_terms_split_cjk_runs_into_pieces_and_characters() {
+fn recall_terms_keep_words_and_cjk_runs() {
     let plain = recall_terms("moonlight Pottery");
     assert_eq!(plain.words, ["moonlight", "pottery"]);
-    assert!(plain.pieces.is_empty() && plain.chars.is_empty());
-    let photos = recall_terms("摄影集");
-    assert_eq!(photos.words, ["摄影集"]);
-    assert_eq!(photos.pieces, ["摄影", "影集"]);
-    assert_eq!(photos.chars, ["摄", "影", "集"]);
+    assert!(plain.runs.is_empty());
     let mixed = recall_terms("Enouia迁移");
     assert_eq!(mixed.words, ["enouia迁移", "enouia"]);
-    assert_eq!(mixed.pieces, ["迁移"]);
+    assert_eq!(mixed.runs, ["迁移"]);
     let spaced = recall_terms("喝 茶 喝茶");
     assert_eq!(spaced.words, ["喝", "茶", "喝茶"]);
-    assert!(spaced.pieces.is_empty() && spaced.chars.is_empty());
+    assert_eq!(spaced.runs, ["喝", "茶", "喝茶"]);
     let question = recall_terms("我平时喜欢喝什么茶？");
-    assert!(question.pieces.contains(&"喜欢".to_owned()));
-    assert!(question.chars.contains(&"茶".to_owned()));
-    assert!(!question.chars.contains(&"？".to_owned()));
-    let long = recall_terms(&"天地玄黄宇宙洪荒".repeat(20));
-    assert!(long.pieces.len() + long.chars.len() <= MAX_RECALL_CJK_TERMS);
+    assert_eq!(
+        question.runs,
+        ["我平时喜欢喝什么茶"],
+        "punctuation ends a run"
+    );
 }
 
 /// Synthetic memories with the given texts, as recall candidates.
@@ -280,70 +276,88 @@ fn recalled(memories: &[MachineMemory], text: &str) -> Vec<MemoryId> {
         .map(|s| s.memory.memory_id.clone())
         .collect()
 }
-/// Everyday memories in Morii's voice: 我, 去, 过 and 了 are common, as in a
-/// real library.
-const FILLER: [&str; 3] = [
-    "我早上去跑步了",
+/// Everyday memories in Morii's voice, so 我, 去, 过, 了, 喜欢 and 什么 are
+/// common, as in a real library.
+const FILLER: [&str; 4] = [
+    "我早上去跑步了，喜欢这种感觉",
     "我读过一本书，觉得不错",
-    "下雨天我在家里看过电影",
+    "下雨天我在家里看过电影，没什么事",
+    "我喜欢晚上散步，想了很多",
 ];
+fn with_filler(texts: &[&'static str], filler: usize) -> Vec<MachineMemory> {
+    let mut all = texts.to_vec();
+    all.extend((0..filler).map(|n| FILLER[n % FILLER.len()]));
+    library(&all)
+}
 
-/// ADR-MEM-210/211: rare CJK terms rank first; common pieces only trail.
+/// ADR-MEM-212, from Runtime's real-library check: a rare topic character
+/// leads, and common question words alone do not recall.
 #[test]
-fn chinese_questions_rank_rare_terms_above_common_pieces() {
-    // "喜欢" is common, no memory is about a tea preference, one mentions
-    // matcha and two are about drinks.
-    let mut texts = vec![
-        "京都第八天去宇治喝了抹茶",
-        "Enouia 迁移到新服务器",
-        "周末去爬山",
-        "居酒屋里喝了一杯酒",
-        "喜欢安静地过生日",
-        "喜欢晚上散步",
-        "喜欢白猫",
-    ];
-    texts.extend((0..25).map(|n| FILLER[n % 3]));
-    let memories = library(&texts);
+fn a_rare_topic_character_leads_a_chinese_question() {
+    let memories = with_filler(
+        &[
+            "京都第八天去宇治喝了抹茶",
+            "Enouia 迁移到新服务器",
+            "周末去爬山",
+            "第一次喝啤酒，喜欢酒花微苦",
+        ],
+        60,
+    );
     let id = |n: usize| memories[n].memory.memory_id.clone();
     let tea = recalled(&memories, "我平时喜欢喝什么茶？");
     assert_eq!(tea.first(), Some(&id(0)), "matcha first: {tea:?}");
-    let position = |n: usize| tea.iter().position(|m| m == &id(n));
-    for common in 4..7 {
-        if let Some(at) = position(common) {
-            assert!(
-                at > position(3).unwrap(),
-                "{common} trails the drinks: {tea:?}"
-            );
-        }
-    }
+    assert!(!tea.contains(&id(2)), "{tea:?}");
     assert_eq!(recalled(&memories, "Enouia迁移"), vec![id(1)]);
     assert!(recalled(&memories, "滑雪").is_empty(), "no shared term");
     // Without CJK terms the old count rule applies unchanged.
     assert_eq!(recalled(&memories, "Enouia"), vec![id(1)]);
 }
 
-/// ADR-MEM-211: a stray memory with a rare chance pairing cannot push out
-/// the memories that keep returning to the rare word asked about.
+/// ADR-MEM-212: memories about the word asked about lead; a memory with
+/// another word sharing a character (东京) or only the question's common
+/// words (我去过) does not.
 #[test]
-fn chinese_questions_keep_the_memories_about_the_rare_word() {
-    let mut texts = vec![
-        "旅行第七天坐新干线到京都，京都的寺很多，京都很冷",
-        "旅行第八天在京都吃抹茶，京都的街很安静",
-        "旅行第九天离开京都去大阪，京都的雨停了",
-        "十天旅行总结：从京都到大阪，京都最难忘",
-        "旅行第六天，明天去京都，查了京都的地图",
-        "京都的红叶和京都的寺庙",
-        "我去过很多地方，陪伴的意义不在于去过哪里，也不在京都",
-    ];
-    texts.extend((0..33).map(|n| FILLER[n % 3]));
-    let memories = library(&texts);
+fn the_word_asked_about_leads_over_shared_characters_and_question_words() {
+    let memories = with_filler(
+        &[
+            "京都第八天，鸭川日落与宇治抹茶",
+            "旅行第九天，雨中的京都三千院",
+            "第一次坐新干线到京都，夜间参拜",
+            "十天旅行收束：从京都到大阪",
+            "向往东京长期生活，东京的冬天，东京很大",
+            "我去过很多地方，自我探索应该真实",
+        ],
+        60,
+    );
     let kyoto = recalled(&memories, "我去过京都吗");
-    for (diary, m) in memories.iter().enumerate().take(6) {
-        assert!(kyoto.contains(&m.memory.memory_id), "{diary}: {kyoto:?}");
+    for (diary, m) in memories.iter().enumerate().take(4) {
+        assert!(
+            kyoto[..4].contains(&m.memory.memory_id),
+            "diary {diary} among the first four: {kyoto:?}"
+        );
     }
-    assert_ne!(
-        kyoto.first(),
-        Some(&memories[6].memory.memory_id),
-        "the stray memory does not lead: {kyoto:?}"
+    assert!(
+        !kyoto.contains(&memories[4].memory.memory_id),
+        "东京 shares only 京: {kyoto:?}"
+    );
+}
+
+/// ADR-MEM-212: the memory containing the whole word outranks one that
+/// repeats part of it.
+#[test]
+fn the_whole_word_outranks_a_repeated_part_of_it() {
+    let memories = with_filler(
+        &[
+            "主人喜爱摄影，摄影时会找小众地点，摄影器材很多",
+            "第一本摄影集Final Resonance从设计到印成实物",
+            "拥有一盏小灯，夜里拍摄用",
+        ],
+        60,
+    );
+    let photos = recalled(&memories, "摄影集");
+    assert_eq!(
+        photos.first(),
+        Some(&memories[1].memory.memory_id),
+        "{photos:?}"
     );
 }

@@ -21,7 +21,7 @@ ChatGPT 可以读你的记忆，也可以提交新记忆。本页说明怎样让
 
 [ADR178](../adr/178-chatgpt-shaped-tool-inputs.md) 之后，服务端会补齐其余字段：
 
-- 中文提问：`memory_recall` 可以直接用一句中文问题（例如“我平时喜欢喝什么茶？”），`session_start` 的 `topic` 也一样，服务端会把它们拆成两字片段和单字来匹配，越少见的片段和字分量越重，反复提到所问词语的记忆排得越前；只沾到“喜欢”“什么”这类常见片段的记忆最多排在后面（[ADR209](../adr/209-recall-cjk-pieces-in-contract.md)～[ADR211](../adr/211-recall-cjk-strong-terms.md)）。`memory_search` 仍按整词匹配，中文请给空格分开的短关键词（例如“乌龙茶 早上”）。
+- 中文提问：`memory_recall` 可以直接用一句中文问题（例如“我平时喜欢喝什么茶？”），`session_start` 的 `topic` 也一样，服务端会把它们拆成两字片段和单字来匹配，越少见、越完整的片段分量越重：包含完整“摄影集”的记忆排在只含“摄影”的前面；只沾到“喜欢”“什么”这类常见字词的记忆不会被召回（[ADR209](../adr/209-recall-cjk-pieces-in-contract.md)、[ADR212](../adr/212-recall-cjk-best-fragment.md)）。`memory_search` 仍按整词匹配，中文请给空格分开的短关键词（例如“乌龙茶 早上”）。
 - 读：`memory_search` 只需要 `query`（可以加 `form`、`attention`、`limit`，以及 `days`：只看最近
   N 天记下的记忆，例如每周归纳主题时用 7，见 [ADR182](../adr/182-chatgpt-recent-search.md)）；`memory_recall`
   只需要 `text`；`memory_read` / `memory_related` 只需要 `memory_id`；`memory_source` 只需要
