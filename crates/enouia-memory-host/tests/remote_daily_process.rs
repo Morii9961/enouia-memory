@@ -200,7 +200,8 @@ fn daily_flow(e: &Env, p: &AutomationPolicy, before: usize, root: &VerifiedRoot)
     assert!(!again.status.success());
     assert_eq!(grant["follow_new_sources"], true);
     assert_eq!(grant["purpose"], "chatgpt_connector");
-    assert_eq!(grant["allow_requests"], Value::Null);
+    // ADR-MEM-184: requests are allowed because source text may be read.
+    assert_eq!(grant["allow_requests"], true);
     assert_eq!(
         grant["principal"]["actor_id"],
         json!(seed.principal.actor_id)
@@ -371,6 +372,8 @@ fn daily_flow(e: &Env, p: &AutomationPolicy, before: usize, root: &VerifiedRoot)
         "memory_read",
         "memory_submit_conversation",
         "memory_submit_theme",
+        "memory_request_correction",
+        "memory_request_forget",
     ] {
         assert!(tools.contains(name), "{name} in {tools:?}");
     }
@@ -568,6 +571,55 @@ fn daily_flow(e: &Env, p: &AutomationPolicy, before: usize, root: &VerifiedRoot)
     let related = short(&mut rpc, "memory_related", json!({"memory_id": theme_id}));
     assert_ne!(related["isError"], json!(true), "{related}");
 
+    // ADR-MEM-184: Morii asks to correct one memory and forget another. The
+    // conversation saying so is submitted first; its receipt names the
+    // turn's source, which the requests cite. Nothing changes until Morii
+    // confirms them in Runtime.
+    let asked = submit(
+        &mut rpc,
+        json!({
+            "request": {"request_id": "chatgpt-fix-1", "conversation_id": "chatgpt-synthetic-3", "turns": [
+                {"message_id": "m1", "speaker": "user", "text": "Actually I prefer the corner seat now. And please forget the cafe one."}
+            ]},
+            "analyst_model": "synthetic-chatgpt-model",
+            "statements": []
+        }),
+        false,
+    );
+    let source = asked["turns"][0]["source"]["source_id"].clone();
+    assert!(source.is_string(), "{asked}");
+    let first_id = first_memories[0]["memory_id"].clone();
+    let second_id = second_memories[0]["memory_id"].clone();
+    let corrected = short(
+        &mut rpc,
+        "memory_request_correction",
+        json!({"request_id": "fix-seat", "memory_id": first_id, "source_id": source, "quote": "I prefer the corner seat now", "correction": "Morii now prefers the corner seat."}),
+    );
+    assert_ne!(corrected["isError"], json!(true), "{corrected}");
+    let again = short(
+        &mut rpc,
+        "memory_request_correction",
+        json!({"request_id": "fix-seat", "memory_id": first_id, "source_id": source, "quote": "I prefer the corner seat now", "correction": "Morii now prefers the corner seat."}),
+    );
+    assert_eq!(
+        again["structuredContent"]["report_key"], corrected["structuredContent"]["report_key"],
+        "{again}"
+    );
+    let forgot = short(
+        &mut rpc,
+        "memory_request_forget",
+        json!({"request_id": "forget-cafe", "memory_id": second_id, "source_id": source, "quote": "please forget the cafe one", "reason": "Morii asked to forget it."}),
+    );
+    assert_ne!(forgot["isError"], json!(true), "{forgot}");
+    let unquoted = short(
+        &mut rpc,
+        "memory_request_forget",
+        json!({"request_id": "forget-bad", "memory_id": second_id, "source_id": source, "quote": "words Morii never said", "reason": "x"}),
+    );
+    assert_eq!(unquoted["isError"], true, "{unquoted}");
+    // Requests change no memory: both still read as before.
+    assert!(search(&mut rpc).is_superset(&after));
+
     // Stop the service and inspect the Vault it left behind.
     drop(server);
     let reopened = SegmentedAutomationVault::open(
@@ -600,6 +652,18 @@ fn daily_flow(e: &Env, p: &AutomationPolicy, before: usize, root: &VerifiedRoot)
         )
         .unwrap();
     assert_eq!(count, before + 3);
+    // Both requests wait in Morii's queue, still pending.
+    let queued = reopened
+        .agent_requests(&e.descriptor.created_by, Sensitivity::Private)
+        .unwrap();
+    let kinds: Vec<_> = queued
+        .iter()
+        .map(|r| (serde_json::to_value(r.kind).unwrap(), r.pending))
+        .collect();
+    assert_eq!(
+        kinds,
+        vec![(json!("correction"), true), (json!("forget"), true)]
+    );
     assert_eq!(theme, Some((Interpretation::Inference, Some(2))));
     let saved = std::fs::read_to_string(state_dir.join("oauth-state.json")).unwrap();
     for secret in [code.as_str(), auth_code.as_str(), token.as_str()] {

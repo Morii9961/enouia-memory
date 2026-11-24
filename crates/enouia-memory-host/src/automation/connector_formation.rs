@@ -171,6 +171,15 @@ pub struct ConnectorReceipt {
     /// ADR-MEM-183: the current memories formed from this submission's
     /// captured turns, so ChatGPT can cite them without searching.
     pub memories: Vec<FormedMemory>,
+    /// ADR-MEM-184: the captured source of each turn, in turn order, so a
+    /// later correction or forget request can cite where Morii said it.
+    pub turns: Vec<TurnSource>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct TurnSource {
+    pub message_id: String,
+    pub source: SourceRevisionRef,
 }
 
 #[derive(Debug, Serialize)]
@@ -419,6 +428,29 @@ impl ConnectorWriter {
     }
     pub fn config(&self) -> &ConnectorConfig {
         &self.config
+    }
+    /// ADR-MEM-184: the current target of `memory` and the current revision
+    /// of `source`, for a correction or forget request. `None` when either is
+    /// unknown here; the request's own permit decides what it may cite.
+    pub fn request_refs(
+        &self,
+        memory: &MemoryId,
+        source: &enouia_memory_contract::ids::SourceId,
+    ) -> ApplicationResult<Option<(TargetRef, SourceRevisionRef)>> {
+        Ok(self.vault.read_scoped(
+            &self.vault.descriptor().system_actor,
+            self.config.max_sensitivity,
+            SystemReadScope::MoriiFullHistory,
+            |d| {
+                let target = d
+                    .memories
+                    .iter()
+                    .find(|m| &m.memory.memory.memory_id == memory)
+                    .map(|m| m.target.clone())?;
+                let source = d.sources.get(source).map(|s| s.reference())?;
+                Some((target, source))
+            },
+        )?)
     }
     /// ADR-MEM-174: the connector's own access and egress domain, stable for
     /// this Vault and account scope, so its windows can be synthesized together.
@@ -705,6 +737,7 @@ impl ConnectorWriter {
                             jobs: vec![],
                             window_needed: true,
                             memories: vec![],
+                            turns: vec![],
                         });
                     }
                     None => {
@@ -748,6 +781,7 @@ impl ConnectorWriter {
                 jobs: vec![],
                 window_needed: false,
                 memories: vec![],
+                turns: vec![],
             });
         }
         self.analyzer
@@ -812,8 +846,18 @@ impl ConnectorWriter {
                     .collect()
             },
         )?;
+        let turn_sources = request
+            .turns
+            .iter()
+            .zip(&capture.sources)
+            .map(|(t, s)| TurnSource {
+                message_id: t.message_id.clone(),
+                source: s.clone(),
+            })
+            .collect();
         Ok(ConnectorReceipt {
             memories,
+            turns: turn_sources,
             jobs: formation
                 .status()
                 .into_iter()

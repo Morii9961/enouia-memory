@@ -103,7 +103,9 @@ fn run(args: &[String]) -> Result<(), String> {
                         active: true,
                         valid_from: status.now,
                         valid_until: until,
-                        allow_requests: false,
+                        // ADR-MEM-184: correction and forget requests,
+                        // confirmed by Morii in Runtime; they need source text.
+                        allow_requests: config.source_read,
                         follow_new_sources: true,
                         purpose: Some("chatgpt_connector".into()),
                     };

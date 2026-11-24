@@ -1,5 +1,12 @@
 # Runtime integration (ADR-MEM-45)
 
+2026-11-24 ChatGPT correction and forget requests ([ADR-MEM-184](../adr/184-chatgpt-correction-forget-requests.md)):
+the remote connector can file correction and forget requests under its request-capable grant.
+They arrive in the existing `agent_requests` queue with the connector's principal, which is the
+principal of the grant whose `purpose` is `chatgpt_connector`. Label them "ChatGPT" there.
+Confirmation works as for local Agents. No IPC, wire or schema change; Workspace stays at 61
+commands. Surface aggregate: `04a7af973971ac657b981a9959ff0842ab5ce61e1126c4d160a756cf2fbf6737`.
+
 2026-11-24 conversation receipts name formed memories ([ADR-MEM-183](../adr/183-connector-receipt-memories.md)):
 `ConnectorReceipt.memories` (memory ID, revision, title). Remote connector only; Runtime needs
 no change. Surface aggregate: `464db71eb637de5318bc813e82211366b23a166aa778e8267332ef0606139431`.

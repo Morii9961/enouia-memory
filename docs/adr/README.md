@@ -1126,3 +1126,10 @@ returns memories learned in that period, for ChatGPT's weekly theme pass.
 [Decision](183-connector-receipt-memories.md): `memory_submit_conversation` receipts list the
 current memory ID, revision and title of each memory formed from the submission's captured
 turns (replays return the same list; themes are not included).
+
+### ADR-MEM-184 — ChatGPT files correction and forget requests
+
+[Decision](184-chatgpt-correction-forget-requests.md): drafted connector grants allow requests
+(with source text); the remote service offers `memory_request_correction` and
+`memory_request_forget`, citing the turn source from conversation receipts' new `turns`; requests
+enter Morii's existing confirmation queue and change nothing until he confirms in Runtime.

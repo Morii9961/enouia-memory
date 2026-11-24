@@ -7,16 +7,42 @@ use crate::automation::application::ApplicationFault;
 use crate::automation::connector_formation::{
     ConnectorSubmission, ConnectorTheme, ConnectorWriter,
 };
+use crate::automation::qualified_agent::{AgentCorrectionReporter, AgentForgetRequester};
+use enouia_memory_contract::ids::{MemoryId, SourceId};
 use enouia_memory_contract::{
     foundation::Clock, next::AttentionProfile, ports::IdSource, time::Timestamp,
 };
 use enouia_memory_vault::automation::AutomationFault;
+use enouia_memory_vault::automation::segmented::{AgentCorrectionRequest, AgentForgetRequest};
 use serde::Deserialize;
 use serde_json::{Value, json};
 
 pub const TOOL: &str = "memory_submit_conversation";
 /// ADR-MEM-174: ChatGPT submits a theme over daily memories it has read.
 pub const THEME_TOOL: &str = "memory_submit_theme";
+/// ADR-MEM-184: requests Morii confirms in Runtime.
+pub const CORRECTION_TOOL: &str = "memory_request_correction";
+pub const FORGET_TOOL: &str = "memory_request_forget";
+
+/// ADR-MEM-184: request writers under the connector's request-capable grant.
+#[derive(Clone, Copy)]
+pub struct RequestFilers<'w> {
+    pub correction: &'w AgentCorrectionReporter<'w>,
+    pub forget: &'w AgentForgetRequester<'w>,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct RequestArguments {
+    request_id: String,
+    memory_id: MemoryId,
+    source_id: SourceId,
+    quote: String,
+    #[serde(default)]
+    correction: Option<String>,
+    #[serde(default)]
+    reason: Option<String>,
+}
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -40,6 +66,7 @@ pub struct ConnectorSession<'w, S: Session> {
     clock: &'w dyn Clock,
     ids: &'w dyn IdSource,
     profile: &'w AttentionProfile,
+    requests: Option<RequestFilers<'w>>,
     initialized: bool,
     ready: bool,
     original: Option<Value>,
@@ -63,11 +90,132 @@ impl<'w, S: Session> ConnectorSession<'w, S> {
             clock,
             ids,
             profile,
+            requests: None,
             initialized: false,
             ready: false,
             original: None,
         }
     }
+}
+
+impl<'w, S: Session> ConnectorSession<'w, S> {
+    /// ADR-MEM-184: offer correction and forget requests too. They need the
+    /// connector writer, which is what resolves their references.
+    pub fn with_requests(mut self, requests: RequestFilers<'w>) -> Self {
+        self.requests = Some(requests);
+        self
+    }
+    fn file_request(
+        &mut self,
+        writer: &ConnectorWriter,
+        requests: RequestFilers<'w>,
+        name: &str,
+        id: &Value,
+        arguments: Value,
+        message: &Value,
+    ) -> Option<Value> {
+        let invalid = |problem: &str| {
+            Some(result(
+                id,
+                json!({"error": "invalid_request", "problems": [problem]}),
+                true,
+            ))
+        };
+        let Ok(args) = serde_json::from_value::<RequestArguments>(arguments) else {
+            return Some(result(id, json!({"error": "invalid_arguments"}), true));
+        };
+        let text = if name == CORRECTION_TOOL {
+            args.correction
+        } else {
+            args.reason
+        };
+        let (Some(request_id), Some(text)) = (chatgpt::request_id(&args.request_id), text) else {
+            return Some(result(id, json!({"error": "invalid_arguments"}), true));
+        };
+        let refs = match writer.request_refs(&args.memory_id, &args.source_id) {
+            Ok(refs) => refs,
+            Err(fault) => return Some(result(id, json!({"error": format!("{fault:?}")}), true)),
+        };
+        let Some((target, source)) = refs else {
+            return invalid("memory_id must name a current memory and source_id a captured source");
+        };
+        let outcome = if name == CORRECTION_TOOL {
+            requests
+                .correction
+                .submit(&AgentCorrectionRequest {
+                    request_id,
+                    target,
+                    source,
+                    quote_hint: args.quote,
+                    correction: text,
+                })
+                .map(|r| json!(r))
+        } else {
+            requests
+                .forget
+                .submit(&AgentForgetRequest {
+                    request_id,
+                    target,
+                    source,
+                    quote_hint: args.quote,
+                    forget: text,
+                })
+                .map(|r| json!(r))
+        };
+        match outcome {
+            Ok(receipt) => Some(result(id, receipt, false)),
+            Err(ApplicationFault::Vault(
+                AutomationFault::OutcomeUnknown | AutomationFault::RecoveryRequired,
+            )) => {
+                // Never retried here: the endpoint halts on the original message.
+                self.original.get_or_insert_with(|| message.clone());
+                None
+            }
+            Err(ApplicationFault::Invalid) => invalid(
+                "the quote must appear verbatim in a user turn of that source, and the connector must be allowed to cite that source and memory",
+            ),
+            Err(fault) => Some(result(id, json!({"error": format!("{fault:?}")}), true)),
+        }
+    }
+}
+
+fn request_tool(name: &str, title: &str, field: &str, about: &str) -> Value {
+    json!({
+        "name": name,
+        "title": title,
+        "description": about,
+        "inputSchema": {
+            "type": "object",
+            "required": ["request_id", "memory_id", "source_id", "quote", field],
+            "additionalProperties": false,
+            "properties": {
+                "request_id": {"type": "string", "maxLength": 128, "description": "Any stable key for this request; the same key replays."},
+                "memory_id": {"type": "string", "description": "The memory to correct or forget."},
+                "source_id": {"type": "string", "description": "The source of the user turn where Morii asked for it: submit that conversation first, then take the turn's source from its receipt's `turns`."},
+                "quote": {"type": "string", "maxLength": 2048, "description": "Morii's own words in that turn, verbatim."},
+                field: {"type": "string", "maxLength": 2048}
+            }
+        },
+        "annotations": {"readOnlyHint": false, "destructiveHint": false, "idempotentHint": true, "openWorldHint": false}
+    })
+}
+
+pub fn correction_tool() -> Value {
+    request_tool(
+        CORRECTION_TOOL,
+        "Ask Morii to confirm a correction",
+        "correction",
+        "When Morii says a memory is wrong, file a correction request: what should change, backed by his own words in a conversation you submitted. Nothing changes until Morii confirms it in Enouia Runtime.",
+    )
+}
+
+pub fn forget_tool() -> Value {
+    request_tool(
+        FORGET_TOOL,
+        "Ask Morii to confirm forgetting a memory",
+        "reason",
+        "When Morii asks to forget a memory, file a forget request backed by his own words in a conversation you submitted. Nothing is forgotten until Morii confirms it in Enouia Runtime.",
+    )
 }
 
 pub fn tool() -> Value {
@@ -211,7 +359,10 @@ impl<S: Session> Session for ConnectorSession<'_, S> {
         let Some(writer) = self.writer.filter(|_| {
             self.ready
                 && method == "tools/call"
-                && (call_name == Some(TOOL) || call_name == Some(THEME_TOOL))
+                && (call_name == Some(TOOL)
+                    || call_name == Some(THEME_TOOL)
+                    || (self.requests.is_some()
+                        && (call_name == Some(CORRECTION_TOOL) || call_name == Some(FORGET_TOOL))))
         }) else {
             let mut response = self.inner.handle(message)?;
             if method == "initialize" && response.get("result").is_some() {
@@ -237,6 +388,10 @@ impl<S: Session> Session for ConnectorSession<'_, S> {
                         json!({"enum": writer.config().allowed_forms});
                     tools.push(submit);
                     tools.push(theme_tool());
+                    if self.requests.is_some() {
+                        tools.push(correction_tool());
+                        tools.push(forget_tool());
+                    }
                 }
             }
             return Some(response);
@@ -244,6 +399,11 @@ impl<S: Session> Session for ConnectorSession<'_, S> {
         let id = message.get("id").cloned().unwrap_or(Value::Null);
         let mut arguments = message["params"]["arguments"].clone();
         let now = self.clock.now_unix_ms();
+        if let (Some(requests), Some(name @ (CORRECTION_TOOL | FORGET_TOOL))) =
+            (self.requests, call_name)
+        {
+            return self.file_request(writer, requests, name, &id, arguments, message);
+        }
         let outcome = if call_name == Some(THEME_TOOL) {
             chatgpt::theme_arguments(&mut arguments);
             let Ok(args) = serde_json::from_value::<ThemeArguments>(arguments) else {
@@ -299,6 +459,9 @@ impl<S: Session> Session for ConnectorSession<'_, S> {
     }
     fn closed(&self) -> bool {
         self.inner.closed()
+            || self.requests.is_some_and(|r| {
+                r.correction.check_connection().is_err() || r.forget.check_connection().is_err()
+            })
     }
     fn unknown(&self) -> Option<&Value> {
         self.original.as_ref().or_else(|| self.inner.unknown())

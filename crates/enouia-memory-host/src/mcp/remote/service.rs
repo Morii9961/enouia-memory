@@ -3,7 +3,7 @@
 //! profile behind the loopback HTTP/1.1 driver. The process runs as the OS
 //! account that owns the Vault root; that ownership is the Owner's
 //! authentication on the server.
-use super::connector::ConnectorSession;
+use super::connector::{ConnectorSession, RequestFilers};
 use super::oauth::{Authority, OAuthConfig, State};
 use super::{Config, Endpoint, Handler, Request, Response, Router, http1};
 use crate::automation::connector_formation::{ConnectorConfig, ConnectorWriter};
@@ -317,9 +317,45 @@ pub fn serve(
     while !stop() {
         let now = clock.now_unix_ms();
         let (reader, permit_until) = config.reader(&host, &owner, now)?;
+        // ADR-MEM-184: correction and forget requests, only for the connector
+        // under a request-capable grant; otherwise the tools are not offered.
+        let requests = match (&config.read_grant_id, &writer) {
+            (Some(grant), Some(_)) => {
+                let principal = ActorRef {
+                    actor_type: ActorType::Agent,
+                    actor_id: config.agent_id.clone(),
+                };
+                let scope = config.scope(permit_until.clone());
+                host.correction_reporter_with_owner_grant(
+                    &owner,
+                    principal.clone(),
+                    grant,
+                    scope.clone(),
+                )
+                .ok()
+                .zip(
+                    host.forget_requester_with_owner_grant(&owner, principal, grant, scope)
+                        .ok(),
+                )
+            }
+            _ => None,
+        };
         let endpoint = Endpoint::new(config.endpoint().expect("checked"), &authority, ids, |b| {
             opening::Server::new(&reader, &config.profile).map(|s| {
-                ConnectorSession::new(s, writer.as_ref(), &b.scopes, clock, ids, &config.profile)
+                let session = ConnectorSession::new(
+                    s,
+                    writer.as_ref(),
+                    &b.scopes,
+                    clock,
+                    ids,
+                    &config.profile,
+                );
+                match &requests {
+                    Some((correction, forget)) => {
+                        session.with_requests(RequestFilers { correction, forget })
+                    }
+                    None => session,
+                }
             })
         });
         let mut handler = Persisted {
@@ -335,12 +371,19 @@ pub fn serve(
             h.inner.endpoint.halted().is_none()
                 && clock.now_unix_ms() < renew_at
                 && reader.check_context_connection().is_ok()
+                && requests.as_ref().is_none_or(|(c, f)| {
+                    c.check_connection().is_ok() && f.check_connection().is_ok()
+                })
                 && !stop()
         })
         .map_err(|e| format!("listener: {e}"))?;
         let halted = handler.inner.endpoint.halted().is_some();
         drop(handler);
         reader.revoke();
+        if let Some((correction, forget)) = &requests {
+            correction.revoke();
+            forget.revoke();
+        }
         if halted {
             return Err("an outcome is unknown; recover the Vault before serving again".into());
         }

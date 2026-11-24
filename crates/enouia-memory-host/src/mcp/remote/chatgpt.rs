@@ -249,14 +249,14 @@ pub fn read_arguments(
     }))
 }
 
-/// A `request_id` that is not already a request ID becomes the stable one
-/// derived from it, so the same key always replays the same write.
-fn request_key(value: &mut Value) {
-    let Some(key) = value.as_str() else {
-        return;
-    };
-    if RequestId::parse(key).is_ok() || key.is_empty() || key.chars().count() > 128 {
-        return;
+/// A request ID as given, or the stable one derived from a free-form key of
+/// 1 to 128 characters, so the same key always replays the same write.
+pub fn request_id(key: &str) -> Option<RequestId> {
+    if let Ok(id) = RequestId::parse(key) {
+        return Some(id);
+    }
+    if key.is_empty() || key.chars().count() > 128 {
+        return None;
     }
     let digest = enouia_memory_contract::hash::sha256(
         &canonical_bytes(&json!(["chatgpt-request-key-1", key])).expect("closed seed"),
@@ -265,7 +265,13 @@ fn request_key(value: &mut Value) {
     for (i, byte) in bytes.iter_mut().enumerate() {
         *byte = u8::from_str_radix(&digest.as_str()[2 * i..2 * i + 2], 16).unwrap_or(0);
     }
-    *value = json!(RequestId::from_random(bytes));
+    Some(RequestId::from_random(bytes))
+}
+
+fn request_key(value: &mut Value) {
+    if let Some(id) = value.as_str().and_then(request_id) {
+        *value = json!(id);
+    }
 }
 
 fn fill(object: &mut Map<String, Value>, key: &str, value: Value) {
