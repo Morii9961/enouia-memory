@@ -335,12 +335,32 @@ fn refused_initialize_close_delete_and_session_cap_leave_no_stale_session() {
         let opened = endpoint.respond(&post(Some("tok-owner"), None, init(n as i64)));
         ids_seen.push(opened.header_value("mcp-session-id").unwrap().to_owned());
     }
+    // ADR-MEM-199: a full endpoint ends its least recently used session.
+    // Session 0 was used last, so session 1 goes; its client gets 404.
     assert_eq!(
         endpoint
-            .respond(&post(Some("tok-owner"), None, init(9)))
+            .respond(&post(
+                Some("tok-owner"),
+                Some(&ids_seen[0]),
+                call(8, "tools/list")
+            ))
             .status,
-        503
+        200
     );
+    let fresh = endpoint.respond(&post(Some("tok-owner"), None, init(9)));
+    assert_eq!(fresh.status, 200);
+    assert_eq!(endpoint.sessions(), MAX_SESSIONS);
+    assert_eq!(
+        endpoint
+            .respond(&post(
+                Some("tok-owner"),
+                Some(&ids_seen[1]),
+                call(8, "tools/list")
+            ))
+            .status,
+        404
+    );
+    ids_seen[1] = fresh.header_value("mcp-session-id").unwrap().to_owned();
     let closed = endpoint.respond(&post(Some("tok-owner"), Some(&ids_seen[0]), call(2, "bye")));
     assert_eq!(closed.status, 200);
     assert_eq!(

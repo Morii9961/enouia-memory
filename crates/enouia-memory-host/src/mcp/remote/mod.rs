@@ -147,7 +147,9 @@ pub struct Endpoint<'f, S: Session> {
     tokens: &'f dyn Tokens,
     ids: &'f dyn IdSource,
     open: Open<'f, S>,
-    sessions: BTreeMap<String, (String, S)>,
+    /// Session ID to (bearer subject, session, last use).
+    sessions: BTreeMap<String, (String, S, u64)>,
+    uses: u64,
     halted: Option<Value>,
 }
 
@@ -191,6 +193,7 @@ impl<'f, S: Session> Endpoint<'f, S> {
             ids,
             open: Box::new(open),
             sessions: BTreeMap::new(),
+            uses: 0,
             halted: None,
         }
     }
@@ -277,7 +280,7 @@ impl<'f, S: Session> Endpoint<'f, S> {
                     return Response::new(400);
                 };
                 return match self.sessions.get(id) {
-                    Some((subject, _)) if *subject == bearer.subject => {
+                    Some((subject, ..)) if *subject == bearer.subject => {
                         self.sessions.remove(id);
                         Response::new(204)
                     }
@@ -322,8 +325,16 @@ impl<'f, S: Session> Endpoint<'f, S> {
             if session_id.is_some() {
                 return Response::new(400);
             }
-            if self.sessions.len() >= MAX_SESSIONS {
-                return Response::new(503);
+            // ADR-MEM-199: when full, the least recently used session ends;
+            // its client gets 404 and initializes again, as MCP specifies.
+            if self.sessions.len() >= MAX_SESSIONS
+                && let Some(oldest) = self
+                    .sessions
+                    .iter()
+                    .min_by_key(|(_, (.., used))| *used)
+                    .map(|(id, _)| id.clone())
+            {
+                self.sessions.remove(&oldest);
             }
             let Some(mut session) = (self.open)(&bearer) else {
                 return Response::new(403);
@@ -344,7 +355,9 @@ impl<'f, S: Session> Endpoint<'f, S> {
                 .iter()
                 .map(|b| format!("{b:02x}"))
                 .collect();
-            self.sessions.insert(id.clone(), (bearer.subject, session));
+            self.uses += 1;
+            self.sessions
+                .insert(id.clone(), (bearer.subject, session, self.uses));
             return Response::json(200, &response).header("Mcp-Session-Id", id);
         }
         let Some(id) = session_id else {
@@ -358,12 +371,14 @@ impl<'f, S: Session> Endpoint<'f, S> {
         ) {
             return Response::new(400);
         }
-        let Some((subject, session)) = self.sessions.get_mut(id) else {
+        let Some((subject, session, used)) = self.sessions.get_mut(id) else {
             return Response::new(404);
         };
         if *subject != bearer.subject {
             return Response::new(404);
         }
+        self.uses += 1;
+        *used = self.uses;
         let response = session.handle(&message);
         if let Some(original) = session.unknown() {
             let original = original.clone();

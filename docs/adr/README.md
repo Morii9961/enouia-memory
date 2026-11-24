@@ -1217,3 +1217,9 @@ slash, and the metadata announces `authorization_response_iss_parameter_supporte
 [Decision](198-mcp-transport-header-tolerance.md): without `MCP-Protocol-Version` the negotiated version
 applies, and without `Accept` any media type is accepted; a wrong version or an Accept excluding JSON is
 still refused.
+
+### ADR-MEM-199 — A full MCP endpoint ends its least recently used session
+
+[Decision](199-remote-session-eviction.md): instead of answering a fifth `initialize` with 503, the
+endpoint ends its least recently used session (whose client gets 404 and re-initializes) and opens
+the new one; the limit and halting are unchanged.
