@@ -86,7 +86,7 @@ enum Refusal {
     Io(io::Error),
 }
 
-fn read_request(stream: &mut impl Read) -> Result<Request, Refusal> {
+fn read_request(stream: &mut (impl Read + Write)) -> Result<Request, Refusal> {
     let mut buffer = Vec::with_capacity(1024);
     let mut chunk = [0u8; 4096];
     let end = loop {
@@ -156,10 +156,20 @@ fn read_request(stream: &mut impl Read) -> Result<Request, Refusal> {
         [coding] if coding.eq_ignore_ascii_case("chunked") => true,
         _ => return Err(Refusal::Status(501)),
     };
+    // ADR-MEM-201: a client or proxy waiting on `Expect: 100-continue` gets
+    // the interim response once the head is accepted, instead of a stall.
+    let expects = named("expect")
+        .iter()
+        .any(|v| v.eq_ignore_ascii_case("100-continue"));
     if chunked {
         // Both framings at once is ambiguous (RFC 9112 6.1): refuse it.
         if !named("content-length").is_empty() {
             return Err(Refusal::Status(400));
+        }
+        if expects {
+            stream
+                .write_all(b"HTTP/1.1 100 Continue\r\n\r\n")
+                .map_err(Refusal::Io)?;
         }
         let mut input = io::Cursor::new(buffer[end + 4..].to_vec()).chain(stream);
         let body = read_chunked(&mut input)?;
@@ -180,6 +190,11 @@ fn read_request(stream: &mut impl Read) -> Result<Request, Refusal> {
     };
     if length > MAX_INPUT_BYTES {
         return Err(Refusal::Status(413));
+    }
+    if expects && length > 0 {
+        stream
+            .write_all(b"HTTP/1.1 100 Continue\r\n\r\n")
+            .map_err(Refusal::Io)?;
     }
     let mut body = buffer[end + 4..].to_vec();
     if body.len() > length {

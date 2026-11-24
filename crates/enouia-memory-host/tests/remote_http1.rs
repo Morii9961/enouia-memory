@@ -386,3 +386,60 @@ fn real_loopback_sockets_serve_sequential_connections_and_stop_on_request() {
     assert!(head.contains("WWW-Authenticate: Bearer resource_metadata="));
     assert_eq!(endpoint.sessions(), 1);
 }
+
+/// ADR-MEM-201: `Expect: 100-continue` gets the interim response before the
+/// final one; a client waiting for it over a real socket is not stalled.
+#[test]
+fn expect_continue_gets_an_interim_response() {
+    let ids = SequentialIdSource::new(5);
+    let mut endpoint = Endpoint::new(config(), &Fixed, &ids, |_: &Bearer| Some(Echo(vec![])));
+    let plain = once(&mut endpoint, raw_post(INIT, None));
+    assert!(plain.1.starts_with("HTTP/1.1 200 OK\r\n"));
+    let mut bytes = raw_post(INIT, None);
+    let at = bytes.windows(2).position(|w| w == b"\r\n").unwrap() + 2;
+    bytes.splice(at..at, b"Expect: 100-continue\r\n".iter().copied());
+    let mut duplex = Duplex {
+        input: Cursor::new(bytes.clone()),
+        output: vec![],
+    };
+    http1::exchange(&mut duplex, &mut endpoint).unwrap();
+    let interim = b"HTTP/1.1 100 Continue\r\n\r\n";
+    assert!(duplex.output.starts_with(interim));
+    let (status, _, body) = status_and_head(&duplex.output[interim.len()..]);
+    assert_eq!(status, 200);
+    assert_eq!(serde_json::from_slice::<Value>(&body).unwrap()["id"], 1);
+
+    // Over a socket, the client sends its body only after the 100.
+    let listener = http1::bind_loopback("127.0.0.1:0".parse().unwrap()).unwrap();
+    let addr: SocketAddr = listener.local_addr().unwrap();
+    let end = bytes.windows(4).position(|w| w == b"\r\n\r\n").unwrap() + 4;
+    let (head, rest) = bytes.split_at(end);
+    let (head, rest) = (head.to_vec(), rest.to_vec());
+    let client = std::thread::spawn(move || {
+        let mut stream = TcpStream::connect(addr).unwrap();
+        stream
+            .set_read_timeout(Some(Duration::from_secs(5)))
+            .unwrap();
+        stream.write_all(&head).unwrap();
+        let mut seen = [0u8; 25];
+        stream.read_exact(&mut seen).unwrap();
+        assert_eq!(&seen, b"HTTP/1.1 100 Continue\r\n\r\n");
+        stream.write_all(&rest).unwrap();
+        let mut answer = vec![];
+        stream.read_to_end(&mut answer).unwrap();
+        answer
+    });
+    http1::serve(
+        &listener,
+        &mut endpoint,
+        Duration::from_secs(5),
+        |_, served| served < 1,
+    )
+    .unwrap();
+    let answer = client.join().unwrap();
+    assert!(
+        answer.starts_with(b"HTTP/1.1 200 OK\r\n"),
+        "{}",
+        String::from_utf8_lossy(&answer)
+    );
+}

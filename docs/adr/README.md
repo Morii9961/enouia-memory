@@ -1229,3 +1229,8 @@ the new one; the limit and halting are unchanged.
 [Decision](200-remote-session-continuity.md): session IDs issued by one permit generation (at most 16,
 with their bearer subjects) resume in the next for the same subject, re-initialized inside under the new
 permit; other subjects and unknown IDs still get 404, and token and grant checks are unchanged.
+
+### ADR-MEM-201 — The loopback driver answers `Expect: 100-continue`
+
+[Decision](201-http-expect-continue.md): once a request head is accepted and a body is still to be read,
+`Expect: 100-continue` gets `100 Continue`, so a waiting client or proxy sends its body without delay.
