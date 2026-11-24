@@ -1,7 +1,7 @@
 # ADR-MEM-210 — CJK recall terms are weighted by rarity
 
-Date: 2026-11-24. Status: Accepted (route: ChatGPT daily use and Runtime
-recall); synthetic validation. Follows a real-library check by the Runtime
+Date: 2026-11-24. Status: Accepted; its half-of-best floor is replaced by
+ADR-MEM-211 (route: ChatGPT daily use and Runtime recall); synthetic validation. Follows a real-library check by the Runtime
 session.
 
 ## Context

@@ -1287,3 +1287,9 @@ at Runtime's request; text without CJK keeps its terms, and ADR-MEM-208's connec
 [Decision](210-recall-cjk-rarity-weights.md): CJK pieces and single characters weigh ⌊log2(N/df)⌋ over the
 candidates (terms in over half weigh nothing; a character inside a matched piece is not recounted), and with
 CJK terms in play a memory under half the best score has no cue; queries without CJK are unchanged.
+
+### ADR-MEM-211 — CJK recall keeps every memory with a strong term
+
+[Decision](211-recall-cjk-strong-terms.md): the half-of-best floor is removed; a piece is never rarer than its
+rarer character, terms count up to three occurrences, and a memory is cued by CJK terms when it hits one of
+weight 2 or more (or the heaviest weight in a small library); queries without CJK are unchanged.

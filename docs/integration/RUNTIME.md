@@ -1,5 +1,13 @@
 # Runtime integration (ADR-MEM-45)
 
+2026-11-24 CJK strong terms ([ADR-MEM-211](../adr/211-recall-cjk-strong-terms.md)), after Runtime's second
+real-library check: the half-of-best floor of ADR-MEM-210 is removed (it let a stray memory push out the Kyoto
+diaries). A CJK piece is never rarer than its rarer character, pieces and characters count up to three
+occurrences, and CJK terms cue a memory only through a term of weight 2 or more (or the heaviest weight in a
+small library). Queries without CJK are unchanged. **Runtime adoption:** bump the pin and rerun the
+real-library set; expected: "我去过京都吗" selects the Kyoto diaries, and "我平时喜欢喝什么茶？" can select the
+Uji matcha memory. Surface aggregate: `7abc31ab30ce4ebdee9d2bb0afd8e3ba2a18eb2df45485bd5e4aad5bc4586691`.
+
 2026-11-24 CJK rarity weights ([ADR-MEM-210](../adr/210-recall-cjk-rarity-weights.md)), after Runtime's
 real-library check of ADR-MEM-209: `recall_terms` now returns words, CJK pieces and CJK characters; pieces and
 characters weigh ⌊log2(N/df)⌋ over the candidates, a character inside a matched piece is not recounted, and
