@@ -1176,3 +1176,9 @@ relay to Morii; expiry behaviour itself is unchanged.
 [Decision](191-connector-reused-message-ids.md): a recorded message ID with different text is reported
 as a reused ID ("give this new message a new ID"), not as a resend to drop; both still refuse before
 the Vault, and the submit schema describes stable `conversation_id` and chat-unique `message_id`.
+
+### ADR-MEM-192 — A later call of the same chat continues after its recorded turns
+
+[Decision](192-connector-same-chat-continuation.md): a new connector request whose sequences overlap
+the target conversation's record shifts past its last turn and attaches a parentless first turn to it;
+a replay takes each turn's recorded sequence and parent. Fixes `Denied` on a chat's second call.

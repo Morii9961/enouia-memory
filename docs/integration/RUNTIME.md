@@ -1,5 +1,10 @@
 # Runtime integration (ADR-MEM-45)
 
+2026-11-24 same-chat continuation ([ADR-MEM-192](../adr/192-connector-same-chat-continuation.md)):
+a later connector call of the same chat continues after its recorded turns (sequence shift, parent of
+the first turn). Runtime's conversation view shows such chats as one thread. No IPC, wire or schema
+change. Surface aggregate: `4821d6cbdcf40d680d383a7d1dc3a25b5b170fc484978bf395aa14d279a1f21b`.
+
 2026-11-24 reused message IDs ([ADR-MEM-191](../adr/191-connector-reused-message-ids.md)):
 `ConnectorWriter::resent_turns` now returns `(message_id, same_text)` pairs; a reused ID gets its own
 refusal reason. Remote connector only; Runtime needs no change. Surface aggregate: `59a0029490c846c4f96b62d843bd58b010e870f0e4bbc38be399236f060206eb`.
