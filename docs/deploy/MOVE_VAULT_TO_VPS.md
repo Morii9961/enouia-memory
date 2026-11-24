@@ -55,7 +55,10 @@
 7. **上线**：安装 systemd 单元（[linux/enouia-memory-remote.service](linux/enouia-memory-remote.service)），
    配好 Caddy 或命名隧道，然后启动服务。在 ChatGPT 里重新添加连接器，在 VPS 上运行
    `approve` 拿审批码，输入后先搜索一次，再提交一段对话验证。
-8. **本机副本**：保留导出包作为搬迁前的备份。本机的旧库不再写入；要删要留由 Morii 决定。
+8. **每日备份**：按 [REMOTE_MCP_LINUX.md](REMOTE_MCP_LINUX.md) 的“Nightly backup”一节安装备份脚本和定时器。
+   每天凌晨 4:30 会短暂停下服务、导出并校验，然后重新启动服务。导出不会自动删除，
+   搬到异地和清理旧导出都由 Morii 自己做。
+9. **本机副本**：保留导出包作为搬迁前的备份。本机的旧库不再写入；要删要留由 Morii 决定。
 
 ## 出问题时
 

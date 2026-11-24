@@ -133,6 +133,35 @@ WantedBy=multi-user.target
 If the service stops because an outcome is unknown, it exits with an error and
 stays down after the restart limit. Recover the Vault before starting it again.
 
+## Nightly backup (ADR-MEM-188)
+
+The service holds the Vault, so exports run while it is briefly stopped.
+Install the script and units from `deploy/`:
+
+```sh
+install -m 0755 deploy/enouia-memory-nightly-backup /usr/local/bin/
+install -m 0644 deploy/enouia-memory-backup.service deploy/enouia-memory-backup.timer /etc/systemd/system/
+install -d -m 0700 -o enouia -g enouia /var/lib/enouia-memory/backups
+systemctl daemon-reload && systemctl enable --now enouia-memory-backup.timer
+```
+
+Every day at 04:30 Shanghai time, the script does the following:
+
+1. Stops the service.
+2. Runs `enouia-memory-remote backup <config> /var/lib/enouia-memory/backups`
+   as `enouia`.
+3. Starts the service again.
+
+ChatGPT calls during those seconds fail and can be retried. A service that was
+already stopped is backed up but not started. Run the same backup by hand with
+`systemctl start enouia-memory-backup.service`, and read results with
+`journalctl -u enouia-memory-backup`.
+
+Each export is a full plaintext copy, and none is removed automatically. Copy
+exports off the VPS with the restic adapter
+([SEGMENTED_MORII_BACKUP.md](SEGMENTED_MORII_BACKUP.md)), and delete old ones
+yourself once a newer one is verified off-site.
+
 ## Caddy (`/etc/caddy/Caddyfile`)
 
 ```text

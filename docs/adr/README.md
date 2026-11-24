@@ -1152,3 +1152,9 @@ replays of the same request_id are unaffected.
 [Decision](187-connector-late-replay.md): a connector request resubmitted after its window ended
 replays from the record (turn sources and formed memories, `window_ended: true`) instead of being
 refused; nothing is written.
+
+### ADR-MEM-188 — Nightly backup of the remote service's Vault
+
+[Decision](188-remote-nightly-backup.md): `enouia-memory-remote backup <config> <dir>` exports and
+verifies the stopped Vault into a new UTC-stamped directory; a root script and systemd timer stop the
+service nightly, back up as the service account and restart it only if it was running; no pruning.
