@@ -36,3 +36,17 @@ four packages pass: 123 test binaries, no failures. The Linux-built host tests
 now also include connector entities (ADR-MEM-171) and ChatGPT themes
 (ADR-MEM-174). The entity identity and capsule tests are Windows-only, because
 they drive the trusted owner gesture.
+
+## Rerun at `main@458a571` (after ADR-MEM-176 to 186)
+
+The same environment and per-package command for `enouia-memory-contract`,
+`-vault`, `-init` and `-host`. All four pass: 124 test binaries, no failures and
+no panics. The run includes the real-binary ChatGPT daily flow on original and
+moved roots (`remote_daily_process`: ADR-MEM-176/177/178/181–184), the OAuth
+lapse (ADR-MEM-179), and conversation segments and resent-turn refusal
+(`connector_formation`: ADR-MEM-185/186).
+
+`cargo test --workspace` is not a Linux check here. A workspace member's
+`libdbus-sys` build script needs the system D-Bus development package, which
+this WSL image does not install. The Linux service needs none of these
+packages.
