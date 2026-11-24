@@ -27,7 +27,11 @@ ChatGPT 可以读你的记忆，也可以提交新记忆。本页说明怎样让
   `source_id`；`session_start` 可以不带参数。
 - 写：`request_id` 可以是任意稳定的字符串（最多 128 字），同一个字符串重复提交只会回放。
   每个 turn 只需要 `message_id`、`speaker`（user 或 assistant）和 `text`；分支、序号、父消息、
-  语言会自动补上。每条记忆的 `event_time` / `valid_time` 不填时按“未知”处理。
+  语言会自动补上。消息时间 `occurred_at` 可写成带时区的 RFC 3339（如 `2026-11-24T21:05:00+08:00`），
+  服务端换算成 UTC 并保留原文（[ADR195](../adr/195-chatgpt-turn-times-and-argument-errors.md)）。每条记忆的
+  `event_time` / `valid_time` 不填时按“未知”处理。
+- 按 ID 查不到时，结果里会有一句 `note`，说明这个 ID 不存在、已删除或不在读取授权内
+  （[ADR202](../adr/202-read-not-found-note.md)）；`memory_search` 的 `limit` 超过 100 时按 100 分页。
 
 完整格式仍然接受。
 
@@ -55,14 +59,17 @@ ChatGPT 可以读你的记忆，也可以提交新记忆。本页说明怎样让
 4. 一句话里没有值得记住的内容时，就不要提交记忆，只提交对话原文即可。
 5. 同一段对话可以分多次提交，但每次只发新的消息，不要重发已经提交过的消息（会被拒绝并
    说明是哪条，[ADR186](../adr/186-connector-resent-turns.md)）。对话跨了好几天也没关系，后面的
-   部分会接在新的窗口里（[ADR185](../adr/185-connector-conversation-segments.md)）。
+   部分会接在新的窗口里（[ADR185](../adr/185-connector-conversation-segments.md)）。每次新提交的消息会自动接在
+   这段对话已有消息的后面（[ADR192](../adr/192-connector-same-chat-continuation.md)），所以每次都从 1 开始编号也没关系，
+   但 `message_id` 在同一对话里不能重复用给不同的消息（[ADR191](../adr/191-connector-reused-message-ids.md)）。
 
 ## 主题
 
 - 当它发现几条每日记忆（2 到 32 条）讲的是同一件反复出现的事时，可以提交一个主题：
   标题、用它自己的话写的概括，以及这些记忆的 `memory_id`（从 `memory_search` 的结果里拿）。
 - 主题会被标为 **ChatGPT 的推断**，不会被当成你说过的话；它链接到所引用的那些记忆。
-- 主题只能涵盖连接器自己提交的每日记忆，初始化导入的历史记忆不在其中。
+- 主题只能涵盖连接器自己提交的每日记忆，初始化导入的历史记忆不在其中；混进来的会被逐条指出
+  （[ADR203](../adr/203-theme-member-reasons.md)），去掉后重新提交即可。
 - 你可以在 Runtime 里重命名、置顶或解散主题。
 
 ## 可以放进 ChatGPT 自定义指令的一段话
