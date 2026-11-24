@@ -118,6 +118,7 @@ serve 窗口每个请求打印一行：时间、方法、路径、状态码、�
 | 授权页报错 | `GET /oauth/authorize 302` 后 ChatGPT 显示错误 | `invalid_target`：`resource` 和填入的地址不一致（末尾斜杠没关系，[ADR197](../adr/197-oauth-chatgpt-tolerance.md)）；`invalid_scope`：请求里一个配置的 scope 都没有 |
 | 输入审批码后失败 | `POST /oauth/authorize 400` | 审批码过期或输错：重新运行 `approve` |
 | 能授权但调用失败 | `POST /mcp 401` | 令牌过期或被撤销：在 ChatGPT 里重新连接 |
+| 用着用着要求重新授权，或反复失败 | 一串 `POST /oauth/token 400` | 刷新令牌被判为重放（同一个旧令牌两分钟后又被用，或者来自别的客户端，[ADR207](../adr/207-refresh-reuse-grace.md)），整组令牌已撤销：在 ChatGPT 里删掉连接器重新添加，再用 `approve` 拿新审批码 |
 | 工具调用报错 | `tool=… error` | 让 ChatGPT 把返回里的 `problems` 原样贴出来，按提示改；常见的已在 [CHATGPT_CONNECTOR_USAGE.md](CHATGPT_CONNECTOR_USAGE.md) 的“出错时”列出 |
 | 偶尔一次 404 | `POST /mcp 404` | 会话过期后客户端会重新初始化；连续出现再看是否换过令牌（[ADR200](../adr/200-remote-session-continuity.md)） |
 | serve 启动就退出 | 窗口里 `vault: Busy; another process holds the Vault` | Runtime 或别的命令开着主库：先关掉再启动（[ADR194](../adr/194-remote-busy-hint-and-vps-renewal.md)） |

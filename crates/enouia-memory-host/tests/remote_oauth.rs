@@ -617,7 +617,39 @@ fn refresh_rotates_and_replays_revoke_the_whole_family() {
         ))["error"],
         "invalid_grant"
     );
-    // Replaying the rotated-away refresh token revokes everything in the family.
+    // ADR-MEM-207: the same client retrying the rotated-away token within the
+    // grace (a lost response, or parallel refreshes) gets fresh tokens and
+    // the grant lives on.
+    let retried = json_body(&refresh(
+        &authority,
+        &client,
+        first["refresh_token"].as_str().unwrap(),
+    ));
+    assert!(retried["access_token"].is_string(), "{retried}");
+    assert_ne!(retried["refresh_token"], rotated["refresh_token"]);
+    assert!(authority.verify(access).is_some());
+    let retried_access = retried["access_token"].as_str().unwrap();
+    assert!(authority.verify(retried_access).is_some());
+    // Replaying the rotated-away refresh token after the grace revokes
+    // everything in the family, the retry's tokens included.
+    now.0.set(now.0.get() + REFRESH_REUSE_GRACE_MS);
+    assert_eq!(
+        json_body(&refresh(
+            &authority,
+            &client,
+            first["refresh_token"].as_str().unwrap()
+        ))["error"],
+        "invalid_grant"
+    );
+    assert_eq!(authority.verify(retried_access), None);
+    assert_eq!(
+        json_body(&refresh(
+            &authority,
+            &client,
+            retried["refresh_token"].as_str().unwrap()
+        ))["error"],
+        "invalid_grant"
+    );
     assert_eq!(
         json_body(&refresh(
             &authority,
@@ -699,4 +731,32 @@ fn persisted_state_holds_digests_only_and_restores_tokens() {
             .is_some()
     );
     assert!(serde_json::from_str::<State>(&saved.replacen('{', r#"{"extra":1,"#, 1)).is_err());
+}
+
+/// ADR-MEM-207: the grace covers only the token's own client and a live grant.
+#[test]
+fn refresh_reuse_grace_is_for_the_same_client_and_a_live_grant() {
+    let ids = SequentialIdSource::new(1);
+    let now = Now(Cell::new(1_000_000));
+    let authority = Authority::new(config(), &ids, &now, State::default());
+    let client = register(&authority);
+    let other = register(&authority);
+    let code = approve(&authority, &client);
+    let first = json_body(&exchange(&authority, &client, &code));
+    let old = first["refresh_token"].as_str().unwrap();
+    let rotated = json_body(&refresh(&authority, &client, old));
+    // Another client presenting the spent token is a theft signal at once.
+    assert_eq!(
+        json_body(&refresh(&authority, &other, old))["error"],
+        "invalid_grant"
+    );
+    assert_eq!(
+        authority.verify(rotated["access_token"].as_str().unwrap()),
+        None
+    );
+    // With the grant revoked, the owner's own retry is refused too.
+    assert_eq!(
+        json_body(&refresh(&authority, &client, old))["error"],
+        "invalid_grant"
+    );
 }

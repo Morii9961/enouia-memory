@@ -1,5 +1,9 @@
 # Runtime integration (ADR-MEM-45)
 
+2026-11-24 refresh reuse grace ([ADR-MEM-207](../adr/207-refresh-reuse-grace.md)): the remote OAuth server
+lets the same client retry a rotated-away refresh token within two minutes while its grant lives. Remote
+service only; Runtime needs no change. Surface aggregate: `f89115e04dcb0f5b4b6dd6708a773af291e92ffa7aa787d6e62f0d8c3490655f`.
+
 2026-11-24 turn limits explained ([ADR-MEM-206](../adr/206-connector-turn-limits-explained.md)): connector
 refusals and schema say how to split a chat over 8 turns or a message over 16384 bytes. The capture
 contract is unchanged; Runtime needs no change. Surface aggregate: `ff518447c0b591d60bb5158c9a0e788e9efa15a9f87b5ed6ac567d1a385ff2fd`.

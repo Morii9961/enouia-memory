@@ -21,6 +21,10 @@ pub const MAX_CLIENTS: usize = 16;
 /// ADR-MEM-179: a registration never approved with Morii's code lapses after
 /// this long, so strangers on a public address cannot hold every slot.
 pub const PENDING_CLIENT_TTL_MS: i64 = 3_600_000;
+/// ADR-MEM-207: a rotated refresh token presented again this soon by its own
+/// client, while its grant still lives, is a retry or a parallel refresh, not
+/// a stolen token; it gets fresh tokens instead of revoking the grant.
+pub const REFRESH_REUSE_GRACE_MS: i64 = 2 * 60 * 1000;
 const METADATA: &str = "/.well-known/oauth-authorization-server";
 const REGISTER: &str = "/oauth/register";
 const AUTHORIZE: &str = "/oauth/authorize";
@@ -100,6 +104,10 @@ pub struct State {
     /// from older state files are absent here and count as approved.
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pending: BTreeMap<String, i64>,
+    /// ADR-MEM-207: when each refresh token was rotated, kept for
+    /// `REFRESH_REUSE_GRACE_MS`.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    rotated: BTreeMap<String, i64>,
 }
 
 impl State {
@@ -303,6 +311,9 @@ impl<'a> Authority<'a> {
         state.access.retain(|_, t| t.expires_ms > now);
         state.refresh.retain(|_, t| t.expires_ms > now);
         state.spent.retain(|_, t| t.expires_ms > now);
+        state
+            .rotated
+            .retain(|_, at| now - *at < REFRESH_REUSE_GRACE_MS);
         if state.approval.as_ref().is_some_and(|a| a.expires_ms <= now) {
             state.approval = None;
         }
@@ -664,23 +675,34 @@ impl<'a> Authority<'a> {
                 let key = digest(refresh);
                 let mut state = self.state.borrow_mut();
                 if let Some(spent) = state.spent.get(&key).cloned() {
-                    drop(state);
-                    self.revoke(&spent.family);
-                    return oauth_error(400, "invalid_grant");
+                    let retry = state
+                        .rotated
+                        .get(&key)
+                        .is_some_and(|at| now - *at < REFRESH_REUSE_GRACE_MS)
+                        && spent.client_id == client_id
+                        && state.refresh.values().any(|t| t.family == spent.family);
+                    if !retry {
+                        drop(state);
+                        self.revoke(&spent.family);
+                        return oauth_error(400, "invalid_grant");
+                    }
+                    (spent.family, None)
+                } else {
+                    let Some(issued) = state.refresh.remove(&key) else {
+                        return oauth_error(400, "invalid_grant");
+                    };
+                    if issued.client_id != client_id {
+                        state.refresh.insert(key, issued);
+                        return oauth_error(400, "invalid_grant");
+                    }
+                    (issued.family.clone(), Some((key, issued)))
                 }
-                let Some(issued) = state.refresh.remove(&key) else {
-                    return oauth_error(400, "invalid_grant");
-                };
-                if issued.client_id != client_id {
-                    state.refresh.insert(key, issued);
-                    return oauth_error(400, "invalid_grant");
-                }
-                (issued.family.clone(), Some((key, issued)))
             }
             _ => return oauth_error(400, "unsupported_grant_type"),
         };
         let mut state = self.state.borrow_mut();
         if let Some((key, issued)) = used {
+            state.rotated.insert(key.clone(), now);
             state.spent.insert(key, issued);
         }
         let access = self.secret();
