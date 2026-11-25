@@ -1313,3 +1313,8 @@ weight 2 or a character of weight 4, and repeats only breaking ties; supersedes 
 CJK runs; a piece holding no more than a quarter of its rarer character's memories is a weak chance pairing;
 strong terms (words of weight 3, characters of weight 4, a title mention counting twice) score ×16 over a
 tie-break of weak terms; a memory holding a whole run of three or more characters earns a bonus.
+
+### ADR-MEM-215 — A chance pairing does not cover its characters
+
+[Decision](215-recall-chance-pairings-cover-nothing.md): only a word covers its characters; a matched chance
+pairing (影集 where 集 is common) leaves its characters to count, so the whole-word memory keeps its 集.

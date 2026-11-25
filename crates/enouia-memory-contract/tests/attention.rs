@@ -454,10 +454,14 @@ fn the_whole_word_leads_a_broader_memory() {
     let memories = with_filler(
         &[
             "主人喜爱摄影，摄影找小众地点，摄影多年，摄影器材，周末逛集市",
-            "第一本摄影集从设计到印成实物",
+            "第一本摄影集Final Resonance | 第一本摄影集从设计到印成实物",
         ],
         60,
     );
+    // ADR-MEM-215: a chance pairing must not hide the whole word's 集 while
+    // the broader memory counts its own 集. Here 集 is rarer than 影, so 影集
+    // counts as a word and the case passes either way; only the real library,
+    // where 集 is common, shows the difference.
     let photos = recalled(&memories, "摄影集");
     assert_eq!(
         photos.first(),
