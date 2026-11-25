@@ -1318,3 +1318,9 @@ tie-break of weak terms; a memory holding a whole run of three or more character
 
 [Decision](215-recall-chance-pairings-cover-nothing.md): only a word covers its characters; a matched chance
 pairing (影集 where 集 is common) leaves its characters to count, so the whole-word memory keeps its 集.
+
+### ADR-MEM-216 — A title naming the whole query word earns its bonus again
+
+[Decision](216-recall-title-names-whole-word.md): when a memory's title contains a whole CJK query run of three
+or more characters, the whole-run bonus is added again outside the two-mention cap, so the 摄影集 memory leads
+one repeating 摄影 (reproduced with Runtime's real counts).
