@@ -477,7 +477,8 @@ impl SegmentedAutomationVault {
         Ok(pointer)
     }
     pub fn snapshot(&self) -> Result<SnapshotBinding> {
-        let _writer = lock::acquire(&self.native.root, Duration::ZERO)?;
+        // ADR-MEM-217: a read; Agent host creation calls it per session.
+        let _writer = lock::acquire(&self.native.root, BRIEF_LOCK_WAIT)?;
         let state = self
             .state
             .lock()

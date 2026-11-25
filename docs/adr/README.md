@@ -1324,3 +1324,9 @@ pairing (影集 where 集 is common) leaves its characters to count, so the whol
 [Decision](216-recall-title-names-whole-word.md): when a memory's title contains a whole CJK query run of three
 or more characters, the whole-run bonus is added again outside the two-mention cap, so the 摄影集 memory leads
 one repeating 摄影 (reproduced with Runtime's real counts).
+
+### ADR-MEM-217 — Agent host creation waits briefly for the writer lock
+
+[Decision](217-agent-host-creation-lock-wait.md): `snapshot()` and `check_original_agent_carrier()`, both reads on
+the Agent host creation path, wait up to `BRIEF_LOCK_WAIT` like the reads of ADR-MEM-175, so a parallel Agent
+session no longer fails with `Busy` while another issues permits.

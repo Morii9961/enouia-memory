@@ -1,5 +1,12 @@
 # Runtime integration (ADR-MEM-45)
 
+2026-11-25 Agent host creation lock wait ([ADR-MEM-217](../adr/217-agent-host-creation-lock-wait.md)), from a
+Runtime report: `snapshot()` and `check_original_agent_carrier()`, both reads on the Agent host creation path
+(`QualifiedAgentHost::from_authenticated_initialized_owner`), now wait up to `BRIEF_LOCK_WAIT` like the reads of
+ADR-MEM-175, so a parallel Agent session no longer fails with `Busy` (and the client with `BrokenPipe`) while
+another session issues permits. **Runtime adoption:** bump the pin and recheck `concurrent_agent_sessions_all_connect`
+in full single-threaded and parallel runs; no Runtime code change. Surface aggregate: `d3092dbbcce06f8155f8d5958667d2da63061c795b1f2e71876b0b5cca56079c`.
+
 2026-11-25 title names the whole word ([ADR-MEM-216](../adr/216-recall-title-names-whole-word.md)), after Runtime
 found ADR-MEM-215 changed no order and reported the real 摄影集 counts: when a memory's title contains a whole CJK
 query run of three or more characters, the whole-run bonus is added again outside the two-mention cap. Expected on

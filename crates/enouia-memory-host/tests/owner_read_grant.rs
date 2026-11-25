@@ -825,4 +825,25 @@ fn grant_purpose_labels_are_closed_and_owner_queries_wait_briefly_for_the_lock()
         assert!(v.owner_read_status(owner).is_ok());
         assert!(started.elapsed() >= std::time::Duration::from_millis(200));
     });
+    // ADR-MEM-217: creating another Agent session's host (snapshot and the
+    // original-carrier check) also waits instead of failing with Busy.
+    let (held, wait) = std::sync::mpsc::channel();
+    std::thread::scope(|scope| {
+        scope.spawn(|| {
+            v.read_agent(&reader, None, |_| {
+                held.send(()).unwrap();
+                std::thread::sleep(std::time::Duration::from_millis(300));
+            })
+            .unwrap();
+        });
+        wait.recv().unwrap();
+        let started = std::time::Instant::now();
+        assert!(v.snapshot().is_ok());
+        assert!(v.check_original_agent_carrier().is_ok());
+        assert!(
+            QualifiedAgentHost::from_authenticated_initialized_owner(v.clone(), owner.clone())
+                .is_ok()
+        );
+        assert!(started.elapsed() >= std::time::Duration::from_millis(200));
+    });
 }
