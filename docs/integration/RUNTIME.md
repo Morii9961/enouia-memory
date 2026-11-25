@@ -1,5 +1,11 @@
 # Runtime integration (ADR-MEM-45)
 
+2026-11-25 title names the whole word ([ADR-MEM-216](../adr/216-recall-title-names-whole-word.md)), after Runtime
+found ADR-MEM-215 changed no order and reported the real 摄影集 counts: when a memory's title contains a whole CJK
+query run of three or more characters, the whole-run bonus is added again outside the two-mention cap. Expected on
+the real library: the photo-book memory leads "摄影集"; other questions should not move. **Runtime adoption:** bump
+the pin when convenient, after the same real-library set is no worse than c2a5ce1. Surface aggregate: `877dc38d496add2a0f480535efcf9f12067646d74728f47f12da4ad783342694`.
+
 2026-11-25 chance pairings cover nothing ([ADR-MEM-215](../adr/215-recall-chance-pairings-cover-nothing.md)),
 after Runtime adopted c2a5ce1 (Runtime #258): only a word covers its characters, so a matched chance pairing
 (影集 where 集 is common) leaves its characters to count and the memory holding the whole query word keeps its

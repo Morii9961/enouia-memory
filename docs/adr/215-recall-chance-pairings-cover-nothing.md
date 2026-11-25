@@ -1,8 +1,8 @@
 # ADR-MEM-215 — A chance pairing does not cover its characters
 
-Date: 2026-11-25. Status: Accepted (route: ChatGPT daily use and Runtime
-recall); synthetic validation, awaiting the Runtime session's real-library
-check. Refines ADR-MEM-214, which Runtime adopted (Runtime #258).
+Date: 2026-11-25. Status: Accepted; the real-library check showed no change
+in any order (the 摄影集 tie had another cause, see ADR-MEM-216), so Runtime did
+not adopt it on its own. Refines ADR-MEM-214, which Runtime adopted (Runtime #258).
 
 ## Context
 

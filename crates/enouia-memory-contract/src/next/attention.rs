@@ -481,10 +481,12 @@ fn select_with_limit(
                 }
             }
             // ADR-MEM-214: holding a whole run of three or more characters
-            // (摄影集) adds its heaviest piece once more.
+            // (摄影集) adds its heaviest piece once more. ADR-MEM-216: a title
+            // naming that whole run adds it again, outside the two-mention
+            // cap, so the memory about 摄影集 leads one repeating 摄影.
             for run in &terms.runs {
                 if run.chars().count() >= 3 && body.contains(run.as_str()) {
-                    strong += run
+                    let heaviest = run
                         .chars()
                         .collect::<Vec<_>>()
                         .windows(2)
@@ -494,6 +496,10 @@ fn select_with_limit(
                         })
                         .max()
                         .unwrap_or(0);
+                    strong += heaviest;
+                    if title.contains(run.as_str()) {
+                        strong += heaviest;
+                    }
                 }
             }
             if strong == 0 {

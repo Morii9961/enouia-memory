@@ -469,3 +469,40 @@ fn the_whole_word_leads_a_broader_memory() {
         "{photos:?}"
     );
 }
+
+/// ADR-MEM-216, with the real counts Runtime reported: both memories hold
+/// 摄影集 once in the body and reach the two-mention cap, but only the photo
+/// book's title names it; the broader memory repeats 摄影 six times. The
+/// title naming the whole query word decides, not repeats of a sub-piece.
+#[test]
+fn a_title_naming_the_whole_word_beats_repeats_of_a_part() {
+    let mut texts = vec![
+        "第一本摄影集Final Resonance | 第一本摄影集从设计到印成实物",
+        "主人喜爱摄影 | 主人喜爱摄影，摄影找小众地点，摄影多年，摄影器材，摄影展，想出一本摄影集",
+        "旅行摄影计划",
+        "手机摄影技巧",
+        "周末去拍摄影展",
+        "摄影课的作业",
+    ];
+    // As in the real library, 集 is common (合集, 收集, 集市...), so 影集 is
+    // a chance pairing and the title's 影集 adds nothing by itself.
+    texts.extend([
+        "整理了一批照片的合集",
+        "收集了很多贴纸",
+        "周末逛集市",
+        "集中精力写完报告",
+        "看完了一集动画",
+        "收集明信片",
+        "歌单合集",
+        "集体活动很热闹",
+        "又追了两集剧",
+        "集邮的爱好",
+    ]);
+    let memories = with_filler(&texts, 90);
+    let photos = recalled(&memories, "摄影集");
+    assert_eq!(
+        photos.first(),
+        Some(&memories[0].memory.memory_id),
+        "{photos:?}"
+    );
+}
