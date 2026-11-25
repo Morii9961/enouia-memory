@@ -457,7 +457,11 @@ fn select_with_limit(
                 if times == 0 {
                     continue;
                 }
-                covered.extend(piece.chars());
+                // ADR-MEM-215: only a word covers its characters; a chance
+                // pairing (影集 where 影 mostly means 电影) leaves 集 to count.
+                if *word {
+                    covered.extend(piece.chars());
+                }
                 if *word && *w >= piece_strong {
                     let named = if title.contains(piece.as_str()) { 1 } else { 0 };
                     let mentions = times + named;

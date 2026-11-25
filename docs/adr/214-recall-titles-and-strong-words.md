@@ -1,8 +1,7 @@
 # ADR-MEM-214 — Recall matches titles, and rare words outweigh common characters
 
-Date: 2026-11-24. Status: Accepted (route: ChatGPT daily use and Runtime
-recall); synthetic validation, awaiting the Runtime session's real-library
-check. Refines ADR-MEM-213, which Runtime adopted (Runtime #256).
+Date: 2026-11-24. Status: Accepted and adopted by Runtime (#258); refined by
+ADR-MEM-215 (route: ChatGPT daily use and Runtime recall); synthetic validation. Refines ADR-MEM-213, which Runtime adopted (Runtime #256).
 
 ## Context
 

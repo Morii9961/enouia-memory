@@ -1,5 +1,11 @@
 # Runtime integration (ADR-MEM-45)
 
+2026-11-25 chance pairings cover nothing ([ADR-MEM-215](../adr/215-recall-chance-pairings-cover-nothing.md)),
+after Runtime adopted c2a5ce1 (Runtime #258): only a word covers its characters, so a matched chance pairing
+(影集 where 集 is common) leaves its characters to count and the memory holding the whole query word keeps its
+集. Expected on the real library: the 摄影集 memory leads "摄影集"; nothing else should move. **Runtime adoption:**
+bump the pin when convenient, after the same real-library set is no worse than c2a5ce1. Surface aggregate: `6ccd07a723fa3b61fc51d56913530b8dc191270794ddacce8ea757b673d407b3`.
+
 2026-11-24 titles and strong words ([ADR-MEM-214](../adr/214-recall-titles-and-strong-words.md)), after Runtime
 adopted baf55b6 (Runtime #256) and reported the remaining real-library issues: recall now matches each memory's
 content and title (all queries); question characters (吗呢吧啊呀嘛么什怎哪谁几) split CJK runs; a piece holding a
