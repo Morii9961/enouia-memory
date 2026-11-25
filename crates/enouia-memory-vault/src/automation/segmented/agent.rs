@@ -817,7 +817,8 @@ impl SegmentedAutomationVault {
     /// Native format check on the already leased Vault, before any Agent
     /// projection/count. Does not expose or decode a business request.
     pub fn check_original_agent_carrier(&self) -> Result<()> {
-        let _writer = lock::acquire(&self.native.root, Duration::ZERO)?;
+        // ADR-MEM-217: a read on the Agent host creation path.
+        let _writer = lock::acquire(&self.native.root, BRIEF_LOCK_WAIT)?;
         let state = self
             .state
             .lock()
