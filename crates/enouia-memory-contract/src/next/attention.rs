@@ -203,8 +203,7 @@ pub fn select_recall(
         current_time,
         candidates,
         128,
-        None,
-        None,
+        RecallExtras::default(),
     )
 }
 /// Explicit scalable native selection. Its potentially large exclusion vector
@@ -224,8 +223,7 @@ pub fn select_catalog_recall(
         current_time,
         candidates,
         MAX_SEGMENTED_REVISIONS,
-        None,
-        None,
+        RecallExtras::default(),
     )
 }
 /// Native qualification supplies one attention state per already authorized
@@ -246,8 +244,10 @@ pub fn select_qualified_catalog_recall(
         current_time,
         candidates,
         MAX_SEGMENTED_REVISIONS,
-        Some(attention),
-        None,
+        RecallExtras {
+            attention: Some(attention),
+            ..RecallExtras::default()
+        },
     )
 }
 /// ADR-MEM-220: catalog or qualified selection with semantic vectors. The
@@ -269,8 +269,43 @@ pub fn select_semantic_recall(
         current_time,
         candidates,
         MAX_SEGMENTED_REVISIONS,
-        attention,
-        Some(semantic),
+        RecallExtras {
+            attention,
+            semantic: Some(semantic),
+            naming: None,
+        },
+    )
+}
+/// Optional inputs a native caller computed before selection. None of them
+/// grants anything; every adoption, condition, time and budget rule applies.
+#[derive(Clone, Copy, Debug, Default)]
+pub struct RecallExtras<'a> {
+    /// One attention state per candidate (native qualification).
+    pub attention: Option<&'a [AttentionState]>,
+    /// ADR-MEM-220/221: semantic vectors.
+    pub semantic: Option<SemanticInput<'a>>,
+    /// ADR-MEM-219: the query's characters that lie inside its topic nouns
+    /// (京都, 茶, 摄影集), as the host's tagger found them. A strong CJK term
+    /// made only of these counts twice.
+    pub naming: Option<&'a BTreeSet<char>>,
+}
+/// Catalog or qualified selection with any of the optional inputs.
+pub fn select_recall_with(
+    profile: &AttentionProfile,
+    query: &RecallQuery,
+    snapshot: &SnapshotBinding,
+    current_time: &Timestamp,
+    candidates: &[RecallCandidate<'_>],
+    extras: RecallExtras<'_>,
+) -> Result<RecallTrace, crate::ContractError> {
+    select_with_limit(
+        profile,
+        query,
+        snapshot,
+        current_time,
+        candidates,
+        MAX_SEGMENTED_REVISIONS,
+        extras,
     )
 }
 /// The lexical terms of a recall query, lowercased and without duplicates.
@@ -335,8 +370,6 @@ pub fn recall_terms(text: &str) -> RecallTerms {
     }
     terms
 }
-// The public selectors are thin wrappers that each fix some of these.
-#[allow(clippy::too_many_arguments)]
 fn select_with_limit(
     profile: &AttentionProfile,
     query: &RecallQuery,
@@ -344,9 +377,9 @@ fn select_with_limit(
     current_time: &Timestamp,
     candidates: &[RecallCandidate<'_>],
     max_candidates: usize,
-    qualified_attention: Option<&[AttentionState]>,
-    semantic: Option<SemanticInput<'_>>,
+    extras: RecallExtras<'_>,
 ) -> Result<RecallTrace, crate::ContractError> {
+    let (qualified_attention, semantic) = (extras.attention, extras.semantic);
     super::checked(profile.validate())?;
     if !query.valid(profile) {
         return Err(super::invalid("attention.query", ""));
@@ -452,6 +485,19 @@ fn select_with_limit(
         .min(3);
     let char_strong = chars.iter().map(|(_, w)| *w).max().unwrap_or(0).min(4);
     let cjk = !pieces.is_empty() || !chars.is_empty();
+    // ADR-MEM-219: the host tags the query's words. A strong term inside a noun
+    // (京都, 茶, 摄影集) names what is asked about and counts twice; verbs,
+    // adverbs, time and measure words (去过, 喜欢, 平时, 第一次) frame the
+    // question and count once.
+    let no_naming = BTreeSet::new();
+    let naming = extras.naming.unwrap_or(&no_naming);
+    let names = |term: &str| {
+        if term.chars().all(|c| naming.contains(&c)) {
+            2
+        } else {
+            1
+        }
+    };
     // A title names what a memory is about: a strong piece in it counts as
     // two body mentions (ADR-MEM-214).
     let titles: Vec<String> = candidates
@@ -497,7 +543,7 @@ fn select_with_limit(
                 if *word && *w >= piece_strong {
                     let named = if title.contains(piece.as_str()) { 1 } else { 0 };
                     let mentions = times + named;
-                    strong += w * mentions.min(2);
+                    strong += w * mentions.min(2) * names(piece);
                     weak += mentions.saturating_sub(2);
                 } else {
                     weak += w;
@@ -506,7 +552,7 @@ fn select_with_limit(
             for (c, w) in &chars {
                 if body.contains(c.as_str()) && !c.chars().any(|c| covered.contains(&c)) {
                     if *w >= char_strong {
-                        strong += w;
+                        strong += w * names(c);
                     } else {
                         weak += w;
                     }

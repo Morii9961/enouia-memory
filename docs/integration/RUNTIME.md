@@ -1,5 +1,13 @@
 # Runtime integration (ADR-MEM-45)
 
+2026-11-26 jieba noun weight ([ADR-MEM-219](../adr/219-jieba-noun-weight.md)), merged after Runtime's real-library
+check of 0b4d1c1 (Kyoto clearly better, nothing worse): the host (`automation::query_words::naming_chars`, jieba-rs
+0.11) tags the recall query and passes topic-noun characters to the contract through the new
+`RecallExtras { attention, semantic, naming }` / `select_recall_with`; the contract still depends on serde alone. Strong
+CJK terms inside topic nouns count twice; verbs/adverbs/time/measure words and `RECALL_FRAME_NOUNS` once. jieba-rs is a
+host dependency (zstd-sys compiles C; crates already in Runtime's local cache). **Runtime adoption:** bump the pin
+and rerun the set with the semantic index (jieba + semantic against semantic only). Surface aggregate: `665c354bf3e3c7894c0d43c28d71f58c012eb7414beefce8053c089aa7c7b617`.
+
 2026-11-26 relative semantic thresholds ([ADR-MEM-221](../adr/221-semantic-relative-thresholds.md)), from Runtime's
 real-library calibration: with at least 30 similarities and some spread, a similarity scores from 2.0 and cues (or
 makes a semantic neighbor) from 3.0 standard deviations above the query's (or anchor's) own mean, never below 500;
