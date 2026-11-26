@@ -1,7 +1,7 @@
 # ADR-MEM-225 — A word the segmenter finds is not a chance pairing
 
-Date: 2026-11-27. Status: Candidate (route: CJK recall), awaiting
-Runtime's real-library comparison with 76ef079. Refines ADR-MEM-214 and
+Date: 2026-11-27. Status: Accepted (route: CJK recall) after Runtime's
+real-library comparison with 76ef079. Refines ADR-MEM-214 and
 ADR-MEM-219.
 
 ## Context
@@ -36,4 +36,15 @@ Without `words` nothing changes. The contract still depends on serde alone.
   segmenter's words and none without them.
 - The other jieba, attention, catalog and Agent recall tests pass
   unchanged.
-- Pending: Runtime's comparison on the question set at 16K and 64K.
+- Runtime, real library (351 memories, read only, limit 8, 16K and 64K):
+  - 大学 is in 21 memories, 学 in 87 and 大 in 94. Since 21 × 4 < 87,
+    大学 was a chance pairing before.
+  - "我的大学在哪里" now fills the top 3 at 16K, and all 8 at 64K, with
+    university memories. Before, they were unrelated lexical hits behind a
+    high-school memory. 国庆返天津 stays `no_cue`, since 天津 is not in the
+    question. The answer is still out as `not_adopted`.
+  - Tea, migration, Kyoto, photo book, "最近在学什么", the quiet workspace
+    question and first drink at 16K are identical.
+  - Drawing style and first drink keep the same top 4 at 64K. Their places
+    5–8 were noise before and are still noise, now different memories with
+    lower scores.

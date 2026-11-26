@@ -1377,4 +1377,4 @@ not read four memories (`Invalid`).
 
 [Decision](225-segmented-query-words.md): the host passes jieba's words of the query (`RecallExtras::words`); a
 two-character piece equal to one is a word even when a character is common elsewhere (大学 where 学 mostly means 学习).
-Candidate pending Runtime's real-library comparison.
+Runtime's real-library check: 大学 questions fixed, nothing worse.
