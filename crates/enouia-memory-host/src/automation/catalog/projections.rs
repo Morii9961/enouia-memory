@@ -507,6 +507,21 @@ impl SegmentedMemoryReader {
                 .filter(|r| r.matches(request.filter, request.profile, None, false))
                 .collect();
             let selected: Vec<_> = matched.iter().take(query.node_limit).copied().collect();
+            // ADR-MEM-223: the selected nodes' vectors, when an index is
+            // attached and the pair work stays bounded.
+            let semantic = self.semantic.as_deref().and_then(|index| {
+                let vectors: Vec<(usize, SemanticVector)> = selected
+                    .iter()
+                    .enumerate()
+                    .filter_map(|(n, r)| {
+                        let v = index.memory(&r.entry.target)?;
+                        (v.valid() && v.model == index.model()).then_some((n, v))
+                    })
+                    .collect();
+                (2..=MAX_SEMANTIC_GRAPH_VECTORS)
+                    .contains(&vectors.len())
+                    .then_some((index.model(), vectors))
+            });
             let mut h = header(
                 &data,
                 selection,
@@ -516,7 +531,11 @@ impl SegmentedMemoryReader {
                 selected.len(),
                 vec![
                     "edge_candidates_and_retention_describe_only_selected_nodes".into(),
-                    "semantic_neighbors_unavailable_no_model_or_embeddings".into(),
+                    if semantic.is_some() {
+                        "semantic_neighbors_are_model_similarity_suggestions".into()
+                    } else {
+                        "semantic_neighbors_unavailable_no_model_or_embeddings".into()
+                    },
                     "lexical_neighbors_are_term_overlap_suggestions".into(),
                     "same_name_edges_are_unconfirmed_identity_suggestions".into(),
                     "same_entity_is_a_recorded_mention_relation_not_independent_verification"
@@ -720,6 +739,52 @@ impl SegmentedMemoryReader {
                     retained: (edges.len() - begin) as u64,
                 });
             }
+            // ADR-MEM-223: each node's closest memories in meaning among the
+            // selected nodes, judged against its own similarities as in
+            // `related`; a pair listed by either end is one undirected edge.
+            if let Some((model, vectors)) = &semantic {
+                let mut pairs: BTreeMap<(usize, usize), i64> = BTreeMap::new();
+                for (i, (a, va)) in vectors.iter().enumerate() {
+                    let similar: Vec<(i64, usize)> = vectors
+                        .iter()
+                        .enumerate()
+                        .filter(|(j, _)| *j != i)
+                        .filter_map(|(_, (b, vb))| Some((semantic_milli(va, vb)?, *b)))
+                        .collect();
+                    let stats =
+                        SemanticStats::of(&similar.iter().map(|(m, _)| *m).collect::<Vec<_>>());
+                    let mut close: Vec<_> = similar
+                        .into_iter()
+                        .filter(|(milli, _)| stats.score(*milli).1)
+                        .collect();
+                    close.sort_by(|(x, m), (y, n)| y.cmp(x).then(m.cmp(n)));
+                    for (milli, b) in close.into_iter().take(MAX_SEMANTIC_NEIGHBORS) {
+                        pairs.insert((*a.min(&b), *a.max(&b)), milli);
+                    }
+                }
+                let mut pairs: Vec<_> = pairs.into_iter().collect();
+                pairs.sort_by(|(p, x), (q, y)| y.cmp(x).then(p.cmp(q)));
+                let begin = edges.len();
+                for ((a, b), milli) in &pairs {
+                    if edges.len() - begin >= query.edge_limit_per_kind {
+                        break;
+                    }
+                    edges.push(MemoryGraphEdge {
+                        from: selected[*a].id().clone(),
+                        to: selected[*b].id().clone(),
+                        relation: GraphEdgeKind::SemanticNeighbor,
+                        class: GraphEdgeClass::AlgorithmSuggestion,
+                        owner_relations: vec![],
+                        witness: format!("semantic:{model}").chars().take(256).collect(),
+                        score_milli: Some((*milli).clamp(0, 1000) as u16),
+                    });
+                }
+                coverage.push(GraphEdgeCoverage {
+                    relation: GraphEdgeKind::SemanticNeighbor,
+                    candidates: pairs.len() as u64,
+                    retained: (edges.len() - begin) as u64,
+                });
+            }
             h.complete_in_scope &= coverage.iter().all(|c| c.candidates == c.retained);
             if cursor.is_some_and(|c| !same_header(&c.header, &h)) {
                 return Err(AutomationFault::Stale.into());
@@ -737,7 +802,7 @@ impl SegmentedMemoryReader {
                 nodes: Vec::new(),
                 edges: Vec::new(),
                 edge_coverage: coverage,
-                semantic_neighbors_available: false,
+                semantic_neighbors_available: semantic.is_some(),
                 next: None,
             };
             let mut used = bytes(&page)? + 2048;

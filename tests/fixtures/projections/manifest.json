@@ -351,7 +351,29 @@
           "value": true
         }
       ],
-      "schema": "reject"
+      "schema": "accept"
+    },
+    {
+      "id": "graph-semantic-edge-without-vectors",
+      "base": "graph.json",
+      "ops": [
+        {
+          "op": "set",
+          "path": "/edges/0/relation",
+          "value": "semantic_neighbor"
+        },
+        {
+          "op": "set",
+          "path": "/edges/0/class",
+          "value": "algorithm_suggestion"
+        },
+        {
+          "op": "set",
+          "path": "/edges/0/score_milli",
+          "value": 700
+        }
+      ],
+      "schema": "accept"
     }
   ]
 }

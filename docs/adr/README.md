@@ -1360,3 +1360,9 @@ absolute thresholds.
 [Decision](222-semantic-guard-and-cap.md): from Runtime's real-library z values, the guard rises to 530 (irrelevant tea
 answers at 517 stood 3.01 deviations out) and the bonus is capped at 4.0 deviations (a related non-answer at 6.3
 crowded the answer out of the budget).
+
+### ADR-MEM-223 — The System graph lists semantic neighbors from an attached index
+
+[Decision](223-semantic-graph-neighbors.md): with an index and 2–2000 selected nodes that have vectors, the graph adds
+`semantic_neighbor` suggestions (each node's top 5 cues against its own distribution, as in `related`), counts them in
+coverage and sets `semantic_neighbors_available`.
