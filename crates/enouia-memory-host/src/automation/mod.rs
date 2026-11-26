@@ -13,6 +13,7 @@ mod model;
 #[cfg(windows)]
 pub mod owner_runtime_capture_transport;
 pub mod qualified_agent;
+pub mod query_words;
 pub mod read_model;
 #[cfg(windows)]
 pub mod runtime_capture;

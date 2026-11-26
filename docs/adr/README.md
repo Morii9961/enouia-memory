@@ -1336,6 +1336,12 @@ session no longer fails with `Busy` while another issues permits.
 [Decision](218-chatgpt-recall-synonyms.md): the ChatGPT `memory_recall` descriptions ask it to add a few synonyms
 after the question, since recall matches words and the VPS cannot run an embedding model; the server is unchanged.
 
+### ADR-MEM-219 — jieba tags the query; topic nouns weigh twice
+
+[Decision](219-jieba-noun-weight.md): jieba-rs tags the recall query; a strong CJK term inside a topic noun counts
+twice, verbs/adverbs/time/measure words and frame nouns (时候, 地方, ...) once; the lexical scoring of ADR-MEM-216
+stays; merged after Runtime's real-library check (Kyoto clearly better, nothing worse).
+
 ### ADR-MEM-220 — Semantic vectors from a local model, scored by Memory
 
 [Decision](220-semantic-vector-layer.md): Runtime runs a local embedding model (Ollama bge-m3) behind a `SemanticIndex`

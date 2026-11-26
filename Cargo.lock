@@ -770,7 +770,6 @@ dependencies = [
 name = "enouia-memory-contract"
 version = "0.1.0"
 dependencies = [
- "jieba-rs",
  "serde",
  "serde_json",
 ]
@@ -797,6 +796,7 @@ dependencies = [
  "enouia-memory-vault",
  "enouia-memory-workspace",
  "icu_normalizer",
+ "jieba-rs",
  "jiff",
  "jiff-tzdb",
  "serde",

@@ -547,25 +547,29 @@ pub(crate) fn recall_preview(
     // ADR-MEM-220: semantic vectors, when an index answers for this query.
     let targets: Vec<&TargetRef> = data.memories.iter().map(|m| &m.target).collect();
     let vectors = semantic.and_then(|index| super::semantic::vectors(index, query, &targets));
-    let mut trace = match &vectors {
-        Some((q, memories)) => {
-            let memories: Vec<Option<&SemanticVector>> =
-                memories.iter().map(Option::as_ref).collect();
-            select_semantic_recall(
-                profile,
-                query,
-                &data.snapshot,
-                &data.now,
-                &candidates,
-                None,
-                SemanticInput {
+    let semantic_memories: Option<Vec<Option<&SemanticVector>>> = vectors
+        .as_ref()
+        .map(|(_, memories)| memories.iter().map(Option::as_ref).collect());
+    // ADR-MEM-219: the host tags the query; the contract weighs topic nouns.
+    let naming = super::query_words::naming_chars(&query.text);
+    let mut trace = select_recall_with(
+        profile,
+        query,
+        &data.snapshot,
+        &data.now,
+        &candidates,
+        RecallExtras {
+            attention: None,
+            semantic: vectors
+                .as_ref()
+                .zip(semantic_memories.as_ref())
+                .map(|((q, _), memories)| SemanticInput {
                     query: q,
-                    candidates: &memories,
-                },
-            )
-        }
-        None => select_catalog_recall(profile, query, &data.snapshot, &data.now, &candidates),
-    }
+                    candidates: memories,
+                }),
+            naming: Some(&naming),
+        },
+    )
     .map_err(|_| invalid())?;
     let mut reasons: BTreeMap<String, u64> = BTreeMap::new();
     for (_, reason) in &trace.excluded {
