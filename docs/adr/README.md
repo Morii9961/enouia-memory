@@ -1366,3 +1366,9 @@ crowded the answer out of the budget).
 [Decision](223-semantic-graph-neighbors.md): with an index and 2–2000 selected nodes that have vectors, the graph adds
 `semantic_neighbor` suggestions (each node's top 5 cues against its own distribution, as in `related`), counts them in
 coverage and sets `semantic_neighbors_available`.
+
+### ADR-MEM-224 — Catalog reads accept Morii's entity identity proofs
+
+[Decision](224-identity-proofs-in-catalog-reads.md): catalog items, neighbor relations and conversation summaries accept
+`entity_identity` owner proofs, as the graph page did; after Morii confirmed five records as one identity, Runtime could
+not read four memories (`Invalid`).
