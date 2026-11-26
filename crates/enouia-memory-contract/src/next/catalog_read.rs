@@ -200,7 +200,9 @@ impl CatalogReadItem {
                         .as_ref()
                         .is_none_or(|id| crate::ids::check_prefixed_uuid(id, "ent").is_ok())
                     && e.owner_relation.as_ref().is_none_or(|p| {
-                        p.valid() && ["entity_merge", "entity_split"].contains(&p.action.as_str())
+                        p.valid()
+                            && ["entity_merge", "entity_split", "entity_identity"]
+                                .contains(&p.action.as_str())
                     })
                     && e.recorded_entity_id.is_some() == e.owner_relation.is_some()
             })

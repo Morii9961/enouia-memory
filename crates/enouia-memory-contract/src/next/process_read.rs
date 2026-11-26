@@ -563,7 +563,8 @@ impl NextDocument for NativeMemoryNeighbors {
                         r.owner_relations.len() <= 64
                             && r.owner_relations.iter().all(|p| {
                                 p.valid()
-                                    && ["entity_merge", "entity_split"].contains(&p.action.as_str())
+                                    && ["entity_merge", "entity_split", "entity_identity"]
+                                        .contains(&p.action.as_str())
                             })
                             && (r.owner_relations.is_empty() || r.relation == "same_entity")
                             && !r.witnesses.is_empty()
@@ -725,10 +726,10 @@ impl NativeConversationMetadata {
         }
     }
     fn scoped(&self) -> bool {
-        self.owner_relations
-            .iter()
-            .all(|p| p.valid() && ["entity_merge", "entity_split"].contains(&p.action.as_str()))
-            && self.turns.is_none()
+        self.owner_relations.iter().all(|p| {
+            p.valid()
+                && ["entity_merge", "entity_split", "entity_identity"].contains(&p.action.as_str())
+        }) && self.turns.is_none()
             && self.turn_count.is_none()
             && self.branches.is_none()
             && self.turn_sequence_scope.as_deref() == Some("authorized_captured_branch_order")

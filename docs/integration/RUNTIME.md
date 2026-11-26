@@ -1,5 +1,11 @@
 # Runtime integration (ADR-MEM-45)
 
+2026-11-27 entity identity proofs in catalog reads ([ADR-MEM-224](../adr/224-identity-proofs-in-catalog-reads.md)),
+a fix: catalog items, neighbor relations and scoped conversation summaries accept `entity_identity` owner proofs.
+Before, a memory whose entity Morii had confirmed as one identity made its page and detail fail with `Invalid`
+(Runtime found four such memories on the real library). No format change. **Runtime adoption:** bump the pin; the
+Vault list and detail read all memories again. Surface aggregate: `daf7ba3a83b68ce1cc4e7c6beff960fc49d473730bb0248b22df3c1a791bc42c`.
+
 2026-11-26 semantic neighbors in the System graph ([ADR-MEM-223](../adr/223-semantic-graph-neighbors.md)): a
 `SegmentedMemoryReader` with an index (`with_semantic`) adds `semantic_neighbor` suggestion edges to
 `memory_graph_native` when 2-2000 selected nodes have vectors (each node's top 5 cues against its own similarities,

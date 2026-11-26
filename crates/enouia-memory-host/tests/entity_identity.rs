@@ -192,6 +192,29 @@ fn identical_names_link_as_suggestions_until_morii_confirms_or_separates() {
     };
     let identities =
         || -> EntityIdentities { h.entity_identities(Sensitivity::Private, 100).unwrap() };
+    // ADR-MEM-224: every catalog read still answers once Morii has confirmed
+    // or separated records: the page, each memory's detail and neighbors.
+    let reads = || {
+        let request = CatalogReadRequest {
+            profile: &profile,
+            filter: &filter,
+            options: CatalogReadOptions {
+                limit: 64,
+                max_bytes: MAX_DOCUMENT_BYTES,
+                max_sensitivity: Sensitivity::Private,
+                include_facets: false,
+            },
+        };
+        let page = r.memory_page_native(&request, None).unwrap();
+        assert_eq!(page.items.len(), 3);
+        for item in &page.items {
+            let id = &item.base.memory.memory_id;
+            r.memory_detail_native(&request, id, None).unwrap();
+            r.memory_neighbors_native(&request, id, true, None).unwrap();
+        }
+        page
+    };
+    reads();
     // An Agent reader scoped to both windows sees the same suggestion in
     // `related`, anchored on the first "Lin" memory.
     {
@@ -318,6 +341,14 @@ fn identical_names_link_as_suggestions_until_morii_confirms_or_separates() {
         )
         .unwrap(),
     );
+    let page = reads();
+    assert!(page.items.iter().any(|item| {
+        item.entities.iter().any(|e| {
+            e.owner_relation
+                .as_ref()
+                .is_some_and(|p| p.action == "entity_identity")
+        })
+    }));
     let edges = graph();
     assert!(edges.contains(&(
         GraphEdgeKind::SameEntity,
@@ -358,6 +389,7 @@ fn identical_names_link_as_suggestions_until_morii_confirms_or_separates() {
             1
         )]
     );
+    reads();
     let groups = identities();
     assert_eq!(groups.groups[0].basis, IdentityBasis::Confirmed);
     assert_eq!(groups.groups[0].records.len(), 2);
