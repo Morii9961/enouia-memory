@@ -728,3 +728,25 @@ fn recall_cues_the_memory_that_stands_out() {
         .collect();
     assert_eq!(ids, vec![memories[7].memory.memory_id.clone()], "{trace:?}");
 }
+
+/// ADR-MEM-219, from Runtime's check of the jieba noun weight: 时候 is tagged
+/// as a noun, but it frames the question; memories holding it must not
+/// outrank the one about the first drink.
+#[test]
+fn frame_nouns_do_not_count_as_the_topic() {
+    let memories = with_filler(
+        &[
+            "从未饮酒到9月11日首次麒麟一番榨，酒花微苦",
+            "东京Day6 | 小时候就想来东京，这时候终于来了",
+            "重视重要内容被记住，什么时候都想留下",
+            "看完少女终末旅行后意犹未尽，那时候很安静",
+        ],
+        60,
+    );
+    let drink = recalled(&memories, "我第一次喝酒是什么时候？");
+    assert_eq!(
+        drink.first(),
+        Some(&memories[0].memory.memory_id),
+        "{drink:?}"
+    );
+}

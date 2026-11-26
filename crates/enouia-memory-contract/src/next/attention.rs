@@ -292,6 +292,13 @@ pub const MAX_RECALL_FRAGMENTS: usize = 256;
 /// and interrogatives. A question is matched against statements, where these
 /// are rare, so rarity would overrate them; they split CJK runs instead.
 pub const RECALL_QUESTION_CHARS: &str = "吗呢吧啊呀嘛么什怎哪谁几";
+/// ADR-MEM-219: nouns that frame a question rather than name its topic
+/// ("是什么时候", "去过什么地方"); they count once like verbs. Found on the
+/// real library: 时候 tagged as a noun pulled up every memory holding it.
+pub const RECALL_FRAME_NOUNS: &[&str] = &[
+    "时候", "时间", "时", "次", "地方", "东西", "事情", "事", "问题", "感觉", "样子", "方式",
+    "情况", "部分", "日子", "人", "种", "个", "回", "下",
+];
 /// ADR-MEM-219: Chinese word segmentation and tagging (built-in dictionary,
 /// loaded once).
 static JIEBA: std::sync::LazyLock<jieba_rs::Jieba> = std::sync::LazyLock::new(jieba_rs::Jieba::new);
@@ -463,7 +470,7 @@ fn select_with_limit(
         JIEBA
             .tag(&query.text.to_lowercase(), true)
             .into_iter()
-            .filter(|t| t.tag.starts_with('n'))
+            .filter(|t| t.tag.starts_with('n') && !RECALL_FRAME_NOUNS.contains(&t.word))
             .flat_map(|t| t.word.chars())
             .collect()
     } else {
