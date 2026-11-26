@@ -129,7 +129,8 @@
                     "protected",
                     "fresh",
                     "fading",
-                    "historical_rescue"
+                    "historical_rescue",
+                    "semantic"
                   ]
                 },
                 "maxItems": 8
