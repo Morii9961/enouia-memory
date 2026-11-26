@@ -1,5 +1,10 @@
 # Runtime integration (ADR-MEM-45)
 
+2026-11-26 `SemanticIndex` call contract (docs only, ADR-MEM-220): one index may be shared by a process;
+`query` is called at most once per recall or `session_start` (never by `related`) and may block, bounded by the
+implementation; `memory` is called per authorized candidate and per memory in scope by `related`, so it must be a
+non-blocking cache lookup that returns `None` on a miss. Surface aggregate: `8456dbaf204c669ec78cf884bc78eb543eb0dc36dcbff77b22b7cc6a46683237`.
+
 2026-11-26 semantic neighbors in `related` ([ADR-MEM-220](../adr/220-semantic-vector-layer.md)): with an index
 attached to `QualifiedAgentHost`, `related` adds up to five `semantic_neighbor` suggestion edges (similarity at or
 above the cue, witness `semantic:<model>`, `score_milli` = similarity); `edge_coverage` lists the kind only when the
