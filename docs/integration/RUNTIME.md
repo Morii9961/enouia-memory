@@ -1,5 +1,9 @@
 # Runtime integration (ADR-MEM-45)
 
+2026-11-26 recall synonyms for ChatGPT ([ADR-MEM-218](../adr/218-chatgpt-recall-synonyms.md)): the ChatGPT
+`memory_recall` descriptions ask it to add synonyms after the question. Remote service only; Runtime needs no
+change. Surface aggregate: `9af96208e4e7c4f8bda8eb3e72aaccc07af968250c3fc906b34de623656fda5c`.
+
 2026-11-25 Agent host creation lock wait ([ADR-MEM-217](../adr/217-agent-host-creation-lock-wait.md)), from a
 Runtime report: `snapshot()` and `check_original_agent_carrier()`, both reads on the Agent host creation path
 (`QualifiedAgentHost::from_authenticated_initialized_owner`), now wait up to `BRIEF_LOCK_WAIT` like the reads of

@@ -385,6 +385,13 @@ fn a_rare_character_finds_a_memory_worded_differently() {
         ],
         60,
     );
+    // ADR-MEM-218: synonyms ChatGPT adds after the question only help.
+    let expanded = recalled(&memories, "我第一次喝酒是什么时候？ 首次 饮酒 啤酒");
+    assert_eq!(
+        expanded.first(),
+        Some(&memories[0].memory.memory_id),
+        "{expanded:?}"
+    );
     let drink = recalled(&memories, "我第一次喝酒是什么时候？");
     assert_eq!(
         drink.first(),
