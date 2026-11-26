@@ -308,8 +308,18 @@ impl NextDocument for MemoryGraphPage {
                 .collect::<std::collections::BTreeSet<_>>()
                 .len()
                 == self.edge_coverage.len()
-            && self.edge_coverage.len() <= 7
-            && !self.semantic_neighbors_available
+            && self.edge_coverage.len() <= 8
+            // ADR-MEM-223: semantic neighbors are counted exactly when available.
+            && self.semantic_neighbors_available
+                == self
+                    .edge_coverage
+                    .iter()
+                    .any(|c| c.relation == GraphEdgeKind::SemanticNeighbor)
+            && (self.semantic_neighbors_available
+                || self
+                    .edges
+                    .iter()
+                    .all(|e| e.relation != GraphEdgeKind::SemanticNeighbor))
             && self
                 .edge_coverage
                 .iter()
@@ -328,6 +338,7 @@ impl NextDocument for MemoryGraphPage {
                         GraphEdgeKind::ThemeCooccurrence
                             | GraphEdgeKind::LexicalNeighbor
                             | GraphEdgeKind::SameName
+                            | GraphEdgeKind::SemanticNeighbor
                     ) {
                         e.class == GraphEdgeClass::AlgorithmSuggestion
                             && e.score_milli.is_some_and(|s| s <= 1000)

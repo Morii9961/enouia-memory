@@ -608,11 +608,11 @@
               }
             }
           },
-          "maxItems": 7,
+          "maxItems": 8,
           "minItems": 0
         },
         "semantic_neighbors_available": {
-          "const": false
+          "type": "boolean"
         },
         "next": {
           "oneOf": [

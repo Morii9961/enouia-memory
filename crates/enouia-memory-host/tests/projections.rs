@@ -1,6 +1,7 @@
 #![cfg(windows)]
 #[path = "../../enouia-memory-vault/tests/support/segmented_fixture.rs"]
 mod fixture;
+use enouia_memory_contract::ids::MemoryId;
 use enouia_memory_contract::{common::*, hash::sha256, next::*, time::Timestamp};
 use enouia_memory_host::automation::catalog::*;
 use enouia_memory_vault::{automation::segmented::SegmentedAutomationVault, fault::Faults};
@@ -596,6 +597,98 @@ fn lexical_neighbor_suggestions_link_overlapping_memories_and_explain_shared_ter
         .unwrap();
     assert_eq!((coverage.candidates, coverage.retained), (1, 1));
     assert!(!page.semantic_neighbors_available);
+}
+
+/// ADR-MEM-223: vectors by memory, standing in for Runtime's local model.
+struct Vectors(std::collections::BTreeMap<MemoryId, Vec<f32>>);
+impl enouia_memory_host::automation::semantic::SemanticIndex for Vectors {
+    fn model(&self) -> &str {
+        "fake-model"
+    }
+    fn query(&self, _text: &str) -> Option<SemanticVector> {
+        None
+    }
+    fn memory(&self, target: &TargetRef) -> Option<SemanticVector> {
+        SemanticVector::from_f32("fake-model", self.0.get(&target.memory.memory_id)?)
+    }
+}
+
+#[test]
+fn the_graph_lists_semantic_neighbors_from_an_attached_index() {
+    let e = Env::new();
+    let v = Arc::new(e.create(Faults::none()));
+    let p = e.policy(1, 1, 4);
+    v.set_policy(&e.descriptor.created_by, p.clone()).unwrap();
+    let sources: Vec<_> = (1..=4).map(|n| e.source(n, Sensitivity::Public)).collect();
+    v.capture(
+        &e.descriptor.system_actor,
+        sources.clone(),
+        RecordCatalog::default(),
+    )
+    .unwrap();
+    let ids: Vec<MemoryId> = sources
+        .iter()
+        .enumerate()
+        .map(|(i, s)| {
+            commit(&e, &v, e.input(s, &p, i as u32 + 1))
+                .result
+                .memory_id
+        })
+        .collect();
+    let profile = profile();
+    let filter = CatalogFilter::default();
+    let query = GraphQuery {
+        node_limit: 100,
+        edge_limit_per_kind: 20,
+    };
+    // The first and third memories are close in meaning (cosine 0.9); the
+    // others point elsewhere, and the fourth has no vector yet.
+    let index = Vectors(
+        [
+            (ids[0].clone(), vec![1.0, 0.0, 0.0, 0.0]),
+            (ids[1].clone(), vec![0.0, 0.0, 1.0, 0.0]),
+            (ids[2].clone(), vec![0.9, 0.436, 0.0, 0.0]),
+        ]
+        .into(),
+    );
+    let page = reader(&e, v.clone())
+        .with_semantic(Arc::new(index))
+        .memory_graph_native(&request(&profile, &filter), &query, None)
+        .unwrap();
+    assert!(page.semantic_neighbors_available);
+    let semantic: Vec<_> = page
+        .edges
+        .iter()
+        .filter(|edge| edge.relation == GraphEdgeKind::SemanticNeighbor)
+        .collect();
+    assert_eq!(semantic.len(), 1, "{semantic:?}");
+    let pair = [ids[0].clone(), ids[2].clone()];
+    assert!(pair.contains(&semantic[0].from) && pair.contains(&semantic[0].to));
+    assert_eq!(semantic[0].class, GraphEdgeClass::AlgorithmSuggestion);
+    assert_eq!(semantic[0].witness, "semantic:fake-model");
+    assert!((899..=900).contains(&semantic[0].score_milli.unwrap()));
+    let coverage = page
+        .edge_coverage
+        .iter()
+        .find(|c| c.relation == GraphEdgeKind::SemanticNeighbor)
+        .unwrap();
+    assert_eq!((coverage.candidates, coverage.retained), (1, 1));
+    assert!(
+        page.header
+            .limits
+            .contains(&"semantic_neighbors_are_model_similarity_suggestions".into())
+    );
+    // Without an index the graph says so and lists none.
+    let plain = reader(&e, v)
+        .memory_graph_native(&request(&profile, &filter), &query, None)
+        .unwrap();
+    assert!(!plain.semantic_neighbors_available);
+    assert!(
+        plain
+            .edge_coverage
+            .iter()
+            .all(|c| c.relation != GraphEdgeKind::SemanticNeighbor)
+    );
 }
 
 #[test]

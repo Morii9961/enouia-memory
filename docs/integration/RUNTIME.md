@@ -1,5 +1,14 @@
 # Runtime integration (ADR-MEM-45)
 
+2026-11-26 semantic neighbors in the System graph ([ADR-MEM-223](../adr/223-semantic-graph-neighbors.md)): a
+`SegmentedMemoryReader` with an index (`with_semantic`) adds `semantic_neighbor` suggestion edges to
+`memory_graph_native` when 2-2000 selected nodes have vectors (each node's top 5 cues against its own similarities,
+as in `related`; witness `semantic:<model>`, `score_milli` = similarity), lists the kind in `edge_coverage` and sets
+`semantic_neighbors_available: true` with the note `semantic_neighbors_are_model_similarity_suggestions`. The
+projections schema now allows true and eight coverage kinds; the native check ties availability to the coverage
+entry. **Runtime adoption:** bump the pin; the star map already draws `semantic_neighbor`. Surface aggregate:
+`c93cfaa728fe38e738472b839f1864f2f8630fba214f001323fe97d3e53eca73`.
+
 2026-11-26 semantic guard and cap ([ADR-MEM-222](../adr/222-semantic-guard-and-cap.md)), from Runtime's z values
 on ea3f59f: `SEMANTIC_GUARD_MILLI` 500 -> 530 and the bonus capped at 4.0 deviations (`SEMANTIC_BONUS_CAP_Z100`).
 **Runtime adoption:** bump the pin and rerun the set with jieba + semantic; expected: no irrelevant tea answers at

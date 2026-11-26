@@ -36,6 +36,10 @@ pub const SEMANTIC_GUARD_MILLI: i64 = 530;
 pub const SEMANTIC_BONUS_CAP_Z100: i64 = 400;
 /// Semantic neighbors listed per memory.
 pub const MAX_SEMANTIC_NEIGHBORS: usize = 5;
+/// ADR-MEM-223: the System graph compares every pair of its selected nodes'
+/// vectors, so it lists semantic neighbors only up to this many vectors
+/// (about two million pairs); above it the graph reports them unavailable.
+pub const MAX_SEMANTIC_GRAPH_VECTORS: usize = 2000;
 const UNIT: i64 = 32767;
 
 /// An L2-normalised vector scaled to `i16`, named by the model that made it.
