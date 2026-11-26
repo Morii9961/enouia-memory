@@ -837,3 +837,105 @@ fn an_entity_quote_cannot_borrow_another_subjects_policy() {
     }];
     assert!(v.prepare(&e.descriptor.system_actor, input).is_err());
 }
+
+/// ADR-MEM-220: a fixed fake index stands in for Runtime's local model.
+struct FakeIndex {
+    near: bool,
+    answers: bool,
+}
+impl enouia_memory_host::automation::semantic::SemanticIndex for FakeIndex {
+    fn model(&self) -> &str {
+        "fake-model"
+    }
+    fn query(&self, _text: &str) -> Option<SemanticVector> {
+        self.answers
+            .then(|| SemanticVector::from_f32("fake-model", &[1.0, 0.0]).unwrap())
+    }
+    fn memory(&self, _target: &TargetRef) -> Option<SemanticVector> {
+        SemanticVector::from_f32(
+            "fake-model",
+            if self.near {
+                &[0.9, 0.436]
+            } else {
+                &[0.1, 0.995]
+            },
+        )
+    }
+}
+
+#[test]
+fn a_semantic_index_lists_texts_and_recalls_by_meaning() {
+    let e = Env::new();
+    let v = Arc::new(e.create(Faults::none()));
+    let receipts = e.populate(&v, 6);
+    let p = profile();
+    let plain = SegmentedMemoryReader::from_authenticated_system_full_history(
+        v.clone(),
+        e.descriptor.system_actor.clone(),
+    )
+    .unwrap();
+    // What to embed: every current memory by exact target; a deleted one
+    // drops out, so its vector must be purged.
+    let texts = plain.semantic_texts(Sensitivity::Private).unwrap();
+    assert_eq!(texts.len(), 6);
+    v.delete(
+        &e.descriptor.created_by,
+        vec![],
+        vec![receipts[0].result.memory_id.clone()],
+    )
+    .unwrap();
+    let texts = plain.semantic_texts(Sensitivity::Private).unwrap();
+    assert_eq!(texts.len(), 5);
+    assert!(
+        texts
+            .iter()
+            .all(|(t, _)| t.memory.memory_id != receipts[0].result.memory_id)
+    );
+    let query = RecallQuery {
+        text: "zzqx unrelated words".into(),
+        conditions: vec![],
+        event_window: None,
+        at: Timestamp::from_unix_ms(NOW).unwrap(),
+        intent: RecallIntent::Current,
+        limit: 8,
+        max_bytes: 16_384,
+    };
+    let lexical = plain
+        .recall_preview_native(&p, &query, Sensitivity::Private)
+        .unwrap();
+    assert_eq!(lexical["trace"]["selected"], serde_json::json!([]));
+    let reader = |near: bool, answers: bool| {
+        SegmentedMemoryReader::from_authenticated_system_full_history(
+            v.clone(),
+            e.descriptor.system_actor.clone(),
+        )
+        .unwrap()
+        .with_semantic(Arc::new(FakeIndex { near, answers }))
+    };
+    // Every adopted memory is close in meaning: all are cued by it alone,
+    // while memories not adopted stay out, as every other check runs first.
+    let semantic = reader(true, true)
+        .recall_preview_native(&p, &query, Sensitivity::Private)
+        .unwrap();
+    let selected = semantic["trace"]["selected"].as_array().unwrap();
+    let not_adopted = semantic["trace_coverage"]["reason_counts"]["not_adopted"]
+        .as_u64()
+        .unwrap_or(0);
+    assert_eq!(selected.len() as u64 + not_adopted, 5, "{semantic}");
+    assert!(!selected.is_empty());
+    assert!(
+        selected
+            .iter()
+            .all(|s| s["reasons"].to_string().contains("semantic"))
+    );
+    // Far in meaning: nothing is cued.
+    let far = reader(false, true)
+        .recall_preview_native(&p, &query, Sensitivity::Private)
+        .unwrap();
+    assert_eq!(far["trace"]["selected"], serde_json::json!([]));
+    // An index that cannot answer (no model, Ollama down) leaves recall lexical.
+    let silent = reader(true, false)
+        .recall_preview_native(&p, &query, Sensitivity::Private)
+        .unwrap();
+    assert_eq!(silent["trace"], lexical["trace"]);
+}

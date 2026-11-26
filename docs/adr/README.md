@@ -1335,3 +1335,9 @@ session no longer fails with `Busy` while another issues permits.
 
 [Decision](218-chatgpt-recall-synonyms.md): the ChatGPT `memory_recall` descriptions ask it to add a few synonyms
 after the question, since recall matches words and the VPS cannot run an embedding model; the server is unchanged.
+
+### ADR-MEM-220 — Semantic vectors from a local model, scored by Memory
+
+[Decision](220-semantic-vector-layer.md): Runtime runs a local embedding model (Ollama bge-m3) behind a `SemanticIndex`
+it attaches to hosts; Memory defines `SemanticVector`, integer cosine similarity, the recall bonus/cue and
+`semantic_neighbor` suggestions, and lists what to embed; vectors stay on Morii's computer; the VPS stays lexical.

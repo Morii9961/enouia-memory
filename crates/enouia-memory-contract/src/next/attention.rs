@@ -115,6 +115,8 @@ pub enum RecallReason {
     Fresh,
     Fading,
     HistoricalRescue,
+    /// ADR-MEM-220: similar in meaning by a local model's vectors.
+    Semantic,
 }
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -202,6 +204,7 @@ pub fn select_recall(
         candidates,
         128,
         None,
+        None,
     )
 }
 /// Explicit scalable native selection. Its potentially large exclusion vector
@@ -221,6 +224,7 @@ pub fn select_catalog_recall(
         current_time,
         candidates,
         MAX_SEGMENTED_REVISIONS,
+        None,
         None,
     )
 }
@@ -243,6 +247,30 @@ pub fn select_qualified_catalog_recall(
         candidates,
         MAX_SEGMENTED_REVISIONS,
         Some(attention),
+        None,
+    )
+}
+/// ADR-MEM-220: catalog or qualified selection with semantic vectors. The
+/// input's candidate vectors follow `candidates`; a candidate without one is
+/// scored lexically only.
+pub fn select_semantic_recall(
+    profile: &AttentionProfile,
+    query: &RecallQuery,
+    snapshot: &SnapshotBinding,
+    current_time: &Timestamp,
+    candidates: &[RecallCandidate<'_>],
+    attention: Option<&[AttentionState]>,
+    semantic: SemanticInput<'_>,
+) -> Result<RecallTrace, crate::ContractError> {
+    select_with_limit(
+        profile,
+        query,
+        snapshot,
+        current_time,
+        candidates,
+        MAX_SEGMENTED_REVISIONS,
+        attention,
+        Some(semantic),
     )
 }
 /// The lexical terms of a recall query, lowercased and without duplicates.
@@ -307,6 +335,8 @@ pub fn recall_terms(text: &str) -> RecallTerms {
     }
     terms
 }
+// The public selectors are thin wrappers that each fix some of these.
+#[allow(clippy::too_many_arguments)]
 fn select_with_limit(
     profile: &AttentionProfile,
     query: &RecallQuery,
@@ -315,12 +345,14 @@ fn select_with_limit(
     candidates: &[RecallCandidate<'_>],
     max_candidates: usize,
     qualified_attention: Option<&[AttentionState]>,
+    semantic: Option<SemanticInput<'_>>,
 ) -> Result<RecallTrace, crate::ContractError> {
     super::checked(profile.validate())?;
     if !query.valid(profile) {
         return Err(super::invalid("attention.query", ""));
     }
     if qualified_attention.is_some_and(|states| states.len() != candidates.len())
+        || semantic.is_some_and(|s| s.candidates.len() != candidates.len() || !s.query.valid())
         || candidates.len() > max_candidates
         || candidates
             .iter()
@@ -521,6 +553,14 @@ fn select_with_limit(
         let body = &bodies[index];
         let mut reasons = Vec::new();
         let lexical = lexical[index];
+        // ADR-MEM-220: similarity above the floor adds score; above the cue
+        // it cues the memory with no word in common.
+        let similarity = semantic
+            .and_then(|s| s.candidates[index].and_then(|v| semantic_milli(s.query, v)))
+            .unwrap_or(0);
+        let semantic_bonus =
+            (similarity - SEMANTIC_FLOOR_MILLI).max(0) as u64 * SEMANTIC_SCALE as u64;
+        let semantic_cue = similarity >= SEMANTIC_CUE_MILLI;
         let alias = profile
             .aliases
             .iter()
@@ -561,10 +601,10 @@ fn select_with_limit(
                 })
         }) {
             Some(RecallExclusionReason::TimeWindow)
-        } else if lexical == 0 && !alias && query.intent != RecallIntent::Browse {
+        } else if lexical == 0 && !alias && !semantic_cue && query.intent != RecallIntent::Browse {
             Some(RecallExclusionReason::NoCue)
         } else if state == AttentionState::Archived
-            && (query.intent != RecallIntent::Historical || lexical == 0 && !alias)
+            && (query.intent != RecallIntent::Historical || lexical == 0 && !alias && !semantic_cue)
         {
             Some(RecallExclusionReason::Archived)
         } else {
@@ -576,6 +616,9 @@ fn select_with_limit(
         }
         if lexical > 0 {
             reasons.push(RecallReason::Lexical);
+        }
+        if semantic_bonus > 0 {
+            reasons.push(RecallReason::Semantic);
         }
         if alias {
             reasons.push(RecallReason::Alias);
@@ -604,7 +647,7 @@ fn select_with_limit(
                 3
             }
         };
-        let score = lexical * 100 + u64::from(alias) * 60 + age_score;
+        let score = lexical * 100 + semantic_bonus + u64::from(alias) * 60 + age_score;
         ranked.push((
             RecallSelection {
                 memory: memory.memory.clone(),

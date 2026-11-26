@@ -513,3 +513,99 @@ fn a_title_naming_the_whole_word_beats_repeats_of_a_part() {
         "{photos:?}"
     );
 }
+
+/// ADR-MEM-220: quantised vectors compare in integers; mismatches have no
+/// similarity; bad model output is refused.
+#[test]
+fn semantic_vectors_quantise_and_compare_in_integers() {
+    let a = SemanticVector::from_f32("bge-m3", &[3.0, 4.0]).unwrap();
+    assert_eq!(a.values, [19660, 26214]);
+    assert_eq!(semantic_milli(&a, &a), Some(1000));
+    let b = SemanticVector::from_f32("bge-m3", &[-4.0, 3.0]).unwrap();
+    assert_eq!(semantic_milli(&a, &b), Some(0));
+    let other_model = SemanticVector::from_f32("other", &[3.0, 4.0]).unwrap();
+    assert_eq!(semantic_milli(&a, &other_model), None);
+    let other_size = SemanticVector::from_f32("bge-m3", &[1.0, 0.0, 0.0]).unwrap();
+    assert_eq!(semantic_milli(&a, &other_size), None);
+    for bad in [&[0.0f32, 0.0][..], &[f32::NAN, 1.0], &[]] {
+        assert!(SemanticVector::from_f32("bge-m3", bad).is_none());
+    }
+    assert!(SemanticVector::from_f32("", &[1.0]).is_none());
+    assert!(SemanticVector::from_f32("bge-m3", &vec![1.0; MAX_SEMANTIC_DIMS + 1]).is_none());
+}
+
+/// ADR-MEM-220: a memory similar in meaning is cued with no word in common;
+/// one below the floor gains nothing; without vectors nothing changes.
+#[test]
+fn semantic_similarity_cues_and_ranks_memories_worded_differently() {
+    let memories = with_filler(
+        &[
+            "从未饮酒到9月11日首次麒麟一番榨",
+            "第一次参加比赛很紧张",
+            "周末去爬山",
+        ],
+        30,
+    );
+    let p = profile();
+    let q = query("第一回碰啤是哪年");
+    let snapshot = memories[0].request.snapshot.clone();
+    let candidates: Vec<_> = memories
+        .iter()
+        .map(|m| RecallCandidate {
+            memory: m,
+            source_time: q.at.clone(),
+            rendered_bytes: 100,
+        })
+        .collect();
+    // Unit vectors at a chosen angle from the query: cos = x.
+    let at = |x: f32| SemanticVector::from_f32("bge-m3", &[x, (1.0 - x * x).sqrt()]).unwrap();
+    let query_vector = at(1.0);
+    let (close, middling, far) = (at(0.8), at(0.6), at(0.2));
+    let mut vectors: Vec<Option<&SemanticVector>> = vec![None; candidates.len()];
+    vectors[0] = Some(&close);
+    vectors[1] = Some(&middling);
+    vectors[2] = Some(&far);
+    let semantic = SemanticInput {
+        query: &query_vector,
+        candidates: &vectors,
+    };
+    let lexical = select_catalog_recall(&p, &q, &snapshot, &q.at, &candidates).unwrap();
+    let with =
+        select_semantic_recall(&p, &q, &snapshot, &q.at, &candidates, None, semantic).unwrap();
+    let ids = |t: &RecallTrace| {
+        t.selected
+            .iter()
+            .map(|s| s.memory.memory_id.clone())
+            .collect::<Vec<_>>()
+    };
+    // 0.8 is cued and leads; 0.6 gains score but is not cued without a word.
+    assert_eq!(
+        with.selected[0].memory.memory_id,
+        memories[0].memory.memory_id,
+        "{:?}",
+        ids(&with)
+    );
+    assert!(with.selected[0].reasons.contains(&RecallReason::Semantic));
+    assert!(
+        !ids(&lexical).contains(&memories[0].memory.memory_id),
+        "{:?}",
+        ids(&lexical)
+    );
+    assert!(!ids(&with).contains(&memories[2].memory.memory_id));
+    // No vectors at all: the trace is exactly the lexical one.
+    let none: Vec<Option<&SemanticVector>> = vec![None; candidates.len()];
+    let empty = SemanticInput {
+        query: &query_vector,
+        candidates: &none,
+    };
+    assert_eq!(
+        select_semantic_recall(&p, &q, &snapshot, &q.at, &candidates, None, empty).unwrap(),
+        lexical
+    );
+    // The vectors must follow the candidates one to one.
+    let short = SemanticInput {
+        query: &query_vector,
+        candidates: &none[..1],
+    };
+    assert!(select_semantic_recall(&p, &q, &snapshot, &q.at, &candidates, None, short).is_err());
+}

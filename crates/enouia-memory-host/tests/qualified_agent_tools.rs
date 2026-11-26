@@ -905,3 +905,62 @@ fn related_suggests_lexical_neighbors_only_among_scoped_current_memories() {
         .unwrap();
     assert!(lexical(&result).is_empty());
 }
+
+/// ADR-MEM-220: a fixed fake index stands in for Runtime's local model.
+struct NearIndex(bool);
+impl enouia_memory_host::automation::semantic::SemanticIndex for NearIndex {
+    fn model(&self) -> &str {
+        "fake-model"
+    }
+    fn query(&self, _text: &str) -> Option<SemanticVector> {
+        SemanticVector::from_f32("fake-model", &[1.0, 0.0])
+    }
+    fn memory(&self, _target: &TargetRef) -> Option<SemanticVector> {
+        SemanticVector::from_f32(
+            "fake-model",
+            if self.0 { &[0.9, 0.436] } else { &[0.1, 0.995] },
+        )
+    }
+}
+
+/// ADR-MEM-220: an Agent's recall (and so `session_start`) scores the
+/// attached index's vectors within its scope; far vectors cue nothing.
+#[test]
+fn agent_recall_uses_an_attached_semantic_index() {
+    let e = env();
+    let v = Arc::new(e.create(Faults::none()));
+    e.populate(&v, 8);
+    let mut q = query();
+    q.text = "zzqx unrelated words".into();
+    q.intent = RecallIntent::Current;
+    let recall = |near: Option<bool>| {
+        let h = QualifiedAgentHost::from_authenticated_owner(
+            v.clone(),
+            e.descriptor.created_by.clone(),
+        )
+        .unwrap();
+        let h = match near {
+            Some(near) => h.with_semantic(Arc::new(NearIndex(near))),
+            None => h,
+        };
+        let reader = h
+            .reader(
+                &e.descriptor.created_by,
+                agent(77),
+                scope(&e, &[1, 2], false),
+            )
+            .unwrap();
+        reader.recall(&profile(), &q, request(9)).unwrap()
+    };
+    let lexical = recall(None);
+    assert_eq!(lexical["trace"]["selected"], json!([]));
+    let near = recall(Some(true));
+    let selected = near["trace"]["selected"].as_array().unwrap();
+    assert!(!selected.is_empty(), "{near}");
+    assert!(
+        selected
+            .iter()
+            .all(|s| s["reasons"].to_string().contains("semantic"))
+    );
+    assert_eq!(recall(Some(false))["trace"]["selected"], json!([]));
+}

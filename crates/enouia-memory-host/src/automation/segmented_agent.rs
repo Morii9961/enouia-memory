@@ -490,7 +490,7 @@ impl SegmentedAgentReader<'_> {
             return Err(invalid());
         }
         self.read(None,|data| {
-            let p=recall_preview(&data.current,profile,query)?;
+            let p=recall_preview(&data.current,profile,query,None)?;
             let result=self.finish(json!({"request_id":request_id,"scope_hash":self.scope_hash(),"trace":p.trace,"trace_coverage":p.trace_coverage,"rendered_context":p.rendered_context,"items":p.items,"complete_in_scope":p.complete_in_scope}),MAX_DOCUMENT_BYTES)?;
             *self.context.lock().map_err(|_|ApplicationFault::Locked)?=Some(result.clone());
             Ok(result)
@@ -527,6 +527,7 @@ pub(crate) fn recall_preview(
     data: &AuthorizedSegmentedRead<'_>,
     profile: &AttentionProfile,
     query: &RecallQuery,
+    semantic: Option<&dyn super::semantic::SemanticIndex>,
 ) -> ApplicationResult<RecallPreview> {
     let current = data
         .memories
@@ -543,8 +544,29 @@ pub(crate) fn recall_preview(
             rendered_bytes: rendered.len(),
         });
     }
-    let mut trace = select_catalog_recall(profile, query, &data.snapshot, &data.now, &candidates)
-        .map_err(|_| invalid())?;
+    // ADR-MEM-220: semantic vectors, when an index answers for this query.
+    let targets: Vec<&TargetRef> = data.memories.iter().map(|m| &m.target).collect();
+    let vectors = semantic.and_then(|index| super::semantic::vectors(index, query, &targets));
+    let mut trace = match &vectors {
+        Some((q, memories)) => {
+            let memories: Vec<Option<&SemanticVector>> =
+                memories.iter().map(Option::as_ref).collect();
+            select_semantic_recall(
+                profile,
+                query,
+                &data.snapshot,
+                &data.now,
+                &candidates,
+                None,
+                SemanticInput {
+                    query: q,
+                    candidates: &memories,
+                },
+            )
+        }
+        None => select_catalog_recall(profile, query, &data.snapshot, &data.now, &candidates),
+    }
+    .map_err(|_| invalid())?;
     let mut reasons: BTreeMap<String, u64> = BTreeMap::new();
     for (_, reason) in &trace.excluded {
         let name = serde_json::to_value(reason)

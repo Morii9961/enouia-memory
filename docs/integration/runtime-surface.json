@@ -248,7 +248,7 @@
     {
       "path": "contracts/next/agent-catalog-read-v2.schema.json",
       "role": "automation-contract",
-      "sha256": "62828ede79d8cc4cf83c698fba4ec103d4f85b366ac884104645d7268f9eac7c"
+      "sha256": "731a7940d70cec2361712c7dde0cd6130f0404882e8cbbc8effdf043af928312"
     },
     {
       "path": "contracts/next/agent-correction-mcp-v1.schema.json",
@@ -273,7 +273,7 @@
     {
       "path": "contracts/next/agent-initialized-read-v2.schema.json",
       "role": "automation-contract",
-      "sha256": "856ff117bf98d63981a912835e8f0f3f5133decf90b2640487a4c208ac4d8b3d"
+      "sha256": "41a5e7cb2fa20401c04149c1cc51d55231f0e3aca2daae0b30cdf6f4c8a68270"
     },
     {
       "path": "contracts/next/agent-note-mcp-v1.schema.json",
@@ -288,7 +288,7 @@
     {
       "path": "contracts/next/agent-qualified-read-v2.schema.json",
       "role": "automation-contract",
-      "sha256": "779c05467c9a6dfd49f3716436a36c8aaab11fda7c4f09ab59ccd510ebcf9404"
+      "sha256": "370bd33774053830c1423f1a48f7719aea53143efa00cc5242aa2d45f964177c"
     },
     {
       "path": "contracts/next/agent-read-v2.schema.json",
@@ -388,7 +388,7 @@
     {
       "path": "contracts/next/read-model-v2.schema.json",
       "role": "automation-contract",
-      "sha256": "54a17882af28072c63d3337021c98fe15ec63654fd55a2f0c56550d99ac56054"
+      "sha256": "494c0af5362bf8b8976073d1de780c3cad2b8e92b2adbc7c957ca7b3800734b5"
     },
     {
       "path": "contracts/next/runtime-capture-pipe-v2.schema.json",
@@ -508,7 +508,7 @@
     {
       "path": "crates/enouia-memory-contract/src/next/attention.rs",
       "role": "automation-contract",
-      "sha256": "485bc2ea20f3e229742130a5f19208a0d5c1feb6efb15927e3c4c603712618ee"
+      "sha256": "3b486f2f372fb22aac2350779746e9a51c12c3c7743a6c2d7fa9b134385d0cdc"
     },
     {
       "path": "crates/enouia-memory-contract/src/next/catalog_read.rs",
@@ -528,7 +528,7 @@
     {
       "path": "crates/enouia-memory-contract/src/next/mod.rs",
       "role": "automation-contract",
-      "sha256": "7c099eba94ebe656eeffb48d146ece9134cf81d8aee52464c6b7797b30fa1221"
+      "sha256": "f6ed08ad83ff1aa32f67e5841a77827c4b1d398841fa5e5d5cf61851886e0c58"
     },
     {
       "path": "crates/enouia-memory-contract/src/next/owner_actions.rs",
@@ -584,6 +584,11 @@
       "path": "crates/enouia-memory-contract/src/next/segmented.rs",
       "role": "automation-contract",
       "sha256": "110240b58223a9fe73713019bbf5399adf77d80d8b6293db838340d370f9d185"
+    },
+    {
+      "path": "crates/enouia-memory-contract/src/next/semantic.rs",
+      "role": "automation-contract",
+      "sha256": "052b08dc0a2a5a9b5044bb03ced7705d4c56b68c60a7d03a5a8a9e58bda4ce8b"
     },
     {
       "path": "crates/enouia-memory-contract/src/next/storage.rs",
@@ -678,7 +683,7 @@
     {
       "path": "crates/enouia-memory-host/src/automation/catalog.rs",
       "role": "host-session",
-      "sha256": "cdaccf6ec7c97f307a53e3b2336a47d855ba3229f7a644d43e72fad93352f169"
+      "sha256": "bb3bfedead25eba34603d91840e5f3f726bd2976baba00789645f7469ea4d48c"
     },
     {
       "path": "crates/enouia-memory-host/src/automation/catalog/attention_schedule.rs",
@@ -718,7 +723,7 @@
     {
       "path": "crates/enouia-memory-host/src/automation/mod.rs",
       "role": "host-session",
-      "sha256": "0949ba04a8ed96852dcf48d1ef144a5609f50c51df61cafb476fc19d43088188"
+      "sha256": "40801ab3fb11de5082887aea62023d432c397eb2ffd35414935b0884863c4f34"
     },
     {
       "path": "crates/enouia-memory-host/src/automation/model.rs",
@@ -743,7 +748,7 @@
     {
       "path": "crates/enouia-memory-host/src/automation/qualified_agent.rs",
       "role": "host-session",
-      "sha256": "b1950f1d57d0b6a17cc2e6ccea4680a3a920b9cccf4019e849e49aa5d52247f9"
+      "sha256": "3d5957d364ac7ef7235558b16dca968a05dd1a0e3af56857bb48705340e6c84f"
     },
     {
       "path": "crates/enouia-memory-host/src/automation/read_model.rs",
@@ -768,7 +773,12 @@
     {
       "path": "crates/enouia-memory-host/src/automation/segmented_agent.rs",
       "role": "host-session",
-      "sha256": "3b0415bd36eac18d42adaaa1927fa92bf078a36bf97203d7276650304a753123"
+      "sha256": "8d7e7fe61a90b12253fbc56bbeef89147795505450f4fe40f9ca5354188cf0be"
+    },
+    {
+      "path": "crates/enouia-memory-host/src/automation/semantic.rs",
+      "role": "host-session",
+      "sha256": "e07cfc5465e1805bacf60fbdd33f7b79090114a286b2ad00b1d818f87bedd138"
     },
     {
       "path": "crates/enouia-memory-host/src/automation/worker.rs",
@@ -1431,5 +1441,5 @@
       "sha256": "3603c1855d9f9ec9b3585143a0191508980b260b1ffd26c82b3e6f9b7223a75d"
     }
   ],
-  "aggregate": "9af96208e4e7c4f8bda8eb3e72aaccc07af968250c3fc906b34de623656fda5c"
+  "aggregate": "5f8393251b5cbd8b7b32266265da1e9673f8c3fa8d0a3e48b4b524501f25a509"
 }

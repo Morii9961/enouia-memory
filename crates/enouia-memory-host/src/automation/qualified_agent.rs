@@ -34,6 +34,8 @@ pub struct QualifiedAgentHost {
     owner: ActorRef,
     capability: &'static str,
     generation: RwLock<Option<Arc<AtomicBool>>>,
+    /// ADR-MEM-220: the local model's index, when Runtime attaches one.
+    semantic: Option<Arc<dyn super::semantic::SemanticIndex>>,
 }
 pub struct QualifiedAgentReader<'a> {
     host: &'a QualifiedAgentHost,
@@ -566,7 +568,14 @@ impl QualifiedAgentHost {
             owner,
             capability,
             generation: RwLock::new(Some(Arc::new(AtomicBool::new(true)))),
+            semantic: None,
         })
+    }
+    /// ADR-MEM-220: recall and `session_start` also score this index's
+    /// vectors, after every authorization check.
+    pub fn with_semantic(mut self, index: Arc<dyn super::semantic::SemanticIndex>) -> Self {
+        self.semantic = Some(index);
+        self
     }
     pub fn lock(&self) -> ApplicationResult<()> {
         if let Some(old) = self
@@ -1125,6 +1134,7 @@ impl QualifiedAgentReader<'_> {
                 .map(|m| (&m.memory.memory.memory_id, *m)).collect();
             let mut candidates = Vec::new();
             let mut attention = Vec::new();
+            let mut targets = Vec::new();
             for base in qualified_items(&data.current, profile, &query.at)? {
                 let entry = entries.get(&base.base.memory.memory_id).ok_or(ApplicationFault::Invalid)?;
                 let state = base.base.attention;
@@ -1134,9 +1144,20 @@ impl QualifiedAgentReader<'_> {
                     serde_json::to_string(&projection).map_err(|_| ApplicationFault::Invalid)?);
                 candidates.push(RecallCandidate { memory:&entry.memory, source_time, rendered_bytes:rendered.len() });
                 attention.push(state);
+                targets.push(&entry.target);
             }
-            let mut trace = select_qualified_catalog_recall(profile, query, &data.current.snapshot,
-                &data.current.now, &candidates, &attention).map_err(|_| ApplicationFault::Invalid)?;
+            // ADR-MEM-220: semantic vectors, when an index answers for this query.
+            let vectors = self.host.semantic.as_deref()
+                .and_then(|index| super::semantic::vectors(index, query, &targets));
+            let mut trace = match &vectors {
+                Some((q, memories)) => {
+                    let memories: Vec<Option<&SemanticVector>> = memories.iter().map(Option::as_ref).collect();
+                    select_semantic_recall(profile, query, &data.current.snapshot, &data.current.now,
+                        &candidates, Some(&attention), SemanticInput { query: q, candidates: &memories })
+                }
+                None => select_qualified_catalog_recall(profile, query, &data.current.snapshot,
+                    &data.current.now, &candidates, &attention),
+            }.map_err(|_| ApplicationFault::Invalid)?;
             let mut reasons: BTreeMap<String, u64> = BTreeMap::new();
             for (_, reason) in &trace.excluded {
                 let key = serde_json::to_value(reason).map_err(|_| ApplicationFault::Invalid)?;
