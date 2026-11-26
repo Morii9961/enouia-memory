@@ -1,5 +1,11 @@
 # Runtime integration (ADR-MEM-45)
 
+2026-11-27 segmented query words ([ADR-MEM-225](../adr/225-segmented-query-words.md)), accepted after Runtime's check: the host
+passes jieba's words of the query (`query_words::query_words`) as the new `RecallExtras::words`; a two-character piece
+equal to one is a word even when one of its characters is common elsewhere (大学 where 学 mostly means 学习).
+**Runtime adoption:** bump the pin (Runtime's comparison with 76ef079: 大学 fixed, nothing worse).
+Surface aggregate: `d43510fe768aa9405351c2a73ad1f985d82966bef7f77fcfbed55c623fea28a4`.
+
 2026-11-27 entity identity proofs in catalog reads ([ADR-MEM-224](../adr/224-identity-proofs-in-catalog-reads.md)),
 a fix: catalog items, neighbor relations and scoped conversation summaries accept `entity_identity` owner proofs.
 Before, a memory whose entity Morii had confirmed as one identity made its page and detail fail with `Invalid`

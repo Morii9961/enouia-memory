@@ -24,3 +24,14 @@ pub fn naming_chars(text: &str) -> BTreeSet<char> {
         .flat_map(|t| t.word.chars())
         .collect()
 }
+
+/// ADR-MEM-225: the query's words of two or more characters as jieba cuts
+/// them (大学, 摄影), for `RecallExtras::words`.
+pub fn query_words(text: &str) -> BTreeSet<String> {
+    JIEBA
+        .cut(&text.to_lowercase(), true)
+        .into_iter()
+        .filter(|t| t.word.chars().count() >= 2)
+        .map(|t| t.word.to_owned())
+        .collect()
+}

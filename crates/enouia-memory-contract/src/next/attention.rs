@@ -272,7 +272,7 @@ pub fn select_semantic_recall(
         RecallExtras {
             attention,
             semantic: Some(semantic),
-            naming: None,
+            ..RecallExtras::default()
         },
     )
 }
@@ -288,6 +288,10 @@ pub struct RecallExtras<'a> {
     /// (京都, 茶, 摄影集), as the host's tagger found them. A strong CJK term
     /// made only of these counts twice.
     pub naming: Option<&'a BTreeSet<char>>,
+    /// ADR-MEM-225: the query's words of two or more characters as the
+    /// host's segmenter cut them (大学, 摄影). A two-character piece equal to
+    /// one is a word, however common its characters are elsewhere.
+    pub words: Option<&'a BTreeSet<String>>,
 }
 /// Catalog or qualified selection with any of the optional inputs.
 pub fn select_recall_with(
@@ -454,8 +458,12 @@ fn select_with_limit(
             } else {
                 weight(found.max(rarer))
             };
+            // ADR-MEM-225: a word the segmenter found is not a chance pairing
+            // even when one of its characters is common in other words (大学
+            // where 学 mostly means 学习).
+            let segmented = extras.words.is_some_and(|words| words.contains(&text));
             if w > 0 {
-                pieces.push((text, w, found * 4 > rarer));
+                pieces.push((text, w, found * 4 > rarer || segmented));
             }
         }
         for c in &run {

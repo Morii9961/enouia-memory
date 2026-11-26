@@ -3,7 +3,7 @@
 #[path = "../../enouia-memory-contract/tests/support/mod.rs"]
 mod support;
 use enouia_memory_contract::{ids::MemoryId, next::*, time::Timestamp};
-use enouia_memory_host::automation::query_words::naming_chars;
+use enouia_memory_host::automation::query_words::{naming_chars, query_words};
 use serde_json::Value;
 
 const NOW: i64 = 1_792_843_200_000;
@@ -43,7 +43,17 @@ const FILLER: [&str; 4] = [
     "我喜欢晚上散步，想了很多",
 ];
 fn recalled(texts: &[&str], query_text: &str) -> Vec<MemoryId> {
+    recalled_among(texts, &[], query_text, true)
+}
+/// `texts`, then `more` and 60 fillers; `segmented` passes the query's words.
+fn recalled_among(
+    texts: &[&str],
+    more: &[&str],
+    query_text: &str,
+    segmented: bool,
+) -> Vec<MemoryId> {
     let mut all: Vec<&str> = texts.to_vec();
+    all.extend_from_slice(more);
     all.extend((0..60).map(|n| FILLER[n % FILLER.len()]));
     let memories: Vec<_> = all.iter().enumerate().map(|(n, t)| memory(n, t)).collect();
     let profile: AttentionProfile =
@@ -68,6 +78,7 @@ fn recalled(texts: &[&str], query_text: &str) -> Vec<MemoryId> {
         })
         .collect();
     let naming = naming_chars(query_text);
+    let words = query_words(query_text);
     select_recall_with(
         &profile,
         &query,
@@ -76,6 +87,7 @@ fn recalled(texts: &[&str], query_text: &str) -> Vec<MemoryId> {
         &candidates,
         RecallExtras {
             naming: Some(&naming),
+            words: segmented.then_some(&words),
             ..RecallExtras::default()
         },
     )
@@ -126,4 +138,41 @@ fn a_noun_in_the_question_outweighs_its_verbs() {
             );
         }
     }
+}
+
+/// ADR-MEM-225, from Runtime's real library: 学 is common there (学习), so
+/// 大学 looked like a chance pairing and memories about the university were
+/// not cued by "我的大学在哪里". The segmenter's word keeps it a word.
+#[test]
+fn a_segmented_word_is_not_a_chance_pairing() {
+    let words = query_words("我的大学在哪里");
+    assert!(words.contains("大学"), "{words:?}");
+    let study = [
+        "今天学习了线性代数",
+        "学习英语单词一小时",
+        "晚上学习编程，学到很晚",
+        "学习摄影构图",
+        "学了一首新歌",
+        "学习做饭，学会了炒青菜",
+    ];
+    // 大 is common too (大家, 大雨), and one rare character of the question
+    // (的, in one memory, never as 我的) sets the bar for characters, as on the real library.
+    let big = ["和大家一起吃饭", "大雨天在家休息", "风很大，早点回家", "大家都在忙"];
+    let mut more: Vec<&str> = (0..24).map(|n| study[n % study.len()]).collect();
+    more.extend((0..24).map(|n| big[n % big.len()]));
+    more.push("好的，明天见");
+    let texts = [
+        "我在天津理工大学读计算机",
+        "大学体育课选了排球",
+        "大学寝室里收到研究邀请",
+    ];
+    let segmented = recalled_among(&texts, &more, "我的大学在哪里", true);
+    for n in 0..3 {
+        assert!(segmented.contains(&id(n)), "{n}: {segmented:?}");
+    }
+    let unsegmented = recalled_among(&texts, &more, "我的大学在哪里", false);
+    assert!(
+        (0..3).all(|n| !unsegmented.contains(&id(n))),
+        "without the segmenter 大学 is weak: {unsegmented:?}"
+    );
 }
