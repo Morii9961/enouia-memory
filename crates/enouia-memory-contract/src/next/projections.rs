@@ -197,6 +197,9 @@ pub enum GraphEdgeKind {
     /// ADR-MEM-172: entity records of the same type and name that Morii has
     /// neither confirmed nor separated; an automatic, revocable suggestion.
     SameName,
+    /// ADR-MEM-220: memories similar in meaning by a local model's vectors;
+    /// an algorithm suggestion, not a recorded relation.
+    SemanticNeighbor,
 }
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]

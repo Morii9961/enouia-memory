@@ -964,3 +964,99 @@ fn agent_recall_uses_an_attached_semantic_index() {
     );
     assert_eq!(recall(Some(false))["trace"]["selected"], json!([]));
 }
+
+/// ADR-MEM-220: `related` adds semantic neighbor suggestions from an
+/// attached index, and reports none (not even in coverage) without one.
+#[test]
+fn related_lists_semantic_neighbors_from_an_attached_index() {
+    let e = env();
+    let v = Arc::new(e.create(Faults::none()));
+    e.populate(&v, 8);
+    let host = |near: Option<bool>| {
+        let h = QualifiedAgentHost::from_authenticated_owner(
+            v.clone(),
+            e.descriptor.created_by.clone(),
+        )
+        .unwrap();
+        match near {
+            Some(near) => h.with_semantic(Arc::new(NearIndex(near))),
+            None => h,
+        }
+    };
+    let plain = host(None);
+    let reader = plain
+        .reader(
+            &e.descriptor.created_by,
+            agent(77),
+            scope(&e, &[1, 2], false),
+        )
+        .unwrap();
+    let mut q = query();
+    q.text = String::new();
+    let listed = reader.recall(&profile(), &q, request(11)).unwrap();
+    let first: MemoryId =
+        serde_json::from_value(listed["trace"]["selected"][0]["memory"]["memory_id"].clone())
+            .unwrap();
+    let related = |h: &QualifiedAgentHost| {
+        h.reader(
+            &e.descriptor.created_by,
+            agent(77),
+            scope(&e, &[1, 2], false),
+        )
+        .unwrap()
+        .related(&profile(), &first, None, 262_144)
+        .unwrap()
+        .unwrap()
+    };
+    let semantic_edges = |value: &Value| {
+        value["suggested_edges"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter(|e| e["relation"] == "semantic_neighbor")
+            .cloned()
+            .collect::<Vec<_>>()
+    };
+    let none = related(&plain);
+    assert!(semantic_edges(&none).is_empty());
+    assert!(
+        !none["edge_coverage"]
+            .to_string()
+            .contains("semantic_neighbor")
+    );
+    let near = related(&host(Some(true)));
+    let edges = semantic_edges(&near);
+    assert!(
+        !edges.is_empty() && edges.len() <= MAX_SEMANTIC_NEIGHBORS,
+        "{near}"
+    );
+    assert!(edges.iter().all(|e| {
+        e["score_milli"]
+            .as_u64()
+            .is_some_and(|m| (650..=1000).contains(&m))
+    }));
+    // An index that has no vector for these memories yet adds nothing.
+    let unindexed =
+        QualifiedAgentHost::from_authenticated_owner(v.clone(), e.descriptor.created_by.clone())
+            .unwrap()
+            .with_semantic(Arc::new(Unindexed));
+    let empty = related(&unindexed);
+    assert!(semantic_edges(&empty).is_empty());
+    assert!(
+        !empty["edge_coverage"]
+            .to_string()
+            .contains("semantic_neighbor")
+    );
+}
+struct Unindexed;
+impl enouia_memory_host::automation::semantic::SemanticIndex for Unindexed {
+    fn model(&self) -> &str {
+        "fake-model"
+    }
+    fn query(&self, _text: &str) -> Option<SemanticVector> {
+        SemanticVector::from_f32("fake-model", &[1.0, 0.0])
+    }
+    fn memory(&self, _target: &TargetRef) -> Option<SemanticVector> {
+        None
+    }
+}

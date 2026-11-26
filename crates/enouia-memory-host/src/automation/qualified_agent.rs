@@ -1098,7 +1098,7 @@ impl QualifiedAgentReader<'_> {
         validate_read(profile, max_bytes)?;
         self.read(Some(id), |data| {
             check_snapshot(&data, expected)?;
-            let Some(mut relations) = qualified_relations(&data.current, profile, id, 128)? else { return Ok(None); };
+            let Some(mut relations) = qualified_relations(&data.current, profile, id, 128, self.host.semantic.as_deref())? else { return Ok(None); };
             loop {
                 for c in &mut relations.coverage {
                     c.retained = relations.edges.iter().filter(|e| e.relation == c.relation).count() as u64;
