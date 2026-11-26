@@ -21,6 +21,7 @@ ChatGPT 可以读你的记忆，也可以提交新记忆。本页说明怎样让
 
 [ADR178](../adr/178-chatgpt-shaped-tool-inputs.md) 之后，服务端会补齐其余字段：
 
+- 近义词：召回按字词匹配，不理解意思，所以工具说明要求 ChatGPT 在问题后面补几个近义词（[ADR218](../adr/218-chatgpt-recall-synonyms.md)）。
 - 中文提问：`memory_recall` 可以直接用一句中文问题（例如“我平时喜欢喝什么茶？”），`session_start` 的 `topic` 也一样，服务端会把它们拆成两字片段和单字来匹配，越少见的片段和字分量越重，命中得越多排得越前，像“酒”“茶”这样的少见字也能单独找到记忆；只沾到“喜欢”“什么”这类常见字词的记忆不会被召回（[ADR209](../adr/209-recall-cjk-pieces-in-contract.md)、[ADR214](../adr/214-recall-titles-and-strong-words.md)）。标题也参与匹配；“吗”“什么”这类疑问字词不参与。`memory_search` 仍按整词匹配，中文请给空格分开的短关键词（例如“乌龙茶 早上”）。
 - 读：`memory_search` 只需要 `query`（可以加 `form`、`attention`、`limit`，以及 `days`：只看最近
   N 天记下的记忆，例如每周归纳主题时用 7，见 [ADR182](../adr/182-chatgpt-recent-search.md)）；`memory_recall`
@@ -81,6 +82,8 @@ ChatGPT 可以读你的记忆，也可以提交新记忆。本页说明怎样让
 
 > 对话开始时调用 `session_start`；回答和我的生活、偏好、人、计划有关的问题之前，先用
 > `memory_recall` 查一下。
+> 调用 `memory_recall` 时，在问题后面加几个近义词或相关词，用空格隔开（例如问“我第一次喝酒是什么时候”时加上“首次 饮酒 啤酒”），
+> 因为召回按字词匹配，不理解意思。
 > 每天对话结束时，调用 `memory_submit_conversation`：附上今天新增的对话原文（只发还没提交过的
 > 消息；request_id 用“日期-主题”这样的字符串），以及从我的原话里提炼出的记忆。每条记忆都要
 > 逐字引用我说的一句话，并在 `entities` 里写出提到的人和地点。先用 `preflight: true` 检查，

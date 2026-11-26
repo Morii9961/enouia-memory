@@ -1330,3 +1330,8 @@ one repeating 摄影 (reproduced with Runtime's real counts).
 [Decision](217-agent-host-creation-lock-wait.md): `snapshot()` and `check_original_agent_carrier()`, both reads on
 the Agent host creation path, wait up to `BRIEF_LOCK_WAIT` like the reads of ADR-MEM-175, so a parallel Agent
 session no longer fails with `Busy` while another issues permits.
+
+### ADR-MEM-218 — ChatGPT adds synonyms to recall queries
+
+[Decision](218-chatgpt-recall-synonyms.md): the ChatGPT `memory_recall` descriptions ask it to add a few synonyms
+after the question, since recall matches words and the VPS cannot run an embedding model; the server is unchanged.

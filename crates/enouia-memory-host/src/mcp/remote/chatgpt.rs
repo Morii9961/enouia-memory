@@ -45,7 +45,7 @@ pub fn short_description(tool: &str) -> Option<&'static str> {
             "Call at the start of a conversation: a short, bounded set of Morii's current memories to orient yourself. Optional `topic`. Reads only."
         }
         "memory_recall" => {
-            "Find the memories most relevant to a question or topic (`text`, a plain sentence in any language), ranked by relevance and attention. Use it before answering anything about Morii's life, preferences, people or plans. Memories record what Morii said or what was inferred, not verified facts."
+            "Find the memories most relevant to a question or topic (`text`, a plain sentence in any language), ranked by relevance and attention. Recall matches words, not meanings, so add a few synonyms and related words after the question (for 我第一次喝酒是什么时候: 首次 饮酒 啤酒). Use it before answering anything about Morii's life, preferences, people or plans. Memories record what Morii said or what was inferred, not verified facts."
         }
         "memory_search" => {
             "List Morii's memories, newest first, optionally matching every word in `query` (for Chinese, give short keywords separated by spaces, not a sentence) or filtered by form or attention. Returns titles and IDs; page with `cursor`. Use memory_read for one memory in full."
@@ -81,7 +81,7 @@ pub fn short_schema(tool: &str) -> Option<Value> {
         ),
         "memory_recall" => (
             json!({
-                "text": {"type": "string", "maxLength": 2048, "description": "What to recall, in plain words."},
+                "text": {"type": "string", "maxLength": 2048, "description": "What to recall, in plain words, followed by a few synonyms or related words separated by spaces."},
                 "intent": {"enum": ["current", "historical", "browse"]},
                 "conditions": {"type": "array", "maxItems": 8, "items": {"type": "string", "minLength": 1, "maxLength": 256}},
                 "limit": {"type": "integer", "minimum": 1, "maximum": 32}
