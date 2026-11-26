@@ -5,14 +5,29 @@ use serde::{Deserialize, Serialize};
 
 /// Largest vector accepted, in dimensions.
 pub const MAX_SEMANTIC_DIMS: usize = 4096;
-/// Similarity (thousandths of the cosine) from which a candidate gains
-/// recall score. Tuned on Runtime's real-library checks.
+/// ADR-MEM-221: absolute thresholds, used only when a distribution has fewer
+/// than `SEMANTIC_MIN_SAMPLE` similarities (or none spread): similarity in
+/// thousandths of the cosine from which a candidate gains score, and from
+/// which it is cued alone; score per thousandth above the floor.
 pub const SEMANTIC_FLOOR_MILLI: i64 = 550;
-/// Similarity from which a candidate is cued with no word in common, and
-/// from which another memory is a semantic neighbor.
 pub const SEMANTIC_CUE_MILLI: i64 = 650;
-/// Recall score per thousandth above the floor.
 pub const SEMANTIC_SCALE: i64 = 40;
+/// ADR-MEM-221: on a large enough distribution, similarity is judged against
+/// the query's own (or the anchor's own) similarities, in hundredths of a
+/// standard deviation above their mean. Runtime's real-library check with
+/// bge-m3 (median 385, p99 560, max 648) showed no fixed threshold separates
+/// relevant from irrelevant pairs, while relevant ones stand out from their
+/// own distribution.
+pub const SEMANTIC_MIN_SAMPLE: usize = 30;
+/// Score starts 2.0 deviations above the mean.
+pub const SEMANTIC_BONUS_Z100: i64 = 200;
+/// Cued alone (or a neighbor) from 3.0 deviations above the mean.
+pub const SEMANTIC_CUE_Z100: i64 = 300;
+/// Score per hundredth of a deviation above `SEMANTIC_BONUS_Z100`: 3.0
+/// deviations add 6000, about one strong lexical word and a half.
+pub const SEMANTIC_Z_SCALE: i64 = 60;
+/// Below this similarity nothing counts, however it stands out.
+pub const SEMANTIC_GUARD_MILLI: i64 = 500;
 /// Semantic neighbors listed per memory.
 pub const MAX_SEMANTIC_NEIGHBORS: usize = 5;
 const UNIT: i64 = 32767;
@@ -83,4 +98,47 @@ pub fn semantic_milli(a: &SemanticVector, b: &SemanticVector) -> Option<i64> {
 pub struct SemanticInput<'a> {
     pub query: &'a SemanticVector,
     pub candidates: &'a [Option<&'a SemanticVector>],
+}
+
+/// ADR-MEM-221: the spread of one query's (or one anchor's) similarities over
+/// the candidates that have vectors, in integers so every platform agrees.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct SemanticStats {
+    pub count: usize,
+    pub mean: i64,
+    pub deviation: i64,
+}
+
+impl SemanticStats {
+    pub fn of(similarities: &[i64]) -> Self {
+        let count = similarities.len();
+        if count == 0 {
+            return Self {
+                count,
+                mean: 0,
+                deviation: 0,
+            };
+        }
+        let n = count as i64;
+        let mean = similarities.iter().sum::<i64>() / n;
+        let variance = similarities.iter().map(|s| (s - mean).pow(2)).sum::<i64>() / n;
+        Self {
+            count,
+            mean,
+            deviation: (variance.max(0) as u64).isqrt() as i64,
+        }
+    }
+    /// The recall score a similarity adds, and whether it cues alone.
+    pub fn score(&self, similarity: i64) -> (u64, bool) {
+        if self.count < SEMANTIC_MIN_SAMPLE || self.deviation == 0 {
+            let bonus = (similarity - SEMANTIC_FLOOR_MILLI).max(0) * SEMANTIC_SCALE;
+            return (bonus as u64, similarity >= SEMANTIC_CUE_MILLI);
+        }
+        if similarity < SEMANTIC_GUARD_MILLI {
+            return (0, false);
+        }
+        let z = (similarity - self.mean) * 100 / self.deviation;
+        let bonus = (z - SEMANTIC_BONUS_Z100).max(0) * SEMANTIC_Z_SCALE;
+        (bonus as u64, z >= SEMANTIC_CUE_Z100)
+    }
 }

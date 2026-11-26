@@ -1341,3 +1341,10 @@ after the question, since recall matches words and the VPS cannot run an embeddi
 [Decision](220-semantic-vector-layer.md): Runtime runs a local embedding model (Ollama bge-m3) behind a `SemanticIndex`
 it attaches to hosts; Memory defines `SemanticVector`, integer cosine similarity, the recall bonus/cue and
 `semantic_neighbor` suggestions, and lists what to embed; vectors stay on Morii's computer; the VPS stays lexical.
+
+### ADR-MEM-221 — Semantic similarity is judged against its own distribution
+
+[Decision](221-semantic-relative-thresholds.md): after Runtime's real-library measurement (bge-m3 median 385, max 648,
+relevant and irrelevant overlapping at 550–560), a similarity scores from 2.0 and cues (or makes a neighbor) from 3.0
+standard deviations above its query's or anchor's own mean, never below 500; fewer than 30 similarities keep the
+absolute thresholds.

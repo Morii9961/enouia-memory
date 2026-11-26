@@ -1,5 +1,12 @@
 # Runtime integration (ADR-MEM-45)
 
+2026-11-26 relative semantic thresholds ([ADR-MEM-221](../adr/221-semantic-relative-thresholds.md)), from Runtime's
+real-library calibration: with at least 30 similarities and some spread, a similarity scores from 2.0 and cues (or
+makes a semantic neighbor) from 3.0 standard deviations above the query's (or anchor's) own mean, never below 500;
+`SemanticStats` (integer mean and deviation) is new in the contract. Fewer similarities keep floor 550 / cue 650.
+**Runtime adoption:** bump the pin and rerun the set at 16 KB and 64 KB; please report the z of relevant and
+irrelevant top hits. Surface aggregate: `de94f4ddef2bfcbc95613eed4736398d246e739f1578f8e79276a3c3d816145a`.
+
 2026-11-26 `SemanticIndex` call contract (docs only, ADR-MEM-220): one index may be shared by a process;
 `query` is called at most once per recall or `session_start` (never by `related`) and may block, bounded by the
 implementation; `memory` is called per authorized candidate and per memory in scope by `related`, so it must be a

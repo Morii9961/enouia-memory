@@ -541,6 +541,12 @@ fn select_with_limit(
             }
         })
         .collect();
+    // ADR-MEM-221: each candidate's similarity to the query, and their spread.
+    let similarities: Vec<Option<i64>> = (0..candidates.len())
+        .map(|i| semantic.and_then(|s| s.candidates[i].and_then(|v| semantic_milli(s.query, v))))
+        .collect();
+    let semantic_stats =
+        SemanticStats::of(&similarities.iter().flatten().copied().collect::<Vec<_>>());
     let mut ranked = Vec::new();
     for (index, candidate) in candidates.iter().enumerate() {
         let memory = candidate.memory;
@@ -553,14 +559,10 @@ fn select_with_limit(
         let body = &bodies[index];
         let mut reasons = Vec::new();
         let lexical = lexical[index];
-        // ADR-MEM-220: similarity above the floor adds score; above the cue
-        // it cues the memory with no word in common.
-        let similarity = semantic
-            .and_then(|s| s.candidates[index].and_then(|v| semantic_milli(s.query, v)))
-            .unwrap_or(0);
-        let semantic_bonus =
-            (similarity - SEMANTIC_FLOOR_MILLI).max(0) as u64 * SEMANTIC_SCALE as u64;
-        let semantic_cue = similarity >= SEMANTIC_CUE_MILLI;
+        // ADR-MEM-220/221: a similarity standing out from this query's own
+        // distribution adds score, and further out it cues the memory alone.
+        let (semantic_bonus, semantic_cue) =
+            similarities[index].map_or((0, false), |s| semantic_stats.score(s));
         let alias = profile
             .aliases
             .iter()
