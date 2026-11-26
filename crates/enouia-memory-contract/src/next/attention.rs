@@ -292,6 +292,9 @@ pub const MAX_RECALL_FRAGMENTS: usize = 256;
 /// and interrogatives. A question is matched against statements, where these
 /// are rare, so rarity would overrate them; they split CJK runs instead.
 pub const RECALL_QUESTION_CHARS: &str = "吗呢吧啊呀嘛么什怎哪谁几";
+/// ADR-MEM-219: Chinese word segmentation and tagging (built-in dictionary,
+/// loaded once).
+static JIEBA: std::sync::LazyLock<jieba_rs::Jieba> = std::sync::LazyLock::new(jieba_rs::Jieba::new);
 pub fn recall_terms(text: &str) -> RecallTerms {
     // 0: other text, 1: CJK, 2: a question character (dropped).
     let kind = |c: char| {
@@ -452,6 +455,27 @@ fn select_with_limit(
         .min(3);
     let char_strong = chars.iter().map(|(_, w)| *w).max().unwrap_or(0).min(4);
     let cjk = !pieces.is_empty() || !chars.is_empty();
+    // ADR-MEM-219: jieba tags the query's words. A strong term inside a noun
+    // (京都, 茶, 摄影集) names what is asked about and counts twice; verbs,
+    // adverbs, time and measure words (去过, 喜欢, 平时, 第一次) frame the
+    // question and count once.
+    let naming: BTreeSet<char> = if cjk {
+        JIEBA
+            .tag(&query.text.to_lowercase(), true)
+            .into_iter()
+            .filter(|t| t.tag.starts_with('n'))
+            .flat_map(|t| t.word.chars())
+            .collect()
+    } else {
+        BTreeSet::new()
+    };
+    let names = |term: &str| {
+        if term.chars().all(|c| naming.contains(&c)) {
+            2
+        } else {
+            1
+        }
+    };
     // A title names what a memory is about: a strong piece in it counts as
     // two body mentions (ADR-MEM-214).
     let titles: Vec<String> = candidates
@@ -497,7 +521,7 @@ fn select_with_limit(
                 if *word && *w >= piece_strong {
                     let named = if title.contains(piece.as_str()) { 1 } else { 0 };
                     let mentions = times + named;
-                    strong += w * mentions.min(2);
+                    strong += w * mentions.min(2) * names(piece);
                     weak += mentions.saturating_sub(2);
                 } else {
                     weak += w;
@@ -506,7 +530,7 @@ fn select_with_limit(
             for (c, w) in &chars {
                 if body.contains(c.as_str()) && !c.chars().any(|c| covered.contains(&c)) {
                     if *w >= char_strong {
-                        strong += w;
+                        strong += w * names(c);
                     } else {
                         weak += w;
                     }

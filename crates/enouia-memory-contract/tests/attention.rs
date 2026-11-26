@@ -452,6 +452,38 @@ fn titles_count_and_a_rare_word_outweighs_common_characters() {
             "diary {diary} among the first three: {kyoto:?}"
         );
     }
+    // ADR-MEM-219: 京都 (a noun) outweighs the question's 去过 (a verb), so
+    // the stray memory does not lead.
+    assert_ne!(
+        kyoto.first(),
+        Some(&memories[3].memory.memory_id),
+        "{kyoto:?}"
+    );
+}
+
+/// ADR-MEM-219, from Runtime's tea results: memories with 茶 (a noun) lead a
+/// memory that shares only the question's 喜欢 (a verb).
+#[test]
+fn a_noun_in_the_question_outweighs_its_verbs() {
+    let memories = with_filler(
+        &[
+            "牙齿矫正期间少喝奶茶",
+            "寿司口味偏好，配绿茶",
+            "京都Day8 | 鸭川日落与宇治抹茶",
+            "2026年初喜欢听Nanatsukaze，喜欢那种声音",
+        ],
+        60,
+    );
+    let tea = recalled(&memories, "我平时喜欢喝什么茶？");
+    let at = |n: usize| tea.iter().position(|m| m == &memories[n].memory.memory_id);
+    if let Some(noise) = at(3) {
+        for n in 0..3 {
+            assert!(
+                at(n).is_some_and(|p| p < noise),
+                "{n} before the noise: {tea:?}"
+            );
+        }
+    }
 }
 
 /// ADR-MEM-214: the memory holding the whole word 摄影集 leads a broader
