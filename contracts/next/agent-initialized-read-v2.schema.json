@@ -1475,7 +1475,8 @@
           "enum": [
             "theme_cooccurrence",
             "lexical_neighbor",
-            "same_name"
+            "same_name",
+            "semantic_neighbor"
           ]
         },
         "class": {
@@ -1518,7 +1519,8 @@
             "same_entity",
             "theme_cooccurrence",
             "lexical_neighbor",
-            "same_name"
+            "same_name",
+            "semantic_neighbor"
           ]
         },
         "candidates": {
@@ -1579,7 +1581,7 @@
           "items": {
             "$ref": "#/$defs/edge_coverage"
           },
-          "maxItems": 6
+          "maxItems": 7
         },
         "coverage_scope": {
           "const": "supported_authorized_current_relations"

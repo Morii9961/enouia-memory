@@ -818,13 +818,14 @@ pub(crate) fn qualified_relations(
     profile: &AttentionProfile,
     memory: &MemoryId,
     limit: usize,
+    semantic: Option<&dyn super::semantic::SemanticIndex>,
 ) -> ApplicationResult<Option<QualifiedRelations>> {
     projections::theme_budget(data, data.memories.len())?;
     let all = rows(data, profile, &data.now)?;
     let Some(anchor) = all.iter().find(|r| r.id() == memory) else {
         return Ok(None);
     };
-    let kinds = [
+    let mut kinds = vec![
         GraphEdgeKind::DerivedFrom,
         GraphEdgeKind::Reversion,
         GraphEdgeKind::SameEntity,
@@ -832,7 +833,16 @@ pub(crate) fn qualified_relations(
         GraphEdgeKind::LexicalNeighbor,
         GraphEdgeKind::SameName,
     ];
-    let mut counts: BTreeMap<_, u64> = kinds.into_iter().map(|k| (k, 0)).collect();
+    // ADR-MEM-220: semantic neighbors are reported only with an index.
+    let anchor_vector = semantic.and_then(|index| {
+        index
+            .memory(&anchor.entry.target)
+            .filter(|v| v.valid() && v.model == index.model())
+    });
+    if anchor_vector.is_some() {
+        kinds.push(GraphEdgeKind::SemanticNeighbor);
+    }
+    let mut counts: BTreeMap<_, u64> = kinds.iter().map(|k| (*k, 0)).collect();
     let mut edges = Vec::new();
     let mut add = |edge: MemoryGraphEdge| {
         *counts.get_mut(&edge.relation).unwrap() += 1;
@@ -962,6 +972,34 @@ pub(crate) fn qualified_relations(
             score_milli: Some(pair.milli),
             owner_relations: vec![],
         });
+    }
+    // ADR-MEM-220: the anchor's closest memories in meaning among all
+    // authorized current memories in scope, at or above the cue similarity.
+    if let (Some(index), Some(anchor_vector)) = (semantic, &anchor_vector) {
+        let mut close: Vec<(i64, &Row)> = all
+            .iter()
+            .filter(|r| r.id() != memory)
+            .filter_map(|r| {
+                let v = index.memory(&r.entry.target)?;
+                let milli = semantic_milli(anchor_vector, &v)?;
+                (milli >= SEMANTIC_CUE_MILLI).then_some((milli, r))
+            })
+            .collect();
+        close.sort_by(|(a, x), (b, y)| b.cmp(a).then_with(|| x.id().cmp(y.id())));
+        for (milli, r) in close.into_iter().take(MAX_SEMANTIC_NEIGHBORS) {
+            add(MemoryGraphEdge {
+                from: memory.clone(),
+                to: r.id().clone(),
+                relation: GraphEdgeKind::SemanticNeighbor,
+                class: GraphEdgeClass::AlgorithmSuggestion,
+                witness: format!("semantic:{}", index.model())
+                    .chars()
+                    .take(256)
+                    .collect(),
+                score_milli: Some(milli.clamp(0, 1000) as u16),
+                owner_relations: vec![],
+            });
+        }
     }
     let coverage = kinds
         .into_iter()

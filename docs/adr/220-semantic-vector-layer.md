@@ -54,10 +54,15 @@ similarity. They differ mainly in where the model runs.
     thousandth above the floor; similarity 0.8 adds 10000, about the weight
     of two strong lexical words). They will be tuned on Runtime's
     real-library checks, as the lexical rules were.
-- **Graph** (second step, after recall). A new edge kind `semantic_neighbor`
-  is a suggestion, never a recorded relation. `related` lists up to five memories at or above the
-  cue similarity. Without vectors, the graph still reports semantic
-  neighbors as unavailable.
+- **Graph.** A new edge kind `semantic_neighbor` is a suggestion, never a
+  recorded relation. With an index attached, `related` lists up to
+  `MAX_SEMANTIC_NEIGHBORS` (5) memories in the reader's scope at or above the
+  cue similarity. Each edge's witness is `semantic:<model>` and its
+  `score_milli` is the similarity. `edge_coverage` reports the kind only when
+  the anchor has a vector, so the Agent schemas allow seven kinds.
+  The System graph page (Runtime's relation graph) still reports semantic
+  neighbors as unavailable. Pairwise neighbors across a whole graph page will
+  follow once Runtime serves real vectors and the cost can be measured.
 
 ### Host
 

@@ -1,5 +1,12 @@
 # Runtime integration (ADR-MEM-45)
 
+2026-11-26 semantic neighbors in `related` ([ADR-MEM-220](../adr/220-semantic-vector-layer.md)): with an index
+attached to `QualifiedAgentHost`, `related` adds up to five `semantic_neighbor` suggestion edges (similarity at or
+above the cue, witness `semantic:<model>`, `score_milli` = similarity); `edge_coverage` lists the kind only when the
+anchor has a vector, so the Agent schemas allow seven kinds. The contract adds `GraphEdgeKind::SemanticNeighbor`
+(schemas updated); the System graph page still reports semantic neighbors unavailable. Older readers refuse the new
+edge kind, so bump the pin before attaching an index. Surface aggregate: `2450ca4e7d3988f6818a72204094485aa38126f91134e176ec184eab0233d9ae`.
+
 2026-11-26 semantic vector layer, recall part ([ADR-MEM-220](../adr/220-semantic-vector-layer.md)): the contract adds
 `SemanticVector` (L2-normalised, `i16`), integer `semantic_milli`, `SemanticInput` and `select_semantic_recall`; recall
 reasons gain `semantic` (schemas updated). The host adds `automation::semantic::SemanticIndex`
