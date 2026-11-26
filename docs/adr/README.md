@@ -1372,3 +1372,9 @@ coverage and sets `semantic_neighbors_available`.
 [Decision](224-identity-proofs-in-catalog-reads.md): catalog items, neighbor relations and conversation summaries accept
 `entity_identity` owner proofs, as the graph page did; after Morii confirmed five records as one identity, Runtime could
 not read four memories (`Invalid`).
+
+### ADR-MEM-225 — A word the segmenter finds is not a chance pairing
+
+[Decision](225-segmented-query-words.md): the host passes jieba's words of the query (`RecallExtras::words`); a
+two-character piece equal to one is a word even when a character is common elsewhere (大学 where 学 mostly means 学习).
+Candidate pending Runtime's real-library comparison.

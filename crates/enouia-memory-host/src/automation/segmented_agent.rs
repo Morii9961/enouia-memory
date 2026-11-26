@@ -552,6 +552,7 @@ pub(crate) fn recall_preview(
         .map(|(_, memories)| memories.iter().map(Option::as_ref).collect());
     // ADR-MEM-219: the host tags the query; the contract weighs topic nouns.
     let naming = super::query_words::naming_chars(&query.text);
+    let words = super::query_words::query_words(&query.text);
     let mut trace = select_recall_with(
         profile,
         query,
@@ -568,6 +569,7 @@ pub(crate) fn recall_preview(
                     candidates: memories,
                 }),
             naming: Some(&naming),
+            words: Some(&words),
         },
     )
     .map_err(|_| invalid())?;
