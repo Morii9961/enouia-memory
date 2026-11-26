@@ -1,5 +1,14 @@
 # Runtime integration (ADR-MEM-45)
 
+2026-11-26 semantic vector layer, recall part ([ADR-MEM-220](../adr/220-semantic-vector-layer.md)): the contract adds
+`SemanticVector` (L2-normalised, `i16`), integer `semantic_milli`, `SemanticInput` and `select_semantic_recall`; recall
+reasons gain `semantic` (schemas updated). The host adds `automation::semantic::SemanticIndex`
+(`model`, `query`, `memory`), `QualifiedAgentHost::with_semantic`, `SegmentedMemoryReader::with_semantic` and
+`SegmentedMemoryReader::semantic_texts`. Without an index nothing changes. **Runtime adoption:** implement
+`SemanticIndex` with local Ollama `bge-m3`, keep vectors by `TargetRef` in Runtime's private data (purge targets no
+longer in `semantic_texts`), attach it to the hosts Runtime creates; older readers refuse traces with the
+`semantic` reason, so bump the pin first. Semantic neighbor edges follow. Surface aggregate: `5f8393251b5cbd8b7b32266265da1e9673f8c3fa8d0a3e48b4b524501f25a509`.
+
 2026-11-26 recall synonyms for ChatGPT ([ADR-MEM-218](../adr/218-chatgpt-recall-synonyms.md)): the ChatGPT
 `memory_recall` descriptions ask it to add synonyms after the question. Remote service only; Runtime needs no
 change. Surface aggregate: `9af96208e4e7c4f8bda8eb3e72aaccc07af968250c3fc906b34de623656fda5c`.

@@ -50,10 +50,12 @@ similarity. They differ mainly in where the model runs.
     reason `semantic`.
   - At or above `SEMANTIC_CUE_MILLI` it is cued even with no word in common.
   - Without semantic input, every result is exactly as before.
-  - The constants start at floor 550, cue 650 and scale 2. They will be
-    tuned on Runtime's real-library checks, as the lexical rules were.
-- **Graph.** A new edge kind `semantic_neighbor` is a suggestion, never a
-  recorded relation. `related` lists up to five memories at or above the
+  - The constants start at floor 550, cue 650 and scale 40 (score per
+    thousandth above the floor; similarity 0.8 adds 10000, about the weight
+    of two strong lexical words). They will be tuned on Runtime's
+    real-library checks, as the lexical rules were.
+- **Graph** (second step, after recall). A new edge kind `semantic_neighbor`
+  is a suggestion, never a recorded relation. `related` lists up to five memories at or above the
   cue similarity. Without vectors, the graph still reports semantic
   neighbors as unavailable.
 
@@ -66,13 +68,15 @@ similarity. They differ mainly in where the model runs.
 
   A `None` answer means lexical only: no model, Ollama not running, or the
   memory not yet indexed. A missing index never fails a read.
-- **Attaching it.** `QualifiedAgentHost::with_semantic(index)` and
-  `NativeMemoryOwner::with_semantic(index)` attach the index. Recall,
+- **Attaching it.** `QualifiedAgentHost::with_semantic(index)` (local Agents,
+  `session_start`) and `SegmentedMemoryReader::with_semantic(index)` (Runtime's
+  recall preview) attach the index. Recall,
   `session_start` and `related` then use it. Every authorization, sensitivity
   and deletion check still runs first, and vectors are looked up only for
   candidates already authorized.
-- **What to embed.** `NativeMemoryOwner::semantic_texts(max)` lists, for
-  each current memory in Morii's full-history read, its `TargetRef` and its
+- **What to embed.** `SegmentedMemoryReader::semantic_texts(max)` lists, for
+  each current memory the reader sees (Morii's full-history reader for
+  Runtime), its `TargetRef` and its
   text (content, then title). This is the set Runtime embeds. Vectors are
   keyed by `TargetRef`:
   - a revised memory needs a new vector;

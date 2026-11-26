@@ -335,6 +335,8 @@ pub fn recall_terms(text: &str) -> RecallTerms {
     }
     terms
 }
+// The public selectors are thin wrappers that each fix some of these.
+#[allow(clippy::too_many_arguments)]
 fn select_with_limit(
     profile: &AttentionProfile,
     query: &RecallQuery,

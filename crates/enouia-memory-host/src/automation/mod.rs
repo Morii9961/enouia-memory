@@ -19,6 +19,7 @@ pub mod runtime_capture;
 #[cfg(windows)]
 pub mod runtime_capture_transport;
 pub mod segmented_agent;
+pub mod semantic;
 mod worker;
 pub use model::*;
 pub use worker::{Generated, Generation, Generator, PendingGeneration, StopToken};

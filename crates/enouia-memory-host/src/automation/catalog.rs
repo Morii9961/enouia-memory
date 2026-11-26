@@ -29,6 +29,8 @@ pub struct SegmentedMemoryReader {
     system: ActorRef,
     scope: SystemReadScope,
     unlocked: RwLock<bool>,
+    /// ADR-MEM-220: the local model's index, when Runtime attaches one.
+    semantic: Option<Arc<dyn super::semantic::SemanticIndex>>,
 }
 const AXES: [CatalogFacetAxis; 9] = [
     CatalogFacetAxis::Form,
@@ -446,7 +448,41 @@ impl SegmentedMemoryReader {
             system,
             scope: SystemReadScope::CurrentPolicy,
             unlocked: RwLock::new(true),
+            semantic: None,
         })
+    }
+    /// ADR-MEM-220: recall previews also score this index's vectors.
+    pub fn with_semantic(mut self, index: Arc<dyn super::semantic::SemanticIndex>) -> Self {
+        self.semantic = Some(index);
+        self
+    }
+    /// ADR-MEM-220: what the index should embed: each current memory this
+    /// reader sees, by exact target, with its content then title. A vector
+    /// whose target is no longer listed belongs to a withdrawn, forgotten or
+    /// deleted memory and must be purged.
+    pub fn semantic_texts(
+        &self,
+        max_sensitivity: Sensitivity,
+    ) -> ApplicationResult<Vec<(TargetRef, String)>> {
+        let gate = self.unlocked.read().map_err(|_| ApplicationFault::Locked)?;
+        if !*gate {
+            return Err(ApplicationFault::Locked);
+        }
+        Ok(self
+            .vault
+            .read_scoped(&self.system, max_sensitivity, self.scope, |data| {
+                data.memories
+                    .iter()
+                    .map(|m| {
+                        let input = &m.memory.decision.input;
+                        let title = input
+                            .record_fields
+                            .as_ref()
+                            .map_or("", |f| f.title.as_str());
+                        (m.target.clone(), format!("{}\n{}", input.content, title))
+                    })
+                    .collect()
+            })?)
     }
     /// ADR-MEM-153: Morii's own native reader. Same System identity check, but
     /// reads are not limited to formation policies that are still in their
@@ -516,7 +552,12 @@ impl SegmentedMemoryReader {
         }
         self.vault
             .read_scoped(&self.system, max_sensitivity, self.scope, |data| {
-                let p = super::segmented_agent::recall_preview(&data, profile, query)?;
+                let p = super::segmented_agent::recall_preview(
+                    &data,
+                    profile,
+                    query,
+                    self.semantic.as_deref(),
+                )?;
                 // ADR-MEM-175: exact targets of `trace.selected`, in order.
                 let selected_targets: Vec<&TargetRef> = p
                     .trace
