@@ -1,5 +1,10 @@
 # Runtime integration (ADR-MEM-45)
 
+2026-11-26 semantic guard and cap ([ADR-MEM-222](../adr/222-semantic-guard-and-cap.md)), from Runtime's z values
+on ea3f59f: `SEMANTIC_GUARD_MILLI` 500 -> 530 and the bonus capped at 4.0 deviations (`SEMANTIC_BONUS_CAP_Z100`).
+**Runtime adoption:** bump the pin and rerun the set with jieba + semantic; expected: no irrelevant tea answers at
+64 KB, and the first-drink answer back within 16 KB if words decide it. Surface aggregate: `79d7afb9f4ba5bd640cb802240c0ab8171847ea6e54d6b47f469244ac9434837`.
+
 2026-11-26 jieba noun weight ([ADR-MEM-219](../adr/219-jieba-noun-weight.md)), merged after Runtime's real-library
 check of 0b4d1c1 (Kyoto clearly better, nothing worse): the host (`automation::query_words::naming_chars`, jieba-rs
 0.11) tags the recall query and passes topic-noun characters to the contract through the new
