@@ -609,3 +609,90 @@ fn semantic_similarity_cues_and_ranks_memories_worded_differently() {
     };
     assert!(select_semantic_recall(&p, &q, &snapshot, &q.at, &candidates, None, short).is_err());
 }
+
+/// ADR-MEM-221: a distribution like Runtime's real library with bge-m3
+/// (median about 385, deviation about 70): similarities that stand out from
+/// it count, a fixed level does not.
+#[test]
+fn semantic_similarity_is_judged_against_its_own_distribution() {
+    let background: Vec<i64> = (0..300).map(|i| 385 + (i * 37) % 241 - 120).collect();
+    let with = |extra: &[i64]| {
+        let mut all = background.clone();
+        all.extend_from_slice(extra);
+        SemanticStats::of(&all)
+    };
+    let kyoto = with(&[648, 640, 594, 584]);
+    assert!(kyoto.deviation > 50 && kyoto.deviation < 90, "{kyoto:?}");
+    assert!(kyoto.score(648).1 && kyoto.score(640).1, "{kyoto:?}");
+    let (bonus, cued) = kyoto.score(584);
+    assert!(bonus > 0 && !cued, "{kyoto:?}");
+    assert_eq!(kyoto.score(480), (0, false));
+    // An isolated top hit like the pets question (556, then 531) is no cue.
+    let pets = with(&[556, 531]);
+    assert!(!pets.score(556).1, "{pets:?}");
+    // Below the guard nothing counts, however far out it stands.
+    let low: Vec<i64> = (0..40).map(|i| 100 + i % 7).chain([450]).collect();
+    assert_eq!(SemanticStats::of(&low).score(450), (0, false));
+    // Too few similarities: the absolute thresholds still apply.
+    let few = SemanticStats::of(&[700, 400, 380]);
+    assert_eq!(
+        few.score(700),
+        (
+            (700 - SEMANTIC_FLOOR_MILLI) as u64 * SEMANTIC_SCALE as u64,
+            true
+        )
+    );
+}
+
+/// ADR-MEM-221: through recall, the one memory standing out from forty is
+/// cued with no word in common; the rest are not.
+#[test]
+fn recall_cues_the_memory_that_stands_out() {
+    let texts: Vec<String> = (0..40)
+        .map(|n| format!("日常记录{n}号，平平无奇"))
+        .collect();
+    let refs: Vec<&str> = texts.iter().map(String::as_str).collect();
+    let memories = library(&refs);
+    let p = profile();
+    let q = query("第一回碰啤是哪年");
+    let snapshot = memories[0].request.snapshot.clone();
+    let candidates: Vec<_> = memories
+        .iter()
+        .map(|m| RecallCandidate {
+            memory: m,
+            source_time: q.at.clone(),
+            rendered_bytes: 100,
+        })
+        .collect();
+    let at = |x: f32| SemanticVector::from_f32("bge-m3", &[x, (1.0 - x * x).sqrt()]).unwrap();
+    let query_vector = at(1.0);
+    let vectors: Vec<SemanticVector> = (0..40)
+        .map(|i| {
+            if i == 7 {
+                at(0.648)
+            } else {
+                at(0.3 + (i % 9) as f32 * 0.02)
+            }
+        })
+        .collect();
+    let refs: Vec<Option<&SemanticVector>> = vectors.iter().map(Some).collect();
+    let trace = select_semantic_recall(
+        &p,
+        &q,
+        &snapshot,
+        &q.at,
+        &candidates,
+        None,
+        SemanticInput {
+            query: &query_vector,
+            candidates: &refs,
+        },
+    )
+    .unwrap();
+    let ids: Vec<_> = trace
+        .selected
+        .iter()
+        .map(|s| s.memory.memory_id.clone())
+        .collect();
+    assert_eq!(ids, vec![memories[7].memory.memory_id.clone()], "{trace:?}");
+}

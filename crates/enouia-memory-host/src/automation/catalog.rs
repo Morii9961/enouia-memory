@@ -976,14 +976,19 @@ pub(crate) fn qualified_relations(
     // ADR-MEM-220: the anchor's closest memories in meaning among all
     // authorized current memories in scope, at or above the cue similarity.
     if let (Some(index), Some(anchor_vector)) = (semantic, &anchor_vector) {
-        let mut close: Vec<(i64, &Row)> = all
+        // ADR-MEM-221: neighbors stand out from the anchor's own similarities.
+        let similar: Vec<(i64, &Row)> = all
             .iter()
             .filter(|r| r.id() != memory)
             .filter_map(|r| {
                 let v = index.memory(&r.entry.target)?;
-                let milli = semantic_milli(anchor_vector, &v)?;
-                (milli >= SEMANTIC_CUE_MILLI).then_some((milli, r))
+                Some((semantic_milli(anchor_vector, &v)?, r))
             })
+            .collect();
+        let stats = SemanticStats::of(&similar.iter().map(|(m, _)| *m).collect::<Vec<_>>());
+        let mut close: Vec<(i64, &Row)> = similar
+            .into_iter()
+            .filter(|(milli, _)| stats.score(*milli).1)
             .collect();
         close.sort_by(|(a, x), (b, y)| b.cmp(a).then_with(|| x.id().cmp(y.id())));
         for (milli, r) in close.into_iter().take(MAX_SEMANTIC_NEIGHBORS) {
