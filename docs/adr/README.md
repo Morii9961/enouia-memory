@@ -1354,3 +1354,9 @@ it attaches to hosts; Memory defines `SemanticVector`, integer cosine similarity
 relevant and irrelevant overlapping at 550–560), a similarity scores from 2.0 and cues (or makes a neighbor) from 3.0
 standard deviations above its query's or anchor's own mean, never below 500; fewer than 30 similarities keep the
 absolute thresholds.
+
+### ADR-MEM-222 — The semantic guard rises to 530 and the bonus stops at 4.0 deviations
+
+[Decision](222-semantic-guard-and-cap.md): from Runtime's real-library z values, the guard rises to 530 (irrelevant tea
+answers at 517 stood 3.01 deviations out) and the bonus is capped at 4.0 deviations (a related non-answer at 6.3
+crowded the answer out of the budget).

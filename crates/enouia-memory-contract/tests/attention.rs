@@ -633,6 +633,17 @@ fn semantic_similarity_is_judged_against_its_own_distribution() {
     // Below the guard nothing counts, however far out it stands.
     let low: Vec<i64> = (0..40).map(|i| 100 + i % 7).chain([450]).collect();
     assert_eq!(SemanticStats::of(&low).score(450), (0, false));
+    // ADR-MEM-222: the real tea case: 517 stands 3.01 deviations out in a
+    // narrow distribution but is below the guard; the bonus stops at 4.0.
+    let narrow: Vec<i64> = (0..300).map(|i| 394 + (i * 37) % 141 - 70).collect();
+    let tea = SemanticStats::of(&narrow.iter().copied().chain([517, 517]).collect::<Vec<_>>());
+    assert_eq!(tea.score(517), (0, false), "{tea:?}");
+    let far = kyoto.score(1000).0;
+    assert_eq!(far, kyoto.score(990).0, "capped at 4.0 deviations");
+    assert_eq!(
+        far,
+        (SEMANTIC_BONUS_CAP_Z100 - SEMANTIC_BONUS_Z100) as u64 * SEMANTIC_Z_SCALE as u64
+    );
     // Too few similarities: the absolute thresholds still apply.
     let few = SemanticStats::of(&[700, 400, 380]);
     assert_eq!(

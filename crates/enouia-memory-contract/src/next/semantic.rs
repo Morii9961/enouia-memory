@@ -26,8 +26,14 @@ pub const SEMANTIC_CUE_Z100: i64 = 300;
 /// Score per hundredth of a deviation above `SEMANTIC_BONUS_Z100`: 3.0
 /// deviations add 6000, about one strong lexical word and a half.
 pub const SEMANTIC_Z_SCALE: i64 = 60;
-/// Below this similarity nothing counts, however it stands out.
-pub const SEMANTIC_GUARD_MILLI: i64 = 500;
+/// Below this similarity nothing counts, however it stands out. ADR-MEM-222:
+/// 530, from Runtime's real library, where two irrelevant tea answers stood
+/// 3.01 deviations out at 517 while the lowest relevant cue was 537.
+pub const SEMANTIC_GUARD_MILLI: i64 = 530;
+/// ADR-MEM-222: the bonus stops growing past 4.0 deviations, so one memory
+/// close in meaning (6.3 deviations on the real library) cannot outrank the
+/// answer on similarity alone; words and attention still decide among them.
+pub const SEMANTIC_BONUS_CAP_Z100: i64 = 400;
 /// Semantic neighbors listed per memory.
 pub const MAX_SEMANTIC_NEIGHBORS: usize = 5;
 const UNIT: i64 = 32767;
@@ -138,7 +144,8 @@ impl SemanticStats {
             return (0, false);
         }
         let z = (similarity - self.mean) * 100 / self.deviation;
-        let bonus = (z - SEMANTIC_BONUS_Z100).max(0) * SEMANTIC_Z_SCALE;
+        let bonus =
+            (z.min(SEMANTIC_BONUS_CAP_Z100) - SEMANTIC_BONUS_Z100).max(0) * SEMANTIC_Z_SCALE;
         (bonus as u64, z >= SEMANTIC_CUE_Z100)
     }
 }
