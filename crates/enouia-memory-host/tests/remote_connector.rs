@@ -334,3 +334,57 @@ fn chatgpt_turn_times_become_utc_and_bad_arguments_say_why() {
         "{data}"
     );
 }
+
+struct RecallStub;
+impl Session for RecallStub {
+    fn handle(&mut self, message: &Value) -> Option<Value> {
+        let id = message.get("id")?;
+        Some(match message["method"].as_str() {
+            Some("initialize") => json!({"jsonrpc":"2.0","id":id,"result":{"capabilities":{}}}),
+            Some("tools/list") => json!({"jsonrpc":"2.0","id":id,"result":{"tools":[
+                {"name":"memory_recall"},{"name":"memory_related"}]}}),
+            _ => json!({"jsonrpc":"2.0","id":id,"error":{"code":-32601,"message":"stub"}}),
+        })
+    }
+    fn closed(&self) -> bool {
+        false
+    }
+    fn unknown(&self) -> Option<&Value> {
+        None
+    }
+}
+
+/// ADR-MEM-229: with a semantic index ChatGPT is told that recall and
+/// related go by meaning too; without one, that recall matches words only.
+#[test]
+fn tool_descriptions_say_whether_recall_matches_meaning() {
+    let clock = FakeClock::new(NOW);
+    let ids = SequentialIdSource::new(1);
+    let profile: AttentionProfile =
+        serde_json::from_value(value("attention/profile.json")).unwrap();
+    let scopes = vec!["memory.read".to_string()];
+    let describe = |semantic: bool| {
+        let s = ConnectorSession::new(RecallStub, None, &scopes, &clock, &ids, &profile);
+        let mut s = if semantic { s.with_semantic() } else { s };
+        for m in init() {
+            s.handle(&m);
+        }
+        let list = s
+            .handle(&json!({"jsonrpc":"2.0","id":2,"method":"tools/list"}))
+            .unwrap();
+        let tools = list["result"]["tools"].as_array().unwrap().clone();
+        (
+            tools[0]["description"].as_str().unwrap().to_owned(),
+            tools[1]["description"].as_str().unwrap().to_owned(),
+        )
+    };
+    let (recall, related) = describe(false);
+    assert!(recall.contains("not meanings"), "{recall}");
+    assert!(!related.contains("similar-meaning"));
+    let (recall, related) = describe(true);
+    assert!(
+        !recall.contains("not meanings") && recall.contains("meaning"),
+        "{recall}"
+    );
+    assert!(related.contains("similar-meaning"), "{related}");
+}
