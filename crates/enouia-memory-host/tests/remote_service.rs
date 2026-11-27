@@ -139,10 +139,75 @@ fn explicit_grant_serves_old_memories_after_formation_stops_and_oauth_revocation
 {
     run_read_flow(true);
 }
+/// ADR-MEM-229: with a `semantic` block the service embeds what its Agent may
+/// read through a loopback Ollama before serving, keeps the cache in its
+/// state directory, and tells ChatGPT that recall matches meaning.
+#[test]
+fn a_semantic_block_embeds_through_a_loopback_ollama_before_serving() {
+    run_flow(true, true);
+}
+/// A stand-in Ollama answering `/api/embed` with one fixed vector per text;
+/// returns its address and how many texts it embedded.
+fn fake_ollama() -> (
+    std::net::SocketAddr,
+    std::sync::Arc<std::sync::atomic::AtomicUsize>,
+) {
+    use std::io::{BufRead, BufReader, Read, Write};
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let addr = listener.local_addr().unwrap();
+    let count = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+    let seen = count.clone();
+    std::thread::spawn(move || {
+        for stream in listener.incoming() {
+            let mut stream = stream.unwrap();
+            let mut reader = BufReader::new(stream.try_clone().unwrap());
+            let mut length = 0;
+            loop {
+                let mut line = String::new();
+                reader.read_line(&mut line).unwrap();
+                if let Some(v) = line.to_lowercase().strip_prefix("content-length:") {
+                    length = v.trim().parse().unwrap();
+                }
+                if line == "\r\n" {
+                    break;
+                }
+            }
+            let mut body = vec![0; length];
+            reader.read_exact(&mut body).unwrap();
+            let request: Value = serde_json::from_slice(&body).unwrap();
+            let n = request["input"].as_array().unwrap().len();
+            seen.fetch_add(n, Ordering::SeqCst);
+            let reply = json!({"embeddings": vec![json!([0.6, 0.8]); n]}).to_string();
+            // Chunked and kept open, as Ollama does.
+            write!(
+                stream,
+                "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nTransfer-Encoding: chunked\r\n\r\n{:x}\r\n{reply}\r\n0\r\n\r\n",
+                reply.len()
+            )
+            .unwrap();
+            std::thread::spawn(move || {
+                std::thread::sleep(std::time::Duration::from_secs(5));
+                drop(stream);
+            });
+        }
+    });
+    (addr, count)
+}
 fn run_read_flow(independent: bool) {
+    run_flow(independent, false);
+}
+fn run_flow(independent: bool, semantic: bool) {
     let (e, v, p, _) = correction_rig(SpeakerRole::User);
-    let state_dir = temp_dir(if independent { "grant-flow" } else { "flow" });
+    let state_dir = temp_dir(match (independent, semantic) {
+        (_, true) => "semantic-flow",
+        (true, false) => "grant-flow",
+        (false, false) => "flow",
+    });
     let mut raw = config_json(&e, &p, &state_dir);
+    let ollama = semantic.then(fake_ollama);
+    if let Some((addr, _)) = &ollama {
+        raw["semantic"] = json!({"ollama": addr.to_string(), "model": "bge-m3"});
+    }
     if independent {
         let g = read_grant(&e, &p);
         let plan = v
@@ -190,6 +255,8 @@ fn run_read_flow(independent: bool) {
                 let session = initialize(addr, &access);
                 let tools = mcp(addr, &access, Some(&session), json!({"jsonrpc":"2.0","id":2,"method":"tools/list"})).json();
                 assert_eq!(tools["result"]["tools"].as_array().unwrap().len(), 6);
+                let recall = tools["result"]["tools"].as_array().unwrap().iter().find(|t| t["name"] == "memory_recall").unwrap();
+                assert_eq!(recall["description"].as_str().unwrap().contains("not meanings"), !semantic, "{recall}");
                 let start = mcp(addr, &access, Some(&session), json!({"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"session_start","arguments":{"schema_version":2,"kind":"agent_session_start_request","capability":enouia_memory_host::mcp::opening::SESSION_CAPABILITY,"request":{"request_id":id("req",171),"at":clock.now_unix_ms_timestamp()}}}})).json();
                 assert_eq!(start["result"]["structuredContent"]["kind"], "agent_session_start_response", "{start}");
                 // Past the renewal point the server swaps the Vault permit.
@@ -233,6 +300,15 @@ fn run_read_flow(independent: bool) {
         served.unwrap();
     });
     assert_eq!(v.snapshot().unwrap(), before);
+    if let Some((_, embedded)) = &ollama {
+        // Embedded once before serving; the renewal found nothing new.
+        let cache: Value =
+            serde_json::from_slice(&std::fs::read(state_dir.join("semantic-cache.json")).unwrap())
+                .unwrap();
+        let cached = cache["vectors"].as_object().unwrap().len();
+        assert!(cached > 0);
+        assert_eq!(embedded.load(Ordering::SeqCst), cached);
+    }
     let _ = std::fs::remove_dir_all(&state_dir);
 }
 
