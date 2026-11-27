@@ -1,5 +1,13 @@
 # Runtime integration (ADR-MEM-45)
 
+2026-11-27 duplicate suggestions ([ADR-MEM-230](../adr/230-duplicate-suggestions.md)): new read-only
+`SegmentedMemoryReader::memory_duplicate_suggestions_native(request, &DuplicateQuery { semantic })` returns
+`MemoryDuplicateSuggestions` (`automation::catalog::duplicates`): pairs `earlier`/`later` (target, title, capture time)
+with reasons `same_wording` (character-pair Jaccard ≥ 600) and/or `same_meaning` (cosine ≥ 900 with an attached
+index), scores, `total_pairs`, `complete_in_scope`. Revision lineage is never a pair. **Runtime adoption:** optional:
+a "possible duplicates" list in Vault or Inspector; resolving uses the existing withdraw/forget/correct plans.
+Surface aggregate: `133e7d12d9b4d5890a7d4902e522c31742b1bcbdd430a928db4b7395d34e3d0d`.
+
 2026-11-27 connector semantic index ([ADR-MEM-229](../adr/229-connector-semantic-index.md)): new
 `QualifiedAgentReader::semantic_texts()` (the Agent's own memories, same text as the System reader's); the remote
 service's optional `semantic` block uses a loopback Ollama with its own cache. The Agent's `related` reports

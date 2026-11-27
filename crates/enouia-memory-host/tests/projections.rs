@@ -921,3 +921,128 @@ fn lexical_neighbors_on_long_texts_stay_fast() {
         );
     }
 }
+
+/// ADR-MEM-230: two memories saying the same thing are suggested as possible
+/// duplicates, by wording or by model similarity; distinct ones are not.
+#[test]
+fn possible_duplicates_are_suggested_by_wording_or_meaning() {
+    use enouia_memory_host::automation::catalog::duplicates::*;
+    let e = Env::new();
+    let v = Arc::new(e.create(Faults::none()));
+    let p = e.policy(1, 1, 5);
+    v.set_policy(&e.descriptor.created_by, p.clone()).unwrap();
+    let texts = [
+        "我平时最喜欢喝无糖的乌龙茶",
+        "平时我最喜欢喝无糖的乌龙茶。",
+        "I usually drink unsweetened oolong tea",
+        "明天下大雨，记得带伞出门",
+        "好",
+    ];
+    let sources: Vec<_> = texts
+        .iter()
+        .enumerate()
+        .map(|(i, t)| {
+            let mut s = e.source(i as u32 + 1, Sensitivity::Public);
+            s.text = t.to_string();
+            s.record.content_hash = sha256(t.as_bytes());
+            s
+        })
+        .collect();
+    v.capture(
+        &e.descriptor.system_actor,
+        sources.clone(),
+        RecordCatalog::default(),
+    )
+    .unwrap();
+    let ids: Vec<MemoryId> = sources
+        .iter()
+        .enumerate()
+        .map(|(i, s)| {
+            commit(&e, &v, e.input(s, &p, i as u32 + 1))
+                .result
+                .memory_id
+        })
+        .collect();
+    let profile = profile();
+    let filter = CatalogFilter::default();
+    let pair = |s: &DuplicateSuggestion| {
+        let mut p = [
+            s.earlier.memory.memory.memory_id.clone(),
+            s.later.memory.memory.memory_id.clone(),
+        ];
+        p.sort();
+        p
+    };
+    let sorted = |a: usize, b: usize| {
+        let mut p = [ids[a].clone(), ids[b].clone()];
+        p.sort();
+        p
+    };
+    // Words alone: the two Chinese sentences share most character pairs (a
+    // looser paraphrase shares about a third and is left to meaning).
+    let lexical = reader(&e, v.clone())
+        .memory_duplicate_suggestions_native(
+            &request(&profile, &filter),
+            &DuplicateQuery { semantic: true },
+        )
+        .unwrap();
+    assert!(!lexical.semantic_compared);
+    assert_eq!(lexical.total_pairs, 1, "{lexical:?}");
+    assert_eq!(pair(&lexical.items[0]), sorted(0, 1));
+    assert_eq!(lexical.items[0].reasons, vec![DuplicateReason::SameWording]);
+    assert!(lexical.items[0].wording_milli >= DUPLICATE_WORDING_MILLI);
+    assert!(lexical.items[0].earlier.captured_at <= lexical.items[0].later.captured_at);
+    // With vectors, the English sentence means the same as the first; the
+    // weather note does not, and "好" is too short for wording.
+    let index = Vectors(
+        [
+            (ids[0].clone(), vec![1.0, 0.0, 0.0]),
+            (ids[1].clone(), vec![0.95, 0.312, 0.0]),
+            (ids[2].clone(), vec![0.97, 0.243, 0.0]),
+            (ids[3].clone(), vec![0.0, 0.0, 1.0]),
+            (ids[4].clone(), vec![0.0, 0.6, 0.8]),
+        ]
+        .into(),
+    );
+    let both = reader(&e, v.clone())
+        .with_semantic(Arc::new(index))
+        .memory_duplicate_suggestions_native(
+            &request(&profile, &filter),
+            &DuplicateQuery { semantic: true },
+        )
+        .unwrap();
+    assert!(both.semantic_compared);
+    let found: Vec<_> = both.items.iter().map(pair).collect();
+    assert_eq!(found.len(), 3, "{both:?}");
+    // The pair with both reasons comes first.
+    assert_eq!(found[0], sorted(0, 1));
+    assert_eq!(
+        both.items[0].reasons,
+        vec![DuplicateReason::SameWording, DuplicateReason::SameMeaning]
+    );
+    assert!(found.contains(&sorted(0, 2)) && found.contains(&sorted(1, 2)));
+    assert!(
+        both.items[1..]
+            .iter()
+            .all(|s| s.reasons == vec![DuplicateReason::SameMeaning])
+    );
+    assert!(both.complete_in_scope);
+    // Asked without vectors, the same reader compares wording only.
+    let words_only = reader(&e, v.clone())
+        .memory_duplicate_suggestions_native(
+            &request(&profile, &filter),
+            &DuplicateQuery { semantic: false },
+        )
+        .unwrap();
+    assert_eq!(words_only.total_pairs, 1);
+    // Withdrawing the later copy removes the suggestion.
+    v.delete(&e.descriptor.created_by, vec![], vec![ids[1].clone()])
+        .unwrap();
+    let after = reader(&e, v.clone())
+        .memory_duplicate_suggestions_native(
+            &request(&profile, &filter),
+            &DuplicateQuery { semantic: false },
+        )
+        .unwrap();
+    assert_eq!(after.total_pairs, 0);
+}

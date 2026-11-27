@@ -1402,3 +1402,9 @@ library words-and-meaning matches were never unrelated; words-only ones below th
 [Decision](229-connector-semantic-index.md): an optional `semantic` block in the remote service file points to a
 loopback Ollama; each permit generation embeds the memories the connector's Agent may read into a separate cache and
 drops removed ones, so the connector's recall and `related` use meaning as Runtime's do.
+
+### ADR-MEM-230 — Possible duplicates, for Morii to review
+
+[Decision](230-duplicate-suggestions.md): a read-only System projection pairs memories that share most of their
+wording or that the local model finds nearly identical (cosine ≥ 0.9), leaving out revision lineage; Morii resolves
+them with existing Owner actions.
