@@ -1,6 +1,7 @@
 //! ADR-MEM-220: the semantic index a host may consult. Runtime implements it
-//! with a local model and its own vector cache; Memory never runs a model or
-//! opens a connection.
+//! with a local model and its own vector cache. The remote connector has its
+//! own loopback Ollama index (ADR-MEM-229, `mcp::remote::semantic`); the
+//! readers and the contract never run a model or open a connection.
 use enouia_memory_contract::next::{RecallQuery, SemanticVector, TargetRef};
 
 /// One index may be shared by every host and reader of a process

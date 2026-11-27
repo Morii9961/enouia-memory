@@ -27,5 +27,9 @@
       "allowed_forms": ["fact", "preference", "episode", "open_loop"],
       "window_days": 30
     }
+  },
+  "semantic": {
+    "ollama": "127.0.0.1:11434",
+    "model": "bge-m3"
   }
 }

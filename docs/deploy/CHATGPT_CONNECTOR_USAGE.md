@@ -97,6 +97,20 @@ ChatGPT 可以读你的记忆，也可以提交新记忆。本页说明怎样让
 > `memory_submit_theme` 提交一个，概括要用你自己的话写，并说明这是你的推断。
 > 如果工具结果里出现 `grant_notice`，就把到期时间告诉我，提醒我续期。
 
+## 按意思召回（可选，ADR-MEM-229）
+
+服务文件里加上下面这一段，`memory_recall` 和 `memory_related` 就会同时按意思找记忆，不只看字面：
+
+```json
+"semantic": { "ollama": "127.0.0.1:11434", "model": "bge-m3" }
+```
+
+- 只接受本机地址（127.0.0.1 或 ::1）：记忆原文只送到这台机器上的 Ollama，不会发到别处。
+- 只给 ChatGPT 这条授权能读到的记忆算向量。缓存放在 `state_dir` 下的 `semantic-cache.json`，和 Runtime 的缓存分开。
+- 每次换发许可（约 4 分钟一次）时，服务会给新记忆补算向量，并把已撤回、删除或超出授权的记忆从缓存里删掉。第一次启动要把整个库算一遍，可能要等一两分钟。
+- Ollama 没开或者超时（查询最多等 3 秒）时，召回自动退回只看字面，不会报错。
+- `read-check` 的输出里有一项 `semantic`：`reachable` 是 true 表示模型能用，`cached` 是缓存里已有的向量数。
+
 ## 出错时
 
 - 结果里带 `grant_notice`：读取授权会在 14 天内到期（[ADR190](../adr/190-connector-grant-end-notice.md)）。

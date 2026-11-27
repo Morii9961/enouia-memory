@@ -1396,3 +1396,9 @@ outcome that failed `validate()`.
 [Decision](228-semantic-support-floor.md): when the top results hold a memory matched by words and
 meaning, a words-only memory scoring below the weakest such one is left out as `unsupported`. On Runtime's real
 library words-and-meaning matches were never unrelated; words-only ones below them mostly were. Runtime's comparison: 18 left out (14 N, 4 P), no related lost.
+
+### ADR-MEM-229 — The ChatGPT connector has its own local semantic index
+
+[Decision](229-connector-semantic-index.md): an optional `semantic` block in the remote service file points to a
+loopback Ollama; each permit generation embeds the memories the connector's Agent may read into a separate cache and
+drops removed ones, so the connector's recall and `related` use meaning as Runtime's do.

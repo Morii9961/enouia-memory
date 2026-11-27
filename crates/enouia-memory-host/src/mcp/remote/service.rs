@@ -63,6 +63,10 @@ pub struct ServiceConfig {
     /// `memory_submit_conversation` tool. Absent keeps the service read-only.
     #[serde(default)]
     pub connector: Option<ConnectorService>,
+    /// ADR-MEM-229 opt-in: a loopback Ollama for semantic recall. Absent
+    /// keeps recall lexical.
+    #[serde(default)]
+    pub semantic: Option<super::semantic::SemanticService>,
 }
 
 #[derive(Deserialize)]
@@ -171,6 +175,15 @@ pub fn read_check(
         "principal":reader.principal(),
         "scope":config.scope(permit_until),
         "scope_hash":reader.scope_hash(),
+        // ADR-MEM-229: whether the local model answers, and what is cached.
+        "semantic":config.semantic.as_ref().map(|s| {
+            use crate::automation::semantic::SemanticIndex;
+            super::semantic::OllamaIndex::open(s, &config.state_dir).map_or_else(
+                |e| serde_json::json!({"error": e}),
+                |index| serde_json::json!({"ollama": s.ollama, "model": s.model,
+                    "reachable": index.query("ping").is_some(), "cached": index.cached()}),
+            )
+        }),
     });
     reader.revoke();
     Ok(result)
@@ -344,6 +357,17 @@ pub fn serve(
         .map_err(|e| format!("connector writer: {e:?}"))?;
     let host = QualifiedAgentHost::from_authenticated_initialized_owner(vault, owner.clone())
         .map_err(|e| format!("owner host: {e:?}"))?;
+    // ADR-MEM-229: vectors of what the Agent may read, from a local Ollama.
+    let index = config
+        .semantic
+        .as_ref()
+        .map(|s| super::semantic::OllamaIndex::open(s, &config.state_dir))
+        .transpose()?
+        .map(Arc::new);
+    let host = match &index {
+        Some(index) => host.with_semantic(index.clone()),
+        None => host,
+    };
     let authority = Authority::new(oauth, ids, clock, State::default());
     // ADR-MEM-189: say once what is being served and until when it may read.
     let grant_end = config
@@ -369,6 +393,22 @@ pub fn serve(
     while !stop() {
         let now = clock.now_unix_ms();
         let (reader, permit_until) = config.reader(&host, &owner, now)?;
+        // ADR-MEM-229: embed new memories, forget removed ones, once per
+        // generation. A failure leaves recall lexical for what is missing.
+        if let Some(index) = &index {
+            match reader
+                .semantic_texts()
+                .map_err(|e| format!("{e:?}"))
+                .and_then(|texts| index.refresh(&texts))
+            {
+                Ok(0) => {}
+                Ok(n) => eprintln!("semantic index: embedded {n}, {} in cache", index.cached()),
+                Err(e) => eprintln!(
+                    "semantic index: {e}; {} vectors in cache, recall is lexical for the rest",
+                    index.cached()
+                ),
+            }
+        }
         // ADR-MEM-184: correction and forget requests, only for the connector
         // under a request-capable grant; otherwise the tools are not offered.
         let requests = match (&config.read_grant_id, &writer) {
