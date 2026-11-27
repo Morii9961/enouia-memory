@@ -248,7 +248,7 @@
     {
       "path": "contracts/next/agent-catalog-read-v2.schema.json",
       "role": "automation-contract",
-      "sha256": "731a7940d70cec2361712c7dde0cd6130f0404882e8cbbc8effdf043af928312"
+      "sha256": "b0b96e179b84b064d70ebdc1af5b4841239438351bf0c19ea1ac9d0c615ac448"
     },
     {
       "path": "contracts/next/agent-correction-mcp-v1.schema.json",
@@ -273,7 +273,7 @@
     {
       "path": "contracts/next/agent-initialized-read-v2.schema.json",
       "role": "automation-contract",
-      "sha256": "6da039ac9d9fdcee9a332ebd4e2103840e287e878a77f3836e3ffe883aae8844"
+      "sha256": "09e4b78894e7a618c711f1c444d81576707191f4a998b98f0bd8a4ae5da017c6"
     },
     {
       "path": "contracts/next/agent-note-mcp-v1.schema.json",
@@ -288,7 +288,7 @@
     {
       "path": "contracts/next/agent-qualified-read-v2.schema.json",
       "role": "automation-contract",
-      "sha256": "61737b494776a47efc16cacf93e60e5b533094165c0f848b2d155d2bda7195f1"
+      "sha256": "b77da2ee5405c8a092e78d73f9e23aa1353548a77f3cef703408dfb125747b04"
     },
     {
       "path": "contracts/next/agent-read-v2.schema.json",
@@ -388,7 +388,7 @@
     {
       "path": "contracts/next/read-model-v2.schema.json",
       "role": "automation-contract",
-      "sha256": "494c0af5362bf8b8976073d1de780c3cad2b8e92b2adbc7c957ca7b3800734b5"
+      "sha256": "d069d3fe66c72e9f1c92d8d049d9d880182843ba8f278109b9874232159a9697"
     },
     {
       "path": "contracts/next/runtime-capture-pipe-v2.schema.json",
@@ -508,7 +508,7 @@
     {
       "path": "crates/enouia-memory-contract/src/next/attention.rs",
       "role": "automation-contract",
-      "sha256": "9824d7ccda6c67218036216451593ff9a77edc4292e1396a437dfb8404558520"
+      "sha256": "f30852d12f2fca83d2b1cbd8b09b381a2ebd8ff7db2def03529957eff7c6e676"
     },
     {
       "path": "crates/enouia-memory-contract/src/next/catalog_read.rs",
@@ -1446,5 +1446,5 @@
       "sha256": "3603c1855d9f9ec9b3585143a0191508980b260b1ffd26c82b3e6f9b7223a75d"
     }
   ],
-  "aggregate": "70c8ea8671657580b0206a088f8e26c39ea8a926513dcfd45f1d5c3eb4505bc2"
+  "aggregate": "4849e775279e4af8f8b67083a25653cb3f1c1a051d4699c7ece94fbd9a1bce3f"
 }

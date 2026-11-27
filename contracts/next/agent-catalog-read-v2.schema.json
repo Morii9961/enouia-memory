@@ -452,7 +452,8 @@
                   "validity",
                   "archived",
                   "no_cue",
-                  "budget"
+                  "budget",
+                  "unsupported"
                 ]
               }
             ],
@@ -531,6 +532,11 @@
               "maximum": 65536
             },
             "budget": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 65536
+            },
+            "unsupported": {
               "type": "integer",
               "minimum": 1,
               "maximum": 65536
