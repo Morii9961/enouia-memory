@@ -40,6 +40,8 @@ impl AgentWriters<'_, '_> {
         }
         Ok(())
     }
+    /// Used by the Windows native pipe server only.
+    #[cfg(windows)]
     pub(crate) fn revoke(&self) {
         if let Some(w) = self.note {
             w.revoke();
