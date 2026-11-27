@@ -1060,3 +1060,182 @@ impl enouia_memory_host::automation::semantic::SemanticIndex for Unindexed {
         None
     }
 }
+
+/// A stand-in for a local Ollama: `/api/embed` gives the query text the unit
+/// vector and every memory text a near one, and records each text it saw.
+fn fake_ollama(query: &'static str) -> (std::net::SocketAddr, Arc<std::sync::Mutex<Vec<String>>>) {
+    use std::io::{BufRead, BufReader, Read, Write};
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let addr = listener.local_addr().unwrap();
+    let seen = Arc::new(std::sync::Mutex::new(Vec::new()));
+    let log = seen.clone();
+    std::thread::spawn(move || {
+        for stream in listener.incoming() {
+            let mut stream = stream.unwrap();
+            let mut reader = BufReader::new(stream.try_clone().unwrap());
+            let mut length = 0;
+            loop {
+                let mut line = String::new();
+                reader.read_line(&mut line).unwrap();
+                if let Some(v) = line.to_lowercase().strip_prefix("content-length:") {
+                    length = v.trim().parse().unwrap();
+                }
+                if line == "\r\n" {
+                    break;
+                }
+            }
+            let mut body = vec![0; length];
+            reader.read_exact(&mut body).unwrap();
+            let request: Value = serde_json::from_slice(&body).unwrap();
+            assert_eq!(request["model"], "bge-m3");
+            let rows: Vec<Value> = request["input"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|t| {
+                    let t = t.as_str().unwrap().to_owned();
+                    let row = if t == query {
+                        json!([1.0, 0.0])
+                    } else {
+                        json!([0.9, 0.436])
+                    };
+                    log.lock().unwrap().push(t);
+                    row
+                })
+                .collect();
+            let reply = json!({"model": "bge-m3", "embeddings": rows}).to_string();
+            write!(
+                stream,
+                "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\n\r\n{reply}",
+                reply.len()
+            )
+            .unwrap();
+        }
+    });
+    (addr, seen)
+}
+
+/// ADR-MEM-229: the connector's own index embeds, through a loopback Ollama,
+/// exactly the memories its Agent may read, keeps them in a cache file,
+/// forgets removed ones, and its vectors drive the Agent's recall.
+#[test]
+fn the_connector_index_embeds_what_its_agent_may_read() {
+    use enouia_memory_host::mcp::remote::semantic::{OllamaIndex, SemanticService};
+    let e = env();
+    let v = Arc::new(e.create(Faults::none()));
+    e.populate(&v, 8);
+    let state = e.path.join("connector-state");
+    std::fs::create_dir(&state).unwrap();
+    let words = "zzqx unrelated words";
+    let (addr, seen) = fake_ollama(words);
+    let service = SemanticService {
+        ollama: addr,
+        model: "bge-m3".into(),
+    };
+    // Memory text never leaves the machine.
+    assert!(
+        OllamaIndex::open(
+            &SemanticService {
+                ollama: "192.168.1.5:11434".parse().unwrap(),
+                model: "bge-m3".into(),
+            },
+            &state,
+        )
+        .is_err()
+    );
+    let index = Arc::new(OllamaIndex::open(&service, &state).unwrap());
+    let h =
+        QualifiedAgentHost::from_authenticated_owner(v.clone(), e.descriptor.created_by.clone())
+            .unwrap()
+            .with_semantic(index.clone());
+    let reader = |sources: &[u32]| {
+        h.reader(
+            &e.descriptor.created_by,
+            agent(77),
+            scope(&e, sources, false),
+        )
+        .unwrap()
+    };
+    let narrow = reader(&[1]);
+    let texts = narrow.semantic_texts().unwrap();
+    assert!(!texts.is_empty());
+    assert_eq!(index.refresh(&texts).unwrap(), texts.len());
+    let mut sent = seen.lock().unwrap().clone();
+    sent.sort();
+    let mut wanted: Vec<_> = texts.iter().map(|(_, t)| t.clone()).collect();
+    wanted.sort();
+    assert_eq!(sent, wanted);
+    // A wider scope embeds only what is new; the cache file survives a reopen.
+    let wide = reader(&[1, 2]);
+    let all = wide.semantic_texts().unwrap();
+    assert!(all.len() > texts.len());
+    assert_eq!(index.refresh(&all).unwrap(), all.len() - texts.len());
+    let reopened = OllamaIndex::open(&service, &state).unwrap();
+    assert_eq!(reopened.cached(), all.len());
+    let before = seen.lock().unwrap().len();
+    assert_eq!(reopened.refresh(&all).unwrap(), 0);
+    assert_eq!(seen.lock().unwrap().len(), before);
+    // The vectors cue the Agent's recall, which words alone do not.
+    let mut q = query();
+    q.text = words.into();
+    q.intent = RecallIntent::Current;
+    let result = wide.recall(&profile(), &q, request(9)).unwrap();
+    let selected = result["trace"]["selected"].as_array().unwrap();
+    assert!(!selected.is_empty(), "{result}");
+    assert!(
+        selected
+            .iter()
+            .all(|s| s["reasons"].to_string().contains("semantic"))
+    );
+    // `related` now offers semantic neighbors and says so.
+    let first: MemoryId =
+        serde_json::from_value(selected[0]["memory"]["memory_id"].clone()).unwrap();
+    let related = wide
+        .related(&profile(), &first, None, 262_144)
+        .unwrap()
+        .unwrap();
+    assert_eq!(related["unavailable"], json!(["same_conversation"]));
+    // Back to the narrow scope: the other vectors are dropped from the file.
+    assert_eq!(index.refresh(&texts).unwrap(), 0);
+    assert_eq!(
+        OllamaIndex::open(&service, &state).unwrap().cached(),
+        texts.len()
+    );
+    // No Ollama: the refresh fails, the cache stays, recall falls back.
+    let gone = OllamaIndex::open(
+        &SemanticService {
+            ollama: "127.0.0.1:9".parse().unwrap(),
+            model: "bge-m3".into(),
+        },
+        &state,
+    )
+    .unwrap();
+    assert!(gone.refresh(&all).is_err());
+    assert_eq!(gone.cached(), texts.len());
+}
+
+/// ADR-MEM-229 against a real local Ollama with bge-m3 (synthetic text only).
+#[test]
+#[ignore = "needs a local Ollama with bge-m3 on 127.0.0.1:11434"]
+fn a_local_ollama_answers_the_connector_index() {
+    use enouia_memory_host::automation::semantic::SemanticIndex;
+    use enouia_memory_host::mcp::remote::semantic::{OllamaIndex, SemanticService};
+    let e = env();
+    let state = e.path.join("connector-state");
+    std::fs::create_dir(&state).unwrap();
+    let index = OllamaIndex::open(
+        &SemanticService {
+            ollama: "127.0.0.1:11434".parse().unwrap(),
+            model: "bge-m3".into(),
+        },
+        &state,
+    )
+    .unwrap();
+    let tea = index.query("我喜欢喝绿茶").unwrap();
+    let green = index.query("绿茶是我常喝的饮料").unwrap();
+    let rain = index.query("明天下大雨，记得带伞").unwrap();
+    assert_eq!(tea.values.len(), 1024);
+    let near = semantic_milli(&tea, &green).unwrap();
+    let far = semantic_milli(&tea, &rain).unwrap();
+    assert!(near > far, "{near} {far}");
+}

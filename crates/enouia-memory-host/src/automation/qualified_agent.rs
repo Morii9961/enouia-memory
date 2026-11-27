@@ -1103,6 +1103,8 @@ impl QualifiedAgentReader<'_> {
                 for c in &mut relations.coverage {
                     c.retained = relations.edges.iter().filter(|e| e.relation == c.relation).count() as u64;
                 }
+                // ADR-MEM-229: with an index, semantic neighbors are offered.
+                let semantic = relations.coverage.iter().any(|c| c.relation == GraphEdgeKind::SemanticNeighbor);
                 let recorded: Vec<_> = relations.edges.iter().filter(|e| e.class == GraphEdgeClass::RecordedRelation).collect();
                 let suggested: Vec<_> = relations.edges.iter().filter(|e| e.class == GraphEdgeClass::AlgorithmSuggestion).collect();
                 let result = json!({"capability":self.capability(),"scope_hash":self.scope_hash(),
@@ -1111,11 +1113,39 @@ impl QualifiedAgentReader<'_> {
                     "recorded_edges":recorded,"suggested_edges":suggested,
                     "edge_coverage":relations.coverage,
                     "coverage_scope":"supported_authorized_current_relations",
-                    "unavailable":["same_conversation","semantic_neighbors"],
+                    "unavailable":if semantic { json!(["same_conversation"]) } else { json!(["same_conversation","semantic_neighbors"]) },
                     "complete_in_scope":relations.coverage.iter().all(|c| c.candidates==c.retained)});
                 if encoded(&result)? <= max_bytes { return Ok(Some(result)); }
                 relations.edges.pop().ok_or(ApplicationFault::Vault(AutomationFault::Capacity))?;
             }
+        })
+    }
+
+    /// ADR-MEM-229: the text of each memory this reader may read, for a
+    /// local semantic index; the same text as the System reader's
+    /// `semantic_texts`. Nothing outside the Agent's scope is returned.
+    pub fn semantic_texts(&self) -> ApplicationResult<Vec<(TargetRef, String)>> {
+        self.read(None, |data| {
+            Ok(data
+                .current
+                .memories
+                .iter()
+                .map(|m| {
+                    let input = &m.memory.decision.input;
+                    let title = input
+                        .record_fields
+                        .as_ref()
+                        .map_or("", |f| f.title.as_str());
+                    (
+                        m.target.clone(),
+                        format!(
+                            "{}
+{}",
+                            input.content, title
+                        ),
+                    )
+                })
+                .collect())
         })
     }
 

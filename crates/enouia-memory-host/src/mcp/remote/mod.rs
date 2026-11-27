@@ -8,6 +8,7 @@ pub mod chatgpt;
 pub mod connector;
 pub mod http1;
 pub mod oauth;
+pub mod semantic;
 pub mod service;
 use enouia_memory_contract::ports::IdSource;
 use serde_json::{Value, json};

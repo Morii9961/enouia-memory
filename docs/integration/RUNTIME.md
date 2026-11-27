@@ -1,5 +1,12 @@
 # Runtime integration (ADR-MEM-45)
 
+2026-11-27 connector semantic index ([ADR-MEM-229](../adr/229-connector-semantic-index.md)): new
+`QualifiedAgentReader::semantic_texts()` (the Agent's own memories, same text as the System reader's); the remote
+service's optional `semantic` block uses a loopback Ollama with its own cache. The Agent's `related` reports
+`unavailable: ["same_conversation"]` when an index lists semantic neighbors; the qualified and initialized read
+schemas allow it. **Runtime adoption:** bump the pin; nothing to change unless Runtime checks `unavailable` as a
+constant. Surface aggregate: `28e65cd992c0862377d75e6b6beb01df5fd977265f4d779ddfe16b4323a946bf`.
+
 2026-11-27 semantic support floor ([ADR-MEM-228](../adr/228-semantic-support-floor.md)), accepted after Runtime's check: when the top
 `limit` candidates hold one with both `lexical` and `semantic`, every candidate without `semantic` scoring below the
 lowest such score is left out with the new exclusion reason `unsupported` (listed after `budget`; also in
