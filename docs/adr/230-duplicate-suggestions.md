@@ -54,3 +54,22 @@ memories. Without vectors only the near-verbatim Chinese pair is suggested
 the same is paired with both, the both-reason pair leads, and a weather
 note and a one-character memory are not suggested; with `semantic: false`
 the vectors are ignored; deleting one copy removes the suggestion.
+
+## Runtime's real-library check (2026-11-27, bcaa77b)
+
+Read-only on the real library (351 memories, vectors ready 351/351):
+
+- `total_pairs` 0 with and without `semantic`, `complete_in_scope` true,
+  about 120 ms.
+- Over all 61,425 pairs: the highest cosine was 831 (16 pairs at or above
+  800, none at or above 850); the highest wording Jaccard was 188.
+- Runtime judged the twelve closest semantic pairs: 11 unrelated as
+  duplicates (the same topic at different times: two sleep records, a
+  midterm and a final, two migrations) and one partly related (a decision
+  and its sign-up details on the same day). None was a duplicate.
+- So the library has no duplicates yet and neither threshold raised a false
+  one. The wording signal catches only near-verbatim copies; long contents
+  share few character pairs. Runtime does not show the list until there is
+  something in it.
+- A `limit` outside 1–100 fails with the generic `Invalid`, as every catalog
+  read does.
