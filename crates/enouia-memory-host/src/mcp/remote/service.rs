@@ -446,6 +446,11 @@ pub fn serve(
                     Some(end) => session.with_grant_end(end.clone()),
                     None => session,
                 };
+                let session = if index.is_some() {
+                    session.with_semantic()
+                } else {
+                    session
+                };
                 match &requests {
                     Some((correction, forget)) => {
                         session.with_requests(RequestFilers { correction, forget })

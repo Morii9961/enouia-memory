@@ -1,5 +1,10 @@
 # Runtime integration (ADR-MEM-45)
 
+2026-11-27 connector tool wording follows the index ([ADR-MEM-229](../adr/229-connector-semantic-index.md)):
+`ConnectorSession::with_semantic()`; with a `semantic` block ChatGPT's `memory_recall` and `memory_related`
+descriptions say they also match meaning. Remote-only. **Runtime adoption:** bump the pin; nothing to change.
+Surface aggregate: `61675210a40ab8b8d37a041c63651d82c49a3c6d314742dbecdb6cd61009998a`.
+
 2026-11-27 duplicate suggestions ([ADR-MEM-230](../adr/230-duplicate-suggestions.md)): new read-only
 `SegmentedMemoryReader::memory_duplicate_suggestions_native(request, &DuplicateQuery { semantic })` returns
 `MemoryDuplicateSuggestions` (`automation::catalog::duplicates`): pairs `earlier`/`later` (target, title, capture time)

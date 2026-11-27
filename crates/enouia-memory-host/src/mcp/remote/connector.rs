@@ -68,6 +68,8 @@ pub struct ConnectorSession<'w, S: Session> {
     profile: &'w AttentionProfile,
     requests: Option<RequestFilers<'w>>,
     grant_end: Option<Timestamp>,
+    /// ADR-MEM-229: the service has a semantic index.
+    semantic: bool,
     initialized: bool,
     ready: bool,
     original: Option<Value>,
@@ -93,6 +95,7 @@ impl<'w, S: Session> ConnectorSession<'w, S> {
             profile,
             requests: None,
             grant_end: None,
+            semantic: false,
             initialized: false,
             ready: false,
             original: None,
@@ -109,6 +112,11 @@ impl<'w, S: Session> ConnectorSession<'w, S> {
     }
     /// ADR-MEM-190: the read grant's end. In its last `GRANT_NOTICE_MS`,
     /// every tool result carries a `grant_notice` for ChatGPT to relay.
+    /// ADR-MEM-229: describe recall and related as matching meaning too.
+    pub fn with_semantic(mut self) -> Self {
+        self.semantic = true;
+        self
+    }
     pub fn with_grant_end(mut self, end: Timestamp) -> Self {
         self.grant_end = Some(end);
         self
@@ -422,7 +430,7 @@ impl<S: Session> ConnectorSession<'_, S> {
                     if let Some(schema) = chatgpt::short_schema(&name) {
                         tool["inputSchema"] = schema;
                     }
-                    if let Some(description) = chatgpt::short_description(&name) {
+                    if let Some(description) = chatgpt::short_description(&name, self.semantic) {
                         tool["description"] = json!(description);
                     }
                 }

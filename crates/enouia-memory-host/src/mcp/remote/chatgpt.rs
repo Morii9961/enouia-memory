@@ -39,8 +39,16 @@ fn filter_enum(field: &str) -> Value {
 /// ADR-MEM-180: what each read tool is for, worded for ChatGPT. The honesty
 /// notes stay: memories are Morii's statements or inferences, suggestions
 /// are not facts, and reads change nothing.
-pub fn short_description(tool: &str) -> Option<&'static str> {
+/// ADR-MEM-229: with a semantic index, recall and related also go by
+/// meaning, and the wording says so.
+pub fn short_description(tool: &str, semantic: bool) -> Option<&'static str> {
     Some(match tool {
+        "memory_recall" if semantic => {
+            "Find the memories most relevant to a question or topic (`text`, a plain sentence in any language), ranked by relevance and attention. Recall matches words and, when the local model is running, meaning; a few related words after the question still help (for 我第一次喝酒是什么时候: 首次 饮酒 啤酒). Use it before answering anything about Morii's life, preferences, people or plans. Memories record what Morii said or what was inferred, not verified facts."
+        }
+        "memory_related" if semantic => {
+            "List memories linked to one memory: lineage, shared entities and themes, and term-overlap, same-name or similar-meaning suggestions. Suggestions are not facts."
+        }
         "session_start" => {
             "Call at the start of a conversation: a short, bounded set of Morii's current memories to orient yourself. Optional `topic`. Reads only."
         }

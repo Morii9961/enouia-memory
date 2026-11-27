@@ -40,6 +40,10 @@ the readers and the contract, not for this one service option.
 - **Related.** With an index, the Agent's `related` lists semantic
   neighbors (ADR-MEM-220) and its `unavailable` is `["same_conversation"]`;
   the qualified and initialized read schemas allow both values.
+- **Tool wording.** With an index, ChatGPT's `memory_recall` description
+  says recall matches words and, when the local model is running, meaning
+  (related words still help), and `memory_related` lists similar-meaning
+  suggestions. Without one, the wording stays "words, not meanings".
 - **Readiness.** `read-check` reports `semantic`: the address, the model,
   whether the model answers (`reachable`) and how many vectors are cached.
 - The HTTP client is a minimal HTTP/1.1 POST over a loopback `TcpStream`.
@@ -58,4 +62,5 @@ the readers and the contract, not for this one service option.
   machine against bge-m3 with synthetic sentences): 1024 dimensions, and a
   sentence about green tea is closer to another about green tea than to
   one about rain.
+- `tool_descriptions_say_whether_recall_matches_meaning` (connector).
 - Remote service, OAuth, HTTP and connector tests are unchanged.
