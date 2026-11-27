@@ -1378,3 +1378,9 @@ not read four memories (`Invalid`).
 [Decision](225-segmented-query-words.md): the host passes jieba's words of the query (`RecallExtras::words`); a
 two-character piece equal to one is a word even when a character is common elsewhere (大学 where 学 mostly means 学习).
 Runtime's real-library check: 大学 questions fixed, nothing worse.
+
+### ADR-MEM-226 — Owner outcomes for entity identity and capsules pass their own check
+
+[Decision](226-identity-and-capsule-outcomes.md): the `NativeOwnerOutcome` check accepts `entity_identity` and
+`capsule`, which the schema already allowed; before, a successful identity confirmation or capsule save returned an
+outcome that failed `validate()`.

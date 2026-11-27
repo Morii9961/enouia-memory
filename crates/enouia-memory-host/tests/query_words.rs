@@ -157,7 +157,12 @@ fn a_segmented_word_is_not_a_chance_pairing() {
     ];
     // 大 is common too (大家, 大雨), and one rare character of the question
     // (的, in one memory, never as 我的) sets the bar for characters, as on the real library.
-    let big = ["和大家一起吃饭", "大雨天在家休息", "风很大，早点回家", "大家都在忙"];
+    let big = [
+        "和大家一起吃饭",
+        "大雨天在家休息",
+        "风很大，早点回家",
+        "大家都在忙",
+    ];
     let mut more: Vec<&str> = (0..24).map(|n| study[n % study.len()]).collect();
     more.extend((0..24).map(|n| big[n % big.len()]));
     more.push("好的，明天见");
