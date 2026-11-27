@@ -315,11 +315,11 @@ v1.3：当前目标是云端主库的本地副本与离线候选，不允许双�
 - **语义近邻建议边。** 目前图投影只有同对话边，`graph` 把语义建议边标为 unavailable。要给 System 只读读者和 Agent 读者补上有界、可解释的近邻建议，标明是建议、不是事实边，并经过撤回和删除过滤。
 - **由时间推出的淡出与归档事件。** 在形成活动流和变更游标里，按注意力档案和时间推导记忆进入淡出或归档的事件。这些事件只读、可重算，不写入新的记忆版本。**已由 [ADR-MEM-164](../adr/164-attention-schedule-and-review-suggestions.md) 交付**，作为独立的只读投影，不混进活动流（活动流只放有提交证明的条目）。
 - **回看建议（Runtime G24）。** 按时间和注意力状态，给出建议回看的记忆和理由，作为 System 只读投影提供。是否回看、回看后要不要纠正，仍由 Morii 决定。**已由 ADR-MEM-164 交付。**
-- 语义近邻建议边目前只有词面近邻（[ADR-MEM-162](../adr/162-lexical-neighbor-suggestions.md)、167）。真正的语义近邻需要本地模型，Morii 2026-11-24 决定暂不做。
+- 语义近邻建议边：先有词面近邻（[ADR-MEM-162](../adr/162-lexical-neighbor-suggestions.md)、167）。Morii 2026-11-24 曾决定暂不做模型近邻，2026-11-26 改为要完整混合召回：Runtime 用本地 bge-m3 向量实现 `SemanticIndex`，召回、Agent 的 `related` 和 System 图都已接上（[ADR-MEM-220](../adr/220-semantic-vector-layer.md)～[223](../adr/223-semantic-graph-neighbors.md)），Runtime 已在真实库上采用。
 
 每项都要有 ADR、合成验证和 Runtime 采用说明；合并后通知 Runtime 升 pin。
 
-- 本地 embeddings：只有 FTS golden 显示实际漏召回且资源可承担时再做；记录质量、延迟、磁盘与删除效果。
+- 本地 embeddings：已随上一项在 Runtime 本机交付（向量由 Runtime 持有，Memory 只定义接口和打分）。ChatGPT 连接器（`enouia-memory-remote`）目前不带向量，只用词面和分词召回；要给它接向量，等 Morii 提出再做。
 - 智能整理：允许建议去重、过期复核、候选合并；不允许自动改身份或绕过 audit。
 - 附件 OCR/语音转录：单独授权和来源定位，不因加入模型就扩大原件外发。
 - 存储优化：增量目录、GC、压缩、审计 checkpoint；必须保留提交/恢复语义和独立备份。
