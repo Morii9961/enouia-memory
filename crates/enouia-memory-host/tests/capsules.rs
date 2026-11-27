@@ -17,7 +17,14 @@ fn execute(h: &NativeMemoryOwner, p: NativeOwnerPreview) {
             TrustedSurface::TrustedWindowsApp,
         )
         .unwrap();
-    h.commit(t).unwrap();
+    let outcome = h.commit(t).unwrap();
+    // ADR-MEM-226: the outcome passes its own native check, also on replay.
+    assert!(outcome.validate().is_empty(), "{}", outcome.action);
+    let replayed = h
+        .outcome(&p.plan.operation_id, Sensitivity::Private)
+        .unwrap()
+        .unwrap();
+    assert_eq!(replayed, outcome);
 }
 
 #[test]

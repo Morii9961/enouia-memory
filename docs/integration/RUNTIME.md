@@ -1,5 +1,12 @@
 # Runtime integration (ADR-MEM-45)
 
+2026-11-27 owner outcomes for identity and capsules ([ADR-MEM-226](../adr/226-identity-and-capsule-outcomes.md)),
+a fix: `NativeOwnerOutcome`'s native check accepts `entity_identity` and `capsule`, which the schema already allowed.
+Before, the outcome of a successful identity confirmation or capsule save (and its recovery through `outcome`) failed
+`validate()`; the commit itself was not affected. No format change. **Runtime adoption:** bump the pin; if Runtime
+treated such an outcome as an error, it now reads it as success. Surface aggregate:
+`d28c992834377186e512e0eddeae5fd122f3fcc7b67aea1275a7adcd69c89184`.
+
 2026-11-27 segmented query words ([ADR-MEM-225](../adr/225-segmented-query-words.md)), accepted after Runtime's check: the host
 passes jieba's words of the query (`query_words::query_words`) as the new `RecallExtras::words`; a two-character piece
 equal to one is a word even when one of its characters is common elsewhere (大学 where 学 mostly means 学习).

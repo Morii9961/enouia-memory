@@ -81,6 +81,8 @@ impl NextDocument for NativeOwnerOutcome {
                 "entity_merge",
                 "entity_split",
                 "tag",
+                "entity_identity",
+                "capsule",
             ]
             .contains(&self.action.as_str())
         {
