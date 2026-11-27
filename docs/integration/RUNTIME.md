@@ -1,5 +1,12 @@
 # Runtime integration (ADR-MEM-45)
 
+2026-11-27 near misses first in the recall trace ([ADR-MEM-227](../adr/227-trace-near-misses-first.md)): the
+selector lists `budget` exclusions (had a cue, did not fit) first in rank order, then the filtered ones, so the
+128 entries a host returns show what just missed the top results. Selection is unchanged. `trace_coverage`
+(`excluded_in_scope`, `excluded_returned`, `complete`, `reason_counts`) is a top-level field of `recall_preview` and
+of the Agent's `memory_recall`, next to `trace`, not inside it. **Runtime adoption:** bump the pin; no real-library
+comparison needed. Surface aggregate: `70c8ea8671657580b0206a088f8e26c39ea8a926513dcfd45f1d5c3eb4505bc2`.
+
 2026-11-27 owner outcomes for identity and capsules ([ADR-MEM-226](../adr/226-identity-and-capsule-outcomes.md)),
 a fix: `NativeOwnerOutcome`'s native check accepts `entity_identity` and `capsule`, which the schema already allowed.
 Before, the outcome of a successful identity confirmation or capsule save (and its recovery through `outcome`) failed
