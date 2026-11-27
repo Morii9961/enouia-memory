@@ -221,7 +221,89 @@ fn identical_names_link_as_suggestions_until_morii_confirms_or_separates() {
         }
         page
     };
+    // ADR-MEM-224: ChatGPT reads through the qualified Agent. Its list,
+    // read, related and recall succeed on every memory before and after
+    // Morii's identity decisions, with source text included.
+    let agent_reads = || {
+        use enouia_memory_host::automation::qualified_agent::QualifiedAgentHost;
+        use enouia_memory_vault::automation::segmented::SegmentedAgentScope;
+        let windows = v.capture_windows(owner).unwrap();
+        let sources: Vec<SourceId> = v
+            .read(&e.descriptor.system_actor, Sensitivity::Private, |d| {
+                d.sources.keys().cloned().collect()
+            })
+            .unwrap();
+        let agents =
+            QualifiedAgentHost::from_authenticated_owner(v.clone(), owner.clone()).unwrap();
+        let reader = agents
+            .reader(
+                owner,
+                ActorRef {
+                    actor_type: ActorType::Agent,
+                    actor_id: PrincipalId::parse(&id("prn", 78)).unwrap(),
+                },
+                SegmentedAgentScope {
+                    subject_id: windows[0].policy.subject_id.clone(),
+                    project_id: None,
+                    policy_ids: windows.iter().map(|w| w.policy.policy_id.clone()).collect(),
+                    source_ids: sources,
+                    max_sensitivity: Sensitivity::Private,
+                    source_read: true,
+                    valid_until: enouia_memory_contract::time::Timestamp::from_unix_ms(
+                        NOW + 120_000,
+                    )
+                    .unwrap(),
+                },
+            )
+            .unwrap();
+        let page = reader
+            .page(
+                &profile,
+                &CatalogFilter::default(),
+                None,
+                10,
+                262_144,
+                false,
+            )
+            .unwrap();
+        assert_eq!(page.items.len(), 3);
+        for item in &page.items {
+            let id = &item.base.base.memory.memory_id;
+            assert!(
+                reader
+                    .detail(&profile, id, None, true, 262_144)
+                    .unwrap()
+                    .is_some()
+            );
+            assert!(
+                reader
+                    .related(&profile, id, None, 262_144)
+                    .unwrap()
+                    .is_some()
+            );
+        }
+        let recalled = reader
+            .recall(
+                &profile,
+                &RecallQuery {
+                    text: "Lin".into(),
+                    conditions: vec![],
+                    event_window: None,
+                    at: enouia_memory_contract::time::Timestamp::from_unix_ms(NOW).unwrap(),
+                    intent: RecallIntent::Current,
+                    limit: 8,
+                    max_bytes: 16_384,
+                },
+                RequestId::parse(&id("req", 1)).unwrap(),
+            )
+            .unwrap();
+        assert!(
+            !recalled["trace"]["selected"].as_array().unwrap().is_empty(),
+            "{recalled}"
+        );
+    };
     reads();
+    agent_reads();
     // An Agent reader scoped to both windows sees the same suggestion in
     // `related`, anchored on the first "Lin" memory.
     {
@@ -348,6 +430,7 @@ fn identical_names_link_as_suggestions_until_morii_confirms_or_separates() {
         )
         .unwrap(),
     );
+    agent_reads();
     let page = reads();
     assert!(page.items.iter().any(|item| {
         item.entities.iter().any(|e| {
@@ -397,6 +480,7 @@ fn identical_names_link_as_suggestions_until_morii_confirms_or_separates() {
         )]
     );
     reads();
+    agent_reads();
     let groups = identities();
     assert_eq!(groups.groups[0].basis, IdentityBasis::Confirmed);
     assert_eq!(groups.groups[0].records.len(), 2);
