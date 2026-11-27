@@ -128,6 +128,9 @@ pub enum RecallExclusionReason {
     Archived,
     NoCue,
     Budget,
+    /// ADR-MEM-228: matched only by words and below the weakest of the top
+    /// results that words and meaning both support.
+    Unsupported,
 }
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -721,6 +724,23 @@ fn select_with_limit(
             .then_with(|| a.memory.memory_id.cmp(&b.memory.memory_id))
             .then_with(|| b.memory.revision.cmp(&a.memory.revision))
     });
+    // ADR-MEM-228: on Runtime's real library no memory that words and
+    // meaning both supported was unrelated, while most memories matched by
+    // words alone below the weakest such memory were. When the top results
+    // hold one, a words-only memory scoring below it is left out. Without
+    // vectors, or with meaning alone, nothing changes.
+    let both = |s: &RecallSelection| {
+        s.reasons.contains(&RecallReason::Lexical) && s.reasons.contains(&RecallReason::Semantic)
+    };
+    let floor = ranked
+        .iter()
+        .take(query.limit)
+        .filter(|(s, _)| both(s))
+        .map(|(s, _)| s.score)
+        .min();
+    let (ranked, unsupported): (Vec<_>, Vec<_>) = ranked.into_iter().partition(|(s, _)| {
+        floor.is_none_or(|floor| s.reasons.contains(&RecallReason::Semantic) || s.score >= floor)
+    });
     for (selection, bytes) in ranked {
         let bytes = bytes.saturating_add(usize::from(!trace.selected.is_empty()));
         if trace.selected.len() >= query.limit
@@ -740,6 +760,11 @@ fn select_with_limit(
     // ADR-MEM-227: the memories that had a cue but did not fit come first,
     // best first, so a bounded trace shows the near misses before the
     // memories nothing in the query pointed to.
+    trace.excluded.extend(
+        unsupported
+            .into_iter()
+            .map(|(s, _)| (s.memory, RecallExclusionReason::Unsupported)),
+    );
     trace.excluded.extend(filtered);
     Ok(trace)
 }

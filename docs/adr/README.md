@@ -1390,3 +1390,9 @@ outcome that failed `validate()`.
 [Decision](227-trace-near-misses-first.md): `trace.excluded` lists the memories that had a cue but did not fit
 (`budget`) first, in rank order, then the filtered ones; on the real library the first 128 entries were nearly all
 `no_cue`. `trace_coverage` stays a top-level field next to `trace`.
+
+### ADR-MEM-228 — Words alone below a supported result are left out
+
+[Decision](228-semantic-support-floor.md): when the top results hold a memory matched by words and
+meaning, a words-only memory scoring below the weakest such one is left out as `unsupported`. On Runtime's real
+library words-and-meaning matches were never unrelated; words-only ones below them mostly were. Runtime's comparison: 18 left out (14 N, 4 P), no related lost.

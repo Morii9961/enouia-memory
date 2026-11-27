@@ -749,3 +749,79 @@ fn a_bounded_trace_lists_the_near_misses_first() {
     assert!(ids.windows(2).all(|w| w[0] < w[1]));
     assert!(trace.selected.last().unwrap().memory.memory_id < *ids[0]);
 }
+/// ADR-MEM-228: below the weakest top result that words and meaning both
+/// support, a memory matched by words alone is left out.
+#[test]
+fn words_alone_below_a_supported_result_are_left_out() {
+    let memories = with_filler(
+        &["我去京都旅行了", "京都的朋友寄来明信片", "第一次去关西"],
+        30,
+    );
+    let p = profile();
+    let q = query("京都");
+    let snapshot = memories[0].request.snapshot.clone();
+    let candidates: Vec<_> = memories
+        .iter()
+        .map(|m| RecallCandidate {
+            memory: m,
+            source_time: q.at.clone(),
+            rendered_bytes: 100,
+        })
+        .collect();
+    let at = |x: f32| SemanticVector::from_f32("bge-m3", &[x, (1.0 - x * x).sqrt()]).unwrap();
+    let query_vector = at(1.0);
+    let close = at(0.85);
+    let background: Vec<SemanticVector> =
+        (0..30).map(|n| at(0.2 + (n % 7) as f32 * 0.03)).collect();
+    let run = |first: Option<&SemanticVector>| {
+        let mut vectors: Vec<Option<&SemanticVector>> = vec![first, None, Some(&close)];
+        vectors.extend(background.iter().map(Some));
+        select_semantic_recall(
+            &p,
+            &q,
+            &snapshot,
+            &q.at,
+            &candidates,
+            None,
+            SemanticInput {
+                query: &query_vector,
+                candidates: &vectors,
+            },
+        )
+        .unwrap()
+    };
+    let id = |n: usize| memories[n].memory.memory_id.clone();
+    let selected = |t: &RecallTrace| {
+        t.selected
+            .iter()
+            .map(|s| s.memory.memory_id.clone())
+            .collect::<Vec<_>>()
+    };
+    // Words and meaning support 0; 1 has the word only and scores below it.
+    let with = run(Some(&close));
+    assert!(
+        with.selected[0].reasons.contains(&RecallReason::Semantic),
+        "{with:?}"
+    );
+    assert_eq!(with.selected[0].memory.memory_id, id(0));
+    assert!(selected(&with).contains(&id(2)), "meaning alone is kept");
+    assert!(!selected(&with).contains(&id(1)));
+    assert!(
+        with.excluded
+            .iter()
+            .any(|(m, r)| m.memory_id == id(1) && *r == RecallExclusionReason::Unsupported)
+    );
+    // Meaning alone sets no floor: the word-only memory stays.
+    let meaning_only = run(None);
+    assert!(selected(&meaning_only).contains(&id(1)), "{meaning_only:?}");
+    assert!(selected(&meaning_only).contains(&id(2)));
+    // Without vectors nothing changes.
+    let lexical = select_catalog_recall(&p, &q, &snapshot, &q.at, &candidates).unwrap();
+    assert!(selected(&lexical).contains(&id(1)));
+    assert!(
+        lexical
+            .excluded
+            .iter()
+            .all(|(_, r)| *r != RecallExclusionReason::Unsupported)
+    );
+}

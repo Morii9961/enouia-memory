@@ -1,5 +1,13 @@
 # Runtime integration (ADR-MEM-45)
 
+2026-11-27 semantic support floor ([ADR-MEM-228](../adr/228-semantic-support-floor.md)), accepted after Runtime's check: when the top
+`limit` candidates hold one with both `lexical` and `semantic`, every candidate without `semantic` scoring below the
+lowest such score is left out with the new exclusion reason `unsupported` (listed after `budget`; also in
+`reason_counts`). A recall may now return fewer than `limit`. Without vectors nothing changes. **Runtime adoption:**
+bump the pin (Runtime's comparison: 18 unrelated or partly related memories left out, no related lost) and label
+`unsupported` wherever exclusion reasons are shown. Surface aggregate:
+`4849e775279e4af8f8b67083a25653cb3f1c1a051d4699c7ece94fbd9a1bce3f`.
+
 2026-11-27 near misses first in the recall trace ([ADR-MEM-227](../adr/227-trace-near-misses-first.md)): the
 selector lists `budget` exclusions (had a cue, did not fit) first in rank order, then the filtered ones, so the
 128 entries a host returns show what just missed the top results. Selection is unchanged. `trace_coverage`
