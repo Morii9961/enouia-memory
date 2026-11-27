@@ -354,6 +354,21 @@ impl Session for RecallStub {
     }
 }
 
+/// ADR-MEM-231: the write tool tells ChatGPT to leave study and work chats
+/// out, while keeping what Morii says about them in an everyday chat.
+#[test]
+fn submit_tool_leaves_out_study_and_work_chats() {
+    let about = tool()["description"].as_str().unwrap().to_owned();
+    for phrase in [
+        "Submit only Morii's everyday chats with Enouia",
+        "for study",
+        "for work",
+        "still counts",
+    ] {
+        assert!(about.contains(phrase), "{phrase}: {about}");
+    }
+}
+
 /// ADR-MEM-229: with a semantic index ChatGPT is told that recall and
 /// related go by meaning too; without one, that recall matches words only.
 #[test]
