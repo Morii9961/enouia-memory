@@ -1408,3 +1408,9 @@ drops removed ones, so the connector's recall and `related` use meaning as Runti
 [Decision](230-duplicate-suggestions.md): a read-only System projection pairs memories that share most of their
 wording or that the local model finds nearly identical (cosine ≥ 0.9), leaving out revision lineage; Morii resolves
 them with existing Owner actions.
+
+### ADR-MEM-231 — The connector leaves study and work chats out
+
+[Decision](231-connector-skips-study-and-work-chats.md): at Morii's request the write tool tells ChatGPT to submit only
+his everyday chats with Enouia, never chats opened for study or work; what he says about his studies or work inside an
+everyday chat still counts. Tool text and guide only; no classifier, no format change.

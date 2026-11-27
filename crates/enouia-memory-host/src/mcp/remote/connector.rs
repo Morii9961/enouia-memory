@@ -268,7 +268,8 @@ pub fn tool() -> Value {
     json!({
         "name": TOOL,
         "title": "Submit a conversation and its distilled memories",
-        "description": "Send the raw turns of this conversation (1-8 per call) together with the memories you distilled from Morii's own words. Each memory must quote a user turn of the same call literally. Memory validates and stores; set preflight to check without writing. Resubmitting the same request_id replays.",
+        // ADR-MEM-231: Morii keeps study and work chats out of his memory.
+        "description": "Send the raw turns of this conversation (1-8 per call) together with the memories you distilled from Morii's own words. Submit only Morii's everyday chats with Enouia. Never submit a chat he opened for study (explaining problems, homework, course material) or for work (coding, tool setup, project tasks), not even its turns; inside an everyday chat, what he says about his own studies or work (an exam, a result, how he felt) still counts. Each memory must quote a user turn of the same call literally. Memory validates and stores; set preflight to check without writing. Resubmitting the same request_id replays.",
         "inputSchema": {
             "type": "object",
             "required": ["submission"],
