@@ -1384,3 +1384,9 @@ Runtime's real-library check: 大学 questions fixed, nothing worse.
 [Decision](226-identity-and-capsule-outcomes.md): the `NativeOwnerOutcome` check accepts `entity_identity` and
 `capsule`, which the schema already allowed; before, a successful identity confirmation or capsule save returned an
 outcome that failed `validate()`.
+
+### ADR-MEM-227 — A bounded recall trace lists the near misses first
+
+[Decision](227-trace-near-misses-first.md): `trace.excluded` lists the memories that had a cue but did not fit
+(`budget`) first, in rank order, then the filtered ones; on the real library the first 128 entries were nearly all
+`no_cue`. `trace_coverage` stays a top-level field next to `trace`.

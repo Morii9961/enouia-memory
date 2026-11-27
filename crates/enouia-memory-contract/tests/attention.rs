@@ -707,3 +707,45 @@ fn recall_cues_the_memory_that_stands_out() {
         .collect();
     assert_eq!(ids, vec![memories[7].memory.memory_id.clone()], "{trace:?}");
 }
+#[test]
+fn a_bounded_trace_lists_the_near_misses_first() {
+    // ADR-MEM-227: twelve memories name 茶, eight fit; the four that had a
+    // cue but did not fit come before the twenty nothing pointed to.
+    let mut texts: Vec<&'static str> = vec!["我喜欢喝茶"; 12];
+    texts.extend(FILLER.iter().cycle().take(20));
+    let memories = library(&texts);
+    let p = profile();
+    let q = query("茶");
+    let candidates: Vec<_> = memories
+        .iter()
+        .map(|m| RecallCandidate {
+            memory: m,
+            source_time: q.at.clone(),
+            rendered_bytes: 100,
+        })
+        .collect();
+    let snapshot = memories[0].request.snapshot.clone();
+    let trace = select_catalog_recall(&p, &q, &snapshot, &q.at, &candidates).unwrap();
+    assert_eq!(trace.selected.len(), q.limit);
+    let reasons: Vec<_> = trace.excluded.iter().map(|(_, r)| *r).collect();
+    let near = 12 - q.limit;
+    assert!(
+        reasons[..near]
+            .iter()
+            .all(|r| *r == RecallExclusionReason::Budget),
+        "{reasons:?}"
+    );
+    assert!(
+        reasons[near..]
+            .iter()
+            .all(|r| *r == RecallExclusionReason::NoCue),
+        "{reasons:?}"
+    );
+    // In rank order: ties fall to the memory ID, as in the selection.
+    let ids: Vec<_> = trace.excluded[..near]
+        .iter()
+        .map(|(m, _)| &m.memory_id)
+        .collect();
+    assert!(ids.windows(2).all(|w| w[0] < w[1]));
+    assert!(trace.selected.last().unwrap().memory.memory_id < *ids[0]);
+}

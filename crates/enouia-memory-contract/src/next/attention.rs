@@ -602,6 +602,7 @@ fn select_with_limit(
     let semantic_stats =
         SemanticStats::of(&similarities.iter().flatten().copied().collect::<Vec<_>>());
     let mut ranked = Vec::new();
+    let mut filtered = Vec::new();
     for (index, candidate) in candidates.iter().enumerate() {
         let memory = candidate.memory;
         let input = &memory.decision.input;
@@ -667,7 +668,7 @@ fn select_with_limit(
             None
         };
         if let Some(reason) = exclude {
-            trace.excluded.push((memory.memory.clone(), reason));
+            filtered.push((memory.memory.clone(), reason));
             continue;
         }
         if lexical > 0 {
@@ -736,6 +737,10 @@ fn select_with_limit(
         trace.rendered_bytes += bytes;
         trace.selected.push(selection);
     }
+    // ADR-MEM-227: the memories that had a cue but did not fit come first,
+    // best first, so a bounded trace shows the near misses before the
+    // memories nothing in the query pointed to.
+    trace.excluded.extend(filtered);
     Ok(trace)
 }
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
