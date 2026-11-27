@@ -1,6 +1,6 @@
 # ADR-MEM-228 — Words alone below a supported result are left out
 
-Date: 2026-11-27. Status: Candidate, awaiting Runtime's real-library
+Date: 2026-11-27. Status: Accepted after Runtime's real-library
 comparison. Extends ADR-MEM-220/221 (semantic recall).
 
 ## Context
@@ -56,3 +56,16 @@ exclusion enums of the read-model and the three Agent read schemas, and to
 vectors, a words-only memory below a words-and-meaning one is left out as
 `unsupported` and a meaning-only memory is kept; with meaning alone, or
 without vectors, the words-only memory stays.
+
+## Runtime's real-library comparison
+
+Runtime reran the same nine questions read-only on 11852b8 against a361404
+(CURRENT unchanged, vectors ready 351/351), at both budgets:
+
+- 64 KB left out exactly the 16 predicted (12 N, 4 P); 16 KB left out two
+  more, both N. No question lost a related memory.
+- Every question only lost memories: the rest kept its order and nothing
+  new came in. Drawing style and first drink went from 8 to 2 at 64 KB,
+  breakfast and photo book from 8 to 6.
+- Tea, sport, university and "what am I learning lately" did not change.
+- Three unrelated memories remain at 64 KB, all scoring above the floor.

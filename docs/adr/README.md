@@ -1393,6 +1393,6 @@ outcome that failed `validate()`.
 
 ### ADR-MEM-228 — Words alone below a supported result are left out
 
-[Decision](228-semantic-support-floor.md) (candidate): when the top results hold a memory matched by words and
+[Decision](228-semantic-support-floor.md): when the top results hold a memory matched by words and
 meaning, a words-only memory scoring below the weakest such one is left out as `unsupported`. On Runtime's real
-library words-and-meaning matches were never unrelated; words-only ones below them mostly were.
+library words-and-meaning matches were never unrelated; words-only ones below them mostly were. Runtime's comparison: 18 left out (14 N, 4 P), no related lost.
