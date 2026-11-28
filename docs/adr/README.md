@@ -1414,3 +1414,8 @@ them with existing Owner actions.
 [Decision](231-connector-skips-study-and-work-chats.md): at Morii's request the write tool tells ChatGPT to submit only
 his everyday chats with Enouia, never chats opened for study or work; what he says about his studies or work inside an
 everyday chat still counts. Tool text and guide only; no classifier, no format change.
+
+### ADR-MEM-232 — Correcting a memory formed from grouped origins
+
+[Decision](232-correct-grouped-origin-memories.md): an Owner correction also clears `support_origin_groups`, which
+named the replaced evidence; before, every correction of a memory with grouped origins was refused. No format change.

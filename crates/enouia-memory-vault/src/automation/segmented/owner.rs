@@ -550,6 +550,8 @@ impl State {
             input.dimensions = Some(m.dimensions.clone());
             input.input_refs = vec![source.reference()];
             input.context_source_refs.clear();
+            // ADR-MEM-232: grouped origins name the replaced evidence.
+            input.support_origin_groups.clear();
             input.evidence = vec![evidence];
             input.record_fields = Some(MemoryRecordFields {
                 title: m.title.clone(),

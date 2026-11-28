@@ -602,6 +602,63 @@ fn identical_text_occurrences_retain_both_origins_in_one_support_group() {
     .unwrap();
     assert!(!init.step().unwrap());
     assert_eq!(init.vault.snapshot().unwrap(), before);
+    // ADR-MEM-232: Morii's correction replaces the grouped evidence with his
+    // own assertion, so the grouped sources can then be deleted.
+    let owner = env.descriptor.created_by.clone();
+    let (target, metadata) = init
+        .vault
+        .read(&env.descriptor.system_actor, Sensitivity::Private, |d| {
+            let i = &d.memories[0].memory.decision.input;
+            let f = i.record_fields.as_ref().unwrap();
+            let mut dimensions = i.dimensions.clone().unwrap();
+            dimensions.change = FormationChange::Correction;
+            let metadata = OwnerCorrectionMetadata {
+                title: f.title.clone(),
+                content_lang: f.content_lang.clone(),
+                sensitivity: i.sensitivity,
+                interpretation: i.interpretation,
+                dimensions,
+                event_time: f.event_time.clone(),
+                valid_time: f.valid_time.clone(),
+                entities: vec![],
+            };
+            (d.memories[0].target.clone(), metadata)
+        })
+        .unwrap();
+    let action = OwnerAction::Correct {
+        target,
+        source_id: enouia_memory_contract::ids::SourceId::from_random([0; 16]),
+        assertion_text: "同文。".into(),
+    };
+    let p = init
+        .vault
+        .plan_owner_action(&owner, action, Sensitivity::Private, Some(metadata))
+        .unwrap();
+    let consent = init
+        .vault
+        .confirm_owner_action(
+            &owner,
+            &p.plan.operation_id,
+            &digest(&p.plan),
+            &p.effects_hash,
+            TrustedSurface::TrustedLocalCli,
+        )
+        .unwrap();
+    init.vault.commit_owner_action(&owner, consent).unwrap();
+    let grouped = init.plans()[0]
+        .sources
+        .iter()
+        .map(|s| s.reference().source_id)
+        .collect();
+    init.vault.delete(&owner, grouped, vec![]).unwrap();
+    init.vault
+        .read(&env.descriptor.system_actor, Sensitivity::Private, |d| {
+            assert_eq!(d.memories.len(), 1);
+            let input = &d.memories[0].memory.decision.input;
+            assert!(input.support_origin_groups.is_empty());
+            assert_eq!(input.content, "同文。");
+        })
+        .unwrap();
 }
 
 #[test]
