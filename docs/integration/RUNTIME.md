@@ -1,5 +1,11 @@
 # Runtime integration (ADR-MEM-45)
 
+2026-11-28 correcting grouped-origin memories ([ADR-MEM-232](../adr/232-correct-grouped-origin-memories.md)):
+an Owner correction now clears `support_origin_groups`; before, correcting a memory the initializer formed from
+grouped quotes was refused (`next.support_origin_groups`). Also logs the 11-27 connector write-tool text
+([ADR-MEM-231](../adr/231-connector-skips-study-and-work-chats.md), remote-only). **Runtime adoption:** bump the pin;
+nothing to change. Surface aggregate: `aceaac45fb0e7d3659177a5bd77b001f0d2dde5ad27ef4d9864b1de255848434`.
+
 2026-11-27 connector tool wording follows the index ([ADR-MEM-229](../adr/229-connector-semantic-index.md)):
 `ConnectorSession::with_semantic()`; with a `semantic` block ChatGPT's `memory_recall` and `memory_related`
 descriptions say they also match meaning. Remote-only. **Runtime adoption:** bump the pin; nothing to change.
